@@ -1,0 +1,202 @@
+{
+  "name": "privacy-pools-cli-json-contract",
+  "version": "1.0.0",
+  "schemaVersion": "1.0.0",
+  "description": "Stable machine-readable output contract for privacy-pools CLI.",
+  "envelope": {
+    "successBase": {
+      "schemaVersion": "semver-string",
+      "success": true
+    },
+    "errorBase": {
+      "schemaVersion": "semver-string",
+      "success": false,
+      "error": {
+        "code": "string",
+        "category": "INPUT|RPC|ASP|RELAYER|PROOF|CONTRACT|UNKNOWN",
+        "message": "string",
+        "hint": "string?",
+        "retryable": "boolean?"
+      }
+    }
+  },
+  "exitCodes": {
+    "0": "SUCCESS",
+    "1": "UNKNOWN_ERROR",
+    "2": "INPUT_ERROR",
+    "3": "RPC_ERROR",
+    "4": "ASP_ERROR",
+    "5": "RELAYER_ERROR",
+    "6": "PROOF_ERROR",
+    "7": "CONTRACT_ERROR"
+  },
+  "shared": {
+    "unsignedTransaction": {
+      "chainId": "number",
+      "from": "0x-prefixed-address|null",
+      "to": "0x-prefixed-address",
+      "value": "decimal-string-wei",
+      "data": "0x-prefixed-hex-calldata",
+      "description": "string"
+    }
+  },
+  "commands": {
+    "init": {
+      "successFields": {
+        "defaultChain": "string",
+        "mnemonicPath": "string",
+        "signerKeyPath": "string",
+        "signerAddress": "0x-prefixed-address"
+      }
+    },
+    "status": {
+      "successFields": {
+        "configExists": "boolean",
+        "defaultChain": "string|null",
+        "rpcUrl": "string|null",
+        "mnemonicSet": "boolean",
+        "signerKeySet": "boolean",
+        "signerKeyValid": "boolean",
+        "signerAddress": "0x-prefixed-address|null",
+        "aspReachable": "boolean",
+        "relayerReachable": "boolean"
+      }
+    },
+    "pools": {
+      "successFields": {
+        "chain": "string",
+        "pools": "Pool[]"
+      }
+    },
+    "deposit": {
+      "successFields": {
+        "txHash": "0x-prefixed-hash",
+        "amount": "decimal-string-wei",
+        "committedValue": "decimal-string-wei|undefined",
+        "asset": "string",
+        "chain": "string"
+      },
+      "variants": {
+        "unsigned": {
+          "mode": "unsigned",
+          "operation": "deposit",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "precommitment": "decimal-string",
+          "transactions": "UnsignedTransaction[]"
+        }
+      }
+    },
+    "withdraw": {
+      "successFields": {
+        "mode": "direct|relayed",
+        "txHash": "0x-prefixed-hash",
+        "amount": "decimal-string-wei",
+        "asset": "string",
+        "chain": "string"
+      },
+      "variants": {
+        "unsignedDirect": {
+          "mode": "unsigned",
+          "operation": "withdraw",
+          "withdrawMode": "direct",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "recipient": "0x-prefixed-address",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "transaction": "UnsignedTransaction"
+        },
+        "unsignedRelayed": {
+          "mode": "unsigned",
+          "operation": "withdraw",
+          "withdrawMode": "relayed",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "recipient": "0x-prefixed-address",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "feeBPS": "string",
+          "quoteExpiresAt": "iso8601-string",
+          "transaction": "UnsignedTransaction",
+          "relayerRequest": "object"
+        },
+        "dryRun": {
+          "mode": "direct|relayed",
+          "dryRun": true,
+          "amount": "decimal-string-wei",
+          "asset": "string",
+          "chain": "string",
+          "recipient": "0x-prefixed-address",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "proofPublicSignals": "number"
+        }
+      },
+      "subcommands": {
+        "quote": {
+          "mode": "relayed-quote",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "recipient": "0x-prefixed-address|null",
+          "minWithdrawAmount": "decimal-string-wei",
+          "maxRelayFeeBPS": "string",
+          "quoteFeeBPS": "string",
+          "feeCommitmentPresent": "boolean",
+          "quoteExpiresAt": "iso8601-string|null"
+        }
+      }
+    },
+    "ragequit": {
+      "successFields": {
+        "txHash": "0x-prefixed-hash",
+        "amount": "decimal-string-wei",
+        "asset": "string",
+        "chain": "string"
+      },
+      "variants": {
+        "unsigned": {
+          "mode": "unsigned",
+          "operation": "ragequit",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "transaction": "UnsignedTransaction"
+        }
+      }
+    },
+    "balance": {
+      "successFields": {
+        "chain": "string",
+        "balances": "Balance[]"
+      }
+    },
+    "accounts": {
+      "successFields": {
+        "chain": "string",
+        "accounts": "Account[]"
+      }
+    },
+    "sync": {
+      "successFields": {
+        "chain": "string",
+        "syncedPools": "number",
+        "spendableCommitments": "number"
+      }
+    }
+  },
+  "unsignedCalldataABIs": {
+    "depositNative": "function deposit(uint256 _precommitment) payable",
+    "depositErc20": "function deposit(address _asset, uint256 _value, uint256 _precommitment)",
+    "approveErc20": "function approve(address spender, uint256 amount)",
+    "withdrawDirect": "function withdraw((address processooor, bytes data) _withdrawal, (uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[8] pubSignals) _proof)",
+    "withdrawRelayed": "function relay((address processooor, bytes data) _withdrawal, (uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[8] pubSignals) _proof, uint256 _scope)",
+    "ragequit": "function ragequit((uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[4] pubSignals) _proof)"
+  }
+}

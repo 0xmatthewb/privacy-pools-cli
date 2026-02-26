@@ -1,0 +1,53 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import { EXIT_CODES } from "../../src/utils/errors.ts";
+
+const CONTRACT_DOC_PATH =
+  "/workspace/privacy-pools-cli/docs/contracts/cli-json-contract.v1.0.0.json";
+
+interface ContractDoc {
+  version: string;
+  schemaVersion: string;
+  exitCodes: Record<string, string>;
+  commands: Record<string, unknown>;
+  unsignedCalldataABIs: Record<string, string>;
+}
+
+describe("external JSON contract doc conformance", () => {
+  test("doc version is explicit and aligned with runtime schema version", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    expect(doc.version).toBe("1.0.0");
+    expect(doc.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+  });
+
+  test("doc includes the full exit code map used by runtime", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    expect(doc.exitCodes).toEqual({
+      "0": "SUCCESS",
+      [String(EXIT_CODES.UNKNOWN)]: "UNKNOWN_ERROR",
+      [String(EXIT_CODES.INPUT)]: "INPUT_ERROR",
+      [String(EXIT_CODES.RPC)]: "RPC_ERROR",
+      [String(EXIT_CODES.ASP)]: "ASP_ERROR",
+      [String(EXIT_CODES.RELAYER)]: "RELAYER_ERROR",
+      [String(EXIT_CODES.PROOF)]: "PROOF_ERROR",
+      [String(EXIT_CODES.CONTRACT)]: "CONTRACT_ERROR",
+    });
+  });
+
+  test("doc includes unsigned output variants and ABI signatures", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+
+    expect("deposit" in doc.commands).toBe(true);
+    expect("withdraw" in doc.commands).toBe(true);
+    expect("ragequit" in doc.commands).toBe(true);
+
+    expect(doc.unsignedCalldataABIs.depositNative).toContain("function deposit(uint256 _precommitment)");
+    expect(doc.unsignedCalldataABIs.depositErc20).toContain("function deposit(address _asset");
+    expect(doc.unsignedCalldataABIs.approveErc20).toContain("function approve(address spender");
+    expect(doc.unsignedCalldataABIs.withdrawDirect).toContain("function withdraw(");
+    expect(doc.unsignedCalldataABIs.withdrawRelayed).toContain("function relay(");
+    expect(doc.unsignedCalldataABIs.ragequit).toContain("function ragequit(");
+  });
+});
+
