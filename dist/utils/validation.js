@@ -1,6 +1,19 @@
 import { isAddress, parseUnits } from "viem";
 import { CHAINS, CHAIN_NAMES } from "../config/chains.js";
 import { CLIError } from "./errors.js";
+function normalizedChainEnvSuffix(chainName) {
+    return chainName.replace(/[^a-z0-9]/gi, "_").toUpperCase();
+}
+function resolveChainHostOverride(type, chainName) {
+    const chainSuffix = normalizedChainEnvSuffix(chainName);
+    const chainScoped = process.env[`PRIVACY_POOLS_${type}_${chainSuffix}`]?.trim() ||
+        process.env[`PP_${type}_${chainSuffix}`]?.trim();
+    if (chainScoped)
+        return chainScoped;
+    const global = process.env[`PRIVACY_POOLS_${type}`]?.trim() ||
+        process.env[`PP_${type}`]?.trim();
+    return global || undefined;
+}
 export function resolveChain(chainName, defaultChain) {
     const name = chainName ?? defaultChain;
     if (!name) {
@@ -11,7 +24,16 @@ export function resolveChain(chainName, defaultChain) {
     if (!config) {
         throw new CLIError(`Unknown chain: ${name}`, "INPUT", `Available chains: ${CHAIN_NAMES.join(", ")}`);
     }
-    return config;
+    const aspHostOverride = resolveChainHostOverride("ASP_HOST", normalized);
+    const relayerHostOverride = resolveChainHostOverride("RELAYER_HOST", normalized);
+    if (!aspHostOverride && !relayerHostOverride) {
+        return config;
+    }
+    return {
+        ...config,
+        aspHost: aspHostOverride ?? config.aspHost,
+        relayerHost: relayerHostOverride ?? config.relayerHost,
+    };
 }
 export function validateAddress(value, label = "Address") {
     if (!isAddress(value)) {

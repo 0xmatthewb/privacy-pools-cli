@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, chmodSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import { CLIError } from "../utils/errors.js";
@@ -52,7 +52,10 @@ export function configExists() {
 export function mnemonicExists() {
     return existsSync(getMnemonicFilePath());
 }
+let _cachedConfig = null;
 export function loadConfig() {
+    if (_cachedConfig)
+        return _cachedConfig;
     const configFile = getConfigFilePath();
     if (!existsSync(configFile)) {
         return { defaultChain: "ethereum", rpcOverrides: {} };
@@ -90,19 +93,26 @@ export function loadConfig() {
     else if (rpcOverridesRaw !== undefined) {
         throw new CLIError("Config rpcOverrides must be an object.", "INPUT", `Fix or remove ${configFile}, then run 'privacy-pools init'.`);
     }
-    return {
-        defaultChain,
-        rpcOverrides,
-    };
+    _cachedConfig = { defaultChain, rpcOverrides };
+    return _cachedConfig;
 }
 export function saveConfig(config) {
+    _cachedConfig = null; // Invalidate cache on write
     ensureConfigDir();
-    writeFileSync(getConfigFilePath(), JSON.stringify(config, null, 2), "utf-8");
+    const path = getConfigFilePath();
+    const tmpPath = path + ".tmp";
+    writeFileSync(tmpPath, JSON.stringify(config, null, 2), {
+        encoding: "utf-8",
+        mode: 0o600,
+    });
+    renameSync(tmpPath, path);
 }
-function writePrivateFile(path, content) {
-    writeFileSync(path, content, { encoding: "utf-8", mode: 0o600 });
+function writePrivateFile(filePath, content) {
+    const tmpPath = filePath + ".tmp";
+    writeFileSync(tmpPath, content, { encoding: "utf-8", mode: 0o600 });
+    renameSync(tmpPath, filePath);
     try {
-        chmodSync(path, 0o600);
+        chmodSync(filePath, 0o600);
     }
     catch {
         // Best effort. Some filesystems may not support chmod.

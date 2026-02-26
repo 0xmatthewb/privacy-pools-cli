@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, chmodSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import type { CLIConfig } from "../types.js";
@@ -62,7 +62,11 @@ export function mnemonicExists(): boolean {
   return existsSync(getMnemonicFilePath());
 }
 
+let _cachedConfig: CLIConfig | null = null;
+
 export function loadConfig(): CLIConfig {
+  if (_cachedConfig) return _cachedConfig;
+
   const configFile = getConfigFilePath();
   if (!existsSync(configFile)) {
     return { defaultChain: "ethereum", rpcOverrides: {} };
@@ -132,21 +136,28 @@ export function loadConfig(): CLIConfig {
     );
   }
 
-  return {
-    defaultChain,
-    rpcOverrides,
-  };
+  _cachedConfig = { defaultChain, rpcOverrides };
+  return _cachedConfig;
 }
 
 export function saveConfig(config: CLIConfig): void {
+  _cachedConfig = null; // Invalidate cache on write
   ensureConfigDir();
-  writeFileSync(getConfigFilePath(), JSON.stringify(config, null, 2), "utf-8");
+  const path = getConfigFilePath();
+  const tmpPath = path + ".tmp";
+  writeFileSync(tmpPath, JSON.stringify(config, null, 2), {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
+  renameSync(tmpPath, path);
 }
 
-function writePrivateFile(path: string, content: string): void {
-  writeFileSync(path, content, { encoding: "utf-8", mode: 0o600 });
+function writePrivateFile(filePath: string, content: string): void {
+  const tmpPath = filePath + ".tmp";
+  writeFileSync(tmpPath, content, { encoding: "utf-8", mode: 0o600 });
+  renameSync(tmpPath, filePath);
   try {
-    chmodSync(path, 0o600);
+    chmodSync(filePath, 0o600);
   } catch {
     // Best effort. Some filesystems may not support chmod.
   }

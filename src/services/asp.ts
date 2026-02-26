@@ -71,9 +71,17 @@ export async function fetchMerkleLeaves(
   return res.json();
 }
 
+export interface PoolStatsEntry {
+  scope: string;
+  tokenAddress?: string;
+  assetAddress?: string;
+  tokenSymbol?: string;
+  [key: string]: unknown;
+}
+
 export async function fetchPoolsStats(
   chainConfig: ChainConfig
-): Promise<any[]> {
+): Promise<PoolStatsEntry[] | { pools?: PoolStatsEntry[] }> {
   const res = await aspFetch(chainConfig, "/public/pools-stats");
   return res.json();
 }
@@ -85,8 +93,8 @@ export async function checkLiveness(chainConfig: ChainConfig): Promise<boolean> 
       { signal: AbortSignal.timeout(10_000) }
     );
     if (!res.ok) return false;
-    const { status } = await res.json();
-    return status === "ok";
+    const data = (await res.json()) as { status?: string };
+    return data.status === "ok";
   } catch {
     return false;
   }

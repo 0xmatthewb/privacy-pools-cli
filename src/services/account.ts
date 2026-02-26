@@ -1,9 +1,8 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, renameSync } from "fs";
 import { join } from "path";
 import { AccountService, DataService, type PoolInfo } from "@0xbow/privacy-pools-core-sdk";
 import type { Address } from "viem";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
-import type { ChainConfig } from "../types.js";
 import { CLIError } from "../utils/errors.js";
 
 // BigInt + Map aware JSON serializer
@@ -51,7 +50,9 @@ export function loadAccount(chainId: number): any | null {
 export function saveAccount(chainId: number, account: any): void {
   ensureConfigDir();
   const path = getAccountFilePath(chainId);
-  writeFileSync(path, serialize(account), { encoding: "utf-8", mode: 0o600 });
+  const tmpPath = path + ".tmp";
+  writeFileSync(tmpPath, serialize(account), { encoding: "utf-8", mode: 0o600 });
+  renameSync(tmpPath, path);
 }
 
 /**
@@ -66,33 +67,20 @@ export function toPoolInfo(pool: {
   return pool as unknown as PoolInfo;
 }
 
-export async function syncAccount(
-  chainConfig: ChainConfig,
-  accountService: AccountService,
-  pools: Array<{ address: Address; scope: bigint; deploymentBlock: bigint }>
-): Promise<void> {
-  for (const pool of pools) {
-    const poolInfo = toPoolInfo({
-      chainId: chainConfig.id,
-      address: pool.address,
-      scope: pool.scope,
-      deploymentBlock: pool.deploymentBlock,
-    });
-
-    try {
-      await accountService.getDepositEvents(poolInfo);
-      await accountService.getWithdrawalEvents(poolInfo);
-      await accountService.getRagequitEvents(poolInfo);
-    } catch (err) {
-      // Log to stderr so callers are aware sync failed for this pool
-      process.stderr.write(
-        `Warning: sync failed for pool ${pool.address}: ${err instanceof Error ? err.message : String(err)}\n`
-      );
-    }
+/**
+ * The SDK emits info logs with console.log in some account paths.
+ * Suppress stdout temporarily so machine-mode JSON contracts remain parseable.
+ */
+export async function withSuppressedSdkStdout<T>(
+  fn: () => Promise<T>
+): Promise<T> {
+  const originalLog = console.log;
+  console.log = () => {};
+  try {
+    return await fn();
+  } finally {
+    console.log = originalLog;
   }
-
-  // Persist updated state
-  saveAccount(chainConfig.id, accountService.account);
 }
 
 export async function initializeAccountService(
@@ -116,7 +104,9 @@ export async function initializeAccountService(
   const savedAccount = loadAccount(chainId);
 
   if (savedAccount) {
-    const service = new AccountService(dataService, { account: savedAccount });
+    const service = await withSuppressedSdkStdout(
+      async () => new AccountService(dataService, { account: savedAccount })
+    );
 
     // Sync to pick up any events that happened since last save
     if (forceSync && pools.length > 0) {
@@ -124,9 +114,11 @@ export async function initializeAccountService(
       for (const pool of pools) {
         const poolInfo = toPoolInfo(pool);
         try {
-          await service.getDepositEvents(poolInfo);
-          await service.getWithdrawalEvents(poolInfo);
-          await service.getRagequitEvents(poolInfo);
+          await withSuppressedSdkStdout(async () => {
+            await service.getDepositEvents(poolInfo);
+            await service.getWithdrawalEvents(poolInfo);
+            await service.getRagequitEvents(poolInfo);
+          });
         } catch (err) {
           syncFailures++;
           if (!suppressWarnings) {
@@ -150,16 +142,20 @@ export async function initializeAccountService(
   }
 
   // Fresh initialization
-  const accountService = new AccountService(dataService, { mnemonic });
+  const accountService = await withSuppressedSdkStdout(
+    async () => new AccountService(dataService, { mnemonic })
+  );
 
   // Initialize with events if pools are provided
   if (pools.length > 0) {
     try {
       const poolInfos = pools.map(toPoolInfo);
-      const result = await AccountService.initializeWithEvents(
-        dataService,
-        { mnemonic },
-        poolInfos
+      const result = await withSuppressedSdkStdout(
+        async () => AccountService.initializeWithEvents(
+          dataService,
+          { mnemonic },
+          poolInfos
+        )
       );
 
       const initErrors = result.errors ?? [];

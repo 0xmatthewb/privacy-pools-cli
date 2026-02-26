@@ -22,6 +22,7 @@ import { buildUnsignedDirectWithdrawOutput, buildUnsignedRelayedWithdrawOutput, 
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 const entrypointLatestRootAbi = [
     {
         name: "latestRoot",
@@ -71,7 +72,7 @@ export function createWithdrawCommand() {
         const unsignedFormat = opts.unsignedFormat?.toLowerCase();
         const wantsTxFormat = unsignedFormat === "tx";
         const isDryRun = opts.dryRun ?? false;
-        const silent = isQuiet || isJson || isUnsigned;
+        const silent = isQuiet || isJson || isUnsigned || isDryRun;
         const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
         const isVerbose = globalOpts?.verbose ?? false;
         const isDirect = opts.direct ?? false;
@@ -79,8 +80,8 @@ export function createWithdrawCommand() {
             if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
                 throw new CLIError(`Unsupported unsigned format: ${opts.unsignedFormat}.`, "INPUT", "Use --unsigned-format envelope or --unsigned-format tx.");
             }
-            if (wantsTxFormat && !isUnsigned) {
-                throw new CLIError("--unsigned-format tx requires --unsigned.", "INPUT", "Use: privacy-pools withdraw ... --unsigned --unsigned-format tx");
+            if (unsignedFormat && !isUnsigned) {
+                throw new CLIError("--unsigned-format requires --unsigned.", "INPUT", "Use: privacy-pools withdraw ... --unsigned --unsigned-format " + (unsignedFormat || "envelope"));
             }
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
@@ -93,14 +94,7 @@ export function createWithdrawCommand() {
                 const privateKey = loadPrivateKey();
                 signerAddress = privateKeyToAccount(privateKey).address;
             }
-            else {
-                try {
-                    signerAddress = privateKeyToAccount(loadPrivateKey()).address;
-                }
-                catch {
-                    signerAddress = null;
-                }
-            }
+            // In unsigned/dry-run modes, do NOT touch the key file at all — the signer is optional
             verbose(`Signer: ${signerAddress ?? "(unsigned mode)"}`, isVerbose, silent);
             // Validate --to / --direct constraints
             if (!isDirect && !opts.to) {
@@ -317,23 +311,42 @@ export function createWithdrawCommand() {
                 const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
                 const tx = await contracts.withdraw(withdrawal, proof, pool.scope);
                 spin.text = "Waiting for confirmation...";
-                await tx.wait();
-                // Get receipt and verify it didn't revert
-                const receipt = await publicClient.getTransactionReceipt({
-                    hash: tx.hash,
-                });
+                let receipt;
+                try {
+                    receipt = await publicClient.waitForTransactionReceipt({
+                        hash: tx.hash,
+                        timeout: 300_000,
+                    });
+                }
+                catch {
+                    throw new CLIError("Timed out waiting for withdrawal confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to recover.`);
+                }
                 if (receipt.status !== "success") {
                     throw new CLIError(`Withdrawal transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
                 }
-                // Record the withdrawal in account state
-                accountService.addWithdrawalCommitment(commitment, commitment.value - withdrawalAmount, newNullifier, newSecret, receipt.blockNumber, tx.hash);
-                saveAccount(chainConfig.id, accountService.account);
+                guardCriticalSection();
+                try {
+                    // Record the withdrawal in account state
+                    try {
+                        accountService.addWithdrawalCommitment(commitment, commitment.value - withdrawalAmount, newNullifier, newSecret, receipt.blockNumber, tx.hash);
+                        saveAccount(chainConfig.id, accountService.account);
+                    }
+                    catch (saveErr) {
+                        process.stderr.write(`\nWarning: withdrawal confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
+                        process.stderr.write("⚠ Run 'privacy-pools sync' to recover your account state.\n");
+                    }
+                }
+                finally {
+                    releaseCriticalSection();
+                }
                 spin.succeed("Direct withdrawal confirmed!");
                 if (isJson) {
                     printJsonSuccess({
+                        operation: "withdraw",
                         mode: "direct",
                         txHash: tx.hash,
                         amount: withdrawalAmount.toString(),
+                        recipient: recipientAddress,
                         asset: pool.symbol,
                         chain: chainConfig.name,
                     }, false);
@@ -364,8 +377,15 @@ export function createWithdrawCommand() {
                 if (!quote.feeCommitment) {
                     throw new CLIError("Relayer did not return a fee commitment.", "RELAYER", "The relayer may not support this asset/chain combination.");
                 }
+                let quoteFeeBPS;
+                try {
+                    quoteFeeBPS = BigInt(quote.feeBPS);
+                }
+                catch {
+                    throw new CLIError("Relayer returned malformed feeBPS (expected integer string).", "RELAYER", "Request a fresh quote and retry.");
+                }
                 // Validate fee
-                if (BigInt(quote.feeBPS) > pool.maxRelayFeeBPS) {
+                if (quoteFeeBPS > pool.maxRelayFeeBPS) {
                     throw new CLIError(`Quoted fee ${quote.feeBPS} BPS exceeds on-chain max ${pool.maxRelayFeeBPS} BPS.`, "RELAYER");
                 }
                 // Build relay withdrawal object
@@ -376,7 +396,7 @@ export function createWithdrawCommand() {
                 ], [
                     recipientAddress,
                     details.feeReceiverAddress,
-                    BigInt(quote.feeBPS),
+                    quoteFeeBPS,
                 ]);
                 const withdrawal = {
                     processooor: chainConfig.entrypoint,
@@ -507,18 +527,38 @@ export function createWithdrawCommand() {
                 });
                 // Wait for on-chain confirmation before updating state
                 spin.text = "Waiting for relay transaction confirmation...";
-                const receipt = await publicClient.waitForTransactionReceipt({
-                    hash: result.txHash,
-                });
+                let receipt;
+                try {
+                    receipt = await publicClient.waitForTransactionReceipt({
+                        hash: result.txHash,
+                        timeout: 300_000,
+                    });
+                }
+                catch {
+                    throw new CLIError("Timed out waiting for relayed withdrawal confirmation.", "RPC", "The relayer may have replaced or delayed the transaction. Check the relayer/explorer and run 'privacy-pools sync' to recover local state.");
+                }
                 if (receipt.status !== "success") {
                     throw new CLIError(`Relay transaction reverted: ${result.txHash}`, "CONTRACT");
                 }
-                // Record the withdrawal in account state
-                accountService.addWithdrawalCommitment(commitment, commitment.value - withdrawalAmount, newNullifier, newSecret, receipt.blockNumber, result.txHash);
-                saveAccount(chainConfig.id, accountService.account);
+                guardCriticalSection();
+                try {
+                    // Record the withdrawal in account state
+                    try {
+                        accountService.addWithdrawalCommitment(commitment, commitment.value - withdrawalAmount, newNullifier, newSecret, receipt.blockNumber, result.txHash);
+                        saveAccount(chainConfig.id, accountService.account);
+                    }
+                    catch (saveErr) {
+                        process.stderr.write(`\nWarning: relayed withdrawal confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
+                        process.stderr.write("⚠ Run 'privacy-pools sync' to recover your account state.\n");
+                    }
+                }
+                finally {
+                    releaseCriticalSection();
+                }
                 spin.succeed("Relayed withdrawal confirmed!");
                 if (isJson) {
                     printJsonSuccess({
+                        operation: "withdraw",
                         mode: "relayed",
                         txHash: result.txHash,
                         amount: withdrawalAmount.toString(),

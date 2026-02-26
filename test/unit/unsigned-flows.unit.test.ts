@@ -110,11 +110,12 @@ describe("unsigned payload contract + ABI decodability", () => {
 
     expect(payload.mode).toBe("unsigned");
     expect(payload.withdrawMode).toBe("direct");
-    expect(payload.transaction.to).toBe("0x644d5A2554d36e27509254F32ccfeBe8cd58861f");
+    expect(payload.transactions).toHaveLength(1);
+    expect(payload.transactions[0].to).toBe("0x644d5A2554d36e27509254F32ccfeBe8cd58861f");
 
     const decoded = decodeFunctionData({
       abi: privacyPoolWithdrawAbi,
-      data: payload.transaction.data,
+      data: payload.transactions[0].data,
     });
     expect(decoded.functionName).toBe("withdraw");
     expect((decoded.args?.[0] as { processooor: string }).processooor).toBe(
@@ -158,7 +159,7 @@ describe("unsigned payload contract + ABI decodability", () => {
 
     const decoded = decodeFunctionData({
       abi: entrypointRelayAbi,
-      data: payload.transaction.data,
+      data: payload.transactions[0].data,
     });
     expect(decoded.functionName).toBe("relay");
     expect(decoded.args?.[2]).toBe(scope);
@@ -188,7 +189,7 @@ describe("unsigned payload contract + ABI decodability", () => {
 
     const decoded = decodeFunctionData({
       abi: privacyPoolRagequitAbi,
-      data: payload.transaction.data,
+      data: payload.transactions[0].data,
     });
     expect(decoded.functionName).toBe("ragequit");
     expect((decoded.args?.[0] as { pubSignals: bigint[] }).pubSignals.length).toBe(4);

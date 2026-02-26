@@ -3,7 +3,12 @@ import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
-import { initializeAccountService, saveAccount, toPoolInfo } from "../services/account.js";
+import {
+  initializeAccountService,
+  saveAccount,
+  toPoolInfo,
+  withSuppressedSdkStdout,
+} from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import {
   printTable,
@@ -92,9 +97,11 @@ export function createAccountsCommand(): Command {
           for (const poolInfo of poolInfos) {
             const pi = toPoolInfo(poolInfo);
             try {
-              await accountService.getDepositEvents(pi);
-              await accountService.getWithdrawalEvents(pi);
-              await accountService.getRagequitEvents(pi);
+              await withSuppressedSdkStdout(async () => {
+                await accountService.getDepositEvents(pi);
+                await accountService.getWithdrawalEvents(pi);
+                await accountService.getRagequitEvents(pi);
+              });
             } catch (err) {
               syncFailures++;
               warn(`Sync failed for pool ${poolInfo.address}: ${err instanceof Error ? err.message : String(err)}`, silent);

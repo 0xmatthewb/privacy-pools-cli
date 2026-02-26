@@ -83,27 +83,27 @@ describe("format utils matrix", () => {
     expect(formatTxHash(hash)).toBe("0x12345678...90abcdef");
   });
 
-  test("printTable json mode emits JSON array keyed by headers", () => {
+  test("printTable renders table to stderr", () => {
     const logs: string[] = [];
-    console.log = (...args: unknown[]) => {
-      logs.push(args.map((a) => String(a)).join(" "));
-    };
+    process.stderr.write = ((chunk: unknown) => {
+      logs.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
 
     printTable(
       ["Asset", "Balance"],
       [
         ["ETH", "1"],
         ["USDC", "10"],
-      ],
-      { json: true }
+      ]
     );
 
-    expect(logs.length).toBe(1);
-    const parsed = JSON.parse(logs[0]) as Array<Record<string, string>>;
-    expect(parsed).toEqual([
-      { Asset: "ETH", Balance: "1" },
-      { Asset: "USDC", Balance: "10" },
-    ]);
+    expect(logs.length).toBeGreaterThan(0);
+    const output = logs.join("");
+    expect(output).toContain("Asset");
+    expect(output).toContain("Balance");
+    expect(output).toContain("ETH");
+    expect(output).toContain("USDC");
   });
 
   test("success/warn/info/verbose formatting emits expected markers", () => {

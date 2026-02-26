@@ -21,7 +21,7 @@ interface ContractDoc {
 describe("external JSON contract doc conformance", () => {
   test("doc version is explicit and aligned with runtime schema version", () => {
     const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
-    expect(doc.version).toBe("1.2.0");
+    expect(doc.version).toBe("1.3.0");
     expect(doc.schemaVersion).toBe(JSON_SCHEMA_VERSION);
   });
 
@@ -64,7 +64,8 @@ describe("external JSON contract doc conformance", () => {
     const init = commands.init as { successFields?: Record<string, string> };
     expect(init.successFields?.defaultChain).toBe("string");
     expect(init.successFields?.signerKeySet).toBe("boolean");
-    expect(init.successFields?.mnemonic).toContain("string?");
+    expect(init.successFields?.mnemonicRedacted).toContain("boolean?");
+    expect(init.successFields?.mnemonic).toContain("--show-mnemonic");
 
     const status = commands.status as { successFields?: Record<string, string> };
     expect(status.successFields?.selectedChain).toBe("string|null");

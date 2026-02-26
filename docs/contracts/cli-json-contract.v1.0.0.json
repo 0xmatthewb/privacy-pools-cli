@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "1.2.0",
-  "schemaVersion": "1.2.0",
+  "version": "1.3.0",
+  "schemaVersion": "1.3.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {
@@ -38,7 +38,8 @@
       "data": "0x-prefixed-hex-calldata",
       "value": "decimal-string-wei",
       "valueHex": "0x-prefixed-hex-quantity-wei",
-      "chainId": "number"
+      "chainId": "number",
+      "description": "string"
     },
     "unsignedTransaction": {
       "chainId": "number",
@@ -54,7 +55,8 @@
       "successFields": {
         "defaultChain": "string",
         "signerKeySet": "boolean",
-        "mnemonic": "string? (present when newly generated, omitted when --mnemonic is provided)"
+        "mnemonicRedacted": "boolean? (true when a new mnemonic was generated but not printed)",
+        "mnemonic": "string? (present only when newly generated and --show-mnemonic is provided)"
       }
     },
     "status": {
@@ -79,9 +81,10 @@
     },
     "deposit": {
       "successFields": {
+        "operation": "string",
         "txHash": "0x-prefixed-hash",
         "amount": "decimal-string-wei",
-        "committedValue": "decimal-string-wei|undefined",
+        "committedValue": "decimal-string-wei|null",
         "asset": "string",
         "chain": "string"
       },
@@ -96,15 +99,17 @@
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction|RawUnsignedTransaction[]"
+          "--unsigned-format tx": "RawUnsignedTransaction[]"
         }
       }
     },
     "withdraw": {
       "successFields": {
+        "operation": "string",
         "mode": "direct|relayed",
         "txHash": "0x-prefixed-hash",
         "amount": "decimal-string-wei",
+        "recipient": "0x-prefixed-address",
         "asset": "string",
         "chain": "string"
       },
@@ -119,7 +124,6 @@
           "recipient": "0x-prefixed-address",
           "selectedCommitmentLabel": "decimal-string",
           "selectedCommitmentValue": "decimal-string-wei",
-          "transaction": "UnsignedTransaction",
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedRelayed": {
@@ -134,12 +138,11 @@
           "selectedCommitmentValue": "decimal-string-wei",
           "feeBPS": "string",
           "quoteExpiresAt": "iso8601-string",
-          "transaction": "UnsignedTransaction",
           "transactions": "UnsignedTransaction[]",
           "relayerRequest": "object"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction|RawUnsignedTransaction[]"
+          "--unsigned-format tx": "RawUnsignedTransaction[]"
         },
         "dryRun": {
           "mode": "direct|relayed",
@@ -170,6 +173,7 @@
     },
     "ragequit": {
       "successFields": {
+        "operation": "string",
         "txHash": "0x-prefixed-hash",
         "amount": "decimal-string-wei",
         "asset": "string",
@@ -184,11 +188,10 @@
           "amount": "decimal-string-wei",
           "selectedCommitmentLabel": "decimal-string",
           "selectedCommitmentValue": "decimal-string-wei",
-          "transaction": "UnsignedTransaction",
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction|RawUnsignedTransaction[]"
+          "--unsigned-format tx": "RawUnsignedTransaction[]"
         }
       }
     },

@@ -1,7 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { configExists, loadConfig, mnemonicExists, getRpcUrl, getConfigDir, } from "../services/config.js";
-import { loadSignerKey } from "../services/config.js";
+import { configExists, loadConfig, mnemonicExists, getRpcUrl, getConfigDir, loadSignerKey, } from "../services/config.js";
 import { CHAINS } from "../config/chains.js";
 import { checkLiveness } from "../services/asp.js";
 import { getPublicClient } from "../services/sdk.js";

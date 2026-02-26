@@ -34,6 +34,21 @@ function isRpcLikeError(error: unknown): boolean {
   );
 }
 
+function resolvePoolAssetAddress(entry: Record<string, unknown>): Address | null {
+  const assetAddress =
+    typeof entry.assetAddress === "string"
+      ? entry.assetAddress
+      : typeof entry.tokenAddress === "string"
+        ? entry.tokenAddress
+        : null;
+
+  if (!assetAddress || !/^0x[0-9a-fA-F]{40}$/.test(assetAddress)) {
+    return null;
+  }
+
+  return assetAddress as Address;
+}
+
 export async function resolveTokenMetadata(
   publicClient: PublicClient,
   assetAddress: Address
@@ -147,9 +162,14 @@ export async function listPools(
   if (statsEntries.length > 0) {
     let rpcReadFailures = 0;
 
-    for (const entry of statsEntries as any[]) {
+    for (const entry of statsEntries) {
       try {
-        const assetAddress = entry.assetAddress as Address;
+        const assetAddress = resolvePoolAssetAddress(
+          entry as Record<string, unknown>
+        );
+        if (!assetAddress) {
+          continue;
+        }
         const assetConfig = await getAssetConfigReadOnly(
           publicClient,
           chainConfig.entrypoint,

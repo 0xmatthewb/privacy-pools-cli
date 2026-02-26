@@ -27,10 +27,11 @@ import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
 import { buildUnsignedDepositOutput } from "../utils/unsigned-flows.js";
-import { checkNativeBalance, checkErc20Balance } from "../utils/preflight.js";
+import { checkNativeBalance, checkErc20Balance, checkHasGas } from "../utils/preflight.js";
 import { printRawTransactions } from "../utils/unsigned.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 
 const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -67,7 +68,7 @@ export function createDepositCommand(): Command {
       const unsignedFormat = (opts.unsignedFormat as string | undefined)?.toLowerCase();
       const wantsTxFormat = unsignedFormat === "tx";
       const isDryRun = opts.dryRun ?? false;
-      const silent = isQuiet || isJson || isUnsigned;
+      const silent = isQuiet || isJson || isUnsigned || isDryRun;
       const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
       const isVerbose = globalOpts?.verbose ?? false;
 
@@ -80,11 +81,11 @@ export function createDepositCommand(): Command {
           );
         }
 
-        if (wantsTxFormat && !isUnsigned) {
+        if (unsignedFormat && !isUnsigned) {
           throw new CLIError(
-            "--unsigned-format tx requires --unsigned.",
+            "--unsigned-format requires --unsigned.",
             "INPUT",
-            "Use: privacy-pools deposit ... --unsigned --unsigned-format tx"
+            "Use: privacy-pools deposit ... --unsigned --unsigned-format " + (unsignedFormat || "envelope")
           );
         }
 
@@ -186,14 +187,31 @@ export function createDepositCommand(): Command {
         const secrets =
           accountService.createDepositSecrets(pool.scope as unknown as SDKHash);
         const precommitment = secrets.precommitment;
-        verbose(`Generated precommitment: ${precommitment.toString()}`, isVerbose, silent);
+        verbose(`Generated precommitment (truncated): ${precommitment.toString().slice(0, 8)}...`, isVerbose, silent);
 
         const isNative =
           pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
 
         // Pre-flight balance check (skip for unsigned - signer may not exist)
         let balanceSufficient: boolean | "unknown" = "unknown";
-        if (!isUnsigned) {
+        if (!isUnsigned && !isDryRun) {
+          // Full check: load key and verify balance
+          const privateKey = loadPrivateKey();
+          const signerAddr = privateKeyToAccount(privateKey).address;
+          const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+
+          if (isNative) {
+            await checkNativeBalance(publicClient, signerAddr, amount, pool.symbol);
+          } else {
+            await checkErc20Balance(
+              publicClient, pool.asset, signerAddr, amount, pool.decimals, pool.symbol
+            );
+            // Also check native balance for gas (approve + deposit txs)
+            await checkHasGas(publicClient, signerAddr);
+          }
+          balanceSufficient = true;
+        } else if (isDryRun && !isUnsigned) {
+          // Dry-run: attempt balance check but don't fail on missing key
           try {
             const privateKey = loadPrivateKey();
             const signerAddr = privateKeyToAccount(privateKey).address;
@@ -205,20 +223,16 @@ export function createDepositCommand(): Command {
               await checkErc20Balance(
                 publicClient, pool.asset, signerAddr, amount, pool.decimals, pool.symbol
               );
+              await checkHasGas(publicClient, signerAddr);
             }
             balanceSufficient = true;
           } catch (error) {
-            if (isDryRun) {
-              // Distinguish "no signer key" from "actually insufficient balance"
-              const msg = error instanceof Error ? error.message : "";
-              const isKeyError = msg.includes("private key") ||
-                msg.includes("signer") ||
-                msg.includes("mnemonic") ||
-                msg.includes("ENOENT");
-              balanceSufficient = isKeyError ? "unknown" : false;
-            } else {
-              throw error;
-            }
+            const msg = error instanceof Error ? error.message : "";
+            const isKeyError = msg.includes("private key") ||
+              msg.includes("signer") ||
+              msg.includes("mnemonic") ||
+              msg.includes("ENOENT");
+            balanceSufficient = isKeyError ? "unknown" : false;
           }
         }
 
@@ -250,12 +264,8 @@ export function createDepositCommand(): Command {
         }
 
         if (isUnsigned) {
-          let signerAddress: Address | null = null;
-          try {
-            signerAddress = privateKeyToAccount(loadPrivateKey()).address;
-          } catch {
-            signerAddress = null;
-          }
+          // Avoid touching private key material in unsigned mode.
+          const signerAddress: Address | null = null;
 
           const payload = buildUnsignedDepositOutput({
             chainId: chainConfig.id,
@@ -310,58 +320,87 @@ export function createDepositCommand(): Command {
         }
 
         spin.text = "Waiting for confirmation...";
-        await tx.wait();
-
-        // Parse Deposited event from receipt
-        const receipt = await publicClient.getTransactionReceipt({
-          hash: tx.hash as `0x${string}`,
-        });
-
+        let receipt;
+        try {
+          receipt = await publicClient.waitForTransactionReceipt({
+            hash: tx.hash as `0x${string}`,
+            timeout: 300_000,
+          });
+        } catch {
+          throw new CLIError(
+            "Timed out waiting for deposit confirmation.",
+            "RPC",
+            `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to recover.`
+          );
+        }
+        if (receipt.status !== "success") {
+          throw new CLIError(
+            `Deposit transaction reverted: ${tx.hash}`,
+            "CONTRACT",
+            "Check the transaction on a block explorer for details."
+          );
+        }
         let label: bigint | undefined;
         let committedValue: bigint | undefined;
+        guardCriticalSection();
+        try {
 
-        for (const log of receipt.logs) {
-          if (log.address.toLowerCase() !== pool.pool.toLowerCase()) {
-            continue;
+          for (const log of receipt.logs) {
+            if (log.address.toLowerCase() !== pool.pool.toLowerCase()) {
+              continue;
+            }
+            try {
+              const decoded = decodeEventLog({
+                abi: depositedEventAbi,
+                data: log.data,
+                topics: log.topics,
+              });
+              label = decoded.args._label;
+              committedValue = decoded.args._value;
+              break;
+            } catch {
+              // Not this event
+            }
           }
-          try {
-            const decoded = decodeEventLog({
-              abi: depositedEventAbi,
-              data: log.data,
-              topics: log.topics,
-            });
-            label = decoded.args._label;
-            committedValue = decoded.args._value;
-            break;
-          } catch {
-            // Not this event
+
+          if (label === undefined || committedValue === undefined) {
+            spin.warn(
+              "Deposit confirmed but could not parse event. Run 'privacy-pools sync' to recover account state."
+            );
+          } else {
+            // Persist the new commitment (7 individual args)
+            try {
+              accountService.addPoolAccount(
+                pool.scope as unknown as SDKHash,
+                committedValue,
+                secrets.nullifier,
+                secrets.secret,
+                label as unknown as SDKHash,
+                receipt.blockNumber,
+                tx.hash as Hex
+              );
+              saveAccount(chainConfig.id, accountService.account);
+            } catch (saveErr) {
+              process.stderr.write(
+                `\nWarning: deposit confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
+              );
+              process.stderr.write(
+                "⚠ Run 'privacy-pools sync' to recover your account state.\n"
+              );
+            }
           }
+        } finally {
+          releaseCriticalSection();
         }
-
-        if (label === undefined || committedValue === undefined) {
-          spin.warn("Deposit confirmed but could not parse event. Sync manually.");
-        } else {
-          // Persist the new commitment (7 individual args)
-          accountService.addPoolAccount(
-            pool.scope as unknown as SDKHash,
-            committedValue,
-            secrets.nullifier,
-            secrets.secret,
-            label as unknown as SDKHash,
-            receipt.blockNumber,
-            tx.hash as Hex
-          );
-          saveAccount(chainConfig.id, accountService.account);
-        }
-
         spin.succeed("Deposit confirmed!");
 
         if (isJson) {
           printJsonSuccess(
             {
+              operation: "deposit",
               txHash: tx.hash,
               amount: amount.toString(),
-              committedValue: committedValue?.toString(),
+              committedValue: committedValue?.toString() ?? null,
               asset: pool.symbol,
               chain: chainConfig.name,
             },

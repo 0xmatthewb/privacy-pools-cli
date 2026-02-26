@@ -17,6 +17,7 @@ import { buildUnsignedRagequitOutput } from "../utils/unsigned-flows.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 export function createRagequitCommand() {
     return new Command("ragequit")
         .description("Emergency public exit - sacrifices privacy to recover funds")
@@ -45,15 +46,15 @@ export function createRagequitCommand() {
         const unsignedFormat = opts.unsignedFormat?.toLowerCase();
         const wantsTxFormat = unsignedFormat === "tx";
         const isDryRun = opts.dryRun ?? false;
-        const silent = isQuiet || isJson || isUnsigned;
+        const silent = isQuiet || isJson || isUnsigned || isDryRun;
         const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
         const isVerbose = globalOpts?.verbose ?? false;
         try {
             if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
                 throw new CLIError(`Unsupported unsigned format: ${opts.unsignedFormat}.`, "INPUT", "Use --unsigned-format envelope or --unsigned-format tx.");
             }
-            if (wantsTxFormat && !isUnsigned) {
-                throw new CLIError("--unsigned-format tx requires --unsigned.", "INPUT", "Use: privacy-pools ragequit ... --unsigned --unsigned-format tx");
+            if (unsignedFormat && !isUnsigned) {
+                throw new CLIError("--unsigned-format requires --unsigned.", "INPUT", "Use: privacy-pools ragequit ... --unsigned --unsigned-format " + (unsignedFormat || "envelope"));
             }
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
@@ -89,14 +90,7 @@ export function createRagequitCommand() {
                 const privateKey = loadPrivateKey();
                 signerAddress = privateKeyToAccount(privateKey).address;
             }
-            else {
-                try {
-                    signerAddress = privateKeyToAccount(loadPrivateKey()).address;
-                }
-                catch {
-                    signerAddress = null;
-                }
-            }
+            // In unsigned/dry-run modes, do NOT touch the key file at all — the signer is optional
             const sdk = await getSDK();
             const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
             const spin = spinner("Loading account...", silent);
@@ -139,8 +133,7 @@ export function createRagequitCommand() {
                 commitment = poolCommitments[selected];
             }
             else {
-                // Default to first commitment
-                commitment = poolCommitments[0];
+                throw new CLIError("Must specify --commitment index in non-interactive mode.", "INPUT", `Use --commitment <0-${poolCommitments.length - 1}> to select which commitment to ragequit.`);
             }
             verbose(`Selected commitment: label=${commitment.label.toString()} value=${commitment.value.toString()}`, isVerbose, silent);
             // Critical warning
@@ -162,6 +155,30 @@ export function createRagequitCommand() {
             if (!isUnsigned && !isDryRun) {
                 const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
                 await checkHasGas(publicClient, signerAddress);
+                // Pre-check: verify signer is the original depositor (avoids wasting proof generation)
+                try {
+                    const depositor = await publicClient.readContract({
+                        address: pool.pool,
+                        abi: [{
+                                name: "depositors",
+                                type: "function",
+                                stateMutability: "view",
+                                inputs: [{ name: "_label", type: "uint256" }],
+                                outputs: [{ name: "", type: "address" }],
+                            }],
+                        functionName: "depositors",
+                        args: [commitment.label],
+                    });
+                    if (depositor.toLowerCase() !== signerAddress.toLowerCase()) {
+                        throw new CLIError(`Signer ${signerAddress} is not the original depositor (${depositor}).`, "INPUT", "Only the original depositor can ragequit. Check your signer key.");
+                    }
+                }
+                catch (err) {
+                    // If the contract doesn't expose depositors(), skip the check
+                    if (err instanceof CLIError)
+                        throw err;
+                    verbose(`Could not verify depositor on-chain: ${err instanceof Error ? err.message : String(err)}`, isVerbose, silent);
+                }
             }
             // Generate commitment proof
             spin.start();
@@ -217,36 +234,54 @@ export function createRagequitCommand() {
             spin.text = "Submitting ragequit transaction...";
             const tx = await contracts.ragequit(proof, pool.pool);
             spin.text = "Waiting for confirmation...";
-            await tx.wait();
-            // Get receipt and verify success
             const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-            const receipt = await publicClient.getTransactionReceipt({
-                hash: tx.hash,
-            });
+            let receipt;
+            try {
+                receipt = await publicClient.waitForTransactionReceipt({
+                    hash: tx.hash,
+                    timeout: 300_000,
+                });
+            }
+            catch {
+                throw new CLIError("Timed out waiting for ragequit confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to recover.`);
+            }
             if (receipt.status !== "success") {
                 throw new CLIError(`Ragequit transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
             }
-            // Mark the account as ragequit so it's excluded from getSpendableCommitments()
+            guardCriticalSection();
             try {
-                accountService.addRagequitToAccount(commitment.label, {
-                    ragequitter: signerAddress,
-                    commitment: commitment.hash,
-                    label: commitment.label,
-                    value: commitment.value,
-                    blockNumber: receipt.blockNumber,
-                    transactionHash: tx.hash,
-                });
-            }
-            catch (err) {
-                // Non-fatal: next sync will discover the ragequit event on-chain
-                if (!silent) {
-                    process.stderr.write(`Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will recover.\n`);
+                // Mark the account as ragequit so it's excluded from getSpendableCommitments()
+                try {
+                    accountService.addRagequitToAccount(commitment.label, {
+                        ragequitter: signerAddress,
+                        commitment: commitment.hash,
+                        label: commitment.label,
+                        value: commitment.value,
+                        blockNumber: receipt.blockNumber,
+                        transactionHash: tx.hash,
+                    });
+                }
+                catch (err) {
+                    // Non-fatal: next sync will discover the ragequit event on-chain
+                    if (!silent) {
+                        process.stderr.write(`Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will recover.\n`);
+                    }
+                }
+                try {
+                    saveAccount(chainConfig.id, accountService.account);
+                }
+                catch (err) {
+                    process.stderr.write(`Warning: ragequit confirmed on-chain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`);
+                    process.stderr.write("⚠ Run 'privacy-pools sync' to recover your account state.\n");
                 }
             }
-            saveAccount(chainConfig.id, accountService.account);
+            finally {
+                releaseCriticalSection();
+            }
             spin.succeed("Ragequit confirmed!");
             if (isJson) {
                 printJsonSuccess({
+                    operation: "ragequit",
                     txHash: tx.hash,
                     amount: commitment.value.toString(),
                     asset: pool.symbol,

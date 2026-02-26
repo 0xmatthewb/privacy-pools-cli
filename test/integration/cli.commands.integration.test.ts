@@ -3,6 +3,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createTempHome, initSeededHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
 
+const OFFLINE_ASP_ENV = {
+  PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+};
+
 describe("CLI command integration", () => {
   test("init + status produce valid JSON and persisted signer", () => {
     const home = createTempHome();
@@ -122,49 +126,43 @@ describe("CLI command integration", () => {
     expect(json.error.category).toBe("INPUT");
   });
 
-  test("balance/accounts keep JSON contract when pools resolve to empty set", () => {
+  test("balance/accounts keep JSON contract when ASP is unreachable", () => {
     const home = createTempHome();
     initSeededHome(home, "ethereum");
 
-    // Use an intentionally unreachable RPC so on-chain pool validation fails and listPools
-    // returns an empty set while keeping this test deterministic and non-funded.
-    const rpcUrl = "http://127.0.0.1:9";
-
-    const balance = runCli(
-      ["--json", "--chain", "ethereum", "--rpc-url", rpcUrl, "balance"],
-      { home, timeoutMs: 60_000 }
-    );
-    expect(balance.status).toBe(0);
+    const balance = runCli(["--json", "--chain", "ethereum", "balance"], {
+      home,
+      timeoutMs: 10_000,
+      env: OFFLINE_ASP_ENV,
+    });
+    expect(balance.status).toBe(4);
     const balanceJson = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      chain: string;
-      balances: unknown[];
+      error: { category: string };
     }>(
       balance.stdout
     );
     expect(balanceJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(balanceJson.success).toBe(true);
-    expect(balanceJson.chain).toBe("ethereum");
-    expect(Array.isArray(balanceJson.balances)).toBe(true);
+    expect(balanceJson.success).toBe(false);
+    expect(balanceJson.error.category).toBe("ASP");
 
-    const accounts = runCli(
-      ["--json", "--chain", "ethereum", "--rpc-url", rpcUrl, "accounts"],
-      { home, timeoutMs: 60_000 }
-    );
-    expect(accounts.status).toBe(0);
+    const accounts = runCli(["--json", "--chain", "ethereum", "accounts"], {
+      home,
+      timeoutMs: 10_000,
+      env: OFFLINE_ASP_ENV,
+    });
+    expect(accounts.status).toBe(4);
     const accountsJson = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      chain: string;
-      accounts: unknown[];
+      error: { category: string };
     }>(
       accounts.stdout
     );
     expect(accountsJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(accountsJson.success).toBe(true);
-    expect(accountsJson.chain).toBe("ethereum");
-    expect(Array.isArray(accountsJson.accounts)).toBe(true);
+    expect(accountsJson.success).toBe(false);
+    expect(accountsJson.error.category).toBe("ASP");
   });
 
   test("status reports invalid signer key without false-positive signer address", () => {
@@ -217,31 +215,26 @@ describe("CLI command integration", () => {
     expect(statusJson.error.message).toContain("Config file is not valid JSON");
   });
 
-  test("sync command preserves JSON envelope with deterministic empty-pool state", () => {
+  test("sync command preserves JSON envelope when ASP is unreachable", () => {
     const home = createTempHome();
     initSeededHome(home, "ethereum");
 
-    // Keep deterministic and non-funded: unreachable RPC path returns no resolved pools.
-    const rpcUrl = "http://127.0.0.1:9";
-    const result = runCli(
-      ["--json", "--chain", "ethereum", "--rpc-url", rpcUrl, "sync"],
-      { home, timeoutMs: 60_000 }
-    );
-    expect(result.status).toBe(0);
+    const result = runCli(["--json", "--chain", "ethereum", "sync"], {
+      home,
+      timeoutMs: 10_000,
+      env: OFFLINE_ASP_ENV,
+    });
+    expect(result.status).toBe(4);
 
     const json = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      chain: string;
-      syncedPools: number;
-      spendableCommitments: number;
+      error: { category: string };
     }>(result.stdout);
 
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(json.success).toBe(true);
-    expect(json.chain).toBe("ethereum");
-    expect(json.syncedPools).toBe(0);
-    expect(json.spendableCommitments).toBe(0);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("ASP");
   });
 
   test("withdraw quote without --asset fails with INPUT envelope", () => {
@@ -336,7 +329,17 @@ describe("CLI command integration", () => {
     initSeededHome(home, "ethereum");
 
     const result = runCli(
-      ["--json", "--chain", "ethereum", "--rpc-url", "http://127.0.0.1:9", "deposit", "ETH", "0.1", "--yes"],
+      [
+        "--json",
+        "--chain",
+        "ethereum",
+        "--rpc-url",
+        "http://127.0.0.1:9",
+        "deposit",
+        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        "0.1",
+        "--yes",
+      ],
       { home, timeoutMs: 60_000 }
     );
     expect(result.status).toBe(2);
@@ -347,7 +350,9 @@ describe("CLI command integration", () => {
     }>(result.stdout);
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain('No pool found for asset "ETH"');
+    expect(json.error.message).toContain(
+      "No pool found for asset 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    );
   });
 
   test("withdraw quote positional alias parses asset-first form (withdraw quote ETH 0.1)", () => {
@@ -355,7 +360,17 @@ describe("CLI command integration", () => {
     initSeededHome(home, "ethereum");
 
     const result = runCli(
-      ["--json", "--chain", "ethereum", "--rpc-url", "http://127.0.0.1:9", "withdraw", "quote", "ETH", "0.1"],
+      [
+        "--json",
+        "--chain",
+        "ethereum",
+        "--rpc-url",
+        "http://127.0.0.1:9",
+        "withdraw",
+        "quote",
+        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        "0.1",
+      ],
       { home, timeoutMs: 60_000 }
     );
     expect(result.status).toBe(2);
@@ -366,7 +381,9 @@ describe("CLI command integration", () => {
     }>(result.stdout);
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain('No pool found for asset "ETH"');
+    expect(json.error.message).toContain(
+      "No pool found for asset 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    );
   });
 
   test("withdraw positional alias parses asset-first form (withdraw ETH 0.1 --direct)", () => {
@@ -374,7 +391,18 @@ describe("CLI command integration", () => {
     initSeededHome(home, "ethereum");
 
     const result = runCli(
-      ["--json", "--chain", "ethereum", "--rpc-url", "http://127.0.0.1:9", "withdraw", "ETH", "0.1", "--direct", "--yes"],
+      [
+        "--json",
+        "--chain",
+        "ethereum",
+        "--rpc-url",
+        "http://127.0.0.1:9",
+        "withdraw",
+        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        "0.1",
+        "--direct",
+        "--yes",
+      ],
       { home, timeoutMs: 60_000 }
     );
     expect(result.status).toBe(2);
@@ -385,7 +413,9 @@ describe("CLI command integration", () => {
     }>(result.stdout);
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain('No pool found for asset "ETH"');
+    expect(json.error.message).toContain(
+      "No pool found for asset 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    );
   });
 
   test("ragequit positional alias parses asset-only form (ragequit ETH)", () => {
@@ -393,7 +423,16 @@ describe("CLI command integration", () => {
     initSeededHome(home, "ethereum");
 
     const result = runCli(
-      ["--json", "--chain", "ethereum", "--rpc-url", "http://127.0.0.1:9", "ragequit", "ETH", "--yes"],
+      [
+        "--json",
+        "--chain",
+        "ethereum",
+        "--rpc-url",
+        "http://127.0.0.1:9",
+        "ragequit",
+        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        "--yes",
+      ],
       { home, timeoutMs: 60_000 }
     );
     expect(result.status).toBe(2);
@@ -404,7 +443,9 @@ describe("CLI command integration", () => {
     }>(result.stdout);
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain('No pool found for asset "ETH"');
+    expect(json.error.message).toContain(
+      "No pool found for asset 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    );
   });
 
   test("positional + --asset together is rejected as ambiguous", () => {
@@ -441,14 +482,15 @@ describe("CLI command integration", () => {
       schemaVersion: string;
       success: boolean;
       defaultChain: string;
-      mnemonic: string;
+      mnemonic?: string;
+      mnemonicRedacted?: boolean;
     }>(result.stdout);
 
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.defaultChain).toBe("ethereum");
-    expect(typeof json.mnemonic).toBe("string");
-    expect(json.mnemonic.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+    expect(json.mnemonic).toBeUndefined();
+    expect(json.mnemonicRedacted).toBe(true);
   });
 
   test("--json init refuses to overwrite existing state without --force", () => {
@@ -487,13 +529,34 @@ describe("CLI command integration", () => {
       success: boolean;
       defaultChain: string;
       signerKeySet: boolean;
-      mnemonic: string;
+      mnemonic?: string;
+      mnemonicRedacted?: boolean;
     }>(result.stdout);
 
     expect(json.success).toBe(true);
     expect(json.defaultChain).toBe("sepolia");
     expect(json.signerKeySet).toBe(true);
+    expect(json.mnemonic).toBeUndefined();
+    expect(json.mnemonicRedacted).toBe(true);
+  });
+
+  test("--json init --show-mnemonic includes generated mnemonic", () => {
+    const result = runCli(["--json", "init", "--skip-circuits", "--show-mnemonic"], {
+      home: createTempHome(),
+      timeoutMs: 60_000,
+    });
+
+    expect(result.status).toBe(0);
+    const json = parseJsonOutput<{
+      success: boolean;
+      mnemonic?: string;
+      mnemonicRedacted?: boolean;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
     expect(typeof json.mnemonic).toBe("string");
+    expect(json.mnemonic?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+    expect(json.mnemonicRedacted).toBeUndefined();
   });
 
   test("--json deposit is non-interactive and fails fast without --asset", () => {
@@ -648,7 +711,7 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.category).toBe("INPUT");
-    expect(json.errorMessage).toContain("--unsigned-format tx requires --unsigned");
+    expect(json.errorMessage).toContain("--unsigned-format requires --unsigned");
   });
 
   test("machine-mode help subcommand returns JSON envelope", () => {
@@ -713,12 +776,32 @@ describe("CLI command integration", () => {
     const json = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      mnemonic: string;
+      mnemonic?: string;
+      mnemonicRedacted?: boolean;
     }>(result.stdout);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
+    expect(json.mnemonic).toBeUndefined();
+    expect(json.mnemonicRedacted).toBe(true);
+  });
+
+  test("--agent init --show-mnemonic includes generated mnemonic", () => {
+    const result = runCli(["--agent", "init", "--skip-circuits", "--show-mnemonic"], {
+      home: createTempHome(),
+      timeoutMs: 60_000,
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr.trim()).toBe("");
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      mnemonic?: string;
+      mnemonicRedacted?: boolean;
+    }>(result.stdout);
+    expect(json.success).toBe(true);
     expect(typeof json.mnemonic).toBe("string");
-    expect(json.mnemonic.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+    expect(json.mnemonic?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+    expect(json.mnemonicRedacted).toBeUndefined();
   });
 
   test("--agent version returns JSON envelope", () => {

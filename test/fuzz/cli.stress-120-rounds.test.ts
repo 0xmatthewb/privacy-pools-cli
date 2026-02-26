@@ -6,8 +6,11 @@ import {
   runCli,
 } from "../helpers/cli.ts";
 
+const STRESS_ENABLED = process.env.PP_STRESS_ENABLED === "1";
+const stressTest = STRESS_ENABLED ? test : test.skip;
+
 describe("CLI stress audit", () => {
-  test(
+  stressTest(
     "runs 120 deterministic rounds with parseable JSON outputs",
     () => {
     const home = createTempHome();

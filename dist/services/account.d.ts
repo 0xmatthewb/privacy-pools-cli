@@ -1,6 +1,5 @@
 import { AccountService, DataService, type PoolInfo } from "@0xbow/privacy-pools-core-sdk";
 import type { Address } from "viem";
-import type { ChainConfig } from "../types.js";
 export declare function accountExists(chainId: number): boolean;
 export declare function loadAccount(chainId: number): any | null;
 export declare function saveAccount(chainId: number, account: any): void;
@@ -13,11 +12,11 @@ export declare function toPoolInfo(pool: {
     scope: bigint;
     deploymentBlock: bigint;
 }): PoolInfo;
-export declare function syncAccount(chainConfig: ChainConfig, accountService: AccountService, pools: Array<{
-    address: Address;
-    scope: bigint;
-    deploymentBlock: bigint;
-}>): Promise<void>;
+/**
+ * The SDK emits info logs with console.log in some account paths.
+ * Suppress stdout temporarily so machine-mode JSON contracts remain parseable.
+ */
+export declare function withSuppressedSdkStdout<T>(fn: () => Promise<T>): Promise<T>;
 export declare function initializeAccountService(dataService: DataService, mnemonic: string, pools: Array<{
     chainId: number;
     address: Address;

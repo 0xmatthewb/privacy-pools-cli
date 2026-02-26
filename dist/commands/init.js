@@ -1,10 +1,11 @@
+import { readFileSync } from "fs";
 import { Command } from "commander";
-import { confirm, input, select } from "@inquirer/prompts";
+import { confirm, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import { ensureConfigDir, configExists, mnemonicExists, saveConfig, saveMnemonicToFile, saveSignerKey, loadSignerKey, loadConfig, } from "../services/config.js";
 import { generateMnemonic, validateMnemonic, } from "../services/wallet.js";
 import { warmCircuits } from "../services/sdk.js";
-import { CHAIN_NAMES } from "../config/chains.js";
+import { CHAIN_NAMES, CHAINS } from "../config/chains.js";
 import { success, warn, spinner, info } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -13,15 +14,18 @@ import { resolveGlobalMode } from "../utils/mode.js";
 export function createInitCommand() {
     return new Command("init")
         .description("Initialize wallet and configuration")
-        .option("--mnemonic <phrase>", "Import an existing BIP-39 mnemonic phrase")
-        .option("--private-key <key>", "Set the signer private key")
+        .option("--mnemonic <phrase>", "Import an existing BIP-39 mnemonic phrase (unsafe: visible in process list)")
+        .option("--mnemonic-file <path>", "Import an existing BIP-39 mnemonic from a file")
+        .option("--show-mnemonic", "Include generated mnemonic in JSON output (unsafe)")
+        .option("--private-key <key>", "Set the signer private key (unsafe: visible in process list)")
+        .option("--private-key-file <path>", "Set the signer private key from a file")
         .option("--default-chain <chain>", "Set default chain")
         .option("--rpc-url <url>", "Set RPC URL for the default chain")
         .option("--force", "Overwrite existing configuration without prompting")
         .option("--skip-circuits", "Skip downloading circuit artifacts")
-        .addHelpText("after", "\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --force --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --force --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --json --show-mnemonic --skip-circuits\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
         + commandHelpText({
-            jsonFields: "{ defaultChain, signerKeySet, mnemonic? }",
+            jsonFields: "{ defaultChain, signerKeySet, mnemonicRedacted?, mnemonic? (only with --show-mnemonic) }",
         }))
         .action(async (opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
@@ -53,11 +57,30 @@ export function createInitCommand() {
             }
             // --- Mnemonic ---
             let mnemonic;
-            if (opts.mnemonic) {
-                if (!validateMnemonic(opts.mnemonic)) {
+            if (opts.mnemonic && opts.mnemonicFile) {
+                throw new CLIError("Cannot specify both --mnemonic and --mnemonic-file.", "INPUT");
+            }
+            // Resolve mnemonic from --mnemonic-file, --mnemonic, or generate
+            let mnemonicSource;
+            if (opts.mnemonicFile) {
+                try {
+                    mnemonicSource = readFileSync(opts.mnemonicFile, "utf-8").trim();
+                }
+                catch (err) {
+                    throw new CLIError(`Could not read mnemonic file: ${opts.mnemonicFile}`, "INPUT", err instanceof Error ? err.message : undefined);
+                }
+            }
+            else if (opts.mnemonic) {
+                if (!silent) {
+                    process.stderr.write(chalk.yellow("Warning: --mnemonic is visible in process list and shell history. Prefer --mnemonic-file or stdin.\n"));
+                }
+                mnemonicSource = opts.mnemonic;
+            }
+            if (mnemonicSource) {
+                if (!validateMnemonic(mnemonicSource)) {
                     throw new CLIError("Invalid mnemonic phrase.", "INPUT", "Provide a valid BIP-39 mnemonic (12 or 24 words).");
                 }
-                mnemonic = opts.mnemonic;
+                mnemonic = mnemonicSource;
             }
             else if (skipPrompts) {
                 mnemonic = generateMnemonic();
@@ -71,8 +94,9 @@ export function createInitCommand() {
                     ],
                 });
                 if (action === "import") {
-                    const phrase = await input({
+                    const phrase = await password({
                         message: "Enter your BIP-39 mnemonic phrase:",
+                        mask: "*",
                     });
                     if (!validateMnemonic(phrase.trim())) {
                         throw new CLIError("Invalid mnemonic phrase.", "INPUT", "Provide a valid BIP-39 mnemonic (12 or 24 words).");
@@ -84,7 +108,8 @@ export function createInitCommand() {
                 }
             }
             // Display mnemonic (only this once) — always to stderr to keep stdout clean
-            if (!opts.mnemonic && !isJson) {
+            // Skip display if mnemonic was imported (--mnemonic or --mnemonic-file)
+            if (!mnemonicSource && !isJson) {
                 process.stderr.write("\n");
                 process.stderr.write(chalk.bold.yellow("⚠  IMPORTANT: Save your mnemonic phrase securely!") + "\n");
                 process.stderr.write(chalk.bold.yellow("   This is the ONLY time it will be displayed.") + "\n");
@@ -92,18 +117,41 @@ export function createInitCommand() {
                 process.stderr.write(chalk.bold(mnemonic) + "\n");
                 process.stderr.write("\n");
             }
-            else if (!opts.mnemonic && isJson && !isQuiet) {
-                // In JSON mode, warn via stderr; mnemonic will be in JSON output
-                process.stderr.write(chalk.bold.yellow("⚠  Save your mnemonic from the JSON output below.") + "\n");
+            else if (!mnemonicSource && isJson && !isQuiet) {
+                if (opts.showMnemonic) {
+                    process.stderr.write(chalk.bold.yellow("⚠  Save your mnemonic from the JSON output below.") +
+                        "\n");
+                }
+                else {
+                    process.stderr.write(chalk.bold.yellow("⚠  Mnemonic is redacted from JSON by default. Re-run with --show-mnemonic to print it once.") + "\n");
+                }
             }
             saveMnemonicToFile(mnemonic);
             if (!isJson)
                 success("Mnemonic saved.", silent);
             // --- Signer Key ---
-            let signerKey = opts.privateKey;
+            if (opts.privateKey && opts.privateKeyFile) {
+                throw new CLIError("Cannot specify both --private-key and --private-key-file.", "INPUT");
+            }
+            let signerKey;
+            if (opts.privateKeyFile) {
+                try {
+                    signerKey = readFileSync(opts.privateKeyFile, "utf-8").trim();
+                }
+                catch (err) {
+                    throw new CLIError(`Could not read private key file: ${opts.privateKeyFile}`, "INPUT", err instanceof Error ? err.message : undefined);
+                }
+            }
+            else if (opts.privateKey) {
+                if (!silent) {
+                    process.stderr.write(chalk.yellow("Warning: --private-key is visible in process list and shell history. Prefer --private-key-file or PRIVACY_POOLS_PRIVATE_KEY env var.\n"));
+                }
+                signerKey = opts.privateKey;
+            }
             if (!signerKey && !process.env.PRIVACY_POOLS_PRIVATE_KEY && !skipPrompts) {
-                const keyInput = await input({
+                const keyInput = await password({
                     message: "Signer private key (0x..., or press Enter to skip):",
+                    mask: "*",
                 });
                 if (keyInput.trim()) {
                     signerKey = keyInput.trim();
@@ -143,7 +191,6 @@ export function createInitCommand() {
             config.defaultChain = defaultChain ?? config.defaultChain ?? "ethereum";
             const rpcUrl = opts.rpcUrl ?? globalOpts?.rpcUrl;
             if (rpcUrl) {
-                const { CHAINS } = await import("../config/chains.js");
                 const chain = CHAINS[config.defaultChain];
                 if (chain) {
                     config.rpcOverrides[chain.id] = rpcUrl;
@@ -170,9 +217,14 @@ export function createInitCommand() {
                     defaultChain: config.defaultChain,
                     signerKeySet: !!resolvedSignerKey,
                 };
-                // Include mnemonic in JSON only when newly generated (not imported)
-                if (!opts.mnemonic) {
-                    jsonOutput.mnemonic = mnemonic;
+                // Include mnemonic only when explicitly requested and newly generated.
+                if (!mnemonicSource) {
+                    if (opts.showMnemonic) {
+                        jsonOutput.mnemonic = mnemonic;
+                    }
+                    else {
+                        jsonOutput.mnemonicRedacted = true;
+                    }
                 }
                 printJsonSuccess(jsonOutput, false);
             }

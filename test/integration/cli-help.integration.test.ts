@@ -65,6 +65,12 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("--asset");
   });
 
+  test("guide prints to stderr", () => {
+    const result = runCli(["guide"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("Privacy Pools CLI - Quick Guide");
+  });
+
   test("--no-banner suppresses banner during normal command execution", () => {
     const result = runCli(["--no-banner", "status"], { home: createTempHome() });
     expect(result.status).toBe(0);

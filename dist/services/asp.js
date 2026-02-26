@@ -46,8 +46,8 @@ export async function checkLiveness(chainConfig) {
         const res = await fetch(`${chainConfig.aspHost}/${chainConfig.id}/health/liveness`, { signal: AbortSignal.timeout(10_000) });
         if (!res.ok)
             return false;
-        const { status } = await res.json();
-        return status === "ok";
+        const data = (await res.json());
+        return data.status === "ok";
     }
     catch {
         return false;

@@ -24,6 +24,17 @@ function isRpcLikeError(error) {
         message.includes("timeout") ||
         message.includes("network"));
 }
+function resolvePoolAssetAddress(entry) {
+    const assetAddress = typeof entry.assetAddress === "string"
+        ? entry.assetAddress
+        : typeof entry.tokenAddress === "string"
+            ? entry.tokenAddress
+            : null;
+    if (!assetAddress || !/^0x[0-9a-fA-F]{40}$/.test(assetAddress)) {
+        return null;
+    }
+    return assetAddress;
+}
 export async function resolveTokenMetadata(publicClient, assetAddress) {
     const cacheKey = `${publicClient.chain?.id ?? 0}:${assetAddress.toLowerCase()}`;
     const cached = tokenCache.get(cacheKey);
@@ -105,7 +116,10 @@ export async function listPools(chainConfig, rpcOverride) {
         let rpcReadFailures = 0;
         for (const entry of statsEntries) {
             try {
-                const assetAddress = entry.assetAddress;
+                const assetAddress = resolvePoolAssetAddress(entry);
+                if (!assetAddress) {
+                    continue;
+                }
                 const assetConfig = await getAssetConfigReadOnly(publicClient, chainConfig.entrypoint, assetAddress);
                 const scope = await getScopeReadOnly(publicClient, assetConfig.pool);
                 const { symbol, decimals } = await resolveTokenMetadata(publicClient, assetAddress);

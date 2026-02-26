@@ -3,7 +3,7 @@ import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
-import { initializeAccountService, saveAccount, toPoolInfo } from "../services/account.js";
+import { initializeAccountService, saveAccount, toPoolInfo, withSuppressedSdkStdout, } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { printTable, spinner, formatAmount, warn } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
@@ -59,9 +59,11 @@ export function createBalanceCommand() {
                 for (const poolInfo of poolInfos) {
                     const pi = toPoolInfo(poolInfo);
                     try {
-                        await accountService.getDepositEvents(pi);
-                        await accountService.getWithdrawalEvents(pi);
-                        await accountService.getRagequitEvents(pi);
+                        await withSuppressedSdkStdout(async () => {
+                            await accountService.getDepositEvents(pi);
+                            await accountService.getWithdrawalEvents(pi);
+                            await accountService.getRagequitEvents(pi);
+                        });
                     }
                     catch (err) {
                         syncFailures++;

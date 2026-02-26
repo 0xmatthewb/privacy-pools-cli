@@ -6,8 +6,8 @@ import {
   mnemonicExists,
   getRpcUrl,
   getConfigDir,
+  loadSignerKey,
 } from "../services/config.js";
-import { loadSignerKey } from "../services/config.js";
 import { CHAINS } from "../config/chains.js";
 import { checkLiveness } from "../services/asp.js";
 import { getPublicClient } from "../services/sdk.js";

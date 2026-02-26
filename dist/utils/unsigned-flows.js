@@ -84,7 +84,6 @@ export function buildUnsignedDirectWithdrawOutput(params) {
         recipient: params.recipient,
         selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
         selectedCommitmentValue: params.selectedCommitmentValue.toString(),
-        transaction,
         transactions: [transaction],
     };
 }
@@ -113,7 +112,6 @@ export function buildUnsignedRelayedWithdrawOutput(params) {
         selectedCommitmentValue: params.selectedCommitmentValue.toString(),
         feeBPS: params.feeBPS,
         quoteExpiresAt: params.quoteExpiresAt,
-        transaction,
         transactions: [transaction],
         relayerRequest: params.relayerRequest,
     };
@@ -139,7 +137,6 @@ export function buildUnsignedRagequitOutput(params) {
         amount: params.selectedCommitmentValue.toString(),
         selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
         selectedCommitmentValue: params.selectedCommitmentValue.toString(),
-        transaction,
         transactions: [transaction],
     };
 }

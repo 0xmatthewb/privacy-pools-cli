@@ -100,12 +100,12 @@ describe("pools service", () => {
     }
   });
 
-  test("listPools parses object payload shape: { pools: [...] }", async () => {
+  test("listPools parses object payload shape with tokenAddress", async () => {
     const chainId = 31337;
     const server = await startMockServer(chainId, {
       pools: [
         {
-          assetAddress: "0x00000000000000000000000000000000000000b1",
+          tokenAddress: "0x00000000000000000000000000000000000000b1",
         },
       ],
     });
@@ -124,7 +124,7 @@ describe("pools service", () => {
     expect(pools[0].minimumDepositAmount).toBe(1000000000000000n);
   });
 
-  test("listPools also supports legacy array payload shape", async () => {
+  test("listPools also supports legacy assetAddress payload shape", async () => {
     const chainId = 31338;
     const server = await startMockServer(chainId, [
       {

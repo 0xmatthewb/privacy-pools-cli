@@ -30,17 +30,18 @@ export async function getSDK(): Promise<PrivacyPoolSDK> {
 
 export async function getContracts(
   chainConfig: ChainConfig,
-  rpcOverride?: string
+  rpcOverride?: string,
+  privateKeyOverride?: string
 ) {
   const sdk = await getSDK();
   const rpcUrl = getRpcUrl(chainConfig.id, rpcOverride);
-  const privateKey = loadPrivateKey();
+  const privateKey = privateKeyOverride ?? loadPrivateKey();
 
   return sdk.createContractInstance(
     rpcUrl,
     chainConfig.chain as any,
     chainConfig.entrypoint,
-    privateKey
+    privateKey as `0x${string}`
   );
 }
 

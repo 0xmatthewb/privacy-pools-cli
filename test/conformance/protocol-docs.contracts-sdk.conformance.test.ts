@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import {
   CORE_REPO_ROOT,
+  EXTERNAL_REFS_EXPLICIT,
   FRONTEND_REPO_ROOT,
   pathExists,
 } from "../helpers/paths.ts";
@@ -24,7 +25,8 @@ const requiredPaths = [
 const hasExternalRefs = requiredPaths.every((p) => pathExists(p));
 const externalConformanceRequired =
   process.env.PP_EXTERNAL_CONFORMANCE_REQUIRED === "1";
-const runExternalConformance = hasExternalRefs ? test : test.skip;
+const canRunExternalConformance = hasExternalRefs && EXTERNAL_REFS_EXPLICIT;
+const runExternalConformance = canRunExternalConformance ? test : test.skip;
 
 const skills = hasExternalRefs
   ? readFileSync(`${CORE_ROOT}/docs/static/skills.md`, "utf8")
@@ -72,6 +74,7 @@ describe("protocol conformance against docs/contracts/sdk/frontend", () => {
   test("external protocol refs are available when required", () => {
     if (externalConformanceRequired) {
       expect(hasExternalRefs).toBe(true);
+      expect(EXTERNAL_REFS_EXPLICIT).toBe(true);
     } else {
       expect(true).toBe(true);
     }

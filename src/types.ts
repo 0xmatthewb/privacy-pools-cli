@@ -15,7 +15,6 @@ export interface ChainConfig {
 export interface CLIConfig {
   defaultChain: string;
   rpcOverrides: Record<number, string>;
-  signerKeyPath?: string;
 }
 
 export interface GlobalOptions {
@@ -83,9 +82,3 @@ export interface RelayerRequestResponse {
   requestId: string;
 }
 
-export interface SerializedAccount {
-  masterKeys: [string, string];
-  poolAccounts: Array<[string, unknown[]]>;
-  creationTimestamp?: string;
-  lastUpdateTimestamp?: string;
-}

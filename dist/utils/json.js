@@ -1,11 +1,11 @@
-export const JSON_SCHEMA_VERSION = "1.2.0";
+export const JSON_SCHEMA_VERSION = "1.3.0";
 export function printJsonSuccess(payload, pretty = false) {
     const output = {
         schemaVersion: JSON_SCHEMA_VERSION,
         success: true,
         ...payload,
     };
-    console.log(JSON.stringify(output, null, pretty ? 2 : 0));
+    process.stdout.write(`${JSON.stringify(output, null, pretty ? 2 : 0)}\n`);
 }
 export function printJsonError(payload, pretty = false) {
     const output = {
@@ -15,5 +15,5 @@ export function printJsonError(payload, pretty = false) {
         errorMessage: payload.message,
         error: payload,
     };
-    console.log(JSON.stringify(output, null, pretty ? 2 : 0));
+    process.stdout.write(`${JSON.stringify(output, null, pretty ? 2 : 0)}\n`);
 }

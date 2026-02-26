@@ -1,13 +1,26 @@
 import { describe, expect, test } from "bun:test";
 import { printRawTransactions } from "../../src/utils/unsigned.ts";
 
+function captureStdout(run: () => void): string {
+  let output = "";
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((chunk: unknown) => {
+    output += String(chunk);
+    return true;
+  }) as typeof process.stdout.write;
+
+  try {
+    run();
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+
+  return output;
+}
+
 describe("raw unsigned tx output", () => {
   test("single transaction includes decimal and hex value encodings", () => {
-    const outputs: string[] = [];
-    const originalLog = console.log;
-    console.log = (line?: unknown) => outputs.push(String(line ?? ""));
-
-    try {
+    const output = captureStdout(() => {
       printRawTransactions([
         {
           chainId: 11155111,
@@ -18,31 +31,29 @@ describe("raw unsigned tx output", () => {
           description: "test tx",
         },
       ]);
-    } finally {
-      console.log = originalLog;
-    }
+    });
 
-    expect(outputs.length).toBe(1);
-    const parsed = JSON.parse(outputs[0]) as {
+    const parsed = JSON.parse(output.trim()) as Array<{
       to: string;
       data: string;
       value: string;
       valueHex: string;
       chainId: number;
-    };
-    expect(parsed.to).toBe("0x34a2068192b1297f2a7f85d7d8cde66f8f0921cb");
-    expect(parsed.data).toBe("0x1234");
-    expect(parsed.value).toBe("100000000000000000");
-    expect(parsed.valueHex).toBe("0x16345785d8a0000");
-    expect(parsed.chainId).toBe(11155111);
+      description: string;
+    }>;
+    // Always emits as array (even for single tx)
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed.length).toBe(1);
+    expect(parsed[0].to).toBe("0x34a2068192b1297f2a7f85d7d8cde66f8f0921cb");
+    expect(parsed[0].data).toBe("0x1234");
+    expect(parsed[0].value).toBe("100000000000000000");
+    expect(parsed[0].valueHex).toBe("0x16345785d8a0000");
+    expect(parsed[0].chainId).toBe(11155111);
+    expect(parsed[0].description).toBe("test tx");
   });
 
   test("multiple transactions preserve array shape and normalize zero values", () => {
-    const outputs: string[] = [];
-    const originalLog = console.log;
-    console.log = (line?: unknown) => outputs.push(String(line ?? ""));
-
-    try {
+    const output = captureStdout(() => {
       printRawTransactions([
         {
           chainId: 1,
@@ -61,12 +72,9 @@ describe("raw unsigned tx output", () => {
           description: "deposit",
         },
       ]);
-    } finally {
-      console.log = originalLog;
-    }
+    });
 
-    expect(outputs.length).toBe(1);
-    const parsed = JSON.parse(outputs[0]) as Array<{
+    const parsed = JSON.parse(output.trim()) as Array<{
       value: string;
       valueHex: string;
     }>;

@@ -19,10 +19,10 @@ export async function getSDK() {
     _sdk = new PrivacyPoolSDK(circuits);
     return _sdk;
 }
-export async function getContracts(chainConfig, rpcOverride) {
+export async function getContracts(chainConfig, rpcOverride, privateKeyOverride) {
     const sdk = await getSDK();
     const rpcUrl = getRpcUrl(chainConfig.id, rpcOverride);
-    const privateKey = loadPrivateKey();
+    const privateKey = privateKeyOverride ?? loadPrivateKey();
     return sdk.createContractInstance(rpcUrl, chainConfig.chain, chainConfig.entrypoint, privateKey);
 }
 export function getPublicClient(chainConfig, rpcOverride) {

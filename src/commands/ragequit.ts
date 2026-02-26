@@ -29,6 +29,7 @@ import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 
 export function createRagequitCommand(): Command {
   return new Command("ragequit")
@@ -61,7 +62,7 @@ export function createRagequitCommand(): Command {
       const unsignedFormat = (opts.unsignedFormat as string | undefined)?.toLowerCase();
       const wantsTxFormat = unsignedFormat === "tx";
       const isDryRun = opts.dryRun ?? false;
-      const silent = isQuiet || isJson || isUnsigned;
+      const silent = isQuiet || isJson || isUnsigned || isDryRun;
       const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
       const isVerbose = globalOpts?.verbose ?? false;
 
@@ -74,11 +75,11 @@ export function createRagequitCommand(): Command {
           );
         }
 
-        if (wantsTxFormat && !isUnsigned) {
+        if (unsignedFormat && !isUnsigned) {
           throw new CLIError(
-            "--unsigned-format tx requires --unsigned.",
+            "--unsigned-format requires --unsigned.",
             "INPUT",
-            "Use: privacy-pools ragequit ... --unsigned --unsigned-format tx"
+            "Use: privacy-pools ragequit ... --unsigned --unsigned-format " + (unsignedFormat || "envelope")
           );
         }
 
@@ -128,13 +129,8 @@ export function createRagequitCommand(): Command {
         if (!isUnsigned && !isDryRun) {
           const privateKey = loadPrivateKey();
           signerAddress = privateKeyToAccount(privateKey).address;
-        } else {
-          try {
-            signerAddress = privateKeyToAccount(loadPrivateKey()).address;
-          } catch {
-            signerAddress = null;
-          }
         }
+        // In unsigned/dry-run modes, do NOT touch the key file at all — the signer is optional
 
         const sdk = await getSDK();
 
@@ -202,8 +198,11 @@ export function createRagequitCommand(): Command {
           });
           commitment = poolCommitments[selected];
         } else {
-          // Default to first commitment
-          commitment = poolCommitments[0];
+          throw new CLIError(
+            "Must specify --commitment index in non-interactive mode.",
+            "INPUT",
+            `Use --commitment <0-${poolCommitments.length - 1}> to select which commitment to ragequit.`
+          );
         }
         verbose(
           `Selected commitment: label=${commitment.label.toString()} value=${commitment.value.toString()}`,
@@ -238,6 +237,34 @@ export function createRagequitCommand(): Command {
         if (!isUnsigned && !isDryRun) {
           const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
           await checkHasGas(publicClient, signerAddress!);
+
+          // Pre-check: verify signer is the original depositor (avoids wasting proof generation)
+          try {
+            const depositor = await publicClient.readContract({
+              address: pool.pool,
+              abi: [{
+                name: "depositors",
+                type: "function",
+                stateMutability: "view",
+                inputs: [{ name: "_label", type: "uint256" }],
+                outputs: [{ name: "", type: "address" }],
+              }],
+              functionName: "depositors",
+              args: [commitment.label],
+            }) as Address;
+
+            if (depositor.toLowerCase() !== signerAddress!.toLowerCase()) {
+              throw new CLIError(
+                `Signer ${signerAddress} is not the original depositor (${depositor}).`,
+                "INPUT",
+                "Only the original depositor can ragequit. Check your signer key."
+              );
+            }
+          } catch (err) {
+            // If the contract doesn't expose depositors(), skip the check
+            if (err instanceof CLIError) throw err;
+            verbose(`Could not verify depositor on-chain: ${err instanceof Error ? err.message : String(err)}`, isVerbose, silent);
+          }
         }
 
         // Generate commitment proof
@@ -313,14 +340,20 @@ export function createRagequitCommand(): Command {
         const tx = await contracts.ragequit(proof, pool.pool);
 
         spin.text = "Waiting for confirmation...";
-        await tx.wait();
-
-        // Get receipt and verify success
         const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-        const receipt = await publicClient.getTransactionReceipt({
-          hash: tx.hash as `0x${string}`,
-        });
-
+        let receipt;
+        try {
+          receipt = await publicClient.waitForTransactionReceipt({
+            hash: tx.hash as `0x${string}`,
+            timeout: 300_000,
+          });
+        } catch {
+          throw new CLIError(
+            "Timed out waiting for ragequit confirmation.",
+            "RPC",
+            `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to recover.`
+          );
+        }
         if (receipt.status !== "success") {
           throw new CLIError(
             `Ragequit transaction reverted: ${tx.hash}`,
@@ -329,34 +362,49 @@ export function createRagequitCommand(): Command {
           );
         }
 
-        // Mark the account as ragequit so it's excluded from getSpendableCommitments()
+        guardCriticalSection();
         try {
-          accountService.addRagequitToAccount(
-            commitment.label as unknown as SDKHash,
-            {
-              ragequitter: signerAddress,
-              commitment: commitment.hash,
-              label: commitment.label,
-              value: commitment.value,
-              blockNumber: receipt.blockNumber,
-              transactionHash: tx.hash as Hex,
-            } as any
-          );
-        } catch (err) {
-          // Non-fatal: next sync will discover the ragequit event on-chain
-          if (!silent) {
+          // Mark the account as ragequit so it's excluded from getSpendableCommitments()
+          try {
+            accountService.addRagequitToAccount(
+              commitment.label as unknown as SDKHash,
+              {
+                ragequitter: signerAddress,
+                commitment: commitment.hash,
+                label: commitment.label,
+                value: commitment.value,
+                blockNumber: receipt.blockNumber,
+                transactionHash: tx.hash as Hex,
+              } as any
+            );
+          } catch (err) {
+            // Non-fatal: next sync will discover the ragequit event on-chain
+            if (!silent) {
+              process.stderr.write(
+                `Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will recover.\n`
+              );
+            }
+          }
+
+          try {
+            saveAccount(chainConfig.id, accountService.account);
+          } catch (err) {
             process.stderr.write(
-              `Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will recover.\n`
+              `Warning: ragequit confirmed on-chain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`
+            );
+            process.stderr.write(
+              "⚠ Run 'privacy-pools sync' to recover your account state.\n"
             );
           }
+        } finally {
+          releaseCriticalSection();
         }
-        saveAccount(chainConfig.id, accountService.account);
-
         spin.succeed("Ragequit confirmed!");
 
         if (isJson) {
           printJsonSuccess(
             {
+              operation: "ragequit",
               txHash: tx.hash,
               amount: commitment.value.toString(),
               asset: pool.symbol,

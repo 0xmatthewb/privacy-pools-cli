@@ -3,6 +3,26 @@ import { CHAINS, CHAIN_NAMES } from "../config/chains.js";
 import type { ChainConfig } from "../types.js";
 import { CLIError } from "./errors.js";
 
+function normalizedChainEnvSuffix(chainName: string): string {
+  return chainName.replace(/[^a-z0-9]/gi, "_").toUpperCase();
+}
+
+function resolveChainHostOverride(
+  type: "ASP_HOST" | "RELAYER_HOST",
+  chainName: string
+): string | undefined {
+  const chainSuffix = normalizedChainEnvSuffix(chainName);
+  const chainScoped =
+    process.env[`PRIVACY_POOLS_${type}_${chainSuffix}`]?.trim() ||
+    process.env[`PP_${type}_${chainSuffix}`]?.trim();
+  if (chainScoped) return chainScoped;
+
+  const global =
+    process.env[`PRIVACY_POOLS_${type}`]?.trim() ||
+    process.env[`PP_${type}`]?.trim();
+  return global || undefined;
+}
+
 export function resolveChain(
   chainName?: string,
   defaultChain?: string
@@ -26,7 +46,21 @@ export function resolveChain(
     );
   }
 
-  return config;
+  const aspHostOverride = resolveChainHostOverride("ASP_HOST", normalized);
+  const relayerHostOverride = resolveChainHostOverride(
+    "RELAYER_HOST",
+    normalized
+  );
+
+  if (!aspHostOverride && !relayerHostOverride) {
+    return config;
+  }
+
+  return {
+    ...config,
+    aspHost: aspHostOverride ?? config.aspHost,
+    relayerHost: relayerHostOverride ?? config.relayerHost,
+  };
 }
 
 export function validateAddress(value: string, label: string = "Address"): `0x${string}` {

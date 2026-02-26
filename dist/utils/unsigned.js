@@ -18,8 +18,10 @@ export function printRawTransactions(transactions) {
         value: tx.value,
         valueHex: toHexQuantity(tx.value),
         chainId: tx.chainId,
+        description: tx.description,
     }));
-    console.log(JSON.stringify(payload.length === 1 ? payload[0] : payload));
+    // Always emit as array for consistent agent parsing
+    process.stdout.write(`${JSON.stringify(payload)}\n`);
 }
 export function toSolidityProof(raw) {
     return {
