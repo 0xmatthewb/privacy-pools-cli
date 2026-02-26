@@ -107,6 +107,7 @@ export interface UnsignedDirectWithdrawOutput {
   recipient: Address;
   selectedCommitmentLabel: string;
   selectedCommitmentValue: string;
+  transaction: UnsignedTransactionPayload;
   transactions: UnsignedTransactionPayload[];
 }
 
@@ -118,6 +119,19 @@ export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
   withdrawal: WithdrawalCall;
   proof: SolidityProof;
 }): UnsignedDirectWithdrawOutput {
+  const transaction: UnsignedTransactionPayload = {
+    chainId: params.chainId,
+    from: params.from,
+    to: params.poolAddress,
+    value: "0",
+    data: encodeFunctionData({
+      abi: privacyPoolWithdrawAbi,
+      functionName: "withdraw",
+      args: [params.withdrawal, params.proof as any],
+    }),
+    description: "Direct withdraw from Privacy Pool",
+  };
+
   return {
     mode: "unsigned",
     operation: "withdraw",
@@ -128,18 +142,8 @@ export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
     recipient: params.recipient,
     selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
     selectedCommitmentValue: params.selectedCommitmentValue.toString(),
-    transactions: [{
-      chainId: params.chainId,
-      from: params.from,
-      to: params.poolAddress,
-      value: "0",
-      data: encodeFunctionData({
-        abi: privacyPoolWithdrawAbi,
-        functionName: "withdraw",
-        args: [params.withdrawal, params.proof as any],
-      }),
-      description: "Direct withdraw from Privacy Pool",
-    }],
+    transaction,
+    transactions: [transaction],
   };
 }
 
@@ -155,6 +159,7 @@ export interface UnsignedRelayedWithdrawOutput {
   selectedCommitmentValue: string;
   feeBPS: string;
   quoteExpiresAt: string;
+  transaction: UnsignedTransactionPayload;
   transactions: UnsignedTransactionPayload[];
   relayerRequest: unknown;
 }
@@ -171,6 +176,19 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
   proof: SolidityProof;
   relayerRequest: unknown;
 }): UnsignedRelayedWithdrawOutput {
+  const transaction: UnsignedTransactionPayload = {
+    chainId: params.chainId,
+    from: params.from,
+    to: params.entrypoint,
+    value: "0",
+    data: encodeFunctionData({
+      abi: entrypointRelayAbi,
+      functionName: "relay",
+      args: [params.withdrawal, params.proof as any, params.scope],
+    }),
+    description: "Relay withdrawal through Entrypoint",
+  };
+
   return {
     mode: "unsigned",
     operation: "withdraw",
@@ -183,18 +201,8 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
     selectedCommitmentValue: params.selectedCommitmentValue.toString(),
     feeBPS: params.feeBPS,
     quoteExpiresAt: params.quoteExpiresAt,
-    transactions: [{
-      chainId: params.chainId,
-      from: params.from,
-      to: params.entrypoint,
-      value: "0",
-      data: encodeFunctionData({
-        abi: entrypointRelayAbi,
-        functionName: "relay",
-        args: [params.withdrawal, params.proof as any, params.scope],
-      }),
-      description: "Relay withdrawal through Entrypoint",
-    }],
+    transaction,
+    transactions: [transaction],
     relayerRequest: params.relayerRequest,
   };
 }
@@ -207,6 +215,7 @@ export interface UnsignedRagequitOutput {
   amount: string;
   selectedCommitmentLabel: string;
   selectedCommitmentValue: string;
+  transaction: UnsignedTransactionPayload;
   transactions: UnsignedTransactionPayload[];
 }
 
@@ -216,6 +225,19 @@ export function buildUnsignedRagequitOutput(params: UnsignedBase & {
   selectedCommitmentValue: bigint;
   proof: SolidityProof;
 }): UnsignedRagequitOutput {
+  const transaction: UnsignedTransactionPayload = {
+    chainId: params.chainId,
+    from: params.from,
+    to: params.poolAddress,
+    value: "0",
+    data: encodeFunctionData({
+      abi: privacyPoolRagequitAbi,
+      functionName: "ragequit",
+      args: [params.proof as any],
+    }),
+    description: "Ragequit from Privacy Pool",
+  };
+
   return {
     mode: "unsigned",
     operation: "ragequit",
@@ -224,17 +246,7 @@ export function buildUnsignedRagequitOutput(params: UnsignedBase & {
     amount: params.selectedCommitmentValue.toString(),
     selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
     selectedCommitmentValue: params.selectedCommitmentValue.toString(),
-    transactions: [{
-      chainId: params.chainId,
-      from: params.from,
-      to: params.poolAddress,
-      value: "0",
-      data: encodeFunctionData({
-        abi: privacyPoolRagequitAbi,
-        functionName: "ragequit",
-        args: [params.proof as any],
-      }),
-      description: "Ragequit from Privacy Pool",
-    }],
+    transaction,
+    transactions: [transaction],
   };
 }

@@ -6,12 +6,13 @@ import { getDataService } from "../services/sdk.js";
 import { initializeAccountService, saveAccount, toPoolInfo } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { printTable, spinner, formatAmount, formatAddress, formatTxHash, warn, } from "../utils/format.js";
-import { printError } from "../utils/errors.js";
+import { CLIError, printError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
+import { resolveGlobalMode } from "../utils/mode.js";
 export function createAccountsCommand() {
     return new Command("accounts")
-        .description("List pool accounts and deposit details")
+        .description("List pool accounts and commitment details")
         .option("--sync", "Sync account state before displaying")
         .addHelpText("after", "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --sync --chain sepolia\n  privacy-pools accounts --json\n"
         + commandHelpText({
@@ -20,8 +21,9 @@ export function createAccountsCommand() {
         }))
         .action(async (opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
-        const isJson = globalOpts?.json ?? false;
-        const isQuiet = globalOpts?.quiet ?? false;
+        const mode = resolveGlobalMode(globalOpts);
+        const isJson = mode.isJson;
+        const isQuiet = mode.isQuiet;
         const silent = isQuiet || isJson;
         try {
             const config = loadConfig();
@@ -47,9 +49,10 @@ export function createAccountsCommand() {
                 deploymentBlock: chainConfig.startBlock,
             }));
             const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
-            const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id);
+            const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, false, silent, true);
             if (opts.sync) {
                 spin.text = "Syncing...";
+                let syncFailures = 0;
                 for (const poolInfo of poolInfos) {
                     const pi = toPoolInfo(poolInfo);
                     try {
@@ -58,8 +61,12 @@ export function createAccountsCommand() {
                         await accountService.getRagequitEvents(pi);
                     }
                     catch (err) {
+                        syncFailures++;
                         warn(`Sync failed for pool ${poolInfo.address}: ${err instanceof Error ? err.message : String(err)}`, silent);
                     }
+                }
+                if (syncFailures > 0 && isJson) {
+                    throw new CLIError(`Account sync failed for ${syncFailures} pool(s).`, "RPC", "Retry with a healthy RPC before using account data.");
                 }
                 saveAccount(chainConfig.id, accountService.account);
             }

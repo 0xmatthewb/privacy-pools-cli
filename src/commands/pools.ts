@@ -7,6 +7,7 @@ import { printError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
+import { resolveGlobalMode } from "../utils/mode.js";
 
 export function createPoolsCommand(): Command {
   return new Command("pools")
@@ -20,8 +21,9 @@ export function createPoolsCommand(): Command {
     )
     .action(async (_opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const isJson = globalOpts?.json ?? false;
-      const isQuiet = globalOpts?.quiet ?? false;
+      const mode = resolveGlobalMode(globalOpts);
+      const isJson = mode.isJson;
+      const isQuiet = mode.isQuiet;
       const silent = isQuiet || isJson;
 
       try {

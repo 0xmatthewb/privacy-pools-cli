@@ -11,6 +11,7 @@ import { info, spinner, success, verbose } from "../utils/format.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
+import { resolveGlobalMode } from "../utils/mode.js";
 
 export function createSyncCommand(): Command {
   return new Command("sync")
@@ -26,8 +27,9 @@ export function createSyncCommand(): Command {
     )
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const isJson = globalOpts?.json ?? false;
-      const isQuiet = globalOpts?.quiet ?? false;
+      const mode = resolveGlobalMode(globalOpts);
+      const isJson = mode.isJson;
+      const isQuiet = mode.isQuiet;
       const silent = isQuiet || isJson;
       const isVerbose = globalOpts?.verbose ?? false;
 
@@ -82,6 +84,8 @@ export function createSyncCommand(): Command {
           mnemonic,
           poolInfos,
           chainConfig.id,
+          true,
+          silent,
           true
         );
 

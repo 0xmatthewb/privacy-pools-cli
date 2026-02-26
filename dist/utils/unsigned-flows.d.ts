@@ -167,6 +167,7 @@ export interface UnsignedDirectWithdrawOutput {
     recipient: Address;
     selectedCommitmentLabel: string;
     selectedCommitmentValue: string;
+    transaction: UnsignedTransactionPayload;
     transactions: UnsignedTransactionPayload[];
 }
 export declare function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
@@ -189,6 +190,7 @@ export interface UnsignedRelayedWithdrawOutput {
     selectedCommitmentValue: string;
     feeBPS: string;
     quoteExpiresAt: string;
+    transaction: UnsignedTransactionPayload;
     transactions: UnsignedTransactionPayload[];
     relayerRequest: unknown;
 }
@@ -212,6 +214,7 @@ export interface UnsignedRagequitOutput {
     amount: string;
     selectedCommitmentLabel: string;
     selectedCommitmentValue: string;
+    transaction: UnsignedTransactionPayload;
     transactions: UnsignedTransactionPayload[];
 }
 export declare function buildUnsignedRagequitOutput(params: UnsignedBase & {

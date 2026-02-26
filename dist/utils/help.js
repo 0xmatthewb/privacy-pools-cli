@@ -86,16 +86,19 @@ export function guideText() {
         `  ${chalk.yellow("--chain <name>")}    Target chain (ethereum, arbitrum, optimism, sepolia, op-sepolia)`,
         `  ${chalk.yellow("--rpc-url <url>")}   Override RPC URL`,
         `  ${chalk.yellow("--json")}            Machine-readable JSON output`,
+        `  ${chalk.yellow("--agent")}           Agent-first mode (implies --json, --yes, --quiet)`,
         `  ${chalk.yellow("--yes")}             Skip confirmation prompts`,
         `  ${chalk.yellow("--quiet")}           Suppress spinners and non-essential output`,
         `  ${chalk.yellow("--verbose")}         Enable verbose/debug output`,
         `  ${chalk.yellow("--no-banner")}       Disable ASCII banner`,
         "",
         chalk.bold("Automation (Agents / Scripts)"),
-        "  Use --json for structured output on all commands.",
+        "  Use --json for structured output with non-interactive behavior (including machine help/version envelopes).",
+        "  Use --agent for a single-flag non-interactive JSON mode.",
         "  Use --yes to skip interactive prompts.",
         "  Use --quiet to suppress spinners and chatter.",
         "  Use --unsigned to get transaction payloads without submitting.",
+        "  Use --unsigned --unsigned-format tx to emit raw transaction payloads (value and valueHex).",
         "  Use --dry-run to validate inputs and generate proofs without submitting.",
         "",
         chalk.bold("Exit Codes"),
@@ -124,6 +127,6 @@ export function commandHelpText(config) {
             lines.push(`  ${variant}`);
         }
     }
-    lines.push("  Errors: { error: { code, category, message, hint, retryable } }");
+    lines.push("  Errors: { errorCode, errorMessage, error: { code, category, message, hint, retryable } }");
     return lines.join("\n");
 }

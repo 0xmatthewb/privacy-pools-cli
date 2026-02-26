@@ -62,6 +62,18 @@ export function buildUnsignedDepositOutput(params) {
     };
 }
 export function buildUnsignedDirectWithdrawOutput(params) {
+    const transaction = {
+        chainId: params.chainId,
+        from: params.from,
+        to: params.poolAddress,
+        value: "0",
+        data: encodeFunctionData({
+            abi: privacyPoolWithdrawAbi,
+            functionName: "withdraw",
+            args: [params.withdrawal, params.proof],
+        }),
+        description: "Direct withdraw from Privacy Pool",
+    };
     return {
         mode: "unsigned",
         operation: "withdraw",
@@ -72,21 +84,23 @@ export function buildUnsignedDirectWithdrawOutput(params) {
         recipient: params.recipient,
         selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
         selectedCommitmentValue: params.selectedCommitmentValue.toString(),
-        transactions: [{
-                chainId: params.chainId,
-                from: params.from,
-                to: params.poolAddress,
-                value: "0",
-                data: encodeFunctionData({
-                    abi: privacyPoolWithdrawAbi,
-                    functionName: "withdraw",
-                    args: [params.withdrawal, params.proof],
-                }),
-                description: "Direct withdraw from Privacy Pool",
-            }],
+        transaction,
+        transactions: [transaction],
     };
 }
 export function buildUnsignedRelayedWithdrawOutput(params) {
+    const transaction = {
+        chainId: params.chainId,
+        from: params.from,
+        to: params.entrypoint,
+        value: "0",
+        data: encodeFunctionData({
+            abi: entrypointRelayAbi,
+            functionName: "relay",
+            args: [params.withdrawal, params.proof, params.scope],
+        }),
+        description: "Relay withdrawal through Entrypoint",
+    };
     return {
         mode: "unsigned",
         operation: "withdraw",
@@ -99,22 +113,24 @@ export function buildUnsignedRelayedWithdrawOutput(params) {
         selectedCommitmentValue: params.selectedCommitmentValue.toString(),
         feeBPS: params.feeBPS,
         quoteExpiresAt: params.quoteExpiresAt,
-        transactions: [{
-                chainId: params.chainId,
-                from: params.from,
-                to: params.entrypoint,
-                value: "0",
-                data: encodeFunctionData({
-                    abi: entrypointRelayAbi,
-                    functionName: "relay",
-                    args: [params.withdrawal, params.proof, params.scope],
-                }),
-                description: "Relay withdrawal through Entrypoint",
-            }],
+        transaction,
+        transactions: [transaction],
         relayerRequest: params.relayerRequest,
     };
 }
 export function buildUnsignedRagequitOutput(params) {
+    const transaction = {
+        chainId: params.chainId,
+        from: params.from,
+        to: params.poolAddress,
+        value: "0",
+        data: encodeFunctionData({
+            abi: privacyPoolRagequitAbi,
+            functionName: "ragequit",
+            args: [params.proof],
+        }),
+        description: "Ragequit from Privacy Pool",
+    };
     return {
         mode: "unsigned",
         operation: "ragequit",
@@ -123,17 +139,7 @@ export function buildUnsignedRagequitOutput(params) {
         amount: params.selectedCommitmentValue.toString(),
         selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
         selectedCommitmentValue: params.selectedCommitmentValue.toString(),
-        transactions: [{
-                chainId: params.chainId,
-                from: params.from,
-                to: params.poolAddress,
-                value: "0",
-                data: encodeFunctionData({
-                    abi: privacyPoolRagequitAbi,
-                    functionName: "ragequit",
-                    args: [params.proof],
-                }),
-                description: "Ragequit from Privacy Pool",
-            }],
+        transaction,
+        transactions: [transaction],
     };
 }

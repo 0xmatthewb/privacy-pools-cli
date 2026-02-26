@@ -6,11 +6,12 @@ import { getDataService } from "../services/sdk.js";
 import { initializeAccountService, saveAccount, toPoolInfo } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { printTable, spinner, formatAmount, warn } from "../utils/format.js";
-import { printError } from "../utils/errors.js";
+import { CLIError, printError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import type { Address } from "viem";
+import { resolveGlobalMode } from "../utils/mode.js";
 
 export function createBalanceCommand(): Command {
   return new Command("balance")
@@ -26,8 +27,9 @@ export function createBalanceCommand(): Command {
     )
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const isJson = globalOpts?.json ?? false;
-      const isQuiet = globalOpts?.quiet ?? false;
+      const mode = resolveGlobalMode(globalOpts);
+      const isJson = mode.isJson;
+      const isQuiet = mode.isQuiet;
       const silent = isQuiet || isJson;
 
       try {
@@ -74,11 +76,15 @@ export function createBalanceCommand(): Command {
           dataService,
           mnemonic,
           poolInfos,
-          chainConfig.id
+          chainConfig.id,
+          false,
+          silent,
+          true
         );
 
         if (opts.sync) {
           spin.text = "Syncing account state...";
+          let syncFailures = 0;
           for (const poolInfo of poolInfos) {
             const pi = toPoolInfo(poolInfo);
             try {
@@ -86,8 +92,16 @@ export function createBalanceCommand(): Command {
               await accountService.getWithdrawalEvents(pi);
               await accountService.getRagequitEvents(pi);
             } catch (err) {
+              syncFailures++;
               warn(`Sync failed for pool ${poolInfo.address}: ${err instanceof Error ? err.message : String(err)}`, silent);
             }
+          }
+          if (syncFailures > 0 && isJson) {
+            throw new CLIError(
+              `Balance sync failed for ${syncFailures} pool(s).`,
+              "RPC",
+              "Retry with a healthy RPC before using balance data."
+            );
           }
           saveAccount(chainConfig.id, accountService.account);
         }

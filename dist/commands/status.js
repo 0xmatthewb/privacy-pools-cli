@@ -7,10 +7,11 @@ import { checkLiveness } from "../services/asp.js";
 import { getPublicClient } from "../services/sdk.js";
 import { accountExists } from "../services/account.js";
 import { success, warn, info } from "../utils/format.js";
-import { printError } from "../utils/errors.js";
+import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { privateKeyToAccount } from "viem/accounts";
+import { resolveGlobalMode } from "../utils/mode.js";
 export function createStatusCommand() {
     return new Command("status")
         .description("Show configuration and connection status")
@@ -18,12 +19,13 @@ export function createStatusCommand() {
         .option("--check-asp", "Actively test ASP liveness")
         .addHelpText("after", "\nExamples:\n  privacy-pools status\n  privacy-pools status --check-rpc --check-asp\n  privacy-pools status --json --check-rpc\n  privacy-pools status --chain sepolia --rpc-url https://...\n"
         + commandHelpText({
-            jsonFields: "{ configExists, defaultChain, mnemonicSet, signerKeySet, signerAddress }",
+            jsonFields: "{ configExists, defaultChain, selectedChain, rpcUrl, mnemonicSet, signerKeySet, signerAddress, aspLive?, rpcLive? }",
         }))
         .action(async (opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
-        const isJson = globalOpts?.json ?? false;
-        const isQuiet = globalOpts?.quiet ?? false;
+        const mode = resolveGlobalMode(globalOpts);
+        const isJson = mode.isJson;
+        const isQuiet = mode.isQuiet;
         const silent = isQuiet || isJson;
         const isVerbose = globalOpts?.verbose ?? false;
         try {
@@ -31,6 +33,13 @@ export function createStatusCommand() {
             const config = configReady ? loadConfig() : null;
             const hasMnemonic = mnemonicExists();
             const signerKey = loadSignerKey();
+            const selectedChainKey = globalOpts?.chain?.toLowerCase() ?? config?.defaultChain ?? null;
+            if (globalOpts?.chain && (!selectedChainKey || !CHAINS[selectedChainKey])) {
+                throw new CLIError(`Unknown chain: ${globalOpts.chain}`, "INPUT");
+            }
+            const selectedChainConfig = selectedChainKey
+                ? CHAINS[selectedChainKey]
+                : null;
             let signerAddress = null;
             let signerKeyValid = false;
             if (signerKey) {
@@ -45,32 +54,34 @@ export function createStatusCommand() {
                 }
             }
             if (isJson) {
+                const resolvedRpcUrl = selectedChainConfig
+                    ? getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)
+                    : null;
                 const status = {
                     configExists: configReady,
                     defaultChain: config?.defaultChain ?? null,
+                    selectedChain: selectedChainConfig?.name ?? null,
+                    rpcUrl: resolvedRpcUrl,
                     mnemonicSet: hasMnemonic,
                     signerKeySet: !!signerKey,
                     signerKeyValid,
                     signerAddress,
                 };
-                // Check ASP liveness for default chain
-                if (config?.defaultChain) {
-                    const chainConfig = CHAINS[config.defaultChain];
-                    if (chainConfig) {
-                        const shouldCheckAsp = opts.checkAsp || (!opts.checkAsp && !opts.checkRpc);
-                        const shouldCheckRpc = opts.checkRpc || (!opts.checkAsp && !opts.checkRpc);
-                        if (shouldCheckAsp) {
-                            status.aspLive = await checkLiveness(chainConfig);
+                // Optional health checks
+                if (selectedChainConfig) {
+                    const shouldCheckAsp = opts.checkAsp === true;
+                    const shouldCheckRpc = opts.checkRpc === true;
+                    if (shouldCheckAsp) {
+                        status.aspLive = await checkLiveness(selectedChainConfig);
+                    }
+                    if (shouldCheckRpc) {
+                        try {
+                            const client = getPublicClient(selectedChainConfig, globalOpts?.rpcUrl);
+                            await client.getBlockNumber();
+                            status.rpcLive = true;
                         }
-                        if (shouldCheckRpc) {
-                            try {
-                                const client = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-                                await client.getBlockNumber();
-                                status.rpcLive = true;
-                            }
-                            catch {
-                                status.rpcLive = false;
-                            }
+                        catch {
+                            status.rpcLive = false;
                         }
                     }
                 }
@@ -105,36 +116,39 @@ export function createStatusCommand() {
             // Default chain
             const defaultChain = config?.defaultChain ?? "none";
             info(`Default chain: ${defaultChain}`, silent);
+            if (selectedChainConfig) {
+                info(`Selected chain: ${selectedChainConfig.name}`, silent);
+            }
             // Chain details
-            if (config?.defaultChain) {
-                const chainConfig = CHAINS[config.defaultChain];
-                if (chainConfig) {
-                    info(`Entrypoint: ${chainConfig.entrypoint}`, silent);
-                    info(`RPC: ${getRpcUrl(chainConfig.id, globalOpts?.rpcUrl)}`, silent);
-                    const shouldCheckAsp = opts.checkAsp || (!opts.checkAsp && !opts.checkRpc);
-                    const shouldCheckRpc = opts.checkRpc || (!opts.checkAsp && !opts.checkRpc);
-                    if (isVerbose) {
-                        info(`Health checks: rpc=${shouldCheckRpc ? "enabled" : "disabled"}, asp=${shouldCheckAsp ? "enabled" : "disabled"}`, silent);
+            if (selectedChainConfig) {
+                info(`Entrypoint: ${selectedChainConfig.entrypoint}`, silent);
+                info(`RPC: ${getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)}`, silent);
+                const shouldCheckAsp = opts.checkAsp === true;
+                const shouldCheckRpc = opts.checkRpc === true;
+                if (isVerbose) {
+                    info(`Health checks: rpc=${shouldCheckRpc ? "enabled" : "disabled"}, asp=${shouldCheckAsp ? "enabled" : "disabled"}`, silent);
+                }
+                if (shouldCheckAsp) {
+                    const aspLive = await checkLiveness(selectedChainConfig);
+                    if (aspLive) {
+                        success(`ASP (${selectedChainConfig.aspHost}): healthy`, silent);
                     }
-                    if (shouldCheckAsp) {
-                        const aspLive = await checkLiveness(chainConfig);
-                        if (aspLive) {
-                            success(`ASP (${chainConfig.aspHost}): healthy`, silent);
-                        }
-                        else {
-                            warn(`ASP (${chainConfig.aspHost}): unreachable`, silent);
-                        }
+                    else {
+                        warn(`ASP (${selectedChainConfig.aspHost}): unreachable`, silent);
                     }
-                    if (shouldCheckRpc) {
-                        try {
-                            const client = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-                            const blockNumber = await client.getBlockNumber();
-                            success(`RPC: connected (block ${blockNumber})`, silent);
-                        }
-                        catch {
-                            warn("RPC: unreachable", silent);
-                        }
+                }
+                if (shouldCheckRpc) {
+                    try {
+                        const client = getPublicClient(selectedChainConfig, globalOpts?.rpcUrl);
+                        const blockNumber = await client.getBlockNumber();
+                        success(`RPC: connected (block ${blockNumber})`, silent);
                     }
+                    catch {
+                        warn("RPC: unreachable", silent);
+                    }
+                }
+                if (!shouldCheckAsp && !shouldCheckRpc) {
+                    info("Health checks skipped. Use --check-rpc and/or --check-asp.", silent);
                 }
             }
             // Account files

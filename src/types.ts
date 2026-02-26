@@ -22,6 +22,7 @@ export interface GlobalOptions {
   chain?: string;
   rpcUrl?: string;
   json?: boolean;
+  agent?: boolean;
   quiet?: boolean;
   yes?: boolean;
   verbose?: boolean;

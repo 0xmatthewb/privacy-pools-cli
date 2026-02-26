@@ -23,11 +23,12 @@ import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveOptionalAssetInput } from "../utils/positional.js";
-import { toSolidityProof } from "../utils/unsigned.js";
+import { printRawTransactions, toSolidityProof } from "../utils/unsigned.js";
 import { buildUnsignedRagequitOutput } from "../utils/unsigned-flows.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
+import { resolveGlobalMode } from "../utils/mode.js";
 
 export function createRagequitCommand(): Command {
   return new Command("ragequit")
@@ -36,30 +37,51 @@ export function createRagequitCommand(): Command {
     .option("--asset <symbol|address>", "Asset pool to ragequit from")
     .option("--commitment <index>", "Commitment index to ragequit (0-based)")
     .option("--unsigned", "Output unsigned transaction payload without submitting")
+    .option("--unsigned-format <format>", "Unsigned output format: envelope|tx")
     .option("--dry-run", "Generate proof and validate without submitting ragequit")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools ragequit --asset ETH --chain sepolia\n  privacy-pools ragequit ETH --chain sepolia\n  privacy-pools ragequit --asset ETH --commitment 0 --yes\n  privacy-pools ragequit --asset 0xTokenAddress --json --yes\n  privacy-pools ragequit ETH --unsigned --chain sepolia\n  privacy-pools ragequit --asset ETH --dry-run --chain sepolia\n"
+      "\nExamples:\n  privacy-pools ragequit --asset ETH --chain sepolia\n  privacy-pools ragequit ETH --chain sepolia\n  privacy-pools ragequit --asset ETH --commitment 0 --yes\n  privacy-pools ragequit --asset 0xTokenAddress --json --yes\n  privacy-pools ragequit ETH --unsigned --chain sepolia\n  privacy-pools ragequit ETH --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools ragequit --asset ETH --dry-run --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
           jsonFields: "{ txHash, amount, asset, chain }",
           jsonVariants: [
             "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
+            "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
             "--dry-run: { dryRun, operation, chain, asset, amount, selectedCommitmentLabel, proofPublicSignals }",
           ],
         })
     )
     .action(async (assetArg, opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const isJson = globalOpts?.json ?? false;
-      const isQuiet = globalOpts?.quiet ?? false;
+      const mode = resolveGlobalMode(globalOpts);
+      const isJson = mode.isJson;
+      const isQuiet = mode.isQuiet;
       const isUnsigned = opts.unsigned ?? false;
+      const unsignedFormat = (opts.unsignedFormat as string | undefined)?.toLowerCase();
+      const wantsTxFormat = unsignedFormat === "tx";
       const isDryRun = opts.dryRun ?? false;
       const silent = isQuiet || isJson || isUnsigned;
-      const skipPrompts = (globalOpts?.yes ?? false) || isUnsigned || isDryRun;
+      const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
       const isVerbose = globalOpts?.verbose ?? false;
 
       try {
+        if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
+          throw new CLIError(
+            `Unsupported unsigned format: ${opts.unsignedFormat}.`,
+            "INPUT",
+            "Use --unsigned-format envelope or --unsigned-format tx."
+          );
+        }
+
+        if (wantsTxFormat && !isUnsigned) {
+          throw new CLIError(
+            "--unsigned-format tx requires --unsigned.",
+            "INPUT",
+            "Use: privacy-pools ragequit ... --unsigned --unsigned-format tx"
+          );
+        }
+
         const config = loadConfig();
         const chainConfig = resolveChain(
           globalOpts?.chain,
@@ -137,7 +159,9 @@ export function createRagequitCommand(): Command {
             },
           ],
           chainConfig.id,
-          true // sync to pick up latest on-chain state
+          true, // sync to pick up latest on-chain state
+          silent,
+          true
         );
 
         // Get spendable commitments for this pool
@@ -275,7 +299,11 @@ export function createRagequitCommand(): Command {
             proof: solidityProof,
           });
 
-          printJsonSuccess(payload, false);
+          if (wantsTxFormat) {
+            printRawTransactions(payload.transactions);
+          } else {
+            printJsonSuccess(payload, false);
+          }
           return;
         }
 
@@ -316,7 +344,11 @@ export function createRagequitCommand(): Command {
           );
         } catch (err) {
           // Non-fatal: next sync will discover the ragequit event on-chain
-          process.stderr.write(`Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will recover.\n`);
+          if (!silent) {
+            process.stderr.write(
+              `Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will recover.\n`
+            );
+          }
         }
         saveAccount(chainConfig.id, accountService.account);
 

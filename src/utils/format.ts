@@ -28,8 +28,17 @@ export function formatTxHash(hash: string): string {
 
 export function printTable(
   headers: string[],
-  rows: string[][]
+  rows: string[][],
+  options?: { json?: boolean }
 ): void {
+  if (options?.json) {
+    const records = rows.map((row) =>
+      Object.fromEntries(headers.map((header, idx) => [header, row[idx] ?? ""]))
+    );
+    console.log(JSON.stringify(records));
+    return;
+  }
+
   const table = new Table({
     head: headers.map((h) => chalk.bold(h)),
     style: { head: [], border: [] },

@@ -2,16 +2,16 @@ import { Command } from "commander";
 import { guideText } from "../utils/help.js";
 import { printJsonSuccess } from "../utils/json.js";
 import type { GlobalOptions } from "../types.js";
+import { resolveGlobalMode } from "../utils/mode.js";
 
 export function createGuideCommand(): Command {
   return new Command("guide")
     .description("Show the full usage guide, workflow, and reference")
     .action((opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const isJson = globalOpts?.json ?? false;
-      const isQuiet = globalOpts?.quiet ?? false;
-
-      if (isQuiet) return;
+      const mode = resolveGlobalMode(globalOpts);
+      const isJson = mode.isJson;
+      const isQuiet = mode.isQuiet;
 
       if (isJson) {
         printJsonSuccess({
@@ -19,6 +19,8 @@ export function createGuideCommand(): Command {
         });
         return;
       }
+
+      if (isQuiet) return;
 
       process.stderr.write("\n");
       process.stderr.write(guideText() + "\n");

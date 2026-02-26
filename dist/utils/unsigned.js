@@ -7,6 +7,20 @@ function toBigIntValue(value, label) {
         throw new CLIError(`Malformed proof field: ${label}.`, "PROOF", "Regenerate the proof and retry.", "PROOF_MALFORMED");
     }
 }
+export function printRawTransactions(transactions) {
+    const toHexQuantity = (value) => {
+        const asBigInt = BigInt(value);
+        return `0x${asBigInt.toString(16)}`;
+    };
+    const payload = transactions.map((tx) => ({
+        to: tx.to,
+        data: tx.data,
+        value: tx.value,
+        valueHex: toHexQuantity(tx.value),
+        chainId: tx.chainId,
+    }));
+    console.log(JSON.stringify(payload.length === 1 ? payload[0] : payload));
+}
 export function toSolidityProof(raw) {
     return {
         pA: [

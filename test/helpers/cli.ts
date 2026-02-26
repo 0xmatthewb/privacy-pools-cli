@@ -2,8 +2,9 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CLI_ROOT } from "./paths.ts";
 
-export const CLI_CWD = "/workspace/privacy-pools-cli";
+export const CLI_CWD = CLI_ROOT;
 
 export interface CliRunOptions {
   home?: string;
@@ -31,6 +32,44 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
   const start = Date.now();
 
   const result = spawnSync("bun", ["src/index.ts", ...args], {
+    cwd: CLI_CWD,
+    env: {
+      ...process.env,
+      HOME: home,
+      ...options.env,
+    },
+    encoding: "utf8",
+    timeout: timeoutMs,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+
+  const elapsedMs = Date.now() - start;
+  const timedOut =
+    result.status === null &&
+    result.signal === "SIGTERM" &&
+    typeof result.error?.message === "string" &&
+    result.error.message.includes("ETIMEDOUT");
+
+  return {
+    status: result.status,
+    signal: result.signal,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    elapsedMs,
+    timedOut,
+    errorMessage: result.error?.message,
+  };
+}
+
+export function runBuiltCli(
+  args: string[],
+  options: CliRunOptions = {}
+): CliRunResult {
+  const home = options.home ?? createTempHome();
+  const timeoutMs = options.timeoutMs ?? 20_000;
+  const start = Date.now();
+
+  const result = spawnSync("node", ["dist/index.js", ...args], {
     cwd: CLI_CWD,
     env: {
       ...process.env,

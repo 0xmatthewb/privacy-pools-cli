@@ -13,15 +13,16 @@ import {
   formatTxHash,
   warn,
 } from "../utils/format.js";
-import { printError } from "../utils/errors.js";
+import { CLIError, printError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import type { Address } from "viem";
+import { resolveGlobalMode } from "../utils/mode.js";
 
 export function createAccountsCommand(): Command {
   return new Command("accounts")
-    .description("List pool accounts and deposit details")
+    .description("List pool accounts and commitment details")
     .option("--sync", "Sync account state before displaying")
     .addHelpText(
       "after",
@@ -33,8 +34,9 @@ export function createAccountsCommand(): Command {
     )
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const isJson = globalOpts?.json ?? false;
-      const isQuiet = globalOpts?.quiet ?? false;
+      const mode = resolveGlobalMode(globalOpts);
+      const isJson = mode.isJson;
+      const isQuiet = mode.isQuiet;
       const silent = isQuiet || isJson;
 
       try {
@@ -78,11 +80,15 @@ export function createAccountsCommand(): Command {
           dataService,
           mnemonic,
           poolInfos,
-          chainConfig.id
+          chainConfig.id,
+          false,
+          silent,
+          true
         );
 
         if (opts.sync) {
           spin.text = "Syncing...";
+          let syncFailures = 0;
           for (const poolInfo of poolInfos) {
             const pi = toPoolInfo(poolInfo);
             try {
@@ -90,8 +96,16 @@ export function createAccountsCommand(): Command {
               await accountService.getWithdrawalEvents(pi);
               await accountService.getRagequitEvents(pi);
             } catch (err) {
+              syncFailures++;
               warn(`Sync failed for pool ${poolInfo.address}: ${err instanceof Error ? err.message : String(err)}`, silent);
             }
+          }
+          if (syncFailures > 0 && isJson) {
+            throw new CLIError(
+              `Account sync failed for ${syncFailures} pool(s).`,
+              "RPC",
+              "Retry with a healthy RPC before using account data."
+            );
           }
           saveAccount(chainConfig.id, accountService.account);
         }

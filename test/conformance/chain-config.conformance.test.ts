@@ -1,13 +1,27 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import { CHAINS } from "../../src/config/chains.ts";
+import { CORE_REPO_ROOT, FRONTEND_REPO_ROOT, pathExists } from "../helpers/paths.ts";
 
-const DOCS_ROOT =
-  "/workspace/privacy-pools-core-main";
-const FRONTEND_ROOT =
-  "/workspace/privacy-pools-website-main";
+const DOCS_ROOT = CORE_REPO_ROOT;
+const FRONTEND_ROOT = FRONTEND_REPO_ROOT;
+const frontendAspClientPath = `${FRONTEND_ROOT}/src/utils/aspClient.ts`;
+const skillsPath = `${DOCS_ROOT}/docs/static/skills.md`;
+const externalRefsAvailable =
+  pathExists(frontendAspClientPath) && pathExists(skillsPath);
+const externalConformanceRequired =
+  process.env.PP_EXTERNAL_CONFORMANCE_REQUIRED === "1";
+const runExternalConformance = externalRefsAvailable ? test : test.skip;
 
 describe("chain config conformance", () => {
+  test("external docs refs are available when required", () => {
+    if (externalConformanceRequired) {
+      expect(externalRefsAvailable).toBe(true);
+    } else {
+      expect(true).toBe(true);
+    }
+  });
+
   test("CLI chain config matches canonical deployment anchors", () => {
     const expected = {
       ethereum: {
@@ -58,17 +72,14 @@ describe("chain config conformance", () => {
     }
   });
 
-  test("core docs and frontend include expected pools-stats object shape", () => {
-    const frontendAspClient = readFileSync(
-      `${FRONTEND_ROOT}/src/utils/aspClient.ts`,
-      "utf8"
-    );
+  runExternalConformance("core docs and frontend include expected pools-stats object shape", () => {
+    const frontendAspClient = readFileSync(frontendAspClientPath, "utf8");
 
     expect(frontendAspClient).toContain("interface PoolStatsResponse");
     expect(frontendAspClient).toContain("pools?: PoolStats[]");
     expect(frontendAspClient).toContain("/public/pools-stats");
 
-    const skills = readFileSync(`${DOCS_ROOT}/docs/static/skills.md`, "utf8");
+    const skills = readFileSync(skillsPath, "utf8");
     expect(skills).toContain("/public/mt-roots");
     expect(skills).toContain("/public/mt-leaves");
     expect(skills).toContain("onchainMtRoot");

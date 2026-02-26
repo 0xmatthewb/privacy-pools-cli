@@ -13,18 +13,20 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:audit": "bun test ./test --timeout 120000",
-    "test:stress": "bun test ./test/fuzz/cli.stress-120-rounds.test.ts --timeout 120000"
+    "test:fuzz": "bun test ./test/fuzz --timeout 120000",
+    "test:stress": "bun test ./test/fuzz/cli.stress-120-rounds.test.ts --timeout 120000",
+    "test:release": "PP_EXTERNAL_CONFORMANCE_REQUIRED=1 PP_E2E_REQUIRED=1 PP_E2E_ENABLED=1 bun test --timeout 1800000"
   },
   "dependencies": {
-    "@0xbow/privacy-pools-core-sdk": "^1.0.2",
-    "@scure/bip39": "^1.6.0",
-    "commander": "^13.0.0",
+    "@0xbow/privacy-pools-core-sdk": "1.0.2",
     "@inquirer/prompts": "^7.0.0",
+    "@scure/bip39": "^1.6.0",
     "chalk": "^5.4.0",
-    "ora": "^8.2.0",
     "cli-table3": "^0.6.5",
-    "viem": "^2.22.0",
-    "dotenv": "^16.4.0"
+    "commander": "^13.0.0",
+    "dotenv": "^16.4.0",
+    "ora": "^8.2.0",
+    "viem": "^2.22.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

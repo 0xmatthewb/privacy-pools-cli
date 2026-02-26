@@ -25,4 +25,8 @@ export declare function initializeAccountService(dataService: DataService, mnemo
     deploymentBlock: bigint;
 }>, chainId: number, 
 /** When true, sync events even for saved accounts to catch external changes */
-forceSync?: boolean): Promise<AccountService>;
+forceSync?: boolean, 
+/** When true, suppress best-effort sync warnings to keep machine stderr clean */
+suppressWarnings?: boolean, 
+/** When true, treat sync/initialization failures as hard errors (fail-closed). */
+strictSync?: boolean): Promise<AccountService>;

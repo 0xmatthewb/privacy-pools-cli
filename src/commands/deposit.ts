@@ -28,7 +28,9 @@ import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
 import { buildUnsignedDepositOutput } from "../utils/unsigned-flows.js";
 import { checkNativeBalance, checkErc20Balance } from "../utils/preflight.js";
+import { printRawTransactions } from "../utils/unsigned.js";
 import { privateKeyToAccount } from "viem/accounts";
+import { resolveGlobalMode } from "../utils/mode.js";
 
 const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -41,30 +43,51 @@ export function createDepositCommand(): Command {
     .argument("[amount]", "Optional amount when using positional asset alias")
     .option("--asset <symbol|address>", "Asset to deposit (symbol like ETH, USDC, or contract address)")
     .option("--unsigned", "Output unsigned transaction payload(s) without submitting")
+    .option("--unsigned-format <format>", "Unsigned output format: envelope|tx")
     .option("--dry-run", "Validate inputs and show transaction details without submitting")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools deposit 0.1 --asset ETH --chain sepolia\n  privacy-pools deposit ETH 0.1 --chain sepolia\n  privacy-pools deposit 100 --asset 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain ethereum\n  privacy-pools deposit 0.05 --asset ETH --json --yes\n  privacy-pools deposit ETH 0.05 --unsigned --chain sepolia\n  privacy-pools deposit 0.1 --asset ETH --dry-run --chain sepolia\n"
+      "\nExamples:\n  privacy-pools deposit 0.1 --asset ETH --chain sepolia\n  privacy-pools deposit ETH 0.1 --chain sepolia\n  privacy-pools deposit 100 --asset 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain ethereum\n  privacy-pools deposit 0.05 --asset ETH --json --yes\n  privacy-pools deposit ETH 0.05 --unsigned --chain sepolia\n  privacy-pools deposit ETH 0.05 --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools deposit 0.1 --asset ETH --dry-run --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ txHash, amount, committedValue, asset, chain }",
           jsonVariants: [
             "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
+            "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
             "--dry-run: { dryRun, operation, chain, asset, amount, precommitment, balanceSufficient }",
           ],
         })
     )
     .action(async (firstArg, secondArg, opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const isJson = globalOpts?.json ?? false;
-      const isQuiet = globalOpts?.quiet ?? false;
+      const mode = resolveGlobalMode(globalOpts);
+      const isJson = mode.isJson;
+      const isQuiet = mode.isQuiet;
       const isUnsigned = opts.unsigned ?? false;
+      const unsignedFormat = (opts.unsignedFormat as string | undefined)?.toLowerCase();
+      const wantsTxFormat = unsignedFormat === "tx";
       const isDryRun = opts.dryRun ?? false;
       const silent = isQuiet || isJson || isUnsigned;
-      const skipPrompts = (globalOpts?.yes ?? false) || isUnsigned || isDryRun;
+      const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
       const isVerbose = globalOpts?.verbose ?? false;
 
       try {
+        if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
+          throw new CLIError(
+            `Unsupported unsigned format: ${opts.unsignedFormat}.`,
+            "INPUT",
+            "Use --unsigned-format envelope or --unsigned-format tx."
+          );
+        }
+
+        if (wantsTxFormat && !isUnsigned) {
+          throw new CLIError(
+            "--unsigned-format tx requires --unsigned.",
+            "INPUT",
+            "Use: privacy-pools deposit ... --unsigned --unsigned-format tx"
+          );
+        }
+
         const config = loadConfig();
         const chainConfig = resolveChain(
           globalOpts?.chain,
@@ -154,7 +177,9 @@ export function createDepositCommand(): Command {
             },
           ],
           chainConfig.id,
-          true // sync to pick up latest on-chain state
+          true, // sync to pick up latest on-chain state
+          silent,
+          true
         );
 
         // Generate deposit secrets (SDK returns precommitment directly)
@@ -244,7 +269,11 @@ export function createDepositCommand(): Command {
             isNative,
           });
 
-          printJsonSuccess(payload, false);
+          if (wantsTxFormat) {
+            printRawTransactions(payload.transactions);
+          } else {
+            printJsonSuccess(payload, false);
+          }
           return;
         }
 

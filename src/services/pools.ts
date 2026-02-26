@@ -19,6 +19,21 @@ const poolAbi = parseAbi([
 // Cache token metadata to avoid repeated on-chain calls
 const tokenCache = new Map<string, { symbol: string; decimals: number }>();
 
+function isRpcLikeError(error: unknown): boolean {
+  if (error instanceof CLIError) {
+    return error.category === "RPC";
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("fetch") ||
+    message.includes("ECONNREFUSED") ||
+    message.includes("ETIMEDOUT") ||
+    message.includes("timeout") ||
+    message.includes("network")
+  );
+}
+
 export async function resolveTokenMetadata(
   publicClient: PublicClient,
   assetAddress: Address
@@ -130,6 +145,8 @@ export async function listPools(
   }
 
   if (statsEntries.length > 0) {
+    let rpcReadFailures = 0;
+
     for (const entry of statsEntries as any[]) {
       try {
         const assetAddress = entry.assetAddress as Address;
@@ -157,10 +174,23 @@ export async function listPools(
           vettingFeeBPS: assetConfig.vettingFeeBPS,
           maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
         });
-      } catch {
-        // Skip pools that fail on-chain validation
+      } catch (error) {
+        if (isRpcLikeError(error)) {
+          rpcReadFailures++;
+        }
+        // Skip pools that fail on-chain validation/metadata fetch
         continue;
       }
+    }
+
+    if (pools.length === 0 && rpcReadFailures > 0) {
+      throw new CLIError(
+        `Failed to resolve pools on ${chainConfig.name} due to RPC errors.`,
+        "RPC",
+        "Check your RPC URL and network connectivity, then retry.",
+        "RPC_POOL_RESOLUTION_FAILED",
+        true
+      );
     }
   }
 
@@ -202,7 +232,16 @@ export async function resolvePool(
         vettingFeeBPS: assetConfig.vettingFeeBPS,
         maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
       };
-    } catch {
+    } catch (error) {
+      if (isRpcLikeError(error)) {
+        throw new CLIError(
+          `Failed to resolve pool for ${assetInput} on ${chainConfig.name} due to RPC error.`,
+          "RPC",
+          "Check your RPC URL and network connectivity, then retry.",
+          "RPC_POOL_RESOLUTION_FAILED",
+          true
+        );
+      }
       throw new CLIError(
         `No pool found for asset ${assetInput} on ${chainConfig.name}.`,
         "INPUT",

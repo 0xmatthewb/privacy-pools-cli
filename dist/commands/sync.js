@@ -9,6 +9,7 @@ import { printError } from "../utils/errors.js";
 import { info, spinner, success, verbose } from "../utils/format.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
+import { resolveGlobalMode } from "../utils/mode.js";
 export function createSyncCommand() {
     return new Command("sync")
         .description("Sync local account state from on-chain events")
@@ -20,8 +21,9 @@ export function createSyncCommand() {
         }))
         .action(async (opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
-        const isJson = globalOpts?.json ?? false;
-        const isQuiet = globalOpts?.quiet ?? false;
+        const mode = resolveGlobalMode(globalOpts);
+        const isJson = mode.isJson;
+        const isQuiet = mode.isQuiet;
         const silent = isQuiet || isJson;
         const isVerbose = globalOpts?.verbose ?? false;
         try {
@@ -56,7 +58,7 @@ export function createSyncCommand() {
             }));
             const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
             spin.text = "Syncing deposit/withdrawal/ragequit events...";
-            const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, true);
+            const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, true, silent, true);
             saveAccount(chainConfig.id, accountService.account);
             const spendable = accountService.getSpendableCommitments();
             const spendableCount = Array.from(spendable.values()).reduce((acc, list) => acc + list.length, 0);

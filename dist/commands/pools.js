@@ -6,6 +6,7 @@ import { printTable, spinner, formatAddress, formatAmount, formatBPS } from "../
 import { printError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
+import { resolveGlobalMode } from "../utils/mode.js";
 export function createPoolsCommand() {
     return new Command("pools")
         .description("List available pools and assets")
@@ -15,8 +16,9 @@ export function createPoolsCommand() {
         }))
         .action(async (_opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
-        const isJson = globalOpts?.json ?? false;
-        const isQuiet = globalOpts?.quiet ?? false;
+        const mode = resolveGlobalMode(globalOpts);
+        const isJson = mode.isJson;
+        const isQuiet = mode.isQuiet;
         const silent = isQuiet || isJson;
         try {
             const config = loadConfig();

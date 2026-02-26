@@ -8,6 +8,10 @@ describe("CLI help and discovery", () => {
     const result = runCli(["--help"], { home: createTempHome() });
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
+    expect(result.stdout).toContain("--agent");
+    expect(result.stdout).not.toMatch(/\n\s+--quiet\s/);
+    expect(result.stdout).not.toMatch(/\n\s+--verbose\s/);
+    expect(result.stdout).not.toMatch(/\n\s+--no-banner\s/);
     expect(result.stdout).toContain("init");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("pools");
@@ -49,7 +53,7 @@ describe("CLI help and discovery", () => {
 
   test("unknown command exits non-zero", () => {
     const result = runCli(["not-a-command"], { home: createTempHome() });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr.toLowerCase()).toContain("unknown command");
   });
 
@@ -71,5 +75,24 @@ describe("CLI help and discovery", () => {
     const result = runCli(["--quiet", "status"], { home: createTempHome() });
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
+  });
+
+  test("banner is shown only once per session identifier", () => {
+    const home = createTempHome();
+    const sessionId = `pp-cli-test-session-${Date.now()}`;
+
+    const first = runCli(["status"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(first.status).toBe(0);
+    expect(first.stderr).toContain(BANNER_SENTINEL);
+
+    const second = runCli(["status"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(second.status).toBe(0);
+    expect(second.stderr).not.toContain(BANNER_SENTINEL);
   });
 });

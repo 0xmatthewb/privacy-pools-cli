@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "1.0.0",
-  "schemaVersion": "1.0.0",
+  "version": "1.2.0",
+  "schemaVersion": "1.2.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {
@@ -11,6 +11,8 @@
     "errorBase": {
       "schemaVersion": "semver-string",
       "success": false,
+      "errorCode": "string",
+      "errorMessage": "string",
       "error": {
         "code": "string",
         "category": "INPUT|RPC|ASP|RELAYER|PROOF|CONTRACT|UNKNOWN",
@@ -31,6 +33,13 @@
     "7": "CONTRACT_ERROR"
   },
   "shared": {
+    "rawUnsignedTransaction": {
+      "to": "0x-prefixed-address",
+      "data": "0x-prefixed-hex-calldata",
+      "value": "decimal-string-wei",
+      "valueHex": "0x-prefixed-hex-quantity-wei",
+      "chainId": "number"
+    },
     "unsignedTransaction": {
       "chainId": "number",
       "from": "0x-prefixed-address|null",
@@ -44,22 +53,22 @@
     "init": {
       "successFields": {
         "defaultChain": "string",
-        "mnemonicPath": "string",
-        "signerKeyPath": "string",
-        "signerAddress": "0x-prefixed-address"
+        "signerKeySet": "boolean",
+        "mnemonic": "string? (present when newly generated, omitted when --mnemonic is provided)"
       }
     },
     "status": {
       "successFields": {
         "configExists": "boolean",
         "defaultChain": "string|null",
+        "selectedChain": "string|null",
         "rpcUrl": "string|null",
         "mnemonicSet": "boolean",
         "signerKeySet": "boolean",
         "signerKeyValid": "boolean",
         "signerAddress": "0x-prefixed-address|null",
-        "aspReachable": "boolean",
-        "relayerReachable": "boolean"
+        "aspLive": "boolean|undefined",
+        "rpcLive": "boolean|undefined"
       }
     },
     "pools": {
@@ -85,6 +94,9 @@
           "amount": "decimal-string-wei",
           "precommitment": "decimal-string",
           "transactions": "UnsignedTransaction[]"
+        },
+        "unsignedTx": {
+          "--unsigned-format tx": "RawUnsignedTransaction|RawUnsignedTransaction[]"
         }
       }
     },
@@ -107,7 +119,8 @@
           "recipient": "0x-prefixed-address",
           "selectedCommitmentLabel": "decimal-string",
           "selectedCommitmentValue": "decimal-string-wei",
-          "transaction": "UnsignedTransaction"
+          "transaction": "UnsignedTransaction",
+          "transactions": "UnsignedTransaction[]"
         },
         "unsignedRelayed": {
           "mode": "unsigned",
@@ -122,7 +135,11 @@
           "feeBPS": "string",
           "quoteExpiresAt": "iso8601-string",
           "transaction": "UnsignedTransaction",
+          "transactions": "UnsignedTransaction[]",
           "relayerRequest": "object"
+        },
+        "unsignedTx": {
+          "--unsigned-format tx": "RawUnsignedTransaction|RawUnsignedTransaction[]"
         },
         "dryRun": {
           "mode": "direct|relayed",
@@ -167,7 +184,11 @@
           "amount": "decimal-string-wei",
           "selectedCommitmentLabel": "decimal-string",
           "selectedCommitmentValue": "decimal-string-wei",
-          "transaction": "UnsignedTransaction"
+          "transaction": "UnsignedTransaction",
+          "transactions": "UnsignedTransaction[]"
+        },
+        "unsignedTx": {
+          "--unsigned-format tx": "RawUnsignedTransaction|RawUnsignedTransaction[]"
         }
       }
     },
@@ -188,6 +209,16 @@
         "chain": "string",
         "syncedPools": "number",
         "spendableCommitments": "number"
+      }
+    },
+    "meta": {
+      "helpEnvelope": {
+        "mode": "help",
+        "help": "string"
+      },
+      "versionEnvelope": {
+        "mode": "version",
+        "version": "semver-string"
       }
     }
   },

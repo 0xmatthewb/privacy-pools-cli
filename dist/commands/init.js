@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { confirm, input, select } from "@inquirer/prompts";
 import chalk from "chalk";
-import { ensureConfigDir, configExists, mnemonicExists, saveConfig, saveMnemonicToFile, saveSignerKey, loadConfig, } from "../services/config.js";
+import { ensureConfigDir, configExists, mnemonicExists, saveConfig, saveMnemonicToFile, saveSignerKey, loadSignerKey, loadConfig, } from "../services/config.js";
 import { generateMnemonic, validateMnemonic, } from "../services/wallet.js";
 import { warmCircuits } from "../services/sdk.js";
 import { CHAIN_NAMES } from "../config/chains.js";
@@ -9,6 +9,7 @@ import { success, warn, spinner, info } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
+import { resolveGlobalMode } from "../utils/mode.js";
 export function createInitCommand() {
     return new Command("init")
         .description("Initialize wallet and configuration")
@@ -16,22 +17,28 @@ export function createInitCommand() {
         .option("--private-key <key>", "Set the signer private key")
         .option("--default-chain <chain>", "Set default chain")
         .option("--rpc-url <url>", "Set RPC URL for the default chain")
+        .option("--force", "Overwrite existing configuration without prompting")
         .option("--skip-circuits", "Skip downloading circuit artifacts")
-        .addHelpText("after", "\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --force --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
         + commandHelpText({
             jsonFields: "{ defaultChain, signerKeySet, mnemonic? }",
         }))
         .action(async (opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
-        const isJson = globalOpts?.json ?? false;
-        const isQuiet = globalOpts?.quiet ?? false;
+        const mode = resolveGlobalMode(globalOpts);
+        const isJson = mode.isJson;
+        const isQuiet = mode.isQuiet;
         const silent = isQuiet || isJson;
-        const skipPrompts = globalOpts?.yes ?? false;
+        const skipPrompts = mode.skipPrompts;
         try {
             ensureConfigDir();
             // Check for existing configuration or mnemonic
             const hasExisting = configExists() || mnemonicExists();
-            if (hasExisting && !skipPrompts) {
+            const forceOverwrite = opts.force === true;
+            if (hasExisting && !forceOverwrite && skipPrompts) {
+                throw new CLIError("Existing configuration found. Refusing to overwrite in non-interactive mode.", "INPUT", "Re-run with --force to overwrite, or remove existing config files first.");
+            }
+            if (hasExisting && !forceOverwrite && !skipPrompts) {
                 const overwrite = await confirm({
                     message: "Existing configuration found. Reinitializing will generate a new mnemonic and overwrite settings. Continue?",
                     default: false,
@@ -41,7 +48,7 @@ export function createInitCommand() {
                     return;
                 }
             }
-            else if (hasExisting && skipPrompts) {
+            else if (hasExisting && forceOverwrite) {
                 warn("Overwriting existing configuration and mnemonic.", silent);
             }
             // --- Mnemonic ---
@@ -85,7 +92,7 @@ export function createInitCommand() {
                 process.stderr.write(chalk.bold(mnemonic) + "\n");
                 process.stderr.write("\n");
             }
-            else if (!opts.mnemonic && isJson) {
+            else if (!opts.mnemonic && isJson && !isQuiet) {
                 // In JSON mode, warn via stderr; mnemonic will be in JSON output
                 process.stderr.write(chalk.bold.yellow("⚠  Save your mnemonic from the JSON output below.") + "\n");
             }
@@ -158,9 +165,10 @@ export function createInitCommand() {
                 }
             }
             if (isJson) {
+                const resolvedSignerKey = loadSignerKey();
                 const jsonOutput = {
                     defaultChain: config.defaultChain,
-                    signerKeySet: !!signerKey || !!process.env.PRIVACY_POOLS_PRIVATE_KEY,
+                    signerKeySet: !!resolvedSignerKey,
                 };
                 // Include mnemonic in JSON only when newly generated (not imported)
                 if (!opts.mnemonic) {

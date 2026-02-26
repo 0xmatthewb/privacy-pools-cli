@@ -2,7 +2,9 @@ export declare function formatAmount(value: bigint, decimals: number, symbol?: s
 export declare function formatAddress(address: string, chars?: number): string;
 export declare function formatBPS(bps: bigint): string;
 export declare function formatTxHash(hash: string): string;
-export declare function printTable(headers: string[], rows: string[][]): void;
+export declare function printTable(headers: string[], rows: string[][], options?: {
+    json?: boolean;
+}): void;
 export declare function spinner(text: string, quiet?: boolean): import("ora").Ora;
 export declare function success(message: string, quiet?: boolean): void;
 export declare function warn(message: string, quiet?: boolean): void;

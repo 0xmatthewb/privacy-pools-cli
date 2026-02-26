@@ -4,6 +4,7 @@ import { AccountService, DataService, type PoolInfo } from "@0xbow/privacy-pools
 import type { Address } from "viem";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
 import type { ChainConfig } from "../types.js";
+import { CLIError } from "../utils/errors.js";
 
 // BigInt + Map aware JSON serializer
 function serialize(value: unknown): string {
@@ -105,7 +106,11 @@ export async function initializeAccountService(
   }>,
   chainId: number,
   /** When true, sync events even for saved accounts to catch external changes */
-  forceSync: boolean = false
+  forceSync: boolean = false,
+  /** When true, suppress best-effort sync warnings to keep machine stderr clean */
+  suppressWarnings: boolean = false,
+  /** When true, treat sync/initialization failures as hard errors (fail-closed). */
+  strictSync: boolean = false
 ): Promise<AccountService> {
   // Try to load existing account state
   const savedAccount = loadAccount(chainId);
@@ -115,6 +120,7 @@ export async function initializeAccountService(
 
     // Sync to pick up any events that happened since last save
     if (forceSync && pools.length > 0) {
+      let syncFailures = 0;
       for (const pool of pools) {
         const poolInfo = toPoolInfo(pool);
         try {
@@ -122,10 +128,20 @@ export async function initializeAccountService(
           await service.getWithdrawalEvents(poolInfo);
           await service.getRagequitEvents(poolInfo);
         } catch (err) {
-          process.stderr.write(
-            `Warning: sync failed for pool ${pool.address}: ${err instanceof Error ? err.message : String(err)}\n`
-          );
+          syncFailures++;
+          if (!suppressWarnings) {
+            process.stderr.write(
+              `Warning: sync failed for pool ${pool.address}: ${err instanceof Error ? err.message : String(err)}\n`
+            );
+          }
         }
+      }
+      if (strictSync && syncFailures > 0) {
+        throw new CLIError(
+          `Failed to sync account state for ${syncFailures} pool(s).`,
+          "RPC",
+          "Check your RPC connectivity and retry."
+        );
       }
       saveAccount(chainId, service.account);
     }
@@ -146,13 +162,44 @@ export async function initializeAccountService(
         poolInfos
       );
 
+      const initErrors = result.errors ?? [];
+      if (initErrors.length > 0) {
+        const details = initErrors
+          .slice(0, 3)
+          .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
+          .join("; ");
+
+        if (strictSync) {
+          throw new CLIError(
+            `Failed to initialize account from on-chain events for ${initErrors.length} pool(s). ${details}`,
+            "RPC",
+            "Check your RPC connectivity and retry."
+          );
+        }
+
+        if (!suppressWarnings) {
+          process.stderr.write(
+            `Warning: account initialization had partial failures for ${initErrors.length} pool(s): ${details}\n`
+          );
+        }
+      }
+
       // Save the initialized account
       saveAccount(chainId, result.account.account);
       return result.account;
     } catch (err) {
-      process.stderr.write(
-        `Warning: fresh account initialization failed, using empty account: ${err instanceof Error ? err.message : String(err)}\n`
-      );
+      if (strictSync) {
+        throw new CLIError(
+          `Failed to initialize account from on-chain events: ${err instanceof Error ? err.message : String(err)}`,
+          "RPC",
+          "Check your RPC connectivity and retry."
+        );
+      }
+      if (!suppressWarnings) {
+        process.stderr.write(
+          `Warning: fresh account initialization failed, using empty account: ${err instanceof Error ? err.message : String(err)}\n`
+        );
+      }
     }
   }
 

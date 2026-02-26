@@ -1,4 +1,4 @@
-export const JSON_SCHEMA_VERSION = "1.1.0";
+export const JSON_SCHEMA_VERSION = "1.2.0";
 
 export function printJsonSuccess(
   payload: object,
@@ -25,8 +25,9 @@ export function printJsonError(
   const output: Record<string, unknown> = {
     schemaVersion: JSON_SCHEMA_VERSION,
     success: false,
+    errorCode: payload.code ?? "UNKNOWN_ERROR",
+    errorMessage: payload.message,
     error: payload,
   };
-  // Errors go to stderr so stdout remains a clean success-only channel
-  process.stderr.write(JSON.stringify(output, null, pretty ? 2 : 0) + "\n");
+  console.log(JSON.stringify(output, null, pretty ? 2 : 0));
 }

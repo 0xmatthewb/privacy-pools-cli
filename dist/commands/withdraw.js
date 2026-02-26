@@ -17,13 +17,23 @@ import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
-import { stringifyBigInts, toSolidityProof } from "../utils/unsigned.js";
+import { printRawTransactions, stringifyBigInts, toSolidityProof } from "../utils/unsigned.js";
 import { buildUnsignedDirectWithdrawOutput, buildUnsignedRelayedWithdrawOutput, } from "../utils/unsigned-flows.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
-const latestRootAbi = [
+import { resolveGlobalMode } from "../utils/mode.js";
+const entrypointLatestRootAbi = [
     {
         name: "latestRoot",
+        type: "function",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [{ name: "", type: "uint256" }],
+    },
+];
+const poolCurrentRootAbi = [
+    {
+        name: "currentRoot",
         type: "function",
         stateMutability: "view",
         inputs: [],
@@ -38,29 +48,40 @@ export function createWithdrawCommand() {
         .option("--to <address>", "Recipient address (required for relayed)")
         .option("--direct", "Use direct withdrawal instead of relayed")
         .option("--unsigned", "Output unsigned payload(s) without submitting")
+        .option("--unsigned-format <format>", "Unsigned output format: envelope|tx")
         .option("--dry-run", "Generate and verify all withdrawal artifacts without submitting")
         .option("--asset <symbol|address>", "Asset to withdraw")
-        .addHelpText("after", "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia\n  privacy-pools withdraw 1 --asset USDC --json --yes --to 0xRecipient...\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools withdraw 1 --asset USDC --json --yes --to 0xRecipient...\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...\n"
         + commandHelpText({
             prerequisites: "init (account state should be synced)",
             jsonFields: "{ mode, txHash, amount, asset, chain }",
             jsonVariants: [
                 "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
+                "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
                 "--dry-run: { mode, dryRun, amount, proofPublicSignals, ... }",
                 "quote: { mode, chain, asset, amount, quoteFeeBPS, ... }",
             ],
         }))
         .action(async (firstArg, secondArg, opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
-        const isJson = globalOpts?.json ?? false;
-        const isQuiet = globalOpts?.quiet ?? false;
+        const mode = resolveGlobalMode(globalOpts);
+        const isJson = mode.isJson;
+        const isQuiet = mode.isQuiet;
         const isUnsigned = opts.unsigned ?? false;
+        const unsignedFormat = opts.unsignedFormat?.toLowerCase();
+        const wantsTxFormat = unsignedFormat === "tx";
         const isDryRun = opts.dryRun ?? false;
         const silent = isQuiet || isJson || isUnsigned;
-        const skipPrompts = (globalOpts?.yes ?? false) || isUnsigned || isDryRun;
+        const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
         const isVerbose = globalOpts?.verbose ?? false;
         const isDirect = opts.direct ?? false;
         try {
+            if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
+                throw new CLIError(`Unsupported unsigned format: ${opts.unsignedFormat}.`, "INPUT", "Use --unsigned-format envelope or --unsigned-format tx.");
+            }
+            if (wantsTxFormat && !isUnsigned) {
+                throw new CLIError("--unsigned-format tx requires --unsigned.", "INPUT", "Use: privacy-pools withdraw ... --unsigned --unsigned-format tx");
+            }
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
             verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
@@ -136,8 +157,8 @@ export function createWithdrawCommand() {
                     scope: pool.scope,
                     deploymentBlock: chainConfig.startBlock,
                 },
-            ], chainConfig.id, true // sync to pick up latest on-chain state
-            );
+            ], chainConfig.id, true, // sync to pick up latest on-chain state
+            silent, true);
             // Find spendable commitment
             const spendable = accountService.getSpendableCommitments();
             const poolCommitments = spendable.get(pool.scope) ?? [];
@@ -165,7 +186,7 @@ export function createWithdrawCommand() {
             // Verify ASP root parity against on-chain latest root.
             const onchainLatestRoot = await publicClient.readContract({
                 address: chainConfig.entrypoint,
-                abi: latestRootAbi,
+                abi: entrypointLatestRootAbi,
                 functionName: "latestRoot",
             });
             if (BigInt(roots.onchainMtRoot) !== BigInt(onchainLatestRoot)) {
@@ -191,9 +212,13 @@ export function createWithdrawCommand() {
             const { nullifier: newNullifier, secret: newSecret } = accountService.createWithdrawalSecrets(commitment);
             const stateRoot = (await publicClient.readContract({
                 address: pool.pool,
-                abi: latestRootAbi,
-                functionName: "latestRoot",
+                abi: poolCurrentRootAbi,
+                functionName: "currentRoot",
             }));
+            const stateProofRoot = BigInt(stateMerkleProof.root);
+            if (stateProofRoot !== BigInt(stateRoot)) {
+                throw new CLIError("State tree leaves are stale (proof root does not match on-chain pool root).", "ASP", "Re-fetch ASP leaves and regenerate the proof.");
+            }
             if (isDirect) {
                 // --- Direct Withdrawal ---
                 // Pre-flight gas check (skip for unsigned - relying on external signer)
@@ -210,7 +235,7 @@ export function createWithdrawCommand() {
                 // Re-verify parity right before proving
                 const latestRootCheck = await publicClient.readContract({
                     address: chainConfig.entrypoint,
-                    abi: latestRootAbi,
+                    abi: entrypointLatestRootAbi,
                     functionName: "latestRoot",
                 });
                 if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck)) {
@@ -244,7 +269,12 @@ export function createWithdrawCommand() {
                         withdrawal,
                         proof: solidityProof,
                     });
-                    printJsonSuccess(payload, false);
+                    if (wantsTxFormat) {
+                        printRawTransactions(payload.transactions);
+                    }
+                    else {
+                        printJsonSuccess(payload, false);
+                    }
                     return;
                 }
                 if (isDryRun) {
@@ -357,7 +387,7 @@ export function createWithdrawCommand() {
                 // Re-verify parity right before proving
                 const latestRootCheck = await publicClient.readContract({
                     address: chainConfig.entrypoint,
-                    abi: latestRootAbi,
+                    abi: entrypointLatestRootAbi,
                     functionName: "latestRoot",
                 });
                 if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck)) {
@@ -390,7 +420,7 @@ export function createWithdrawCommand() {
                 // Re-check parity before submit (in case of delay from user prompt)
                 const finalRootCheck = await publicClient.readContract({
                     address: chainConfig.entrypoint,
-                    abi: latestRootAbi,
+                    abi: entrypointLatestRootAbi,
                     functionName: "latestRoot",
                 });
                 if (BigInt(roots.onchainMtRoot) !== BigInt(finalRootCheck)) {
@@ -430,7 +460,12 @@ export function createWithdrawCommand() {
                             feeCommitment: quote.feeCommitment,
                         }),
                     });
-                    printJsonSuccess(payload, false);
+                    if (wantsTxFormat) {
+                        printRawTransactions(payload.transactions);
+                    }
+                    else {
+                        printJsonSuccess(payload, false);
+                    }
                     return;
                 }
                 if (isDryRun) {
@@ -519,8 +554,9 @@ export function createWithdrawCommand() {
         }))
         .action(async (firstArg, secondArg, opts, subCmd) => {
         const globalOpts = subCmd.parent?.parent?.opts();
-        const isJson = globalOpts?.json ?? false;
-        const isQuiet = globalOpts?.quiet ?? false;
+        const mode = resolveGlobalMode(globalOpts);
+        const isJson = mode.isJson;
+        const isQuiet = mode.isQuiet;
         const silent = isQuiet || isJson;
         const isVerbose = globalOpts?.verbose ?? false;
         try {

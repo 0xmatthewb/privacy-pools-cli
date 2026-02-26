@@ -22,6 +22,7 @@ export interface UnsignedTransactionPayload {
     data: Hex;
     description: string;
 }
+export declare function printRawTransactions(transactions: UnsignedTransactionPayload[]): void;
 export declare function toSolidityProof(raw: Groth16Like): SolidityProof;
 export declare function stringifyBigInts(value: unknown): unknown;
 export {};

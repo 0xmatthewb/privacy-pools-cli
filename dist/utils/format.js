@@ -18,7 +18,12 @@ export function formatBPS(bps) {
 export function formatTxHash(hash) {
     return formatAddress(hash, 8);
 }
-export function printTable(headers, rows) {
+export function printTable(headers, rows, options) {
+    if (options?.json) {
+        const records = rows.map((row) => Object.fromEntries(headers.map((header, idx) => [header, row[idx] ?? ""])));
+        console.log(JSON.stringify(records));
+        return;
+    }
     const table = new Table({
         head: headers.map((h) => chalk.bold(h)),
         style: { head: [], border: [] },
