@@ -13,6 +13,7 @@ describe("CLI help and version output", () => {
     expect(combined).toContain("balance");
     expect(combined).toContain("sync");
     expect(combined).toContain("status");
+    expect(combined).toContain("completion");
   });
 
   test("--version returns a semver-like version", () => {

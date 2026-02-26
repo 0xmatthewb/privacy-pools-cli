@@ -68,6 +68,8 @@ export function rootHelpFooter(): string {
     `  Get started:   ${chalk.cyan("privacy-pools init")}`,
     `  Full guide:    ${chalk.cyan("privacy-pools guide")}`,
     `  Command help:  ${chalk.cyan("privacy-pools <command> --help")}`,
+    `  Local dev:     ${chalk.cyan("bun run dev -- <command>")}`,
+    `  No install:    ${chalk.cyan("bunx @0xbow/privacy-pools-cli@latest <command>")}`,
   ].join("\n");
 }
 
@@ -79,6 +81,13 @@ export function rootHelpFooter(): string {
 export function guideText(): string {
   return [
     chalk.bold.cyan("Privacy Pools CLI - Quick Guide"),
+    "",
+    chalk.bold("Install & Run"),
+    `  ${chalk.cyan("npm i -g @0xbow/privacy-pools-cli")}`,
+    `  ${chalk.cyan("bun add -g @0xbow/privacy-pools-cli")}`,
+    `  ${chalk.cyan("bunx @0xbow/privacy-pools-cli@latest status")}  ${chalk.dim("(one-off, no install)")}`,
+    `  ${chalk.cyan("bun run dev -- status")}                         ${chalk.dim("(from repo checkout)")}`,
+    `  ${chalk.cyan("privacy-pools completion zsh")}                   ${chalk.dim("(shell autocomplete)")}`,
     "",
     chalk.bold("Quick Start"),
     `  ${chalk.cyan("privacy-pools init")}`,

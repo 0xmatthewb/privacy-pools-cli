@@ -17,6 +17,7 @@ import { createBalanceCommand } from "./commands/balance.js";
 import { createAccountsCommand } from "./commands/accounts.js";
 import { createSyncCommand } from "./commands/sync.js";
 import { createGuideCommand } from "./commands/guide.js";
+import { createCompletionCommand } from "./commands/completion.js";
 import { printBanner } from "./utils/banner.js";
 import { rootHelpFooter, styleCommanderHelp } from "./utils/help.js";
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
@@ -44,9 +45,15 @@ const isDryRun = argv.includes("--dry-run");
 const isMachineMode = isJson || isUnsigned || isDryRun || isAgent;
 const isHelpLike = argv.includes("--help") || argv.includes("-h") || firstCommandToken === "help";
 const isVersionLike = argv.includes("--version") || argv.includes("-V");
+const isCompletionLike = firstCommandToken === "completion";
 const noBanner = argv.includes("--no-banner");
 const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
-const shouldShowBanner = !isMachineMode && !isQuiet && !noBanner && !isHelpLike && !isVersionLike;
+const shouldShowBanner = !isMachineMode &&
+    !isQuiet &&
+    !noBanner &&
+    !isHelpLike &&
+    !isVersionLike &&
+    !isCompletionLike;
 let machineCapturedOut = "";
 const program = new Command();
 program
@@ -108,6 +115,7 @@ program.addCommand(createSyncCommand());
 program.addCommand(createStatusCommand());
 program.addCommand(createAccountsCommand());
 program.addCommand(createRagequitCommand());
+program.addCommand(createCompletionCommand());
 program.addCommand(createGuideCommand());
 if (isMachineMode) {
     const applyMachineMode = (cmd) => {

@@ -21,6 +21,7 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("balance");
     expect(result.stdout).toContain("accounts");
     expect(result.stdout).toContain("sync");
+    expect(result.stdout).toContain("completion");
   });
 
   test("root --version returns semantic version", () => {
@@ -41,6 +42,7 @@ describe("CLI help and discovery", () => {
     ["balance", "Show balances across pools"],
     ["accounts", "List pool accounts and commitment details"],
     ["sync", "Sync local account state from on-chain events"],
+    ["completion", "Generate shell completion script"],
   ] as const;
 
   for (const [command, expected] of COMMAND_HELP_CASES) {
