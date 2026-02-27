@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `accounts` command.
  *
- * Phase 3 – src/commands/accounts.ts delegates all final output here.
+ * `src/commands/accounts.ts` delegates final output here.
  * Sync, pool discovery, ASP label fetching, and spinner remain in
  * the command handler.
  */

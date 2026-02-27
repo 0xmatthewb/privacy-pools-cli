@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `pools` command.
  *
- * Phase 3 – src/commands/pools.ts delegates all final output here.
+ * `src/commands/pools.ts` delegates final output here.
  * Pool fetching, search, sort, and spinner remain in the command handler.
  */
 import type { OutputContext } from "./common.js";

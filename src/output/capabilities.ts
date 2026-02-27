@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `capabilities` command.
  *
- * Wired in Phase 2 – src/commands/capabilities.ts delegates all output here.
+ * `src/commands/capabilities.ts` delegates output rendering here.
  */
 
 import type { OutputContext } from "./common.js";

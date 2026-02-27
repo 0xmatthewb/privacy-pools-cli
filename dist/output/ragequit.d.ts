@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `ragequit` command.
  *
- * Phase 4 – handles dry-run and success output.
+ * Handles dry-run and success output.
  * Unsigned output, spinners, proof generation, and prompts remain in the
  * command handler.
  */

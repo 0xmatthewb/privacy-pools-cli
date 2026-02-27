@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `withdraw` command.
  *
- * Phase 5 – handles dry-run, success, and quote output for both direct
+ * Handles dry-run, success, and quote output for both direct
  * and relayed withdrawal modes.
  * Unsigned output, spinners, proof generation, relayer interactions, and
  * prompts remain in the command handler.

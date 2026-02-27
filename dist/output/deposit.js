@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `deposit` command.
  *
- * Phase 4 – handles dry-run and success output.
+ * Handles dry-run and success output.
  * Unsigned output, spinners, prompts, and balance checks remain in the
  * command handler.
  */

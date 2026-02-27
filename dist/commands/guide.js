@@ -5,7 +5,7 @@ import { renderGuide } from "../output/guide.js";
 export function createGuideCommand() {
     return new Command("guide")
         .description("Show usage guide, workflow, and reference")
-        .action((opts, cmd) => {
+        .action((_opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
         const mode = resolveGlobalMode(globalOpts);
         renderGuide(createOutputContext(mode));

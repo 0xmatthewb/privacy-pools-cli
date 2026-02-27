@@ -5,7 +5,7 @@
  * Command handlers import from here or from individual renderer files.
  */
 // Shared primitives
-export { createOutputContext, isSilent, stderrLine, printJsonSuccess, printError, info, success, warn, verbose, spinner, printTable, } from "./common.js";
+export { createOutputContext, isSilent, printJsonSuccess, info, success, warn, printTable, } from "./common.js";
 // Command renderers
 export { renderGuide } from "./guide.js";
 export { renderCapabilities, } from "./capabilities.js";

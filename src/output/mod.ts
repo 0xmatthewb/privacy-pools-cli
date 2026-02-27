@@ -11,14 +11,10 @@ export {
   type ResolvedGlobalMode,
   createOutputContext,
   isSilent,
-  stderrLine,
   printJsonSuccess,
-  printError,
   info,
   success,
   warn,
-  verbose,
-  spinner,
   printTable,
 } from "./common.js";
 

@@ -1,5 +1,5 @@
 /**
- * Phase 0 – Output baseline lock.
+ * Output baseline lock.
  *
  * Captures current stdout/stderr/exit-code contracts for every output path
  * that will be touched by the output-module refactor.

@@ -7,9 +7,8 @@
  */
 import type { ResolvedGlobalMode } from "../utils/mode.js";
 import { printJsonSuccess } from "../utils/json.js";
-import { printError } from "../utils/errors.js";
-import { info, success, warn, verbose, spinner, printTable } from "../utils/format.js";
-export { printJsonSuccess, printError, info, success, warn, verbose, spinner, printTable, };
+import { info, success, warn, printTable } from "../utils/format.js";
+export { printJsonSuccess, info, success, warn, printTable, };
 export type { ResolvedGlobalMode };
 /**
  * Output context passed from the command handler to a renderer.
@@ -32,8 +31,3 @@ export declare function createOutputContext(mode: ResolvedGlobalMode, isVerbose?
  * True when quiet *or* JSON mode is active.
  */
 export declare function isSilent(ctx: OutputContext): boolean;
-/**
- * Write a line to stderr (human mode only).
- * No-op when the context is silent.
- */
-export declare function stderrLine(ctx: OutputContext, text: string): void;

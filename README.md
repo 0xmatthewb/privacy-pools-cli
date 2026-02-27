@@ -242,6 +242,36 @@ Describe all CLI commands, flags, and workflows in a structured format. Useful f
 privacy-pools capabilities --json
 ```
 
+### `activity`
+
+Show the public activity feed — recent deposits, withdrawals, and exits — either globally or for a specific pool.
+
+```bash
+privacy-pools activity --chain sepolia
+privacy-pools activity --asset ETH --chain sepolia    # filter to one pool
+privacy-pools activity --page 2 --limit 20            # pagination
+```
+
+| Flag | Description |
+|------|-------------|
+| `-a, --asset <symbol\|address>` | Filter to one pool asset |
+| `--page <n>` | Page number (default: 1) |
+| `--limit <n>` | Items per page (default: 12) |
+
+### `stats`
+
+Show public protocol statistics (all-time and last 24h). Has two subcommands: `global` and `pool`.
+
+```bash
+privacy-pools stats global --chain sepolia            # global stats
+privacy-pools stats pool --asset ETH --chain sepolia  # per-pool stats
+```
+
+| Subcommand | Flag | Description |
+|------------|------|-------------|
+| `global` | — | Show aggregate statistics across all pools |
+| `pool` | `-a, --asset <symbol\|address>` | Show statistics for a specific pool |
+
 ### `completion`
 
 Generate shell completion scripts.
@@ -295,6 +325,13 @@ privacy-pools accounts -j --chain sepolia
 # 5. Withdraw
 privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -j -y --chain sepolia
 ```
+
+**Output stream convention:**
+
+- **stdout** — reserved exclusively for machine-readable JSON (when `--json` is set). Never contains human-readable text.
+- **stderr** — all human-readable messages (progress spinners, prompts, status lines, errors).
+
+This means you can safely pipe stdout to `jq` or another parser without worrying about stray text.
 
 **JSON output contract:**
 
@@ -371,6 +408,29 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with the `PR
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 
+## Project Structure
+
+```
+src/
+  commands/       Command handlers (one per CLI command)
+  output/         Output renderers — own all JSON payload assembly and
+                  human-mode formatting. Commands delegate here.
+    common.ts     Shared OutputContext, isSilent(), re-exported primitives
+    mod.ts        Barrel re-export of all renderers
+    <command>.ts  Per-command renderer (e.g., deposit.ts, withdraw.ts)
+  config/         Chain configuration and contract addresses
+  services/       SDK, wallet, account, ASP, and relayer service wrappers
+  utils/          Shared utilities (validation, formatting, errors, mode)
+  index.ts        Entry point — registers all commands
+  types.ts        Shared TypeScript types
+test/
+  unit/           Unit tests for individual modules
+  integration/    Integration tests (CLI invocation via subprocess)
+  conformance/    Source-level grep assertions enforcing architectural rules
+  fuzz/           Fuzz and stress tests
+  helpers/        Shared test utilities
+```
+
 ## Development
 
 ```bash
@@ -389,14 +449,18 @@ privacy-pools --help
 npm unlink -g @0xbow/privacy-pools-cli
 ```
 
-### Tests
+### Scripts
 
 ```bash
-bun test                  # full suite
-bun run test:fuzz         # fuzz tests
-bun run test:coverage     # with coverage
+bun test                  # full test suite
+bun run typecheck         # TypeScript type check (no emit)
+bun run test:fuzz         # fuzz tests (longer timeout)
+bun run test:stress       # stress test (120 rounds)
+bun run test:coverage     # test suite with coverage
+bun run test:audit        # all tests with extended timeout
+bun run test:release      # full release gate (e2e + external conformance)
 ```
 
 ## License
 
-[Apache-2.0](LICENSE)
+Apache-2.0

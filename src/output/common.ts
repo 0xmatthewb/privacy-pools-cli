@@ -8,13 +8,10 @@
 
 import type { ResolvedGlobalMode } from "../utils/mode.js";
 import { printJsonSuccess } from "../utils/json.js";
-import { printError } from "../utils/errors.js";
 import {
   info,
   success,
   warn,
-  verbose,
-  spinner,
   printTable,
 } from "../utils/format.js";
 
@@ -22,12 +19,9 @@ import {
 
 export {
   printJsonSuccess,
-  printError,
   info,
   success,
   warn,
-  verbose,
-  spinner,
   printTable,
 };
 export type { ResolvedGlobalMode };
@@ -61,14 +55,4 @@ export function createOutputContext(
  */
 export function isSilent(ctx: OutputContext): boolean {
   return ctx.mode.isQuiet || ctx.mode.isJson;
-}
-
-/**
- * Write a line to stderr (human mode only).
- * No-op when the context is silent.
- */
-export function stderrLine(ctx: OutputContext, text: string): void {
-  if (!isSilent(ctx)) {
-    process.stderr.write(`${text}\n`);
-  }
 }

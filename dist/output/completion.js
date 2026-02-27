@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `completion` command.
  *
- * Wired in Phase 2 – src/commands/completion.ts delegates all output here.
+ * `src/commands/completion.ts` delegates output rendering here.
  */
 import { printJsonSuccess } from "./common.js";
 /**

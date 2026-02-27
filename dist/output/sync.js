@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `sync` command.
  *
- * Wired in Phase 2 – src/commands/sync.ts delegates all output here.
+ * `src/commands/sync.ts` delegates output rendering here.
  * Spinners and verbose logging remain in the command handler.
  */
 import { printJsonSuccess, info, success, isSilent } from "./common.js";

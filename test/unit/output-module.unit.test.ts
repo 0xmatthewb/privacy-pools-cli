@@ -1,5 +1,5 @@
 /**
- * Unit tests for the output module scaffolding (Phase 1).
+ * Unit tests for the output module.
  *
  * Validates that:
  *   1. createOutputContext produces the expected shape
@@ -97,17 +97,13 @@ describe("barrel re-exports", () => {
     // Shared primitives
     expect(typeof mod.createOutputContext).toBe("function");
     expect(typeof mod.isSilent).toBe("function");
-    expect(typeof mod.stderrLine).toBe("function");
     expect(typeof mod.printJsonSuccess).toBe("function");
-    expect(typeof mod.printError).toBe("function");
     expect(typeof mod.info).toBe("function");
     expect(typeof mod.success).toBe("function");
     expect(typeof mod.warn).toBe("function");
-    expect(typeof mod.verbose).toBe("function");
-    expect(typeof mod.spinner).toBe("function");
     expect(typeof mod.printTable).toBe("function");
 
-    // Command renderers (Phase 1-2)
+    // Core command renderers
     expect(typeof mod.renderGuide).toBe("function");
     expect(typeof mod.renderCapabilities).toBe("function");
     expect(typeof mod.renderCompletionScript).toBe("function");
@@ -115,7 +111,7 @@ describe("barrel re-exports", () => {
     expect(typeof mod.renderSyncEmpty).toBe("function");
     expect(typeof mod.renderSyncComplete).toBe("function");
 
-    // Command renderers (Phase 3)
+    // Reporting command renderers
     expect(typeof mod.renderStatus).toBe("function");
     expect(typeof mod.renderPoolsEmpty).toBe("function");
     expect(typeof mod.renderPools).toBe("function");
@@ -128,14 +124,14 @@ describe("barrel re-exports", () => {
     expect(typeof mod.renderHistoryNoPools).toBe("function");
     expect(typeof mod.renderHistory).toBe("function");
 
-    // Command renderers (Phase 4)
+    // Transactional command renderers
     expect(typeof mod.renderInitResult).toBe("function");
     expect(typeof mod.renderDepositDryRun).toBe("function");
     expect(typeof mod.renderDepositSuccess).toBe("function");
     expect(typeof mod.renderRagequitDryRun).toBe("function");
     expect(typeof mod.renderRagequitSuccess).toBe("function");
 
-    // Command renderers (Phase 5)
+    // Withdraw renderer
     expect(typeof mod.renderWithdrawDryRun).toBe("function");
     expect(typeof mod.renderWithdrawSuccess).toBe("function");
     expect(typeof mod.renderWithdrawQuote).toBe("function");
@@ -145,8 +141,7 @@ describe("barrel re-exports", () => {
 // ── Renderer output parity ──────────────────────────────────────────────────
 //
 // These tests capture stdout/stderr from each renderer and verify the output
-// matches the current command behavior byte-for-byte.  When Phase 2 wires
-// commands to renderers, any drift will fail here.
+// matches the current command behavior byte-for-byte.
 
 /** Capture stdout and stderr writes during `fn()`. */
 function captureOutput(fn: () => void): { stdout: string; stderr: string } {
@@ -408,7 +403,7 @@ describe("renderSyncComplete parity", () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Phase 3 renderer parity tests
+// Reporting renderer parity tests
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── Stub data ────────────────────────────────────────────────────────────────
@@ -926,7 +921,7 @@ describe("renderHistory parity", () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Phase 4 renderer parity tests
+// Transactional renderer parity tests
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── renderInitResult parity ─────────────────────────────────────────────────
@@ -1289,7 +1284,7 @@ describe("renderRagequitSuccess parity", () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Phase 5 renderer parity tests
+// Withdraw renderer parity tests
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── renderWithdrawDryRun parity ─────────────────────────────────────────────

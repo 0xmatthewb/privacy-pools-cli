@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `init` command.
  *
- * Phase 4 – handles the final result output only.
+ * Handles final result output only.
  * Interactive flow messages (mnemonic display, verification, inline warnings)
  * remain in the command handler.
  */

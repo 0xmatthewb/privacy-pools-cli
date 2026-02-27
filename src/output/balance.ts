@@ -1,12 +1,12 @@
 /**
  * Output renderer for the `balance` command.
  *
- * Phase 3 – src/commands/balance.ts delegates all final output here.
+ * `src/commands/balance.ts` delegates final output here.
  * Sync, pool discovery, and spinner remain in the command handler.
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable, isSilent } from "./common.js";
+import { printJsonSuccess, printTable } from "./common.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

@@ -1,13 +1,13 @@
 /**
  * Output renderer for the `pools` command.
  *
- * Phase 3 – src/commands/pools.ts delegates all final output here.
+ * `src/commands/pools.ts` delegates final output here.
  * Pool fetching, search, sort, and spinner remain in the command handler.
  */
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable, isSilent } from "./common.js";
+import { printJsonSuccess, printTable } from "./common.js";
 import { formatAddress, formatAmount, formatBPS } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 

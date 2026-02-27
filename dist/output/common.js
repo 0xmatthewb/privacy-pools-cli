@@ -6,10 +6,9 @@
  * truth in `utils/json.ts` and formatting helpers in `utils/format.ts`.
  */
 import { printJsonSuccess } from "../utils/json.js";
-import { printError } from "../utils/errors.js";
-import { info, success, warn, verbose, spinner, printTable, } from "../utils/format.js";
+import { info, success, warn, printTable, } from "../utils/format.js";
 // ── Re-exports so renderers only need one import ─────────────────────────────
-export { printJsonSuccess, printError, info, success, warn, verbose, spinner, printTable, };
+export { printJsonSuccess, info, success, warn, printTable, };
 /**
  * Create an output context from resolved mode and verbose flag.
  */
@@ -22,13 +21,4 @@ export function createOutputContext(mode, isVerbose = false) {
  */
 export function isSilent(ctx) {
     return ctx.mode.isQuiet || ctx.mode.isJson;
-}
-/**
- * Write a line to stderr (human mode only).
- * No-op when the context is silent.
- */
-export function stderrLine(ctx, text) {
-    if (!isSilent(ctx)) {
-        process.stderr.write(`${text}\n`);
-    }
 }

@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `history` command.
  *
- * Phase 3 – src/commands/history.ts delegates all final output here.
+ * `src/commands/history.ts` delegates final output here.
  * Event extraction (buildHistoryEventsFromAccount), sync, pool discovery,
  * and spinner remain in the command handler.
  */

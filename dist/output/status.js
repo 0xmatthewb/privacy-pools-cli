@@ -1,7 +1,7 @@
 /**
  * Output renderer for the `status` command.
  *
- * Phase 3 – src/commands/status.ts delegates all final output here.
+ * `src/commands/status.ts` delegates final output here.
  * Health-check execution and config loading remain in the command handler.
  */
 import chalk from "chalk";

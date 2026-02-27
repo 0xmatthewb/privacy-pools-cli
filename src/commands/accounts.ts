@@ -11,7 +11,7 @@ import {
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { fetchApprovedLabels } from "../services/asp.js";
-import { spinner, formatAddress, warn, verbose } from "../utils/format.js";
+import { spinner, warn, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
