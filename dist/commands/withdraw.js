@@ -46,8 +46,8 @@ const poolCurrentRootAbi = [
 export function createWithdrawCommand() {
     const command = new Command("withdraw")
         .description("Withdraw from a Privacy Pool (relayed by default)")
-        .argument("<amountOrAsset>", "Amount or asset (supports both <amount> --asset ... and <asset> <amount>)")
-        .argument("[amount]", "Optional amount when using positional asset alias")
+        .argument("<amountOrAsset>", "Amount to withdraw (or asset symbol, see examples)")
+        .argument("[amount]", "Amount (when asset is the first argument)")
         .option("-t, --to <address>", "Recipient address (required for relayed)")
         .option("-p, --from-pa <PA-#|#>", "Withdraw from a specific Pool Account (e.g. PA-2)")
         .option("--direct", "Use direct withdrawal instead of relayed")
@@ -393,7 +393,7 @@ export function createWithdrawCommand() {
                     });
                 }
                 catch {
-                    throw new CLIError("Timed out waiting for withdrawal confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to recover.`);
+                    throw new CLIError("Timed out waiting for withdrawal confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
                 }
                 if (receipt.status !== "success") {
                     throw new CLIError(`Withdrawal transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
@@ -407,7 +407,7 @@ export function createWithdrawCommand() {
                     }
                     catch (saveErr) {
                         process.stderr.write(`\nWarning: withdrawal confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
-                        process.stderr.write("⚠ Run 'privacy-pools sync' to recover your account state.\n");
+                        process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
                     }
                 }
                 finally {
@@ -676,7 +676,7 @@ export function createWithdrawCommand() {
                     });
                 }
                 catch {
-                    throw new CLIError("Timed out waiting for relayed withdrawal confirmation.", "RPC", "The relayer may have replaced or delayed the transaction. Check the relayer/explorer and run 'privacy-pools sync' to recover local state.");
+                    throw new CLIError("Timed out waiting for relayed withdrawal confirmation.", "RPC", "The relayer may have replaced or delayed the transaction. Check the explorer and run 'privacy-pools sync' to update local state.");
                 }
                 if (receipt.status !== "success") {
                     throw new CLIError(`Relay transaction reverted: ${result.txHash}`, "CONTRACT");
@@ -690,7 +690,7 @@ export function createWithdrawCommand() {
                     }
                     catch (saveErr) {
                         process.stderr.write(`\nWarning: relayed withdrawal confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
-                        process.stderr.write("⚠ Run 'privacy-pools sync' to recover your account state.\n");
+                        process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
                     }
                 }
                 finally {
@@ -734,8 +734,8 @@ export function createWithdrawCommand() {
     command
         .command("quote")
         .description("Request relayer quote and limits without generating a proof")
-        .argument("<amountOrAsset>", "Amount or asset (supports both <amount> --asset ... and <asset> <amount>)")
-        .argument("[amount]", "Optional amount when using positional asset alias")
+        .argument("<amountOrAsset>", "Amount to withdraw (or asset symbol, see examples)")
+        .argument("[amount]", "Amount (when asset is the first argument)")
         .option("-a, --asset <symbol|address>", "Asset to quote")
         .option("-t, --to <address>", "Recipient address (recommended for signed fee commitment)")
         .addHelpText("after", "\nExamples:\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw quote 100 --asset USDC --json --chain ethereum\n"

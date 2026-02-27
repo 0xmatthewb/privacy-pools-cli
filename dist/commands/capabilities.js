@@ -14,7 +14,7 @@ const CAPABILITIES = {
         },
         {
             name: "pools",
-            description: "List available Privacy Pools on a chain",
+            description: "List available pools and assets",
             flags: [],
             agentFlags: "--json",
             requiresInit: false,
@@ -29,7 +29,7 @@ const CAPABILITIES = {
         },
         {
             name: "withdraw",
-            description: "Withdraw from a Privacy Pool (direct or relayed)",
+            description: "Withdraw from a Privacy Pool (relayed by default)",
             usage: "withdraw <amount> --asset <symbol|address> --to <address>",
             flags: ["--asset <symbol|address>", "--to <address>", "--from-pa <PA-#>", "--direct", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
             agentFlags: "--json --yes --asset <symbol> --to <address>",
@@ -44,7 +44,7 @@ const CAPABILITIES = {
         },
         {
             name: "accounts",
-            description: "List Pool Accounts with status and ASP approval",
+            description: "List your Pool Accounts (PA-1, PA-2, ...)",
             flags: ["--no-sync", "--all", "--details"],
             agentFlags: "--json",
             requiresInit: true,
@@ -58,14 +58,14 @@ const CAPABILITIES = {
         },
         {
             name: "sync",
-            description: "Sync account state from on-chain events",
+            description: "Sync local account state from on-chain events",
             flags: [],
             agentFlags: "--json",
             requiresInit: true,
         },
         {
             name: "status",
-            description: "Show wallet and configuration status",
+            description: "Show configuration and connection status",
             flags: [],
             agentFlags: "--json",
             requiresInit: false,
@@ -73,7 +73,7 @@ const CAPABILITIES = {
         {
             name: "ragequit",
             aliases: ["exit"],
-            description: "Emergency public exit - sacrifices privacy to recover funds",
+            description: "Emergency exit: recover funds publicly, sacrificing privacy",
             usage: "ragequit --asset <symbol|address> --from-pa <PA-#>",
             flags: ["--asset <symbol|address>", "--from-pa <PA-#>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
             agentFlags: "--json --yes --asset <symbol> --from-pa <PA-#>",
@@ -81,7 +81,7 @@ const CAPABILITIES = {
         },
         {
             name: "guide",
-            description: "Interactive protocol guide and tutorial",
+            description: "Show usage guide, workflow, and reference",
             flags: [],
             agentFlags: "--json",
             requiresInit: false,

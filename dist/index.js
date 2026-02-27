@@ -71,7 +71,7 @@ let machineCapturedOut = "";
 const program = new Command();
 program
     .name("privacy-pools")
-    .description("Human-first CLI for Privacy Pools v1 (use -j -y in agent workflows)")
+    .description("CLI for Privacy Pools v1")
     .version(pkg.version)
     .option("-c, --chain <name>", "Target chain (ethereum, sepolia, ...)")
     .option("-j, --json", "Machine-readable JSON output")
@@ -125,10 +125,10 @@ program.addCommand(createPoolsCommand());
 program.addCommand(createDepositCommand());
 program.addCommand(createWithdrawCommand());
 program.addCommand(createBalanceCommand());
-program.addCommand(createSyncCommand());
-program.addCommand(createStatusCommand());
 program.addCommand(createAccountsCommand());
 program.addCommand(createHistoryCommand());
+program.addCommand(createSyncCommand());
+program.addCommand(createStatusCommand());
 program.addCommand(createRagequitCommand());
 program.addCommand(createCapabilitiesCommand());
 program.addCommand(createCompletionCommand());

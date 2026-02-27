@@ -63,7 +63,7 @@ export function buildUnsignedDepositOutput(params: UnsignedBase & {
         functionName: "approve",
         args: [params.entrypoint, params.amount],
       }),
-      description: "Approve ERC20 allowance for Entrypoint",
+      description: "Approve ERC-20 allowance for Entrypoint",
     });
   }
 

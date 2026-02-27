@@ -44,9 +44,9 @@ const depositedEventAbi = parseAbi([
 
 export function createDepositCommand(): Command {
   return new Command("deposit")
-    .description("Deposit ETH or ERC20 tokens into a Privacy Pool")
-    .argument("<amountOrAsset>", "Amount or asset (supports both <amount> --asset ... and <asset> <amount>)")
-    .argument("[amount]", "Optional amount when using positional asset alias")
+    .description("Deposit ETH or ERC-20 tokens into a Privacy Pool")
+    .argument("<amountOrAsset>", "Amount to deposit (or asset symbol, see examples)")
+    .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-a, --asset <symbol|address>", "Asset to deposit (symbol like ETH, USDC, or contract address)")
     .option("--unsigned", "Build unsigned transaction payload(s); do not submit")
     .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
@@ -350,7 +350,7 @@ export function createDepositCommand(): Command {
           throw new CLIError(
             "Timed out waiting for deposit confirmation.",
             "RPC",
-            `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to recover.`
+            `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`
           );
         }
         if (receipt.status !== "success") {
@@ -385,7 +385,7 @@ export function createDepositCommand(): Command {
 
           if (label === undefined || committedValue === undefined) {
             spin.warn(
-              "Deposit confirmed but could not parse event. Run 'privacy-pools sync' to recover account state."
+              "Deposit confirmed on-chain. Local state update pending: run 'privacy-pools sync' to finalize."
             );
           } else {
             // Persist the new commitment (7 individual args)
@@ -405,7 +405,7 @@ export function createDepositCommand(): Command {
                 `\nWarning: deposit confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
               );
               process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to recover your account state.\n"
+                "⚠ Run 'privacy-pools sync' to update your local account state.\n"
               );
             }
           }
@@ -439,7 +439,7 @@ export function createDepositCommand(): Command {
           info(`Pool Account: ${nextPAId}`, silent);
           if (committedValue !== undefined) {
             info(
-              `Committed: ${formatAmount(committedValue, pool.decimals, pool.symbol)} (after vetting fee)`,
+              `Net deposited: ${formatAmount(committedValue, pool.decimals, pool.symbol)} (after vetting fee)`,
               silent
             );
           }
@@ -448,7 +448,7 @@ export function createDepositCommand(): Command {
           if (explorerUrl) {
             info(`Explorer: ${explorerUrl}`, silent);
           }
-          info("Your deposit is pending ASP approval (usually ~1 hour, max 7 days).", silent);
+          info("Your deposit is pending ASP approval (usually a few minutes, up to 7 days in rare cases).", silent);
           info("Check status: privacy-pools accounts --chain " + chainConfig.name, silent);
         }
       } catch (error) {

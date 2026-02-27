@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import chalk from "chalk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { listPools } from "../services/pools.js";
@@ -60,6 +61,7 @@ export function createPoolsCommand() {
                 formatBPS(p.vettingFeeBPS),
                 formatBPS(p.maxRelayFeeBPS),
             ]));
+            process.stderr.write(chalk.dim("\nVetting fees are deducted on deposit. Relay fees apply to relayed withdrawals.\n"));
         }
         catch (error) {
             printError(error, isJson);

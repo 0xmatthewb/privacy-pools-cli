@@ -4,12 +4,12 @@ Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Dep
 
 ## What is Privacy Pools?
 
-Privacy Pools lets you deposit ETH or ERC-20 tokens into a shielded pool on Ethereum, Arbitrum, or Optimism. When you withdraw, a zero-knowledge proof proves your funds are legitimate (screened by the ASP) without revealing which deposit is yours.
+Privacy Pools v1 breaks the on-chain link between deposit and withdrawal addresses while maintaining regulatory compliance. Deposits are public, but when you withdraw, a zero-knowledge proof proves your deposit was approved by the ASP without revealing which deposit is yours. The anonymity set is everyone else who deposited into the same pool and was approved.
 
 **Key concepts:**
 
 - **Pool Account (PA-1, PA-2, ...)**: Each deposit creates a numbered Pool Account. This is how you refer to your funds throughout the CLI.
-- **ASP (Association Set Provider)**: A compliance service that screens deposits. Your Pool Account must be ASP-approved before you can withdraw privately.
+- **ASP (Association Set Provider)**: A compliance service that screens deposits and maintains a Merkle tree of approved deposit labels. Your Pool Account must be ASP-approved before you can withdraw privately.
 - **Relayed withdrawal**: The default withdrawal mode. A relayer submits your transaction so the recipient address is never linked to your deposit on-chain. Costs a small fee (in BPS).
 - **Direct withdrawal**: Withdraws to your signer address without a relayer. Cheaper, but links sender and receiver.
 - **Ragequit / Exit**: Emergency public withdrawal that sacrifices privacy but always recovers your funds, even if the ASP hasn't approved your deposit.

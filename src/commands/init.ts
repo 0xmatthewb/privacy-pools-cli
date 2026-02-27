@@ -65,9 +65,8 @@ export function createInitCommand(): Command {
 
         if (hasExisting && !forceOverwrite && skipPrompts) {
           throw new CLIError(
-            "Existing configuration found. Refusing to overwrite in non-interactive mode.",
-            "INPUT",
-            "Re-run with --force to overwrite, or remove existing config files first."
+            "Existing configuration found. Use --force to overwrite.",
+            "INPUT"
           );
         }
 

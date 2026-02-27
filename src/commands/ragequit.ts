@@ -41,7 +41,7 @@ import {
 export function createRagequitCommand(): Command {
   return new Command("ragequit")
     .alias("exit")
-    .description("Emergency public exit (ragequit) - sacrifices privacy to recover funds")
+    .description("Emergency exit: recover funds publicly, sacrificing privacy")
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
     .option("-a, --asset <symbol|address>", "Asset pool to exit from")
     .option("-p, --from-pa <PA-#|#>", "Exit a specific Pool Account (e.g. PA-2)")
@@ -437,7 +437,7 @@ export function createRagequitCommand(): Command {
           throw new CLIError(
             "Timed out waiting for exit confirmation.",
             "RPC",
-            `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to recover.`
+            `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`
           );
         }
         if (receipt.status !== "success") {
@@ -467,7 +467,7 @@ export function createRagequitCommand(): Command {
             // Non-fatal: next sync will discover the ragequit event on-chain
             if (!silent) {
               process.stderr.write(
-                `Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will recover.\n`
+                `Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will pick it up.\n`
               );
             }
           }
@@ -479,7 +479,7 @@ export function createRagequitCommand(): Command {
               `Warning: ragequit confirmed on-chain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`
             );
             process.stderr.write(
-              "⚠ Run 'privacy-pools sync' to recover your account state.\n"
+              "⚠ Run 'privacy-pools sync' to update your local account state.\n"
             );
           }
         } finally {

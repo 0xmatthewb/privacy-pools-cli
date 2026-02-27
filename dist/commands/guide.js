@@ -4,7 +4,7 @@ import { printJsonSuccess } from "../utils/json.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 export function createGuideCommand() {
     return new Command("guide")
-        .description("Show the full usage guide, workflow, and reference")
+        .description("Show usage guide, workflow, and reference")
         .action((opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
         const mode = resolveGlobalMode(globalOpts);

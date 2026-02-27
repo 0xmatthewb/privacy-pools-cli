@@ -71,8 +71,6 @@ export function rootHelpFooter(): string {
     `  Agent unsigned:   ${chalk.cyan("privacy-pools -j -y deposit ETH 0.1 --unsigned --chain sepolia")}`,
     `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
     `  Command help:     ${chalk.cyan("privacy-pools <command> --help")}`,
-    `  Local dev:        ${chalk.cyan("bun run dev -- <command>")}`,
-    `  No install:       ${chalk.cyan("bunx @0xbow/privacy-pools-cli@latest <command>")}`,
   ].join("\n");
 }
 
@@ -121,11 +119,11 @@ export function guideText(): string {
     "",
     chalk.bold("Interaction Modes"),
     "  Human mode (default): interactive prompts + readable output.",
-    "  Agent mode: use -j -y for machine JSON output and non-interactive behavior.",
-    "  Compatibility alias: --agent == -j -y -q (kept for existing automation).",
-    "  Modifiers: --unsigned builds transaction payloads only; --dry-run validates/proves without submitting.",
-    "  Pool Accounts: use -p/--from-pa PA-<n> on withdraw/exit to select a specific account.",
-    "  Note: --dry-run stays human-readable unless paired with -j/--json.",
+    "  Agent mode: -j -y for structured JSON output, no prompts.",
+    "  Shorthand: --agent is equivalent to -j -y -q.",
+    "  --unsigned builds transaction payloads without submitting.",
+    "  --dry-run validates and generates proofs without submitting.",
+    "  -p/--from-pa PA-<n> selects a specific Pool Account for withdraw/exit.",
     "",
     chalk.bold("Exit Codes"),
     `  ${chalk.green("0")}  Success`,
@@ -165,15 +163,8 @@ export function commandHelpText(config: CommandHelpConfig): string {
     }
   }
   lines.push("  Errors: { errorCode, errorMessage, error: { code, category, message, hint, retryable } }");
-  lines.push("", "Mode Guide:");
-  lines.push("  Human mode: default");
-  lines.push("  Agent mode: -j -y");
-  if (config.supportsUnsigned) {
-    lines.push("  Agent unsigned: -j -y --unsigned");
-  }
-  if (config.supportsDryRun) {
-    lines.push("  Dry-run: --dry-run (add -j for machine-readable output)");
-  }
+  lines.push("");
+  lines.push("  Tip: Add -j -y for machine-readable JSON output.");
 
   return lines.join("\n");
 }

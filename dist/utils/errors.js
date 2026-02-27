@@ -52,7 +52,7 @@ const CONTRACT_ERROR_MAP = {
     },
     InvalidProcessooor: {
         message: "Withdrawal type mismatch.",
-        hint: "For direct withdrawal, processooor must be your signer address. For relayed, it must be the entrypoint address.",
+        hint: "This usually means the wrong withdrawal mode was used. Try switching between --direct and relayed (default).",
         code: "CONTRACT_INVALID_PROCESSOOOR",
     },
     InvalidProof: {

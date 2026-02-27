@@ -554,8 +554,7 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("Refusing to overwrite");
-    expect(json.error.hint).toContain("--force");
+    expect(json.error.message).toContain("Use --force to overwrite");
   });
 
   test("--json init --force allows overwrite and reports persisted signerKeySet accurately", () => {
@@ -791,8 +790,7 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("Refusing to overwrite");
-    expect(json.error.hint).toContain("--force");
+    expect(json.error.message).toContain("Use --force to overwrite");
   });
 
   test("machine-mode parse errors are JSON (unknown command via --agent)", () => {

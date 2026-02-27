@@ -6,7 +6,7 @@ import { resolveGlobalMode } from "../utils/mode.js";
 
 export function createGuideCommand(): Command {
   return new Command("guide")
-    .description("Show the full usage guide, workflow, and reference")
+    .description("Show usage guide, workflow, and reference")
     .action((opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
