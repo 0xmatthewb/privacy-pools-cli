@@ -18,13 +18,11 @@ import { fetchMerkleRoots, fetchMerkleLeaves, fetchDepositsLargerThan } from "..
 import { getRelayerDetails, requestQuote, submitRelayRequest } from "../services/relayer.js";
 import {
   spinner,
-  success,
   info,
   warn,
   verbose,
   formatAmount,
   formatAddress,
-  formatTxHash,
   formatBPS,
 } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
@@ -42,6 +40,8 @@ import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { createOutputContext } from "../output/common.js";
+import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote } from "../output/withdraw.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import {
   buildPoolAccountRefs,
@@ -537,35 +537,20 @@ export function createWithdrawCommand(): Command {
 
           if (isDryRun) {
             spin.succeed("Dry-run completed (no transaction submitted).");
-            if (isJson) {
-              printJsonSuccess(
-                {
-                  mode: "direct",
-                  dryRun: true,
-                  amount: withdrawalAmount.toString(),
-                  asset: pool.symbol,
-                  chain: chainConfig.name,
-                  recipient: directAddress,
-                  poolAccountNumber: selectedPoolAccount.paNumber,
-                  poolAccountId: selectedPoolAccount.paId,
-                  selectedCommitmentLabel: commitmentLabel.toString(),
-                  selectedCommitmentValue: commitment.value.toString(),
-                  proofPublicSignals: proof.publicSignals.length,
-                },
-                false
-              );
-            } else {
-              process.stderr.write("\n");
-              success("Dry-run complete.", silent);
-              info(`Mode: direct`, silent);
-              info(`Recipient: ${formatAddress(directAddress)}`, silent);
-              info(`From Pool Account: ${selectedPoolAccount.paId}`, silent);
-              info(
-                `Pool Account balance: ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`,
-                silent
-              );
-              info("No transaction was submitted.", silent);
-            }
+            const ctx = createOutputContext(mode);
+            renderWithdrawDryRun(ctx, {
+              withdrawMode: "direct",
+              amount: withdrawalAmount,
+              asset: pool.symbol,
+              chain: chainConfig.name,
+              decimals: pool.decimals,
+              recipient: directAddress,
+              poolAccountNumber: selectedPoolAccount.paNumber,
+              poolAccountId: selectedPoolAccount.paId,
+              selectedCommitmentLabel: commitmentLabel,
+              selectedCommitmentValue: commitment.value,
+              proofPublicSignals: proof.publicSignals.length,
+            });
             return;
           }
 
@@ -637,37 +622,22 @@ export function createWithdrawCommand(): Command {
           }
           spin.succeed("Direct withdrawal confirmed!");
 
-          if (isJson) {
-            printJsonSuccess(
-              {
-                operation: "withdraw",
-                mode: "direct",
-                txHash: tx.hash,
-                blockNumber: receipt.blockNumber.toString(),
-                amount: withdrawalAmount.toString(),
-                recipient: recipientAddress,
-                withdrawalMode: "direct",
-                fee: null,
-                explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
-                poolAddress: pool.pool,
-                scope: pool.scope.toString(),
-                asset: pool.symbol,
-                chain: chainConfig.name,
-                poolAccountNumber: selectedPoolAccount.paNumber,
-                poolAccountId: selectedPoolAccount.paId,
-              },
-              false
-            );
-          } else {
-            process.stderr.write("\n");
-            success(
-              `Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} to ${formatAddress(directAddress)}`,
-              silent
-            );
-            info(`Tx: ${formatTxHash(tx.hash)}`, silent);
-            const directExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
-            if (directExplorerUrl) info(`Explorer: ${directExplorerUrl}`, silent);
-          }
+          const ctx = createOutputContext(mode);
+          renderWithdrawSuccess(ctx, {
+            withdrawMode: "direct",
+            txHash: tx.hash,
+            blockNumber: receipt.blockNumber,
+            amount: withdrawalAmount,
+            recipient: recipientAddress,
+            asset: pool.symbol,
+            chain: chainConfig.name,
+            decimals: pool.decimals,
+            poolAccountNumber: selectedPoolAccount.paNumber,
+            poolAccountId: selectedPoolAccount.paId,
+            poolAddress: pool.pool,
+            scope: pool.scope,
+            explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+          });
         } else {
           // --- Relayed Withdrawal ---
           // Preload circuits (already done via sdk.proveWithdrawal init)
@@ -945,39 +915,22 @@ export function createWithdrawCommand(): Command {
 
           if (isDryRun) {
             spin.succeed("Dry-run completed (no transaction submitted).");
-            if (isJson) {
-              printJsonSuccess(
-                {
-                  mode: "relayed",
-                  dryRun: true,
-                  amount: withdrawalAmount.toString(),
-                  asset: pool.symbol,
-                  chain: chainConfig.name,
-                  recipient: recipientAddress,
-                  poolAccountNumber: selectedPoolAccount.paNumber,
-                  poolAccountId: selectedPoolAccount.paId,
-                  selectedCommitmentLabel: commitmentLabel.toString(),
-                  selectedCommitmentValue: commitment.value.toString(),
-                  feeBPS: quote.feeBPS,
-                  quoteExpiresAt: new Date(expirationMs).toISOString(),
-                  proofPublicSignals: proof.publicSignals.length,
-                },
-                false
-              );
-            } else {
-              process.stderr.write("\n");
-              success("Dry-run complete.", silent);
-              info(`Mode: relayed`, silent);
-              info(`Recipient: ${formatAddress(recipientAddress)}`, silent);
-              info(`From Pool Account: ${selectedPoolAccount.paId}`, silent);
-              info(`Relay fee: ${quote.feeBPS} BPS`, silent);
-              info(`Quote expires: ${new Date(expirationMs).toISOString()}`, silent);
-              info(
-                `Pool Account balance: ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`,
-                silent
-              );
-              info("No transaction was submitted.", silent);
-            }
+            const ctx = createOutputContext(mode);
+            renderWithdrawDryRun(ctx, {
+              withdrawMode: "relayed",
+              amount: withdrawalAmount,
+              asset: pool.symbol,
+              chain: chainConfig.name,
+              decimals: pool.decimals,
+              recipient: recipientAddress,
+              poolAccountNumber: selectedPoolAccount.paNumber,
+              poolAccountId: selectedPoolAccount.paId,
+              selectedCommitmentLabel: commitmentLabel,
+              selectedCommitmentValue: commitment.value,
+              proofPublicSignals: proof.publicSignals.length,
+              feeBPS: quote.feeBPS,
+              quoteExpiresAt: new Date(expirationMs).toISOString(),
+            });
             return;
           }
 
@@ -1039,38 +992,23 @@ export function createWithdrawCommand(): Command {
           }
           spin.succeed("Relayed withdrawal confirmed!");
 
-          if (isJson) {
-            printJsonSuccess(
-              {
-                operation: "withdraw",
-                mode: "relayed",
-                txHash: result.txHash,
-                blockNumber: receipt.blockNumber.toString(),
-                amount: withdrawalAmount.toString(),
-                recipient: recipientAddress,
-                withdrawalMode: "relayed",
-                explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
-                poolAddress: pool.pool,
-                scope: pool.scope.toString(),
-                feeBPS: quote.feeBPS,
-                asset: pool.symbol,
-                chain: chainConfig.name,
-                poolAccountNumber: selectedPoolAccount.paNumber,
-                poolAccountId: selectedPoolAccount.paId,
-              },
-              false
-            );
-          } else {
-            process.stderr.write("\n");
-            success(
-              `Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} to ${formatAddress(recipientAddress)}`,
-              silent
-            );
-            info(`Tx: ${formatTxHash(result.txHash)}`, silent);
-            const relayedExplorerUrl = explorerTxUrl(chainConfig.id, result.txHash);
-            if (relayedExplorerUrl) info(`Explorer: ${relayedExplorerUrl}`, silent);
-            info(`Relay fee: ${quote.feeBPS} BPS`, silent);
-          }
+          const ctx = createOutputContext(mode);
+          renderWithdrawSuccess(ctx, {
+            withdrawMode: "relayed",
+            txHash: result.txHash,
+            blockNumber: receipt.blockNumber,
+            amount: withdrawalAmount,
+            recipient: recipientAddress,
+            asset: pool.symbol,
+            chain: chainConfig.name,
+            decimals: pool.decimals,
+            poolAccountNumber: selectedPoolAccount.paNumber,
+            poolAccountId: selectedPoolAccount.paId,
+            poolAddress: pool.pool,
+            scope: pool.scope,
+            explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
+            feeBPS: quote.feeBPS,
+          });
         }
       } catch (error) {
         printError(error, isJson || isUnsigned);
@@ -1148,35 +1086,19 @@ export function createWithdrawCommand(): Command {
               : quote.feeCommitment.expiration)
           : null;
 
-        if (isJson) {
-          printJsonSuccess(
-            {
-              mode: "relayed-quote",
-              chain: chainConfig.name,
-              asset: pool.symbol,
-              amount: amount.toString(),
-              recipient: recipient ?? null,
-              minWithdrawAmount: details.minWithdrawAmount,
-              minWithdrawAmountFormatted: formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol),
-              maxRelayFeeBPS: pool.maxRelayFeeBPS.toString(),
-              quoteFeeBPS: quote.feeBPS,
-              feeCommitmentPresent: !!quote.feeCommitment,
-              quoteExpiresAt: expirationMs ? new Date(expirationMs).toISOString() : null,
-            },
-            false
-          );
-          return;
-        }
-
-        process.stderr.write("\n");
-        success("Relayer quote", silent);
-        info(`Asset: ${pool.symbol}`, silent);
-        info(`Amount: ${formatAmount(amount, pool.decimals, pool.symbol)}`, silent);
-        info(`Min withdraw: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}`, silent);
-        info(`Quoted fee: ${quote.feeBPS} BPS`, silent);
-        info(`On-chain max fee: ${pool.maxRelayFeeBPS.toString()} BPS`, silent);
-        if (recipient) info(`Recipient: ${formatAddress(recipient)}`, silent);
-        if (expirationMs) info(`Quote expires: ${new Date(expirationMs).toISOString()}`, silent);
+        const ctx = createOutputContext(mode);
+        renderWithdrawQuote(ctx, {
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          amount,
+          decimals: pool.decimals,
+          recipient: recipient ?? null,
+          minWithdrawAmount: details.minWithdrawAmount,
+          maxRelayFeeBPS: pool.maxRelayFeeBPS,
+          quoteFeeBPS: quote.feeBPS,
+          feeCommitmentPresent: !!quote.feeCommitment,
+          quoteExpiresAt: expirationMs ? new Date(expirationMs).toISOString() : null,
+        });
       } catch (error) {
         printError(error, isJson);
       }
