@@ -45,8 +45,8 @@ const CONTRACT_ERROR_MAP = {
         code: "CONTRACT_NULLIFIER_ALREADY_SPENT",
     },
     IncorrectASPRoot: {
-        message: "ASP root mismatch - the on-chain root has changed since proof generation.",
-        hint: "Re-fetch ASP data and regenerate the proof. The ASP root is baked into the proof.",
+        message: "Pool state changed since proof generation.",
+        hint: "Refresh pool data and generate a new proof.",
         code: "CONTRACT_INCORRECT_ASP_ROOT",
         retryable: true,
     },
@@ -71,8 +71,8 @@ const CONTRACT_ERROR_MAP = {
         code: "CONTRACT_ONLY_ORIGINAL_DEPOSITOR",
     },
     NoRootsAvailable: {
-        message: "No ASP roots have been pushed on-chain yet.",
-        hint: "Wait for the ASP to publish the first root, then retry.",
+        message: "Pool state is not ready for withdrawals yet.",
+        hint: "Wait for the withdrawal service to publish the first state root, then retry.",
         code: "CONTRACT_NO_ROOTS_AVAILABLE",
         retryable: true,
     },

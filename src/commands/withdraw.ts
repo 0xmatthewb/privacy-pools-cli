@@ -20,6 +20,7 @@ import {
   spinner,
   success,
   info,
+  warn,
   verbose,
   formatAmount,
   formatAddress,
@@ -301,9 +302,9 @@ export function createWithdrawCommand(): Command {
         // Ensure ASP tree and on-chain root are converged before proof generation.
         if (BigInt(roots.mtRoot) !== BigInt(roots.onchainMtRoot)) {
           throw new CLIError(
-            "ASP state is still converging (mtRoot != onchainMtRoot).",
+            "Withdrawal service data is still updating.",
             "ASP",
-            "Wait briefly, re-fetch ASP data, and retry."
+            "Wait a few seconds and retry."
           );
         }
 
@@ -316,9 +317,9 @@ export function createWithdrawCommand(): Command {
 
         if (BigInt(roots.onchainMtRoot) !== BigInt(onchainLatestRoot as bigint)) {
           throw new CLIError(
-            "ASP root does not match on-chain latest root.",
+            "Withdrawal service data is out of sync with the chain.",
             "ASP",
-            "The ASP data may be stale. Wait and retry."
+            "Wait briefly and retry so the service can catch up."
           );
         }
 
@@ -332,9 +333,9 @@ export function createWithdrawCommand(): Command {
 
         if (approvedSelection.kind === "unapproved") {
           throw new CLIError(
-            "No ASP-approved commitment can satisfy this withdrawal amount.",
+            "No eligible Pool Account is currently approved for private withdrawal.",
             "ASP",
-            "You may have sufficient balance, but those Pool Accounts are not currently approved. Wait for ASP approval or use exit/ragequit."
+            "Your balance may be sufficient, but this Pool Account is not yet eligible. Wait and retry, or use exit/ragequit for public recovery."
           );
         }
 
@@ -378,9 +379,9 @@ export function createWithdrawCommand(): Command {
 
           if (!approvedLabelSet.has(requested.label)) {
             throw new CLIError(
-              `${requested.paId} is not currently ASP-approved for private withdrawal.`,
+              `${requested.paId} is not currently eligible for private withdrawal.`,
               "ASP",
-              "Wait for ASP approval, or use exit/ragequit for public recovery."
+              "Wait and retry, or use exit/ragequit for public recovery."
             );
           }
 
@@ -464,7 +465,7 @@ export function createWithdrawCommand(): Command {
           });
           if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck as bigint)) {
             throw new CLIError(
-              "ASP root changed during proof preparation. Re-fetch and retry.",
+              "Pool state changed while preparing your proof. Re-fetch and retry.",
               "ASP"
             );
           }
@@ -662,7 +663,7 @@ export function createWithdrawCommand(): Command {
             );
           }
 
-          const quote = await requestQuote(chainConfig, {
+          let quote = await requestQuote(chainConfig, {
             amount: withdrawalAmount,
             asset: pool.asset,
             extraGas: false,
@@ -676,29 +677,125 @@ export function createWithdrawCommand(): Command {
 
           if (!quote.feeCommitment) {
             throw new CLIError(
-              "Relayer did not return a fee commitment.",
+              "Relayer quote is missing required fee details.",
               "RELAYER",
               "The relayer may not support this asset/chain combination."
             );
           }
 
           let quoteFeeBPS: bigint;
-          try {
-            quoteFeeBPS = BigInt(quote.feeBPS);
-          } catch {
-            throw new CLIError(
-              "Relayer returned malformed feeBPS (expected integer string).",
-              "RELAYER",
-              "Request a fresh quote and retry."
-            );
-          }
+          let expirationMs: number;
+          const maxQuoteRefreshAttempts = 3;
+          let quoteRefreshAttempts = 0;
 
-          // Validate fee
-          if (quoteFeeBPS > pool.maxRelayFeeBPS) {
-            throw new CLIError(
-              `Quoted fee ${quote.feeBPS} BPS exceeds on-chain max ${pool.maxRelayFeeBPS} BPS.`,
-              "RELAYER"
+          const readAndValidateQuote = (): { quoteFeeBPS: bigint; expirationMs: number } => {
+            if (!quote.feeCommitment) {
+              throw new CLIError(
+                "Relayer quote is missing required fee details.",
+                "RELAYER",
+                "The relayer may not support this asset/chain combination."
+              );
+            }
+
+            let parsedFeeBPS: bigint;
+            try {
+              parsedFeeBPS = BigInt(quote.feeBPS);
+            } catch {
+              throw new CLIError(
+                "Relayer returned malformed feeBPS (expected integer string).",
+                "RELAYER",
+                "Request a fresh quote and retry."
+              );
+            }
+
+            if (parsedFeeBPS > pool.maxRelayFeeBPS) {
+              throw new CLIError(
+                `Quoted fee ${quote.feeBPS} BPS exceeds on-chain max ${pool.maxRelayFeeBPS} BPS.`,
+                "RELAYER"
+              );
+            }
+
+            // Relayer may return expiration in seconds (Unix) or ms - normalize.
+            const parsedExpirationMs = quote.feeCommitment.expiration < 1e12
+              ? quote.feeCommitment.expiration * 1000
+              : quote.feeCommitment.expiration;
+
+            return { quoteFeeBPS: parsedFeeBPS, expirationMs: parsedExpirationMs };
+          };
+
+          const fetchFreshQuote = async (reason: string): Promise<void> => {
+            quoteRefreshAttempts += 1;
+            if (quoteRefreshAttempts > maxQuoteRefreshAttempts) {
+              throw new CLIError(
+                "Relayer returned stale/expired quotes repeatedly.",
+                "RELAYER",
+                "Wait a moment and retry, or switch to another relayer."
+              );
+            }
+            spin.text = reason;
+            quote = await requestQuote(chainConfig, {
+              amount: withdrawalAmount,
+              asset: pool.asset,
+              extraGas: false,
+              recipient: recipientAddress,
+            });
+            ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
+            verbose(
+              `Relayer quote refreshed: feeBPS=${quote.feeBPS} expiresAt=${new Date(expirationMs).toISOString()}`,
+              isVerbose,
+              silent
             );
+          };
+
+          ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
+          verbose(
+            `Quote expiration: ${new Date(expirationMs).toISOString()} (${expirationMs})`,
+            isVerbose,
+            silent
+          );
+
+          // Keep human flow quote-aware before proving, matching frontend review semantics.
+          if (!skipPrompts) {
+            while (true) {
+              const secondsLeft = Math.max(0, Math.floor((expirationMs - Date.now()) / 1000));
+              if (secondsLeft <= 0) {
+                await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
+                continue;
+              }
+
+              spin.stop();
+              process.stderr.write("\n");
+              info(`Quote fee: ${quote.feeBPS} BPS`, silent);
+              info(
+                `Quote valid for ~${secondsLeft}s (expires ${new Date(expirationMs).toISOString()})`,
+                silent
+              );
+              const ok = await confirm({
+                message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)}?`,
+              });
+              if (!ok) {
+                info("Withdrawal cancelled.", silent);
+                return;
+              }
+
+              if (Date.now() <= expirationMs) {
+                spin.start();
+                break;
+              }
+
+              spin.start();
+              warn("Quote expired while waiting for confirmation. Fetching a fresh quote...", silent);
+              await fetchFreshQuote("Refreshing relayer quote...");
+            }
+          } else if (Date.now() > expirationMs) {
+            await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
+            if (Date.now() > expirationMs) {
+              throw new CLIError(
+                "Relayer returned an already expired quote.",
+                "RELAYER",
+                "Wait a moment and retry, or switch to another relayer."
+              );
+            }
           }
 
           // Build relay withdrawal object
@@ -733,7 +830,7 @@ export function createWithdrawCommand(): Command {
           });
           if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck as bigint)) {
             throw new CLIError(
-              "ASP root changed during proof preparation. Re-fetch and retry.",
+              "Pool state changed while preparing your proof. Re-fetch and retry.",
               "ASP"
             );
           }
@@ -756,18 +853,6 @@ export function createWithdrawCommand(): Command {
           );
           verbose(`Proof generated: publicSignals=${proof.publicSignals.length}`, isVerbose, silent);
 
-          if (!skipPrompts) {
-            spin.stop();
-            const ok = await confirm({
-              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)}? (fee: ${quote.feeBPS} BPS)`,
-            });
-            if (!ok) {
-              info("Withdrawal cancelled.", silent);
-              return;
-            }
-            spin.start();
-          }
-
           // Re-check parity before submit (in case of delay from user prompt)
           const finalRootCheck = await publicClient.readContract({
             address: chainConfig.entrypoint,
@@ -776,26 +861,17 @@ export function createWithdrawCommand(): Command {
           });
           if (BigInt(roots.onchainMtRoot) !== BigInt(finalRootCheck as bigint)) {
             throw new CLIError(
-              "ASP root changed. Re-run the withdrawal to generate a fresh proof.",
+              "Pool state changed before submission. Re-run withdrawal to generate a fresh proof.",
               "ASP"
             );
           }
 
-          // Check if feeCommitment expired
-          // Relayer may return expiration in seconds (Unix) or ms - normalize
-          const expirationMs = quote.feeCommitment.expiration < 1e12
-            ? quote.feeCommitment.expiration * 1000
-            : quote.feeCommitment.expiration;
-          verbose(
-            `Quote expiration: ${new Date(expirationMs).toISOString()} (${expirationMs})`,
-            isVerbose,
-            silent
-          );
+          // Check if feeCommitment expired before submit.
           if (Date.now() > expirationMs) {
             throw new CLIError(
-              "Relayer fee commitment expired. Re-run the withdrawal.",
+              "Relayer quote expired. Re-run the withdrawal.",
               "RELAYER",
-              "The fee commitment has a ~60 second TTL."
+              "Quotes are valid for about 60 seconds. Re-run withdrawal to fetch a fresh quote."
             );
           }
 

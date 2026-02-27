@@ -53,7 +53,7 @@ export function createRagequitCommand(): Command {
     .option("--dry-run", "Generate proof and validate without submitting")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools exit --asset ETH -p PA-1 --chain sepolia\n  privacy-pools ragequit ETH -p PA-1 --chain sepolia\n  privacy-pools ragequit --asset ETH --commitment 0 --yes\n  privacy-pools ragequit --asset 0xTokenAddress --json --yes -p PA-2\n  privacy-pools exit ETH --unsigned -p PA-1 --chain sepolia\n  privacy-pools ragequit ETH --unsigned --unsigned-format tx -p PA-1 --chain sepolia\n  privacy-pools exit --asset ETH --dry-run -p PA-1 --chain sepolia\n"
+      "\nExamples:\n  privacy-pools exit --asset ETH -p PA-1 --chain sepolia\n  privacy-pools ragequit ETH -p PA-1 --chain sepolia\n  privacy-pools ragequit --asset 0xTokenAddress --json --yes -p PA-2\n  privacy-pools exit ETH --unsigned -p PA-1 --chain sepolia\n  privacy-pools ragequit ETH --unsigned --unsigned-format tx -p PA-1 --chain sepolia\n  privacy-pools exit --asset ETH --dry-run -p PA-1 --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
           jsonFields: "{ txHash, amount, asset, chain, poolAccountId }",
