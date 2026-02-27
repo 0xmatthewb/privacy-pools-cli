@@ -27,8 +27,7 @@ export interface WithdrawDryRunData {
 /**
  * Render withdraw dry-run output (both direct and relayed).
  *
- * NOTE: Human-mode messages are suppressed by the command's `silent` flag
- * (which includes isDryRun).  Only a bare newline is emitted.
+ * Prints a human-readable summary of what would happen without submitting.
  */
 export declare function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunData): void;
 export interface WithdrawSuccessData {

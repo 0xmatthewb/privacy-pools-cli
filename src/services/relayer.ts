@@ -37,19 +37,20 @@ async function relayerFetch(
       throw new CLIError(
         `Relayer: fee commitment expired.`,
         "RELAYER",
-        "Re-request a quote and regenerate the proof."
+        "Run the withdraw command again to get a fresh quote."
       );
     }
     if (res.status === 503) {
       throw new CLIError(
         `Relayer: service at capacity.`,
         "RELAYER",
-        "Wait and retry."
+        "The relayer is busy. Wait a moment and try again."
       );
     }
     throw new CLIError(
       `Relayer request failed (${res.status}): ${message}`,
-      "RELAYER"
+      "RELAYER",
+      "Check your network connection and try again. If it persists, the relayer may be temporarily down."
     );
   }
 
@@ -90,8 +91,9 @@ export async function requestQuote(
 
   if (typeof body?.feeBPS !== "string" || !/^\d+$/.test(body.feeBPS)) {
     throw new CLIError(
-      "Relayer returned malformed quote payload (missing or non-numeric feeBPS).",
-      "RELAYER"
+      "Relayer returned an unexpected quote response.",
+      "RELAYER",
+      "Try again. If it persists, the relayer may be running an incompatible version."
     );
   }
 
@@ -109,9 +111,9 @@ export async function requestQuote(
 
     if (!valid) {
       throw new CLIError(
-        "Relayer returned malformed feeCommitment payload.",
+        "Relayer returned an invalid fee commitment.",
         "RELAYER",
-        "Request a fresh quote and retry."
+        "Run the withdraw command again to request a fresh quote."
       );
     }
   }
@@ -148,14 +150,16 @@ export async function submitRelayRequest(
   if (body?.success !== true) {
     throw new CLIError(
       "Relayer did not accept the withdrawal request.",
-      "RELAYER"
+      "RELAYER",
+      "Try again. If it persists, run 'privacy-pools sync' and retry."
     );
   }
 
   if (!isHexString(body?.txHash) || body.txHash.length !== 66) {
     throw new CLIError(
       "Relayer response missing a valid transaction hash.",
-      "RELAYER"
+      "RELAYER",
+      "The relayer may have processed the request but returned an incomplete response. Check 'privacy-pools history' for the transaction."
     );
   }
 

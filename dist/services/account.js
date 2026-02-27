@@ -121,7 +121,7 @@ strictSync = false) {
                     .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
                     .join("; ");
                 if (strictSync) {
-                    throw new CLIError(`Failed to initialize account from on-chain events for ${initErrors.length} pool(s). ${details}`, "RPC", "Check your RPC connectivity and retry.");
+                    throw new CLIError(`Failed to initialize account from onchain events for ${initErrors.length} pool(s). ${details}`, "RPC", "Check your RPC connectivity and retry.");
                 }
                 if (!suppressWarnings) {
                     process.stderr.write(`Warning: account initialization had partial failures for ${initErrors.length} pool(s): ${details}\n`);
@@ -133,7 +133,7 @@ strictSync = false) {
         }
         catch (err) {
             if (strictSync) {
-                throw new CLIError(`Failed to initialize account from on-chain events: ${err instanceof Error ? err.message : String(err)}`, "RPC", "Check your RPC connectivity and retry.");
+                throw new CLIError(`Failed to initialize account from onchain events: ${err instanceof Error ? err.message : String(err)}`, "RPC", "Check your RPC connectivity and retry.");
             }
             if (!suppressWarnings) {
                 process.stderr.write(`Warning: fresh account initialization failed, using empty account: ${err instanceof Error ? err.message : String(err)}\n`);

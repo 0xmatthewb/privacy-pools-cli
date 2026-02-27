@@ -33,8 +33,7 @@ export interface RagequitSuccessData {
 /**
  * Render ragequit dry-run output.
  *
- * NOTE: Same silent-flag behavior as deposit – human-mode messages are
- * suppressed because the command's `silent` includes `isDryRun`.
+ * Prints a human-readable summary of what would happen without submitting.
  */
 export declare function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunData): void;
 /**

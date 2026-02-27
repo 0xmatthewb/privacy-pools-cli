@@ -41,7 +41,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   }
 
   const silent = isSilent(ctx);
-  process.stderr.write("\n");
-  success("Initialization complete!", silent);
+  if (!silent) process.stderr.write("\n");
+  success("Initialization complete.", silent);
   info("Run 'privacy-pools status' to verify your setup.", silent);
 }

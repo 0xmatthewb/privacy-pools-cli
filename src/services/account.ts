@@ -167,7 +167,7 @@ export async function initializeAccountService(
 
         if (strictSync) {
           throw new CLIError(
-            `Failed to initialize account from on-chain events for ${initErrors.length} pool(s). ${details}`,
+            `Failed to initialize account from onchain events for ${initErrors.length} pool(s). ${details}`,
             "RPC",
             "Check your RPC connectivity and retry."
           );
@@ -186,7 +186,7 @@ export async function initializeAccountService(
     } catch (err) {
       if (strictSync) {
         throw new CLIError(
-          `Failed to initialize account from on-chain events: ${err instanceof Error ? err.message : String(err)}`,
+          `Failed to initialize account from onchain events: ${err instanceof Error ? err.message : String(err)}`,
           "RPC",
           "Check your RPC connectivity and retry."
         );

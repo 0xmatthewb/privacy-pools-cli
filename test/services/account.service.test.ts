@@ -75,7 +75,7 @@ describe("account service strict sync behavior", () => {
       )
     ).rejects.toMatchObject({
       category: "RPC",
-      message: expect.stringContaining("Failed to initialize account from on-chain events"),
+      message: expect.stringContaining("Failed to initialize account from onchain events"),
     });
   });
 

@@ -17,8 +17,8 @@ import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
 
 export function createSyncCommand(): Command {
   return new Command("sync")
-    .description("Sync local account state from on-chain events")
-    .option("--asset <symbol|address>", "Sync only a single pool asset")
+    .description("Sync local account state from onchain events")
+    .option("-a, --asset <symbol|address>", "Sync only a single pool asset")
     .addHelpText(
       "after",
       "\nExamples:\n  privacy-pools sync\n  privacy-pools sync --chain sepolia\n  privacy-pools sync --asset ETH --json\n"

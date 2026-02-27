@@ -48,7 +48,8 @@ export function createStatusCommand(): Command {
         if (globalOpts?.chain && (!selectedChainKey || !CHAINS[selectedChainKey])) {
           throw new CLIError(
             `Unknown chain: ${globalOpts.chain}`,
-            "INPUT"
+            "INPUT",
+            `Available chains: ${Object.keys(CHAINS).join(", ")}`
           );
         }
         const selectedChainConfig = selectedChainKey

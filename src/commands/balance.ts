@@ -24,7 +24,7 @@ import type { BalanceRow, BalanceJsonEntry } from "../output/balance.js";
 export function createBalanceCommand(): Command {
   return new Command("balance")
     .description("Show balances across pools")
-    .option("--no-sync", "Skip syncing account state before displaying")
+    .option("--no-sync", "Use cached data (faster, but may be stale)")
     .addHelpText(
       "after",
       "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --no-sync --chain sepolia\n  privacy-pools balance --json\n"
@@ -89,7 +89,7 @@ export function createBalanceCommand(): Command {
         );
 
         if (opts.noSync !== true) {
-          spin.text = "Syncing account state...";
+          spin.text = "Syncing...";
           let syncFailures = 0;
           for (const poolInfo of poolInfos) {
             const pi = toPoolInfo(poolInfo);

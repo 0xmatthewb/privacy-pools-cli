@@ -18,12 +18,12 @@ async function relayerFetch(chainConfig, path, options) {
             body?.error?.message ??
             res.statusText;
         if (res.status === 422) {
-            throw new CLIError(`Relayer: fee commitment expired.`, "RELAYER", "Re-request a quote and regenerate the proof.");
+            throw new CLIError(`Relayer: fee commitment expired.`, "RELAYER", "Run the withdraw command again to get a fresh quote.");
         }
         if (res.status === 503) {
-            throw new CLIError(`Relayer: service at capacity.`, "RELAYER", "Wait and retry.");
+            throw new CLIError(`Relayer: service at capacity.`, "RELAYER", "The relayer is busy. Wait a moment and try again.");
         }
-        throw new CLIError(`Relayer request failed (${res.status}): ${message}`, "RELAYER");
+        throw new CLIError(`Relayer request failed (${res.status}): ${message}`, "RELAYER", "Check your network connection and try again. If it persists, the relayer may be temporarily down.");
     }
     return res;
 }
@@ -44,7 +44,7 @@ export async function requestQuote(chainConfig, params) {
     });
     const body = await res.json();
     if (typeof body?.feeBPS !== "string" || !/^\d+$/.test(body.feeBPS)) {
-        throw new CLIError("Relayer returned malformed quote payload (missing or non-numeric feeBPS).", "RELAYER");
+        throw new CLIError("Relayer returned an unexpected quote response.", "RELAYER", "Try again. If it persists, the relayer may be running an incompatible version.");
     }
     if (body?.feeCommitment !== undefined) {
         const fc = body.feeCommitment;
@@ -57,7 +57,7 @@ export async function requestQuote(chainConfig, params) {
             typeof fc.extraGas === "boolean" &&
             isHexString(fc.signedRelayerCommitment);
         if (!valid) {
-            throw new CLIError("Relayer returned malformed feeCommitment payload.", "RELAYER", "Request a fresh quote and retry.");
+            throw new CLIError("Relayer returned an invalid fee commitment.", "RELAYER", "Run the withdraw command again to request a fresh quote.");
         }
     }
     return body;
@@ -79,10 +79,10 @@ export async function submitRelayRequest(chainConfig, params) {
     });
     const body = await res.json();
     if (body?.success !== true) {
-        throw new CLIError("Relayer did not accept the withdrawal request.", "RELAYER");
+        throw new CLIError("Relayer did not accept the withdrawal request.", "RELAYER", "Try again. If it persists, run 'privacy-pools sync' and retry.");
     }
     if (!isHexString(body?.txHash) || body.txHash.length !== 66) {
-        throw new CLIError("Relayer response missing a valid transaction hash.", "RELAYER");
+        throw new CLIError("Relayer response missing a valid transaction hash.", "RELAYER", "The relayer may have processed the request but returned an incomplete response. Check 'privacy-pools history' for the transaction.");
     }
     return body;
 }

@@ -69,7 +69,11 @@ export function createCompletionCommand(): Command {
     .action((shellArg: string | undefined, opts: CompletionCommandOptions, cmd: Command) => {
       const root = cmd.parent;
       if (!root) {
-        throw new CLIError("Completion command is not attached to root command.", "UNKNOWN");
+        throw new CLIError(
+          "Internal error in completion setup.",
+          "UNKNOWN",
+          "Please report this at https://github.com/0xmatthewb/privacy-pools-cli/issues"
+        );
       }
 
       const globalOpts = root.opts() as GlobalOptions;

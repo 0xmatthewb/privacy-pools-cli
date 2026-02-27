@@ -35,27 +35,29 @@ async function aspFetch(
   if (!res.ok) {
     if (res.status === 404) {
       throw new CLIError(
-        `ASP API: resource not found (${path}). Check that the pool scope is correct.`,
+        `Withdrawal service: resource not found (${path}).`,
         "ASP",
-        "Ensure X-Pool-Scope is a decimal string, not hex."
+        "The pool may not be registered yet. Run 'privacy-pools pools' to verify."
       );
     }
     if (res.status === 400) {
       throw new CLIError(
-        `ASP API: bad request (${path}). Pool scope header may be missing.`,
-        "ASP"
+        `Withdrawal service: bad request (${path}).`,
+        "ASP",
+        "Try 'privacy-pools sync' and retry. If it persists, the CLI may be out of date."
       );
     }
     if (res.status === 429 || res.status === 403) {
       throw new CLIError(
-        `ASP API: rate limited or forbidden (${res.status}).`,
+        `Withdrawal service: rate limited or forbidden (${res.status}).`,
         "ASP",
-        "Wait and retry with exponential backoff."
+        "Wait a moment and try again."
       );
     }
     throw new CLIError(
-      `ASP API request failed: ${res.status} ${res.statusText}`,
-      "ASP"
+      `Withdrawal service request failed: ${res.status} ${res.statusText}`,
+      "ASP",
+      "Check your network connection. If it persists, the service may be temporarily down."
     );
   }
 
@@ -81,14 +83,15 @@ async function aspFetchGlobal(
   if (!res.ok) {
     if (res.status === 429 || res.status === 403) {
       throw new CLIError(
-        `ASP API: rate limited or forbidden (${res.status}).`,
+        `Withdrawal service: rate limited or forbidden (${res.status}).`,
         "ASP",
-        "Wait and retry with exponential backoff."
+        "Wait a moment and try again."
       );
     }
     throw new CLIError(
-      `ASP API request failed: ${res.status} ${res.statusText}`,
-      "ASP"
+      `Withdrawal service request failed: ${res.status} ${res.statusText}`,
+      "ASP",
+      "Check your network connection. If it persists, the service may be temporarily down."
     );
   }
 

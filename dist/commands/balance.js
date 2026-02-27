@@ -15,7 +15,7 @@ import { renderBalanceNoPools, renderBalanceEmpty, renderBalance } from "../outp
 export function createBalanceCommand() {
     return new Command("balance")
         .description("Show balances across pools")
-        .option("--no-sync", "Skip syncing account state before displaying")
+        .option("--no-sync", "Use cached data (faster, but may be stale)")
         .addHelpText("after", "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --no-sync --chain sepolia\n  privacy-pools balance --json\n"
         + commandHelpText({
             prerequisites: "init",
@@ -53,7 +53,7 @@ export function createBalanceCommand() {
             const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
             const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, false, silent, true);
             if (opts.noSync !== true) {
-                spin.text = "Syncing account state...";
+                spin.text = "Syncing...";
                 let syncFailures = 0;
                 for (const poolInfo of poolInfos) {
                     const pi = toPoolInfo(poolInfo);

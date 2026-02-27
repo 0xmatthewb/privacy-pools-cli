@@ -15,6 +15,6 @@ describe("withdraw root source conformance", () => {
   test("keeps entrypoint latestRoot() parity checks and explicit state-root parity guard", () => {
     expect(withdrawSource).toContain('address: chainConfig.entrypoint');
     expect(withdrawSource).toContain('functionName: "latestRoot"');
-    expect(withdrawSource).toContain("State tree leaves are stale");
+    expect(withdrawSource).toContain("Pool data is out of date.");
   });
 });

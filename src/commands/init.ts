@@ -33,7 +33,7 @@ export function createInitCommand(): Command {
     .option("--mnemonic-file <path>", "Import an existing BIP-39 mnemonic from a file")
     .option(
       "--show-mnemonic",
-      "Include generated mnemonic in JSON output (unsafe)"
+      "Include generated mnemonic in JSON output (unsafe: may be logged or piped)"
     )
     .option("--private-key <key>", "Set the signer private key (unsafe: visible in process list)")
     .option("--private-key-file <path>", "Set the signer private key from a file")
@@ -67,7 +67,8 @@ export function createInitCommand(): Command {
         if (hasExisting && !forceOverwrite && skipPrompts) {
           throw new CLIError(
             "Existing configuration found. Use --force to overwrite.",
-            "INPUT"
+            "INPUT",
+            "Re-run with --force to replace existing config and recovery phrase."
           );
         }
 
@@ -90,7 +91,8 @@ export function createInitCommand(): Command {
         if (opts.mnemonic && opts.mnemonicFile) {
           throw new CLIError(
             "Cannot specify both --mnemonic and --mnemonic-file.",
-            "INPUT"
+            "INPUT",
+            "Use one or the other, not both."
           );
         }
 
@@ -211,7 +213,8 @@ export function createInitCommand(): Command {
         if (opts.privateKey && opts.privateKeyFile) {
           throw new CLIError(
             "Cannot specify both --private-key and --private-key-file.",
-            "INPUT"
+            "INPUT",
+            "Use one or the other, not both."
           );
         }
 

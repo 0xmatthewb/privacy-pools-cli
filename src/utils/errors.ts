@@ -69,7 +69,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     code: "CONTRACT_INVALID_PROCESSOOOR",
   },
   InvalidProof: {
-    message: "ZK proof verification failed on-chain.",
+    message: "ZK proof verification failed onchain.",
     hint: "Your local proof inputs may be stale. Run 'privacy-pools sync' and retry.",
     code: "CONTRACT_INVALID_PROOF",
   },
@@ -147,7 +147,11 @@ export function classifyError(error: unknown): CLIError {
     );
   }
 
-  return new CLIError(message, "UNKNOWN");
+  return new CLIError(
+    message,
+    "UNKNOWN",
+    "If this persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues"
+  );
 }
 
 function hasCode(error: unknown): boolean {

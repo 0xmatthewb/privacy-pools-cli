@@ -123,7 +123,7 @@ describe("relayer service", () => {
       })
     ).rejects.toMatchObject({
       category: "RELAYER",
-      message: expect.stringContaining("malformed feeCommitment"),
+      message: expect.stringContaining("invalid fee commitment"),
     });
   });
 

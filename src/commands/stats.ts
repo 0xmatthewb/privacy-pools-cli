@@ -66,7 +66,7 @@ export function createStatsCommand(): Command {
     );
 
   command
-    .command("global")
+    .command("global", { isDefault: true })
     .description("Show global Privacy Pools statistics (all-time and last 24h)")
     .addHelpText(
       "after",
@@ -103,8 +103,10 @@ export function createStatsCommand(): Command {
           return;
         }
 
-        process.stderr.write(`\nGlobal statistics (${chainConfig.name} endpoint):\n\n`);
-        renderStatsTable(stats.allTime, stats.last24h);
+        if (!silent) {
+          process.stderr.write(`\nGlobal statistics (${chainConfig.name} endpoint):\n\n`);
+          renderStatsTable(stats.allTime, stats.last24h);
+        }
       } catch (error) {
         printError(error, isJson);
       }
@@ -131,7 +133,8 @@ export function createStatsCommand(): Command {
         if (!opts.asset) {
           throw new CLIError(
             "Missing required --asset <symbol|address>.",
-            "INPUT"
+            "INPUT",
+            "Example: privacy-pools stats pool --asset ETH --chain sepolia"
           );
         }
 
@@ -161,8 +164,10 @@ export function createStatsCommand(): Command {
           return;
         }
 
-        process.stderr.write(`\nPool statistics for ${pool.symbol} on ${chainConfig.name}:\n\n`);
-        renderStatsTable(stats.pool?.allTime, stats.pool?.last24h);
+        if (!silent) {
+          process.stderr.write(`\nPool statistics for ${pool.symbol} on ${chainConfig.name}:\n\n`);
+          renderStatsTable(stats.pool?.allTime, stats.pool?.last24h);
+        }
       } catch (error) {
         printError(error, isJson);
       }

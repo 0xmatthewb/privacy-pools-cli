@@ -8,7 +8,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable } from "./common.js";
+import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatAddress, formatTxHash } from "../utils/format.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 
@@ -39,7 +39,7 @@ export function renderAccountsNoPools(ctx: OutputContext, chain: string): void {
     printJsonSuccess({ chain, accounts: [] });
     return;
   }
-  process.stderr.write(`No pools found on ${chain}.\n`);
+  info(`No pools found on ${chain}.`, isSilent(ctx));
 }
 
 /**
@@ -72,14 +72,17 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     return;
   }
 
-  process.stderr.write(`\nAccounts on ${chain}:\n\n`);
+  const silent = isSilent(ctx);
+  if (!silent) process.stderr.write(`\nPool Accounts (PA) on ${chain}:\n\n`);
   let renderedAny = false;
 
   for (const group of groups) {
     if (group.poolAccounts.length === 0) continue;
     renderedAny = true;
 
-    process.stderr.write(`  ${group.symbol} pool (${formatAddress(group.poolAddress)}):\n`);
+    if (!silent) process.stderr.write(`  ${group.symbol} pool (${formatAddress(group.poolAddress)}):\n`);
+
+    if (silent) continue;
 
     if (showDetails) {
       printTable(
@@ -120,14 +123,18 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       );
     }
 
-    process.stderr.write("\n");
+    if (!silent) process.stderr.write("\n");
   }
 
   if (!renderedAny) {
-    process.stderr.write(
-      showAll
-        ? "No Pool Accounts found.\n\n"
-        : `No spendable Pool Accounts found. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.\n\n`,
-    );
+    if (showAll) {
+      info("No Pool Accounts found.", silent);
+    } else {
+      info(`No spendable Pool Accounts found. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.`, silent);
+    }
+    if (!silent) process.stderr.write("\n");
+  } else if (!showAll && !silent) {
+    info("Exited or spent accounts are hidden. Use --all to show them.", silent);
+    process.stderr.write("\n");
   }
 }

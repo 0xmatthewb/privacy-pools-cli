@@ -40,9 +40,7 @@ export interface DepositSuccessData {
 /**
  * Render deposit dry-run output.
  *
- * NOTE: In the current CLI, human-mode dry-run messages (success/info) are
- * suppressed because the command's `silent` flag includes `isDryRun`.
- * Only a bare newline is emitted.  This is preserved for byte-parity.
+ * Prints a human-readable summary of what would happen without submitting.
  */
 export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData): void {
   if (ctx.mode.isJson) {
@@ -63,23 +61,20 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
     return;
   }
 
-  // Human dry-run: messages are suppressed by the command's `silent` flag
-  // (which includes isDryRun).  Only the leading newline is emitted.
-  process.stderr.write("\n");
-  const silent = true; // matches command-level: silent = isQuiet || isJson || isUnsigned || isDryRun
-  success("Dry-run complete.", silent);
+  const silent = isSilent(ctx);
+  if (!silent) process.stderr.write("\n");
+  success("Dry-run complete — no transaction was submitted.", silent);
   info(`Chain: ${data.chain}`, silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
   const balanceLabel =
     data.balanceSufficient === "unknown"
-      ? "unknown (no signer key)"
+      ? "unknown (no signer key provided)"
       : data.balanceSufficient
         ? "yes"
         : "no";
   info(`Balance sufficient: ${balanceLabel}`, silent);
-  info("No transaction was submitted.", silent);
 }
 
 /**
@@ -109,8 +104,8 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   }
 
   const silent = isSilent(ctx);
-  process.stderr.write("\n");
-  success(`Deposited ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
+  if (!silent) process.stderr.write("\n");
+  success(`Deposit submitted: ${formatAmount(data.amount, data.decimals, data.asset)}.`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
   if (data.committedValue !== undefined) {
     info(

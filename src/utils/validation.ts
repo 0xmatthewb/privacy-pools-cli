@@ -67,7 +67,8 @@ export function validateAddress(value: string, label: string = "Address"): `0x${
   if (!isAddress(value)) {
     throw new CLIError(
       `${label} is not a valid Ethereum address: ${value}`,
-      "INPUT"
+      "INPUT",
+      "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123)."
     );
   }
   return value as `0x${string}`;
@@ -110,7 +111,8 @@ export function validatePositive(value: bigint, label: string = "Amount"): void 
   if (value <= 0n) {
     throw new CLIError(
       `${label} must be greater than zero.`,
-      "INPUT"
+      "INPUT",
+      "Enter a positive number (e.g. 0.1, 10)."
     );
   }
 }

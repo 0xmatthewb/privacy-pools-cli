@@ -37,7 +37,7 @@ export function resolveChain(chainName, defaultChain) {
 }
 export function validateAddress(value, label = "Address") {
     if (!isAddress(value)) {
-        throw new CLIError(`${label} is not a valid Ethereum address: ${value}`, "INPUT");
+        throw new CLIError(`${label} is not a valid Ethereum address: ${value}`, "INPUT", "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123).");
     }
     return value;
 }
@@ -59,6 +59,6 @@ export function parseAmount(value, decimals) {
 }
 export function validatePositive(value, label = "Amount") {
     if (value <= 0n) {
-        throw new CLIError(`${label} must be greater than zero.`, "INPUT");
+        throw new CLIError(`${label} must be greater than zero.`, "INPUT", "Enter a positive number (e.g. 0.1, 10).");
     }
 }

@@ -70,10 +70,11 @@ const shouldShowBanner = !isMachineMode &&
     !isVersionLike &&
     !isCompletionLike;
 let machineCapturedOut = "";
+let bannerRendered = false;
 const program = new Command();
 program
     .name("privacy-pools")
-    .description("CLI for Privacy Pools v1")
+    .description("Deposit, withdraw, and manage funds in Privacy Pools")
     .version(pkg.version)
     .option("-c, --chain <name>", "Target chain (ethereum, sepolia, ...)")
     .option("-j, --json", "Machine-readable JSON output")
@@ -121,22 +122,28 @@ program.configureOutput({
 });
 program.addHelpText("after", rootHelpFooter());
 program.exitOverride();
+program.hook("preAction", async () => {
+    if (shouldShowBanner && !bannerRendered) {
+        bannerRendered = true;
+        await printBanner();
+    }
+});
 // Commands ordered by typical workflow
 program.addCommand(createInitCommand());
 program.addCommand(createPoolsCommand());
-program.addCommand(createActivityCommand());
-program.addCommand(createStatsCommand());
 program.addCommand(createDepositCommand());
-program.addCommand(createWithdrawCommand());
-program.addCommand(createBalanceCommand());
 program.addCommand(createAccountsCommand());
+program.addCommand(createBalanceCommand());
+program.addCommand(createWithdrawCommand());
+program.addCommand(createRagequitCommand());
 program.addCommand(createHistoryCommand());
 program.addCommand(createSyncCommand());
 program.addCommand(createStatusCommand());
-program.addCommand(createRagequitCommand());
+program.addCommand(createActivityCommand());
+program.addCommand(createStatsCommand());
+program.addCommand(createGuideCommand());
 program.addCommand(createCapabilitiesCommand());
 program.addCommand(createCompletionCommand());
-program.addCommand(createGuideCommand());
 if (isMachineMode) {
     const applyMachineMode = (cmd) => {
         cmd.showSuggestionAfterError(false);
@@ -178,9 +185,6 @@ function mapCommanderError(error) {
 }
 (async () => {
     try {
-        if (shouldShowBanner) {
-            await printBanner();
-        }
         await program.parseAsync();
         if (isMachineMode &&
             !isHelpLike &&

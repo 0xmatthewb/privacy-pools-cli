@@ -77,7 +77,7 @@ export function createDepositCommand() {
             else if (!skipPrompts) {
                 const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
                 if (pools.length === 0) {
-                    throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT");
+                    throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT", "Run 'privacy-pools pools --chain <chain>' to see available pools.");
                 }
                 const selected = await select({
                     message: "Select asset to deposit:",
@@ -89,7 +89,7 @@ export function createDepositCommand() {
                 pool = pools.find((p) => p.symbol === selected);
             }
             else {
-                throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT");
+                throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT", "Run 'privacy-pools pools' to see available assets, then use --asset ETH (or the asset symbol).");
             }
             verbose(`Pool resolved: ${pool.symbol} asset=${pool.asset} pool=${pool.pool} scope=${pool.scope.toString()}`, isVerbose, silent);
             // Parse and validate amount
@@ -97,7 +97,7 @@ export function createDepositCommand() {
             validatePositive(amount, "Deposit amount");
             verbose(`Deposit amount (raw): ${amount.toString()}`, isVerbose, silent);
             if (amount < pool.minimumDepositAmount) {
-                throw new CLIError(`Amount below minimum deposit: ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)}`, "INPUT");
+                throw new CLIError(`Deposit amount is below the minimum of ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)} for this pool.`, "INPUT", `Increase the amount to at least ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)}.`);
             }
             // Show fee preview and confirm
             const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
@@ -108,6 +108,7 @@ export function createDepositCommand() {
                 process.stderr.write("\n");
                 const ok = await confirm({
                     message: `Deposit ${formatAmount(amount, pool.decimals, pool.symbol)} into ${pool.symbol} pool on ${chainConfig.name}?`,
+                    default: false,
                 });
                 if (!ok) {
                     info("Deposit cancelled.", silent);
@@ -273,7 +274,7 @@ export function createDepositCommand() {
                     }
                 }
                 if (label === undefined || committedValue === undefined) {
-                    spin.warn("Deposit confirmed on-chain. Local state update pending: run 'privacy-pools sync' to finalize.");
+                    spin.warn("Deposit confirmed onchain. Local state update pending: run 'privacy-pools sync' to finalize.");
                 }
                 else {
                     // Persist the new commitment (7 individual args)
@@ -282,7 +283,7 @@ export function createDepositCommand() {
                         saveAccount(chainConfig.id, accountService.account);
                     }
                     catch (saveErr) {
-                        process.stderr.write(`\nWarning: deposit confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
+                        process.stderr.write(`\nWarning: deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
                         process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
                     }
                 }

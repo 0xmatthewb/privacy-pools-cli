@@ -1,27 +1,27 @@
 # Privacy Pools CLI
 
-Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Deposit, withdraw, and manage funds with on-chain privacy while remaining compliant through the Association Set Provider (ASP).
+Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Deposit, withdraw, and manage funds with onchain privacy while remaining compliant through the Association Set Provider (ASP).
 
 ## What is Privacy Pools?
 
-Privacy Pools v1 breaks the on-chain link between deposit and withdrawal addresses while maintaining regulatory compliance. Deposits are public, but when you withdraw, a zero-knowledge proof proves your deposit was approved by the ASP without revealing which deposit is yours. The anonymity set is everyone else who deposited into the same pool and was approved.
+Privacy Pools v1 breaks the onchain link between deposit and withdrawal addresses while maintaining regulatory compliance. Deposits are public, but when you withdraw, a zero-knowledge proof proves your deposit was approved by the ASP without revealing which deposit is yours. The anonymity set is everyone else who deposited into the same pool and was approved.
 
 **Key concepts:**
 
 - **Pool Account (PA-1, PA-2, ...)**: Each deposit creates a numbered Pool Account. This is how you refer to your funds throughout the CLI.
 - **ASP (Association Set Provider)**: A compliance service that screens deposits and maintains a Merkle tree of approved deposit labels. Your Pool Account must be ASP-approved before you can withdraw privately.
-- **Relayed withdrawal**: The default withdrawal mode. A relayer submits your transaction so the recipient address is never linked to your deposit on-chain. Costs a small fee (in BPS).
-- **Direct withdrawal**: Withdraws to your signer address without a relayer. Cheaper, but links sender and receiver.
-- **Ragequit / Exit**: Emergency public withdrawal that sacrifices privacy but always recovers your funds, even if the ASP hasn't approved your deposit.
+- **Relayed withdrawal**: The default withdrawal mode. A relayer submits your transaction, which is designed to break the direct onchain link between your wallet and recipient. Costs a small fee (in BPS).
+- **Direct withdrawal**: Withdraws to your signer address without a relayer. Cheaper, but weaker privacy than relayed mode because your wallet submits the withdrawal onchain.
+- **Ragequit / Exit**: Emergency public exit mechanism without ASP approval. It returns funds to your deposit address when protocol checks pass.
 
 ## Installation
 
 Install globally:
 
 ```bash
-npm i -g @0xbow/privacy-pools-cli
+npm i -g github:0xmatthewb/privacy-pools-cli
 # or
-bun add -g @0xbow/privacy-pools-cli
+bun add -g github:0xmatthewb/privacy-pools-cli
 ```
 
 Installed command names:
@@ -29,12 +29,13 @@ Installed command names:
 - `privacy-pools` (canonical)
 - `pp` (short alias)
 
-Or run without installing:
+Or run from source:
 
 ```bash
-npx @0xbow/privacy-pools-cli@latest --help
-# or
-bunx @0xbow/privacy-pools-cli@latest --help
+git clone https://github.com/0xmatthewb/privacy-pools-cli.git
+cd privacy-pools-cli
+bun install
+bun run dev -- --help
 ```
 
 ## Quick Start
@@ -54,11 +55,11 @@ privacy-pools deposit 0.1 --asset ETH --chain sepolia
 # 4. Check your Pool Accounts (wait for ASP approval before withdrawing)
 privacy-pools accounts --chain sepolia
 
-# 5. Withdraw to any address (relayed by default, preserves privacy)
+# 5. Withdraw to any address (relayed by default, stronger privacy)
 privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1 --chain sepolia
 ```
 
-After depositing, your Pool Account will show `aspStatus: pending` until the ASP approves it. Once approved, you can withdraw. This usually takes a few minutes.
+After depositing, your Pool Account will show `aspStatus: pending` until the ASP approves it. Once approved, you can withdraw. Most deposits are approved within 1 hour, but some can take up to 7 days.
 
 ## Supported Chains
 
@@ -76,7 +77,7 @@ Set the chain per-command with `--chain <name>`, or set a default during `init`.
 
 ### `init`
 
-Initialize wallet and configuration. Generates a BIP-39 mnemonic (your deposit secrets) and a signer key (your on-chain identity). Run once.
+Initialize wallet and configuration. Generates a BIP-39 mnemonic (your deposit secrets) and a signer key (your onchain identity). Run once.
 
 ```bash
 privacy-pools init
@@ -124,13 +125,13 @@ privacy-pools deposit 100 --asset USDC --chain ethereum
 
 ### `withdraw`
 
-Withdraw from a Privacy Pool. Uses a relayer by default (preserves privacy). Add `--direct` to withdraw directly to your signer address instead.
+Withdraw from a Privacy Pool. Uses a relayer by default for stronger privacy than direct mode by separating submission from your recipient address. Add `--direct` to withdraw directly to your signer address instead.
 
 ```bash
-# Relayed withdrawal (default, private)
+# Relayed withdrawal (default, stronger privacy)
 privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1 --chain sepolia
 
-# Direct withdrawal (cheaper, but links sender/receiver)
+# Direct withdrawal (cheaper, weaker privacy than relayed)
 privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia
 
 # Get a fee quote without withdrawing
@@ -191,7 +192,7 @@ privacy-pools history --limit 10
 
 ### `sync`
 
-Sync local account state from on-chain events. Most commands sync automatically, but you can run this manually after a failed transaction or to force a refresh.
+Sync local account state from onchain events. Most commands sync automatically, but you can run this manually after a failed transaction or to force a refresh.
 
 ```bash
 privacy-pools sync --chain sepolia
@@ -200,7 +201,7 @@ privacy-pools sync --asset ETH     # sync a single pool
 
 ### `ragequit` (alias: `exit`)
 
-Emergency public exit that sacrifices privacy to recover funds. Use this if the ASP hasn't approved your deposit, or if you need your funds back immediately.
+Emergency public exit mechanism that returns funds to your deposit address and sacrifices privacy. Use this if the ASP hasn't approved your deposit, or if you need your funds back immediately.
 
 ```bash
 privacy-pools ragequit --asset ETH -p PA-1 --chain sepolia
@@ -360,7 +361,7 @@ Every command emits a JSON object on stdout when `--json` is set:
 
 ## Unsigned Transactions
 
-Build transaction payloads offline without submitting. Useful for hardware wallets, multisigs, or air-gapped signing.
+Build transaction payloads offline without submitting. Useful for external signing workflows and air-gapped signing.
 
 ```bash
 # Envelope format (default): includes metadata and proof artifacts
@@ -376,7 +377,7 @@ privacy-pools ragequit --asset ETH -p PA-1 --unsigned -j --chain sepolia
 
 ## Dry Run
 
-Validate inputs, check balances, and generate proofs without submitting anything on-chain.
+Validate inputs, check balances, and generate proofs without submitting anything onchain.
 
 ```bash
 privacy-pools deposit 0.1 --asset ETH --dry-run --chain sepolia
@@ -394,8 +395,8 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with the `PR
 |------|---------|
 | `config.json` | Default chain, RPC overrides |
 | `.mnemonic` | BIP-39 mnemonic (mode 0600), protects your deposit secrets |
-| `.signer` | Private key (mode 0600), your on-chain identity |
-| `accounts/` | Per-chain account state (synced from on-chain events) |
+| `.signer` | Private key (mode 0600), your onchain identity |
+| `accounts/` | Per-chain account state (synced from onchain events) |
 
 **Environment variables:**
 
@@ -446,7 +447,7 @@ npm link
 privacy-pools --help
 
 # Unlink when done
-npm unlink -g @0xbow/privacy-pools-cli
+npm unlink -g privacy-pools-cli
 ```
 
 ### Scripts

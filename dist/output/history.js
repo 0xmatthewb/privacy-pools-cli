@@ -5,7 +5,7 @@
  * Event extraction (buildHistoryEventsFromAccount), sync, pool discovery,
  * and spinner remain in the command handler.
  */
-import { printJsonSuccess, printTable } from "./common.js";
+import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatTxHash } from "../utils/format.js";
 // ── Renderers ────────────────────────────────────────────────────────────────
 /**
@@ -16,7 +16,7 @@ export function renderHistoryNoPools(ctx, chain) {
         printJsonSuccess({ chain, events: [] });
         return;
     }
-    process.stderr.write(`No pools found on ${chain}.\n`);
+    info(`No pools found on ${chain}.`, isSilent(ctx));
 }
 /**
  * Render history event listing.
@@ -40,16 +40,21 @@ export function renderHistory(ctx, data) {
         });
         return;
     }
+    const silent = isSilent(ctx);
     if (events.length === 0) {
-        process.stderr.write(`\nNo events found on ${chain}.\n`);
+        if (!silent)
+            process.stderr.write("\n");
+        info(`No events found on ${chain}.`, silent);
         return;
     }
+    if (silent)
+        return;
     process.stderr.write(`\nHistory on ${chain} (last ${events.length} events):\n\n`);
     printTable(["Block", "Type", "PA", "Amount", "Tx"], events.map((e) => {
         const pool = poolByAddress.get(e.poolAddress);
         const typeLabel = e.type === "deposit" ? "Deposit" :
             e.type === "withdrawal" ? "Withdraw" :
-                "Ragequit";
+                "Exit";
         return [
             e.blockNumber.toString(),
             typeLabel,

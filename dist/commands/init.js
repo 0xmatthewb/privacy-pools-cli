@@ -17,7 +17,7 @@ export function createInitCommand() {
         .description("Initialize wallet and configuration")
         .option("--mnemonic <phrase>", "Import an existing BIP-39 mnemonic phrase (unsafe: visible in process list)")
         .option("--mnemonic-file <path>", "Import an existing BIP-39 mnemonic from a file")
-        .option("--show-mnemonic", "Include generated mnemonic in JSON output (unsafe)")
+        .option("--show-mnemonic", "Include generated mnemonic in JSON output (unsafe: may be logged or piped)")
         .option("--private-key <key>", "Set the signer private key (unsafe: visible in process list)")
         .option("--private-key-file <path>", "Set the signer private key from a file")
         .option("--default-chain <chain>", "Set default chain")
@@ -41,7 +41,7 @@ export function createInitCommand() {
             const hasExisting = configExists() || mnemonicExists();
             const forceOverwrite = opts.force === true;
             if (hasExisting && !forceOverwrite && skipPrompts) {
-                throw new CLIError("Existing configuration found. Use --force to overwrite.", "INPUT");
+                throw new CLIError("Existing configuration found. Use --force to overwrite.", "INPUT", "Re-run with --force to replace existing config and recovery phrase.");
             }
             if (hasExisting && !forceOverwrite && !skipPrompts) {
                 const overwrite = await confirm({
@@ -59,7 +59,7 @@ export function createInitCommand() {
             // --- Mnemonic ---
             let mnemonic;
             if (opts.mnemonic && opts.mnemonicFile) {
-                throw new CLIError("Cannot specify both --mnemonic and --mnemonic-file.", "INPUT");
+                throw new CLIError("Cannot specify both --mnemonic and --mnemonic-file.", "INPUT", "Use one or the other, not both.");
             }
             // Resolve mnemonic from --mnemonic-file, --mnemonic, or generate
             let mnemonicSource;
@@ -154,7 +154,7 @@ export function createInitCommand() {
                 success("Recovery phrase saved.", silent);
             // --- Signer Key ---
             if (opts.privateKey && opts.privateKeyFile) {
-                throw new CLIError("Cannot specify both --private-key and --private-key-file.", "INPUT");
+                throw new CLIError("Cannot specify both --private-key and --private-key-file.", "INPUT", "Use one or the other, not both.");
             }
             let signerKey;
             if (opts.privateKeyFile) {

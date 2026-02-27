@@ -17,7 +17,7 @@ export function formatAddress(address: string, chars: number = 6): string {
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
 }
 
-export function formatBPS(bps: bigint): string {
+export function formatBPS(bps: bigint | string | number): string {
   const percent = Number(bps) / 100;
   return `${percent.toFixed(2)}%`;
 }

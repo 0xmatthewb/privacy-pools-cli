@@ -59,7 +59,7 @@ const LOGO_LINES = [
     " /(      )---'   )---'  |( __.'`----'           ",
     "(__)    (_)     (_)     (_)                     ",
 ];
-const FRAME_DELAY = 120;
+const FRAME_DELAY = 80;
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -82,7 +82,7 @@ export async function printBanner() {
         await sleep(FRAME_DELAY);
     }
     // Pause to let the banner breathe before the rest of the output
-    await sleep(500);
+    await sleep(250);
     process.stderr.write("\n");
     markBannerShown();
 }

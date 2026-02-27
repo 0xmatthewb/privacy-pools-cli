@@ -55,7 +55,7 @@ describe("CLI help and discovery", () => {
     ["balance", "Show balances across pools"],
     ["accounts", "List your Pool Accounts"],
     ["history", "Show chronological event history"],
-    ["sync", "Sync local account state from on-chain events"],
+    ["sync", "Sync local account state from onchain events"],
     ["capabilities", "Describe CLI capabilities for agent discovery"],
     ["completion", "Generate shell completion script"],
   ] as const;

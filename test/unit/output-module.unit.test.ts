@@ -384,7 +384,7 @@ describe("renderSyncComplete parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Synced 2 pool(s) on ethereum");
-    expect(stderr).toContain("Spendable commitments: 5");
+    expect(stderr).toContain("Spendable Pool Accounts: 5");
   });
 
   test("quiet mode: emits nothing", () => {
@@ -770,7 +770,7 @@ describe("renderAccounts parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Accounts on sepolia");
+    expect(stderr).toContain("Pool Accounts (PA) on sepolia");
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Approved");
   });
@@ -996,7 +996,7 @@ describe("renderInitResult parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Initialization complete!");
+    expect(stderr).toContain("Initialization complete.");
     expect(stderr).toContain("privacy-pools status");
   });
 
@@ -1011,9 +1011,8 @@ describe("renderInitResult parity", () => {
       }),
     );
 
-    // Only a bare newline from process.stderr.write("\n")
     expect(stdout).toBe("");
-    expect(stderr).toBe("\n");
+    expect(stderr).toBe("");
   });
 });
 
@@ -1062,14 +1061,18 @@ describe("renderDepositDryRun parity", () => {
     expect(json.balanceSufficient).toBe("unknown");
   });
 
-  test("human mode: emits only bare newline (messages suppressed by silent)", () => {
+  test("human mode: emits dry-run messages to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
       renderDepositDryRun(ctx, STUB_DEPOSIT_DRY_RUN),
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toBe("\n");
+    expect(stderr).toContain("Dry-run complete");
+    expect(stderr).toContain("Chain: sepolia");
+    expect(stderr).toContain("Asset: ETH");
+    expect(stderr).toContain("Pool Account: PA-1");
+    expect(stderr).toContain("Balance sufficient: yes");
   });
 });
 
@@ -1134,7 +1137,7 @@ describe("renderDepositSuccess parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Deposited");
+    expect(stderr).toContain("Deposit submitted:");
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Net deposited");
@@ -1199,14 +1202,17 @@ describe("renderRagequitDryRun parity", () => {
     expect(stderr).toBe("");
   });
 
-  test("human mode: emits only bare newline (messages suppressed by silent)", () => {
+  test("human mode: emits dry-run messages to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
       renderRagequitDryRun(ctx, STUB_RAGEQUIT_DRY_RUN),
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toBe("\n");
+    expect(stderr).toContain("Dry-run complete");
+    expect(stderr).toContain("Chain: sepolia");
+    expect(stderr).toContain("Asset: ETH");
+    expect(stderr).toContain("Pool Account: PA-2");
   });
 });
 
@@ -1257,8 +1263,8 @@ describe("renderRagequitSuccess parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Exited PA-2");
-    expect(stderr).toContain("recovered");
+    expect(stderr).toContain("Ragequit PA-2");
+    expect(stderr).toContain("withdrew");
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
@@ -1272,14 +1278,14 @@ describe("renderRagequitSuccess parity", () => {
     expect(stderr).not.toContain("Explorer:");
   });
 
-  test("quiet mode: emits nothing except bare newline", () => {
+  test("quiet mode: emits nothing", () => {
     const ctx = createOutputContext(makeMode({ isQuiet: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderRagequitSuccess(ctx, STUB_RAGEQUIT_SUCCESS),
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toBe("\n");
+    expect(stderr).toBe("");
   });
 });
 
@@ -1359,14 +1365,16 @@ describe("renderWithdrawDryRun parity", () => {
     expect(stderr).toBe("");
   });
 
-  test("human mode: emits only bare newline (messages suppressed by silent)", () => {
+  test("human mode: emits dry-run messages to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
       renderWithdrawDryRun(ctx, STUB_WITHDRAW_DRY_RUN_DIRECT),
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toBe("\n");
+    expect(stderr).toContain("Dry-run complete");
+    expect(stderr).toContain("Mode: direct");
+    expect(stderr).toContain("Pool Account: PA-1");
   });
 });
 
@@ -1421,7 +1429,6 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.blockNumber).toBe("12345");
     expect(json.amount).toBe("500000000000000000");
     expect(json.recipient).toBe("0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa");
-    expect(json.withdrawalMode).toBe("direct");
     expect(json.fee).toBeNull();
     expect(json.feeBPS).toBeUndefined();
     expect(json.poolAddress).toBe("0x1111111111111111111111111111111111111111");
@@ -1442,7 +1449,6 @@ describe("renderWithdrawSuccess parity", () => {
 
     const json = JSON.parse(stdout.trim());
     expect(json.mode).toBe("relayed");
-    expect(json.withdrawalMode).toBe("relayed");
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(stderr).toBe("");
@@ -1471,7 +1477,7 @@ describe("renderWithdrawSuccess parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrew");
-    expect(stderr).toContain("Relay fee: 50 BPS");
+    expect(stderr).toContain("Relay fee: 0.50%");
   });
 
   test("human mode: omits Explorer when explorerUrl is null", () => {
@@ -1482,14 +1488,14 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).not.toContain("Explorer:");
   });
 
-  test("quiet mode: emits nothing except bare newline", () => {
+  test("quiet mode: emits nothing", () => {
     const ctx = createOutputContext(makeMode({ isQuiet: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_DIRECT),
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toBe("\n");
+    expect(stderr).toBe("");
   });
 });
 
@@ -1551,8 +1557,8 @@ describe("renderWithdrawQuote parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Relayer quote");
     expect(stderr).toContain("Asset: ETH");
-    expect(stderr).toContain("Quoted fee: 50 BPS");
-    expect(stderr).toContain("On-chain max fee: 100 BPS");
+    expect(stderr).toContain("Quoted fee: 0.50%");
+    expect(stderr).toContain("On-chain max fee: 1.00%");
     expect(stderr).toContain("Recipient:");
     expect(stderr).toContain("Quote expires:");
   });
@@ -1566,13 +1572,13 @@ describe("renderWithdrawQuote parity", () => {
     expect(stderr).not.toContain("Quote expires:");
   });
 
-  test("quiet mode: emits nothing except bare newline", () => {
+  test("quiet mode: emits nothing", () => {
     const ctx = createOutputContext(makeMode({ isQuiet: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderWithdrawQuote(ctx, STUB_WITHDRAW_QUOTE),
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toBe("\n");
+    expect(stderr).toBe("");
   });
 });

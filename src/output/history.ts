@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable } from "./common.js";
+import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatTxHash } from "../utils/format.js";
 import type { HistoryEvent } from "../commands/history.js";
 
@@ -36,7 +36,7 @@ export function renderHistoryNoPools(ctx: OutputContext, chain: string): void {
     printJsonSuccess({ chain, events: [] });
     return;
   }
-  process.stderr.write(`No pools found on ${chain}.\n`);
+  info(`No pools found on ${chain}.`, isSilent(ctx));
 }
 
 /**
@@ -63,10 +63,15 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
     return;
   }
 
+  const silent = isSilent(ctx);
+
   if (events.length === 0) {
-    process.stderr.write(`\nNo events found on ${chain}.\n`);
+    if (!silent) process.stderr.write("\n");
+    info(`No events found on ${chain}.`, silent);
     return;
   }
+
+  if (silent) return;
 
   process.stderr.write(`\nHistory on ${chain} (last ${events.length} events):\n\n`);
   printTable(
@@ -76,7 +81,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
       const typeLabel =
         e.type === "deposit" ? "Deposit" :
         e.type === "withdrawal" ? "Withdraw" :
-        "Ragequit";
+        "Exit";
       return [
         e.blockNumber.toString(),
         typeLabel,

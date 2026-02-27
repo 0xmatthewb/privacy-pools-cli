@@ -38,6 +38,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   if (ctx.mode.isJson) {
     const status: Record<string, unknown> = {
       configExists: result.configExists,
+      configDir: result.configDir,
       defaultChain: result.defaultChain,
       selectedChain: result.selectedChain,
       rpcUrl: result.rpcUrl,
@@ -45,16 +46,20 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       signerKeySet: result.signerKeySet,
       signerKeyValid: result.signerKeyValid,
       signerAddress: result.signerAddress,
+      entrypoint: result.entrypoint,
+      aspHost: result.aspHost,
+      accountFiles: result.accountFiles.map(([name, chainId]) => ({ chain: name, chainId })),
     };
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
+    if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
     printJsonSuccess(status);
     return;
   }
 
   const silent = isSilent(ctx);
 
-  process.stderr.write(chalk.bold("\nPrivacy Pools CLI Status\n") + "\n");
+  if (!silent) process.stderr.write(chalk.bold("\nPrivacy Pools CLI Status\n") + "\n");
 
   // Config
   if (result.configExists) {
@@ -74,7 +79,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   if (result.signerAddress && result.signerKeyValid) {
     success(`Signer: ${result.signerAddress}`, silent);
   } else if (result.signerKeySet && !result.signerKeyValid) {
-    warn("Signer key is set but invalid. Re-run 'privacy-pools init --private-key ...'.", silent);
+    warn("Signer key is set but invalid. Re-run 'privacy-pools init' to reconfigure.", silent);
   } else {
     warn("Signer: not set", silent);
   }
@@ -121,11 +126,16 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   }
 
   // Account files
-  process.stderr.write("\n");
-  info("Account files:", silent);
-  for (const [name, _chainId] of result.accountFiles) {
-    process.stderr.write(`  ${chalk.green("●")} ${name} (chain ${_chainId})\n`);
+  if (!silent) {
+    process.stderr.write("\n");
+    if (result.accountFiles.length > 0) {
+      info("Account files:", silent);
+      for (const [name, _chainId] of result.accountFiles) {
+        process.stderr.write(`  ${chalk.green("●")} ${name} (chain ${_chainId})\n`);
+      }
+    } else {
+      info("No account files found.", silent);
+    }
+    process.stderr.write("\n");
   }
-
-  process.stderr.write("\n");
 }

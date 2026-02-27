@@ -6,7 +6,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable } from "./common.js";
+import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ export function renderBalanceNoPools(ctx: OutputContext, chain: string): void {
     printJsonSuccess({ chain, balances: [] });
     return;
   }
-  process.stderr.write(`No pools found on ${chain}.\n`);
+  info(`No pools found on ${chain}.`, isSilent(ctx));
 }
 
 /**
@@ -51,7 +51,9 @@ export function renderBalanceEmpty(ctx: OutputContext, chain: string): void {
     printJsonSuccess({ chain, balances: [] }, false);
     return;
   }
-  process.stderr.write(`\nNo balances found on ${chain}. Deposit first to create Pool Accounts.\n`);
+  const silent = isSilent(ctx);
+  if (!silent) process.stderr.write("\n");
+  info(`No balances found on ${chain}. Deposit first to create Pool Accounts.`, silent);
 }
 
 /**
@@ -65,6 +67,9 @@ export function renderBalance(ctx: OutputContext, data: BalanceRenderData): void
     );
     return;
   }
+
+  const silent = isSilent(ctx);
+  if (silent) return;
 
   process.stderr.write(`\nBalances on ${data.chain}:\n\n`);
   printTable(

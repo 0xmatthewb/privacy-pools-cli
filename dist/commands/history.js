@@ -83,7 +83,7 @@ export function buildHistoryEventsFromAccount(account, pools) {
 export function createHistoryCommand() {
     return new Command("history")
         .description("Show chronological event history (deposits, withdrawals, exits)")
-        .option("--no-sync", "Skip syncing account state before displaying")
+        .option("--no-sync", "Use cached data (faster, but may be stale)")
         .option("-n, --limit <n>", "Show last N events", "50")
         .addHelpText("after", "\nExamples:\n  privacy-pools history\n  privacy-pools history --limit 10\n  privacy-pools history --no-sync --chain sepolia\n  privacy-pools history --json\n"
         + commandHelpText({
@@ -96,7 +96,12 @@ export function createHistoryCommand() {
         const isVerbose = globalOpts?.verbose ?? false;
         const ctx = createOutputContext(mode, isVerbose);
         const silent = isSilent(ctx);
-        const limit = Math.max(1, parseInt(opts.limit, 10) || 50);
+        const parsedLimit = Number(opts.limit ?? 50);
+        if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
+            printError(new CLIError(`Invalid --limit value: ${opts.limit}.`, "INPUT", "--limit must be a positive integer."), mode.isJson);
+            return;
+        }
+        const limit = parsedLimit;
         try {
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);

@@ -56,7 +56,7 @@ const CONTRACT_ERROR_MAP = {
         code: "CONTRACT_INVALID_PROCESSOOOR",
     },
     InvalidProof: {
-        message: "ZK proof verification failed on-chain.",
+        message: "ZK proof verification failed onchain.",
         hint: "Your local proof inputs may be stale. Run 'privacy-pools sync' and retry.",
         code: "CONTRACT_INVALID_PROOF",
     },
@@ -103,7 +103,7 @@ export function classifyError(error) {
         message.includes("timeout")) {
         return new CLIError(`Network error: ${message}`, "RPC", "Check your RPC URL and network connectivity.", "RPC_NETWORK_ERROR", true);
     }
-    return new CLIError(message, "UNKNOWN");
+    return new CLIError(message, "UNKNOWN", "If this persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues");
 }
 function hasCode(error) {
     return (typeof error === "object" &&

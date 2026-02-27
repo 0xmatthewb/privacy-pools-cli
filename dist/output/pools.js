@@ -5,7 +5,7 @@
  * Pool fetching, search, sort, and spinner remain in the command handler.
  */
 import chalk from "chalk";
-import { printJsonSuccess, printTable } from "./common.js";
+import { printJsonSuccess, printTable, info, warn, isSilent } from "./common.js";
 import { formatAddress, formatAmount, formatBPS } from "../utils/format.js";
 // ── Helpers (moved from command) ─────────────────────────────────────────────
 function formatStatAmount(value, decimals, symbol) {
@@ -65,11 +65,12 @@ export function renderPoolsEmpty(ctx, data) {
         }
         return;
     }
+    const silent = isSilent(ctx);
     if (data.allChains) {
-        process.stderr.write("No pools found across supported chains.\n");
+        info("No pools found across supported chains.", silent);
     }
     else {
-        process.stderr.write(`No pools found on ${data.chainName}.\n`);
+        info(`No pools found on ${data.chainName}.`, silent);
     }
 }
 /**
@@ -98,6 +99,9 @@ export function renderPools(ctx, data) {
         }
         return;
     }
+    const silent = isSilent(ctx);
+    if (silent)
+        return;
     if (allChains) {
         process.stderr.write("\nPools across supported chains:\n\n");
     }
@@ -106,25 +110,24 @@ export function renderPools(ctx, data) {
     }
     if (warnings.length > 0) {
         for (const warning of warnings) {
-            process.stderr.write(chalk.yellow(`Warning (${warning.chain}, ${warning.category}): ${warning.message}\n`));
+            warn(`${warning.chain} (${warning.category}): ${warning.message}`, false);
         }
         process.stderr.write("\n");
     }
     if (filteredPools.length === 0) {
         if (search && search.length > 0) {
-            process.stderr.write(`No pools matched search query "${search}".\n`);
+            info(`No pools matched search query "${search}".`, false);
         }
         else {
-            process.stderr.write("No pools found.\n");
+            info("No pools found.", false);
         }
         return;
     }
     printTable(allChains
-        ? ["Chain", "Asset", "Address", "Pool", "Accepted Funds", "Pending Funds", "Total Deposits", "Min Deposit", "Vetting Fee", "Max Relay Fee"]
-        : ["Asset", "Address", "Pool", "Accepted Funds", "Pending Funds", "Total Deposits", "Min Deposit", "Vetting Fee", "Max Relay Fee"], filteredPools.map(({ chain, pool }) => {
+        ? ["Chain", "Asset", "Pool", "Accepted", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"]
+        : ["Asset", "Pool", "Accepted", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"], filteredPools.map(({ chain, pool }) => {
         const baseRow = [
             pool.symbol,
-            formatAddress(pool.asset),
             formatAddress(pool.pool),
             formatStatAmount(pool.acceptedDepositsValue ?? pool.totalInPoolValue, pool.decimals, pool.symbol),
             formatStatAmount(pool.pendingDepositsValue, pool.decimals, pool.symbol),
@@ -135,5 +138,5 @@ export function renderPools(ctx, data) {
         ];
         return allChains ? [chain, ...baseRow] : baseRow;
     }));
-    process.stderr.write(chalk.dim("\nAccepted/Pending funds and deposit counts come from ASP pool statistics. Vetting fees are deducted on deposit. Relay fees apply to relayed withdrawals.\n"));
+    process.stderr.write(chalk.dim("\nVetting fees are deducted on deposit. Relay fees apply to relayed withdrawals.\n"));
 }

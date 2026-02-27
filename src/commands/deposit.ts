@@ -119,7 +119,8 @@ export function createDepositCommand(): Command {
           if (pools.length === 0) {
             throw new CLIError(
               `No pools found on ${chainConfig.name}.`,
-              "INPUT"
+              "INPUT",
+              "Run 'privacy-pools pools --chain <chain>' to see available pools."
             );
           }
 
@@ -134,7 +135,8 @@ export function createDepositCommand(): Command {
         } else {
           throw new CLIError(
             "No asset specified. Use --asset <symbol|address>.",
-            "INPUT"
+            "INPUT",
+            "Run 'privacy-pools pools' to see available assets, then use --asset ETH (or the asset symbol)."
           );
         }
         verbose(
@@ -150,8 +152,9 @@ export function createDepositCommand(): Command {
 
         if (amount < pool.minimumDepositAmount) {
           throw new CLIError(
-            `Amount below minimum deposit: ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)}`,
-            "INPUT"
+            `Deposit amount is below the minimum of ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)} for this pool.`,
+            "INPUT",
+            `Increase the amount to at least ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)}.`
           );
         }
 
@@ -164,6 +167,7 @@ export function createDepositCommand(): Command {
           process.stderr.write("\n");
           const ok = await confirm({
             message: `Deposit ${formatAmount(amount, pool.decimals, pool.symbol)} into ${pool.symbol} pool on ${chainConfig.name}?`,
+            default: false,
           });
           if (!ok) {
             info("Deposit cancelled.", silent);
@@ -370,7 +374,7 @@ export function createDepositCommand(): Command {
 
           if (label === undefined || committedValue === undefined) {
             spin.warn(
-              "Deposit confirmed on-chain. Local state update pending: run 'privacy-pools sync' to finalize."
+              "Deposit confirmed onchain. Local state update pending: run 'privacy-pools sync' to finalize."
             );
           } else {
             // Persist the new commitment (7 individual args)
@@ -387,7 +391,7 @@ export function createDepositCommand(): Command {
               saveAccount(chainConfig.id, accountService.account);
             } catch (saveErr) {
               process.stderr.write(
-                `\nWarning: deposit confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
+                `\nWarning: deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
               );
               process.stderr.write(
                 "⚠ Run 'privacy-pools sync' to update your local account state.\n"

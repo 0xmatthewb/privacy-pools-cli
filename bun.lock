@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@0xbow/privacy-pools-cli",
+      "name": "privacy-pools-cli",
       "dependencies": {
         "@0xbow/privacy-pools-core-sdk": "1.1.0",
         "@inquirer/prompts": "^7.0.0",

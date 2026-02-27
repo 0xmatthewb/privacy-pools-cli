@@ -103,7 +103,7 @@ export function createWithdrawCommand() {
                 info("Using direct withdrawal (funds sent to your signer address, no relay fee).", silent);
             }
             else {
-                info("Using relayed withdrawal (recipient cannot be linked to your deposit).", silent);
+                info("Using relayed withdrawal (stronger privacy via relayer routing).", silent);
             }
             const { amount: amountStr, asset: positionalOrFlagAsset } = resolveAmountAndAssetInput("withdraw", firstArg, secondArg, opts.asset);
             // Private key is only needed for on-chain submission, not --unsigned or --dry-run
@@ -119,7 +119,7 @@ export function createWithdrawCommand() {
                 throw new CLIError("Relayed withdrawals require --to <address>.", "INPUT", "Specify a recipient with --to, or use --direct for direct withdrawal.");
             }
             if (isDirect && !opts.to && !signerAddress) {
-                throw new CLIError("Direct withdrawal requires --to <address> in unsigned mode (no signer key available).", "INPUT");
+                throw new CLIError("Direct withdrawal requires --to <address> in unsigned mode (no signer key available).", "INPUT", "Specify a recipient address with --to 0x...");
             }
             const recipientAddress = opts.to
                 ? validateAddress(opts.to, "Recipient")
@@ -137,7 +137,7 @@ export function createWithdrawCommand() {
             else if (!skipPrompts) {
                 const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
                 if (pools.length === 0) {
-                    throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT");
+                    throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT", "Run 'privacy-pools pools --chain <chain>' to see available pools.");
                 }
                 const selected = await select({
                     message: "Select asset to withdraw:",
@@ -149,7 +149,7 @@ export function createWithdrawCommand() {
                 pool = pools.find((p) => p.symbol === selected);
             }
             else {
-                throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT");
+                throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT", "Run 'privacy-pools pools' to see available assets, then use --asset ETH (or the asset symbol).");
             }
             verbose(`Pool resolved: ${pool.symbol} asset=${pool.asset} pool=${pool.pool} scope=${pool.scope.toString()}`, isVerbose, silent);
             const withdrawalAmount = parseAmount(amountStr, pool.decimals);
@@ -280,7 +280,7 @@ export function createWithdrawCommand() {
             }));
             const stateProofRoot = BigInt(stateMerkleProof.root);
             if (stateProofRoot !== BigInt(stateRoot)) {
-                throw new CLIError("State tree leaves are stale (proof root does not match on-chain pool root).", "ASP", "Re-fetch ASP leaves and regenerate the proof.");
+                throw new CLIError("Pool data is out of date.", "ASP", "Run 'privacy-pools sync' and try the withdrawal again.");
             }
             if (isDirect) {
                 // --- Direct Withdrawal ---
@@ -366,6 +366,7 @@ export function createWithdrawCommand() {
                     spin.stop();
                     const ok = await confirm({
                         message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}?`,
+                        default: false,
                     });
                     if (!ok) {
                         info("Withdrawal cancelled.", silent);
@@ -398,7 +399,7 @@ export function createWithdrawCommand() {
                         saveAccount(chainConfig.id, accountService.account);
                     }
                     catch (saveErr) {
-                        process.stderr.write(`\nWarning: withdrawal confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
+                        process.stderr.write(`\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
                         process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
                     }
                 }
@@ -431,7 +432,7 @@ export function createWithdrawCommand() {
                 const details = await getRelayerDetails(chainConfig, pool.asset);
                 verbose(`Relayer details: minWithdraw=${details.minWithdrawAmount} feeReceiver=${details.feeReceiverAddress}`, isVerbose, silent);
                 if (withdrawalAmount < BigInt(details.minWithdrawAmount)) {
-                    throw new CLIError(`Amount below relayer minimum: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`, "RELAYER", `Minimum relayed withdrawal for ${pool.symbol}: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}`);
+                    throw new CLIError(`Amount below relayer minimum of ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`, "RELAYER", `Increase your withdrawal amount to at least ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`);
                 }
                 let quote = await requestQuote(chainConfig, {
                     amount: withdrawalAmount,
@@ -459,7 +460,7 @@ export function createWithdrawCommand() {
                         throw new CLIError("Relayer returned malformed feeBPS (expected integer string).", "RELAYER", "Request a fresh quote and retry.");
                     }
                     if (parsedFeeBPS > pool.maxRelayFeeBPS) {
-                        throw new CLIError(`Quoted fee ${quote.feeBPS} BPS exceeds on-chain max ${pool.maxRelayFeeBPS} BPS.`, "RELAYER");
+                        throw new CLIError(`Quoted relay fee (${formatBPS(quote.feeBPS)}) exceeds onchain maximum (${formatBPS(pool.maxRelayFeeBPS)}).`, "RELAYER", "Try again later when fees are lower, or use --direct for a direct withdrawal.");
                     }
                     // Relayer may return expiration in seconds (Unix) or ms - normalize.
                     const parsedExpirationMs = quote.feeCommitment.expiration < 1e12
@@ -499,6 +500,7 @@ export function createWithdrawCommand() {
                         info(`Quote valid for ~${secondsLeft}s (expires ${new Date(expirationMs).toISOString()})`, silent);
                         const ok = await confirm({
                             message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)} on ${chainConfig.name}?`,
+                            default: false,
                         });
                         if (!ok) {
                             info("Withdrawal cancelled.", silent);
@@ -564,7 +566,7 @@ export function createWithdrawCommand() {
                     functionName: "latestRoot",
                 });
                 if (BigInt(roots.onchainMtRoot) !== BigInt(finalRootCheck)) {
-                    throw new CLIError("Pool state changed before submission. Re-run withdrawal to generate a fresh proof.", "ASP");
+                    throw new CLIError("Pool state changed before submission. Re-run withdrawal to generate a fresh proof.", "ASP", "Run 'privacy-pools sync' then retry the withdrawal.");
                 }
                 // Check if feeCommitment expired before submit.
                 if (Date.now() > expirationMs) {
@@ -658,7 +660,7 @@ export function createWithdrawCommand() {
                         saveAccount(chainConfig.id, accountService.account);
                     }
                     catch (saveErr) {
-                        process.stderr.write(`\nWarning: relayed withdrawal confirmed on-chain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
+                        process.stderr.write(`\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
                         process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
                     }
                 }
@@ -718,7 +720,7 @@ export function createWithdrawCommand() {
                 pool = await resolvePool(chainConfig, positionalOrFlagAsset, globalOpts?.rpcUrl);
             }
             else {
-                throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT");
+                throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT", "Example: privacy-pools withdraw quote 0.1 --asset ETH --chain sepolia");
             }
             verbose(`Pool resolved: ${pool.symbol} asset=${pool.asset} pool=${pool.pool}`, isVerbose, silent);
             const amount = parseAmount(amountStr, pool.decimals);

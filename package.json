@@ -1,5 +1,5 @@
 {
-  "name": "@0xbow/privacy-pools-cli",
+  "name": "privacy-pools-cli",
   "version": "0.1.0",
   "description": "CLI for interacting with Privacy Pools v1",
   "type": "module",
@@ -36,9 +36,9 @@
     "typescript": "^5.7.0"
   },
   "license": "Apache-2.0",
-  "author": "0xbow",
+  "author": "matthewb",
   "repository": {
     "type": "git",
-    "url": "https://github.com/0xbow-io/privacy-pools-cli"
+    "url": "https://github.com/0xmatthewb/privacy-pools-cli"
   }
 }

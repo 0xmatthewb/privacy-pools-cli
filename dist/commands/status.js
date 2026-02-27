@@ -32,7 +32,7 @@ export function createStatusCommand() {
             const signerKey = loadSignerKey();
             const selectedChainKey = globalOpts?.chain?.toLowerCase() ?? config?.defaultChain ?? null;
             if (globalOpts?.chain && (!selectedChainKey || !CHAINS[selectedChainKey])) {
-                throw new CLIError(`Unknown chain: ${globalOpts.chain}`, "INPUT");
+                throw new CLIError(`Unknown chain: ${globalOpts.chain}`, "INPUT", `Available chains: ${Object.keys(CHAINS).join(", ")}`);
             }
             const selectedChainConfig = selectedChainKey
                 ? CHAINS[selectedChainKey]

@@ -32,7 +32,7 @@ const CAPABILITIES = {
             description: "Show public statistics (global or per pool)",
             usage: "stats",
             flags: ["global", "pool --asset <symbol|address>"],
-            agentFlags: "global --json | pool --asset <symbol> --json",
+            agentFlags: "global --json (or: pool --asset <symbol> --json)",
             requiresInit: false,
         },
         {
@@ -40,7 +40,7 @@ const CAPABILITIES = {
             description: "Deposit ETH or ERC-20 tokens into a Privacy Pool",
             usage: "deposit <amount> --asset <symbol|address>",
             flags: ["--asset <symbol|address>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
-            agentFlags: "--json --yes --asset <symbol>",
+            agentFlags: "--json --yes",
             requiresInit: true,
         },
         {
@@ -48,7 +48,7 @@ const CAPABILITIES = {
             description: "Withdraw from a Privacy Pool (relayed by default)",
             usage: "withdraw <amount> --asset <symbol|address> --to <address>",
             flags: ["--asset <symbol|address>", "--to <address>", "--from-pa <PA-#>", "--direct", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
-            agentFlags: "--json --yes --asset <symbol> --to <address>",
+            agentFlags: "--json --yes",
             requiresInit: true,
         },
         {
@@ -74,16 +74,16 @@ const CAPABILITIES = {
         },
         {
             name: "sync",
-            description: "Sync local account state from on-chain events",
-            flags: [],
-            agentFlags: "--json",
+            description: "Sync local account state from onchain events",
+            flags: ["-a, --asset <symbol|address>"],
+            agentFlags: "--json [--asset <symbol>]",
             requiresInit: true,
         },
         {
             name: "status",
             description: "Show configuration and connection status",
-            flags: [],
-            agentFlags: "--json",
+            flags: ["--check", "--check-rpc", "--check-asp"],
+            agentFlags: "--json [--check] [--check-rpc] [--check-asp]",
             requiresInit: false,
         },
         {
@@ -92,7 +92,7 @@ const CAPABILITIES = {
             description: "Publicly withdraw funds without ASP approval (reveals deposit link)",
             usage: "ragequit --asset <symbol|address> --from-pa <PA-#>",
             flags: ["--asset <symbol|address>", "--from-pa <PA-#>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
-            agentFlags: "--json --yes --asset <symbol> --from-pa <PA-#>",
+            agentFlags: "--json --yes",
             requiresInit: true,
         },
         {

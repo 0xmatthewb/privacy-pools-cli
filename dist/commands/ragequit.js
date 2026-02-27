@@ -85,7 +85,7 @@ export function createRagequitCommand() {
             else if (!skipPrompts) {
                 const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
                 if (pools.length === 0) {
-                    throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT");
+                    throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT", "Run 'privacy-pools pools --chain <chain>' to see available pools.");
                 }
                 const selected = await select({
                     message: "Select asset pool to exit:",
@@ -97,7 +97,7 @@ export function createRagequitCommand() {
                 pool = pools.find((p) => p.symbol === selected);
             }
             else {
-                throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT");
+                throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT", "Run 'privacy-pools pools' to see available assets, then use --asset ETH (or the asset symbol).");
             }
             verbose(`Pool resolved: ${pool.symbol} asset=${pool.asset} pool=${pool.pool} scope=${pool.scope.toString()}`, isVerbose, silent);
             const mnemonic = loadMnemonic();
@@ -223,7 +223,7 @@ export function createRagequitCommand() {
                     // If the contract doesn't expose depositors(), skip the check
                     if (err instanceof CLIError)
                         throw err;
-                    verbose(`Could not verify depositor on-chain: ${err instanceof Error ? err.message : String(err)}`, isVerbose, silent);
+                    verbose(`Could not verify depositor onchain: ${err instanceof Error ? err.message : String(err)}`, isVerbose, silent);
                 }
             }
             // Generate commitment proof
@@ -312,7 +312,7 @@ export function createRagequitCommand() {
                     saveAccount(chainConfig.id, accountService.account);
                 }
                 catch (err) {
-                    process.stderr.write(`Warning: ragequit confirmed on-chain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`);
+                    process.stderr.write(`Warning: ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`);
                     process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
                 }
             }

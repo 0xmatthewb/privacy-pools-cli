@@ -9,7 +9,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, success, info, isSilent } from "./common.js";
-import { formatAmount, formatAddress, formatTxHash } from "../utils/format.js";
+import { formatAmount, formatAddress, formatTxHash, formatBPS } from "../utils/format.js";
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────
 
@@ -34,8 +34,7 @@ export interface WithdrawDryRunData {
 /**
  * Render withdraw dry-run output (both direct and relayed).
  *
- * NOTE: Human-mode messages are suppressed by the command's `silent` flag
- * (which includes isDryRun).  Only a bare newline is emitted.
+ * Prints a human-readable summary of what would happen without submitting.
  */
 export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunData): void {
   if (ctx.mode.isJson) {
@@ -60,22 +59,20 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
     return;
   }
 
-  // Human dry-run: messages suppressed by command's `silent` flag.
-  process.stderr.write("\n");
-  const silent = true; // matches command-level: silent = isQuiet || isJson || isUnsigned || isDryRun
-  success("Dry-run complete.", silent);
+  const silent = isSilent(ctx);
+  if (!silent) process.stderr.write("\n");
+  success("Dry-run complete — no transaction was submitted.", silent);
   info(`Mode: ${data.withdrawMode}`, silent);
   info(`Recipient: ${formatAddress(data.recipient)}`, silent);
-  info(`From Pool Account: ${data.poolAccountId}`, silent);
-  if (data.withdrawMode === "relayed") {
-    info(`Relay fee: ${data.feeBPS} BPS`, silent);
-    info(`Quote expires: ${data.quoteExpiresAt}`, silent);
+  info(`Pool Account: ${data.poolAccountId}`, silent);
+  if (data.withdrawMode === "relayed" && data.feeBPS) {
+    info(`Relay fee: ${formatBPS(data.feeBPS)}`, silent);
+    if (data.quoteExpiresAt) info(`Quote expires: ${data.quoteExpiresAt}`, silent);
   }
   info(
     `Pool Account balance: ${formatAmount(data.selectedCommitmentValue, data.decimals, data.asset)}`,
     silent,
   );
-  info("No transaction was submitted.", silent);
 }
 
 // ── Success ──────────────────────────────────────────────────────────────────
@@ -110,7 +107,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       blockNumber: data.blockNumber.toString(),
       amount: data.amount.toString(),
       recipient: data.recipient,
-      withdrawalMode: data.withdrawMode,
       explorerUrl: data.explorerUrl,
       poolAddress: data.poolAddress,
       scope: data.scope.toString(),
@@ -129,17 +125,19 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   }
 
   const silent = isSilent(ctx);
-  process.stderr.write("\n");
+  if (!silent) process.stderr.write("\n");
   success(
-    `Withdrew ${formatAmount(data.amount, data.decimals, data.asset)} from ${data.poolAccountId} to ${formatAddress(data.recipient)}`,
+    `Withdrew ${formatAmount(data.amount, data.decimals, data.asset)} from ${data.poolAccountId} to ${formatAddress(data.recipient)}.`,
     silent,
   );
   info(`Tx: ${formatTxHash(data.txHash)}`, silent);
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
-  if (data.withdrawMode === "relayed") {
-    info(`Relay fee: ${data.feeBPS} BPS`, silent);
+  if (data.withdrawMode === "relayed" && data.feeBPS) {
+    const feeBpsNum = Number(data.feeBPS);
+    const netAmount = data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n;
+    info(`Relay fee: ${formatBPS(data.feeBPS)} — net received: ~${formatAmount(netAmount, data.decimals, data.asset)}`, silent);
   }
 }
 
@@ -189,13 +187,13 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   }
 
   const silent = isSilent(ctx);
-  process.stderr.write("\n");
-  success("Relayer quote", silent);
+  if (!silent) process.stderr.write("\n");
+  info("Relayer quote", silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
   info(`Min withdraw: ${minWithdrawFormatted}`, silent);
-  info(`Quoted fee: ${data.quoteFeeBPS} BPS`, silent);
-  info(`On-chain max fee: ${data.maxRelayFeeBPS.toString()} BPS`, silent);
+  info(`Quoted fee: ${formatBPS(data.quoteFeeBPS)}`, silent);
+  info(`On-chain max fee: ${formatBPS(data.maxRelayFeeBPS)}`, silent);
   if (data.recipient) {
     info(`Recipient: ${formatAddress(data.recipient)}`, silent);
   }

@@ -10,8 +10,7 @@ import { formatAmount, formatTxHash } from "../utils/format.js";
 /**
  * Render ragequit dry-run output.
  *
- * NOTE: Same silent-flag behavior as deposit – human-mode messages are
- * suppressed because the command's `silent` includes `isDryRun`.
+ * Prints a human-readable summary of what would happen without submitting.
  */
 export function renderRagequitDryRun(ctx, data) {
     if (ctx.mode.isJson) {
@@ -29,16 +28,15 @@ export function renderRagequitDryRun(ctx, data) {
         }, false);
         return;
     }
-    // Human dry-run: messages suppressed by command's `silent` flag.
-    process.stderr.write("\n");
-    const silent = true; // matches command-level: silent = isQuiet || isJson || isUnsigned || isDryRun
-    success("Dry-run complete.", silent);
+    const silent = isSilent(ctx);
+    if (!silent)
+        process.stderr.write("\n");
+    success("Dry-run complete — no transaction was submitted.", silent);
     info(`Chain: ${data.chain}`, silent);
     info(`Asset: ${data.asset}`, silent);
     info(`Pool Account: ${data.poolAccountId}`, silent);
     info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
-    info("Privacy note: this exit returns funds without privacy.", silent);
-    info("No transaction was submitted.", silent);
+    info("Privacy note: ragequit is a public exit that returns funds to your deposit address.", silent);
 }
 /**
  * Render ragequit success output.
@@ -61,8 +59,9 @@ export function renderRagequitSuccess(ctx, data) {
         return;
     }
     const silent = isSilent(ctx);
-    process.stderr.write("\n");
-    success(`Exited ${data.poolAccountId} and recovered ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
+    if (!silent)
+        process.stderr.write("\n");
+    success(`Ragequit ${data.poolAccountId} — withdrew ${formatAmount(data.amount, data.decimals, data.asset)} back to deposit address.`, silent);
     info(`Tx: ${formatTxHash(data.txHash)}`, silent);
     if (data.explorerUrl) {
         info(`Explorer: ${data.explorerUrl}`, silent);

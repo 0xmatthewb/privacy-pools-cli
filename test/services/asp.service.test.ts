@@ -141,7 +141,7 @@ describe("asp service", () => {
 
     await expect(fetchMerkleLeaves(chain, 1n)).rejects.toMatchObject({
       category: "ASP",
-      hint: expect.stringContaining("retry"),
+      hint: expect.stringContaining("Wait a moment"),
     });
   });
 

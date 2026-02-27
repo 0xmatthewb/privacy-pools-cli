@@ -34,9 +34,7 @@ export interface DepositSuccessData {
 /**
  * Render deposit dry-run output.
  *
- * NOTE: In the current CLI, human-mode dry-run messages (success/info) are
- * suppressed because the command's `silent` flag includes `isDryRun`.
- * Only a bare newline is emitted.  This is preserved for byte-parity.
+ * Prints a human-readable summary of what would happen without submitting.
  */
 export declare function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData): void;
 /**

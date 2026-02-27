@@ -77,7 +77,7 @@ describe("ASP service error handling", () => {
 
     await expect(fetchPoolsStats(chain)).rejects.toMatchObject({
       category: "ASP",
-      hint: expect.stringContaining("retry"),
+      hint: expect.stringContaining("Wait a moment"),
     });
   });
 
