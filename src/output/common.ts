@@ -1,0 +1,74 @@
+/**
+ * Shared output primitives for command renderers.
+ *
+ * Re-exports mode resolution and provides a thin, mode-aware render context
+ * that individual command renderers consume.  Keeps JSON envelope source of
+ * truth in `utils/json.ts` and formatting helpers in `utils/format.ts`.
+ */
+
+import type { ResolvedGlobalMode } from "../utils/mode.js";
+import { printJsonSuccess } from "../utils/json.js";
+import { printError } from "../utils/errors.js";
+import {
+  info,
+  success,
+  warn,
+  verbose,
+  spinner,
+  printTable,
+} from "../utils/format.js";
+
+// ── Re-exports so renderers only need one import ─────────────────────────────
+
+export {
+  printJsonSuccess,
+  printError,
+  info,
+  success,
+  warn,
+  verbose,
+  spinner,
+  printTable,
+};
+export type { ResolvedGlobalMode };
+
+/**
+ * Output context passed from the command handler to a renderer.
+ *
+ * Bundles resolved mode flags with convenience getters that renderers
+ * reference frequently.  Commands construct this once and hand it off.
+ */
+export interface OutputContext {
+  /** Resolved global mode (json, quiet, agent, skipPrompts). */
+  mode: ResolvedGlobalMode;
+  /** True when verbose output is requested. */
+  isVerbose: boolean;
+}
+
+/**
+ * Create an output context from resolved mode and verbose flag.
+ */
+export function createOutputContext(
+  mode: ResolvedGlobalMode,
+  isVerbose: boolean = false,
+): OutputContext {
+  return { mode, isVerbose };
+}
+
+/**
+ * Whether human-mode informational messages should be suppressed.
+ * True when quiet *or* JSON mode is active.
+ */
+export function isSilent(ctx: OutputContext): boolean {
+  return ctx.mode.isQuiet || ctx.mode.isJson;
+}
+
+/**
+ * Write a line to stderr (human mode only).
+ * No-op when the context is silent.
+ */
+export function stderrLine(ctx: OutputContext, text: string): void {
+  if (!isSilent(ctx)) {
+    process.stderr.write(`${text}\n`);
+  }
+}
