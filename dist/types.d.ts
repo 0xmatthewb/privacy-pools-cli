@@ -32,6 +32,72 @@ export interface PoolStats {
     minimumDepositAmount: bigint;
     vettingFeeBPS: bigint;
     maxRelayFeeBPS: bigint;
+    totalInPoolValue?: bigint;
+    totalInPoolValueUsd?: string;
+    totalDepositsValue?: bigint;
+    totalDepositsValueUsd?: string;
+    acceptedDepositsValue?: bigint;
+    acceptedDepositsValueUsd?: string;
+    pendingDepositsValue?: bigint;
+    pendingDepositsValueUsd?: string;
+    totalDepositsCount?: number;
+    acceptedDepositsCount?: number;
+    pendingDepositsCount?: number;
+    growth24h?: number | null;
+    pendingGrowth24h?: number | null;
+}
+export interface AspEventPoolRef {
+    chainId?: number;
+    poolAddress?: string;
+    tokenSymbol?: string;
+    tokenAddress?: string;
+    denomination?: string;
+}
+export interface AspPublicEvent {
+    type?: string;
+    txHash?: string;
+    timestamp?: number | string;
+    amount?: string;
+    publicAmount?: string;
+    reviewStatus?: string;
+    pool?: AspEventPoolRef;
+    [key: string]: unknown;
+}
+export interface AspEventsPageResponse {
+    events?: AspPublicEvent[];
+    page?: number;
+    perPage?: number;
+    total?: number;
+    totalPages?: number;
+}
+export interface TimeBasedStatistics {
+    tvl?: string;
+    tvlUsd?: string;
+    avgDepositSize?: string;
+    avgDepositSizeUsd?: string;
+    totalDepositsCount?: number;
+    totalDepositsValue?: string;
+    totalDepositsValueUsd?: string;
+    totalWithdrawalsCount?: number;
+    totalWithdrawalsValue?: string;
+    totalWithdrawalsValueUsd?: string;
+}
+export interface PoolStatisticsResponse {
+    pool?: {
+        scope?: string;
+        chainId?: string;
+        tokenSymbol?: string;
+        tokenAddress?: string;
+        tokenDecimals?: number;
+        allTime?: TimeBasedStatistics;
+        last24h?: TimeBasedStatistics;
+    };
+    cacheTimestamp?: string;
+}
+export interface GlobalStatisticsResponse {
+    allTime?: TimeBasedStatistics;
+    last24h?: TimeBasedStatistics;
+    cacheTimestamp?: string;
 }
 export interface MtRootsResponse {
     mtRoot: string;

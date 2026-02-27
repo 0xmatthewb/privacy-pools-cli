@@ -1,4 +1,11 @@
-import type { ChainConfig, MtRootsResponse, MtLeavesResponse } from "../types.js";
+import type {
+  ChainConfig,
+  MtRootsResponse,
+  MtLeavesResponse,
+  AspEventsPageResponse,
+  PoolStatisticsResponse,
+  GlobalStatisticsResponse,
+} from "../types.js";
 import { CLIError } from "../utils/errors.js";
 
 async function aspFetch(
@@ -55,6 +62,39 @@ async function aspFetch(
   return res;
 }
 
+async function aspFetchGlobal(
+  chainConfig: ChainConfig,
+  path: string,
+  query?: Record<string, string>
+): Promise<Response> {
+  const url = new URL(`${chainConfig.aspHost}/global${path}`);
+  if (query) {
+    for (const [k, v] of Object.entries(query)) {
+      url.searchParams.set(k, v);
+    }
+  }
+
+  const res = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!res.ok) {
+    if (res.status === 429 || res.status === 403) {
+      throw new CLIError(
+        `ASP API: rate limited or forbidden (${res.status}).`,
+        "ASP",
+        "Wait and retry with exponential backoff."
+      );
+    }
+    throw new CLIError(
+      `ASP API request failed: ${res.status} ${res.statusText}`,
+      "ASP"
+    );
+  }
+
+  return res;
+}
+
 export async function fetchMerkleRoots(
   chainConfig: ChainConfig,
   scope: bigint
@@ -71,8 +111,47 @@ export async function fetchMerkleLeaves(
   return res.json();
 }
 
+export async function fetchPoolEvents(
+  chainConfig: ChainConfig,
+  scope: bigint,
+  page: number,
+  perPage: number
+): Promise<AspEventsPageResponse> {
+  const res = await aspFetch(chainConfig, "/public/events", scope, {
+    page: String(page),
+    perPage: String(perPage),
+  });
+  return res.json();
+}
+
+export async function fetchGlobalEvents(
+  chainConfig: ChainConfig,
+  page: number,
+  perPage: number
+): Promise<AspEventsPageResponse> {
+  const res = await aspFetchGlobal(chainConfig, "/public/events", {
+    page: String(page),
+    perPage: String(perPage),
+  });
+  return res.json();
+}
+
 export interface PoolStatsEntry {
   scope: string;
+  chainId?: number;
+  totalInPoolValue?: string;
+  totalInPoolValueUsd?: string;
+  totalDepositsValue?: string;
+  totalDepositsValueUsd?: string;
+  acceptedDepositsValue?: string;
+  acceptedDepositsValueUsd?: string;
+  totalDepositsCount?: number;
+  acceptedDepositsCount?: number;
+  pendingDepositsValue?: string;
+  pendingDepositsValueUsd?: string;
+  pendingDepositsCount?: number;
+  growth24h?: number | null;
+  pendingGrowth24h?: number | null;
   tokenAddress?: string;
   assetAddress?: string;
   tokenSymbol?: string;
@@ -81,7 +160,10 @@ export interface PoolStatsEntry {
 
 export async function fetchPoolsStats(
   chainConfig: ChainConfig
-): Promise<PoolStatsEntry[] | { pools?: PoolStatsEntry[] }> {
+): Promise<
+  PoolStatsEntry[]
+  | { pools?: PoolStatsEntry[]; [scope: string]: PoolStatsEntry | PoolStatsEntry[] | undefined }
+> {
   const res = await aspFetch(chainConfig, "/public/pools-stats");
   return res.json();
 }
@@ -97,6 +179,21 @@ export async function fetchDepositsLargerThan(
     scope,
     { amount: amount.toString() }
   );
+  return res.json();
+}
+
+export async function fetchPoolStatistics(
+  chainConfig: ChainConfig,
+  scope: bigint
+): Promise<PoolStatisticsResponse> {
+  const res = await aspFetch(chainConfig, "/public/pool-statistics", scope);
+  return res.json();
+}
+
+export async function fetchGlobalStatistics(
+  chainConfig: ChainConfig
+): Promise<GlobalStatisticsResponse> {
+  const res = await aspFetchGlobal(chainConfig, "/public/statistics");
   return res.json();
 }
 

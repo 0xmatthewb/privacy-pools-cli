@@ -106,6 +106,14 @@ describe("pools service", () => {
       pools: [
         {
           tokenAddress: "0x00000000000000000000000000000000000000b1",
+          totalInPoolValue: "90000000000000000000",
+          acceptedDepositsValue: "88000000000000000000",
+          pendingDepositsValue: "2000000000000000000",
+          totalDepositsValue: "100000000000000000000",
+          totalDepositsCount: 42,
+          acceptedDepositsCount: 38,
+          pendingDepositsCount: 4,
+          growth24h: 2.5,
         },
       ],
     });
@@ -122,6 +130,14 @@ describe("pools service", () => {
     expect(pools.length).toBe(1);
     expect(pools[0].symbol).toBe("ETHX");
     expect(pools[0].minimumDepositAmount).toBe(1000000000000000n);
+    expect(pools[0].totalInPoolValue).toBe(90000000000000000000n);
+    expect(pools[0].acceptedDepositsValue).toBe(88000000000000000000n);
+    expect(pools[0].pendingDepositsValue).toBe(2000000000000000000n);
+    expect(pools[0].totalDepositsValue).toBe(100000000000000000000n);
+    expect(pools[0].totalDepositsCount).toBe(42);
+    expect(pools[0].acceptedDepositsCount).toBe(38);
+    expect(pools[0].pendingDepositsCount).toBe(4);
+    expect(pools[0].growth24h).toBe(2.5);
   });
 
   test("listPools also supports legacy assetAddress payload shape", async () => {
@@ -143,5 +159,27 @@ describe("pools service", () => {
     const pools = await listPools(chainConfig, server.url);
     expect(pools.length).toBe(1);
     expect(pools[0].scope).toBe(123456789n);
+  });
+
+  test("listPools supports scope-keyed object payload shape", async () => {
+    const chainId = 31339;
+    const server = await startMockServer(chainId, {
+      "123456789": {
+        tokenAddress: "0x00000000000000000000000000000000000000b1",
+        totalDepositsCount: 7,
+      },
+    });
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.ethereum,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      aspHost: server.url,
+    };
+
+    const pools = await listPools(chainConfig, server.url);
+    expect(pools.length).toBe(1);
+    expect(pools[0].totalDepositsCount).toBe(7);
   });
 });

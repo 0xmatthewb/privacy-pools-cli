@@ -12,6 +12,8 @@ const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-
 import { createInitCommand } from "./commands/init.js";
 import { createStatusCommand } from "./commands/status.js";
 import { createPoolsCommand } from "./commands/pools.js";
+import { createActivityCommand } from "./commands/activity.js";
+import { createStatsCommand } from "./commands/stats.js";
 import { createDepositCommand } from "./commands/deposit.js";
 import { createWithdrawCommand } from "./commands/withdraw.js";
 import { createRagequitCommand } from "./commands/ragequit.js";
@@ -139,6 +141,8 @@ program.exitOverride();
 // Commands ordered by typical workflow
 program.addCommand(createInitCommand());
 program.addCommand(createPoolsCommand());
+program.addCommand(createActivityCommand());
+program.addCommand(createStatsCommand());
 program.addCommand(createDepositCommand());
 program.addCommand(createWithdrawCommand());
 program.addCommand(createBalanceCommand());

@@ -35,6 +35,84 @@ function resolvePoolAssetAddress(entry) {
     }
     return assetAddress;
 }
+function isRecord(value) {
+    return typeof value === "object" && value !== null;
+}
+function parseOptionalBigInt(value) {
+    if (typeof value === "bigint")
+        return value;
+    if (typeof value === "number"
+        && Number.isFinite(value)
+        && Number.isInteger(value)) {
+        return BigInt(value);
+    }
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (/^-?\d+$/.test(trimmed)) {
+            try {
+                return BigInt(trimmed);
+            }
+            catch {
+                return undefined;
+            }
+        }
+    }
+    return undefined;
+}
+function parseOptionalNumber(value) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === "string" && value.trim() !== "") {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+}
+function parsePoolStatsEntry(entry) {
+    const growth24h = entry.growth24h === null ? null : parseOptionalNumber(entry.growth24h);
+    const pendingGrowth24h = entry.pendingGrowth24h === null ? null : parseOptionalNumber(entry.pendingGrowth24h);
+    return {
+        totalInPoolValue: parseOptionalBigInt(entry.totalInPoolValue),
+        totalInPoolValueUsd: typeof entry.totalInPoolValueUsd === "string"
+            ? entry.totalInPoolValueUsd
+            : undefined,
+        totalDepositsValue: parseOptionalBigInt(entry.totalDepositsValue),
+        totalDepositsValueUsd: typeof entry.totalDepositsValueUsd === "string"
+            ? entry.totalDepositsValueUsd
+            : undefined,
+        acceptedDepositsValue: parseOptionalBigInt(entry.acceptedDepositsValue),
+        acceptedDepositsValueUsd: typeof entry.acceptedDepositsValueUsd === "string"
+            ? entry.acceptedDepositsValueUsd
+            : undefined,
+        pendingDepositsValue: parseOptionalBigInt(entry.pendingDepositsValue),
+        pendingDepositsValueUsd: typeof entry.pendingDepositsValueUsd === "string"
+            ? entry.pendingDepositsValueUsd
+            : undefined,
+        totalDepositsCount: parseOptionalNumber(entry.totalDepositsCount),
+        acceptedDepositsCount: parseOptionalNumber(entry.acceptedDepositsCount),
+        pendingDepositsCount: parseOptionalNumber(entry.pendingDepositsCount),
+        growth24h: growth24h ?? undefined,
+        pendingGrowth24h: pendingGrowth24h ?? undefined,
+    };
+}
+function normalizeStatsEntries(statsData) {
+    if (Array.isArray(statsData)) {
+        return statsData.filter(isRecord);
+    }
+    if (!isRecord(statsData)) {
+        return [];
+    }
+    const directPools = Array.isArray(statsData.pools)
+        ? statsData.pools.filter(isRecord)
+        : [];
+    if (directPools.length > 0) {
+        return directPools;
+    }
+    return Object.entries(statsData)
+        .filter(([key, value]) => key !== "pools" && isRecord(value))
+        .map(([, value]) => value);
+}
 export async function resolveTokenMetadata(publicClient, assetAddress) {
     const cacheKey = `${publicClient.chain?.id ?? 0}:${assetAddress.toLowerCase()}`;
     const cached = tokenCache.get(cacheKey);
@@ -103,11 +181,7 @@ export async function listPools(chainConfig, rpcOverride) {
         statsData = [];
         aspUnreachable = true;
     }
-    const statsEntries = Array.isArray(statsData)
-        ? statsData
-        : Array.isArray(statsData?.pools)
-            ? (statsData.pools ?? [])
-            : [];
+    const statsEntries = normalizeStatsEntries(statsData);
     const pools = [];
     if (aspUnreachable && statsEntries.length === 0) {
         throw new CLIError(`Cannot reach ASP (${chainConfig.aspHost}) to discover pools.`, "ASP", "Check your network connection, or try again later.");
@@ -123,6 +197,7 @@ export async function listPools(chainConfig, rpcOverride) {
                 const assetConfig = await getAssetConfigReadOnly(publicClient, chainConfig.entrypoint, assetAddress);
                 const scope = await getScopeReadOnly(publicClient, assetConfig.pool);
                 const { symbol, decimals } = await resolveTokenMetadata(publicClient, assetAddress);
+                const metrics = parsePoolStatsEntry(entry);
                 pools.push({
                     asset: assetAddress,
                     pool: assetConfig.pool,
@@ -132,6 +207,7 @@ export async function listPools(chainConfig, rpcOverride) {
                     minimumDepositAmount: assetConfig.minimumDepositAmount,
                     vettingFeeBPS: assetConfig.vettingFeeBPS,
                     maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
+                    ...metrics,
                 });
             }
             catch (error) {

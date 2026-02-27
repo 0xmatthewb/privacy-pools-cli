@@ -11,6 +11,8 @@ describe("CLI help and version output", () => {
     expect(combined).toContain("ragequit");
     expect(combined).toContain("exit");
     expect(combined).toContain("pools");
+    expect(combined).toContain("activity");
+    expect(combined).toContain("stats");
     expect(combined).toContain("balance");
     expect(combined).toContain("sync");
     expect(combined).toContain("status");
@@ -146,6 +148,21 @@ describe("CLI help and version output", () => {
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("Show chronological event history");
     expect(combined).toContain("--no-sync");
+  });
+
+  test("pools --help shows read-only discovery flags", () => {
+    const result = runCli(["pools", "--help"], { home: createTempHome() });
+    const combined = result.stdout + result.stderr;
+    expect(combined).toContain("--all-chains");
+    expect(combined).toContain("--search");
+    expect(combined).toContain("--sort");
+  });
+
+  test("stats --help shows global and pool modes", () => {
+    const result = runCli(["stats", "--help"], { home: createTempHome() });
+    const combined = result.stdout + result.stderr;
+    expect(combined).toContain("global");
+    expect(combined).toContain("pool");
   });
 
   test("capabilities --help renders command description", () => {

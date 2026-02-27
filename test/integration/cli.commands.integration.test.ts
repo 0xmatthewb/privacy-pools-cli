@@ -988,6 +988,8 @@ describe("CLI command integration", () => {
     expect(json.commands.map((c) => c.name)).toContain("history");
     expect(json.commands.map((c) => c.name)).toContain("completion");
     expect(json.commands.map((c) => c.name)).toContain("capabilities");
+    expect(json.commands.map((c) => c.name)).toContain("activity");
+    expect(json.commands.map((c) => c.name)).toContain("stats");
 
     const globalFlagStrings = json.globalFlags.map((f) => f.flag);
     expect(globalFlagStrings).toContain("-j, --json");

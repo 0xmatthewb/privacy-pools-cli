@@ -2,7 +2,7 @@ import type { Address, PublicClient } from "viem";
 import { erc20Abi, parseAbi } from "viem";
 import type { ChainConfig, PoolStats } from "../types.js";
 import { NATIVE_ASSET_ADDRESS } from "../config/chains.js";
-import { fetchPoolsStats } from "./asp.js";
+import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
 import { getPublicClient } from "./sdk.js";
 import { CLIError } from "../utils/errors.js";
 
@@ -47,6 +47,119 @@ function resolvePoolAssetAddress(entry: Record<string, unknown>): Address | null
   }
 
   return assetAddress as Address;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseOptionalBigInt(value: unknown): bigint | undefined {
+  if (typeof value === "bigint") return value;
+  if (
+    typeof value === "number"
+    && Number.isFinite(value)
+    && Number.isInteger(value)
+  ) {
+    return BigInt(value);
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^-?\d+$/.test(trimmed)) {
+      try {
+        return BigInt(trimmed);
+      } catch {
+        return undefined;
+      }
+    }
+  }
+  return undefined;
+}
+
+function parseOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
+type PoolStatsMetrics = Pick<
+  PoolStats,
+  | "totalInPoolValue"
+  | "totalInPoolValueUsd"
+  | "totalDepositsValue"
+  | "totalDepositsValueUsd"
+  | "acceptedDepositsValue"
+  | "acceptedDepositsValueUsd"
+  | "pendingDepositsValue"
+  | "pendingDepositsValueUsd"
+  | "totalDepositsCount"
+  | "acceptedDepositsCount"
+  | "pendingDepositsCount"
+  | "growth24h"
+  | "pendingGrowth24h"
+>;
+
+function parsePoolStatsEntry(entry: Record<string, unknown>): PoolStatsMetrics {
+  const growth24h =
+    entry.growth24h === null ? null : parseOptionalNumber(entry.growth24h);
+  const pendingGrowth24h =
+    entry.pendingGrowth24h === null ? null : parseOptionalNumber(entry.pendingGrowth24h);
+
+  return {
+    totalInPoolValue: parseOptionalBigInt(entry.totalInPoolValue),
+    totalInPoolValueUsd:
+      typeof entry.totalInPoolValueUsd === "string"
+        ? entry.totalInPoolValueUsd
+        : undefined,
+    totalDepositsValue: parseOptionalBigInt(entry.totalDepositsValue),
+    totalDepositsValueUsd:
+      typeof entry.totalDepositsValueUsd === "string"
+        ? entry.totalDepositsValueUsd
+        : undefined,
+    acceptedDepositsValue: parseOptionalBigInt(entry.acceptedDepositsValue),
+    acceptedDepositsValueUsd:
+      typeof entry.acceptedDepositsValueUsd === "string"
+        ? entry.acceptedDepositsValueUsd
+        : undefined,
+    pendingDepositsValue: parseOptionalBigInt(entry.pendingDepositsValue),
+    pendingDepositsValueUsd:
+      typeof entry.pendingDepositsValueUsd === "string"
+        ? entry.pendingDepositsValueUsd
+        : undefined,
+    totalDepositsCount: parseOptionalNumber(entry.totalDepositsCount),
+    acceptedDepositsCount: parseOptionalNumber(entry.acceptedDepositsCount),
+    pendingDepositsCount: parseOptionalNumber(entry.pendingDepositsCount),
+    growth24h: growth24h ?? undefined,
+    pendingGrowth24h: pendingGrowth24h ?? undefined,
+  };
+}
+
+function normalizeStatsEntries(
+  statsData: unknown
+): PoolStatsEntry[] {
+  if (Array.isArray(statsData)) {
+    return statsData.filter(isRecord) as PoolStatsEntry[];
+  }
+
+  if (!isRecord(statsData)) {
+    return [];
+  }
+
+  const directPools = Array.isArray(statsData.pools)
+    ? statsData.pools.filter(isRecord)
+    : [];
+
+  if (directPools.length > 0) {
+    return directPools as PoolStatsEntry[];
+  }
+
+  return Object.entries(statsData)
+    .filter(([key, value]) => key !== "pools" && isRecord(value))
+    .map(([, value]) => value as PoolStatsEntry);
 }
 
 export async function resolveTokenMetadata(
@@ -143,11 +256,7 @@ export async function listPools(
     aspUnreachable = true;
   }
 
-  const statsEntries = Array.isArray(statsData)
-    ? statsData
-    : Array.isArray((statsData as { pools?: unknown[] } | null | undefined)?.pools)
-      ? ((statsData as { pools?: unknown[] }).pools ?? [])
-      : [];
+  const statsEntries = normalizeStatsEntries(statsData);
 
   const pools: PoolStats[] = [];
 
@@ -183,6 +292,7 @@ export async function listPools(
           publicClient,
           assetAddress
         );
+        const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
 
         pools.push({
           asset: assetAddress,
@@ -193,6 +303,7 @@ export async function listPools(
           minimumDepositAmount: assetConfig.minimumDepositAmount,
           vettingFeeBPS: assetConfig.vettingFeeBPS,
           maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
+          ...metrics,
         });
       } catch (error) {
         if (isRpcLikeError(error)) {

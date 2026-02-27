@@ -29,6 +29,24 @@ async function aspFetch(chainConfig, path, scope, query) {
     }
     return res;
 }
+async function aspFetchGlobal(chainConfig, path, query) {
+    const url = new URL(`${chainConfig.aspHost}/global${path}`);
+    if (query) {
+        for (const [k, v] of Object.entries(query)) {
+            url.searchParams.set(k, v);
+        }
+    }
+    const res = await fetch(url.toString(), {
+        signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+        if (res.status === 429 || res.status === 403) {
+            throw new CLIError(`ASP API: rate limited or forbidden (${res.status}).`, "ASP", "Wait and retry with exponential backoff.");
+        }
+        throw new CLIError(`ASP API request failed: ${res.status} ${res.statusText}`, "ASP");
+    }
+    return res;
+}
 export async function fetchMerkleRoots(chainConfig, scope) {
     const res = await aspFetch(chainConfig, "/public/mt-roots", scope);
     return res.json();
@@ -37,12 +55,34 @@ export async function fetchMerkleLeaves(chainConfig, scope) {
     const res = await aspFetch(chainConfig, "/public/mt-leaves", scope);
     return res.json();
 }
+export async function fetchPoolEvents(chainConfig, scope, page, perPage) {
+    const res = await aspFetch(chainConfig, "/public/events", scope, {
+        page: String(page),
+        perPage: String(perPage),
+    });
+    return res.json();
+}
+export async function fetchGlobalEvents(chainConfig, page, perPage) {
+    const res = await aspFetchGlobal(chainConfig, "/public/events", {
+        page: String(page),
+        perPage: String(perPage),
+    });
+    return res.json();
+}
 export async function fetchPoolsStats(chainConfig) {
     const res = await aspFetch(chainConfig, "/public/pools-stats");
     return res.json();
 }
 export async function fetchDepositsLargerThan(chainConfig, scope, amount) {
     const res = await aspFetch(chainConfig, "/public/deposits-larger-than", scope, { amount: amount.toString() });
+    return res.json();
+}
+export async function fetchPoolStatistics(chainConfig, scope) {
+    const res = await aspFetch(chainConfig, "/public/pool-statistics", scope);
+    return res.json();
+}
+export async function fetchGlobalStatistics(chainConfig) {
+    const res = await aspFetchGlobal(chainConfig, "/public/statistics");
     return res.json();
 }
 /**

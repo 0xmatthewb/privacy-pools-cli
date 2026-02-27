@@ -20,6 +20,8 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("init");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("pools");
+    expect(result.stdout).toContain("activity");
+    expect(result.stdout).toContain("stats");
     expect(result.stdout).toContain("deposit");
     expect(result.stdout).toContain("withdraw");
     expect(result.stdout).toContain("ragequit");
@@ -44,6 +46,8 @@ describe("CLI help and discovery", () => {
     ["init", "Initialize wallet and configuration"],
     ["status", "Show configuration and connection status"],
     ["pools", "List available pools and assets"],
+    ["activity", "Show public activity feed"],
+    ["stats", "Show public statistics"],
     ["deposit", "Deposit ETH or ERC-20 tokens into a Privacy Pool"],
     ["withdraw", "Withdraw from a Privacy Pool (relayed by default)"],
     ["ragequit", "Publicly withdraw funds without ASP approval"],

@@ -15,8 +15,23 @@ const CAPABILITIES = {
         {
             name: "pools",
             description: "List available pools and assets",
-            flags: [],
-            agentFlags: "--json",
+            flags: ["--all-chains", "--search <query>", "--sort <mode>"],
+            agentFlags: "--json [--all-chains] [--search <query>] [--sort <mode>]",
+            requiresInit: false,
+        },
+        {
+            name: "activity",
+            description: "Show public activity feed (global or specific pool)",
+            flags: ["--asset <symbol|address>", "--page <n>", "--limit <n>"],
+            agentFlags: "--json [--asset <symbol>] [--page <n>] [--limit <n>]",
+            requiresInit: false,
+        },
+        {
+            name: "stats",
+            description: "Show public statistics (global or per pool)",
+            usage: "stats",
+            flags: ["global", "pool --asset <symbol|address>"],
+            agentFlags: "global --json | pool --asset <symbol> --json",
             requiresInit: false,
         },
         {
