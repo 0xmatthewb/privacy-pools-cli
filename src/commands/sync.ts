@@ -8,6 +8,7 @@ import { initializeAccountService, saveAccount } from "../services/account.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { info, spinner, success, verbose } from "../utils/format.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
@@ -89,7 +90,12 @@ export function createSyncCommand(): Command {
           true
         );
 
-        saveAccount(chainConfig.id, accountService.account);
+        guardCriticalSection();
+        try {
+          saveAccount(chainConfig.id, accountService.account);
+        } finally {
+          releaseCriticalSection();
+        }
         const spendable = accountService.getSpendableCommitments();
         const spendableCount = Array.from(spendable.values()).reduce(
           (acc, list) => acc + list.length,

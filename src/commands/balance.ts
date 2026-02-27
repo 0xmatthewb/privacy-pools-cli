@@ -10,21 +10,22 @@ import {
   withSuppressedSdkStdout,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
-import { printTable, spinner, formatAmount, warn } from "../utils/format.js";
+import { printTable, spinner, formatAmount, warn, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import type { Address } from "viem";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 
 export function createBalanceCommand(): Command {
   return new Command("balance")
     .description("Show balances across pools")
-    .option("--sync", "Sync account state from on-chain events before displaying")
+    .option("--no-sync", "Skip syncing account state before displaying")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --sync --chain sepolia\n  privacy-pools balance --json\n"
+      "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --no-sync --chain sepolia\n  privacy-pools balance --json\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ chain, balances: [{ asset, assetAddress, balance, commitments, poolAccounts }] }",
@@ -36,6 +37,7 @@ export function createBalanceCommand(): Command {
       const isJson = mode.isJson;
       const isQuiet = mode.isQuiet;
       const silent = isQuiet || isJson;
+      const isVerbose = globalOpts?.verbose ?? false;
 
       try {
         const config = loadConfig();
@@ -43,6 +45,7 @@ export function createBalanceCommand(): Command {
           globalOpts?.chain,
           config.defaultChain
         );
+        verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
 
         const mnemonic = loadMnemonic();
 
@@ -51,6 +54,7 @@ export function createBalanceCommand(): Command {
 
         // Discover pools
         const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
+        verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
 
         if (pools.length === 0) {
           spin.stop();
@@ -87,7 +91,7 @@ export function createBalanceCommand(): Command {
           true
         );
 
-        if (opts.sync) {
+        if (opts.noSync !== true) {
           spin.text = "Syncing account state...";
           let syncFailures = 0;
           for (const poolInfo of poolInfos) {
@@ -110,7 +114,12 @@ export function createBalanceCommand(): Command {
               "Retry with a healthy RPC before using balance data."
             );
           }
-          saveAccount(chainConfig.id, accountService.account);
+          guardCriticalSection();
+          try {
+            saveAccount(chainConfig.id, accountService.account);
+          } finally {
+            releaseCriticalSection();
+          }
         }
 
         // Get spendable commitments

@@ -26,7 +26,9 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("exit");
     expect(result.stdout).toContain("balance");
     expect(result.stdout).toContain("accounts");
+    expect(result.stdout).toContain("history");
     expect(result.stdout).toContain("sync");
+    expect(result.stdout).toContain("capabilities");
     expect(result.stdout).toContain("completion");
   });
 
@@ -48,7 +50,9 @@ describe("CLI help and discovery", () => {
     ["exit", "Emergency public exit"],
     ["balance", "Show balances across pools"],
     ["accounts", "List your Pool Accounts"],
+    ["history", "Show chronological event history"],
     ["sync", "Sync local account state from on-chain events"],
+    ["capabilities", "Describe CLI capabilities for agent discovery"],
     ["completion", "Generate shell completion script"],
   ] as const;
 

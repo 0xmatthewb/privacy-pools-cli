@@ -53,3 +53,16 @@ export const CHAINS = {
 };
 export const CHAIN_NAMES = Object.keys(CHAINS);
 export const NATIVE_ASSET_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+const EXPLORER_URLS = {
+    1: "https://etherscan.io",
+    42161: "https://arbiscan.io",
+    10: "https://optimistic.etherscan.io",
+    11155111: "https://sepolia.etherscan.io",
+    11155420: "https://sepolia-optimism.etherscan.io",
+};
+export function explorerTxUrl(chainId, txHash) {
+    const base = EXPLORER_URLS[chainId];
+    if (!base)
+        return null;
+    return `${base}/tx/${txHash}`;
+}

@@ -7,6 +7,7 @@ import { initializeAccountService, saveAccount } from "../services/account.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
 import { info, spinner, success, verbose } from "../utils/format.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -59,7 +60,13 @@ export function createSyncCommand() {
             const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
             spin.text = "Syncing deposit/withdrawal/ragequit events...";
             const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, true, silent, true);
-            saveAccount(chainConfig.id, accountService.account);
+            guardCriticalSection();
+            try {
+                saveAccount(chainConfig.id, accountService.account);
+            }
+            finally {
+                releaseCriticalSection();
+            }
             const spendable = accountService.getSpendableCommitments();
             const spendableCount = Array.from(spendable.values()).reduce((acc, list) => acc + list.length, 0);
             spin.succeed("Sync complete.");

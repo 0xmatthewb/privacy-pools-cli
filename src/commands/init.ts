@@ -162,6 +162,33 @@ export function createInitCommand(): Command {
           process.stderr.write("\n");
           process.stderr.write(chalk.bold(mnemonic) + "\n");
           process.stderr.write("\n");
+
+          // Verification step: ask user to confirm 3 random words
+          if (!skipPrompts) {
+            const words = mnemonic.split(" ");
+            const indices: number[] = [];
+            while (indices.length < 3) {
+              const idx = Math.floor(Math.random() * words.length);
+              if (!indices.includes(idx)) indices.push(idx);
+            }
+            indices.sort((a, b) => a - b);
+
+            process.stderr.write(chalk.dim("Verify your backup by entering the requested words:\n\n"));
+            for (const idx of indices) {
+              const answer = await input({
+                message: `Word #${idx + 1}:`,
+              });
+              if (answer.trim().toLowerCase() !== words[idx].toLowerCase()) {
+                throw new CLIError(
+                  `Incorrect word #${idx + 1}.`,
+                  "INPUT",
+                  "Please re-run init and carefully save your mnemonic phrase."
+                );
+              }
+            }
+            success("Mnemonic verified!", silent);
+            process.stderr.write("\n");
+          }
         } else if (!mnemonicSource && isJson && !isQuiet) {
           if (opts.showMnemonic) {
             process.stderr.write(

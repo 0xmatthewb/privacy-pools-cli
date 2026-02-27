@@ -14,7 +14,7 @@ import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
 import { getSDK, getContracts, getPublicClient, getDataService } from "../services/sdk.js";
 import { initializeAccountService, saveAccount } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
-import { fetchMerkleRoots, fetchMerkleLeaves } from "../services/asp.js";
+import { fetchMerkleRoots, fetchMerkleLeaves, fetchDepositsLargerThan } from "../services/asp.js";
 import { getRelayerDetails, requestQuote, submitRelayRequest } from "../services/relayer.js";
 import {
   spinner,
@@ -25,6 +25,7 @@ import {
   formatAmount,
   formatAddress,
   formatTxHash,
+  formatBPS,
 } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -36,6 +37,7 @@ import {
   buildUnsignedDirectWithdrawOutput,
   buildUnsignedRelayedWithdrawOutput,
 } from "../utils/unsigned-flows.js";
+import { explorerTxUrl } from "../config/chains.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
@@ -84,7 +86,7 @@ export function createWithdrawCommand(): Command {
       "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-2 --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools withdraw 1 --asset USDC --json --yes --to 0xRecipient...\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
-          jsonFields: "{ mode, txHash, amount, asset, chain, poolAccountId }",
+          jsonFields: "{ mode, txHash, amount, recipient, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
           jsonVariants: [
             "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
             "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
@@ -144,6 +146,11 @@ export function createWithdrawCommand(): Command {
         );
         verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
         verbose(`Mode: ${isDirect ? "direct" : "relayed"}`, isVerbose, silent);
+        if (isDirect) {
+          info("Using direct withdrawal (funds go to your signer address).", silent);
+        } else {
+          info("Using relayed withdrawal (funds go to recipient via relayer).", silent);
+        }
 
         const { amount: amountStr, asset: positionalOrFlagAsset } = resolveAmountAndAssetInput(
           "withdraw",
@@ -409,6 +416,14 @@ export function createWithdrawCommand(): Command {
           silent
         );
 
+        // Anonymity set info (non-fatal)
+        try {
+          const anonSet = await fetchDepositsLargerThan(chainConfig, pool.scope, withdrawalAmount);
+          if (!silent) {
+            info(`Anonymity set: ${anonSet.eligibleDeposits} of ${anonSet.totalDeposits} deposits (${anonSet.percentage.toFixed(1)}%)`, silent);
+          }
+        } catch { /* non-fatal */ }
+
         // Build Merkle proofs
         spin.text = "Building proofs...";
         const stateMerkleProof = generateMerkleProof(
@@ -627,8 +642,14 @@ export function createWithdrawCommand(): Command {
                 operation: "withdraw",
                 mode: "direct",
                 txHash: tx.hash,
+                blockNumber: receipt.blockNumber.toString(),
                 amount: withdrawalAmount.toString(),
                 recipient: recipientAddress,
+                withdrawalMode: "direct",
+                fee: null,
+                explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+                poolAddress: pool.pool,
+                scope: pool.scope.toString(),
                 asset: pool.symbol,
                 chain: chainConfig.name,
                 poolAccountNumber: selectedPoolAccount.paNumber,
@@ -643,6 +664,8 @@ export function createWithdrawCommand(): Command {
               silent
             );
             info(`Tx: ${formatTxHash(tx.hash)}`, silent);
+            const directExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
+            if (directExplorerUrl) info(`Explorer: ${directExplorerUrl}`, silent);
           }
         } else {
           // --- Relayed Withdrawal ---
@@ -753,6 +776,7 @@ export function createWithdrawCommand(): Command {
             isVerbose,
             silent
           );
+          info(`Relayer fee: ${quote.feeBPS} BPS (${formatBPS(BigInt(quote.feeBPS))})`, silent);
 
           // Keep human flow quote-aware before proving, matching frontend review semantics.
           if (!skipPrompts) {
@@ -1017,8 +1041,13 @@ export function createWithdrawCommand(): Command {
                 operation: "withdraw",
                 mode: "relayed",
                 txHash: result.txHash,
+                blockNumber: receipt.blockNumber.toString(),
                 amount: withdrawalAmount.toString(),
                 recipient: recipientAddress,
+                withdrawalMode: "relayed",
+                explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
+                poolAddress: pool.pool,
+                scope: pool.scope.toString(),
                 feeBPS: quote.feeBPS,
                 asset: pool.symbol,
                 chain: chainConfig.name,
@@ -1034,6 +1063,8 @@ export function createWithdrawCommand(): Command {
               silent
             );
             info(`Tx: ${formatTxHash(result.txHash)}`, silent);
+            const relayedExplorerUrl = explorerTxUrl(chainConfig.id, result.txHash);
+            if (relayedExplorerUrl) info(`Explorer: ${relayedExplorerUrl}`, silent);
             info(`Relay fee: ${quote.feeBPS} BPS`, silent);
           }
         }

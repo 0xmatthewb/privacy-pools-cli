@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
   checkLiveness,
+  fetchApprovedLabels,
+  fetchDepositsLargerThan,
   fetchMerkleLeaves,
   fetchMerkleRoots,
   fetchPoolsStats,
@@ -67,6 +69,58 @@ describe("asp service", () => {
 
     const payload = await fetchPoolsStats(chain);
     expect(payload).toEqual({ pools: [{ tokenSymbol: "ETH" }] });
+  });
+
+  test("fetchDepositsLargerThan calls endpoint with amount query", async () => {
+    let seenUrl = "";
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      seenUrl = String(input);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ eligibleDeposits: 12, totalDeposits: 34, percentage: 35.29 }),
+          { status: 200 }
+        )
+      );
+    }) as typeof fetch;
+
+    const payload = await fetchDepositsLargerThan(chain, 777n, 123n);
+    expect(seenUrl).toContain("/1/public/deposits-larger-than?amount=123");
+    expect(payload).toEqual({
+      eligibleDeposits: 12,
+      totalDeposits: 34,
+      percentage: 35.29,
+    });
+  });
+
+  test("fetchApprovedLabels returns label set and degrades to null on failure", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ aspLeaves: ["1", "2", "3"], stateTreeLeaves: [] }), {
+          status: 200,
+        })
+      )
+    ) as typeof fetch;
+
+    await expect(fetchApprovedLabels(chain, 1n)).resolves.toEqual(new Set(["1", "2", "3"]));
+
+    globalThis.fetch = mock(() => Promise.reject(new Error("network down"))) as typeof fetch;
+    await expect(fetchApprovedLabels(chain, 1n)).resolves.toBeNull();
+  });
+
+  test("fetchApprovedLabels normalizes hex and decimal leaves to canonical decimal strings", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            aspLeaves: ["0x01", "2", "0x2", "0x0003"],
+            stateTreeLeaves: [],
+          }),
+          { status: 200 }
+        )
+      )
+    ) as typeof fetch;
+
+    await expect(fetchApprovedLabels(chain, 1n)).resolves.toEqual(new Set(["1", "2", "3"]));
   });
 
   test("maps 404 errors to ASP category", async () => {

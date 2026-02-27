@@ -14,6 +14,8 @@ describe("CLI help and version output", () => {
     expect(combined).toContain("balance");
     expect(combined).toContain("sync");
     expect(combined).toContain("status");
+    expect(combined).toContain("history");
+    expect(combined).toContain("capabilities");
     expect(combined).toContain("completion");
   });
 
@@ -128,6 +130,28 @@ describe("CLI help and version output", () => {
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--all");
     expect(combined).toContain("--details");
+    expect(combined).toContain("--no-sync");
+    expect(combined).not.toContain("--sync");
+  });
+
+  test("balance --help shows --no-sync option", () => {
+    const result = runCli(["balance", "--help"], { home: createTempHome() });
+    const combined = result.stdout + result.stderr;
+    expect(combined).toContain("--no-sync");
+    expect(combined).not.toContain("--sync");
+  });
+
+  test("history --help renders command description and --no-sync option", () => {
+    const result = runCli(["history", "--help"], { home: createTempHome() });
+    const combined = result.stdout + result.stderr;
+    expect(combined).toContain("Show chronological event history");
+    expect(combined).toContain("--no-sync");
+  });
+
+  test("capabilities --help renders command description", () => {
+    const result = runCli(["capabilities", "--help"], { home: createTempHome() });
+    const combined = result.stdout + result.stderr;
+    expect(combined).toContain("Describe CLI capabilities for agent discovery");
   });
 
   test("unknown command returns non-zero exit", () => {

@@ -41,6 +41,24 @@ export async function fetchPoolsStats(chainConfig) {
     const res = await aspFetch(chainConfig, "/public/pools-stats");
     return res.json();
 }
+export async function fetchDepositsLargerThan(chainConfig, scope, amount) {
+    const res = await aspFetch(chainConfig, "/public/deposits-larger-than", scope, { amount: amount.toString() });
+    return res.json();
+}
+/**
+ * Fetch ASP leaves and return a Set of approved labels for a pool.
+ * Returns null if the ASP is unreachable (non-fatal).
+ */
+export async function fetchApprovedLabels(chainConfig, scope) {
+    try {
+        const res = await aspFetch(chainConfig, "/public/mt-leaves", scope);
+        const { aspLeaves } = (await res.json());
+        return new Set(aspLeaves.map((leaf) => BigInt(leaf).toString()));
+    }
+    catch {
+        return null;
+    }
+}
 export async function checkLiveness(chainConfig) {
     try {
         const res = await fetch(`${chainConfig.aspHost}/${chainConfig.id}/health/liveness`, { signal: AbortSignal.timeout(10_000) });

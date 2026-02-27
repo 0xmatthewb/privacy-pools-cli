@@ -975,4 +975,62 @@ describe("CLI command integration", () => {
     expect(json.help).toContain("Usage: privacy-pools");
   });
 
+  test("capabilities --json returns accurate command/global flag catalog", () => {
+    const result = runCli(["--json", "capabilities"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      commands: Array<{ name: string }>;
+      globalFlags: Array<{ flag: string }>;
+    }>(result.stdout);
+    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(json.success).toBe(true);
+    expect(json.commands.map((c) => c.name)).toContain("history");
+    expect(json.commands.map((c) => c.name)).toContain("completion");
+    expect(json.commands.map((c) => c.name)).toContain("capabilities");
+
+    const globalFlagStrings = json.globalFlags.map((f) => f.flag);
+    expect(globalFlagStrings).toContain("-j, --json");
+    expect(globalFlagStrings).toContain("-y, --yes");
+    expect(globalFlagStrings).not.toContain("--unsigned");
+    expect(globalFlagStrings).not.toContain("--dry-run");
+  });
+
+  test("history --json without init fails with INPUT error", () => {
+    const result = runCli(["--json", "history", "--chain", "sepolia"], {
+      home: createTempHome(),
+      timeoutMs: 60_000,
+    });
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      error: { category: string; message: string };
+    }>(result.stdout);
+    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("No mnemonic found");
+  });
+
+  test("balance --sync is rejected (use default sync or --no-sync)", () => {
+    const result = runCli(["--json", "balance", "--sync", "--chain", "sepolia"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      error: { category: string; message: string };
+    }>(result.stdout);
+    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("unknown option '--sync'");
+  });
+
 });

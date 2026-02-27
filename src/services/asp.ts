@@ -86,6 +86,37 @@ export async function fetchPoolsStats(
   return res.json();
 }
 
+export async function fetchDepositsLargerThan(
+  chainConfig: ChainConfig,
+  scope: bigint,
+  amount: bigint
+): Promise<{ eligibleDeposits: number; totalDeposits: number; percentage: number }> {
+  const res = await aspFetch(
+    chainConfig,
+    "/public/deposits-larger-than",
+    scope,
+    { amount: amount.toString() }
+  );
+  return res.json();
+}
+
+/**
+ * Fetch ASP leaves and return a Set of approved labels for a pool.
+ * Returns null if the ASP is unreachable (non-fatal).
+ */
+export async function fetchApprovedLabels(
+  chainConfig: ChainConfig,
+  scope: bigint
+): Promise<Set<string> | null> {
+  try {
+    const res = await aspFetch(chainConfig, "/public/mt-leaves", scope);
+    const { aspLeaves } = (await res.json()) as { aspLeaves: string[] };
+    return new Set(aspLeaves.map((leaf) => BigInt(leaf).toString()));
+  } catch {
+    return null;
+  }
+}
+
 export async function checkLiveness(chainConfig: ChainConfig): Promise<boolean> {
   try {
     const res = await fetch(

@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { Command } from "commander";
-import { confirm, password, select } from "@inquirer/prompts";
+import { confirm, input, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import { ensureConfigDir, configExists, mnemonicExists, saveConfig, saveMnemonicToFile, saveSignerKey, loadSignerKey, loadConfig, } from "../services/config.js";
 import { generateMnemonic, validateMnemonic, } from "../services/wallet.js";
@@ -116,6 +116,28 @@ export function createInitCommand() {
                 process.stderr.write("\n");
                 process.stderr.write(chalk.bold(mnemonic) + "\n");
                 process.stderr.write("\n");
+                // Verification step: ask user to confirm 3 random words
+                if (!skipPrompts) {
+                    const words = mnemonic.split(" ");
+                    const indices = [];
+                    while (indices.length < 3) {
+                        const idx = Math.floor(Math.random() * words.length);
+                        if (!indices.includes(idx))
+                            indices.push(idx);
+                    }
+                    indices.sort((a, b) => a - b);
+                    process.stderr.write(chalk.dim("Verify your backup by entering the requested words:\n\n"));
+                    for (const idx of indices) {
+                        const answer = await input({
+                            message: `Word #${idx + 1}:`,
+                        });
+                        if (answer.trim().toLowerCase() !== words[idx].toLowerCase()) {
+                            throw new CLIError(`Incorrect word #${idx + 1}.`, "INPUT", "Please re-run init and carefully save your mnemonic phrase.");
+                        }
+                    }
+                    success("Mnemonic verified!", silent);
+                    process.stderr.write("\n");
+                }
             }
             else if (!mnemonicSource && isJson && !isQuiet) {
                 if (opts.showMnemonic) {

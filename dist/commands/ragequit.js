@@ -7,6 +7,7 @@ import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
 import { getSDK, getContracts, getPublicClient, getDataService } from "../services/sdk.js";
 import { initializeAccountService, saveAccount } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
+import { explorerTxUrl } from "../config/chains.js";
 import { spinner, success, info, warn, verbose, formatAmount, formatAddress, formatTxHash, } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -34,7 +35,7 @@ export function createRagequitCommand() {
         .addHelpText("after", "\nExamples:\n  privacy-pools exit --asset ETH -p PA-1 --chain sepolia\n  privacy-pools ragequit ETH -p PA-1 --chain sepolia\n  privacy-pools ragequit --asset 0xTokenAddress --json --yes -p PA-2\n  privacy-pools exit ETH --unsigned -p PA-1 --chain sepolia\n  privacy-pools ragequit ETH --unsigned --unsigned-format tx -p PA-1 --chain sepolia\n  privacy-pools exit --asset ETH --dry-run -p PA-1 --chain sepolia\n"
         + commandHelpText({
             prerequisites: "init (account state should be synced)",
-            jsonFields: "{ txHash, amount, asset, chain, poolAccountId }",
+            jsonFields: "{ txHash, amount, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
             jsonVariants: [
                 "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
                 "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
@@ -150,6 +151,7 @@ export function createRagequitCommand() {
                         paNumber: idx + 1,
                         paId: poolAccountId(idx + 1),
                         status: "spendable",
+                        aspStatus: "unknown",
                         commitment: legacyCommitment,
                         label: legacyCommitment.label,
                         value: legacyCommitment.value,
@@ -338,12 +340,20 @@ export function createRagequitCommand() {
                     chain: chainConfig.name,
                     poolAccountNumber: selectedPoolAccount.paNumber,
                     poolAccountId: selectedPoolAccount.paId,
+                    poolAddress: pool.pool,
+                    scope: pool.scope.toString(),
+                    blockNumber: receipt.blockNumber.toString(),
+                    explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
                 }, false);
             }
             else {
                 process.stderr.write("\n");
                 success(`Exited ${selectedPoolAccount.paId} and recovered ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`, silent);
                 info(`Tx: ${formatTxHash(tx.hash)}`, silent);
+                const explorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
+                if (explorerUrl) {
+                    info(`Explorer: ${explorerUrl}`, silent);
+                }
             }
         }
         catch (error) {

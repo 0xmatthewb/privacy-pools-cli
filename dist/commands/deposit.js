@@ -7,8 +7,8 @@ import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
 import { getContracts, getPublicClient, getDataService } from "../services/sdk.js";
 import { resolvePool, listPools } from "../services/pools.js";
 import { initializeAccountService, saveAccount } from "../services/account.js";
-import { NATIVE_ASSET_ADDRESS } from "../config/chains.js";
-import { spinner, success, info, verbose, formatAmount, formatAddress, formatTxHash, } from "../utils/format.js";
+import { NATIVE_ASSET_ADDRESS, explorerTxUrl } from "../config/chains.js";
+import { spinner, success, info, verbose, formatAmount, formatAddress, formatTxHash, formatBPS, } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
@@ -35,7 +35,7 @@ export function createDepositCommand() {
         .addHelpText("after", "\nExamples:\n  privacy-pools deposit 0.1 --asset ETH --chain sepolia\n  privacy-pools deposit ETH 0.1 --chain sepolia\n  privacy-pools deposit 100 --asset 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain ethereum\n  privacy-pools deposit 0.05 --asset ETH --json --yes\n  privacy-pools deposit ETH 0.05 --unsigned --chain sepolia\n  privacy-pools deposit ETH 0.05 --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools deposit 0.1 --asset ETH --dry-run --chain sepolia\n"
         + commandHelpText({
             prerequisites: "init",
-            jsonFields: "{ txHash, amount, committedValue, asset, chain, poolAccountId }",
+            jsonFields: "{ txHash, amount, committedValue, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
             jsonVariants: [
                 "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
                 "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
@@ -97,8 +97,13 @@ export function createDepositCommand() {
             if (amount < pool.minimumDepositAmount) {
                 throw new CLIError(`Amount below minimum deposit: ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)}`, "INPUT");
             }
-            // Confirm
+            // Show fee preview and confirm
+            const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
+            const estimatedCommitted = amount - feeAmount;
             if (!skipPrompts) {
+                info(`Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)})`, silent);
+                info(`You will receive: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)} committed value`, silent);
+                process.stderr.write("\n");
                 const ok = await confirm({
                     message: `Deposit ${formatAmount(amount, pool.decimals, pool.symbol)} into ${pool.symbol} pool on ${chainConfig.name}?`,
                 });
@@ -307,6 +312,11 @@ export function createDepositCommand() {
                     chain: chainConfig.name,
                     poolAccountNumber: nextPANumber,
                     poolAccountId: nextPAId,
+                    poolAddress: pool.pool,
+                    scope: pool.scope.toString(),
+                    label: label?.toString() ?? null,
+                    blockNumber: receipt.blockNumber.toString(),
+                    explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
                 }, false);
             }
             else {
@@ -317,6 +327,12 @@ export function createDepositCommand() {
                     info(`Committed: ${formatAmount(committedValue, pool.decimals, pool.symbol)} (after vetting fee)`, silent);
                 }
                 info(`Tx: ${formatTxHash(tx.hash)}`, silent);
+                const explorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
+                if (explorerUrl) {
+                    info(`Explorer: ${explorerUrl}`, silent);
+                }
+                info("Your deposit is pending ASP approval (usually ~1 hour, max 7 days).", silent);
+                info("Check status: privacy-pools accounts --chain " + chainConfig.name, silent);
             }
         }
         catch (error) {

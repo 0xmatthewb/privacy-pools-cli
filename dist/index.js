@@ -17,6 +17,8 @@ import { createBalanceCommand } from "./commands/balance.js";
 import { createAccountsCommand } from "./commands/accounts.js";
 import { createSyncCommand } from "./commands/sync.js";
 import { createGuideCommand } from "./commands/guide.js";
+import { createHistoryCommand } from "./commands/history.js";
+import { createCapabilitiesCommand } from "./commands/capabilities.js";
 import { createCompletionCommand } from "./commands/completion.js";
 import { printBanner } from "./utils/banner.js";
 import { rootHelpFooter, styleCommanderHelp } from "./utils/help.js";
@@ -126,7 +128,9 @@ program.addCommand(createBalanceCommand());
 program.addCommand(createSyncCommand());
 program.addCommand(createStatusCommand());
 program.addCommand(createAccountsCommand());
+program.addCommand(createHistoryCommand());
 program.addCommand(createRagequitCommand());
+program.addCommand(createCapabilitiesCommand());
 program.addCommand(createCompletionCommand());
 program.addCommand(createGuideCommand());
 if (isMachineMode) {

@@ -8,11 +8,13 @@ import type {
 interface PoolAccountLike extends Pick<PoolAccount, "deposit" | "children" | "ragequit"> {}
 
 export type PoolAccountStatus = "spendable" | "spent" | "exited";
+export type AspApprovalStatus = "approved" | "pending" | "unknown";
 
 export interface PoolAccountRef {
   paNumber: number;
   paId: string;
   status: PoolAccountStatus;
+  aspStatus: AspApprovalStatus;
   commitment: AccountCommitment;
   label: bigint;
   value: bigint;
@@ -77,20 +79,28 @@ export function parsePoolAccountSelector(value: string): number | null {
 export function buildPoolAccountRefs(
   account: PrivacyPoolAccount | null | undefined,
   scope: bigint,
-  spendableCommitments: readonly AccountCommitment[]
+  spendableCommitments: readonly AccountCommitment[],
+  approvedLabels?: Set<string> | null
 ): PoolAccountRef[] {
-  return buildAllPoolAccountRefs(account, scope, spendableCommitments)
+  return buildAllPoolAccountRefs(account, scope, spendableCommitments, approvedLabels)
     .filter((pa) => pa.status === "spendable");
 }
 
 export function buildAllPoolAccountRefs(
   account: PrivacyPoolAccount | null | undefined,
   scope: bigint,
-  spendableCommitments: readonly AccountCommitment[]
+  spendableCommitments: readonly AccountCommitment[],
+  approvedLabels?: Set<string> | null
 ): PoolAccountRef[] {
   const spendableByKey = new Map<string, AccountCommitment>();
   for (const commitment of spendableCommitments) {
     spendableByKey.set(commitmentKey(commitment), commitment);
+  }
+
+  function resolveAspStatus(label: bigint, status: PoolAccountStatus): AspApprovalStatus {
+    if (status === "exited" || status === "spent") return "unknown";
+    if (!approvedLabels) return "unknown";
+    return approvedLabels.has(label.toString()) ? "approved" : "pending";
   }
 
   const refs: PoolAccountRef[] = [];
@@ -112,6 +122,7 @@ export function buildAllPoolAccountRefs(
       paNumber: nextPoolAccountNumber,
       paId: poolAccountId(nextPoolAccountNumber),
       status,
+      aspStatus: resolveAspStatus(commitment.label, status),
       commitment,
       label: commitment.label,
       value: ragequit ? 0n : commitment.value,
@@ -133,6 +144,7 @@ export function buildAllPoolAccountRefs(
       paNumber: nextPoolAccountNumber,
       paId: poolAccountId(nextPoolAccountNumber),
       status: "spendable",
+      aspStatus: resolveAspStatus(commitment.label, "spendable"),
       commitment,
       label: commitment.label,
       value: commitment.value,

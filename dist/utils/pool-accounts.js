@@ -39,14 +39,21 @@ export function parsePoolAccountSelector(value) {
         return null;
     return parsed;
 }
-export function buildPoolAccountRefs(account, scope, spendableCommitments) {
-    return buildAllPoolAccountRefs(account, scope, spendableCommitments)
+export function buildPoolAccountRefs(account, scope, spendableCommitments, approvedLabels) {
+    return buildAllPoolAccountRefs(account, scope, spendableCommitments, approvedLabels)
         .filter((pa) => pa.status === "spendable");
 }
-export function buildAllPoolAccountRefs(account, scope, spendableCommitments) {
+export function buildAllPoolAccountRefs(account, scope, spendableCommitments, approvedLabels) {
     const spendableByKey = new Map();
     for (const commitment of spendableCommitments) {
         spendableByKey.set(commitmentKey(commitment), commitment);
+    }
+    function resolveAspStatus(label, status) {
+        if (status === "exited" || status === "spent")
+            return "unknown";
+        if (!approvedLabels)
+            return "unknown";
+        return approvedLabels.has(label.toString()) ? "approved" : "pending";
     }
     const refs = [];
     let nextPoolAccountNumber = 1;
@@ -66,6 +73,7 @@ export function buildAllPoolAccountRefs(account, scope, spendableCommitments) {
             paNumber: nextPoolAccountNumber,
             paId: poolAccountId(nextPoolAccountNumber),
             status,
+            aspStatus: resolveAspStatus(commitment.label, status),
             commitment,
             label: commitment.label,
             value: ragequit ? 0n : commitment.value,
@@ -86,6 +94,7 @@ export function buildAllPoolAccountRefs(account, scope, spendableCommitments) {
             paNumber: nextPoolAccountNumber,
             paId: poolAccountId(nextPoolAccountNumber),
             status: "spendable",
+            aspStatus: resolveAspStatus(commitment.label, "spendable"),
             commitment,
             label: commitment.label,
             value: commitment.value,

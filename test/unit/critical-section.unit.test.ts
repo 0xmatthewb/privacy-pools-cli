@@ -14,6 +14,7 @@ describe("critical section guard", () => {
     process.kill = origKill;
     // Always clean up listeners in case a test fails mid-guard
     releaseCriticalSection();
+    releaseCriticalSection();
   });
 
   test("guardCriticalSection adds SIGINT and SIGTERM listeners", () => {
@@ -73,6 +74,29 @@ describe("critical section guard", () => {
     expect(process.listenerCount("SIGINT")).toBe(sigintBefore);
   });
 
+  test("nested guard only releases listeners after final release", () => {
+    const sigintBefore = process.listenerCount("SIGINT");
+    const sigtermBefore = process.listenerCount("SIGTERM");
+
+    guardCriticalSection();
+    const sigintAfterFirstGuard = process.listenerCount("SIGINT");
+    const sigtermAfterFirstGuard = process.listenerCount("SIGTERM");
+    guardCriticalSection();
+
+    // Nested guard should not add duplicate listeners.
+    expect(process.listenerCount("SIGINT")).toBe(sigintAfterFirstGuard);
+    expect(process.listenerCount("SIGTERM")).toBe(sigtermAfterFirstGuard);
+
+    releaseCriticalSection();
+    // After one release, the critical section remains active.
+    expect(process.listenerCount("SIGINT")).toBe(sigintAfterFirstGuard);
+    expect(process.listenerCount("SIGTERM")).toBe(sigtermAfterFirstGuard);
+
+    releaseCriticalSection();
+    expect(process.listenerCount("SIGINT")).toBe(sigintBefore);
+    expect(process.listenerCount("SIGTERM")).toBe(sigtermBefore);
+  });
+
   test("release calls process.kill when a signal was pending", () => {
     let killCalled = false;
     let killSignal: string | undefined;
@@ -104,5 +128,26 @@ describe("critical section guard", () => {
     releaseCriticalSection();
 
     expect(killCalled).toBe(false);
+  });
+
+  test("pending signal is emitted only after final nested release", () => {
+    let killCalled = false;
+    let killSignal: string | undefined;
+    process.kill = ((_pid: number, sig?: string | number) => {
+      killCalled = true;
+      killSignal = sig as string;
+      return true;
+    }) as any;
+
+    guardCriticalSection();
+    guardCriticalSection();
+    process.emit("SIGTERM", "SIGTERM");
+
+    releaseCriticalSection();
+    expect(killCalled).toBe(false);
+
+    releaseCriticalSection();
+    expect(killCalled).toBe(true);
+    expect(killSignal).toBe("SIGTERM");
   });
 });

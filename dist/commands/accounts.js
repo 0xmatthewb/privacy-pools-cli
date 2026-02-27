@@ -1,23 +1,26 @@
 import { Command } from "commander";
+import chalk from "chalk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import { initializeAccountService, saveAccount, toPoolInfo, withSuppressedSdkStdout, } from "../services/account.js";
 import { listPools } from "../services/pools.js";
-import { printTable, spinner, formatAmount, formatAddress, formatTxHash, warn, } from "../utils/format.js";
+import { fetchApprovedLabels } from "../services/asp.js";
+import { printTable, spinner, formatAmount, formatAddress, formatTxHash, warn, verbose, } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { buildAllPoolAccountRefs, buildPoolAccountRefs, } from "../utils/pool-accounts.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 export function createAccountsCommand() {
     return new Command("accounts")
         .description("List your Pool Accounts (PA-1, PA-2, ...)")
-        .option("--sync", "Sync account state before displaying")
+        .option("--no-sync", "Skip syncing account state before displaying")
         .option("--all", "Include exited and fully spent Pool Accounts")
         .option("--details", "Show low-level commitment details (hash/label/tx)")
-        .addHelpText("after", "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --sync --chain sepolia\n  privacy-pools accounts --json\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --no-sync --chain sepolia\n  privacy-pools accounts --json\n"
         + commandHelpText({
             prerequisites: "init",
             jsonFields: "{ chain, accounts: [{ poolAccountId, status, asset, scope, value, hash, label, ... }] }",
@@ -28,13 +31,16 @@ export function createAccountsCommand() {
         const isJson = mode.isJson;
         const isQuiet = mode.isQuiet;
         const silent = isQuiet || isJson;
+        const isVerbose = globalOpts?.verbose ?? false;
         try {
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+            verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
             const mnemonic = loadMnemonic();
             const spin = spinner("Loading accounts...", silent);
             spin.start();
             const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
+            verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
             if (pools.length === 0) {
                 spin.stop();
                 if (isJson) {
@@ -53,7 +59,7 @@ export function createAccountsCommand() {
             }));
             const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
             const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, false, silent, true);
-            if (opts.sync) {
+            if (opts.noSync !== true) {
                 spin.text = "Syncing...";
                 let syncFailures = 0;
                 for (const poolInfo of poolInfos) {
@@ -73,7 +79,13 @@ export function createAccountsCommand() {
                 if (syncFailures > 0 && isJson) {
                     throw new CLIError(`Account sync failed for ${syncFailures} pool(s).`, "RPC", "Retry with a healthy RPC before using account data.");
                 }
-                saveAccount(chainConfig.id, accountService.account);
+                guardCriticalSection();
+                try {
+                    saveAccount(chainConfig.id, accountService.account);
+                }
+                finally {
+                    releaseCriticalSection();
+                }
             }
             const spendable = accountService.getSpendableCommitments();
             const scopeSet = new Set();
@@ -97,6 +109,14 @@ export function createAccountsCommand() {
                     return 1;
                 return 0;
             });
+            // Fetch ASP approval status (non-fatal if unavailable)
+            const approvedLabelsByScope = new Map();
+            for (const scopeStr of sortedScopeStrings) {
+                const pool = pools.find((p) => p.scope.toString() === scopeStr);
+                if (pool) {
+                    approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
+                }
+            }
             spin.stop();
             if (isJson) {
                 const jsonData = [];
@@ -106,9 +126,10 @@ export function createAccountsCommand() {
                     const pool = pools.find((p) => p.scope.toString() === scopeStr);
                     if (!pool)
                         continue;
+                    const approvedLabels = approvedLabelsByScope.get(scopeStr);
                     const poolAccounts = opts.all
-                        ? buildAllPoolAccountRefs(accountService.account, pool.scope, commitments)
-                        : buildPoolAccountRefs(accountService.account, pool.scope, commitments);
+                        ? buildAllPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels)
+                        : buildPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels);
                     poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
                     for (const pa of poolAccounts) {
                         const c = pa.commitment;
@@ -116,6 +137,7 @@ export function createAccountsCommand() {
                             poolAccountNumber: pa.paNumber,
                             poolAccountId: pa.paId,
                             status: pa.status,
+                            aspStatus: pa.aspStatus,
                             asset: pool.symbol,
                             scope: scopeBigInt.toString(),
                             value: pa.value.toString(),
@@ -137,18 +159,24 @@ export function createAccountsCommand() {
                 const pool = pools.find((p) => p.scope.toString() === scopeStr);
                 if (!pool)
                     continue;
+                const approvedLabels = approvedLabelsByScope.get(scopeStr);
                 const poolAccounts = opts.all
-                    ? buildAllPoolAccountRefs(accountService.account, pool.scope, commitments)
-                    : buildPoolAccountRefs(accountService.account, pool.scope, commitments);
+                    ? buildAllPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels)
+                    : buildPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels);
                 poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
                 if (poolAccounts.length === 0)
                     continue;
                 renderedAny = true;
                 process.stderr.write(`  ${pool.symbol} pool (${formatAddress(pool.pool)}):\n`);
                 if (opts.details) {
-                    printTable(["PA", "Status", "Value", "Commitment", "Label", "Block", "Tx"], poolAccounts.map((pa) => [
+                    printTable(["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"], poolAccounts.map((pa) => [
                         pa.paId,
                         pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
+                        pa.aspStatus === "approved"
+                            ? chalk.green("Approved")
+                            : pa.aspStatus === "pending"
+                                ? chalk.yellow("Pending")
+                                : "",
                         formatAmount(pa.value, pool.decimals, pool.symbol),
                         formatAddress(`0x${pa.commitment.hash.toString(16).padStart(64, "0")}`, 8),
                         formatAddress(`0x${pa.label.toString(16).padStart(64, "0")}`, 8),
@@ -157,12 +185,20 @@ export function createAccountsCommand() {
                     ]));
                 }
                 else {
-                    printTable(["PA", "Balance", "Status", "Last Activity"], poolAccounts.map((pa) => [
-                        pa.paId,
-                        formatAmount(pa.value, pool.decimals, pool.symbol),
-                        pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
-                        `block ${pa.blockNumber.toString()} • ${formatTxHash(pa.txHash)}`,
-                    ]));
+                    printTable(["PA", "Balance", "Status", "Last Activity"], poolAccounts.map((pa) => {
+                        const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
+                        const aspSuffix = pa.aspStatus === "approved"
+                            ? ` (${chalk.green("Approved")})`
+                            : pa.aspStatus === "pending"
+                                ? ` (${chalk.yellow("Pending")})`
+                                : "";
+                        return [
+                            pa.paId,
+                            formatAmount(pa.value, pool.decimals, pool.symbol),
+                            `${statusLabel}${aspSuffix}`,
+                            `block ${pa.blockNumber.toString()} • ${formatTxHash(pa.txHash)}`,
+                        ];
+                    }));
                 }
                 process.stderr.write("\n");
             }

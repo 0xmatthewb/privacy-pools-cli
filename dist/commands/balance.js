@@ -5,16 +5,17 @@ import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import { initializeAccountService, saveAccount, toPoolInfo, withSuppressedSdkStdout, } from "../services/account.js";
 import { listPools } from "../services/pools.js";
-import { printTable, spinner, formatAmount, warn } from "../utils/format.js";
+import { printTable, spinner, formatAmount, warn, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 export function createBalanceCommand() {
     return new Command("balance")
         .description("Show balances across pools")
-        .option("--sync", "Sync account state from on-chain events before displaying")
-        .addHelpText("after", "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --sync --chain sepolia\n  privacy-pools balance --json\n"
+        .option("--no-sync", "Skip syncing account state before displaying")
+        .addHelpText("after", "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --no-sync --chain sepolia\n  privacy-pools balance --json\n"
         + commandHelpText({
             prerequisites: "init",
             jsonFields: "{ chain, balances: [{ asset, assetAddress, balance, commitments, poolAccounts }] }",
@@ -25,14 +26,17 @@ export function createBalanceCommand() {
         const isJson = mode.isJson;
         const isQuiet = mode.isQuiet;
         const silent = isQuiet || isJson;
+        const isVerbose = globalOpts?.verbose ?? false;
         try {
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+            verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
             const mnemonic = loadMnemonic();
             const spin = spinner("Loading balances...", silent);
             spin.start();
             // Discover pools
             const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
+            verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
             if (pools.length === 0) {
                 spin.stop();
                 if (isJson) {
@@ -53,7 +57,7 @@ export function createBalanceCommand() {
             // Use the first pool's data service (covers the chain)
             const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
             const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, false, silent, true);
-            if (opts.sync) {
+            if (opts.noSync !== true) {
                 spin.text = "Syncing account state...";
                 let syncFailures = 0;
                 for (const poolInfo of poolInfos) {
@@ -73,7 +77,13 @@ export function createBalanceCommand() {
                 if (syncFailures > 0 && isJson) {
                     throw new CLIError(`Balance sync failed for ${syncFailures} pool(s).`, "RPC", "Retry with a healthy RPC before using balance data.");
                 }
-                saveAccount(chainConfig.id, accountService.account);
+                guardCriticalSection();
+                try {
+                    saveAccount(chainConfig.id, accountService.account);
+                }
+                finally {
+                    releaseCriticalSection();
+                }
             }
             // Get spendable commitments
             const spendable = accountService.getSpendableCommitments();

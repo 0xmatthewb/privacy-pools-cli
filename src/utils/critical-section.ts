@@ -7,25 +7,31 @@
  */
 
 let _pending: NodeJS.Signals | null = null;
-let _active = false;
+let _depth = 0;
 
 function onSignal(sig: NodeJS.Signals) {
   _pending = sig;
 }
 
 export function guardCriticalSection(): void {
-  _pending = null;
-  _active = true;
-  process.on("SIGINT", onSignal);
-  process.on("SIGTERM", onSignal);
+  if (_depth === 0) {
+    _pending = null;
+    process.on("SIGINT", onSignal);
+    process.on("SIGTERM", onSignal);
+  }
+  _depth += 1;
 }
 
 export function releaseCriticalSection(): void {
-  if (!_active) return;
-  _active = false;
+  if (_depth === 0) return;
+  _depth -= 1;
+  if (_depth > 0) return;
+
   process.removeListener("SIGINT", onSignal);
   process.removeListener("SIGTERM", onSignal);
-  if (_pending) {
-    process.kill(process.pid, _pending);
+  const pending = _pending;
+  _pending = null;
+  if (pending) {
+    process.kill(process.pid, pending);
   }
 }
