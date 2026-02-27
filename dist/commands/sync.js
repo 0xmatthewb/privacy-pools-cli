@@ -6,11 +6,12 @@ import { getDataService } from "../services/sdk.js";
 import { initializeAccountService, saveAccount } from "../services/account.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
-import { info, spinner, success, verbose } from "../utils/format.js";
+import { spinner, verbose } from "../utils/format.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
-import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { createOutputContext, isSilent } from "../output/common.js";
+import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
 export function createSyncCommand() {
     return new Command("sync")
         .description("Sync local account state from on-chain events")
@@ -23,10 +24,9 @@ export function createSyncCommand() {
         .action(async (opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
         const mode = resolveGlobalMode(globalOpts);
-        const isJson = mode.isJson;
-        const isQuiet = mode.isQuiet;
-        const silent = isQuiet || isJson;
         const isVerbose = globalOpts?.verbose ?? false;
+        const ctx = createOutputContext(mode, isVerbose);
+        const silent = isSilent(ctx);
         try {
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
@@ -38,16 +38,7 @@ export function createSyncCommand() {
                 : await listPools(chainConfig, globalOpts?.rpcUrl);
             if (pools.length === 0) {
                 spin.stop();
-                if (isJson) {
-                    printJsonSuccess({
-                        chain: chainConfig.name,
-                        syncedPools: 0,
-                        spendableCommitments: 0,
-                    });
-                }
-                else {
-                    info(`No pools found on ${chainConfig.name}.`, silent);
-                }
+                renderSyncEmpty(ctx, chainConfig.name);
                 return;
             }
             verbose(`Syncing ${pools.length} pool(s): ${pools.map((p) => p.symbol).join(", ")}`, isVerbose, silent);
@@ -70,20 +61,15 @@ export function createSyncCommand() {
             const spendable = accountService.getSpendableCommitments();
             const spendableCount = Array.from(spendable.values()).reduce((acc, list) => acc + list.length, 0);
             spin.succeed("Sync complete.");
-            if (isJson) {
-                printJsonSuccess({
-                    chain: chainConfig.name,
-                    syncedPools: pools.length,
-                    syncedSymbols: pools.map((p) => p.symbol),
-                    spendableCommitments: spendableCount,
-                });
-                return;
-            }
-            success(`Synced ${pools.length} pool(s) on ${chainConfig.name}.`, silent);
-            info(`Spendable commitments: ${spendableCount}`, silent);
+            renderSyncComplete(ctx, {
+                chain: chainConfig.name,
+                syncedPools: pools.length,
+                syncedSymbols: pools.map((p) => p.symbol),
+                spendableCommitments: spendableCount,
+            });
         }
         catch (error) {
-            printError(error, isJson);
+            printError(error, mode.isJson);
         }
     });
 }

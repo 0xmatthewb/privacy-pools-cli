@@ -1,9 +1,10 @@
 import { Command } from "commander";
-import { printJsonSuccess } from "../utils/json.js";
 import { printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { createOutputContext } from "../output/common.js";
+import { renderCapabilities } from "../output/capabilities.js";
 
 const CAPABILITIES = {
   commands: [
@@ -151,37 +152,11 @@ export function createCapabilitiesCommand(): Command {
     .action(async (_opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
-      const isJson = mode.isJson;
 
       try {
-        if (isJson) {
-          printJsonSuccess(CAPABILITIES);
-          return;
-        }
-
-        process.stderr.write("\nPrivacy Pools CLI — Agent Capabilities\n\n");
-        process.stderr.write("Commands:\n");
-        for (const c of CAPABILITIES.commands) {
-          const aliases = (c as { aliases?: string[] }).aliases;
-          const aliasStr = aliases ? ` (alias: ${aliases.join(", ")})` : "";
-          process.stderr.write(`  ${c.name}${aliasStr} — ${c.description}\n`);
-          if (c.agentFlags) {
-            process.stderr.write(`    Agent usage: privacy-pools ${c.usage ?? c.name} ${c.agentFlags}\n`);
-          }
-        }
-
-        process.stderr.write("\nGlobal Flags:\n");
-        for (const f of CAPABILITIES.globalFlags) {
-          process.stderr.write(`  ${f.flag} — ${f.description}\n`);
-        }
-
-        process.stderr.write("\nTypical Agent Workflow:\n");
-        for (const step of CAPABILITIES.agentWorkflow) {
-          process.stderr.write(`  ${step}\n`);
-        }
-        process.stderr.write("\n");
+        renderCapabilities(createOutputContext(mode), CAPABILITIES);
       } catch (error) {
-        printError(error, isJson);
+        printError(error, mode.isJson);
       }
     });
 }

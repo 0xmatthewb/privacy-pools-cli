@@ -1,8 +1,7 @@
 /**
  * Output renderer for the `guide` command.
  *
- * Phase 1 stub – delegates to existing output calls.
- * Phase 2 will move inline output from src/commands/guide.ts here.
+ * Wired in Phase 2 – src/commands/guide.ts delegates all output here.
  */
 
 import type { OutputContext } from "./common.js";

@@ -1,8 +1,8 @@
 /**
  * Output renderer for the `sync` command.
  *
- * Phase 1 stub – delegates to existing output calls.
- * Phase 2 will move inline output from src/commands/sync.ts here.
+ * Wired in Phase 2 – src/commands/sync.ts delegates all output here.
+ * Spinners and verbose logging remain in the command handler.
  */
 
 import type { OutputContext } from "./common.js";

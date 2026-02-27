@@ -1,15 +1,19 @@
 import { Command, Option } from "commander";
 import { CLIError } from "../utils/errors.js";
-import { printJsonSuccess } from "../utils/json.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
   detectCompletionShell,
   isCompletionShell,
   queryCompletionCandidates,
-  renderCompletionScript,
+  renderCompletionScript as generateCompletionScript,
   SUPPORTED_COMPLETION_SHELLS,
 } from "../utils/completion.js";
+import { createOutputContext } from "../output/common.js";
+import {
+  renderCompletionScript as outputCompletionScript,
+  renderCompletionQuery,
+} from "../output/completion.js";
 
 interface CompletionCommandOptions {
   shell?: string;
@@ -70,26 +74,14 @@ export function createCompletionCommand(): Command {
 
       const globalOpts = root.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
+      const ctx = createOutputContext(mode);
       const words = cmd.args as string[];
 
       if (opts.query) {
         const shellName = opts.shell ? parseShell(opts.shell) : detectCompletionShell();
         const cword = parseCword(opts.cword);
         const candidates = queryCompletionCandidates(root, words, cword);
-
-        if (mode.isJson) {
-          printJsonSuccess({
-            mode: "completion-query",
-            shell: shellName,
-            cword,
-            candidates,
-          });
-          return;
-        }
-
-        if (candidates.length > 0) {
-          process.stdout.write(`${candidates.join("\n")}\n`);
-        }
+        renderCompletionQuery(ctx, shellName, cword, candidates);
         return;
       }
 
@@ -118,17 +110,7 @@ export function createCompletionCommand(): Command {
         shellName = detectCompletionShell();
       }
 
-      const script = renderCompletionScript(shellName, root.name() || "privacy-pools");
-
-      if (mode.isJson) {
-        printJsonSuccess({
-          mode: "completion-script",
-          shell: shellName,
-          completionScript: script,
-        });
-        return;
-      }
-
-      process.stdout.write(script.endsWith("\n") ? script : `${script}\n`);
+      const script = generateCompletionScript(shellName, root.name() || "privacy-pools");
+      outputCompletionScript(ctx, shellName, script);
     });
 }
