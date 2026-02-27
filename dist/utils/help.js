@@ -52,6 +52,7 @@ export function rootHelpFooter() {
     return [
         "",
         `  Human mode:       ${chalk.cyan("privacy-pools init")}`,
+        `  Short alias:      ${chalk.cyan("pp init")}`,
         `  Agent mode:       ${chalk.cyan("privacy-pools -j -y status")}`,
         `  Agent unsigned:   ${chalk.cyan("privacy-pools -j -y deposit ETH 0.1 --unsigned --chain sepolia")}`,
         `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
@@ -72,6 +73,7 @@ export function guideText() {
         chalk.bold("Install & Run"),
         `  ${chalk.cyan("npm i -g @0xbow/privacy-pools-cli")}`,
         `  ${chalk.cyan("bun add -g @0xbow/privacy-pools-cli")}`,
+        `  ${chalk.cyan("pp status")}                                  ${chalk.dim("(short alias for privacy-pools)")}`,
         `  ${chalk.cyan("bunx @0xbow/privacy-pools-cli@latest status")}  ${chalk.dim("(one-off, no install)")}`,
         `  ${chalk.cyan("bun run dev -- status")}                         ${chalk.dim("(from repo checkout)")}`,
         `  ${chalk.cyan("privacy-pools completion zsh")}                   ${chalk.dim("(shell autocomplete)")}`,

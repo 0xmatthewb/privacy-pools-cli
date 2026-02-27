@@ -4,7 +4,8 @@
   "description": "CLI for interacting with Privacy Pools v1",
   "type": "module",
   "bin": {
-    "privacy-pools": "./dist/index.js"
+    "privacy-pools": "./dist/index.js",
+    "pp": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc --project tsconfig.json && chmod +x dist/index.js",
