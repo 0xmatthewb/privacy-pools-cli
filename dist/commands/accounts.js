@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
@@ -7,13 +6,14 @@ import { getDataService } from "../services/sdk.js";
 import { initializeAccountService, saveAccount, toPoolInfo, withSuppressedSdkStdout, } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { fetchApprovedLabels } from "../services/asp.js";
-import { printTable, spinner, formatAmount, formatAddress, formatTxHash, warn, verbose, } from "../utils/format.js";
+import { spinner, warn, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
-import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { buildAllPoolAccountRefs, buildPoolAccountRefs, } from "../utils/pool-accounts.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { createOutputContext, isSilent } from "../output/common.js";
+import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 export function createAccountsCommand() {
     return new Command("accounts")
         .description("List your Pool Accounts (PA-1, PA-2, ...)")
@@ -28,10 +28,9 @@ export function createAccountsCommand() {
         .action(async (opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
         const mode = resolveGlobalMode(globalOpts);
-        const isJson = mode.isJson;
-        const isQuiet = mode.isQuiet;
-        const silent = isQuiet || isJson;
         const isVerbose = globalOpts?.verbose ?? false;
+        const ctx = createOutputContext(mode, isVerbose);
+        const silent = isSilent(ctx);
         try {
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
@@ -43,12 +42,7 @@ export function createAccountsCommand() {
             verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
             if (pools.length === 0) {
                 spin.stop();
-                if (isJson) {
-                    printJsonSuccess({ chain: chainConfig.name, accounts: [] });
-                }
-                else {
-                    process.stderr.write(`No pools found on ${chainConfig.name}.\n`);
-                }
+                renderAccountsNoPools(ctx, chainConfig.name);
                 return;
             }
             const poolInfos = pools.map((p) => ({
@@ -77,7 +71,7 @@ export function createAccountsCommand() {
                         warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
                     }
                 }
-                if (syncFailures > 0 && isJson) {
+                if (syncFailures > 0 && mode.isJson) {
                     throw new CLIError(`Account sync failed for ${syncFailures} pool(s).`, "RPC", "Retry with a healthy RPC before using account data.");
                 }
                 guardCriticalSection();
@@ -119,41 +113,8 @@ export function createAccountsCommand() {
                 }
             }));
             spin.stop();
-            if (isJson) {
-                const jsonData = [];
-                for (const scopeStr of sortedScopeStrings) {
-                    const scopeBigInt = BigInt(scopeStr);
-                    const commitments = spendable.get(scopeBigInt) ?? [];
-                    const pool = pools.find((p) => p.scope.toString() === scopeStr);
-                    if (!pool)
-                        continue;
-                    const approvedLabels = approvedLabelsByScope.get(scopeStr);
-                    const poolAccounts = opts.all
-                        ? buildAllPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels)
-                        : buildPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels);
-                    poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
-                    for (const pa of poolAccounts) {
-                        const c = pa.commitment;
-                        jsonData.push({
-                            poolAccountNumber: pa.paNumber,
-                            poolAccountId: pa.paId,
-                            status: pa.status,
-                            aspStatus: pa.aspStatus,
-                            asset: pool.symbol,
-                            scope: scopeBigInt.toString(),
-                            value: pa.value.toString(),
-                            hash: c.hash.toString(),
-                            label: c.label.toString(),
-                            blockNumber: pa.blockNumber.toString(),
-                            txHash: pa.txHash,
-                        });
-                    }
-                }
-                printJsonSuccess({ chain: chainConfig.name, accounts: jsonData });
-                return;
-            }
-            process.stderr.write(`\nAccounts on ${chainConfig.name}:\n\n`);
-            let renderedAny = false;
+            // Build render data
+            const groups = [];
             for (const scopeStr of sortedScopeStrings) {
                 const scopeBigInt = BigInt(scopeStr);
                 const commitments = spendable.get(scopeBigInt) ?? [];
@@ -165,52 +126,23 @@ export function createAccountsCommand() {
                     ? buildAllPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels)
                     : buildPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels);
                 poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
-                if (poolAccounts.length === 0)
-                    continue;
-                renderedAny = true;
-                process.stderr.write(`  ${pool.symbol} pool (${formatAddress(pool.pool)}):\n`);
-                if (opts.details) {
-                    printTable(["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"], poolAccounts.map((pa) => [
-                        pa.paId,
-                        pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
-                        pa.aspStatus === "approved"
-                            ? chalk.green("Approved")
-                            : pa.aspStatus === "pending"
-                                ? chalk.yellow("Pending")
-                                : "",
-                        formatAmount(pa.value, pool.decimals, pool.symbol),
-                        formatAddress(`0x${pa.commitment.hash.toString(16).padStart(64, "0")}`, 8),
-                        formatAddress(`0x${pa.label.toString(16).padStart(64, "0")}`, 8),
-                        pa.blockNumber.toString(),
-                        formatTxHash(pa.txHash),
-                    ]));
-                }
-                else {
-                    printTable(["PA", "Balance", "Status", "Tx"], poolAccounts.map((pa) => {
-                        const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
-                        const aspSuffix = pa.aspStatus === "approved"
-                            ? ` (${chalk.green("Approved")})`
-                            : pa.aspStatus === "pending"
-                                ? ` (${chalk.yellow("Pending")})`
-                                : "";
-                        return [
-                            pa.paId,
-                            formatAmount(pa.value, pool.decimals, pool.symbol),
-                            `${statusLabel}${aspSuffix}`,
-                            formatTxHash(pa.txHash),
-                        ];
-                    }));
-                }
-                process.stderr.write("\n");
+                groups.push({
+                    symbol: pool.symbol,
+                    poolAddress: pool.pool,
+                    decimals: pool.decimals,
+                    scope: pool.scope,
+                    poolAccounts,
+                });
             }
-            if (!renderedAny) {
-                process.stderr.write(opts.all
-                    ? "No Pool Accounts found.\n\n"
-                    : `No spendable Pool Accounts found. Deposit first, then run 'privacy-pools accounts --chain ${chainConfig.name}'.\n\n`);
-            }
+            renderAccounts(ctx, {
+                chain: chainConfig.name,
+                groups,
+                showDetails: !!opts.details,
+                showAll: !!opts.all,
+            });
         }
         catch (error) {
-            printError(error, isJson);
+            printError(error, mode.isJson);
         }
     });
 }

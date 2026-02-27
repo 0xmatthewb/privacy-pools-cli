@@ -37,3 +37,36 @@ export {
   renderSyncComplete,
   type SyncResult,
 } from "./sync.js";
+export {
+  renderStatus,
+  type StatusCheckResult,
+} from "./status.js";
+export {
+  renderPoolsEmpty,
+  renderPools,
+  poolToJson,
+  type PoolWithChain,
+  type ChainSummary,
+  type PoolWarning,
+  type PoolsRenderData,
+} from "./pools.js";
+export {
+  renderBalanceNoPools,
+  renderBalanceEmpty,
+  renderBalance,
+  type BalanceRow,
+  type BalanceJsonEntry,
+  type BalanceRenderData,
+} from "./balance.js";
+export {
+  renderAccountsNoPools,
+  renderAccounts,
+  type AccountPoolGroup,
+  type AccountsRenderData,
+} from "./accounts.js";
+export {
+  renderHistoryNoPools,
+  renderHistory,
+  type HistoryPoolInfo,
+  type HistoryRenderData,
+} from "./history.js";

@@ -10,14 +10,16 @@ import {
   withSuppressedSdkStdout,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
-import { printTable, spinner, formatAmount, warn, verbose } from "../utils/format.js";
+import { spinner, formatAmount, warn, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
-import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import type { Address } from "viem";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { createOutputContext, isSilent } from "../output/common.js";
+import { renderBalanceNoPools, renderBalanceEmpty, renderBalance } from "../output/balance.js";
+import type { BalanceRow, BalanceJsonEntry } from "../output/balance.js";
 
 export function createBalanceCommand(): Command {
   return new Command("balance")
@@ -34,10 +36,9 @@ export function createBalanceCommand(): Command {
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
-      const isJson = mode.isJson;
-      const isQuiet = mode.isQuiet;
-      const silent = isQuiet || isJson;
       const isVerbose = globalOpts?.verbose ?? false;
+      const ctx = createOutputContext(mode, isVerbose);
+      const silent = isSilent(ctx);
 
       try {
         const config = loadConfig();
@@ -58,11 +59,7 @@ export function createBalanceCommand(): Command {
 
         if (pools.length === 0) {
           spin.stop();
-          if (isJson) {
-            printJsonSuccess({ chain: chainConfig.name, balances: [] });
-          } else {
-            process.stderr.write(`No pools found on ${chainConfig.name}.\n`);
-          }
+          renderBalanceNoPools(ctx, chainConfig.name);
           return;
         }
 
@@ -108,7 +105,7 @@ export function createBalanceCommand(): Command {
               warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
             }
           }
-          if (syncFailures > 0 && isJson) {
+          if (syncFailures > 0 && mode.isJson) {
             throw new CLIError(
               `Balance sync failed for ${syncFailures} pool(s).`,
               "RPC",
@@ -127,8 +124,8 @@ export function createBalanceCommand(): Command {
         const spendable = accountService.getSpendableCommitments();
         spin.stop();
 
-        const rows: string[][] = [];
-        const jsonData: Record<string, unknown>[] = [];
+        const rows: BalanceRow[] = [];
+        const jsonData: BalanceJsonEntry[] = [];
 
         for (const [scopeBigInt, commitments] of spendable.entries()) {
           const pool = pools.find(
@@ -141,47 +138,35 @@ export function createBalanceCommand(): Command {
             0n
           );
 
-          rows.push([
-            pool.symbol,
-            formatAmount(totalValue, pool.decimals, pool.symbol),
-            commitments.length.toString(),
-          ]);
+          rows.push({
+            symbol: pool.symbol,
+            formattedBalance: formatAmount(totalValue, pool.decimals, pool.symbol),
+            commitments: commitments.length,
+          });
 
           jsonData.push({
             asset: pool.symbol,
             assetAddress: pool.asset,
             balance: totalValue.toString(),
             commitments: commitments.length,
-            // `commitments` is retained for backward compatibility.
             poolAccounts: commitments.length,
           });
         }
-        rows.sort((a, b) => a[0].localeCompare(b[0]));
-        jsonData.sort((a, b) =>
-          String(a.asset ?? "").localeCompare(String(b.asset ?? ""))
-        );
+        rows.sort((a, b) => a.symbol.localeCompare(b.symbol));
+        jsonData.sort((a, b) => a.asset.localeCompare(b.asset));
 
         if (rows.length === 0) {
-          if (isJson) {
-            printJsonSuccess({ chain: chainConfig.name, balances: [] }, false);
-          } else {
-            process.stderr.write(`\nNo balances found on ${chainConfig.name}. Deposit first to create Pool Accounts.\n`);
-          }
+          renderBalanceEmpty(ctx, chainConfig.name);
           return;
         }
 
-        if (isJson) {
-          printJsonSuccess(
-            { chain: chainConfig.name, balances: jsonData },
-            false
-          );
-          return;
-        }
-
-        process.stderr.write(`\nBalances on ${chainConfig.name}:\n\n`);
-        printTable(["Asset", "Balance", "Pool Accounts"], rows);
+        renderBalance(ctx, {
+          chain: chainConfig.name,
+          rows,
+          jsonData,
+        });
       } catch (error) {
-        printError(error, isJson);
+        printError(error, mode.isJson);
       }
     });
 }

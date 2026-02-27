@@ -1,8 +1,7 @@
 /**
  * Output renderer for the `capabilities` command.
  *
- * Phase 1 stub – delegates to existing output calls.
- * Phase 2 will move inline output from src/commands/capabilities.ts here.
+ * Wired in Phase 2 – src/commands/capabilities.ts delegates all output here.
  */
 import { printJsonSuccess } from "./common.js";
 /**

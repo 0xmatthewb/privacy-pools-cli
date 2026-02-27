@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import {
   configExists,
   loadConfig,
@@ -12,13 +11,14 @@ import { CHAINS } from "../config/chains.js";
 import { checkLiveness } from "../services/asp.js";
 import { getPublicClient } from "../services/sdk.js";
 import { accountExists } from "../services/account.js";
-import { success, warn, info } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
-import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { createOutputContext } from "../output/common.js";
+import { renderStatus } from "../output/status.js";
+import type { StatusCheckResult } from "../output/status.js";
 
 export function createStatusCommand(): Command {
   return new Command("status")
@@ -36,10 +36,8 @@ export function createStatusCommand(): Command {
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
-      const isJson = mode.isJson;
-      const isQuiet = mode.isQuiet;
-      const silent = isQuiet || isJson;
       const isVerbose = globalOpts?.verbose ?? false;
+      const ctx = createOutputContext(mode, isVerbose);
 
       try {
         const configReady = configExists();
@@ -72,131 +70,57 @@ export function createStatusCommand(): Command {
           }
         }
 
-        if (isJson) {
-          const resolvedRpcUrl = selectedChainConfig
+        const result: StatusCheckResult = {
+          configExists: configReady,
+          configDir: configReady ? getConfigDir() : null,
+          defaultChain: config?.defaultChain ?? null,
+          selectedChain: selectedChainConfig?.name ?? null,
+          rpcUrl: selectedChainConfig
             ? getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)
-            : null;
+            : null,
+          mnemonicSet: hasMnemonic,
+          signerKeySet: !!signerKey,
+          signerKeyValid,
+          signerAddress,
+          entrypoint: selectedChainConfig?.entrypoint ?? null,
+          aspHost: selectedChainConfig?.aspHost ?? null,
+          accountFiles: [],
+        };
 
-          const status: Record<string, unknown> = {
-            configExists: configReady,
-            defaultChain: config?.defaultChain ?? null,
-            selectedChain: selectedChainConfig?.name ?? null,
-            rpcUrl: resolvedRpcUrl,
-            mnemonicSet: hasMnemonic,
-            signerKeySet: !!signerKey,
-            signerKeyValid,
-            signerAddress,
-          };
-
-          // Optional health checks
-          if (selectedChainConfig) {
-            const shouldCheckAll = opts.check === true;
-            const shouldCheckAsp = shouldCheckAll || opts.checkAsp === true;
-            const shouldCheckRpc = shouldCheckAll || opts.checkRpc === true;
-
-            if (shouldCheckAsp) {
-              status.aspLive = await checkLiveness(selectedChainConfig);
-            }
-
-            if (shouldCheckRpc) {
-              try {
-                const client = getPublicClient(selectedChainConfig, globalOpts?.rpcUrl);
-                await client.getBlockNumber();
-                status.rpcLive = true;
-              } catch {
-                status.rpcLive = false;
-              }
-            }
-          }
-
-          printJsonSuccess(status);
-          return;
-        }
-
-        process.stderr.write(chalk.bold("\nPrivacy Pools CLI Status\n") + "\n");
-
-        // Config
-        if (configReady) {
-          success(`Config: ${getConfigDir()}/config.json`, silent);
-        } else {
-          warn("Config not found. Run 'privacy-pools init'.", silent);
-        }
-
-        // Mnemonic
-        if (hasMnemonic) {
-          success("Recovery phrase: set", silent);
-        } else {
-          warn("Recovery phrase: not set", silent);
-        }
-
-        // Signer
-        if (signerAddress && signerKeyValid) {
-          success(`Signer: ${signerAddress}`, silent);
-        } else if (signerKey && !signerKeyValid) {
-          warn("Signer key is set but invalid. Re-run 'privacy-pools init --private-key ...'.", silent);
-        } else {
-          warn("Signer: not set", silent);
-        }
-
-        // Default chain
-        const defaultChain = config?.defaultChain ?? "none";
-        info(`Default chain: ${defaultChain}`, silent);
+        // Health checks
         if (selectedChainConfig) {
-          info(`Selected chain: ${selectedChainConfig.name}`, silent);
-        }
-
-        // Chain details
-        if (selectedChainConfig) {
-          info(`Contract: ${selectedChainConfig.entrypoint}`, silent);
-          info(`RPC: ${getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)}`, silent);
-
           const shouldCheckAll = opts.check === true;
           const shouldCheckAsp = shouldCheckAll || opts.checkAsp === true;
           const shouldCheckRpc = shouldCheckAll || opts.checkRpc === true;
-          if (isVerbose) {
-            info(
-              `Health checks: rpc=${shouldCheckRpc ? "enabled" : "disabled"}, asp=${shouldCheckAsp ? "enabled" : "disabled"}`,
-              silent
-            );
-          }
+
+          result.healthChecksEnabled = { rpc: shouldCheckRpc, asp: shouldCheckAsp };
 
           if (shouldCheckAsp) {
-            const aspLive = await checkLiveness(selectedChainConfig);
-            if (aspLive) {
-              success(`ASP (${selectedChainConfig.aspHost}): healthy`, silent);
-            } else {
-              warn(`ASP (${selectedChainConfig.aspHost}): unreachable`, silent);
-            }
+            result.aspLive = await checkLiveness(selectedChainConfig);
           }
 
           if (shouldCheckRpc) {
             try {
               const client = getPublicClient(selectedChainConfig, globalOpts?.rpcUrl);
               const blockNumber = await client.getBlockNumber();
-              success(`RPC: connected (block ${blockNumber})`, silent);
+              result.rpcLive = true;
+              result.rpcBlockNumber = blockNumber;
             } catch {
-              warn("RPC: unreachable", silent);
+              result.rpcLive = false;
             }
-          }
-
-          if (!shouldCheckAsp && !shouldCheckRpc) {
-            info("Health checks skipped. Use --check-rpc and/or --check-asp.", silent);
           }
         }
 
         // Account files
-        process.stderr.write("\n");
-        info("Account files:", silent);
         for (const [name, chain] of Object.entries(CHAINS)) {
-          const exists = accountExists(chain.id);
-          if (exists) {
-            process.stderr.write(`  ${chalk.green("●")} ${name} (chain ${chain.id})\n`);
+          if (accountExists(chain.id)) {
+            result.accountFiles.push([name, chain.id]);
           }
         }
 
-        process.stderr.write("\n");
+        renderStatus(ctx, result);
       } catch (error) {
-        printError(error, isJson);
+        printError(error, mode.isJson);
       }
     });
 }

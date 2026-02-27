@@ -1,0 +1,96 @@
+/**
+ * Output renderer for the `accounts` command.
+ *
+ * Phase 3 – src/commands/accounts.ts delegates all final output here.
+ * Sync, pool discovery, ASP label fetching, and spinner remain in
+ * the command handler.
+ */
+import chalk from "chalk";
+import { printJsonSuccess, printTable } from "./common.js";
+import { formatAmount, formatAddress, formatTxHash } from "../utils/format.js";
+// ── Renderers ────────────────────────────────────────────────────────────────
+/**
+ * Render "no pools found" for accounts.
+ */
+export function renderAccountsNoPools(ctx, chain) {
+    if (ctx.mode.isJson) {
+        printJsonSuccess({ chain, accounts: [] });
+        return;
+    }
+    process.stderr.write(`No pools found on ${chain}.\n`);
+}
+/**
+ * Render populated accounts listing.
+ */
+export function renderAccounts(ctx, data) {
+    const { chain, groups, showDetails, showAll } = data;
+    if (ctx.mode.isJson) {
+        const jsonData = [];
+        for (const group of groups) {
+            for (const pa of group.poolAccounts) {
+                const c = pa.commitment;
+                jsonData.push({
+                    poolAccountNumber: pa.paNumber,
+                    poolAccountId: pa.paId,
+                    status: pa.status,
+                    aspStatus: pa.aspStatus,
+                    asset: group.symbol,
+                    scope: group.scope.toString(),
+                    value: pa.value.toString(),
+                    hash: c.hash.toString(),
+                    label: c.label.toString(),
+                    blockNumber: pa.blockNumber.toString(),
+                    txHash: pa.txHash,
+                });
+            }
+        }
+        printJsonSuccess({ chain, accounts: jsonData });
+        return;
+    }
+    process.stderr.write(`\nAccounts on ${chain}:\n\n`);
+    let renderedAny = false;
+    for (const group of groups) {
+        if (group.poolAccounts.length === 0)
+            continue;
+        renderedAny = true;
+        process.stderr.write(`  ${group.symbol} pool (${formatAddress(group.poolAddress)}):\n`);
+        if (showDetails) {
+            printTable(["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"], group.poolAccounts.map((pa) => [
+                pa.paId,
+                pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
+                pa.aspStatus === "approved"
+                    ? chalk.green("Approved")
+                    : pa.aspStatus === "pending"
+                        ? chalk.yellow("Pending")
+                        : "",
+                formatAmount(pa.value, group.decimals, group.symbol),
+                formatAddress(`0x${pa.commitment.hash.toString(16).padStart(64, "0")}`, 8),
+                formatAddress(`0x${pa.label.toString(16).padStart(64, "0")}`, 8),
+                pa.blockNumber.toString(),
+                formatTxHash(pa.txHash),
+            ]));
+        }
+        else {
+            printTable(["PA", "Balance", "Status", "Tx"], group.poolAccounts.map((pa) => {
+                const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
+                const aspSuffix = pa.aspStatus === "approved"
+                    ? ` (${chalk.green("Approved")})`
+                    : pa.aspStatus === "pending"
+                        ? ` (${chalk.yellow("Pending")})`
+                        : "";
+                return [
+                    pa.paId,
+                    formatAmount(pa.value, group.decimals, group.symbol),
+                    `${statusLabel}${aspSuffix}`,
+                    formatTxHash(pa.txHash),
+                ];
+            }));
+        }
+        process.stderr.write("\n");
+    }
+    if (!renderedAny) {
+        process.stderr.write(showAll
+            ? "No Pool Accounts found.\n\n"
+            : `No spendable Pool Accounts found. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.\n\n`);
+    }
+}

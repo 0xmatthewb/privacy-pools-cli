@@ -16,20 +16,14 @@ import {
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
-import {
-  printTable,
-  spinner,
-  formatAmount,
-  formatTxHash,
-  warn,
-  verbose,
-} from "../utils/format.js";
+import { spinner, warn, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
-import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { createOutputContext, isSilent } from "../output/common.js";
+import { renderHistoryNoPools, renderHistory } from "../output/history.js";
 
 export interface HistoryEvent {
   type: "deposit" | "withdrawal" | "ragequit";
@@ -147,10 +141,9 @@ export function createHistoryCommand(): Command {
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
-      const isJson = mode.isJson;
-      const isQuiet = mode.isQuiet;
-      const silent = isQuiet || isJson;
       const isVerbose = globalOpts?.verbose ?? false;
+      const ctx = createOutputContext(mode, isVerbose);
+      const silent = isSilent(ctx);
       const limit = Math.max(1, parseInt(opts.limit, 10) || 50);
 
       try {
@@ -171,11 +164,7 @@ export function createHistoryCommand(): Command {
 
         if (pools.length === 0) {
           spin.stop();
-          if (isJson) {
-            printJsonSuccess({ chain: chainConfig.name, events: [] });
-          } else {
-            process.stderr.write(`No pools found on ${chainConfig.name}.\n`);
-          }
+          renderHistoryNoPools(ctx, chainConfig.name);
           return;
         }
 
@@ -219,7 +208,7 @@ export function createHistoryCommand(): Command {
               warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
             }
           }
-          if (syncFailures > 0 && isJson) {
+          if (syncFailures > 0 && mode.isJson) {
             throw new CLIError(
               `History sync failed for ${syncFailures} pool(s).`,
               "RPC",
@@ -248,51 +237,19 @@ export function createHistoryCommand(): Command {
 
         spin.stop();
 
-        if (isJson) {
-          printJsonSuccess({
-            chain: chainConfig.name,
-            events: limited.map((e) => ({
-              type: e.type,
-              asset: e.asset,
-              poolAddress: e.poolAddress,
-              poolAccountNumber: e.paNumber,
-              poolAccountId: e.paId,
-              value: e.value.toString(),
-              blockNumber: e.blockNumber.toString(),
-              txHash: e.txHash,
-              explorerUrl: explorerTxUrl(chainConfig.id, e.txHash),
-            })),
-          });
-          return;
-        }
-
-        if (limited.length === 0) {
-          process.stderr.write(`\nNo events found on ${chainConfig.name}.\n`);
-          return;
-        }
-
-        process.stderr.write(`\nHistory on ${chainConfig.name} (last ${limited.length} events):\n\n`);
-        const poolByAddress = new Map<string, (typeof pools)[number]>(pools.map((p) => [p.pool, p]));
-        printTable(
-          ["Block", "Type", "PA", "Amount", "Tx"],
-          limited.map((e) => {
-            const pool = poolByAddress.get(e.poolAddress);
-            const typeLabel =
-              e.type === "deposit" ? "Deposit" :
-              e.type === "withdrawal" ? "Withdraw" :
-              "Ragequit";
-            return [
-              e.blockNumber.toString(),
-              typeLabel,
-              e.paId,
-              formatAmount(e.value, pool?.decimals ?? 18, e.asset),
-              formatTxHash(e.txHash),
-            ];
-          })
+        const poolByAddress = new Map(
+          pools.map((p) => [p.pool, { pool: p.pool, decimals: p.decimals }])
         );
-        process.stderr.write("\n");
+
+        renderHistory(ctx, {
+          chain: chainConfig.name,
+          chainId: chainConfig.id,
+          events: limited,
+          poolByAddress,
+          explorerTxUrl,
+        });
       } catch (error) {
-        printError(error, isJson);
+        printError(error, mode.isJson);
       }
     });
 }

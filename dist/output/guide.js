@@ -1,8 +1,7 @@
 /**
  * Output renderer for the `guide` command.
  *
- * Phase 1 stub – delegates to existing output calls.
- * Phase 2 will move inline output from src/commands/guide.ts here.
+ * Wired in Phase 2 – src/commands/guide.ts delegates all output here.
  */
 import { printJsonSuccess, isSilent } from "./common.js";
 import { guideText } from "../utils/help.js";
