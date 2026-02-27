@@ -117,7 +117,8 @@ export function createAccountsCommand(): Command {
               });
             } catch (err) {
               syncFailures++;
-              warn(`Sync failed for pool ${poolInfo.address}: ${err instanceof Error ? err.message : String(err)}`, silent);
+              const symbol = pools.find((p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase())?.symbol ?? poolInfo.address;
+              warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
             }
           }
           if (syncFailures > 0 && isJson) {
@@ -156,14 +157,16 @@ export function createAccountsCommand(): Command {
           return 0;
         });
 
-        // Fetch ASP approval status (non-fatal if unavailable)
+        // Fetch ASP approval status in parallel (non-fatal if unavailable)
         const approvedLabelsByScope = new Map<string, Set<string> | null>();
-        for (const scopeStr of sortedScopeStrings) {
-          const pool = pools.find((p) => p.scope.toString() === scopeStr);
-          if (pool) {
-            approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
-          }
-        }
+        await Promise.all(
+          sortedScopeStrings.map(async (scopeStr) => {
+            const pool = pools.find((p) => p.scope.toString() === scopeStr);
+            if (pool) {
+              approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
+            }
+          })
+        );
 
         spin.stop();
 
@@ -265,7 +268,7 @@ export function createAccountsCommand(): Command {
             );
           } else {
             printTable(
-              ["PA", "Balance", "Status", "Last Activity"],
+              ["PA", "Balance", "Status", "Tx"],
               poolAccounts.map((pa) => {
                 const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
                 const aspSuffix =
@@ -278,7 +281,7 @@ export function createAccountsCommand(): Command {
                   pa.paId,
                   formatAmount(pa.value, pool.decimals, pool.symbol),
                   `${statusLabel}${aspSuffix}`,
-                  `block ${pa.blockNumber.toString()} • ${formatTxHash(pa.txHash)}`,
+                  formatTxHash(pa.txHash),
                 ];
               })
             );

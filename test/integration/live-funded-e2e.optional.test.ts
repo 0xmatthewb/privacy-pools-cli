@@ -8,7 +8,6 @@ import {
 
 const LIVE_E2E = process.env.PP_E2E_ENABLED === "1";
 const LIVE_E2E_REQUIRED = process.env.PP_E2E_REQUIRED === "1";
-const liveTest = LIVE_E2E ? test : test.skip;
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -18,11 +17,40 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+const REQUIRED_E2E_ENV_VARS = [
+  "PP_E2E_CHAIN",
+  "PP_E2E_MNEMONIC",
+  "PP_E2E_PRIVATE_KEY",
+  "PP_E2E_ASSET",
+  "PP_E2E_DEPOSIT_AMOUNT",
+];
+const MISSING_REQUIRED_E2E_ENV_VARS = REQUIRED_E2E_ENV_VARS.filter(
+  (v) => !process.env[v]?.trim()
+);
+const LIVE_E2E_READY = LIVE_E2E && MISSING_REQUIRED_E2E_ENV_VARS.length === 0;
+const liveTest = LIVE_E2E_READY ? test : test.skip;
+
 describe("live funded e2e (optional)", () => {
   test("fails fast when live e2e is required but disabled", () => {
     if (LIVE_E2E_REQUIRED && !LIVE_E2E) {
       throw new Error(
         "PP_E2E_REQUIRED=1 but PP_E2E_ENABLED is not set. Enable funded e2e or unset PP_E2E_REQUIRED."
+      );
+    }
+    expect(true).toBe(true);
+  });
+
+  test("fails fast when live e2e is enabled but required env vars are missing", () => {
+    if (!LIVE_E2E) {
+      expect(true).toBe(true);
+      return;
+    }
+    if (MISSING_REQUIRED_E2E_ENV_VARS.length > 0) {
+      throw new Error(
+        `E2E tests are enabled but missing required env vars:\n  ${MISSING_REQUIRED_E2E_ENV_VARS.join("\n  ")}\n\n`
+        + "Set these before running test:release, e.g.:\n"
+        + "  PP_E2E_CHAIN=sepolia PP_E2E_MNEMONIC='...' PP_E2E_PRIVATE_KEY=0x... "
+        + "PP_E2E_ASSET=ETH PP_E2E_DEPOSIT_AMOUNT=0.001 bun run test:release"
       );
     }
     expect(true).toBe(true);

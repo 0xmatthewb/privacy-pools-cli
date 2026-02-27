@@ -98,10 +98,10 @@ export function createWithdrawCommand() {
             verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
             verbose(`Mode: ${isDirect ? "direct" : "relayed"}`, isVerbose, silent);
             if (isDirect) {
-                info("Using direct withdrawal (funds go to your signer address).", silent);
+                info("Using direct withdrawal (funds sent to your signer address, no relay fee).", silent);
             }
             else {
-                info("Using relayed withdrawal (funds go to recipient via relayer).", silent);
+                info("Using relayed withdrawal (recipient cannot be linked to your deposit).", silent);
             }
             const { amount: amountStr, asset: positionalOrFlagAsset } = resolveAmountAndAssetInput("withdraw", firstArg, secondArg, opts.asset);
             // Private key is only needed for on-chain submission, not --unsigned or --dry-run
@@ -135,7 +135,7 @@ export function createWithdrawCommand() {
             else if (!skipPrompts) {
                 const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
                 if (pools.length === 0) {
-                    throw new CLIError(`No pools on ${chainConfig.name}.`, "INPUT");
+                    throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT");
                 }
                 const selected = await select({
                     message: "Select asset to withdraw:",
@@ -244,7 +244,7 @@ export function createWithdrawCommand() {
                 const selectedPA = await select({
                     message: "Select Pool Account to withdraw from:",
                     choices: approvedEligiblePoolAccounts.map((pa) => ({
-                        name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)} (block ${pa.blockNumber.toString()})`,
+                        name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
                         value: pa.paNumber,
                     })),
                 });
@@ -300,7 +300,7 @@ export function createWithdrawCommand() {
                     functionName: "latestRoot",
                 });
                 if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck)) {
-                    throw new CLIError("Pool state changed while preparing your proof. Re-fetch and retry.", "ASP");
+                    throw new CLIError("Pool state changed while preparing your proof.", "ASP", "Re-run the withdrawal command to generate a fresh proof.");
                 }
                 const proof = await withProofProgress(spin, "Generating ZK proof", () => sdk.proveWithdrawal(commitment, {
                     context,
@@ -373,7 +373,7 @@ export function createWithdrawCommand() {
                 if (!skipPrompts) {
                     spin.stop();
                     const ok = await confirm({
-                        message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)}?`,
+                        message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}?`,
                     });
                     if (!ok) {
                         info("Withdrawal cancelled.", silent);
@@ -435,7 +435,7 @@ export function createWithdrawCommand() {
                 }
                 else {
                     process.stderr.write("\n");
-                    success(`Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId}`, silent);
+                    success(`Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} to ${formatAddress(directAddress)}`, silent);
                     info(`Tx: ${formatTxHash(tx.hash)}`, silent);
                     const directExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
                     if (directExplorerUrl)
@@ -450,7 +450,7 @@ export function createWithdrawCommand() {
                 const details = await getRelayerDetails(chainConfig, pool.asset);
                 verbose(`Relayer details: minWithdraw=${details.minWithdrawAmount} feeReceiver=${details.feeReceiverAddress}`, isVerbose, silent);
                 if (withdrawalAmount < BigInt(details.minWithdrawAmount)) {
-                    throw new CLIError(`Amount below relayer minimum: ${details.minWithdrawAmount}`, "RELAYER");
+                    throw new CLIError(`Amount below relayer minimum: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`, "RELAYER", `Minimum relayed withdrawal for ${pool.symbol}: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}`);
                 }
                 let quote = await requestQuote(chainConfig, {
                     amount: withdrawalAmount,
@@ -517,7 +517,7 @@ export function createWithdrawCommand() {
                         info(`Quote fee: ${quote.feeBPS} BPS`, silent);
                         info(`Quote valid for ~${secondsLeft}s (expires ${new Date(expirationMs).toISOString()})`, silent);
                         const ok = await confirm({
-                            message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)}?`,
+                            message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)} on ${chainConfig.name}?`,
                         });
                         if (!ok) {
                             info("Withdrawal cancelled.", silent);
@@ -561,7 +561,7 @@ export function createWithdrawCommand() {
                     functionName: "latestRoot",
                 });
                 if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck)) {
-                    throw new CLIError("Pool state changed while preparing your proof. Re-fetch and retry.", "ASP");
+                    throw new CLIError("Pool state changed while preparing your proof.", "ASP", "Re-run the withdrawal command to generate a fresh proof.");
                 }
                 const proof = await withProofProgress(spin, "Generating ZK proof", () => sdk.proveWithdrawal(commitment, {
                     context,
@@ -679,7 +679,7 @@ export function createWithdrawCommand() {
                     throw new CLIError("Timed out waiting for relayed withdrawal confirmation.", "RPC", "The relayer may have replaced or delayed the transaction. Check the explorer and run 'privacy-pools sync' to update local state.");
                 }
                 if (receipt.status !== "success") {
-                    throw new CLIError(`Relay transaction reverted: ${result.txHash}`, "CONTRACT");
+                    throw new CLIError(`Relay transaction reverted: ${result.txHash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
                 }
                 guardCriticalSection();
                 try {
@@ -791,6 +791,7 @@ export function createWithdrawCommand() {
                     amount: amount.toString(),
                     recipient: recipient ?? null,
                     minWithdrawAmount: details.minWithdrawAmount,
+                    minWithdrawAmountFormatted: formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol),
                     maxRelayFeeBPS: pool.maxRelayFeeBPS.toString(),
                     quoteFeeBPS: quote.feeBPS,
                     feeCommitmentPresent: !!quote.feeCommitment,
@@ -802,7 +803,7 @@ export function createWithdrawCommand() {
             success("Relayer quote", silent);
             info(`Asset: ${pool.symbol}`, silent);
             info(`Amount: ${formatAmount(amount, pool.decimals, pool.symbol)}`, silent);
-            info(`Min withdraw: ${details.minWithdrawAmount}`, silent);
+            info(`Min withdraw: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}`, silent);
             info(`Quoted fee: ${quote.feeBPS} BPS`, silent);
             info(`On-chain max fee: ${pool.maxRelayFeeBPS.toString()} BPS`, silent);
             if (recipient)

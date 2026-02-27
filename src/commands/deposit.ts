@@ -448,7 +448,7 @@ export function createDepositCommand(): Command {
           if (explorerUrl) {
             info(`Explorer: ${explorerUrl}`, silent);
           }
-          info("Your deposit is pending ASP approval (usually a few minutes, up to 7 days in rare cases).", silent);
+          info("Your deposit is pending approval (most deposits are approved within 1 hour, some may take up to 7 days).", silent);
           info("Check status: privacy-pools accounts --chain " + chainConfig.name, silent);
         }
       } catch (error) {

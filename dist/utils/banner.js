@@ -1,5 +1,4 @@
 import chalk from "chalk";
-import { spawnSync } from "child_process";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -7,6 +6,7 @@ function sanitizeForFilename(value) {
     return value.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
 }
 function getSessionIdentifier() {
+    // Fast path: env vars set by most terminal emulators (zero overhead)
     const envSession = process.env.TERM_SESSION_ID ||
         process.env.ITERM_SESSION_ID ||
         process.env.WT_SESSION ||
@@ -16,27 +16,8 @@ function getSessionIdentifier() {
     if (envSession && envSession.trim().length > 0) {
         return envSession.trim();
     }
-    if (process.stderr.isTTY) {
-        const tty = spawnSync("tty", [], { encoding: "utf8" });
-        if (tty.status === 0) {
-            const ttyPath = tty.stdout.trim();
-            if (ttyPath && ttyPath !== "not a tty") {
-                return `tty-${ttyPath}`;
-            }
-        }
-    }
-    // POSIX session id fallback (macOS/Linux): stable across commands in the same terminal session.
-    for (const field of ["sid=", "sess="]) {
-        const ps = spawnSync("ps", ["-o", field, "-p", String(process.pid)], {
-            encoding: "utf8",
-        });
-        if (ps.status === 0) {
-            const session = ps.stdout.trim();
-            if (/^\d+$/.test(session)) {
-                return `sid-${session}`;
-            }
-        }
-    }
+    // Fast fallback: ppid is always available and stable within a shell session.
+    // Prefer this over spawning child processes (tty/ps) which add ~10-30ms each.
     if (process.ppid > 1) {
         return `ppid-${process.ppid}`;
     }

@@ -73,8 +73,16 @@ const frontendRelayerClient = hasExternalRefs
 describe("protocol conformance against docs/contracts/sdk/frontend", () => {
   test("external protocol refs are available when required", () => {
     if (externalConformanceRequired) {
+      if (!EXTERNAL_REFS_EXPLICIT) {
+        throw new Error(
+          "PP_EXTERNAL_CONFORMANCE_REQUIRED=1 but external repo paths are not set.\n"
+          + "Set PP_CORE_REPO_ROOT and PP_FRONTEND_REPO_ROOT before running, e.g.:\n"
+          + "  PP_CORE_REPO_ROOT=/path/to/privacy-pools-core "
+          + "PP_FRONTEND_REPO_ROOT=/path/to/privacy-pools-website "
+          + "bun run test:release"
+        );
+      }
       expect(hasExternalRefs).toBe(true);
-      expect(EXTERNAL_REFS_EXPLICIT).toBe(true);
     } else {
       expect(true).toBe(true);
     }

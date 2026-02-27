@@ -16,6 +16,15 @@ const runExternalConformance = externalRefsAvailable ? test : test.skip;
 describe("chain config conformance", () => {
   test("external docs refs are available when required", () => {
     if (externalConformanceRequired) {
+      if (!externalRefsAvailable) {
+        throw new Error(
+          "PP_EXTERNAL_CONFORMANCE_REQUIRED=1 but external repo paths are not set or repos not found.\n"
+          + "Set PP_CORE_REPO_ROOT and PP_FRONTEND_REPO_ROOT before running, e.g.:\n"
+          + "  PP_CORE_REPO_ROOT=/path/to/privacy-pools-core "
+          + "PP_FRONTEND_REPO_ROOT=/path/to/privacy-pools-website "
+          + "bun run test:release"
+        );
+      }
       expect(externalRefsAvailable).toBe(true);
     } else {
       expect(true).toBe(true);

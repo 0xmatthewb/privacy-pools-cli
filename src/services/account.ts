@@ -135,7 +135,7 @@ export async function initializeAccountService(
           "Check your RPC connectivity and retry."
         );
       }
-      saveAccount(chainId, service.account);
+      // Caller is responsible for saving within a critical section guard.
     }
 
     return service;

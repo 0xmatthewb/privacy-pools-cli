@@ -122,7 +122,7 @@ export function createStatusCommand() {
             }
             // Chain details
             if (selectedChainConfig) {
-                info(`Entrypoint: ${selectedChainConfig.entrypoint}`, silent);
+                info(`Contract: ${selectedChainConfig.entrypoint}`, silent);
                 info(`RPC: ${getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)}`, silent);
                 const shouldCheckAll = opts.check === true;
                 const shouldCheckAsp = shouldCheckAll || opts.checkAsp === true;

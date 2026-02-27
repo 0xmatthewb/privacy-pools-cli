@@ -147,9 +147,9 @@ export function createWithdrawCommand(): Command {
         verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
         verbose(`Mode: ${isDirect ? "direct" : "relayed"}`, isVerbose, silent);
         if (isDirect) {
-          info("Using direct withdrawal (funds go to your signer address).", silent);
+          info("Using direct withdrawal (funds sent to your signer address, no relay fee).", silent);
         } else {
-          info("Using relayed withdrawal (funds go to recipient via relayer).", silent);
+          info("Using relayed withdrawal (recipient cannot be linked to your deposit).", silent);
         }
 
         const { amount: amountStr, asset: positionalOrFlagAsset } = resolveAmountAndAssetInput(
@@ -205,7 +205,7 @@ export function createWithdrawCommand(): Command {
         } else if (!skipPrompts) {
           const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
           if (pools.length === 0) {
-            throw new CLIError(`No pools on ${chainConfig.name}.`, "INPUT");
+            throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT");
           }
           const selected = await select({
             message: "Select asset to withdraw:",
@@ -398,7 +398,7 @@ export function createWithdrawCommand(): Command {
           const selectedPA = await select({
             message: "Select Pool Account to withdraw from:",
             choices: approvedEligiblePoolAccounts.map((pa) => ({
-              name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)} (block ${pa.blockNumber.toString()})`,
+              name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
               value: pa.paNumber,
             })),
           });
@@ -480,8 +480,9 @@ export function createWithdrawCommand(): Command {
           });
           if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck as bigint)) {
             throw new CLIError(
-              "Pool state changed while preparing your proof. Re-fetch and retry.",
-              "ASP"
+              "Pool state changed while preparing your proof.",
+              "ASP",
+              "Re-run the withdrawal command to generate a fresh proof."
             );
           }
 
@@ -571,7 +572,7 @@ export function createWithdrawCommand(): Command {
           if (!skipPrompts) {
             spin.stop();
             const ok = await confirm({
-              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)}?`,
+              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}?`,
             });
             if (!ok) {
               info("Withdrawal cancelled.", silent);
@@ -660,7 +661,7 @@ export function createWithdrawCommand(): Command {
           } else {
             process.stderr.write("\n");
             success(
-              `Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId}`,
+              `Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} to ${formatAddress(directAddress)}`,
               silent
             );
             info(`Tx: ${formatTxHash(tx.hash)}`, silent);
@@ -681,8 +682,9 @@ export function createWithdrawCommand(): Command {
 
           if (withdrawalAmount < BigInt(details.minWithdrawAmount)) {
             throw new CLIError(
-              `Amount below relayer minimum: ${details.minWithdrawAmount}`,
-              "RELAYER"
+              `Amount below relayer minimum: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`,
+              "RELAYER",
+              `Minimum relayed withdrawal for ${pool.symbol}: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}`
             );
           }
 
@@ -795,7 +797,7 @@ export function createWithdrawCommand(): Command {
                 silent
               );
               const ok = await confirm({
-                message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)}?`,
+                message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)} on ${chainConfig.name}?`,
               });
               if (!ok) {
                 info("Withdrawal cancelled.", silent);
@@ -854,8 +856,9 @@ export function createWithdrawCommand(): Command {
           });
           if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck as bigint)) {
             throw new CLIError(
-              "Pool state changed while preparing your proof. Re-fetch and retry.",
-              "ASP"
+              "Pool state changed while preparing your proof.",
+              "ASP",
+              "Re-run the withdrawal command to generate a fresh proof."
             );
           }
 
@@ -1006,7 +1009,8 @@ export function createWithdrawCommand(): Command {
           if (receipt.status !== "success") {
             throw new CLIError(
               `Relay transaction reverted: ${result.txHash}`,
-              "CONTRACT"
+              "CONTRACT",
+              "Check the transaction on a block explorer for details."
             );
           }
           guardCriticalSection();
@@ -1153,6 +1157,7 @@ export function createWithdrawCommand(): Command {
               amount: amount.toString(),
               recipient: recipient ?? null,
               minWithdrawAmount: details.minWithdrawAmount,
+              minWithdrawAmountFormatted: formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol),
               maxRelayFeeBPS: pool.maxRelayFeeBPS.toString(),
               quoteFeeBPS: quote.feeBPS,
               feeCommitmentPresent: !!quote.feeCommitment,
@@ -1167,7 +1172,7 @@ export function createWithdrawCommand(): Command {
         success("Relayer quote", silent);
         info(`Asset: ${pool.symbol}`, silent);
         info(`Amount: ${formatAmount(amount, pool.decimals, pool.symbol)}`, silent);
-        info(`Min withdraw: ${details.minWithdrawAmount}`, silent);
+        info(`Min withdraw: ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}`, silent);
         info(`Quoted fee: ${quote.feeBPS} BPS`, silent);
         info(`On-chain max fee: ${pool.maxRelayFeeBPS.toString()} BPS`, silent);
         if (recipient) info(`Recipient: ${formatAddress(recipient)}`, silent);

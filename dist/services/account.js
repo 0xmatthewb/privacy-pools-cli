@@ -103,7 +103,7 @@ strictSync = false) {
             if (strictSync && syncFailures > 0) {
                 throw new CLIError(`Failed to sync account state for ${syncFailures} pool(s).`, "RPC", "Check your RPC connectivity and retry.");
             }
-            saveAccount(chainId, service.account);
+            // Caller is responsible for saving within a critical section guard.
         }
         return service;
     }

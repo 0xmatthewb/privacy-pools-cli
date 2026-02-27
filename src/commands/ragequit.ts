@@ -41,7 +41,7 @@ import {
 export function createRagequitCommand(): Command {
   return new Command("ragequit")
     .alias("exit")
-    .description("Emergency exit: recover funds publicly, sacrificing privacy")
+    .description("Publicly withdraw funds without ASP approval (reveals deposit link)")
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
     .option("-a, --asset <symbol|address>", "Asset pool to exit from")
     .option("-p, --from-pa <PA-#|#>", "Exit a specific Pool Account (e.g. PA-2)")
@@ -136,7 +136,7 @@ export function createRagequitCommand(): Command {
         } else if (!skipPrompts) {
           const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
           if (pools.length === 0) {
-            throw new CLIError(`No pools on ${chainConfig.name}.`, "INPUT");
+            throw new CLIError(`No pools found on ${chainConfig.name}.`, "INPUT");
           }
           const selected = await select({
             message: "Select asset pool to exit:",
@@ -260,13 +260,13 @@ export function createRagequitCommand(): Command {
             selectedPoolAccount = matchedPoolAccount;
           }
           if (!silent) {
-            warn("`--commitment` is deprecated; use `--from-pa PA-<n>`.", false);
+            warn("--commitment is deprecated. Use --from-pa PA-<n> instead.", false);
           }
         } else if (!skipPrompts) {
           const selected = await select({
             message: "Select Pool Account to exit:",
             choices: poolAccounts.map((pa) => ({
-              name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)} (block ${pa.blockNumber.toString()})`,
+              name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
               value: pa.paNumber,
             })),
           });
@@ -290,11 +290,7 @@ export function createRagequitCommand(): Command {
         if (!skipPrompts) {
           process.stderr.write("\n");
           warn(
-            "RAGEQUIT reveals your deposit publicly and sacrifices privacy.",
-            silent
-          );
-          warn(
-            "Your deposit address will be linked to this ragequit transaction.",
+            "This is a public withdrawal — your deposit address will be linked to this transaction.",
             silent
           );
           process.stderr.write("\n");

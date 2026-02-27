@@ -215,7 +215,8 @@ export function createHistoryCommand(): Command {
               });
             } catch (err) {
               syncFailures++;
-              warn(`Sync failed for pool ${poolInfo.address}: ${err instanceof Error ? err.message : String(err)}`, silent);
+              const symbol = pools.find((p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase())?.symbol ?? poolInfo.address;
+              warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
             }
           }
           if (syncFailures > 0 && isJson) {

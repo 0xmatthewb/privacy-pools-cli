@@ -73,7 +73,8 @@ export function createAccountsCommand() {
                     }
                     catch (err) {
                         syncFailures++;
-                        warn(`Sync failed for pool ${poolInfo.address}: ${err instanceof Error ? err.message : String(err)}`, silent);
+                        const symbol = pools.find((p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase())?.symbol ?? poolInfo.address;
+                        warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
                     }
                 }
                 if (syncFailures > 0 && isJson) {
@@ -109,14 +110,14 @@ export function createAccountsCommand() {
                     return 1;
                 return 0;
             });
-            // Fetch ASP approval status (non-fatal if unavailable)
+            // Fetch ASP approval status in parallel (non-fatal if unavailable)
             const approvedLabelsByScope = new Map();
-            for (const scopeStr of sortedScopeStrings) {
+            await Promise.all(sortedScopeStrings.map(async (scopeStr) => {
                 const pool = pools.find((p) => p.scope.toString() === scopeStr);
                 if (pool) {
                     approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
                 }
-            }
+            }));
             spin.stop();
             if (isJson) {
                 const jsonData = [];
@@ -185,7 +186,7 @@ export function createAccountsCommand() {
                     ]));
                 }
                 else {
-                    printTable(["PA", "Balance", "Status", "Last Activity"], poolAccounts.map((pa) => {
+                    printTable(["PA", "Balance", "Status", "Tx"], poolAccounts.map((pa) => {
                         const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
                         const aspSuffix = pa.aspStatus === "approved"
                             ? ` (${chalk.green("Approved")})`
@@ -196,7 +197,7 @@ export function createAccountsCommand() {
                             pa.paId,
                             formatAmount(pa.value, pool.decimals, pool.symbol),
                             `${statusLabel}${aspSuffix}`,
-                            `block ${pa.blockNumber.toString()} • ${formatTxHash(pa.txHash)}`,
+                            formatTxHash(pa.txHash),
                         ];
                     }));
                 }
