@@ -14,6 +14,8 @@ interface CommandHelpConfig {
     prerequisites?: string;
     jsonFields: string;
     jsonVariants?: string[];
+    supportsUnsigned?: boolean;
+    supportsDryRun?: boolean;
 }
 export declare function commandHelpText(config: CommandHelpConfig): string;
 export {};

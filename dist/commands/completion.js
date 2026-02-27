@@ -25,7 +25,8 @@ export function createCompletionCommand() {
         .choices([...SUPPORTED_COMPLETION_SHELLS]))
         .addOption(new Option("--query", "Internal: query completion candidates").hideHelp())
         .addOption(new Option("--cword <index>", "Internal: current word index").hideHelp())
-        .argument("[words...]", "Internal: shell words for completion query")
+        .argument("[shell]", "Target shell (bash|zsh|fish)")
+        .allowExcessArguments(true)
         .addHelpText("after", [
         "",
         "Examples:",
@@ -33,13 +34,14 @@ export function createCompletionCommand() {
         "  privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
         "  privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
     ].join("\n"))
-        .action((words, opts, cmd) => {
+        .action((shellArg, opts, cmd) => {
         const root = cmd.parent;
         if (!root) {
             throw new CLIError("Completion command is not attached to root command.", "UNKNOWN");
         }
         const globalOpts = root.opts();
         const mode = resolveGlobalMode(globalOpts);
+        const words = cmd.args;
         if (opts.query) {
             const shellName = opts.shell ? parseShell(opts.shell) : detectCompletionShell();
             const cword = parseCword(opts.cword);
@@ -68,8 +70,8 @@ export function createCompletionCommand() {
         if (opts.shell) {
             shellName = parseShell(opts.shell);
         }
-        else if (words.length === 1) {
-            shellName = parseShell(words[0]);
+        else if (shellArg) {
+            shellName = parseShell(shellArg);
         }
         else {
             shellName = detectCompletionShell();

@@ -40,6 +40,11 @@ import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import {
+  buildPoolAccountRefs,
+  parsePoolAccountSelector,
+  poolAccountId,
+} from "../utils/pool-accounts.js";
 
 const entrypointLatestRootAbi = [
   {
@@ -66,24 +71,27 @@ export function createWithdrawCommand(): Command {
     .description("Withdraw from a Privacy Pool (relayed by default)")
     .argument("<amountOrAsset>", "Amount or asset (supports both <amount> --asset ... and <asset> <amount>)")
     .argument("[amount]", "Optional amount when using positional asset alias")
-    .option("--to <address>", "Recipient address (required for relayed)")
+    .option("-t, --to <address>", "Recipient address (required for relayed)")
+    .option("-p, --from-pa <PA-#|#>", "Withdraw from a specific Pool Account (e.g. PA-2)")
     .option("--direct", "Use direct withdrawal instead of relayed")
-    .option("--unsigned", "Output unsigned payload(s) without submitting")
-    .option("--unsigned-format <format>", "Unsigned output format: envelope|tx")
-    .option("--dry-run", "Generate and verify all withdrawal artifacts without submitting")
-    .option("--asset <symbol|address>", "Asset to withdraw")
+    .option("--unsigned", "Build unsigned payload(s); do not submit")
+    .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
+    .option("--dry-run", "Generate and verify withdrawal artifacts without submitting")
+    .option("-a, --asset <symbol|address>", "Asset to withdraw")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools withdraw 1 --asset USDC --json --yes --to 0xRecipient...\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...\n"
+      "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-2 --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools withdraw 1 --asset USDC --json --yes --to 0xRecipient...\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
-          jsonFields: "{ mode, txHash, amount, asset, chain }",
+          jsonFields: "{ mode, txHash, amount, asset, chain, poolAccountId }",
           jsonVariants: [
             "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
             "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
             "--dry-run: { mode, dryRun, amount, proofPublicSignals, ... }",
             "quote: { mode, chain, asset, amount, quoteFeeBPS, ... }",
           ],
+          supportsUnsigned: true,
+          supportsDryRun: true,
         })
     )
     .action(async (firstArg, secondArg, opts, cmd) => {
@@ -99,8 +107,19 @@ export function createWithdrawCommand(): Command {
       const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
       const isVerbose = globalOpts?.verbose ?? false;
       const isDirect = opts.direct ?? false;
+      const fromPaRaw = opts.fromPa as string | undefined;
+      const fromPaNumber =
+        fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
 
       try {
+        if (fromPaRaw !== undefined && fromPaNumber === null) {
+          throw new CLIError(
+            `Invalid --from-pa value: ${fromPaRaw}.`,
+            "INPUT",
+            "Use a Pool Account identifier like PA-2 (or just 2)."
+          );
+        }
+
         if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
           throw new CLIError(
             `Unsupported unsigned format: ${opts.unsignedFormat}.`,
@@ -189,7 +208,7 @@ export function createWithdrawCommand(): Command {
           });
           pool = pools.find((p) => p.symbol === selected)!;
         } else {
-          throw new CLIError("No asset specified. Use --asset.", "INPUT");
+          throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT");
         }
         verbose(
           `Pool resolved: ${pool.symbol} asset=${pool.asset} pool=${pool.pool} scope=${pool.scope.toString()}`,
@@ -232,25 +251,31 @@ export function createWithdrawCommand(): Command {
           true
         );
 
-        // Find spendable commitment
+        // Find spendable Pool Accounts for this scope.
         const spendable = accountService.getSpendableCommitments();
         const poolCommitments =
           spendable.get(pool.scope) ?? [];
-        verbose(`Spendable commitments for scope: ${poolCommitments.length}`, isVerbose, silent);
+
+        const poolAccounts = buildPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          poolCommitments
+        );
+        verbose(`Spendable Pool Accounts in this pool: ${poolAccounts.length}`, isVerbose, silent);
 
         const baseSelection = selectBestWithdrawalCommitment(
-          poolCommitments,
+          poolAccounts,
           withdrawalAmount
         );
 
         if (baseSelection.kind === "insufficient") {
           spin.stop();
           throw new CLIError(
-            `No commitment with sufficient balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
+            `No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
             "INPUT",
             poolCommitments.length > 0
               ? `Largest available: ${formatAmount(baseSelection.largestAvailable, pool.decimals, pool.symbol)}`
-              : "No spendable commitments found. Have you deposited?"
+              : `No spendable Pool Accounts found for ${pool.symbol}. Deposit first, then run 'privacy-pools accounts --chain ${chainConfig.name}'.`
           );
         }
 
@@ -300,7 +325,7 @@ export function createWithdrawCommand(): Command {
         // Choose smallest eligible commitment that is currently ASP-approved.
         const approvedLabelSet = new Set(aspLabels);
         const approvedSelection = selectBestWithdrawalCommitment(
-          poolCommitments,
+          poolAccounts,
           withdrawalAmount,
           approvedLabelSet
         );
@@ -309,22 +334,76 @@ export function createWithdrawCommand(): Command {
           throw new CLIError(
             "No ASP-approved commitment can satisfy this withdrawal amount.",
             "ASP",
-            "You may have sufficient balance, but those labels are not currently approved. Wait for ASP approval or use ragequit."
+            "You may have sufficient balance, but those Pool Accounts are not currently approved. Wait for ASP approval or use exit/ragequit."
           );
         }
 
         if (approvedSelection.kind === "insufficient") {
           throw new CLIError(
-            `No commitment with sufficient balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
+            `No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
             "INPUT",
-            "No spendable commitments found. Have you deposited?"
+            `No spendable Pool Accounts found for ${pool.symbol}.`
           );
         }
 
-        const commitment = approvedSelection.commitment;
+        const approvedEligiblePoolAccounts = poolAccounts
+          .filter((pa) => pa.value >= withdrawalAmount && approvedLabelSet.has(pa.label))
+          .sort((a, b) => {
+            if (a.value < b.value) return -1;
+            if (a.value > b.value) return 1;
+            if (a.label < b.label) return -1;
+            if (a.label > b.label) return 1;
+            return 0;
+          });
+
+        let selectedPoolAccount = approvedSelection.commitment;
+
+        if (fromPaNumber !== undefined && fromPaNumber !== null) {
+          const requested = poolAccounts.find((pa) => pa.paNumber === fromPaNumber);
+          if (!requested) {
+            throw new CLIError(
+              `Unknown Pool Account ${poolAccountId(fromPaNumber)} for ${pool.symbol}.`,
+              "INPUT",
+              `Run 'privacy-pools accounts --chain ${chainConfig.name}' to list available Pool Accounts.`
+            );
+          }
+
+          if (requested.value < withdrawalAmount) {
+            throw new CLIError(
+              `${requested.paId} has insufficient balance for this withdrawal.`,
+              "INPUT",
+              `${requested.paId} balance: ${formatAmount(requested.value, pool.decimals, pool.symbol)}`
+            );
+          }
+
+          if (!approvedLabelSet.has(requested.label)) {
+            throw new CLIError(
+              `${requested.paId} is not currently ASP-approved for private withdrawal.`,
+              "ASP",
+              "Wait for ASP approval, or use exit/ragequit for public recovery."
+            );
+          }
+
+          selectedPoolAccount = requested;
+        } else if (!skipPrompts && approvedEligiblePoolAccounts.length > 1) {
+          spin.stop();
+          const selectedPA = await select({
+            message: "Select Pool Account to withdraw from:",
+            choices: approvedEligiblePoolAccounts.map((pa) => ({
+              name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)} (block ${pa.blockNumber.toString()})`,
+              value: pa.paNumber,
+            })),
+          });
+          selectedPoolAccount = approvedEligiblePoolAccounts.find((pa) => pa.paNumber === selectedPA)!;
+          spin.start();
+        } else if (approvedEligiblePoolAccounts.length > 0) {
+          selectedPoolAccount = approvedEligiblePoolAccounts[0];
+        }
+
+        const commitment = selectedPoolAccount.commitment;
         const commitmentLabel = commitment.label;
         verbose(
-          `Selected commitment: label=${commitmentLabel.toString()} value=${commitment.value.toString()}`,
+          `Selected ${selectedPoolAccount.paId}: label=${commitmentLabel.toString()} value=${commitment.value.toString()}`,
           isVerbose,
           silent
         );
@@ -427,7 +506,14 @@ export function createWithdrawCommand(): Command {
             if (wantsTxFormat) {
               printRawTransactions(payload.transactions);
             } else {
-              printJsonSuccess(payload, false);
+              printJsonSuccess(
+                {
+                  ...payload,
+                  poolAccountNumber: selectedPoolAccount.paNumber,
+                  poolAccountId: selectedPoolAccount.paId,
+                },
+                false
+              );
             }
             return;
           }
@@ -443,6 +529,8 @@ export function createWithdrawCommand(): Command {
                   asset: pool.symbol,
                   chain: chainConfig.name,
                   recipient: directAddress,
+                  poolAccountNumber: selectedPoolAccount.paNumber,
+                  poolAccountId: selectedPoolAccount.paId,
                   selectedCommitmentLabel: commitmentLabel.toString(),
                   selectedCommitmentValue: commitment.value.toString(),
                   proofPublicSignals: proof.publicSignals.length,
@@ -454,8 +542,9 @@ export function createWithdrawCommand(): Command {
               success("Dry-run complete.", silent);
               info(`Mode: direct`, silent);
               info(`Recipient: ${formatAddress(directAddress)}`, silent);
+              info(`From Pool Account: ${selectedPoolAccount.paId}`, silent);
               info(
-                `Selected commitment: label=${commitmentLabel.toString()} value=${formatAmount(commitment.value, pool.decimals, pool.symbol)}`,
+                `Pool Account balance: ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`,
                 silent
               );
               info("No transaction was submitted.", silent);
@@ -466,7 +555,7 @@ export function createWithdrawCommand(): Command {
           if (!skipPrompts) {
             spin.stop();
             const ok = await confirm({
-              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} directly to ${formatAddress(directAddress)}?`,
+              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)}?`,
             });
             if (!ok) {
               info("Withdrawal cancelled.", silent);
@@ -541,13 +630,15 @@ export function createWithdrawCommand(): Command {
                 recipient: recipientAddress,
                 asset: pool.symbol,
                 chain: chainConfig.name,
+                poolAccountNumber: selectedPoolAccount.paNumber,
+                poolAccountId: selectedPoolAccount.paId,
               },
               false
             );
           } else {
             process.stderr.write("\n");
             success(
-              `Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+              `Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId}`,
               silent
             );
             info(`Tx: ${formatTxHash(tx.hash)}`, silent);
@@ -668,7 +759,7 @@ export function createWithdrawCommand(): Command {
           if (!skipPrompts) {
             spin.stop();
             const ok = await confirm({
-              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} via relayer to ${formatAddress(recipientAddress)}? (fee: ${quote.feeBPS} BPS)`,
+              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)}? (fee: ${quote.feeBPS} BPS)`,
             });
             if (!ok) {
               info("Withdrawal cancelled.", silent);
@@ -737,7 +828,14 @@ export function createWithdrawCommand(): Command {
             if (wantsTxFormat) {
               printRawTransactions(payload.transactions);
             } else {
-              printJsonSuccess(payload, false);
+              printJsonSuccess(
+                {
+                  ...payload,
+                  poolAccountNumber: selectedPoolAccount.paNumber,
+                  poolAccountId: selectedPoolAccount.paId,
+                },
+                false
+              );
             }
             return;
           }
@@ -753,6 +851,8 @@ export function createWithdrawCommand(): Command {
                   asset: pool.symbol,
                   chain: chainConfig.name,
                   recipient: recipientAddress,
+                  poolAccountNumber: selectedPoolAccount.paNumber,
+                  poolAccountId: selectedPoolAccount.paId,
                   selectedCommitmentLabel: commitmentLabel.toString(),
                   selectedCommitmentValue: commitment.value.toString(),
                   feeBPS: quote.feeBPS,
@@ -766,10 +866,11 @@ export function createWithdrawCommand(): Command {
               success("Dry-run complete.", silent);
               info(`Mode: relayed`, silent);
               info(`Recipient: ${formatAddress(recipientAddress)}`, silent);
+              info(`From Pool Account: ${selectedPoolAccount.paId}`, silent);
               info(`Relay fee: ${quote.feeBPS} BPS`, silent);
               info(`Quote expires: ${new Date(expirationMs).toISOString()}`, silent);
               info(
-                `Selected commitment: label=${commitmentLabel.toString()} value=${formatAmount(commitment.value, pool.decimals, pool.symbol)}`,
+                `Pool Account balance: ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`,
                 silent
               );
               info("No transaction was submitted.", silent);
@@ -845,13 +946,15 @@ export function createWithdrawCommand(): Command {
                 feeBPS: quote.feeBPS,
                 asset: pool.symbol,
                 chain: chainConfig.name,
+                poolAccountNumber: selectedPoolAccount.paNumber,
+                poolAccountId: selectedPoolAccount.paId,
               },
               false
             );
           } else {
             process.stderr.write("\n");
             success(
-              `Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} to ${formatAddress(recipientAddress)}`,
+              `Withdrew ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} to ${formatAddress(recipientAddress)}`,
               silent
             );
             info(`Tx: ${formatTxHash(result.txHash)}`, silent);
@@ -859,7 +962,7 @@ export function createWithdrawCommand(): Command {
           }
         }
       } catch (error) {
-        printError(error, isJson || isUnsigned || isDryRun);
+        printError(error, isJson || isUnsigned);
       }
     });
 
@@ -868,8 +971,8 @@ export function createWithdrawCommand(): Command {
     .description("Request relayer quote and limits without generating a proof")
     .argument("<amountOrAsset>", "Amount or asset (supports both <amount> --asset ... and <asset> <amount>)")
     .argument("[amount]", "Optional amount when using positional asset alias")
-    .option("--asset <symbol|address>", "Asset to quote")
-    .option("--to <address>", "Recipient address (recommended for signed fee commitment)")
+    .option("-a, --asset <symbol|address>", "Asset to quote")
+    .option("-t, --to <address>", "Recipient address (recommended for signed fee commitment)")
     .addHelpText(
       "after",
       "\nExamples:\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw quote 100 --asset USDC --json --chain ethereum\n"
@@ -902,7 +1005,7 @@ export function createWithdrawCommand(): Command {
         if (positionalOrFlagAsset) {
           pool = await resolvePool(chainConfig, positionalOrFlagAsset, globalOpts?.rpcUrl);
         } else {
-          throw new CLIError("No asset specified. Use --asset.", "INPUT");
+          throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT");
         }
         verbose(
           `Pool resolved: ${pool.symbol} asset=${pool.asset} pool=${pool.pool}`,

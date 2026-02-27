@@ -25,8 +25,20 @@ import { printJsonSuccess } from "./utils/json.js";
 // Load .env if present
 loadEnv();
 const argv = process.argv.slice(2);
+function hasShortFlag(args, flag) {
+    for (const token of args) {
+        if (!token.startsWith("-") || token.startsWith("--"))
+            continue;
+        if (token === `-${flag}`)
+            return true;
+        // Support bundled short flags, e.g. -jy or -qV
+        if (/^-[A-Za-z]+$/.test(token) && token.includes(flag))
+            return true;
+    }
+    return false;
+}
 function firstNonOptionToken(args) {
-    const optionsWithValue = new Set(["--chain", "--rpc-url"]);
+    const optionsWithValue = new Set(["-c", "--chain", "-r", "--rpc-url"]);
     for (let i = 0; i < args.length; i++) {
         const token = args[i];
         if (!token.startsWith("-"))
@@ -37,14 +49,13 @@ function firstNonOptionToken(args) {
     return undefined;
 }
 const firstCommandToken = firstNonOptionToken(argv);
-const isJson = argv.includes("--json");
+const isJson = argv.includes("--json") || hasShortFlag(argv, "j");
 const isAgent = argv.includes("--agent");
-const isQuiet = argv.includes("--quiet");
+const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
 const isUnsigned = argv.includes("--unsigned");
-const isDryRun = argv.includes("--dry-run");
-const isMachineMode = isJson || isUnsigned || isDryRun || isAgent;
-const isHelpLike = argv.includes("--help") || argv.includes("-h") || firstCommandToken === "help";
-const isVersionLike = argv.includes("--version") || argv.includes("-V");
+const isMachineMode = isJson || isUnsigned || isAgent;
+const isHelpLike = argv.includes("--help") || hasShortFlag(argv, "h") || firstCommandToken === "help";
+const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
 const isCompletionLike = firstCommandToken === "completion";
 const noBanner = argv.includes("--no-banner");
 const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
@@ -58,22 +69,23 @@ let machineCapturedOut = "";
 const program = new Command();
 program
     .name("privacy-pools")
-    .description("CLI for interacting with Privacy Pools v1")
+    .description("Human-first CLI for Privacy Pools v1 (use -j -y in agent workflows)")
     .version(pkg.version)
-    .option("--chain <name>", "Target chain (ethereum, sepolia, ...)")
-    .option("--json", "Machine-readable JSON output")
-    .option("--agent", "Agent-first mode (implies --json, --yes, and --quiet)")
-    .option("--yes", "Skip confirmation prompts");
+    .option("-c, --chain <name>", "Target chain (ethereum, sepolia, ...)")
+    .option("-j, --json", "Machine-readable JSON output")
+    .option("-y, --yes", "Skip confirmation prompts");
 // Advanced options (kept available but hidden from root help to reduce noise)
-program.addOption(new Option("--rpc-url <url>", "Override RPC URL").hideHelp());
-program.addOption(new Option("--quiet", "Suppress non-essential output (agent-friendly)")
+program.addOption(new Option("-r, --rpc-url <url>", "Override RPC URL").hideHelp());
+program.addOption(new Option("--agent", "Compatibility alias for --json --yes --quiet").hideHelp());
+program.addOption(new Option("-q, --quiet", "Suppress non-essential output (agent-friendly)")
     .hideHelp());
 program.addOption(new Option("--no-banner", "Disable ASCII banner output").hideHelp());
-program.addOption(new Option("--verbose", "Enable verbose output").hideHelp());
+program.addOption(new Option("-v, --verbose", "Enable verbose output").hideHelp());
 // Show only command names in root help (no argument signatures)
 program.configureHelp({
     subcommandTerm(cmd) {
-        return cmd.name();
+        const aliases = cmd.aliases();
+        return aliases.length > 0 ? `${cmd.name()}|${aliases[0]}` : cmd.name();
     },
 });
 if (!isMachineMode) {

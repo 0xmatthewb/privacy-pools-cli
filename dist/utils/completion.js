@@ -38,6 +38,10 @@ function toOptionSpec(option) {
     if (option.long && INTERNAL_COMPLETION_OPTION_NAMES.has(option.long)) {
         return null;
     }
+    // Keep advanced/internal flags hidden from completion candidates.
+    if (option.hidden) {
+        return null;
+    }
     const names = [option.short, option.long].filter((name) => typeof name === "string" && name.length > 0);
     if (names.length === 0)
         return null;
@@ -53,10 +57,11 @@ function buildTree(command) {
         .filter((value) => value !== null);
     const subcommands = new Map();
     for (const subcommand of command.commands) {
-        const name = subcommand.name();
-        if (!name)
-            continue;
-        subcommands.set(name, buildTree(subcommand));
+        const node = buildTree(subcommand);
+        const names = [subcommand.name(), ...subcommand.aliases()].filter((name) => typeof name === "string" && name.length > 0);
+        for (const name of names) {
+            subcommands.set(name, node);
+        }
     }
     return {
         name: command.name(),

@@ -27,7 +27,7 @@ export function createBalanceCommand(): Command {
       "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --sync --chain sepolia\n  privacy-pools balance --json\n"
         + commandHelpText({
           prerequisites: "init",
-          jsonFields: "{ chain, balances: [{ asset, assetAddress, balance, commitments }] }",
+          jsonFields: "{ chain, balances: [{ asset, assetAddress, balance, commitments, poolAccounts }] }",
         })
     )
     .action(async (opts, cmd) => {
@@ -142,14 +142,20 @@ export function createBalanceCommand(): Command {
             assetAddress: pool.asset,
             balance: totalValue.toString(),
             commitments: commitments.length,
+            // `commitments` is retained for backward compatibility.
+            poolAccounts: commitments.length,
           });
         }
+        rows.sort((a, b) => a[0].localeCompare(b[0]));
+        jsonData.sort((a, b) =>
+          String(a.asset ?? "").localeCompare(String(b.asset ?? ""))
+        );
 
         if (rows.length === 0) {
           if (isJson) {
             printJsonSuccess({ chain: chainConfig.name, balances: [] }, false);
           } else {
-            process.stderr.write(`\nNo balances found on ${chainConfig.name}.\n`);
+            process.stderr.write(`\nNo balances found on ${chainConfig.name}. Deposit first to create Pool Accounts.\n`);
           }
           return;
         }
@@ -163,7 +169,7 @@ export function createBalanceCommand(): Command {
         }
 
         process.stderr.write(`\nBalances on ${chainConfig.name}:\n\n`);
-        printTable(["Asset", "Balance", "Commitments"], rows);
+        printTable(["Asset", "Balance", "Pool Accounts"], rows);
       } catch (error) {
         printError(error, isJson);
       }

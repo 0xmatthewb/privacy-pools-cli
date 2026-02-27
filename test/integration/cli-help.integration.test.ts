@@ -8,16 +8,22 @@ describe("CLI help and discovery", () => {
     const result = runCli(["--help"], { home: createTempHome() });
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
-    expect(result.stdout).toContain("--agent");
+    expect(result.stdout).not.toContain("--agent");
     expect(result.stdout).not.toMatch(/\n\s+--quiet\s/);
     expect(result.stdout).not.toMatch(/\n\s+--verbose\s/);
     expect(result.stdout).not.toMatch(/\n\s+--no-banner\s/);
+    expect(result.stdout).toContain("-c, --chain");
+    expect(result.stdout).toContain("-j, --json");
+    expect(result.stdout).toContain("-y, --yes");
+    expect(result.stdout).toContain("Agent mode:");
+    expect(result.stdout).toContain("Agent unsigned:");
     expect(result.stdout).toContain("init");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("pools");
     expect(result.stdout).toContain("deposit");
     expect(result.stdout).toContain("withdraw");
     expect(result.stdout).toContain("ragequit");
+    expect(result.stdout).toContain("exit");
     expect(result.stdout).toContain("balance");
     expect(result.stdout).toContain("accounts");
     expect(result.stdout).toContain("sync");
@@ -39,8 +45,9 @@ describe("CLI help and discovery", () => {
     ["deposit", "Deposit ETH or ERC20 tokens into a Privacy Pool"],
     ["withdraw", "Withdraw from a Privacy Pool (relayed by default)"],
     ["ragequit", "Emergency public exit"],
+    ["exit", "Emergency public exit"],
     ["balance", "Show balances across pools"],
-    ["accounts", "List pool accounts and commitment details"],
+    ["accounts", "List your Pool Accounts"],
     ["sync", "Sync local account state from on-chain events"],
     ["completion", "Generate shell completion script"],
   ] as const;
@@ -81,6 +88,12 @@ describe("CLI help and discovery", () => {
 
   test("--quiet suppresses banner during normal command execution", () => {
     const result = runCli(["--quiet", "status"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain(BANNER_SENTINEL);
+  });
+
+  test("-q suppresses banner during normal command execution", () => {
+    const result = runCli(["-q", "status"], { home: createTempHome() });
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
   });

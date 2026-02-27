@@ -28,6 +28,15 @@ describe("completion command", () => {
     expect(result.stderr).not.toContain(BANNER_SENTINEL);
   });
 
+  test("completion --help hides internal query arguments", () => {
+    const result = runCli(["completion", "--help"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    const combined = `${result.stdout}\n${result.stderr}`;
+    expect(combined).not.toContain("Internal: shell words for completion query");
+    expect(combined).not.toContain("--query");
+    expect(combined).not.toContain("--cword");
+  });
+
   test("--json completion returns shell and script payload", () => {
     const result = runCli(["--json", "completion", "zsh"], { home: createTempHome() });
     expect(result.status).toBe(0);
@@ -68,7 +77,13 @@ describe("completion command", () => {
       .filter(Boolean);
     expect(lines).toContain("init");
     expect(lines).toContain("completion");
+    expect(lines).toContain("exit");
+    expect(lines).toContain("-j");
     expect(lines).toContain("--json");
+    expect(lines).not.toContain("--agent");
+    expect(lines).not.toContain("--quiet");
+    expect(lines).not.toContain("--verbose");
+    expect(lines).not.toContain("--no-banner");
   });
 
   test("query mode suggests chain values after --chain", () => {
@@ -95,6 +110,32 @@ describe("completion command", () => {
       .filter(Boolean);
     expect(lines).toContain("ethereum");
     expect(lines).toContain("sepolia");
+  });
+
+  test("query mode includes Pool Account short alias for withdraw", () => {
+    const result = runCli(
+      [
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "2",
+        "--",
+        "privacy-pools",
+        "withdraw",
+        "",
+      ],
+      { home: createTempHome() }
+    );
+
+    expect(result.status).toBe(0);
+    const lines = result.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(lines).toContain("-p");
+    expect(lines).toContain("--from-pa");
   });
 
   test("unsupported shell returns INPUT error", () => {

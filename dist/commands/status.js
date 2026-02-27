@@ -14,9 +14,10 @@ import { resolveGlobalMode } from "../utils/mode.js";
 export function createStatusCommand() {
     return new Command("status")
         .description("Show configuration and connection status")
+        .option("--check", "Run both RPC and ASP health checks")
         .option("--check-rpc", "Actively test RPC connectivity")
         .option("--check-asp", "Actively test ASP liveness")
-        .addHelpText("after", "\nExamples:\n  privacy-pools status\n  privacy-pools status --check-rpc --check-asp\n  privacy-pools status --json --check-rpc\n  privacy-pools status --chain sepolia --rpc-url https://...\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --check-rpc --check-asp\n  privacy-pools status --json --check-rpc\n  privacy-pools status --chain sepolia --rpc-url https://...\n"
         + commandHelpText({
             jsonFields: "{ configExists, defaultChain, selectedChain, rpcUrl, mnemonicSet, signerKeySet, signerAddress, aspLive?, rpcLive? }",
         }))
@@ -68,8 +69,9 @@ export function createStatusCommand() {
                 };
                 // Optional health checks
                 if (selectedChainConfig) {
-                    const shouldCheckAsp = opts.checkAsp === true;
-                    const shouldCheckRpc = opts.checkRpc === true;
+                    const shouldCheckAll = opts.check === true;
+                    const shouldCheckAsp = shouldCheckAll || opts.checkAsp === true;
+                    const shouldCheckRpc = shouldCheckAll || opts.checkRpc === true;
                     if (shouldCheckAsp) {
                         status.aspLive = await checkLiveness(selectedChainConfig);
                     }
@@ -122,8 +124,9 @@ export function createStatusCommand() {
             if (selectedChainConfig) {
                 info(`Entrypoint: ${selectedChainConfig.entrypoint}`, silent);
                 info(`RPC: ${getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)}`, silent);
-                const shouldCheckAsp = opts.checkAsp === true;
-                const shouldCheckRpc = opts.checkRpc === true;
+                const shouldCheckAll = opts.check === true;
+                const shouldCheckAsp = shouldCheckAll || opts.checkAsp === true;
+                const shouldCheckRpc = shouldCheckAll || opts.checkRpc === true;
                 if (isVerbose) {
                     info(`Health checks: rpc=${shouldCheckRpc ? "enabled" : "disabled"}, asp=${shouldCheckAsp ? "enabled" : "disabled"}`, silent);
                 }

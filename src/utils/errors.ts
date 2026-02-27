@@ -53,8 +53,8 @@ export class CLIError extends Error {
 
 const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: string; retryable?: boolean }> = {
   NullifierAlreadySpent: {
-    message: "This commitment has already been withdrawn.",
-    hint: "Each commitment can only be spent once. Check your balance for other spendable commitments.",
+    message: "This Pool Account has already been withdrawn.",
+    hint: "Each Pool Account can only be spent once. Check 'privacy-pools accounts' for other spendable accounts.",
     code: "CONTRACT_NULLIFIER_ALREADY_SPENT",
   },
   IncorrectASPRoot: {
@@ -70,17 +70,17 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
   },
   InvalidProof: {
     message: "ZK proof verification failed on-chain.",
-    hint: "Check that circuit inputs (value, label, nullifier, secret) match the original deposit.",
+    hint: "Your local proof inputs may be stale. Run 'privacy-pools sync' and retry.",
     code: "CONTRACT_INVALID_PROOF",
   },
   PrecommitmentAlreadyUsed: {
     message: "This precommitment hash was already used in a previous deposit.",
-    hint: "Generate a new deposit with a fresh index.",
+    hint: "Retry the deposit command to generate fresh deposit secrets.",
     code: "CONTRACT_PRECOMMITMENT_ALREADY_USED",
   },
   OnlyOriginalDepositor: {
-    message: "Only the original depositor can ragequit.",
-    hint: "Ragequit must be called from the same address that made the deposit.",
+    message: "Only the original depositor can exit this Pool Account.",
+    hint: "Use the same signer address that made the deposit.",
     code: "CONTRACT_ONLY_ORIGINAL_DEPOSITOR",
   },
   NoRootsAvailable: {
@@ -115,9 +115,9 @@ export function classifyError(error: unknown): CLIError {
     const code = (error as { code: string }).code;
     if (code === "MERKLE_ERROR") {
       return new CLIError(
-        "Commitment not found in the Merkle tree.",
+        "Pool Account commitment not found in the Merkle tree.",
         "PROOF",
-        "The commitment may not be indexed yet, or you're using stale tree data. Re-sync and retry.",
+        "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync' and retry.",
         "PROOF_MERKLE_ERROR",
         true
       );
@@ -126,7 +126,7 @@ export function classifyError(error: unknown): CLIError {
       return new CLIError(
         "Proof generation failed.",
         "PROOF",
-        "Check that value, label, nullifier, and secret match the original deposit.",
+        "Run 'privacy-pools sync' and retry. If it persists, verify you are using the correct signer/mnemonic.",
         "PROOF_GENERATION_FAILED"
       );
     }

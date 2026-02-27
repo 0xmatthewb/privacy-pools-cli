@@ -6,6 +6,21 @@ const OFFLINE_POOL_ENV = {
 };
 
 describe("--dry-run flag acceptance", () => {
+  test("deposit --dry-run without --json keeps human-readable errors", () => {
+    const home = createTempHome();
+    initSeededHome(home, "sepolia");
+    const result = runCli(["deposit", "0.01", "--dry-run", "--chain", "sepolia"], {
+      home,
+      timeoutMs: 10_000,
+      env: OFFLINE_POOL_ENV,
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stdout.trim()).toBe("");
+    expect(result.stderr).toContain("Error [INPUT]");
+    expect(result.stderr).toContain("No asset specified");
+  });
+
   test("deposit --dry-run is accepted as a flag", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");

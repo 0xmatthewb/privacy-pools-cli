@@ -63,6 +63,10 @@ function toOptionSpec(option: Option): CompletionOptionSpec | null {
   if (option.long && INTERNAL_COMPLETION_OPTION_NAMES.has(option.long)) {
     return null;
   }
+  // Keep advanced/internal flags hidden from completion candidates.
+  if ((option as unknown as { hidden?: boolean }).hidden) {
+    return null;
+  }
 
   const names = [option.short, option.long].filter(
     (name): name is string => typeof name === "string" && name.length > 0
@@ -85,9 +89,13 @@ function buildTree(command: Command): CompletionCommandNode {
   const subcommands = new Map<string, CompletionCommandNode>();
 
   for (const subcommand of command.commands) {
-    const name = subcommand.name();
-    if (!name) continue;
-    subcommands.set(name, buildTree(subcommand));
+    const node = buildTree(subcommand);
+    const names = [subcommand.name(), ...subcommand.aliases()].filter(
+      (name): name is string => typeof name === "string" && name.length > 0
+    );
+    for (const name of names) {
+      subcommands.set(name, node);
+    }
   }
 
   return {

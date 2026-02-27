@@ -19,6 +19,7 @@ import { printRawTransactions } from "../utils/unsigned.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { getNextPoolAccountNumber, poolAccountId, } from "../utils/pool-accounts.js";
 const depositedEventAbi = parseAbi([
     "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
 ]);
@@ -27,19 +28,21 @@ export function createDepositCommand() {
         .description("Deposit ETH or ERC20 tokens into a Privacy Pool")
         .argument("<amountOrAsset>", "Amount or asset (supports both <amount> --asset ... and <asset> <amount>)")
         .argument("[amount]", "Optional amount when using positional asset alias")
-        .option("--asset <symbol|address>", "Asset to deposit (symbol like ETH, USDC, or contract address)")
-        .option("--unsigned", "Output unsigned transaction payload(s) without submitting")
-        .option("--unsigned-format <format>", "Unsigned output format: envelope|tx")
-        .option("--dry-run", "Validate inputs and show transaction details without submitting")
+        .option("-a, --asset <symbol|address>", "Asset to deposit (symbol like ETH, USDC, or contract address)")
+        .option("--unsigned", "Build unsigned transaction payload(s); do not submit")
+        .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
+        .option("--dry-run", "Validate and preview the transaction without submitting")
         .addHelpText("after", "\nExamples:\n  privacy-pools deposit 0.1 --asset ETH --chain sepolia\n  privacy-pools deposit ETH 0.1 --chain sepolia\n  privacy-pools deposit 100 --asset 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain ethereum\n  privacy-pools deposit 0.05 --asset ETH --json --yes\n  privacy-pools deposit ETH 0.05 --unsigned --chain sepolia\n  privacy-pools deposit ETH 0.05 --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools deposit 0.1 --asset ETH --dry-run --chain sepolia\n"
         + commandHelpText({
             prerequisites: "init",
-            jsonFields: "{ txHash, amount, committedValue, asset, chain }",
+            jsonFields: "{ txHash, amount, committedValue, asset, chain, poolAccountId }",
             jsonVariants: [
                 "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
                 "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
                 "--dry-run: { dryRun, operation, chain, asset, amount, precommitment, balanceSufficient }",
             ],
+            supportsUnsigned: true,
+            supportsDryRun: true,
         }))
         .action(async (firstArg, secondArg, opts, cmd) => {
         const globalOpts = cmd.parent?.opts();
@@ -116,6 +119,8 @@ export function createDepositCommand() {
                 },
             ], chainConfig.id, true, // sync to pick up latest on-chain state
             silent, true);
+            const nextPANumber = getNextPoolAccountNumber(accountService.account, pool.scope);
+            const nextPAId = poolAccountId(nextPANumber);
             // Generate deposit secrets (SDK returns precommitment directly)
             const secrets = accountService.createDepositSecrets(pool.scope);
             const precommitment = secrets.precommitment;
@@ -170,6 +175,8 @@ export function createDepositCommand() {
                         chain: chainConfig.name,
                         asset: pool.symbol,
                         amount: amount.toString(),
+                        poolAccountNumber: nextPANumber,
+                        poolAccountId: nextPAId,
                         precommitment: precommitment.toString(),
                         balanceSufficient,
                     }, false);
@@ -179,6 +186,7 @@ export function createDepositCommand() {
                     success("Dry-run complete.", silent);
                     info(`Chain: ${chainConfig.name}`, silent);
                     info(`Asset: ${pool.symbol}`, silent);
+                    info(`Pool Account: ${nextPAId}`, silent);
                     info(`Amount: ${formatAmount(amount, pool.decimals, pool.symbol)}`, silent);
                     const balanceLabel = balanceSufficient === "unknown" ? "unknown (no signer key)" : balanceSufficient ? "yes" : "no";
                     info(`Balance sufficient: ${balanceLabel}`, silent);
@@ -297,11 +305,14 @@ export function createDepositCommand() {
                     committedValue: committedValue?.toString() ?? null,
                     asset: pool.symbol,
                     chain: chainConfig.name,
+                    poolAccountNumber: nextPANumber,
+                    poolAccountId: nextPAId,
                 }, false);
             }
             else {
                 process.stderr.write("\n");
                 success(`Deposited ${formatAmount(amount, pool.decimals, pool.symbol)}`, silent);
+                info(`Pool Account: ${nextPAId}`, silent);
                 if (committedValue !== undefined) {
                     info(`Committed: ${formatAmount(committedValue, pool.decimals, pool.symbol)} (after vetting fee)`, silent);
                 }
@@ -309,7 +320,7 @@ export function createDepositCommand() {
             }
         }
         catch (error) {
-            printError(error, isJson || isUnsigned || isDryRun);
+            printError(error, isJson || isUnsigned);
         }
     });
 }

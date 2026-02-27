@@ -70,6 +70,33 @@ describe("CLI command integration", () => {
     expect(statusJson.rpcUrl).toContain("sepolia");
   });
 
+  test("status --check runs both health checks", () => {
+    const home = createTempHome();
+    initSeededHome(home, "sepolia");
+
+    const statusResult = runCli(
+      ["-j", "-c", "sepolia", "--rpc-url", "http://127.0.0.1:9", "status", "--check"],
+      {
+        home,
+        timeoutMs: 30_000,
+        env: OFFLINE_ASP_ENV,
+      }
+    );
+    expect(statusResult.status).toBe(0);
+
+    const statusJson = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      aspLive?: unknown;
+      rpcLive?: unknown;
+    }>(statusResult.stdout);
+
+    expect(statusJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(statusJson.success).toBe(true);
+    expect(typeof statusJson.aspLive).toBe("boolean");
+    expect(typeof statusJson.rpcLive).toBe("boolean");
+  });
+
   test("deposit without --asset in --yes mode fails with INPUT error", () => {
     const home = createTempHome();
     initSeededHome(home);
@@ -121,6 +148,22 @@ describe("CLI command integration", () => {
     }>(
       result.stdout
     );
+    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+  });
+
+  test("exit alias without --asset in --yes mode fails with INPUT error", () => {
+    const home = createTempHome();
+
+    const result = runCli(["--json", "exit", "--yes"], { home });
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      error: { category: string };
+    }>(result.stdout);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
@@ -617,6 +660,83 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
     expect(json.error.message).toContain("No asset specified");
+  });
+
+  test("--json exit is non-interactive and fails fast without --asset", () => {
+    const home = createTempHome();
+    initSeededHome(home, "sepolia");
+
+    const result = runCli(["--json", "exit"], {
+      home,
+      timeoutMs: 60_000,
+    });
+    expect(result.status).toBe(2);
+    expect(result.stderr).not.toContain("Select asset pool for ragequit");
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string; message: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("No asset specified");
+  });
+
+  test("withdraw rejects malformed --from-pa before network calls", () => {
+    const home = createTempHome();
+    initSeededHome(home, "sepolia");
+
+    const result = runCli(
+      ["--json", "withdraw", "0.1", "--asset", "ETH", "--to", "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A", "--from-pa", "not-a-pa", "--chain", "sepolia"],
+      { home, timeoutMs: 10_000 }
+    );
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string; message: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("Invalid --from-pa");
+  });
+
+  test("ragequit rejects malformed --from-pa before network calls", () => {
+    const home = createTempHome();
+    initSeededHome(home, "sepolia");
+
+    const result = runCli(
+      ["--json", "ragequit", "--asset", "ETH", "--from-pa", "not-a-pa", "--chain", "sepolia"],
+      { home, timeoutMs: 10_000 }
+    );
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string; message: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("Invalid --from-pa");
+  });
+
+  test("ragequit rejects --from-pa when combined with deprecated --commitment", () => {
+    const home = createTempHome();
+    initSeededHome(home, "sepolia");
+
+    const result = runCli(
+      ["--json", "ragequit", "--asset", "ETH", "--from-pa", "PA-1", "--commitment", "0", "--chain", "sepolia"],
+      { home, timeoutMs: 10_000 }
+    );
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string; message: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("Cannot use --from-pa and --commitment together");
   });
 
   test("--agent implies JSON/non-interactive mode for init", () => {

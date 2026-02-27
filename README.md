@@ -34,6 +34,38 @@ Command-specific help:
 privacy-pools <command> --help
 ```
 
+## Human vs Agent Modes
+
+Human (default interactive flow):
+
+```bash
+privacy-pools init
+privacy-pools pools --chain sepolia
+privacy-pools deposit ETH 0.1 --chain sepolia
+privacy-pools accounts --chain sepolia
+privacy-pools accounts --all --chain sepolia
+privacy-pools withdraw ETH 0.05 --to 0xRecipient -p PA-1 --chain sepolia
+privacy-pools exit ETH -p PA-1 --chain sepolia
+```
+
+Agent mode (machine-readable and non-interactive):
+
+```bash
+privacy-pools --json --yes status
+privacy-pools --json --yes deposit ETH 0.1 --unsigned --chain sepolia
+privacy-pools --json --yes withdraw ETH 0.05 --to 0xRecipient -p PA-1 --chain sepolia
+privacy-pools --json --yes exit ETH -p PA-1 --chain sepolia
+```
+
+Mode concepts:
+
+- Human mode (default): readable output and prompts
+- Agent mode: `-j -y` (or `--json --yes`) for machine output without prompts
+- Pool Accounts are surfaced as `PA-1`, `PA-2`, ... (matching the web app)
+- Use `-p` / `--from-pa` on `withdraw` / `exit` for explicit account selection
+- Modifiers: `--unsigned` (build payloads only), `--dry-run` (validate/generate without submitting), `-q/--quiet` (minimal chatter)
+- Compatibility alias: `--agent` is equivalent to `-j -y -q` (kept for existing automation)
+
 ## Running From Source (Local Development)
 
 ```bash

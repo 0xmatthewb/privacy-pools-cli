@@ -51,11 +51,13 @@ export function styleCommanderHelp(raw) {
 export function rootHelpFooter() {
     return [
         "",
-        `  Get started:   ${chalk.cyan("privacy-pools init")}`,
-        `  Full guide:    ${chalk.cyan("privacy-pools guide")}`,
-        `  Command help:  ${chalk.cyan("privacy-pools <command> --help")}`,
-        `  Local dev:     ${chalk.cyan("bun run dev -- <command>")}`,
-        `  No install:    ${chalk.cyan("bunx @0xbow/privacy-pools-cli@latest <command>")}`,
+        `  Human mode:       ${chalk.cyan("privacy-pools init")}`,
+        `  Agent mode:       ${chalk.cyan("privacy-pools -j -y status")}`,
+        `  Agent unsigned:   ${chalk.cyan("privacy-pools -j -y deposit ETH 0.1 --unsigned --chain sepolia")}`,
+        `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
+        `  Command help:     ${chalk.cyan("privacy-pools <command> --help")}`,
+        `  Local dev:        ${chalk.cyan("bun run dev -- <command>")}`,
+        `  No install:       ${chalk.cyan("bunx @0xbow/privacy-pools-cli@latest <command>")}`,
     ].join("\n");
 }
 /**
@@ -78,7 +80,7 @@ export function guideText() {
         `  ${chalk.cyan("privacy-pools init")}`,
         `  ${chalk.cyan("privacy-pools pools --chain sepolia")}`,
         `  ${chalk.cyan("privacy-pools deposit 0.1 --asset ETH --chain sepolia")}`,
-        `  ${chalk.cyan("privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient --chain sepolia")}`,
+        `  ${chalk.cyan("privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient -p PA-1 --chain sepolia")}`,
         "",
         chalk.bold("Workflow"),
         `  1. ${chalk.green("init")}         Set up wallet and config (run once)`,
@@ -87,28 +89,26 @@ export function guideText() {
         `  4. ${chalk.green("sync")}         Sync on-chain state`,
         `  5. ${chalk.green("withdraw")}     Withdraw from a pool`,
         `  6. ${chalk.green("balance")}      Check balances`,
-        `  7. ${chalk.green("accounts")}     View commitment details`,
+        `  7. ${chalk.green("accounts")}     View Pool Accounts (PA-1, PA-2, ...)`,
         `  *  ${chalk.green("status")}       Check setup anytime`,
-        `  *  ${chalk.green("ragequit")}     Emergency exit (sacrifices privacy)`,
+        `  *  ${chalk.green("exit")}         Emergency public exit (alias: ragequit)`,
         "",
         chalk.bold("Global Options"),
-        `  ${chalk.yellow("--chain <name>")}    Target chain (ethereum, arbitrum, optimism, sepolia, op-sepolia)`,
-        `  ${chalk.yellow("--rpc-url <url>")}   Override RPC URL`,
-        `  ${chalk.yellow("--json")}            Machine-readable JSON output`,
-        `  ${chalk.yellow("--agent")}           Agent-first mode (implies --json, --yes, --quiet)`,
-        `  ${chalk.yellow("--yes")}             Skip confirmation prompts`,
-        `  ${chalk.yellow("--quiet")}           Suppress spinners and non-essential output`,
-        `  ${chalk.yellow("--verbose")}         Enable verbose/debug output`,
-        `  ${chalk.yellow("--no-banner")}       Disable ASCII banner`,
+        `  ${chalk.yellow("-c, --chain <name>")}    Target chain (ethereum, arbitrum, optimism, sepolia, op-sepolia)`,
+        `  ${chalk.yellow("-r, --rpc-url <url>")}   Override RPC URL`,
+        `  ${chalk.yellow("-j, --json")}            Machine-readable JSON output`,
+        `  ${chalk.yellow("-y, --yes")}             Skip confirmation prompts`,
+        `  ${chalk.yellow("-q, --quiet")}           Suppress spinners and non-essential output`,
+        `  ${chalk.yellow("-v, --verbose")}         Enable verbose/debug output`,
+        `  ${chalk.yellow("--no-banner")}            Disable ASCII banner`,
         "",
-        chalk.bold("Automation (Agents / Scripts)"),
-        "  Use --json for structured output with non-interactive behavior (including machine help/version envelopes).",
-        "  Use --agent for a single-flag non-interactive JSON mode.",
-        "  Use --yes to skip interactive prompts.",
-        "  Use --quiet to suppress spinners and chatter.",
-        "  Use --unsigned to get transaction payloads without submitting.",
-        "  Use --unsigned --unsigned-format tx to emit raw transaction payloads (value and valueHex).",
-        "  Use --dry-run to validate inputs and generate proofs without submitting.",
+        chalk.bold("Interaction Modes"),
+        "  Human mode (default): interactive prompts + readable output.",
+        "  Agent mode: use -j -y for machine JSON output and non-interactive behavior.",
+        "  Compatibility alias: --agent == -j -y -q (kept for existing automation).",
+        "  Modifiers: --unsigned builds transaction payloads only; --dry-run validates/proves without submitting.",
+        "  Pool Accounts: use -p/--from-pa PA-<n> on withdraw/exit to select a specific account.",
+        "  Note: --dry-run stays human-readable unless paired with -j/--json.",
         "",
         chalk.bold("Exit Codes"),
         `  ${chalk.green("0")}  Success`,
@@ -129,7 +129,7 @@ export function commandHelpText(config) {
         lines.push("", "Prerequisites:");
         lines.push(`  Requires: ${config.prerequisites}`);
     }
-    lines.push("", "JSON Output (--json):");
+    lines.push("", "JSON Output (-j/--json):");
     lines.push(`  ${config.jsonFields}`);
     if (config.jsonVariants) {
         for (const variant of config.jsonVariants) {
@@ -137,5 +137,14 @@ export function commandHelpText(config) {
         }
     }
     lines.push("  Errors: { errorCode, errorMessage, error: { code, category, message, hint, retryable } }");
+    lines.push("", "Mode Guide:");
+    lines.push("  Human mode: default");
+    lines.push("  Agent mode: -j -y");
+    if (config.supportsUnsigned) {
+        lines.push("  Agent unsigned: -j -y --unsigned");
+    }
+    if (config.supportsDryRun) {
+        lines.push("  Dry-run: --dry-run (add -j for machine-readable output)");
+    }
     return lines.join("\n");
 }
