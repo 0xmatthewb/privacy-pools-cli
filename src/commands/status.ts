@@ -124,9 +124,9 @@ export function createStatusCommand(): Command {
 
         // Mnemonic
         if (hasMnemonic) {
-          success("Mnemonic: set", silent);
+          success("Recovery phrase: set", silent);
         } else {
-          warn("Mnemonic: not set", silent);
+          warn("Recovery phrase: not set", silent);
         }
 
         // Signer

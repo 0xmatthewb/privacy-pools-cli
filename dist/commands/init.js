@@ -44,7 +44,7 @@ export function createInitCommand() {
             }
             if (hasExisting && !forceOverwrite && !skipPrompts) {
                 const overwrite = await confirm({
-                    message: "Existing configuration found. Reinitializing will generate a new mnemonic and overwrite settings. Continue?",
+                    message: "Existing configuration found. Reinitializing will generate a new recovery phrase and overwrite settings. Continue?",
                     default: false,
                 });
                 if (!overwrite) {
@@ -53,7 +53,7 @@ export function createInitCommand() {
                 }
             }
             else if (hasExisting && forceOverwrite) {
-                warn("Overwriting existing configuration and mnemonic.", silent);
+                warn("Overwriting existing configuration and recovery phrase.", silent);
             }
             // --- Mnemonic ---
             let mnemonic;
@@ -78,7 +78,7 @@ export function createInitCommand() {
             }
             if (mnemonicSource) {
                 if (!validateMnemonic(mnemonicSource)) {
-                    throw new CLIError("Invalid mnemonic phrase.", "INPUT", "Provide a valid BIP-39 mnemonic (12 or 24 words).");
+                    throw new CLIError("Invalid recovery phrase.", "INPUT", "Provide a valid BIP-39 recovery phrase (12 or 24 words).");
                 }
                 mnemonic = mnemonicSource;
             }
@@ -89,17 +89,17 @@ export function createInitCommand() {
                 const action = await select({
                     message: "Wallet setup:",
                     choices: [
-                        { name: "Generate new mnemonic", value: "generate" },
-                        { name: "Import existing mnemonic", value: "import" },
+                        { name: "Generate new recovery phrase", value: "generate" },
+                        { name: "Import existing recovery phrase", value: "import" },
                     ],
                 });
                 if (action === "import") {
                     const phrase = await password({
-                        message: "Enter your BIP-39 mnemonic phrase:",
+                        message: "Enter your BIP-39 recovery phrase:",
                         mask: "*",
                     });
                     if (!validateMnemonic(phrase.trim())) {
-                        throw new CLIError("Invalid mnemonic phrase.", "INPUT", "Provide a valid BIP-39 mnemonic (12 or 24 words).");
+                        throw new CLIError("Invalid recovery phrase.", "INPUT", "Provide a valid BIP-39 recovery phrase (12 or 24 words).");
                     }
                     mnemonic = phrase.trim();
                 }
@@ -111,7 +111,7 @@ export function createInitCommand() {
             // Skip display if mnemonic was imported (--mnemonic or --mnemonic-file)
             if (!mnemonicSource && !isJson) {
                 process.stderr.write("\n");
-                process.stderr.write(chalk.bold.yellow("⚠  IMPORTANT: Save your mnemonic phrase securely!") + "\n");
+                process.stderr.write(chalk.bold.yellow("⚠  IMPORTANT: Save your recovery phrase securely!") + "\n");
                 process.stderr.write(chalk.bold.yellow("   This is the ONLY time it will be displayed.") + "\n");
                 process.stderr.write("\n");
                 process.stderr.write(chalk.bold(mnemonic) + "\n");
@@ -132,25 +132,25 @@ export function createInitCommand() {
                             message: `Word #${idx + 1}:`,
                         });
                         if (answer.trim().toLowerCase() !== words[idx].toLowerCase()) {
-                            throw new CLIError(`Incorrect word #${idx + 1}.`, "INPUT", "Please re-run init and carefully save your mnemonic phrase.");
+                            throw new CLIError(`Incorrect word #${idx + 1}.`, "INPUT", "Please re-run init and carefully save your recovery phrase.");
                         }
                     }
-                    success("Mnemonic verified!", silent);
+                    success("Recovery phrase verified!", silent);
                     process.stderr.write("\n");
                 }
             }
             else if (!mnemonicSource && isJson && !isQuiet) {
                 if (opts.showMnemonic) {
-                    process.stderr.write(chalk.bold.yellow("⚠  Save your mnemonic from the JSON output below.") +
+                    process.stderr.write(chalk.bold.yellow("⚠  Save your recovery phrase from the JSON output below.") +
                         "\n");
                 }
                 else {
-                    process.stderr.write(chalk.bold.yellow("⚠  Mnemonic is redacted from JSON by default. Re-run with --show-mnemonic to print it once.") + "\n");
+                    process.stderr.write(chalk.bold.yellow("⚠  Recovery phrase is redacted from JSON by default. Re-run with --show-mnemonic to print it once.") + "\n");
                 }
             }
             saveMnemonicToFile(mnemonic);
             if (!isJson)
-                success("Mnemonic saved.", silent);
+                success("Recovery phrase saved.", silent);
             // --- Signer Key ---
             if (opts.privateKey && opts.privateKeyFile) {
                 throw new CLIError("Cannot specify both --private-key and --private-key-file.", "INPUT");

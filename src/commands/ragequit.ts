@@ -290,7 +290,7 @@ export function createRagequitCommand(): Command {
         if (!skipPrompts) {
           process.stderr.write("\n");
           warn(
-            "This is a public withdrawal — your deposit address will be linked to this transaction.",
+            "By exiting, you are withdrawing funds to your depositing address. You will not gain any privacy.",
             silent
           );
           process.stderr.write("\n");
@@ -379,7 +379,7 @@ export function createRagequitCommand(): Command {
             info(`Pool Account: ${selectedPoolAccount.paId}`, silent);
             info(`Amount: ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`, silent);
             info(
-              "Privacy note: this action is public and links the deposit address.",
+              "Privacy note: this exit returns funds without privacy.",
               silent
             );
             info("No transaction was submitted.", silent);

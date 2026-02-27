@@ -30,14 +30,14 @@ export function loadMnemonic(): string {
   const mnemonic = loadMnemonicFromFile();
   if (!mnemonic) {
     throw new CLIError(
-      "No mnemonic found. Run 'privacy-pools init' first.",
+      "No recovery phrase found. Run 'privacy-pools init' first.",
       "INPUT",
       "Initialize your wallet with: privacy-pools init"
     );
   }
   if (!validateMnemonic(mnemonic)) {
     throw new CLIError(
-      "Stored mnemonic is invalid or corrupted.",
+      "Stored recovery phrase is invalid or corrupted.",
       "INPUT",
       "Re-initialize with: privacy-pools init --mnemonic '<your phrase>'"
     );

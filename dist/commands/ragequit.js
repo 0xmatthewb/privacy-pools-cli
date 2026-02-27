@@ -184,7 +184,7 @@ export function createRagequitCommand() {
             // Critical warning
             if (!skipPrompts) {
                 process.stderr.write("\n");
-                warn("This is a public withdrawal — your deposit address will be linked to this transaction.", silent);
+                warn("By exiting, you are withdrawing funds to your depositing address. You will not gain any privacy.", silent);
                 process.stderr.write("\n");
                 const ok = await confirm({
                     message: `Exit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)} from ${pool.symbol} pool? This is irreversible.`,
@@ -250,7 +250,7 @@ export function createRagequitCommand() {
                     info(`Asset: ${pool.symbol}`, silent);
                     info(`Pool Account: ${selectedPoolAccount.paId}`, silent);
                     info(`Amount: ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`, silent);
-                    info("Privacy note: this action is public and links the deposit address.", silent);
+                    info("Privacy note: this exit returns funds without privacy.", silent);
                     info("No transaction was submitted.", silent);
                 }
                 return;

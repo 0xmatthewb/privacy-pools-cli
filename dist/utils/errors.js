@@ -94,7 +94,7 @@ export function classifyError(error) {
             return new CLIError("Pool Account commitment not found in the Merkle tree.", "PROOF", "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync' and retry.", "PROOF_MERKLE_ERROR", true);
         }
         if (code === "PROOF_GENERATION_FAILED") {
-            return new CLIError("Proof generation failed.", "PROOF", "Run 'privacy-pools sync' and retry. If it persists, verify you are using the correct signer/mnemonic.", "PROOF_GENERATION_FAILED");
+            return new CLIError("Proof generation failed.", "PROOF", "Run 'privacy-pools sync' and retry. If it persists, verify you are using the correct signer key or recovery phrase.", "PROOF_GENERATION_FAILED");
         }
     }
     // Network/RPC errors

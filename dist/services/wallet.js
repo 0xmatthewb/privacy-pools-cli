@@ -19,10 +19,10 @@ export function getSignerAddress(privateKey) {
 export function loadMnemonic() {
     const mnemonic = loadMnemonicFromFile();
     if (!mnemonic) {
-        throw new CLIError("No mnemonic found. Run 'privacy-pools init' first.", "INPUT", "Initialize your wallet with: privacy-pools init");
+        throw new CLIError("No recovery phrase found. Run 'privacy-pools init' first.", "INPUT", "Initialize your wallet with: privacy-pools init");
     }
     if (!validateMnemonic(mnemonic)) {
-        throw new CLIError("Stored mnemonic is invalid or corrupted.", "INPUT", "Re-initialize with: privacy-pools init --mnemonic '<your phrase>'");
+        throw new CLIError("Stored recovery phrase is invalid or corrupted.", "INPUT", "Re-initialize with: privacy-pools init --mnemonic '<your phrase>'");
     }
     return mnemonic;
 }

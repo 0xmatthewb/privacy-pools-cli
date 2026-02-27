@@ -1011,7 +1011,7 @@ describe("CLI command integration", () => {
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("No mnemonic found");
+    expect(json.error.message).toContain("No recovery phrase found");
   });
 
   test("balance --sync is rejected (use default sync or --no-sync)", () => {

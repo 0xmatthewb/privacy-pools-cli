@@ -99,10 +99,10 @@ export function createStatusCommand() {
             }
             // Mnemonic
             if (hasMnemonic) {
-                success("Mnemonic: set", silent);
+                success("Recovery phrase: set", silent);
             }
             else {
-                warn("Mnemonic: not set", silent);
+                warn("Recovery phrase: not set", silent);
             }
             // Signer
             if (signerAddress && signerKeyValid) {
