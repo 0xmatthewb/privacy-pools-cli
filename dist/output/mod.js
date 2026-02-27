@@ -16,3 +16,6 @@ export { renderPoolsEmpty, renderPools, poolToJson, } from "./pools.js";
 export { renderBalanceNoPools, renderBalanceEmpty, renderBalance, } from "./balance.js";
 export { renderAccountsNoPools, renderAccounts, } from "./accounts.js";
 export { renderHistoryNoPools, renderHistory, } from "./history.js";
+export { renderInitResult, } from "./init.js";
+export { renderDepositDryRun, renderDepositSuccess, } from "./deposit.js";
+export { renderRagequitDryRun, renderRagequitSuccess, } from "./ragequit.js";

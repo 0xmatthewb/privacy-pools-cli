@@ -8,11 +8,13 @@ import { getContracts, getPublicClient, getDataService } from "../services/sdk.j
 import { resolvePool, listPools } from "../services/pools.js";
 import { initializeAccountService, saveAccount } from "../services/account.js";
 import { NATIVE_ASSET_ADDRESS, explorerTxUrl } from "../config/chains.js";
-import { spinner, success, info, verbose, formatAmount, formatAddress, formatTxHash, formatBPS, } from "../utils/format.js";
+import { spinner, info, verbose, formatAmount, formatAddress, formatBPS, } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
+import { createOutputContext } from "../output/common.js";
+import { renderDepositDryRun, renderDepositSuccess } from "../output/deposit.js";
 import { buildUnsignedDepositOutput } from "../utils/unsigned-flows.js";
 import { checkNativeBalance, checkErc20Balance, checkHasGas } from "../utils/preflight.js";
 import { printRawTransactions } from "../utils/unsigned.js";
@@ -173,30 +175,17 @@ export function createDepositCommand() {
                 }
             }
             if (isDryRun) {
-                if (isJson) {
-                    printJsonSuccess({
-                        dryRun: true,
-                        operation: "deposit",
-                        chain: chainConfig.name,
-                        asset: pool.symbol,
-                        amount: amount.toString(),
-                        poolAccountNumber: nextPANumber,
-                        poolAccountId: nextPAId,
-                        precommitment: precommitment.toString(),
-                        balanceSufficient,
-                    }, false);
-                }
-                else {
-                    process.stderr.write("\n");
-                    success("Dry-run complete.", silent);
-                    info(`Chain: ${chainConfig.name}`, silent);
-                    info(`Asset: ${pool.symbol}`, silent);
-                    info(`Pool Account: ${nextPAId}`, silent);
-                    info(`Amount: ${formatAmount(amount, pool.decimals, pool.symbol)}`, silent);
-                    const balanceLabel = balanceSufficient === "unknown" ? "unknown (no signer key)" : balanceSufficient ? "yes" : "no";
-                    info(`Balance sufficient: ${balanceLabel}`, silent);
-                    info("No transaction was submitted.", silent);
-                }
+                const ctx = createOutputContext(mode);
+                renderDepositDryRun(ctx, {
+                    chain: chainConfig.name,
+                    asset: pool.symbol,
+                    amount,
+                    decimals: pool.decimals,
+                    poolAccountNumber: nextPANumber,
+                    poolAccountId: nextPAId,
+                    precommitment: precommitment,
+                    balanceSufficient,
+                });
                 return;
             }
             if (isUnsigned) {
@@ -302,38 +291,22 @@ export function createDepositCommand() {
                 releaseCriticalSection();
             }
             spin.succeed("Deposit confirmed!");
-            if (isJson) {
-                printJsonSuccess({
-                    operation: "deposit",
-                    txHash: tx.hash,
-                    amount: amount.toString(),
-                    committedValue: committedValue?.toString() ?? null,
-                    asset: pool.symbol,
-                    chain: chainConfig.name,
-                    poolAccountNumber: nextPANumber,
-                    poolAccountId: nextPAId,
-                    poolAddress: pool.pool,
-                    scope: pool.scope.toString(),
-                    label: label?.toString() ?? null,
-                    blockNumber: receipt.blockNumber.toString(),
-                    explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
-                }, false);
-            }
-            else {
-                process.stderr.write("\n");
-                success(`Deposited ${formatAmount(amount, pool.decimals, pool.symbol)}`, silent);
-                info(`Pool Account: ${nextPAId}`, silent);
-                if (committedValue !== undefined) {
-                    info(`Net deposited: ${formatAmount(committedValue, pool.decimals, pool.symbol)} (after vetting fee)`, silent);
-                }
-                info(`Tx: ${formatTxHash(tx.hash)}`, silent);
-                const explorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
-                if (explorerUrl) {
-                    info(`Explorer: ${explorerUrl}`, silent);
-                }
-                info("Your deposit is pending approval (most deposits are approved within 1 hour, some may take up to 7 days).", silent);
-                info("Check status: privacy-pools accounts --chain " + chainConfig.name, silent);
-            }
+            const ctx = createOutputContext(mode);
+            renderDepositSuccess(ctx, {
+                txHash: tx.hash,
+                amount,
+                committedValue,
+                asset: pool.symbol,
+                chain: chainConfig.name,
+                decimals: pool.decimals,
+                poolAccountNumber: nextPANumber,
+                poolAccountId: nextPAId,
+                poolAddress: pool.pool,
+                scope: pool.scope,
+                label,
+                blockNumber: receipt.blockNumber,
+                explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+            });
         }
         catch (error) {
             printError(error, isJson || isUnsigned);

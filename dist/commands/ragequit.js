@@ -8,11 +8,13 @@ import { getSDK, getContracts, getPublicClient, getDataService } from "../servic
 import { initializeAccountService, saveAccount } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
-import { spinner, success, info, warn, verbose, formatAmount, formatAddress, formatTxHash, } from "../utils/format.js";
+import { spinner, info, warn, verbose, formatAmount, formatAddress, } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveOptionalAssetInput } from "../utils/positional.js";
+import { createOutputContext } from "../output/common.js";
+import { renderRagequitDryRun, renderRagequitSuccess } from "../output/ragequit.js";
 import { printRawTransactions, toSolidityProof } from "../utils/unsigned.js";
 import { buildUnsignedRagequitOutput } from "../utils/unsigned-flows.js";
 import { checkHasGas } from "../utils/preflight.js";
@@ -229,30 +231,18 @@ export function createRagequitCommand() {
             const proof = await withProofProgress(spin, "Generating commitment proof", () => sdk.proveCommitment(commitment.value, BigInt(commitment.label.toString()), commitment.nullifier, commitment.secret));
             if (isDryRun) {
                 spin.succeed("Dry-run completed (no transaction submitted).");
-                if (isJson) {
-                    printJsonSuccess({
-                        dryRun: true,
-                        operation: "ragequit",
-                        chain: chainConfig.name,
-                        asset: pool.symbol,
-                        amount: commitment.value.toString(),
-                        poolAccountNumber: selectedPoolAccount.paNumber,
-                        poolAccountId: selectedPoolAccount.paId,
-                        selectedCommitmentLabel: commitment.label.toString(),
-                        selectedCommitmentValue: commitment.value.toString(),
-                        proofPublicSignals: proof.publicSignals?.length ?? 0,
-                    }, false);
-                }
-                else {
-                    process.stderr.write("\n");
-                    success("Dry-run complete.", silent);
-                    info(`Chain: ${chainConfig.name}`, silent);
-                    info(`Asset: ${pool.symbol}`, silent);
-                    info(`Pool Account: ${selectedPoolAccount.paId}`, silent);
-                    info(`Amount: ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`, silent);
-                    info("Privacy note: this exit returns funds without privacy.", silent);
-                    info("No transaction was submitted.", silent);
-                }
+                const ctx = createOutputContext(mode);
+                renderRagequitDryRun(ctx, {
+                    chain: chainConfig.name,
+                    asset: pool.symbol,
+                    amount: commitment.value,
+                    decimals: pool.decimals,
+                    poolAccountNumber: selectedPoolAccount.paNumber,
+                    poolAccountId: selectedPoolAccount.paId,
+                    selectedCommitmentLabel: commitment.label,
+                    selectedCommitmentValue: commitment.value,
+                    proofPublicSignals: proof.publicSignals?.length ?? 0,
+                });
                 return;
             }
             if (isUnsigned) {
@@ -330,30 +320,20 @@ export function createRagequitCommand() {
                 releaseCriticalSection();
             }
             spin.succeed("Exit confirmed!");
-            if (isJson) {
-                printJsonSuccess({
-                    operation: "ragequit",
-                    txHash: tx.hash,
-                    amount: commitment.value.toString(),
-                    asset: pool.symbol,
-                    chain: chainConfig.name,
-                    poolAccountNumber: selectedPoolAccount.paNumber,
-                    poolAccountId: selectedPoolAccount.paId,
-                    poolAddress: pool.pool,
-                    scope: pool.scope.toString(),
-                    blockNumber: receipt.blockNumber.toString(),
-                    explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
-                }, false);
-            }
-            else {
-                process.stderr.write("\n");
-                success(`Exited ${selectedPoolAccount.paId} and recovered ${formatAmount(commitment.value, pool.decimals, pool.symbol)}`, silent);
-                info(`Tx: ${formatTxHash(tx.hash)}`, silent);
-                const explorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
-                if (explorerUrl) {
-                    info(`Explorer: ${explorerUrl}`, silent);
-                }
-            }
+            const ctx = createOutputContext(mode);
+            renderRagequitSuccess(ctx, {
+                txHash: tx.hash,
+                amount: commitment.value,
+                asset: pool.symbol,
+                chain: chainConfig.name,
+                decimals: pool.decimals,
+                poolAccountNumber: selectedPoolAccount.paNumber,
+                poolAccountId: selectedPoolAccount.paId,
+                poolAddress: pool.pool,
+                scope: pool.scope,
+                blockNumber: receipt.blockNumber,
+                explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+            });
         }
         catch (error) {
             printError(error, isJson || isUnsigned);

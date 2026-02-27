@@ -20,10 +20,11 @@ import { warmCircuits } from "../services/sdk.js";
 import { CHAIN_NAMES, CHAINS } from "../config/chains.js";
 import { success, warn, spinner, info } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
-import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { createOutputContext } from "../output/common.js";
+import { renderInitResult } from "../output/init.js";
 
 export function createInitCommand(): Command {
   return new Command("init")
@@ -307,26 +308,15 @@ export function createInitCommand(): Command {
           }
         }
 
-        if (isJson) {
-          const resolvedSignerKey = loadSignerKey();
-          const jsonOutput: Record<string, unknown> = {
-            defaultChain: config.defaultChain,
-            signerKeySet: !!resolvedSignerKey,
-          };
-          // Include mnemonic only when explicitly requested and newly generated.
-          if (!mnemonicSource) {
-            if (opts.showMnemonic) {
-              jsonOutput.mnemonic = mnemonic;
-            } else {
-              jsonOutput.mnemonicRedacted = true;
-            }
-          }
-          printJsonSuccess(jsonOutput, false);
-        } else {
-          process.stderr.write("\n");
-          success("Initialization complete!", silent);
-          info("Run 'privacy-pools status' to verify your setup.", silent);
-        }
+        const resolvedSignerKey = loadSignerKey();
+        const ctx = createOutputContext(mode);
+        renderInitResult(ctx, {
+          defaultChain: config.defaultChain,
+          signerKeySet: !!resolvedSignerKey,
+          mnemonicImported: !!mnemonicSource,
+          showMnemonic: !!opts.showMnemonic,
+          mnemonic,
+        });
       } catch (error) {
         printError(error, isJson);
       }

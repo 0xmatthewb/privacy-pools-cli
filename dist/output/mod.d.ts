@@ -14,3 +14,6 @@ export { renderPoolsEmpty, renderPools, poolToJson, type PoolWithChain, type Cha
 export { renderBalanceNoPools, renderBalanceEmpty, renderBalance, type BalanceRow, type BalanceJsonEntry, type BalanceRenderData, } from "./balance.js";
 export { renderAccountsNoPools, renderAccounts, type AccountPoolGroup, type AccountsRenderData, } from "./accounts.js";
 export { renderHistoryNoPools, renderHistory, type HistoryPoolInfo, type HistoryRenderData, } from "./history.js";
+export { renderInitResult, type InitRenderResult, } from "./init.js";
+export { renderDepositDryRun, renderDepositSuccess, type DepositDryRunData, type DepositSuccessData, } from "./deposit.js";
+export { renderRagequitDryRun, renderRagequitSuccess, type RagequitDryRunData, type RagequitSuccessData, } from "./ragequit.js";
