@@ -278,7 +278,7 @@ export function createWithdrawCommand(): Command {
           pool.scope,
           poolCommitments
         );
-        verbose(`Spendable Pool Accounts in this pool: ${poolAccounts.length}`, isVerbose, silent);
+        verbose(`Available Pool Accounts in this pool: ${poolAccounts.length}`, isVerbose, silent);
 
         const baseSelection = selectBestWithdrawalCommitment(
           poolAccounts,

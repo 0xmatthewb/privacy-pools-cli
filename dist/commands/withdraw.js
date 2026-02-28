@@ -175,7 +175,7 @@ export function createWithdrawCommand() {
             const spendable = accountService.getSpendableCommitments();
             const poolCommitments = spendable.get(pool.scope) ?? [];
             const poolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
-            verbose(`Spendable Pool Accounts in this pool: ${poolAccounts.length}`, isVerbose, silent);
+            verbose(`Available Pool Accounts in this pool: ${poolAccounts.length}`, isVerbose, silent);
             const baseSelection = selectBestWithdrawalCommitment(poolAccounts, withdrawalAmount);
             if (baseSelection.kind === "insufficient") {
                 spin.stop();

@@ -28,7 +28,7 @@ export function createRagequitCommand() {
         .description("Publicly withdraw funds without ASP approval (reveals your deposit address)")
         .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
         .option("-a, --asset <symbol|address>", "Asset pool to exit from")
-        .option("-p, --from-pa <PA-#|#>", "Exit a specific Pool Account (e.g. PA-2)")
+        .option("-p, --from-pa <PA-#|#>", "Ragequit a specific Pool Account (e.g. PA-2)")
         .addOption(new Option("-i, --commitment <index>", "Deprecated: 0-based spendable commitment index (use --from-pa)")
         .hideHelp())
         .option("--unsigned", "Build unsigned transaction payload; do not submit")
