@@ -36,6 +36,8 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
     env: {
       ...process.env,
       HOME: home,
+      USERPROFILE: home,
+      PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,
     },
     encoding: "utf8",
@@ -74,6 +76,8 @@ export function runBuiltCli(
     env: {
       ...process.env,
       HOME: home,
+      USERPROFILE: home,
+      PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,
     },
     encoding: "utf8",
