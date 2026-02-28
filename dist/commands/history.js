@@ -99,7 +99,6 @@ export function createHistoryCommand() {
         const parsedLimit = Number(opts.limit ?? 50);
         if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
             printError(new CLIError(`Invalid --limit value: ${opts.limit}.`, "INPUT", "--limit must be a positive integer."), mode.isJson);
-            return;
         }
         const limit = parsedLimit;
         try {

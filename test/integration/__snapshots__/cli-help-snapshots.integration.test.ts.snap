@@ -1,0 +1,367 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`CLI --help snapshots root --help snapshot 1`] = `
+"Usage: privacy-pools [options] [command]
+Deposit, withdraw, and manage funds in Privacy Pools
+Options:
+  -V, --version       output the version number
+  -c, --chain <name>  Target chain (ethereum, sepolia, ...)
+  -j, --json          Machine-readable JSON output
+  -y, --yes           Skip confirmation prompts
+  -h, --help          display help for command
+Commands:
+  init                Initialize wallet and configuration
+  pools               List available pools and assets
+  deposit             Deposit ETH or ERC-20 tokens into a Privacy Pool
+  accounts            List your Pool Accounts (PA-1, PA-2, ...)
+  balance             Show balances across pools
+  withdraw            Withdraw from a Privacy Pool (relayed by default)
+  ragequit|exit       Publicly withdraw funds without ASP approval (reveals your
+                      deposit address)
+  history             Show chronological event history (deposits, withdrawals,
+                      exits)
+  sync                Sync local account state from onchain events
+  status              Show configuration and connection status
+  activity            Show public activity feed (global or for a specific pool)
+  stats               Show public statistics (global or per pool)
+  guide               Show usage guide, workflow, and reference
+  help                display help for command
+  Human mode:       privacy-pools init
+  Short alias:      pp init
+  Agent mode:       privacy-pools -j -y status
+  Agent unsigned:   privacy-pools -j -y deposit ETH 0.1 --unsigned --chain sepolia
+  Full guide:       privacy-pools guide
+  Command help:     privacy-pools <command> --help
+  Advanced flags:   See 'privacy-pools guide' for full global options and env vars"
+`;
+
+exports[`CLI --help snapshots init --help snapshot 1`] = `
+"Usage: privacy-pools init [options]
+Initialize wallet and configuration
+Options:
+  --mnemonic <phrase>        Import an existing BIP-39 mnemonic phrase (unsafe:
+                             visible in process list)
+  --mnemonic-file <path>     Import an existing BIP-39 mnemonic from a file
+  --show-mnemonic            Include generated mnemonic in JSON output (unsafe:
+                             may be logged or piped)
+  --private-key <key>        Set the signer private key (unsafe: visible in
+                             process list)
+  --private-key-file <path>  Set the signer private key from a file
+  --default-chain <chain>    Set default chain
+  --rpc-url <url>            Set RPC URL for the default chain
+  --force                    Overwrite existing configuration without prompting
+  --skip-circuits            Skip downloading circuit artifacts
+  -h, --help                 display help for command
+Examples:
+  privacy-pools init
+  privacy-pools init --yes --default-chain sepolia --skip-circuits
+  privacy-pools init --force --yes --default-chain sepolia --skip-circuits
+  privacy-pools init --json --show-mnemonic --skip-circuits
+  privacy-pools init --mnemonic "word ..." --private-key 0x...
+JSON output (--json):
+  { defaultChain, signerKeySet, mnemonicRedacted?, mnemonic? (only with --show-mnemonic) }"
+`;
+
+exports[`CLI --help snapshots status --help snapshot 1`] = `
+"Usage: privacy-pools status [options]
+Show configuration and connection status
+Options:
+  --check      Run both RPC and ASP health checks
+  --check-rpc  Actively test RPC connectivity
+  --check-asp  Actively test ASP liveness
+  -h, --help   display help for command
+Examples:
+  privacy-pools status
+  privacy-pools status --check
+  privacy-pools status --json --check-rpc
+  privacy-pools status --chain sepolia --rpc-url https://...
+JSON output (--json):
+  { configExists, defaultChain, selectedChain, rpcUrl, mnemonicSet, signerKeySet, signerAddress, aspLive?, rpcLive? }"
+`;
+
+exports[`CLI --help snapshots pools --help snapshot 1`] = `
+"Usage: privacy-pools pools [options]
+List available pools and assets
+Options:
+  --all-chains      List pools across all supported chains
+  --search <query>  Filter by chain/symbol/address/scope
+  --sort <mode>     Sort mode (default, asset-asc, asset-desc, tvl-desc,
+                    tvl-asc, deposits-desc, deposits-asc, chain-asset) (default:
+                    "default")
+  -h, --help        display help for command
+Examples:
+  privacy-pools pools
+  privacy-pools pools --all-chains --sort tvl-desc
+  privacy-pools pools --search usdc --sort asset-asc
+  privacy-pools pools --json --chain ethereum
+JSON output (--json):
+  { chain|allChains, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }"
+`;
+
+exports[`CLI --help snapshots activity --help snapshot 1`] = `
+"Usage: privacy-pools activity [options]
+Show public activity feed (global or for a specific pool)
+Options:
+  -a, --asset <symbol|address>  Filter to one pool asset on the selected chain
+  --page <n>                    Page number (default: "1")
+  --limit <n>                   Items per page (default: "12")
+  -h, --help                    display help for command
+Examples:
+  privacy-pools activity
+  privacy-pools activity --page 2 --limit 20
+  privacy-pools activity --asset ETH
+  privacy-pools activity --asset USDC --json --chain ethereum
+JSON output (--json):
+  { mode, chain, page, perPage, total?, totalPages?, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }"
+`;
+
+exports[`CLI --help snapshots stats --help snapshot 1`] = `
+"Usage: privacy-pools stats [options] [command]
+Show public statistics (global or per pool)
+Options:
+  -h, --help      display help for command
+Commands:
+  global          Show global Privacy Pools statistics (all-time and last 24h)
+  pool [options]  Show statistics for a specific pool (all-time and last 24h)
+  help [command]  display help for command
+Examples:
+  privacy-pools stats global
+  privacy-pools stats pool --asset ETH
+  privacy-pools stats pool --asset USDC --json --chain ethereum"
+`;
+
+exports[`CLI --help snapshots deposit --help snapshot 1`] = `
+"Usage: privacy-pools deposit [options] <amountOrAsset> [amount]
+Deposit ETH or ERC-20 tokens into a Privacy Pool
+Arguments:
+  amountOrAsset                 Amount to deposit (or asset symbol, see
+                                examples)
+  amount                        Amount (when asset is the first argument)
+Options:
+  -a, --asset <symbol|address>  Asset to deposit (symbol like ETH, USDC, or
+                                contract address)
+  --unsigned                    Build unsigned transaction payload(s); do not
+                                submit
+  --unsigned-format <format>    Unsigned output format (with --unsigned):
+                                envelope|tx
+  --dry-run                     Validate and preview the transaction without
+                                submitting
+  -h, --help                    display help for command
+Examples:
+  privacy-pools deposit 0.1 --asset ETH
+  privacy-pools deposit ETH 0.1
+  privacy-pools deposit 0.05 --asset ETH --json --yes
+  privacy-pools deposit ETH 0.05 --unsigned
+  privacy-pools deposit 0.1 --asset ETH --dry-run
+  privacy-pools deposit ETH 0.1 --chain sepolia
+Prerequisites:
+  Requires: init
+JSON output (--json):
+  { txHash, amount, committedValue, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }"
+`;
+
+exports[`CLI --help snapshots withdraw --help snapshot 1`] = `
+"Usage: privacy-pools withdraw [options] [command] <amountOrAsset> [amount]
+Withdraw from a Privacy Pool (relayed by default)
+Arguments:
+  amountOrAsset                             Amount to withdraw (or asset symbol, see examples)
+  amount                                    Amount (when asset is the first argument)
+Options:
+  -t, --to <address>                        Recipient address (required for relayed)
+  -p, --from-pa <PA-#|#>                    Withdraw from a specific Pool Account (e.g. PA-2)
+  --direct                                  Use direct withdrawal instead of relayed
+  --unsigned                                Build unsigned payload(s); do not submit
+  --unsigned-format <format>                Unsigned output format (with --unsigned): envelope|tx
+  --dry-run                                 Generate and verify withdrawal artifacts without submitting
+  -a, --asset <symbol|address>              Asset to withdraw
+  -h, --help                                display help for command
+Commands:
+  quote [options] <amountOrAsset> [amount]  Request relayer quote and limits without generating a proof
+Examples:
+  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient...
+  privacy-pools withdraw ETH 0.05 --to 0xRecipient... -p PA-2
+  privacy-pools withdraw 0.05 --asset ETH --direct
+  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run
+  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
+  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia
+Prerequisites:
+  Requires: init (account state should be synced)
+JSON output (--json):
+  { mode, txHash, amount, recipient, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }"
+`;
+
+exports[`CLI --help snapshots ragequit --help snapshot 1`] = `
+"Usage: privacy-pools ragequit|exit [options] [asset]
+Publicly withdraw funds without ASP approval (reveals your deposit address)
+Arguments:
+  asset                         Optional positional asset alias (e.g., ragequit
+                                ETH)
+Options:
+  -a, --asset <symbol|address>  Asset pool to exit from
+  -p, --from-pa <PA-#|#>        Ragequit a specific Pool Account (e.g. PA-2)
+  --unsigned                    Build unsigned transaction payload; do not
+                                submit
+  --unsigned-format <format>    Unsigned output format (with --unsigned):
+                                envelope|tx
+  --dry-run                     Generate proof and validate without submitting
+  -h, --help                    display help for command
+Examples:
+  privacy-pools ragequit --asset ETH -p PA-1
+  privacy-pools ragequit ETH --unsigned -p PA-1
+  privacy-pools ragequit --asset ETH --dry-run -p PA-1
+  privacy-pools ragequit ETH -p PA-1 --chain sepolia
+Prerequisites:
+  Requires: init (account state should be synced)
+JSON output (--json):
+  { txHash, amount, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }"
+`;
+
+exports[`CLI --help snapshots balance --help snapshot 1`] = `
+"Usage: privacy-pools balance [options]
+Show balances across pools
+Options:
+  --no-sync   Use cached data (faster, but may be stale)
+  -h, --help  display help for command
+Examples:
+  privacy-pools balance
+  privacy-pools balance --json
+  privacy-pools balance --no-sync --chain sepolia
+Prerequisites:
+  Requires: init
+JSON output (--json):
+  { chain, balances: [{ asset, assetAddress, balance, commitments, poolAccounts }] }"
+`;
+
+exports[`CLI --help snapshots accounts --help snapshot 1`] = `
+"Usage: privacy-pools accounts [options]
+List your Pool Accounts (PA-1, PA-2, ...)
+Options:
+  --no-sync   Use cached data (faster, but may be stale)
+  --all       Include exited and fully spent Pool Accounts
+  --details   Show additional details per Pool Account
+  -h, --help  display help for command
+Examples:
+  privacy-pools accounts
+  privacy-pools accounts --all
+  privacy-pools accounts --details
+  privacy-pools accounts --json
+  privacy-pools accounts --no-sync --chain sepolia
+Prerequisites:
+  Requires: init
+JSON output (--json):
+  { chain, accounts: [{ poolAccountId, status, asset, scope, value, hash, label, ... }] }"
+`;
+
+exports[`CLI --help snapshots history --help snapshot 1`] = `
+"Usage: privacy-pools history [options]
+Show chronological event history (deposits, withdrawals, exits)
+Options:
+  --no-sync        Use cached data (faster, but may be stale)
+  -n, --limit <n>  Show last N events (default: "50")
+  -h, --help       display help for command
+Examples:
+  privacy-pools history
+  privacy-pools history --limit 10
+  privacy-pools history --json
+  privacy-pools history --no-sync --chain sepolia
+Prerequisites:
+  Requires: init
+JSON output (--json):
+  { chain, events: [{ type, asset, poolAddress, poolAccountId, value, blockNumber, txHash, explorerUrl }] }"
+`;
+
+exports[`CLI --help snapshots sync --help snapshot 1`] = `
+"Usage: privacy-pools sync [options]
+Sync local account state from onchain events
+Options:
+  -a, --asset <symbol|address>  Sync only a single pool asset
+  -h, --help                    display help for command
+Examples:
+  privacy-pools sync
+  privacy-pools sync --asset ETH --json
+  privacy-pools sync --chain sepolia
+Prerequisites:
+  Requires: init
+JSON output (--json):
+  { chain, syncedPools, syncedSymbols, spendableCommitments }"
+`;
+
+exports[`CLI --help snapshots guide --help snapshot 1`] = `
+"Usage: privacy-pools guide [options]
+Show usage guide, workflow, and reference
+Options:
+  -h, --help  display help for command"
+`;
+
+exports[`CLI --help snapshots capabilities --help snapshot 1`] = `
+"Usage: privacy-pools capabilities [options]
+Describe CLI capabilities for agent discovery
+Options:
+  -h, --help  display help for command
+Examples:
+  privacy-pools capabilities
+  privacy-pools capabilities --json
+JSON output (--json):
+  { commands[], globalFlags[], agentWorkflow[], jsonOutputContract }"
+`;
+
+exports[`CLI --help snapshots completion --help snapshot 1`] = `
+"Usage: privacy-pools completion [options] [shell]
+Generate shell completion script
+Arguments:
+  shell                Target shell (bash|zsh|fish)
+Options:
+  -s, --shell <shell>  Target shell (choices: "bash", "zsh", "fish")
+  -h, --help           display help for command
+Examples:
+  privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools
+  privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools
+  privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish"
+`;
+
+exports[`CLI --help snapshots withdraw quote --help snapshot 1`] = `
+"Usage: privacy-pools withdraw quote [options] <amountOrAsset> [amount]
+Request relayer quote and limits without generating a proof
+Arguments:
+  amountOrAsset                 Amount to withdraw (or asset symbol, see
+                                examples)
+  amount                        Amount (when asset is the first argument)
+Options:
+  -a, --asset <symbol|address>  Asset to quote
+  -t, --to <address>            Recipient address (recommended for signed fee
+                                commitment)
+  -h, --help                    display help for command
+Examples:
+  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
+  privacy-pools withdraw quote 100 --asset USDC --json --chain ethereum
+Prerequisites:
+  Requires: init
+JSON output (--json):
+  { mode, chain, asset, amount, quoteFeeBPS, quoteExpiresAt, ... }"
+`;
+
+exports[`CLI --help snapshots stats global --help snapshot 1`] = `
+"Usage: privacy-pools stats global [options]
+Show global Privacy Pools statistics (all-time and last 24h)
+Options:
+  -h, --help  display help for command
+Examples:
+  privacy-pools stats global
+  privacy-pools stats global --json --chain ethereum
+JSON output (--json):
+  { mode, chain, cacheTimestamp?, allTime?, last24h? }"
+`;
+
+exports[`CLI --help snapshots stats pool --help snapshot 1`] = `
+"Usage: privacy-pools stats pool [options]
+Show statistics for a specific pool (all-time and last 24h)
+Options:
+  -a, --asset <symbol|address>  Pool asset (symbol like ETH, USDC, or token
+                                address)
+  -h, --help                    display help for command
+Examples:
+  privacy-pools stats pool --asset ETH
+  privacy-pools stats pool --asset USDC --json --chain ethereum
+JSON output (--json):
+  { mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }"
+`;

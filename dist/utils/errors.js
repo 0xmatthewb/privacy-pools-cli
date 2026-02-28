@@ -123,9 +123,9 @@ export function printError(error, json = false) {
         }, false);
     }
     else {
-        console.error(chalk.red(`Error [${classified.category}]: ${classified.message}`));
+        process.stderr.write(chalk.red(`Error [${classified.category}]: ${classified.message}`) + "\n");
         if (classified.hint) {
-            console.error(chalk.yellow(`Hint: ${classified.hint}`));
+            process.stderr.write(chalk.yellow(`Hint: ${classified.hint}`) + "\n");
         }
     }
     process.exit(EXIT_CODES[classified.category]);

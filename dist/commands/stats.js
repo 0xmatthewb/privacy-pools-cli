@@ -8,7 +8,8 @@ import { commandHelpText } from "../utils/help.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { printTable, spinner } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-function parseUsd(value) {
+/** @internal Exported for unit testing. */
+export function parseUsd(value) {
     if (typeof value === "string" && value.trim() !== "") {
         const parsed = Number(value.replace(/,/g, ""));
         if (Number.isFinite(parsed)) {
@@ -17,7 +18,8 @@ function parseUsd(value) {
     }
     return "-";
 }
-function parseCount(value) {
+/** @internal Exported for unit testing. */
+export function parseCount(value) {
     if (typeof value === "number" && Number.isFinite(value)) {
         return Math.floor(value).toLocaleString("en-US");
     }

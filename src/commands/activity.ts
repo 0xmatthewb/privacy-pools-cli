@@ -29,7 +29,8 @@ interface NormalizedActivityEvent {
   chainId: number | null;
 }
 
-function parsePositiveInt(raw: string | undefined, fieldName: string): number {
+/** @internal Exported for unit testing. */
+export function parsePositiveInt(raw: string | undefined, fieldName: string): number {
   const fallback = fieldName === "page" ? 1 : 12;
   const parsed = Number(raw ?? fallback);
   if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -42,7 +43,8 @@ function parsePositiveInt(raw: string | undefined, fieldName: string): number {
   return parsed;
 }
 
-function parseNumberish(value: unknown): number | null {
+/** @internal Exported for unit testing. */
+export function parseNumberish(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
@@ -198,6 +200,7 @@ export function createActivityCommand(): Command {
             return;
           }
 
+          if (silent) return;
           process.stderr.write(`\nActivity for ${pool.symbol} on ${chainConfig.name}:\n\n`);
           if (events.length === 0) {
             process.stderr.write("No activity found.\n");
@@ -249,6 +252,7 @@ export function createActivityCommand(): Command {
           return;
         }
 
+        if (silent) return;
         process.stderr.write(`\nGlobal activity (${chainConfig.name} endpoint):\n\n`);
         if (events.length === 0) {
           process.stderr.write("No activity found.\n");

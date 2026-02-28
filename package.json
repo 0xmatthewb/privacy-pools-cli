@@ -7,14 +7,22 @@
     "privacy-pools": "./dist/index.js",
     "pp": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "AGENTS.md",
+    "skills"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc --project tsconfig.json && chmod +x dist/index.js",
     "cli": "bun src/index.ts",
     "dev": "bun src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
-    "test:audit": "bun test ./test --timeout 120000",
+    "test": "bun test ./test/unit ./test/integration ./test/fuzz ./test/services",
+    "test:conformance": "bun test ./test/conformance --timeout 120000",
     "test:fuzz": "bun test ./test/fuzz --timeout 120000",
     "test:stress": "PP_STRESS_ENABLED=1 bun test ./test/fuzz/cli.stress-120-rounds.test.ts --timeout 120000",
     "test:coverage": "bun test --coverage",

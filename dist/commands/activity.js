@@ -8,7 +8,8 @@ import { commandHelpText } from "../utils/help.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { formatAddress, formatAmount, printTable, spinner } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-function parsePositiveInt(raw, fieldName) {
+/** @internal Exported for unit testing. */
+export function parsePositiveInt(raw, fieldName) {
     const fallback = fieldName === "page" ? 1 : 12;
     const parsed = Number(raw ?? fallback);
     if (!Number.isInteger(parsed) || parsed <= 0) {
@@ -16,7 +17,8 @@ function parsePositiveInt(raw, fieldName) {
     }
     return parsed;
 }
-function parseNumberish(value) {
+/** @internal Exported for unit testing. */
+export function parseNumberish(value) {
     if (typeof value === "number" && Number.isFinite(value)) {
         return value;
     }
@@ -149,6 +151,8 @@ export function createActivityCommand() {
                     }, false);
                     return;
                 }
+                if (silent)
+                    return;
                 process.stderr.write(`\nActivity for ${pool.symbol} on ${chainConfig.name}:\n\n`);
                 if (events.length === 0) {
                     process.stderr.write("No activity found.\n");
@@ -189,6 +193,8 @@ export function createActivityCommand() {
                 }, false);
                 return;
             }
+            if (silent)
+                return;
             process.stderr.write(`\nGlobal activity (${chainConfig.name} endpoint):\n\n`);
             if (events.length === 0) {
                 process.stderr.write("No activity found.\n");

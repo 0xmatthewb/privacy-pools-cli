@@ -180,21 +180,22 @@ describe("printError", () => {
     expect(exitCode).toBe(2); // INPUT exit code
   });
 
-  test("human mode writes to stderr via console.error", () => {
+  test("human mode writes to stderr via process.stderr.write", () => {
     const stderrOutput: string[] = [];
-    const origError = console.error;
+    const origWrite = process.stderr.write;
     const origExit = process.exit;
     let exitCode: number | undefined;
 
-    console.error = (...args: unknown[]) => {
-      stderrOutput.push(args.map(String).join(" "));
-    };
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrOutput.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString());
+      return true;
+    }) as typeof process.stderr.write;
     process.exit = ((code: number) => { exitCode = code; }) as never;
 
     try {
       printError(new CLIError("test error", "ASP", "check ASP"), false);
     } finally {
-      console.error = origError;
+      process.stderr.write = origWrite;
       process.exit = origExit;
     }
 

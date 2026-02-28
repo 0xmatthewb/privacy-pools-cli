@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseAmount, resolveChain, validateAddress } from "../../src/utils/validation.ts";
+import { parseAmount, resolveChain, validateAddress, validatePositive } from "../../src/utils/validation.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
 const VALID_PARSE_CASES: Array<{ input: string; decimals: number; expected: bigint }> = [
@@ -136,4 +136,41 @@ describe("validation matrix", () => {
       expect(() => validateAddress(address)).toThrow(CLIError);
     });
   }
+
+  test("validatePositive rejects zero and negative-like values", () => {
+    expect(() => validatePositive(0n)).toThrow(CLIError);
+    expect(() => validatePositive(-1n)).toThrow(CLIError);
+    expect(() => validatePositive(1n)).not.toThrow();
+  });
+
+  test("resolveChain applies host overrides from environment", () => {
+    const prevGlobalAsp = process.env.PRIVACY_POOLS_ASP_HOST;
+    const prevChainAsp = process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA;
+    const prevGlobalRelayer = process.env.PRIVACY_POOLS_RELAYER_HOST;
+    const prevChainRelayer = process.env.PRIVACY_POOLS_RELAYER_HOST_SEPOLIA;
+    try {
+      process.env.PRIVACY_POOLS_ASP_HOST = "https://asp-global.test";
+      process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA = "https://asp-sepolia.test";
+      process.env.PRIVACY_POOLS_RELAYER_HOST = "https://relayer-global.test";
+      process.env.PRIVACY_POOLS_RELAYER_HOST_SEPOLIA =
+        "https://relayer-sepolia.test";
+
+      const sepolia = resolveChain("sepolia");
+      expect(sepolia.aspHost).toBe("https://asp-sepolia.test");
+      expect(sepolia.relayerHost).toBe("https://relayer-sepolia.test");
+
+      const ethereum = resolveChain("ethereum");
+      expect(ethereum.aspHost).toBe("https://asp-global.test");
+      expect(ethereum.relayerHost).toBe("https://relayer-global.test");
+    } finally {
+      if (prevGlobalAsp === undefined) delete process.env.PRIVACY_POOLS_ASP_HOST;
+      else process.env.PRIVACY_POOLS_ASP_HOST = prevGlobalAsp;
+      if (prevChainAsp === undefined) delete process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA;
+      else process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA = prevChainAsp;
+      if (prevGlobalRelayer === undefined) delete process.env.PRIVACY_POOLS_RELAYER_HOST;
+      else process.env.PRIVACY_POOLS_RELAYER_HOST = prevGlobalRelayer;
+      if (prevChainRelayer === undefined) delete process.env.PRIVACY_POOLS_RELAYER_HOST_SEPOLIA;
+      else process.env.PRIVACY_POOLS_RELAYER_HOST_SEPOLIA = prevChainRelayer;
+    }
+  });
 });

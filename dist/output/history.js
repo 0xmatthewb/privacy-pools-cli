@@ -54,7 +54,7 @@ export function renderHistory(ctx, data) {
         const pool = poolByAddress.get(e.poolAddress);
         const typeLabel = e.type === "deposit" ? "Deposit" :
             e.type === "withdrawal" ? "Withdraw" :
-                "Exit";
+                "Ragequit";
         return [
             typeLabel,
             e.paId,

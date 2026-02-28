@@ -19,7 +19,8 @@ interface PoolStatsCommandOptions {
   asset?: string;
 }
 
-function parseUsd(value: unknown): string {
+/** @internal Exported for unit testing. */
+export function parseUsd(value: unknown): string {
   if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value.replace(/,/g, ""));
     if (Number.isFinite(parsed)) {
@@ -29,7 +30,8 @@ function parseUsd(value: unknown): string {
   return "-";
 }
 
-function parseCount(value: unknown): string {
+/** @internal Exported for unit testing. */
+export function parseCount(value: unknown): string {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.floor(value).toLocaleString("en-US");
   }

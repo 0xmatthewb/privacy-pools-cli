@@ -81,7 +81,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
       const typeLabel =
         e.type === "deposit" ? "Deposit" :
         e.type === "withdrawal" ? "Withdraw" :
-        "Exit";
+        "Ragequit";
       return [
         typeLabel,
         e.paId,

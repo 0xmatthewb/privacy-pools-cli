@@ -292,7 +292,7 @@ export function createInitCommand(): Command {
         }
 
         const config = loadConfig();
-        config.defaultChain = defaultChain ?? config.defaultChain ?? "ethereum";
+        config.defaultChain = (defaultChain ?? config.defaultChain ?? "ethereum").toLowerCase();
 
         const rpcUrl = opts.rpcUrl ?? globalOpts?.rpcUrl;
         if (rpcUrl) {

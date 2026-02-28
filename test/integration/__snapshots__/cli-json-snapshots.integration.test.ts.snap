@@ -1,0 +1,157 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`JSON envelope structure snapshots status --json success envelope shape 1`] = `
+{
+  "accountFiles": "array(0)",
+  "aspHost": "null",
+  "configDir": "null",
+  "configExists": "boolean",
+  "defaultChain": "null",
+  "entrypoint": "null",
+  "mnemonicSet": "boolean",
+  "rpcUrl": "null",
+  "schemaVersion": "string",
+  "selectedChain": "null",
+  "signerAddress": "null",
+  "signerKeySet": "boolean",
+  "signerKeyValid": "boolean",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots status --json (initialized) success envelope shape 1`] = `
+{
+  "accountFiles": "array(0)",
+  "aspHost": "string",
+  "configDir": "string",
+  "configExists": "boolean",
+  "defaultChain": "string",
+  "entrypoint": "string",
+  "mnemonicSet": "boolean",
+  "rpcUrl": "string",
+  "schemaVersion": "string",
+  "selectedChain": "string",
+  "signerAddress": "string",
+  "signerKeySet": "boolean",
+  "signerKeyValid": "boolean",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots capabilities --json success envelope shape 1`] = `
+{
+  "agentWorkflow": "array(5)",
+  "commands": "array(15)",
+  "globalFlags": "array(8)",
+  "jsonOutputContract": "string",
+  "schemaVersion": "string",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots activity --json error envelope shape (ASP offline) 1`] = `
+{
+  "error.category": "string",
+  "error.code": "string",
+  "error.hint": "string",
+  "error.message": "string",
+  "error.retryable": "boolean",
+  "errorCode": "string",
+  "errorMessage": "string",
+  "schemaVersion": "string",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots stats --json error envelope shape (ASP offline) 1`] = `
+{
+  "error.category": "string",
+  "error.code": "string",
+  "error.hint": "string",
+  "error.message": "string",
+  "error.retryable": "boolean",
+  "errorCode": "string",
+  "errorMessage": "string",
+  "schemaVersion": "string",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots pools --json error envelope shape (ASP offline) 1`] = `
+{
+  "error.category": "string",
+  "error.code": "string",
+  "error.hint": "string",
+  "error.message": "string",
+  "error.retryable": "boolean",
+  "errorCode": "string",
+  "errorMessage": "string",
+  "schemaVersion": "string",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots INPUT error envelope shape (stats pool without --asset) 1`] = `
+{
+  "error.category": "string",
+  "error.code": "string",
+  "error.hint": "string",
+  "error.message": "string",
+  "error.retryable": "boolean",
+  "errorCode": "string",
+  "errorMessage": "string",
+  "schemaVersion": "string",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots balance --json envelope shape (initialized, offline) 1`] = `
+{
+  "error.category": "string",
+  "error.code": "string",
+  "error.hint": "string",
+  "error.message": "string",
+  "error.retryable": "boolean",
+  "errorCode": "string",
+  "errorMessage": "string",
+  "schemaVersion": "string",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots accounts --json envelope shape (initialized, offline) 1`] = `
+{
+  "error.category": "string",
+  "error.code": "string",
+  "error.hint": "string",
+  "error.message": "string",
+  "error.retryable": "boolean",
+  "errorCode": "string",
+  "errorMessage": "string",
+  "schemaVersion": "string",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots history --json envelope shape (initialized, offline) 1`] = `
+{
+  "error.category": "string",
+  "error.code": "string",
+  "error.hint": "string",
+  "error.message": "string",
+  "error.retryable": "boolean",
+  "errorCode": "string",
+  "errorMessage": "string",
+  "schemaVersion": "string",
+  "success": "boolean",
+}
+`;
+
+exports[`JSON envelope structure snapshots init --json success envelope shape 1`] = `
+{
+  "defaultChain": "string",
+  "schemaVersion": "string",
+  "signerKeySet": "boolean",
+  "success": "boolean",
+}
+`;
