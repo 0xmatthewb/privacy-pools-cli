@@ -40,13 +40,14 @@ function renderStatsTable(allTime, last24h) {
 export function createStatsCommand() {
     const command = new Command("stats")
         .description("Show public statistics (global or per pool)")
-        .addHelpText("after", "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH --chain sepolia\n  privacy-pools stats pool --asset USDC --json --chain ethereum\n");
+        .addHelpText("after", "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain ethereum\n");
     command
         .command("global", { isDefault: true })
         .description("Show global Privacy Pools statistics (all-time and last 24h)")
-        .addHelpText("after", commandHelpText({
-        jsonFields: "{ mode, chain, cacheTimestamp?, allTime?, last24h? }",
-    }))
+        .addHelpText("after", "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --json --chain ethereum\n"
+        + commandHelpText({
+            jsonFields: "{ mode, chain, cacheTimestamp?, allTime?, last24h? }",
+        }))
         .action(async (_opts, subCmd) => {
         const globalOpts = subCmd.parent?.parent?.opts();
         const mode = resolveGlobalMode(globalOpts);
@@ -83,9 +84,10 @@ export function createStatsCommand() {
         .command("pool")
         .description("Show statistics for a specific pool (all-time and last 24h)")
         .option("-a, --asset <symbol|address>", "Pool asset (symbol like ETH, USDC, or token address)")
-        .addHelpText("after", commandHelpText({
-        jsonFields: "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
-    }))
+        .addHelpText("after", "\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain ethereum\n"
+        + commandHelpText({
+            jsonFields: "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+        }))
         .action(async (opts, subCmd) => {
         const globalOpts = subCmd.parent?.parent?.opts();
         const mode = resolveGlobalMode(globalOpts);

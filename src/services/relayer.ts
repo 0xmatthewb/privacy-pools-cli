@@ -48,7 +48,7 @@ async function relayerFetch(
       );
     }
     throw new CLIError(
-      `Relayer request failed (${res.status}): ${message}`,
+      "Relayer request failed.",
       "RELAYER",
       "Check your network connection and try again. If it persists, the relayer may be temporarily down."
     );

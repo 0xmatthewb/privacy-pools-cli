@@ -12,7 +12,7 @@ export declare function rootHelpFooter(): string;
 export declare function guideText(): string;
 interface CommandHelpConfig {
     prerequisites?: string;
-    jsonFields: string;
+    jsonFields?: string;
     jsonVariants?: string[];
     supportsUnsigned?: boolean;
     supportsDryRun?: boolean;

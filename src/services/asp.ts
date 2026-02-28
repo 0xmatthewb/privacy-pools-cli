@@ -35,27 +35,27 @@ async function aspFetch(
   if (!res.ok) {
     if (res.status === 404) {
       throw new CLIError(
-        `Withdrawal service: resource not found (${path}).`,
+        "ASP service: resource not found.",
         "ASP",
         "The pool may not be registered yet. Run 'privacy-pools pools' to verify."
       );
     }
     if (res.status === 400) {
       throw new CLIError(
-        `Withdrawal service: bad request (${path}).`,
+        "ASP service returned an error.",
         "ASP",
         "Try 'privacy-pools sync' and retry. If it persists, the CLI may be out of date."
       );
     }
     if (res.status === 429 || res.status === 403) {
       throw new CLIError(
-        `Withdrawal service: rate limited or forbidden (${res.status}).`,
+        "ASP service is temporarily rate-limiting requests.",
         "ASP",
         "Wait a moment and try again."
       );
     }
     throw new CLIError(
-      `Withdrawal service request failed: ${res.status} ${res.statusText}`,
+      "Could not reach the ASP service.",
       "ASP",
       "Check your network connection. If it persists, the service may be temporarily down."
     );
@@ -83,13 +83,13 @@ async function aspFetchGlobal(
   if (!res.ok) {
     if (res.status === 429 || res.status === 403) {
       throw new CLIError(
-        `Withdrawal service: rate limited or forbidden (${res.status}).`,
+        "ASP service is temporarily rate-limiting requests.",
         "ASP",
         "Wait a moment and try again."
       );
     }
     throw new CLIError(
-      `Withdrawal service request failed: ${res.status} ${res.statusText}`,
+      "Could not reach the ASP service.",
       "ASP",
       "Check your network connection. If it persists, the service may be temporarily down."
     );

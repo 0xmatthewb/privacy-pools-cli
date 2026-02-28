@@ -41,7 +41,7 @@ export class CLIError extends Error {
 const CONTRACT_ERROR_MAP = {
     NullifierAlreadySpent: {
         message: "This Pool Account has already been withdrawn.",
-        hint: "Each Pool Account can only be spent once. Check 'privacy-pools accounts' for other spendable accounts.",
+        hint: "Each Pool Account can only be spent once. Check 'privacy-pools accounts' for other available accounts.",
         code: "CONTRACT_NULLIFIER_ALREADY_SPENT",
     },
     IncorrectASPRoot: {

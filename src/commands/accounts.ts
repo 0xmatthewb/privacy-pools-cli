@@ -34,7 +34,7 @@ export function createAccountsCommand(): Command {
     .option("--details", "Show additional details per Pool Account")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --no-sync --chain sepolia\n  privacy-pools accounts --json\n"
+      "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --json\n  privacy-pools accounts --no-sync --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ chain, accounts: [{ poolAccountId, status, asset, scope, value, hash, label, ... }] }",

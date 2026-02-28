@@ -75,7 +75,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
 
   process.stderr.write(`\nHistory on ${chain} (last ${events.length} events):\n\n`);
   printTable(
-    ["Block", "Type", "PA", "Amount", "Tx"],
+    ["Type", "PA", "Amount", "Tx", "Block"],
     events.map((e) => {
       const pool = poolByAddress.get(e.poolAddress);
       const typeLabel =
@@ -83,11 +83,11 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
         e.type === "withdrawal" ? "Withdraw" :
         "Exit";
       return [
-        e.blockNumber.toString(),
         typeLabel,
         e.paId,
         formatAmount(e.value, pool?.decimals ?? 18, e.asset),
         formatTxHash(e.txHash),
+        e.blockNumber.toString(),
       ];
     }),
   );

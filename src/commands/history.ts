@@ -132,7 +132,7 @@ export function createHistoryCommand(): Command {
     .option("-n, --limit <n>", "Show last N events", "50")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools history\n  privacy-pools history --limit 10\n  privacy-pools history --no-sync --chain sepolia\n  privacy-pools history --json\n"
+      "\nExamples:\n  privacy-pools history\n  privacy-pools history --limit 10\n  privacy-pools history --json\n  privacy-pools history --no-sync --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ chain, events: [{ type, asset, poolAddress, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",

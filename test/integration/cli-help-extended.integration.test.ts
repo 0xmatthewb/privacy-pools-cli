@@ -17,8 +17,9 @@ describe("CLI help and version output", () => {
     expect(combined).toContain("sync");
     expect(combined).toContain("status");
     expect(combined).toContain("history");
-    expect(combined).toContain("capabilities");
-    expect(combined).toContain("completion");
+    // capabilities and completion are hidden from root --help (still accessible directly)
+    expect(combined).not.toContain("capabilities");
+    expect(combined).not.toContain("completion");
   });
 
   test("--version returns a semver-like version", () => {

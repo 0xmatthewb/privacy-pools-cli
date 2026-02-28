@@ -384,7 +384,7 @@ describe("renderSyncComplete parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Synced 2 pool(s) on ethereum");
-    expect(stderr).toContain("Spendable Pool Accounts: 5");
+    expect(stderr).toContain("Available Pool Accounts: 5");
   });
 
   test("quiet mode: emits nothing", () => {
@@ -804,7 +804,7 @@ describe("renderAccounts parity", () => {
       }),
     );
 
-    expect(stderr).toContain("No spendable Pool Accounts found");
+    expect(stderr).toContain("No available Pool Accounts found");
   });
 });
 
@@ -997,7 +997,7 @@ describe("renderInitResult parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Initialization complete.");
-    expect(stderr).toContain("privacy-pools status");
+    expect(stderr).toContain("privacy-pools pools");
   });
 
   test("quiet mode: emits nothing", () => {

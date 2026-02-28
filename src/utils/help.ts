@@ -111,7 +111,7 @@ export function guideText(): string {
     `  7. ${chalk.green("history")}        View transaction history`,
     `  *  ${chalk.green("sync")}           Re-sync onchain state (most commands sync automatically)`,
     `  *  ${chalk.green("status")}         Check setup anytime`,
-    `  *  ${chalk.green("ragequit")}       Public exit mechanism — returns funds to deposit address (alias: exit)`,
+    `  *  ${chalk.green("ragequit")}       Public exit — returns funds to deposit address (alias: exit)`,
     `  *  ${chalk.green("withdraw quote")} Check relayer fees before withdrawing`,
     "",
     chalk.bold("Global Options"),
@@ -157,7 +157,7 @@ export function guideText(): string {
 
 interface CommandHelpConfig {
   prerequisites?: string;
-  jsonFields: string;
+  jsonFields?: string;
   jsonVariants?: string[];
   supportsUnsigned?: boolean;
   supportsDryRun?: boolean;
@@ -170,18 +170,6 @@ export function commandHelpText(config: CommandHelpConfig): string {
     lines.push("", "Prerequisites:");
     lines.push(`  Requires: ${config.prerequisites}`);
   }
-
-  lines.push("", "JSON Output (-j/--json):");
-  lines.push(`  ${config.jsonFields}`);
-  if (config.jsonVariants) {
-    for (const variant of config.jsonVariants) {
-      lines.push(`  ${variant}`);
-    }
-  }
-  lines.push("  Errors: { errorCode, errorMessage, error: { code, category, message, hint, retryable } }");
-  lines.push("");
-  lines.push("  Tip: Add -j -y for machine-readable JSON output.");
-  lines.push("  Global flags: -c/--chain, -r/--rpc-url, -q/--quiet, -v/--verbose, --no-banner, --agent.");
 
   return lines.join("\n");
 }

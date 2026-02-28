@@ -30,5 +30,5 @@ export function renderInitResult(ctx, result) {
     if (!silent)
         process.stderr.write("\n");
     success("Initialization complete.", silent);
-    info("Run 'privacy-pools status' to verify your setup.", silent);
+    info("Next: run 'privacy-pools pools' to see available pools.", silent);
 }

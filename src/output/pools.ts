@@ -173,12 +173,11 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
 
   printTable(
     allChains
-      ? ["Chain", "Asset", "Pool", "Accepted", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"]
-      : ["Asset", "Pool", "Accepted", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"],
+      ? ["Chain", "Asset", "TVL", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"]
+      : ["Asset", "TVL", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"],
     filteredPools.map(({ chain, pool }) => {
       const baseRow = [
         pool.symbol,
-        formatAddress(pool.pool),
         formatStatAmount(
           pool.acceptedDepositsValue ?? pool.totalInPoolValue,
           pool.decimals,

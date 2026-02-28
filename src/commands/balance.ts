@@ -27,7 +27,7 @@ export function createBalanceCommand(): Command {
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --no-sync --chain sepolia\n  privacy-pools balance --json\n"
+      "\nExamples:\n  privacy-pools balance\n  privacy-pools balance --json\n  privacy-pools balance --no-sync --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ chain, balances: [{ asset, assetAddress, balance, commitments, poolAccounts }] }",

@@ -23,7 +23,7 @@ async function relayerFetch(chainConfig, path, options) {
         if (res.status === 503) {
             throw new CLIError(`Relayer: service at capacity.`, "RELAYER", "The relayer is busy. Wait a moment and try again.");
         }
-        throw new CLIError(`Relayer request failed (${res.status}): ${message}`, "RELAYER", "Check your network connection and try again. If it persists, the relayer may be temporarily down.");
+        throw new CLIError("Relayer request failed.", "RELAYER", "Check your network connection and try again. If it persists, the relayer may be temporarily down.");
     }
     return res;
 }

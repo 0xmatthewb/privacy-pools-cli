@@ -131,11 +131,11 @@ export function createActivityCommand(): Command {
   return new Command("activity")
     .description("Show public activity feed (global or for a specific pool)")
     .option("-a, --asset <symbol|address>", "Filter to one pool asset on the selected chain")
-    .option("--page <n>", "Page number (default: 1)", "1")
-    .option("--limit <n>", "Items per page (default: 12)", "12")
+    .option("--page <n>", "Page number", "1")
+    .option("--limit <n>", "Items per page", "12")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools activity\n  privacy-pools activity --page 2 --limit 12\n  privacy-pools activity --asset ETH --chain sepolia\n  privacy-pools activity --asset USDC --json --chain ethereum\n"
+      "\nExamples:\n  privacy-pools activity\n  privacy-pools activity --page 2 --limit 20\n  privacy-pools activity --asset ETH\n  privacy-pools activity --asset USDC --json --chain ethereum\n"
         + commandHelpText({
           jsonFields: "{ mode, chain, page, perPage, total?, totalPages?, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }",
         })

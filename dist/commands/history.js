@@ -85,7 +85,7 @@ export function createHistoryCommand() {
         .description("Show chronological event history (deposits, withdrawals, exits)")
         .option("--no-sync", "Use cached data (faster, but may be stale)")
         .option("-n, --limit <n>", "Show last N events", "50")
-        .addHelpText("after", "\nExamples:\n  privacy-pools history\n  privacy-pools history --limit 10\n  privacy-pools history --no-sync --chain sepolia\n  privacy-pools history --json\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools history\n  privacy-pools history --limit 10\n  privacy-pools history --json\n  privacy-pools history --no-sync --chain sepolia\n"
         + commandHelpText({
             prerequisites: "init",
             jsonFields: "{ chain, events: [{ type, asset, poolAddress, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",

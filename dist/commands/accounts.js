@@ -20,7 +20,7 @@ export function createAccountsCommand() {
         .option("--no-sync", "Use cached data (faster, but may be stale)")
         .option("--all", "Include exited and fully spent Pool Accounts")
         .option("--details", "Show additional details per Pool Account")
-        .addHelpText("after", "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --no-sync --chain sepolia\n  privacy-pools accounts --json\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --json\n  privacy-pools accounts --no-sync --chain sepolia\n"
         + commandHelpText({
             prerequisites: "init",
             jsonFields: "{ chain, accounts: [{ poolAccountId, status, asset, scope, value, hash, label, ... }] }",

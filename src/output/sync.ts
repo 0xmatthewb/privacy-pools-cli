@@ -53,5 +53,5 @@ export function renderSyncComplete(
     `Synced ${result.syncedPools} pool(s) on ${result.chain}.`,
     silent,
   );
-  info(`Spendable Pool Accounts: ${result.spendableCommitments}`, silent);
+  info(`Available Pool Accounts: ${result.spendableCommitments}`, silent);
 }

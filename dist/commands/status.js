@@ -16,7 +16,7 @@ export function createStatusCommand() {
         .option("--check", "Run both RPC and ASP health checks")
         .option("--check-rpc", "Actively test RPC connectivity")
         .option("--check-asp", "Actively test ASP liveness")
-        .addHelpText("after", "\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --check-rpc --check-asp\n  privacy-pools status --json --check-rpc\n  privacy-pools status --chain sepolia --rpc-url https://...\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --json --check-rpc\n  privacy-pools status --chain sepolia --rpc-url https://...\n"
         + commandHelpText({
             jsonFields: "{ configExists, defaultChain, selectedChain, rpcUrl, mnemonicSet, signerKeySet, signerAddress, aspLive?, rpcLive? }",
         }))

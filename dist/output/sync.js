@@ -34,5 +34,5 @@ export function renderSyncComplete(ctx, result) {
     }
     const silent = isSilent(ctx);
     success(`Synced ${result.syncedPools} pool(s) on ${result.chain}.`, silent);
-    info(`Spendable Pool Accounts: ${result.spendableCommitments}`, silent);
+    info(`Available Pool Accounts: ${result.spendableCommitments}`, silent);
 }

@@ -130,7 +130,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     if (showAll) {
       info("No Pool Accounts found.", silent);
     } else {
-      info(`No spendable Pool Accounts found. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.`, silent);
+      info(`No available Pool Accounts found. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.`, silent);
     }
     if (!silent) process.stderr.write("\n");
   } else if (!showAll && !silent) {

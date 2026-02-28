@@ -119,7 +119,7 @@ export function createPoolsCommand() {
         .option("--all-chains", "List pools across all supported chains")
         .option("--search <query>", "Filter by chain/symbol/address/scope")
         .option("--sort <mode>", `Sort mode (${SUPPORTED_SORT_MODES.join(", ")})`, "default")
-        .addHelpText("after", "\nExamples:\n  privacy-pools pools\n  privacy-pools pools --chain sepolia\n  privacy-pools pools --all-chains --sort tvl-desc\n  privacy-pools pools --search usdc --sort asset-asc\n  privacy-pools pools --json --chain ethereum\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools pools\n  privacy-pools pools --all-chains --sort tvl-desc\n  privacy-pools pools --search usdc --sort asset-asc\n  privacy-pools pools --json --chain ethereum\n"
         + commandHelpText({
             jsonFields: "{ chain|allChains, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
         }))

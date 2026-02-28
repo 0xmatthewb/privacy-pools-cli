@@ -17,15 +17,15 @@ async function aspFetch(chainConfig, path, scope, query) {
     });
     if (!res.ok) {
         if (res.status === 404) {
-            throw new CLIError(`Withdrawal service: resource not found (${path}).`, "ASP", "The pool may not be registered yet. Run 'privacy-pools pools' to verify.");
+            throw new CLIError("ASP service: resource not found.", "ASP", "The pool may not be registered yet. Run 'privacy-pools pools' to verify.");
         }
         if (res.status === 400) {
-            throw new CLIError(`Withdrawal service: bad request (${path}).`, "ASP", "Try 'privacy-pools sync' and retry. If it persists, the CLI may be out of date.");
+            throw new CLIError("ASP service returned an error.", "ASP", "Try 'privacy-pools sync' and retry. If it persists, the CLI may be out of date.");
         }
         if (res.status === 429 || res.status === 403) {
-            throw new CLIError(`Withdrawal service: rate limited or forbidden (${res.status}).`, "ASP", "Wait a moment and try again.");
+            throw new CLIError("ASP service is temporarily rate-limiting requests.", "ASP", "Wait a moment and try again.");
         }
-        throw new CLIError(`Withdrawal service request failed: ${res.status} ${res.statusText}`, "ASP", "Check your network connection. If it persists, the service may be temporarily down.");
+        throw new CLIError("Could not reach the ASP service.", "ASP", "Check your network connection. If it persists, the service may be temporarily down.");
     }
     return res;
 }
@@ -41,9 +41,9 @@ async function aspFetchGlobal(chainConfig, path, query) {
     });
     if (!res.ok) {
         if (res.status === 429 || res.status === 403) {
-            throw new CLIError(`Withdrawal service: rate limited or forbidden (${res.status}).`, "ASP", "Wait a moment and try again.");
+            throw new CLIError("ASP service is temporarily rate-limiting requests.", "ASP", "Wait a moment and try again.");
         }
-        throw new CLIError(`Withdrawal service request failed: ${res.status} ${res.statusText}`, "ASP", "Check your network connection. If it persists, the service may be temporarily down.");
+        throw new CLIError("Could not reach the ASP service.", "ASP", "Check your network connection. If it persists, the service may be temporarily down.");
     }
     return res;
 }

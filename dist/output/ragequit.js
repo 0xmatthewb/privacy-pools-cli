@@ -36,7 +36,7 @@ export function renderRagequitDryRun(ctx, data) {
     info(`Asset: ${data.asset}`, silent);
     info(`Pool Account: ${data.poolAccountId}`, silent);
     info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
-    info("Privacy note: ragequit is a public exit that returns funds to your deposit address.", silent);
+    info("Privacy note: ragequit is a public withdrawal that returns funds to your deposit address.", silent);
 }
 /**
  * Render ragequit success output.

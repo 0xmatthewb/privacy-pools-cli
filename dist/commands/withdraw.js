@@ -57,7 +57,7 @@ export function createWithdrawCommand() {
         .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
         .option("--dry-run", "Generate and verify withdrawal artifacts without submitting")
         .option("-a, --asset <symbol|address>", "Asset to withdraw")
-        .addHelpText("after", "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-2 --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia\n  privacy-pools withdraw 0.05 --asset ETH --direct --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools withdraw 1 --asset USDC --json --yes --to 0xRecipient...\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... -p PA-2\n  privacy-pools withdraw 0.05 --asset ETH --direct\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia\n"
         + commandHelpText({
             prerequisites: "init (account state should be synced)",
             jsonFields: "{ mode, txHash, amount, recipient, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
@@ -181,7 +181,7 @@ export function createWithdrawCommand() {
                 spin.stop();
                 throw new CLIError(`No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`, "INPUT", poolCommitments.length > 0
                     ? `Largest available: ${formatAmount(baseSelection.largestAvailable, pool.decimals, pool.symbol)}`
-                    : `No spendable Pool Accounts found for ${pool.symbol}. Deposit first, then run 'privacy-pools accounts --chain ${chainConfig.name}'.`);
+                    : `No available Pool Accounts found for ${pool.symbol}. Deposit first, then run 'privacy-pools accounts --chain ${chainConfig.name}'.`);
             }
             // Fetch ASP data
             spin.text = "Fetching ASP data...";
@@ -209,10 +209,10 @@ export function createWithdrawCommand() {
             const approvedLabelSet = new Set(aspLabels);
             const approvedSelection = selectBestWithdrawalCommitment(poolAccounts, withdrawalAmount, approvedLabelSet);
             if (approvedSelection.kind === "unapproved") {
-                throw new CLIError("No eligible Pool Account is currently approved for private withdrawal.", "ASP", "Your balance may be sufficient, but this Pool Account is not yet eligible. Wait and retry, or use exit/ragequit for public recovery.");
+                throw new CLIError("No eligible Pool Account is currently approved for private withdrawal.", "ASP", "Your balance may be sufficient, but this Pool Account is not yet eligible. Wait and retry, or use 'privacy-pools ragequit' for public recovery.");
             }
             if (approvedSelection.kind === "insufficient") {
-                throw new CLIError(`No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`, "INPUT", `No spendable Pool Accounts found for ${pool.symbol}.`);
+                throw new CLIError(`No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`, "INPUT", `No available Pool Accounts found for ${pool.symbol}.`);
             }
             const approvedEligiblePoolAccounts = poolAccounts
                 .filter((pa) => pa.value >= withdrawalAmount && approvedLabelSet.has(pa.label))
@@ -237,7 +237,7 @@ export function createWithdrawCommand() {
                     throw new CLIError(`${requested.paId} has insufficient balance for this withdrawal.`, "INPUT", `${requested.paId} balance: ${formatAmount(requested.value, pool.decimals, pool.symbol)}`);
                 }
                 if (!approvedLabelSet.has(requested.label)) {
-                    throw new CLIError(`${requested.paId} is not currently eligible for private withdrawal.`, "ASP", "Wait and retry, or use exit/ragequit for public recovery.");
+                    throw new CLIError(`${requested.paId} is not currently eligible for private withdrawal.`, "ASP", "Wait and retry, or use 'privacy-pools ragequit' for public recovery.");
                 }
                 selectedPoolAccount = requested;
             }
@@ -698,7 +698,7 @@ export function createWithdrawCommand() {
         .argument("[amount]", "Amount (when asset is the first argument)")
         .option("-a, --asset <symbol|address>", "Asset to quote")
         .option("-t, --to <address>", "Recipient address (recommended for signed fee commitment)")
-        .addHelpText("after", "\nExamples:\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient... --chain sepolia\n  privacy-pools withdraw quote 100 --asset USDC --json --chain ethereum\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote 100 --asset USDC --json --chain ethereum\n"
         + commandHelpText({
             prerequisites: "init",
             jsonFields: "{ mode, chain, asset, amount, quoteFeeBPS, quoteExpiresAt, ... }",

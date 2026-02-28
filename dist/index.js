@@ -142,8 +142,8 @@ program.addCommand(createStatusCommand());
 program.addCommand(createActivityCommand());
 program.addCommand(createStatsCommand());
 program.addCommand(createGuideCommand());
-program.addCommand(createCapabilitiesCommand());
-program.addCommand(createCompletionCommand());
+program.addCommand(createCapabilitiesCommand(), { hidden: true });
+program.addCommand(createCompletionCommand(), { hidden: true });
 if (isMachineMode) {
     const applyMachineMode = (cmd) => {
         cmd.showSuggestionAfterError(false);

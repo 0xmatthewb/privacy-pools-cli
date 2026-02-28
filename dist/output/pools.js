@@ -6,7 +6,7 @@
  */
 import chalk from "chalk";
 import { printJsonSuccess, printTable, info, warn, isSilent } from "./common.js";
-import { formatAddress, formatAmount, formatBPS } from "../utils/format.js";
+import { formatAmount, formatBPS } from "../utils/format.js";
 // ── Helpers (moved from command) ─────────────────────────────────────────────
 function formatStatAmount(value, decimals, symbol) {
     if (value === undefined)
@@ -124,11 +124,10 @@ export function renderPools(ctx, data) {
         return;
     }
     printTable(allChains
-        ? ["Chain", "Asset", "Pool", "Accepted", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"]
-        : ["Asset", "Pool", "Accepted", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"], filteredPools.map(({ chain, pool }) => {
+        ? ["Chain", "Asset", "TVL", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"]
+        : ["Asset", "TVL", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"], filteredPools.map(({ chain, pool }) => {
         const baseRow = [
             pool.symbol,
-            formatAddress(pool.pool),
             formatStatAmount(pool.acceptedDepositsValue ?? pool.totalInPoolValue, pool.decimals, pool.symbol),
             formatStatAmount(pool.pendingDepositsValue, pool.decimals, pool.symbol),
             formatDepositsSummary(pool),

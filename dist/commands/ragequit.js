@@ -25,7 +25,7 @@ import { buildPoolAccountRefs, parsePoolAccountSelector, poolAccountId, } from "
 export function createRagequitCommand() {
     return new Command("ragequit")
         .alias("exit")
-        .description("Publicly withdraw funds without ASP approval (reveals deposit link)")
+        .description("Publicly withdraw funds without ASP approval (reveals your deposit address)")
         .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
         .option("-a, --asset <symbol|address>", "Asset pool to exit from")
         .option("-p, --from-pa <PA-#|#>", "Exit a specific Pool Account (e.g. PA-2)")
@@ -34,7 +34,7 @@ export function createRagequitCommand() {
         .option("--unsigned", "Build unsigned transaction payload; do not submit")
         .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
         .option("--dry-run", "Generate proof and validate without submitting")
-        .addHelpText("after", "\nExamples:\n  privacy-pools exit --asset ETH -p PA-1 --chain sepolia\n  privacy-pools ragequit ETH -p PA-1 --chain sepolia\n  privacy-pools ragequit --asset 0xTokenAddress --json --yes -p PA-2\n  privacy-pools exit ETH --unsigned -p PA-1 --chain sepolia\n  privacy-pools ragequit ETH --unsigned --unsigned-format tx -p PA-1 --chain sepolia\n  privacy-pools exit --asset ETH --dry-run -p PA-1 --chain sepolia\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools ragequit --asset ETH -p PA-1\n  privacy-pools ragequit ETH --unsigned -p PA-1\n  privacy-pools ragequit --asset ETH --dry-run -p PA-1\n  privacy-pools ragequit ETH -p PA-1 --chain sepolia\n"
         + commandHelpText({
             prerequisites: "init (account state should be synced)",
             jsonFields: "{ txHash, amount, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
@@ -128,7 +128,7 @@ export function createRagequitCommand() {
             const poolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
             if (poolCommitments.length === 0) {
                 spin.stop();
-                throw new CLIError("No spendable Pool Accounts found for exit.", "INPUT", `You may not have deposits in ${pool.symbol}. Try 'privacy-pools deposit ...' first.`);
+                throw new CLIError("No available Pool Accounts found for exit.", "INPUT", `You may not have deposits in ${pool.symbol}. Try 'privacy-pools deposit ...' first.`);
             }
             spin.stop();
             // Select Pool Account
@@ -189,11 +189,11 @@ export function createRagequitCommand() {
                 warn("By exiting, you are withdrawing funds to your depositing address. You will not gain any privacy.", silent);
                 process.stderr.write("\n");
                 const ok = await confirm({
-                    message: `Exit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)} from ${pool.symbol} pool? This is irreversible.`,
+                    message: `Ragequit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)} from ${pool.symbol} pool? This is irreversible.`,
                     default: false,
                 });
                 if (!ok) {
-                    info("Exit cancelled.", silent);
+                    info("Ragequit cancelled.", silent);
                     return;
                 }
             }
@@ -270,9 +270,9 @@ export function createRagequitCommand() {
                 }
                 return;
             }
-            // Submit exit (ragequit)
+            // Submit ragequit
             const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
-            spin.text = "Submitting exit transaction...";
+            spin.text = "Submitting ragequit transaction...";
             const tx = await contracts.ragequit(proof, pool.pool);
             spin.text = "Waiting for confirmation...";
             const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
@@ -284,10 +284,10 @@ export function createRagequitCommand() {
                 });
             }
             catch {
-                throw new CLIError("Timed out waiting for exit confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
+                throw new CLIError("Timed out waiting for ragequit confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
             }
             if (receipt.status !== "success") {
-                throw new CLIError(`Exit transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
+                throw new CLIError(`Ragequit transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
             }
             guardCriticalSection();
             try {
@@ -319,7 +319,7 @@ export function createRagequitCommand() {
             finally {
                 releaseCriticalSection();
             }
-            spin.succeed("Exit confirmed!");
+            spin.succeed("Ragequit confirmed!");
             const ctx = createOutputContext(mode);
             renderRagequitSuccess(ctx, {
                 txHash: tx.hash,

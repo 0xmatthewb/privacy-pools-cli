@@ -62,7 +62,7 @@ export function createStatsCommand(): Command {
     .description("Show public statistics (global or per pool)")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH --chain sepolia\n  privacy-pools stats pool --asset USDC --json --chain ethereum\n"
+      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain ethereum\n"
     );
 
   command
@@ -70,9 +70,10 @@ export function createStatsCommand(): Command {
     .description("Show global Privacy Pools statistics (all-time and last 24h)")
     .addHelpText(
       "after",
-      commandHelpText({
-        jsonFields: "{ mode, chain, cacheTimestamp?, allTime?, last24h? }",
-      })
+      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --json --chain ethereum\n"
+        + commandHelpText({
+          jsonFields: "{ mode, chain, cacheTimestamp?, allTime?, last24h? }",
+        })
     )
     .action(async (_opts, subCmd) => {
       const globalOpts = subCmd.parent?.parent?.opts() as GlobalOptions;
@@ -118,9 +119,10 @@ export function createStatsCommand(): Command {
     .option("-a, --asset <symbol|address>", "Pool asset (symbol like ETH, USDC, or token address)")
     .addHelpText(
       "after",
-      commandHelpText({
-        jsonFields: "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
-      })
+      "\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain ethereum\n"
+        + commandHelpText({
+          jsonFields: "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+        })
     )
     .action(async (opts: PoolStatsCommandOptions, subCmd) => {
       const globalOpts = subCmd.parent?.parent?.opts() as GlobalOptions;

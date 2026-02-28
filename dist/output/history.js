@@ -50,17 +50,17 @@ export function renderHistory(ctx, data) {
     if (silent)
         return;
     process.stderr.write(`\nHistory on ${chain} (last ${events.length} events):\n\n`);
-    printTable(["Block", "Type", "PA", "Amount", "Tx"], events.map((e) => {
+    printTable(["Type", "PA", "Amount", "Tx", "Block"], events.map((e) => {
         const pool = poolByAddress.get(e.poolAddress);
         const typeLabel = e.type === "deposit" ? "Deposit" :
             e.type === "withdrawal" ? "Withdraw" :
                 "Exit";
         return [
-            e.blockNumber.toString(),
             typeLabel,
             e.paId,
             formatAmount(e.value, pool?.decimals ?? 18, e.asset),
             formatTxHash(e.txHash),
+            e.blockNumber.toString(),
         ];
     }));
     process.stderr.write("\n");

@@ -34,7 +34,7 @@ export function createDepositCommand() {
         .option("--unsigned", "Build unsigned transaction payload(s); do not submit")
         .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
         .option("--dry-run", "Validate and preview the transaction without submitting")
-        .addHelpText("after", "\nExamples:\n  privacy-pools deposit 0.1 --asset ETH --chain sepolia\n  privacy-pools deposit ETH 0.1 --chain sepolia\n  privacy-pools deposit 100 --asset 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain ethereum\n  privacy-pools deposit 0.05 --asset ETH --json --yes\n  privacy-pools deposit ETH 0.05 --unsigned --chain sepolia\n  privacy-pools deposit ETH 0.05 --unsigned --unsigned-format tx --chain sepolia\n  privacy-pools deposit 0.1 --asset ETH --dry-run --chain sepolia\n"
+        .addHelpText("after", "\nExamples:\n  privacy-pools deposit 0.1 --asset ETH\n  privacy-pools deposit ETH 0.1\n  privacy-pools deposit 0.05 --asset ETH --json --yes\n  privacy-pools deposit ETH 0.05 --unsigned\n  privacy-pools deposit 0.1 --asset ETH --dry-run\n  privacy-pools deposit ETH 0.1 --chain sepolia\n"
         + commandHelpText({
             prerequisites: "init",
             jsonFields: "{ txHash, amount, committedValue, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",

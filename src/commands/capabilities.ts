@@ -91,7 +91,7 @@ const CAPABILITIES = {
     {
       name: "ragequit",
       aliases: ["exit"],
-      description: "Publicly withdraw funds without ASP approval (reveals deposit link)",
+      description: "Publicly withdraw funds without ASP approval (reveals your deposit address)",
       usage: "ragequit --asset <symbol|address> --from-pa <PA-#>",
       flags: ["--asset <symbol|address>", "--from-pa <PA-#>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       agentFlags: "--json --yes",
