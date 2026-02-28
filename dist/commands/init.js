@@ -201,6 +201,9 @@ export function createInitCommand() {
             }
             // --- Default Chain ---
             let defaultChain = opts.defaultChain;
+            if (defaultChain && !CHAINS[defaultChain.toLowerCase()]) {
+                throw new CLIError(`Unknown chain: ${defaultChain}`, "INPUT", `Available chains: ${CHAIN_NAMES.join(", ")}`);
+            }
             if (!defaultChain && !skipPrompts) {
                 defaultChain = await select({
                     message: "Select default chain:",

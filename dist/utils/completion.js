@@ -38,10 +38,6 @@ function toOptionSpec(option) {
     if (option.long && INTERNAL_COMPLETION_OPTION_NAMES.has(option.long)) {
         return null;
     }
-    // Keep advanced/internal flags hidden from completion candidates.
-    if (option.hidden) {
-        return null;
-    }
     const names = [option.short, option.long].filter((name) => typeof name === "string" && name.length > 0);
     if (names.length === 0)
         return null;

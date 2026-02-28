@@ -39,8 +39,9 @@ export function loadAccount(chainId) {
         const raw = readFileSync(path, "utf-8");
         return deserialize(raw);
     }
-    catch {
-        return null;
+    catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new CLIError(`Account file is corrupt or unreadable: ${path}`, "INPUT", `Back up and remove the file, then run 'privacy-pools sync' to rebuild from onchain data. (${msg})`);
     }
 }
 export function saveAccount(chainId, account) {

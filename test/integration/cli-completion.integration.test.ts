@@ -80,10 +80,11 @@ describe("completion command", () => {
     expect(lines).toContain("exit");
     expect(lines).toContain("-j");
     expect(lines).toContain("--json");
-    expect(lines).not.toContain("--agent");
-    expect(lines).not.toContain("--quiet");
-    expect(lines).not.toContain("--verbose");
-    expect(lines).not.toContain("--no-banner");
+    expect(lines).toContain("--agent");
+    expect(lines).toContain("--quiet");
+    expect(lines).toContain("--verbose");
+    expect(lines).toContain("--no-banner");
+    expect(lines).toContain("--rpc-url");
   });
 
   test("query mode suggests chain values after --chain", () => {
