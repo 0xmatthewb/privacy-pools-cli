@@ -171,5 +171,10 @@ export function commandHelpText(config: CommandHelpConfig): string {
     lines.push(`  Requires: ${config.prerequisites}`);
   }
 
+  if (config.jsonFields) {
+    lines.push("", "JSON output (--json):");
+    lines.push(`  ${config.jsonFields}`);
+  }
+
   return lines.join("\n");
 }

@@ -15,10 +15,7 @@ function resolveChainHostOverride(type, chainName) {
     return global || undefined;
 }
 export function resolveChain(chainName, defaultChain) {
-    const name = chainName ?? defaultChain;
-    if (!name) {
-        throw new CLIError("No chain specified. Use --chain or set a default chain with 'privacy-pools init'.", "INPUT", `Available chains: ${CHAIN_NAMES.join(", ")}`);
-    }
+    const name = chainName ?? defaultChain ?? "ethereum";
     const normalized = name.toLowerCase();
     const config = CHAINS[normalized];
     if (!config) {

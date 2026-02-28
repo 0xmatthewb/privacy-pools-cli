@@ -145,5 +145,9 @@ export function commandHelpText(config) {
         lines.push("", "Prerequisites:");
         lines.push(`  Requires: ${config.prerequisites}`);
     }
+    if (config.jsonFields) {
+        lines.push("", "JSON output (--json):");
+        lines.push(`  ${config.jsonFields}`);
+    }
     return lines.join("\n");
 }
