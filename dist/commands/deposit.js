@@ -21,6 +21,7 @@ import { printRawTransactions } from "../utils/unsigned.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import { getNextPoolAccountNumber, poolAccountId, } from "../utils/pool-accounts.js";
 const depositedEventAbi = parseAbi([
     "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -115,45 +116,32 @@ export function createDepositCommand() {
                     return;
                 }
             }
-            // Load wallet/account state and generate deposit secrets.
-            const mnemonic = loadMnemonic();
-            const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
-            const accountService = await initializeAccountService(dataService, mnemonic, [
-                {
-                    chainId: chainConfig.id,
-                    address: pool.pool,
-                    scope: pool.scope,
-                    deploymentBlock: chainConfig.startBlock,
-                },
-            ], chainConfig.id, true, // sync to pick up latest on-chain state
-            silent, true);
-            const nextPANumber = getNextPoolAccountNumber(accountService.account, pool.scope);
-            const nextPAId = poolAccountId(nextPANumber);
-            // Generate deposit secrets (SDK returns precommitment directly)
-            const secrets = accountService.createDepositSecrets(pool.scope);
-            const precommitment = secrets.precommitment;
-            verbose(`Generated precommitment (truncated): ${precommitment.toString().slice(0, 8)}...`, isVerbose, silent);
-            const isNative = pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
-            // Pre-flight balance check (skip for unsigned - signer may not exist)
-            let balanceSufficient = "unknown";
-            if (!isUnsigned && !isDryRun) {
-                // Full check: load key and verify balance
-                const privateKey = loadPrivateKey();
-                const signerAddr = privateKeyToAccount(privateKey).address;
-                const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-                if (isNative) {
-                    await checkNativeBalance(publicClient, signerAddr, amount, pool.symbol);
-                }
-                else {
-                    await checkErc20Balance(publicClient, pool.asset, signerAddr, amount, pool.decimals, pool.symbol);
-                    // Also check native balance for gas (approve + deposit txs)
-                    await checkHasGas(publicClient, signerAddr);
-                }
-                balanceSufficient = true;
-            }
-            else if (isDryRun && !isUnsigned) {
-                // Dry-run: attempt balance check but don't fail on missing key
-                try {
+            // Acquire process lock to prevent concurrent account mutations.
+            const releaseLock = acquireProcessLock();
+            try {
+                // Load wallet/account state and generate deposit secrets.
+                const mnemonic = loadMnemonic();
+                const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
+                const accountService = await initializeAccountService(dataService, mnemonic, [
+                    {
+                        chainId: chainConfig.id,
+                        address: pool.pool,
+                        scope: pool.scope,
+                        deploymentBlock: chainConfig.startBlock,
+                    },
+                ], chainConfig.id, true, // sync to pick up latest on-chain state
+                silent, true);
+                const nextPANumber = getNextPoolAccountNumber(accountService.account, pool.scope);
+                const nextPAId = poolAccountId(nextPANumber);
+                // Generate deposit secrets (SDK returns precommitment directly)
+                const secrets = accountService.createDepositSecrets(pool.scope);
+                const precommitment = secrets.precommitment;
+                verbose(`Generated precommitment (truncated): ${precommitment.toString().slice(0, 8)}...`, isVerbose, silent);
+                const isNative = pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
+                // Pre-flight balance check (skip for unsigned - signer may not exist)
+                let balanceSufficient = "unknown";
+                if (!isUnsigned && !isDryRun) {
+                    // Full check: load key and verify balance
                     const privateKey = loadPrivateKey();
                     const signerAddr = privateKeyToAccount(privateKey).address;
                     const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
@@ -162,152 +150,172 @@ export function createDepositCommand() {
                     }
                     else {
                         await checkErc20Balance(publicClient, pool.asset, signerAddr, amount, pool.decimals, pool.symbol);
+                        // Also check native balance for gas (approve + deposit txs)
                         await checkHasGas(publicClient, signerAddr);
                     }
                     balanceSufficient = true;
                 }
-                catch (error) {
-                    const msg = error instanceof Error ? error.message : "";
-                    const isKeyError = msg.includes("private key") ||
-                        msg.includes("signer") ||
-                        msg.includes("mnemonic") ||
-                        msg.includes("ENOENT");
-                    balanceSufficient = isKeyError ? "unknown" : false;
+                else if (isDryRun && !isUnsigned) {
+                    // Dry-run: attempt balance check but don't fail on missing key
+                    try {
+                        const privateKey = loadPrivateKey();
+                        const signerAddr = privateKeyToAccount(privateKey).address;
+                        const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+                        if (isNative) {
+                            await checkNativeBalance(publicClient, signerAddr, amount, pool.symbol);
+                        }
+                        else {
+                            await checkErc20Balance(publicClient, pool.asset, signerAddr, amount, pool.decimals, pool.symbol);
+                            await checkHasGas(publicClient, signerAddr);
+                        }
+                        balanceSufficient = true;
+                    }
+                    catch (error) {
+                        const msg = error instanceof Error ? error.message : "";
+                        const isKeyError = msg.includes("private key") ||
+                            msg.includes("signer") ||
+                            msg.includes("mnemonic") ||
+                            msg.includes("ENOENT");
+                        balanceSufficient = isKeyError ? "unknown" : false;
+                    }
                 }
-            }
-            if (isDryRun) {
+                if (isDryRun) {
+                    const ctx = createOutputContext(mode);
+                    renderDepositDryRun(ctx, {
+                        chain: chainConfig.name,
+                        asset: pool.symbol,
+                        amount,
+                        decimals: pool.decimals,
+                        poolAccountNumber: nextPANumber,
+                        poolAccountId: nextPAId,
+                        precommitment: precommitment,
+                        balanceSufficient,
+                    });
+                    return;
+                }
+                if (isUnsigned) {
+                    // Avoid touching private key material in unsigned mode.
+                    const signerAddress = null;
+                    const payload = buildUnsignedDepositOutput({
+                        chainId: chainConfig.id,
+                        chainName: chainConfig.name,
+                        entrypoint: chainConfig.entrypoint,
+                        assetAddress: pool.asset,
+                        assetSymbol: pool.symbol,
+                        amount,
+                        precommitment: precommitment,
+                        from: signerAddress,
+                        isNative,
+                    });
+                    if (wantsTxFormat) {
+                        printRawTransactions(payload.transactions);
+                    }
+                    else {
+                        printJsonSuccess(payload, false);
+                    }
+                    return;
+                }
+                const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
+                const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+                // ERC20 approval
+                if (!isNative) {
+                    const spin = spinner("Approving token spend...", silent);
+                    spin.start();
+                    try {
+                        const approveTx = await contracts.approveERC20(chainConfig.entrypoint, pool.asset, amount);
+                        await approveTx.wait();
+                        spin.succeed("Token approved.");
+                    }
+                    catch (error) {
+                        spin.fail("Approval failed.");
+                        throw error;
+                    }
+                }
+                // Deposit transaction
+                const spin = spinner("Submitting deposit transaction...", silent);
+                spin.start();
+                let tx;
+                if (isNative) {
+                    tx = await contracts.depositETH(amount, precommitment);
+                }
+                else {
+                    tx = await contracts.depositERC20(pool.asset, amount, precommitment);
+                }
+                spin.text = "Waiting for confirmation...";
+                let receipt;
+                try {
+                    receipt = await publicClient.waitForTransactionReceipt({
+                        hash: tx.hash,
+                        timeout: 300_000,
+                    });
+                }
+                catch {
+                    throw new CLIError("Timed out waiting for deposit confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
+                }
+                if (receipt.status !== "success") {
+                    throw new CLIError(`Deposit transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
+                }
+                let label;
+                let committedValue;
+                guardCriticalSection();
+                try {
+                    for (const log of receipt.logs) {
+                        if (log.address.toLowerCase() !== pool.pool.toLowerCase()) {
+                            continue;
+                        }
+                        try {
+                            const decoded = decodeEventLog({
+                                abi: depositedEventAbi,
+                                data: log.data,
+                                topics: log.topics,
+                            });
+                            label = decoded.args._label;
+                            committedValue = decoded.args._value;
+                            break;
+                        }
+                        catch {
+                            // Not this event
+                        }
+                    }
+                    if (label === undefined || committedValue === undefined) {
+                        spin.warn("Deposit confirmed onchain. Local state update pending: run 'privacy-pools sync' to finalize.");
+                    }
+                    else {
+                        // Persist the new commitment (7 individual args)
+                        try {
+                            accountService.addPoolAccount(pool.scope, committedValue, secrets.nullifier, secrets.secret, label, receipt.blockNumber, tx.hash);
+                            saveAccount(chainConfig.id, accountService.account);
+                        }
+                        catch (saveErr) {
+                            process.stderr.write(`\nWarning: deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
+                            process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
+                        }
+                    }
+                }
+                finally {
+                    releaseCriticalSection();
+                }
+                spin.succeed("Deposit confirmed!");
                 const ctx = createOutputContext(mode);
-                renderDepositDryRun(ctx, {
-                    chain: chainConfig.name,
-                    asset: pool.symbol,
+                renderDepositSuccess(ctx, {
+                    txHash: tx.hash,
                     amount,
+                    committedValue,
+                    asset: pool.symbol,
+                    chain: chainConfig.name,
                     decimals: pool.decimals,
                     poolAccountNumber: nextPANumber,
                     poolAccountId: nextPAId,
-                    precommitment: precommitment,
-                    balanceSufficient,
+                    poolAddress: pool.pool,
+                    scope: pool.scope,
+                    label,
+                    blockNumber: receipt.blockNumber,
+                    explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
                 });
-                return;
-            }
-            if (isUnsigned) {
-                // Avoid touching private key material in unsigned mode.
-                const signerAddress = null;
-                const payload = buildUnsignedDepositOutput({
-                    chainId: chainConfig.id,
-                    chainName: chainConfig.name,
-                    entrypoint: chainConfig.entrypoint,
-                    assetAddress: pool.asset,
-                    assetSymbol: pool.symbol,
-                    amount,
-                    precommitment: precommitment,
-                    from: signerAddress,
-                    isNative,
-                });
-                if (wantsTxFormat) {
-                    printRawTransactions(payload.transactions);
-                }
-                else {
-                    printJsonSuccess(payload, false);
-                }
-                return;
-            }
-            const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
-            const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-            // ERC20 approval
-            if (!isNative) {
-                const spin = spinner("Approving token spend...", silent);
-                spin.start();
-                try {
-                    const approveTx = await contracts.approveERC20(chainConfig.entrypoint, pool.asset, amount);
-                    await approveTx.wait();
-                    spin.succeed("Token approved.");
-                }
-                catch (error) {
-                    spin.fail("Approval failed.");
-                    throw error;
-                }
-            }
-            // Deposit transaction
-            const spin = spinner("Submitting deposit transaction...", silent);
-            spin.start();
-            let tx;
-            if (isNative) {
-                tx = await contracts.depositETH(amount, precommitment);
-            }
-            else {
-                tx = await contracts.depositERC20(pool.asset, amount, precommitment);
-            }
-            spin.text = "Waiting for confirmation...";
-            let receipt;
-            try {
-                receipt = await publicClient.waitForTransactionReceipt({
-                    hash: tx.hash,
-                    timeout: 300_000,
-                });
-            }
-            catch {
-                throw new CLIError("Timed out waiting for deposit confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
-            }
-            if (receipt.status !== "success") {
-                throw new CLIError(`Deposit transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
-            }
-            let label;
-            let committedValue;
-            guardCriticalSection();
-            try {
-                for (const log of receipt.logs) {
-                    if (log.address.toLowerCase() !== pool.pool.toLowerCase()) {
-                        continue;
-                    }
-                    try {
-                        const decoded = decodeEventLog({
-                            abi: depositedEventAbi,
-                            data: log.data,
-                            topics: log.topics,
-                        });
-                        label = decoded.args._label;
-                        committedValue = decoded.args._value;
-                        break;
-                    }
-                    catch {
-                        // Not this event
-                    }
-                }
-                if (label === undefined || committedValue === undefined) {
-                    spin.warn("Deposit confirmed onchain. Local state update pending: run 'privacy-pools sync' to finalize.");
-                }
-                else {
-                    // Persist the new commitment (7 individual args)
-                    try {
-                        accountService.addPoolAccount(pool.scope, committedValue, secrets.nullifier, secrets.secret, label, receipt.blockNumber, tx.hash);
-                        saveAccount(chainConfig.id, accountService.account);
-                    }
-                    catch (saveErr) {
-                        process.stderr.write(`\nWarning: deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
-                        process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
-                    }
-                }
             }
             finally {
-                releaseCriticalSection();
+                releaseLock();
             }
-            spin.succeed("Deposit confirmed!");
-            const ctx = createOutputContext(mode);
-            renderDepositSuccess(ctx, {
-                txHash: tx.hash,
-                amount,
-                committedValue,
-                asset: pool.symbol,
-                chain: chainConfig.name,
-                decimals: pool.decimals,
-                poolAccountNumber: nextPANumber,
-                poolAccountId: nextPAId,
-                poolAddress: pool.pool,
-                scope: pool.scope,
-                label,
-                blockNumber: receipt.blockNumber,
-                explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
-            });
         }
         catch (error) {
             printError(error, isJson || isUnsigned);

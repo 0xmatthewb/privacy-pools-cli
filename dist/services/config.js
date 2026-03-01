@@ -142,22 +142,47 @@ export function saveSignerKey(key) {
     ensureConfigDir();
     writePrivateFile(getSignerFilePath(), key);
 }
+// Env var suffix for a given chain ID, matching the PP_*_<CHAIN> convention.
+const CHAIN_ID_ENV_SUFFIX = {
+    1: "ETHEREUM",
+    42161: "ARBITRUM",
+    10: "OPTIMISM",
+    11155111: "SEPOLIA",
+    11155420: "OP_SEPOLIA",
+};
+export function resolveRpcEnvVar(chainId) {
+    const suffix = CHAIN_ID_ENV_SUFFIX[chainId];
+    if (suffix) {
+        const chainScoped = process.env[`PRIVACY_POOLS_RPC_URL_${suffix}`]?.trim() ||
+            process.env[`PP_RPC_URL_${suffix}`]?.trim();
+        if (chainScoped)
+            return chainScoped;
+    }
+    const global = process.env["PRIVACY_POOLS_RPC_URL"]?.trim() ||
+        process.env["PP_RPC_URL"]?.trim();
+    return global || undefined;
+}
 export function getRpcUrl(chainId, overrideFromFlag) {
+    // Precedence: flag > env var > config file > built-in default
     if (overrideFromFlag)
         return overrideFromFlag;
+    const envUrl = resolveRpcEnvVar(chainId);
+    if (envUrl)
+        return envUrl;
     const config = loadConfig();
     if (config.rpcOverrides[chainId])
         return config.rpcOverrides[chainId];
-    // Default public RPCs
+    // Default public RPCs (one per supported chain).
+    // Users can override per chain via init --rpc-url or config.json.
     const defaults = {
         1: "https://eth.llamarpc.com",
-        42161: "https://arb1.arbitrum.io/rpc",
-        10: "https://mainnet.optimism.io",
-        11155111: "https://rpc.sepolia.org",
-        11155420: "https://sepolia.optimism.io",
+        42161: "https://arbitrum.drpc.org",
+        10: "https://optimism.drpc.org",
+        11155111: "https://sepolia.drpc.org",
+        11155420: "https://optimism-sepolia.drpc.org",
     };
     const url = defaults[chainId];
     if (!url)
-        throw new CLIError(`No RPC URL configured for chain ${chainId}.`, "RPC", "Set one with: privacy-pools init --rpc-url <url>, or pass --rpc-url on the command.");
+        throw new CLIError(`No RPC URL configured for chain ${chainId}.`, "RPC", "Pass --rpc-url <url> on the command, or set PP_RPC_URL in your environment.");
     return url;
 }

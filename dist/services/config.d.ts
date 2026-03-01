@@ -10,4 +10,5 @@ export declare function loadMnemonicFromFile(): string | null;
 export declare function saveMnemonicToFile(mnemonic: string): void;
 export declare function loadSignerKey(): string | null;
 export declare function saveSignerKey(key: string): void;
+export declare function resolveRpcEnvVar(chainId: number): string | undefined;
 export declare function getRpcUrl(chainId: number, overrideFromFlag?: string): string;

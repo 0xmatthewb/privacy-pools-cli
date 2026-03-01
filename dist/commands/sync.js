@@ -8,6 +8,7 @@ import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
 import { spinner, verbose } from "../utils/format.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import { commandHelpText } from "../utils/help.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
@@ -31,42 +32,48 @@ export function createSyncCommand() {
             const config = loadConfig();
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
             const mnemonic = loadMnemonic();
-            const spin = spinner("Resolving pools for sync...", silent);
-            spin.start();
-            const pools = opts.asset
-                ? [await resolvePool(chainConfig, opts.asset, globalOpts?.rpcUrl)]
-                : await listPools(chainConfig, globalOpts?.rpcUrl);
-            if (pools.length === 0) {
-                spin.stop();
-                renderSyncEmpty(ctx, chainConfig.name);
-                return;
-            }
-            verbose(`Syncing ${pools.length} pool(s): ${pools.map((p) => p.symbol).join(", ")}`, isVerbose, silent);
-            const poolInfos = pools.map((p) => ({
-                chainId: chainConfig.id,
-                address: p.pool,
-                scope: p.scope,
-                deploymentBlock: chainConfig.startBlock,
-            }));
-            const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
-            spin.text = "Syncing deposit/withdrawal/ragequit events...";
-            const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, true, silent, true);
-            guardCriticalSection();
+            const releaseLock = acquireProcessLock();
             try {
-                saveAccount(chainConfig.id, accountService.account);
+                const spin = spinner("Resolving pools for sync...", silent);
+                spin.start();
+                const pools = opts.asset
+                    ? [await resolvePool(chainConfig, opts.asset, globalOpts?.rpcUrl)]
+                    : await listPools(chainConfig, globalOpts?.rpcUrl);
+                if (pools.length === 0) {
+                    spin.stop();
+                    renderSyncEmpty(ctx, chainConfig.name);
+                    return;
+                }
+                verbose(`Syncing ${pools.length} pool(s): ${pools.map((p) => p.symbol).join(", ")}`, isVerbose, silent);
+                const poolInfos = pools.map((p) => ({
+                    chainId: chainConfig.id,
+                    address: p.pool,
+                    scope: p.scope,
+                    deploymentBlock: chainConfig.startBlock,
+                }));
+                const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
+                spin.text = "Syncing deposit/withdrawal/ragequit events...";
+                const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, true, silent, true);
+                guardCriticalSection();
+                try {
+                    saveAccount(chainConfig.id, accountService.account);
+                }
+                finally {
+                    releaseCriticalSection();
+                }
+                const spendable = accountService.getSpendableCommitments();
+                const spendableCount = Array.from(spendable.values()).reduce((acc, list) => acc + list.length, 0);
+                spin.succeed("Sync complete.");
+                renderSyncComplete(ctx, {
+                    chain: chainConfig.name,
+                    syncedPools: pools.length,
+                    syncedSymbols: pools.map((p) => p.symbol),
+                    spendableCommitments: spendableCount,
+                });
             }
             finally {
-                releaseCriticalSection();
+                releaseLock();
             }
-            const spendable = accountService.getSpendableCommitments();
-            const spendableCount = Array.from(spendable.values()).reduce((acc, list) => acc + list.length, 0);
-            spin.succeed("Sync complete.");
-            renderSyncComplete(ctx, {
-                chain: chainConfig.name,
-                syncedPools: pools.length,
-                syncedSymbols: pools.map((p) => p.symbol),
-                spendableCommitments: spendableCount,
-            });
         }
         catch (error) {
             printError(error, mode.isJson);

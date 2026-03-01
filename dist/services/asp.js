@@ -1,4 +1,5 @@
 import { CLIError } from "../utils/errors.js";
+import { getNetworkTimeoutMs } from "../utils/mode.js";
 async function aspFetch(chainConfig, path, scope, query) {
     const url = new URL(`${chainConfig.aspHost}/${chainConfig.id}${path}`);
     if (query) {
@@ -13,7 +14,7 @@ async function aspFetch(chainConfig, path, scope, query) {
     }
     const res = await fetch(url.toString(), {
         headers,
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(getNetworkTimeoutMs()),
     });
     if (!res.ok) {
         if (res.status === 404) {
@@ -37,7 +38,7 @@ async function aspFetchGlobal(chainConfig, path, query) {
         }
     }
     const res = await fetch(url.toString(), {
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(getNetworkTimeoutMs()),
     });
     if (!res.ok) {
         if (res.status === 429 || res.status === 403) {
@@ -101,7 +102,7 @@ export async function fetchApprovedLabels(chainConfig, scope) {
 }
 export async function checkLiveness(chainConfig) {
     try {
-        const res = await fetch(`${chainConfig.aspHost}/${chainConfig.id}/health/liveness`, { signal: AbortSignal.timeout(10_000) });
+        const res = await fetch(`${chainConfig.aspHost}/${chainConfig.id}/health/liveness`, { signal: AbortSignal.timeout(Math.min(getNetworkTimeoutMs(), 10_000)) });
         if (!res.ok)
             return false;
         const data = (await res.json());

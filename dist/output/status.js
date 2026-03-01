@@ -17,6 +17,7 @@ export function renderStatus(ctx, result) {
             defaultChain: result.defaultChain,
             selectedChain: result.selectedChain,
             rpcUrl: result.rpcUrl,
+            rpcIsCustom: result.rpcIsCustom,
             mnemonicSet: result.mnemonicSet,
             signerKeySet: result.signerKeySet,
             signerKeyValid: result.signerKeyValid,
@@ -70,7 +71,7 @@ export function renderStatus(ctx, result) {
     // Chain details
     if (result.selectedChain) {
         info(`Contract: ${result.entrypoint}`, silent);
-        info(`RPC: ${result.rpcUrl}`, silent);
+        info(`RPC: ${result.rpcUrl}${result.rpcIsCustom ? "" : chalk.dim(" (default)")}`, silent);
         const checks = result.healthChecksEnabled;
         if (ctx.isVerbose && checks) {
             info(`Health checks: rpc=${checks.rpc ? "enabled" : "disabled"}, asp=${checks.asp ? "enabled" : "disabled"}`, silent);

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { configExists, loadConfig, mnemonicExists, getRpcUrl, getConfigDir, loadSignerKey, } from "../services/config.js";
+import { configExists, loadConfig, mnemonicExists, getRpcUrl, resolveRpcEnvVar, getConfigDir, loadSignerKey, } from "../services/config.js";
 import { CHAINS } from "../config/chains.js";
 import { checkLiveness } from "../services/asp.js";
 import { getPublicClient } from "../services/sdk.js";
@@ -50,6 +50,9 @@ export function createStatusCommand() {
                     signerKeyValid = false;
                 }
             }
+            const rpcIsCustom = !!(globalOpts?.rpcUrl ||
+                (selectedChainConfig && resolveRpcEnvVar(selectedChainConfig.id)) ||
+                (selectedChainConfig && config?.rpcOverrides?.[selectedChainConfig.id]));
             const result = {
                 configExists: configReady,
                 configDir: configReady ? getConfigDir() : null,
@@ -58,6 +61,7 @@ export function createStatusCommand() {
                 rpcUrl: selectedChainConfig
                     ? getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)
                     : null,
+                rpcIsCustom,
                 mnemonicSet: hasMnemonic,
                 signerKeySet: !!signerKey,
                 signerKeyValid,

@@ -26,6 +26,7 @@ import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote } from "../output/withdraw.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import { buildPoolAccountRefs, parsePoolAccountSelector, poolAccountId, } from "../utils/pool-accounts.js";
 const entrypointLatestRootAbi = [
     {
@@ -155,536 +156,551 @@ export function createWithdrawCommand() {
             const withdrawalAmount = parseAmount(amountStr, pool.decimals);
             validatePositive(withdrawalAmount, "Withdrawal amount");
             verbose(`Requested withdrawal amount: ${withdrawalAmount.toString()}`, isVerbose, silent);
-            // Load account & sync
-            const mnemonic = loadMnemonic();
-            const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-            const sdk = await getSDK();
-            const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
-            const spin = spinner("Syncing account state...", silent);
-            spin.start();
-            const accountService = await initializeAccountService(dataService, mnemonic, [
-                {
-                    chainId: chainConfig.id,
-                    address: pool.pool,
-                    scope: pool.scope,
-                    deploymentBlock: chainConfig.startBlock,
-                },
-            ], chainConfig.id, true, // sync to pick up latest on-chain state
-            silent, true);
-            // Find spendable Pool Accounts for this scope.
-            const spendable = accountService.getSpendableCommitments();
-            const poolCommitments = spendable.get(pool.scope) ?? [];
-            const poolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
-            verbose(`Available Pool Accounts in this pool: ${poolAccounts.length}`, isVerbose, silent);
-            const baseSelection = selectBestWithdrawalCommitment(poolAccounts, withdrawalAmount);
-            if (baseSelection.kind === "insufficient") {
-                spin.stop();
-                throw new CLIError(`No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`, "INPUT", poolCommitments.length > 0
-                    ? `Largest available: ${formatAmount(baseSelection.largestAvailable, pool.decimals, pool.symbol)}`
-                    : `No available Pool Accounts found for ${pool.symbol}. Deposit first, then run 'privacy-pools accounts --chain ${chainConfig.name}'.`);
-            }
-            // Fetch ASP data
-            spin.text = "Fetching ASP data...";
-            const roots = await fetchMerkleRoots(chainConfig, pool.scope);
-            const leaves = await fetchMerkleLeaves(chainConfig, pool.scope);
-            verbose(`ASP roots: mtRoot=${roots.mtRoot} onchainMtRoot=${roots.onchainMtRoot}`, isVerbose, silent);
-            verbose(`ASP leaves: labels=${leaves.aspLeaves.length} stateLeaves=${leaves.stateTreeLeaves.length}`, isVerbose, silent);
-            const aspRoot = BigInt(roots.onchainMtRoot);
-            const aspLabels = leaves.aspLeaves.map((s) => BigInt(s));
-            const allCommitmentHashes = leaves.stateTreeLeaves.map((s) => BigInt(s));
-            // Ensure ASP tree and on-chain root are converged before proof generation.
-            if (BigInt(roots.mtRoot) !== BigInt(roots.onchainMtRoot)) {
-                throw new CLIError("Withdrawal service data is still updating.", "ASP", "Wait a few seconds and retry.");
-            }
-            // Verify ASP root parity against on-chain latest root.
-            const onchainLatestRoot = await publicClient.readContract({
-                address: chainConfig.entrypoint,
-                abi: entrypointLatestRootAbi,
-                functionName: "latestRoot",
-            });
-            if (BigInt(roots.onchainMtRoot) !== BigInt(onchainLatestRoot)) {
-                throw new CLIError("Withdrawal service data is out of sync with the chain.", "ASP", "Wait briefly and retry so the service can catch up.");
-            }
-            // Choose smallest eligible commitment that is currently ASP-approved.
-            const approvedLabelSet = new Set(aspLabels);
-            const approvedSelection = selectBestWithdrawalCommitment(poolAccounts, withdrawalAmount, approvedLabelSet);
-            if (approvedSelection.kind === "unapproved") {
-                throw new CLIError("No eligible Pool Account is currently approved for private withdrawal.", "ASP", "Your balance may be sufficient, but this Pool Account is not yet eligible. Wait and retry, or use 'privacy-pools ragequit' for public recovery.");
-            }
-            if (approvedSelection.kind === "insufficient") {
-                throw new CLIError(`No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`, "INPUT", `No available Pool Accounts found for ${pool.symbol}.`);
-            }
-            const approvedEligiblePoolAccounts = poolAccounts
-                .filter((pa) => pa.value >= withdrawalAmount && approvedLabelSet.has(pa.label))
-                .sort((a, b) => {
-                if (a.value < b.value)
-                    return -1;
-                if (a.value > b.value)
-                    return 1;
-                if (a.label < b.label)
-                    return -1;
-                if (a.label > b.label)
-                    return 1;
-                return 0;
-            });
-            let selectedPoolAccount = approvedSelection.commitment;
-            if (fromPaNumber !== undefined && fromPaNumber !== null) {
-                const requested = poolAccounts.find((pa) => pa.paNumber === fromPaNumber);
-                if (!requested) {
-                    throw new CLIError(`Unknown Pool Account ${poolAccountId(fromPaNumber)} for ${pool.symbol}.`, "INPUT", `Run 'privacy-pools accounts --chain ${chainConfig.name}' to list available Pool Accounts.`);
-                }
-                if (requested.value < withdrawalAmount) {
-                    throw new CLIError(`${requested.paId} has insufficient balance for this withdrawal.`, "INPUT", `${requested.paId} balance: ${formatAmount(requested.value, pool.decimals, pool.symbol)}`);
-                }
-                if (!approvedLabelSet.has(requested.label)) {
-                    throw new CLIError(`${requested.paId} is not currently eligible for private withdrawal.`, "ASP", "Wait and retry, or use 'privacy-pools ragequit' for public recovery.");
-                }
-                selectedPoolAccount = requested;
-            }
-            else if (!skipPrompts && approvedEligiblePoolAccounts.length > 1) {
-                spin.stop();
-                const selectedPA = await select({
-                    message: "Select Pool Account to withdraw from:",
-                    choices: approvedEligiblePoolAccounts.map((pa) => ({
-                        name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
-                        value: pa.paNumber,
-                    })),
-                });
-                selectedPoolAccount = approvedEligiblePoolAccounts.find((pa) => pa.paNumber === selectedPA);
-                spin.start();
-            }
-            else if (approvedEligiblePoolAccounts.length > 0) {
-                selectedPoolAccount = approvedEligiblePoolAccounts[0];
-            }
-            const commitment = selectedPoolAccount.commitment;
-            const commitmentLabel = commitment.label;
-            verbose(`Selected ${selectedPoolAccount.paId}: label=${commitmentLabel.toString()} value=${commitment.value.toString()}`, isVerbose, silent);
-            // Anonymity set info (non-fatal)
+            // Acquire process lock to prevent concurrent account mutations.
+            const releaseLock = acquireProcessLock();
             try {
-                const anonSet = await fetchDepositsLargerThan(chainConfig, pool.scope, withdrawalAmount);
-                if (!silent) {
-                    info(`Anonymity set: ${anonSet.eligibleDeposits} of ${anonSet.totalDeposits} deposits (${anonSet.percentage.toFixed(1)}%)`, silent);
+                // Load account & sync
+                const mnemonic = loadMnemonic();
+                const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+                const sdk = await getSDK();
+                const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
+                const spin = spinner("Syncing account state...", silent);
+                spin.start();
+                const accountService = await initializeAccountService(dataService, mnemonic, [
+                    {
+                        chainId: chainConfig.id,
+                        address: pool.pool,
+                        scope: pool.scope,
+                        deploymentBlock: chainConfig.startBlock,
+                    },
+                ], chainConfig.id, true, // sync to pick up latest on-chain state
+                silent, true);
+                // Find spendable Pool Accounts for this scope.
+                const spendable = accountService.getSpendableCommitments();
+                const poolCommitments = spendable.get(pool.scope) ?? [];
+                const poolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
+                verbose(`Available Pool Accounts in this pool: ${poolAccounts.length}`, isVerbose, silent);
+                const baseSelection = selectBestWithdrawalCommitment(poolAccounts, withdrawalAmount);
+                if (baseSelection.kind === "insufficient") {
+                    spin.stop();
+                    throw new CLIError(`No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`, "INPUT", poolCommitments.length > 0
+                        ? `Largest available: ${formatAmount(baseSelection.largestAvailable, pool.decimals, pool.symbol)}`
+                        : `No available Pool Accounts found for ${pool.symbol}. Deposit first, then run 'privacy-pools accounts --chain ${chainConfig.name}'.`);
                 }
-            }
-            catch { /* non-fatal */ }
-            // Build Merkle proofs
-            spin.text = "Building proofs...";
-            const stateMerkleProof = generateMerkleProof(allCommitmentHashes, BigInt(commitment.hash.toString()));
-            const aspMerkleProof = generateMerkleProof(aspLabels, BigInt(commitmentLabel.toString()));
-            // Generate withdrawal secrets
-            const { nullifier: newNullifier, secret: newSecret } = accountService.createWithdrawalSecrets(commitment);
-            const stateRoot = (await publicClient.readContract({
-                address: pool.pool,
-                abi: poolCurrentRootAbi,
-                functionName: "currentRoot",
-            }));
-            const stateProofRoot = BigInt(stateMerkleProof.root);
-            if (stateProofRoot !== BigInt(stateRoot)) {
-                throw new CLIError("Pool data is out of date.", "ASP", "Run 'privacy-pools sync' and try the withdrawal again.");
-            }
-            if (isDirect) {
-                // --- Direct Withdrawal ---
-                // Pre-flight gas check (skip for unsigned - relying on external signer)
-                if (!isUnsigned && !isDryRun) {
-                    await checkHasGas(publicClient, signerAddress);
+                // Fetch ASP data
+                spin.text = "Fetching ASP data...";
+                const roots = await fetchMerkleRoots(chainConfig, pool.scope);
+                const leaves = await fetchMerkleLeaves(chainConfig, pool.scope);
+                verbose(`ASP roots: mtRoot=${roots.mtRoot} onchainMtRoot=${roots.onchainMtRoot}`, isVerbose, silent);
+                verbose(`ASP leaves: labels=${leaves.aspLeaves.length} stateLeaves=${leaves.stateTreeLeaves.length}`, isVerbose, silent);
+                const aspRoot = BigInt(roots.onchainMtRoot);
+                const aspLabels = leaves.aspLeaves.map((s) => BigInt(s));
+                const allCommitmentHashes = leaves.stateTreeLeaves.map((s) => BigInt(s));
+                // Ensure ASP tree and on-chain root are converged before proof generation.
+                if (BigInt(roots.mtRoot) !== BigInt(roots.onchainMtRoot)) {
+                    throw new CLIError("Withdrawal service data is still updating.", "ASP", "Wait a few seconds and retry.");
                 }
-                const directAddress = recipientAddress;
-                const withdrawal = {
-                    processooor: directAddress,
-                    data: "0x",
-                };
-                const context = BigInt(calculateContext(withdrawal, pool.scope));
-                verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
-                // Re-verify parity right before proving
-                const latestRootCheck = await publicClient.readContract({
+                // Verify ASP root parity against on-chain latest root.
+                const onchainLatestRoot = await publicClient.readContract({
                     address: chainConfig.entrypoint,
                     abi: entrypointLatestRootAbi,
                     functionName: "latestRoot",
                 });
-                if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck)) {
-                    throw new CLIError("Pool state changed while preparing your proof.", "ASP", "Re-run the withdrawal command to generate a fresh proof.");
+                if (BigInt(roots.onchainMtRoot) !== BigInt(onchainLatestRoot)) {
+                    throw new CLIError("Withdrawal service data is out of sync with the chain.", "ASP", "Wait briefly and retry so the service can catch up.");
                 }
-                const proof = await withProofProgress(spin, "Generating ZK proof", () => sdk.proveWithdrawal(commitment, {
-                    context,
-                    withdrawalAmount,
-                    stateMerkleProof,
-                    aspMerkleProof,
-                    stateRoot,
-                    stateTreeDepth: 32n,
-                    aspRoot,
-                    aspTreeDepth: 32n,
-                    newNullifier,
-                    newSecret,
-                }));
-                verbose(`Proof generated: publicSignals=${proof.publicSignals.length}`, isVerbose, silent);
-                if (isUnsigned) {
-                    const solidityProof = toSolidityProof(proof);
-                    const payload = buildUnsignedDirectWithdrawOutput({
-                        chainId: chainConfig.id,
-                        chainName: chainConfig.name,
-                        assetSymbol: pool.symbol,
-                        amount: withdrawalAmount,
-                        from: signerAddress,
-                        poolAddress: pool.pool,
-                        recipient: directAddress,
-                        selectedCommitmentLabel: commitmentLabel,
-                        selectedCommitmentValue: commitment.value,
-                        withdrawal,
-                        proof: solidityProof,
-                    });
-                    if (wantsTxFormat) {
-                        printRawTransactions(payload.transactions);
+                // Choose smallest eligible commitment that is currently ASP-approved.
+                const approvedLabelSet = new Set(aspLabels);
+                const approvedSelection = selectBestWithdrawalCommitment(poolAccounts, withdrawalAmount, approvedLabelSet);
+                if (approvedSelection.kind === "unapproved") {
+                    throw new CLIError("No eligible Pool Account is currently approved for private withdrawal.", "ASP", "Your balance may be sufficient, but this Pool Account is not yet eligible. Wait and retry, or use 'privacy-pools ragequit' for public recovery.");
+                }
+                if (approvedSelection.kind === "insufficient") {
+                    throw new CLIError(`No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`, "INPUT", `No available Pool Accounts found for ${pool.symbol}.`);
+                }
+                const approvedEligiblePoolAccounts = poolAccounts
+                    .filter((pa) => pa.value >= withdrawalAmount && approvedLabelSet.has(pa.label))
+                    .sort((a, b) => {
+                    if (a.value < b.value)
+                        return -1;
+                    if (a.value > b.value)
+                        return 1;
+                    if (a.label < b.label)
+                        return -1;
+                    if (a.label > b.label)
+                        return 1;
+                    return 0;
+                });
+                let selectedPoolAccount = approvedSelection.commitment;
+                if (fromPaNumber !== undefined && fromPaNumber !== null) {
+                    const requested = poolAccounts.find((pa) => pa.paNumber === fromPaNumber);
+                    if (!requested) {
+                        throw new CLIError(`Unknown Pool Account ${poolAccountId(fromPaNumber)} for ${pool.symbol}.`, "INPUT", `Run 'privacy-pools accounts --chain ${chainConfig.name}' to list available Pool Accounts.`);
                     }
-                    else {
-                        printJsonSuccess({
-                            ...payload,
-                            poolAccountNumber: selectedPoolAccount.paNumber,
-                            poolAccountId: selectedPoolAccount.paId,
-                        }, false);
+                    if (requested.value < withdrawalAmount) {
+                        throw new CLIError(`${requested.paId} has insufficient balance for this withdrawal.`, "INPUT", `${requested.paId} balance: ${formatAmount(requested.value, pool.decimals, pool.symbol)}`);
                     }
-                    return;
+                    if (!approvedLabelSet.has(requested.label)) {
+                        throw new CLIError(`${requested.paId} is not currently eligible for private withdrawal.`, "ASP", "Wait and retry, or use 'privacy-pools ragequit' for public recovery.");
+                    }
+                    selectedPoolAccount = requested;
                 }
-                if (isDryRun) {
-                    spin.succeed("Dry-run completed (no transaction submitted).");
-                    const ctx = createOutputContext(mode);
-                    renderWithdrawDryRun(ctx, {
-                        withdrawMode: "direct",
-                        amount: withdrawalAmount,
-                        asset: pool.symbol,
-                        chain: chainConfig.name,
-                        decimals: pool.decimals,
-                        recipient: directAddress,
-                        poolAccountNumber: selectedPoolAccount.paNumber,
-                        poolAccountId: selectedPoolAccount.paId,
-                        selectedCommitmentLabel: commitmentLabel,
-                        selectedCommitmentValue: commitment.value,
-                        proofPublicSignals: proof.publicSignals.length,
-                    });
-                    return;
-                }
-                if (!skipPrompts) {
+                else if (!skipPrompts && approvedEligiblePoolAccounts.length > 1) {
                     spin.stop();
-                    const ok = await confirm({
-                        message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}?`,
-                        default: false,
+                    const selectedPA = await select({
+                        message: "Select Pool Account to withdraw from:",
+                        choices: approvedEligiblePoolAccounts.map((pa) => ({
+                            name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
+                            value: pa.paNumber,
+                        })),
                     });
-                    if (!ok) {
-                        info("Withdrawal cancelled.", silent);
-                        return;
-                    }
+                    selectedPoolAccount = approvedEligiblePoolAccounts.find((pa) => pa.paNumber === selectedPA);
                     spin.start();
                 }
-                spin.text = "Submitting withdrawal transaction...";
-                const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
-                const tx = await contracts.withdraw(withdrawal, proof, pool.scope);
-                spin.text = "Waiting for confirmation...";
-                let receipt;
+                else if (approvedEligiblePoolAccounts.length > 0) {
+                    selectedPoolAccount = approvedEligiblePoolAccounts[0];
+                }
+                const commitment = selectedPoolAccount.commitment;
+                const commitmentLabel = commitment.label;
+                verbose(`Selected ${selectedPoolAccount.paId}: label=${commitmentLabel.toString()} value=${commitment.value.toString()}`, isVerbose, silent);
+                // Anonymity set info (non-fatal)
                 try {
-                    receipt = await publicClient.waitForTransactionReceipt({
-                        hash: tx.hash,
-                        timeout: 300_000,
+                    const anonSet = await fetchDepositsLargerThan(chainConfig, pool.scope, withdrawalAmount);
+                    if (!silent) {
+                        info(`Anonymity set: ${anonSet.eligibleDeposits} of ${anonSet.totalDeposits} deposits (${anonSet.percentage.toFixed(1)}%)`, silent);
+                    }
+                }
+                catch { /* non-fatal */ }
+                // Build Merkle proofs
+                spin.text = "Building proofs...";
+                const stateMerkleProof = generateMerkleProof(allCommitmentHashes, BigInt(commitment.hash.toString()));
+                const aspMerkleProof = generateMerkleProof(aspLabels, BigInt(commitmentLabel.toString()));
+                // Generate withdrawal secrets
+                const { nullifier: newNullifier, secret: newSecret } = accountService.createWithdrawalSecrets(commitment);
+                const stateRoot = (await publicClient.readContract({
+                    address: pool.pool,
+                    abi: poolCurrentRootAbi,
+                    functionName: "currentRoot",
+                }));
+                const stateProofRoot = BigInt(stateMerkleProof.root);
+                if (stateProofRoot !== BigInt(stateRoot)) {
+                    throw new CLIError("Pool data is out of date.", "ASP", "Run 'privacy-pools sync' and try the withdrawal again.");
+                }
+                if (isDirect) {
+                    // --- Direct Withdrawal ---
+                    // Pre-flight gas check (skip for unsigned - relying on external signer)
+                    if (!isUnsigned && !isDryRun) {
+                        await checkHasGas(publicClient, signerAddress);
+                    }
+                    const directAddress = recipientAddress;
+                    const withdrawal = {
+                        processooor: directAddress,
+                        data: "0x",
+                    };
+                    const context = BigInt(calculateContext(withdrawal, pool.scope));
+                    verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
+                    // Re-verify parity right before proving
+                    const latestRootCheck = await publicClient.readContract({
+                        address: chainConfig.entrypoint,
+                        abi: entrypointLatestRootAbi,
+                        functionName: "latestRoot",
                     });
-                }
-                catch {
-                    throw new CLIError("Timed out waiting for withdrawal confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
-                }
-                if (receipt.status !== "success") {
-                    throw new CLIError(`Withdrawal transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
-                }
-                guardCriticalSection();
-                try {
-                    // Record the withdrawal in account state
-                    try {
-                        accountService.addWithdrawalCommitment(commitment, commitment.value - withdrawalAmount, newNullifier, newSecret, receipt.blockNumber, tx.hash);
-                        saveAccount(chainConfig.id, accountService.account);
+                    if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck)) {
+                        throw new CLIError("Pool state changed while preparing your proof.", "ASP", "Re-run the withdrawal command to generate a fresh proof.");
                     }
-                    catch (saveErr) {
-                        process.stderr.write(`\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
-                        process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
-                    }
-                }
-                finally {
-                    releaseCriticalSection();
-                }
-                spin.succeed("Direct withdrawal confirmed!");
-                const ctx = createOutputContext(mode);
-                renderWithdrawSuccess(ctx, {
-                    withdrawMode: "direct",
-                    txHash: tx.hash,
-                    blockNumber: receipt.blockNumber,
-                    amount: withdrawalAmount,
-                    recipient: recipientAddress,
-                    asset: pool.symbol,
-                    chain: chainConfig.name,
-                    decimals: pool.decimals,
-                    poolAccountNumber: selectedPoolAccount.paNumber,
-                    poolAccountId: selectedPoolAccount.paId,
-                    poolAddress: pool.pool,
-                    scope: pool.scope,
-                    explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
-                });
-            }
-            else {
-                // --- Relayed Withdrawal ---
-                // Preload circuits (already done via sdk.proveWithdrawal init)
-                // Get relayer details + quote
-                spin.text = "Requesting relayer quote...";
-                const details = await getRelayerDetails(chainConfig, pool.asset);
-                verbose(`Relayer details: minWithdraw=${details.minWithdrawAmount} feeReceiver=${details.feeReceiverAddress}`, isVerbose, silent);
-                if (withdrawalAmount < BigInt(details.minWithdrawAmount)) {
-                    throw new CLIError(`Amount below relayer minimum of ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`, "RELAYER", `Increase your withdrawal amount to at least ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`);
-                }
-                let quote = await requestQuote(chainConfig, {
-                    amount: withdrawalAmount,
-                    asset: pool.asset,
-                    extraGas: false,
-                    recipient: recipientAddress,
-                });
-                verbose(`Relayer quote: feeBPS=${quote.feeBPS} baseFeeBPS=${quote.baseFeeBPS}`, isVerbose, silent);
-                if (!quote.feeCommitment) {
-                    throw new CLIError("Relayer quote is missing required fee details.", "RELAYER", "The relayer may not support this asset/chain combination.");
-                }
-                let quoteFeeBPS;
-                let expirationMs;
-                const maxQuoteRefreshAttempts = 3;
-                let quoteRefreshAttempts = 0;
-                const readAndValidateQuote = () => {
-                    if (!quote.feeCommitment) {
-                        throw new CLIError("Relayer quote is missing required fee details.", "RELAYER", "The relayer may not support this asset/chain combination.");
-                    }
-                    let parsedFeeBPS;
-                    try {
-                        parsedFeeBPS = BigInt(quote.feeBPS);
-                    }
-                    catch {
-                        throw new CLIError("Relayer returned malformed feeBPS (expected integer string).", "RELAYER", "Request a fresh quote and retry.");
-                    }
-                    if (parsedFeeBPS > pool.maxRelayFeeBPS) {
-                        throw new CLIError(`Quoted relay fee (${formatBPS(quote.feeBPS)}) exceeds onchain maximum (${formatBPS(pool.maxRelayFeeBPS)}).`, "RELAYER", "Try again later when fees are lower, or use --direct for a direct withdrawal.");
-                    }
-                    // Relayer may return expiration in seconds (Unix) or ms - normalize.
-                    const parsedExpirationMs = quote.feeCommitment.expiration < 1e12
-                        ? quote.feeCommitment.expiration * 1000
-                        : quote.feeCommitment.expiration;
-                    return { quoteFeeBPS: parsedFeeBPS, expirationMs: parsedExpirationMs };
-                };
-                const fetchFreshQuote = async (reason) => {
-                    quoteRefreshAttempts += 1;
-                    if (quoteRefreshAttempts > maxQuoteRefreshAttempts) {
-                        throw new CLIError("Relayer returned stale/expired quotes repeatedly.", "RELAYER", "Wait a moment and retry, or switch to another relayer.");
-                    }
-                    spin.text = reason;
-                    quote = await requestQuote(chainConfig, {
-                        amount: withdrawalAmount,
-                        asset: pool.asset,
-                        extraGas: false,
-                        recipient: recipientAddress,
-                    });
-                    ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
-                    verbose(`Relayer quote refreshed: feeBPS=${quote.feeBPS} expiresAt=${new Date(expirationMs).toISOString()}`, isVerbose, silent);
-                };
-                ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
-                verbose(`Quote expiration: ${new Date(expirationMs).toISOString()} (${expirationMs})`, isVerbose, silent);
-                info(`Relayer fee: ${quote.feeBPS} BPS (${formatBPS(BigInt(quote.feeBPS))})`, silent);
-                // Keep human flow quote-aware before proving, matching frontend review semantics.
-                if (!skipPrompts) {
-                    while (true) {
-                        const secondsLeft = Math.max(0, Math.floor((expirationMs - Date.now()) / 1000));
-                        if (secondsLeft <= 0) {
-                            await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
-                            continue;
+                    const proof = await withProofProgress(spin, "Generating ZK proof", () => sdk.proveWithdrawal(commitment, {
+                        context,
+                        withdrawalAmount,
+                        stateMerkleProof,
+                        aspMerkleProof,
+                        stateRoot,
+                        stateTreeDepth: 32n,
+                        aspRoot,
+                        aspTreeDepth: 32n,
+                        newNullifier,
+                        newSecret,
+                    }));
+                    verbose(`Proof generated: publicSignals=${proof.publicSignals.length}`, isVerbose, silent);
+                    if (isUnsigned) {
+                        const solidityProof = toSolidityProof(proof);
+                        const payload = buildUnsignedDirectWithdrawOutput({
+                            chainId: chainConfig.id,
+                            chainName: chainConfig.name,
+                            assetSymbol: pool.symbol,
+                            amount: withdrawalAmount,
+                            from: signerAddress,
+                            poolAddress: pool.pool,
+                            recipient: directAddress,
+                            selectedCommitmentLabel: commitmentLabel,
+                            selectedCommitmentValue: commitment.value,
+                            withdrawal,
+                            proof: solidityProof,
+                        });
+                        if (wantsTxFormat) {
+                            printRawTransactions(payload.transactions);
                         }
+                        else {
+                            printJsonSuccess({
+                                ...payload,
+                                poolAccountNumber: selectedPoolAccount.paNumber,
+                                poolAccountId: selectedPoolAccount.paId,
+                            }, false);
+                        }
+                        return;
+                    }
+                    if (isDryRun) {
+                        spin.succeed("Dry-run completed (no transaction submitted).");
+                        const ctx = createOutputContext(mode);
+                        renderWithdrawDryRun(ctx, {
+                            withdrawMode: "direct",
+                            amount: withdrawalAmount,
+                            asset: pool.symbol,
+                            chain: chainConfig.name,
+                            decimals: pool.decimals,
+                            recipient: directAddress,
+                            poolAccountNumber: selectedPoolAccount.paNumber,
+                            poolAccountId: selectedPoolAccount.paId,
+                            selectedCommitmentLabel: commitmentLabel,
+                            selectedCommitmentValue: commitment.value,
+                            proofPublicSignals: proof.publicSignals.length,
+                        });
+                        return;
+                    }
+                    if (!skipPrompts) {
                         spin.stop();
-                        process.stderr.write("\n");
-                        info(`Quote fee: ${quote.feeBPS} BPS`, silent);
-                        info(`Quote valid for ~${secondsLeft}s (expires ${new Date(expirationMs).toISOString()})`, silent);
                         const ok = await confirm({
-                            message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)} on ${chainConfig.name}?`,
+                            message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}?`,
                             default: false,
                         });
                         if (!ok) {
                             info("Withdrawal cancelled.", silent);
                             return;
                         }
-                        if (Date.now() <= expirationMs) {
-                            spin.start();
-                            break;
-                        }
                         spin.start();
-                        warn("Quote expired while waiting for confirmation. Fetching a fresh quote...", silent);
-                        await fetchFreshQuote("Refreshing relayer quote...");
                     }
-                }
-                else if (Date.now() > expirationMs) {
-                    await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
-                    if (Date.now() > expirationMs) {
-                        throw new CLIError("Relayer returned an already expired quote.", "RELAYER", "Wait a moment and retry, or switch to another relayer.");
+                    spin.text = "Submitting withdrawal transaction...";
+                    const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
+                    const tx = await contracts.withdraw(withdrawal, proof, pool.scope);
+                    spin.text = "Waiting for confirmation...";
+                    let receipt;
+                    try {
+                        receipt = await publicClient.waitForTransactionReceipt({
+                            hash: tx.hash,
+                            timeout: 300_000,
+                        });
                     }
-                }
-                // Build relay withdrawal object
-                const relayData = encodeAbiParameters([
-                    { name: "recipient", type: "address" },
-                    { name: "feeRecipient", type: "address" },
-                    { name: "relayFeeBPS", type: "uint256" },
-                ], [
-                    recipientAddress,
-                    details.feeReceiverAddress,
-                    quoteFeeBPS,
-                ]);
-                const withdrawal = {
-                    processooor: chainConfig.entrypoint,
-                    data: relayData,
-                };
-                const context = BigInt(calculateContext(withdrawal, pool.scope));
-                verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
-                // Re-verify parity right before proving
-                const latestRootCheck = await publicClient.readContract({
-                    address: chainConfig.entrypoint,
-                    abi: entrypointLatestRootAbi,
-                    functionName: "latestRoot",
-                });
-                if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck)) {
-                    throw new CLIError("Pool state changed while preparing your proof.", "ASP", "Re-run the withdrawal command to generate a fresh proof.");
-                }
-                const proof = await withProofProgress(spin, "Generating ZK proof", () => sdk.proveWithdrawal(commitment, {
-                    context,
-                    withdrawalAmount,
-                    stateMerkleProof,
-                    aspMerkleProof,
-                    stateRoot,
-                    stateTreeDepth: 32n,
-                    aspRoot,
-                    aspTreeDepth: 32n,
-                    newNullifier,
-                    newSecret,
-                }));
-                verbose(`Proof generated: publicSignals=${proof.publicSignals.length}`, isVerbose, silent);
-                // Re-check parity before submit (in case of delay from user prompt)
-                const finalRootCheck = await publicClient.readContract({
-                    address: chainConfig.entrypoint,
-                    abi: entrypointLatestRootAbi,
-                    functionName: "latestRoot",
-                });
-                if (BigInt(roots.onchainMtRoot) !== BigInt(finalRootCheck)) {
-                    throw new CLIError("Pool state changed before submission. Re-run withdrawal to generate a fresh proof.", "ASP", "Run 'privacy-pools sync' then retry the withdrawal.");
-                }
-                // Check if feeCommitment expired before submit.
-                if (Date.now() > expirationMs) {
-                    throw new CLIError("Relayer quote expired. Re-run the withdrawal.", "RELAYER", "Quotes are valid for about 60 seconds. Re-run withdrawal to fetch a fresh quote.");
-                }
-                if (isUnsigned) {
-                    const solidityProof = toSolidityProof(proof);
-                    const payload = buildUnsignedRelayedWithdrawOutput({
-                        chainId: chainConfig.id,
-                        chainName: chainConfig.name,
-                        assetSymbol: pool.symbol,
-                        amount: withdrawalAmount,
-                        from: signerAddress,
-                        entrypoint: chainConfig.entrypoint,
-                        scope: pool.scope,
-                        recipient: recipientAddress,
-                        selectedCommitmentLabel: commitmentLabel,
-                        selectedCommitmentValue: commitment.value,
-                        feeBPS: quote.feeBPS,
-                        quoteExpiresAt: new Date(expirationMs).toISOString(),
-                        withdrawal,
-                        proof: solidityProof,
-                        relayerRequest: stringifyBigInts({
-                            scope: pool.scope,
-                            withdrawal,
-                            proof: proof.proof,
-                            publicSignals: proof.publicSignals,
-                            feeCommitment: quote.feeCommitment,
-                        }),
-                    });
-                    if (wantsTxFormat) {
-                        printRawTransactions(payload.transactions);
+                    catch {
+                        throw new CLIError("Timed out waiting for withdrawal confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
                     }
-                    else {
-                        printJsonSuccess({
-                            ...payload,
-                            poolAccountNumber: selectedPoolAccount.paNumber,
-                            poolAccountId: selectedPoolAccount.paId,
-                        }, false);
+                    if (receipt.status !== "success") {
+                        throw new CLIError(`Withdrawal transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
                     }
-                    return;
-                }
-                if (isDryRun) {
-                    spin.succeed("Dry-run completed (no transaction submitted).");
+                    guardCriticalSection();
+                    try {
+                        // Record the withdrawal in account state
+                        try {
+                            accountService.addWithdrawalCommitment(commitment, commitment.value - withdrawalAmount, newNullifier, newSecret, receipt.blockNumber, tx.hash);
+                            saveAccount(chainConfig.id, accountService.account);
+                        }
+                        catch (saveErr) {
+                            process.stderr.write(`\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
+                            process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
+                        }
+                    }
+                    finally {
+                        releaseCriticalSection();
+                    }
+                    spin.succeed("Direct withdrawal confirmed!");
                     const ctx = createOutputContext(mode);
-                    renderWithdrawDryRun(ctx, {
-                        withdrawMode: "relayed",
+                    renderWithdrawSuccess(ctx, {
+                        withdrawMode: "direct",
+                        txHash: tx.hash,
+                        blockNumber: receipt.blockNumber,
                         amount: withdrawalAmount,
+                        recipient: recipientAddress,
                         asset: pool.symbol,
                         chain: chainConfig.name,
                         decimals: pool.decimals,
-                        recipient: recipientAddress,
                         poolAccountNumber: selectedPoolAccount.paNumber,
                         poolAccountId: selectedPoolAccount.paId,
-                        selectedCommitmentLabel: commitmentLabel,
-                        selectedCommitmentValue: commitment.value,
-                        proofPublicSignals: proof.publicSignals.length,
-                        feeBPS: quote.feeBPS,
-                        quoteExpiresAt: new Date(expirationMs).toISOString(),
-                    });
-                    return;
-                }
-                spin.text = "Submitting to relayer...";
-                const result = await submitRelayRequest(chainConfig, {
-                    scope: pool.scope,
-                    withdrawal,
-                    proof: proof.proof,
-                    publicSignals: proof.publicSignals,
-                    feeCommitment: quote.feeCommitment,
-                });
-                // Wait for on-chain confirmation before updating state
-                spin.text = "Waiting for relay transaction confirmation...";
-                let receipt;
-                try {
-                    receipt = await publicClient.waitForTransactionReceipt({
-                        hash: result.txHash,
-                        timeout: 300_000,
+                        poolAddress: pool.pool,
+                        scope: pool.scope,
+                        explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
                     });
                 }
-                catch {
-                    throw new CLIError("Timed out waiting for relayed withdrawal confirmation.", "RPC", "The relayer may have replaced or delayed the transaction. Check the explorer and run 'privacy-pools sync' to update local state.");
-                }
-                if (receipt.status !== "success") {
-                    throw new CLIError(`Relay transaction reverted: ${result.txHash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
-                }
-                guardCriticalSection();
-                try {
-                    // Record the withdrawal in account state
+                else {
+                    // --- Relayed Withdrawal ---
+                    // Preload circuits (already done via sdk.proveWithdrawal init)
+                    // Get relayer details + quote
+                    spin.text = "Requesting relayer quote...";
+                    const details = await getRelayerDetails(chainConfig, pool.asset);
+                    verbose(`Relayer details: minWithdraw=${details.minWithdrawAmount} feeReceiver=${details.feeReceiverAddress}`, isVerbose, silent);
+                    if (withdrawalAmount < BigInt(details.minWithdrawAmount)) {
+                        throw new CLIError(`Amount below relayer minimum of ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`, "RELAYER", `Increase your withdrawal amount to at least ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`);
+                    }
+                    let quote = await requestQuote(chainConfig, {
+                        amount: withdrawalAmount,
+                        asset: pool.asset,
+                        extraGas: false,
+                        recipient: recipientAddress,
+                    });
+                    verbose(`Relayer quote: feeBPS=${quote.feeBPS} baseFeeBPS=${quote.baseFeeBPS}`, isVerbose, silent);
+                    if (!quote.feeCommitment) {
+                        throw new CLIError("Relayer quote is missing required fee details.", "RELAYER", "The relayer may not support this asset/chain combination.");
+                    }
+                    let quoteFeeBPS;
+                    let expirationMs;
+                    const maxQuoteRefreshAttempts = 3;
+                    let quoteRefreshAttempts = 0;
+                    const readAndValidateQuote = () => {
+                        if (!quote.feeCommitment) {
+                            throw new CLIError("Relayer quote is missing required fee details.", "RELAYER", "The relayer may not support this asset/chain combination.");
+                        }
+                        let parsedFeeBPS;
+                        try {
+                            parsedFeeBPS = BigInt(quote.feeBPS);
+                        }
+                        catch {
+                            throw new CLIError("Relayer returned malformed feeBPS (expected integer string).", "RELAYER", "Request a fresh quote and retry.");
+                        }
+                        if (parsedFeeBPS > pool.maxRelayFeeBPS) {
+                            throw new CLIError(`Quoted relay fee (${formatBPS(quote.feeBPS)}) exceeds onchain maximum (${formatBPS(pool.maxRelayFeeBPS)}).`, "RELAYER", "Try again later when fees are lower, or use --direct for a direct withdrawal.");
+                        }
+                        // Relayer may return expiration in seconds (Unix) or ms - normalize.
+                        const parsedExpirationMs = quote.feeCommitment.expiration < 1e12
+                            ? quote.feeCommitment.expiration * 1000
+                            : quote.feeCommitment.expiration;
+                        return { quoteFeeBPS: parsedFeeBPS, expirationMs: parsedExpirationMs };
+                    };
+                    const fetchFreshQuote = async (reason) => {
+                        quoteRefreshAttempts += 1;
+                        if (quoteRefreshAttempts > maxQuoteRefreshAttempts) {
+                            throw new CLIError("Relayer returned stale/expired quotes repeatedly.", "RELAYER", "Wait a moment and retry, or switch to another relayer.");
+                        }
+                        spin.text = reason;
+                        quote = await requestQuote(chainConfig, {
+                            amount: withdrawalAmount,
+                            asset: pool.asset,
+                            extraGas: false,
+                            recipient: recipientAddress,
+                        });
+                        ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
+                        verbose(`Relayer quote refreshed: feeBPS=${quote.feeBPS} expiresAt=${new Date(expirationMs).toISOString()}`, isVerbose, silent);
+                    };
+                    ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
+                    verbose(`Quote expiration: ${new Date(expirationMs).toISOString()} (${expirationMs})`, isVerbose, silent);
+                    info(`Relayer fee: ${quote.feeBPS} BPS (${formatBPS(BigInt(quote.feeBPS))})`, silent);
+                    // Keep human flow quote-aware before proving, matching frontend review semantics.
+                    if (!skipPrompts) {
+                        while (true) {
+                            const secondsLeft = Math.max(0, Math.floor((expirationMs - Date.now()) / 1000));
+                            if (secondsLeft <= 0) {
+                                await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
+                                continue;
+                            }
+                            spin.stop();
+                            process.stderr.write("\n");
+                            info(`Quote fee: ${quote.feeBPS} BPS`, silent);
+                            info(`Quote valid for ~${secondsLeft}s (expires ${new Date(expirationMs).toISOString()})`, silent);
+                            const ok = await confirm({
+                                message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)} on ${chainConfig.name}?`,
+                                default: false,
+                            });
+                            if (!ok) {
+                                info("Withdrawal cancelled.", silent);
+                                return;
+                            }
+                            if (Date.now() <= expirationMs) {
+                                spin.start();
+                                break;
+                            }
+                            spin.start();
+                            warn("Quote expired while waiting for confirmation. Fetching a fresh quote...", silent);
+                            await fetchFreshQuote("Refreshing relayer quote...");
+                        }
+                    }
+                    else if (Date.now() > expirationMs) {
+                        await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
+                        if (Date.now() > expirationMs) {
+                            throw new CLIError("Relayer returned an already expired quote.", "RELAYER", "Wait a moment and retry, or switch to another relayer.");
+                        }
+                    }
+                    // Build relay withdrawal object
+                    const relayData = encodeAbiParameters([
+                        { name: "recipient", type: "address" },
+                        { name: "feeRecipient", type: "address" },
+                        { name: "relayFeeBPS", type: "uint256" },
+                    ], [
+                        recipientAddress,
+                        details.feeReceiverAddress,
+                        quoteFeeBPS,
+                    ]);
+                    const withdrawal = {
+                        processooor: chainConfig.entrypoint,
+                        data: relayData,
+                    };
+                    const context = BigInt(calculateContext(withdrawal, pool.scope));
+                    verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
+                    // Re-verify parity right before proving
+                    const latestRootCheck = await publicClient.readContract({
+                        address: chainConfig.entrypoint,
+                        abi: entrypointLatestRootAbi,
+                        functionName: "latestRoot",
+                    });
+                    if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck)) {
+                        throw new CLIError("Pool state changed while preparing your proof.", "ASP", "Re-run the withdrawal command to generate a fresh proof.");
+                    }
+                    const proof = await withProofProgress(spin, "Generating ZK proof", () => sdk.proveWithdrawal(commitment, {
+                        context,
+                        withdrawalAmount,
+                        stateMerkleProof,
+                        aspMerkleProof,
+                        stateRoot,
+                        stateTreeDepth: 32n,
+                        aspRoot,
+                        aspTreeDepth: 32n,
+                        newNullifier,
+                        newSecret,
+                    }));
+                    verbose(`Proof generated: publicSignals=${proof.publicSignals.length}`, isVerbose, silent);
+                    // Re-check parity before submit (in case of delay from user prompt)
+                    const finalRootCheck = await publicClient.readContract({
+                        address: chainConfig.entrypoint,
+                        abi: entrypointLatestRootAbi,
+                        functionName: "latestRoot",
+                    });
+                    if (BigInt(roots.onchainMtRoot) !== BigInt(finalRootCheck)) {
+                        throw new CLIError("Pool state changed before submission. Re-run withdrawal to generate a fresh proof.", "ASP", "Run 'privacy-pools sync' then retry the withdrawal.");
+                    }
+                    // Auto-refresh quote if it expired during proof generation.
+                    // The proof context is bound to the fee BPS, so a refreshed quote
+                    // with the same fee is safe; a fee change invalidates the proof.
+                    if (Date.now() > expirationMs) {
+                        verbose("Quote expired after proof generation — auto-refreshing...", isVerbose, silent);
+                        const previousFeeBPS = quote.feeBPS;
+                        await fetchFreshQuote("Quote expired after proof. Refreshing...");
+                        if (quote.feeBPS !== previousFeeBPS) {
+                            throw new CLIError(`Relayer fee changed during proof generation (${previousFeeBPS} → ${quote.feeBPS} BPS). Re-run the withdrawal.`, "RELAYER", "The proof is bound to the original fee. Re-run the withdrawal command to generate a fresh proof with the new fee.");
+                        }
+                        verbose(`Quote refreshed with same fee (${quote.feeBPS} BPS), expires ${new Date(expirationMs).toISOString()}`, isVerbose, silent);
+                    }
+                    if (isUnsigned) {
+                        const solidityProof = toSolidityProof(proof);
+                        const payload = buildUnsignedRelayedWithdrawOutput({
+                            chainId: chainConfig.id,
+                            chainName: chainConfig.name,
+                            assetSymbol: pool.symbol,
+                            amount: withdrawalAmount,
+                            from: signerAddress,
+                            entrypoint: chainConfig.entrypoint,
+                            scope: pool.scope,
+                            recipient: recipientAddress,
+                            selectedCommitmentLabel: commitmentLabel,
+                            selectedCommitmentValue: commitment.value,
+                            feeBPS: quote.feeBPS,
+                            quoteExpiresAt: new Date(expirationMs).toISOString(),
+                            withdrawal,
+                            proof: solidityProof,
+                            relayerRequest: stringifyBigInts({
+                                scope: pool.scope,
+                                withdrawal,
+                                proof: proof.proof,
+                                publicSignals: proof.publicSignals,
+                                feeCommitment: quote.feeCommitment,
+                            }),
+                        });
+                        if (wantsTxFormat) {
+                            printRawTransactions(payload.transactions);
+                        }
+                        else {
+                            printJsonSuccess({
+                                ...payload,
+                                poolAccountNumber: selectedPoolAccount.paNumber,
+                                poolAccountId: selectedPoolAccount.paId,
+                            }, false);
+                        }
+                        return;
+                    }
+                    if (isDryRun) {
+                        spin.succeed("Dry-run completed (no transaction submitted).");
+                        const ctx = createOutputContext(mode);
+                        renderWithdrawDryRun(ctx, {
+                            withdrawMode: "relayed",
+                            amount: withdrawalAmount,
+                            asset: pool.symbol,
+                            chain: chainConfig.name,
+                            decimals: pool.decimals,
+                            recipient: recipientAddress,
+                            poolAccountNumber: selectedPoolAccount.paNumber,
+                            poolAccountId: selectedPoolAccount.paId,
+                            selectedCommitmentLabel: commitmentLabel,
+                            selectedCommitmentValue: commitment.value,
+                            proofPublicSignals: proof.publicSignals.length,
+                            feeBPS: quote.feeBPS,
+                            quoteExpiresAt: new Date(expirationMs).toISOString(),
+                        });
+                        return;
+                    }
+                    spin.text = "Submitting to relayer...";
+                    const result = await submitRelayRequest(chainConfig, {
+                        scope: pool.scope,
+                        withdrawal,
+                        proof: proof.proof,
+                        publicSignals: proof.publicSignals,
+                        feeCommitment: quote.feeCommitment,
+                    });
+                    // Wait for on-chain confirmation before updating state
+                    spin.text = "Waiting for relay transaction confirmation...";
+                    let receipt;
                     try {
-                        accountService.addWithdrawalCommitment(commitment, commitment.value - withdrawalAmount, newNullifier, newSecret, receipt.blockNumber, result.txHash);
-                        saveAccount(chainConfig.id, accountService.account);
+                        receipt = await publicClient.waitForTransactionReceipt({
+                            hash: result.txHash,
+                            timeout: 300_000,
+                        });
                     }
-                    catch (saveErr) {
-                        process.stderr.write(`\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
-                        process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
+                    catch {
+                        throw new CLIError("Timed out waiting for relayed withdrawal confirmation.", "RPC", "The relayer may have replaced or delayed the transaction. Check the explorer and run 'privacy-pools sync' to update local state.");
                     }
+                    if (receipt.status !== "success") {
+                        throw new CLIError(`Relay transaction reverted: ${result.txHash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
+                    }
+                    guardCriticalSection();
+                    try {
+                        // Record the withdrawal in account state
+                        try {
+                            accountService.addWithdrawalCommitment(commitment, commitment.value - withdrawalAmount, newNullifier, newSecret, receipt.blockNumber, result.txHash);
+                            saveAccount(chainConfig.id, accountService.account);
+                        }
+                        catch (saveErr) {
+                            process.stderr.write(`\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`);
+                            process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
+                        }
+                    }
+                    finally {
+                        releaseCriticalSection();
+                    }
+                    spin.succeed("Relayed withdrawal confirmed!");
+                    const ctx = createOutputContext(mode);
+                    renderWithdrawSuccess(ctx, {
+                        withdrawMode: "relayed",
+                        txHash: result.txHash,
+                        blockNumber: receipt.blockNumber,
+                        amount: withdrawalAmount,
+                        recipient: recipientAddress,
+                        asset: pool.symbol,
+                        chain: chainConfig.name,
+                        decimals: pool.decimals,
+                        poolAccountNumber: selectedPoolAccount.paNumber,
+                        poolAccountId: selectedPoolAccount.paId,
+                        poolAddress: pool.pool,
+                        scope: pool.scope,
+                        explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
+                        feeBPS: quote.feeBPS,
+                    });
                 }
-                finally {
-                    releaseCriticalSection();
-                }
-                spin.succeed("Relayed withdrawal confirmed!");
-                const ctx = createOutputContext(mode);
-                renderWithdrawSuccess(ctx, {
-                    withdrawMode: "relayed",
-                    txHash: result.txHash,
-                    blockNumber: receipt.blockNumber,
-                    amount: withdrawalAmount,
-                    recipient: recipientAddress,
-                    asset: pool.symbol,
-                    chain: chainConfig.name,
-                    decimals: pool.decimals,
-                    poolAccountNumber: selectedPoolAccount.paNumber,
-                    poolAccountId: selectedPoolAccount.paId,
-                    poolAddress: pool.pool,
-                    scope: pool.scope,
-                    explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
-                    feeBPS: quote.feeBPS,
-                });
+            }
+            finally {
+                releaseLock();
             }
         }
         catch (error) {

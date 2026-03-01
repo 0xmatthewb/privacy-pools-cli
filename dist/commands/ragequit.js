@@ -21,6 +21,7 @@ import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import { buildPoolAccountRefs, parsePoolAccountSelector, poolAccountId, } from "../utils/pool-accounts.js";
 export function createRagequitCommand() {
     return new Command("ragequit")
@@ -100,240 +101,247 @@ export function createRagequitCommand() {
                 throw new CLIError("No asset specified. Use --asset <symbol|address>.", "INPUT", "Run 'privacy-pools pools' to see available assets, then use --asset ETH (or the asset symbol).");
             }
             verbose(`Pool resolved: ${pool.symbol} asset=${pool.asset} pool=${pool.pool} scope=${pool.scope.toString()}`, isVerbose, silent);
-            const mnemonic = loadMnemonic();
-            // Private key is only needed for on-chain submission, not --unsigned or --dry-run
-            let signerAddress = null;
-            if (!isUnsigned && !isDryRun) {
-                const privateKey = loadPrivateKey();
-                signerAddress = privateKeyToAccount(privateKey).address;
-            }
-            // In unsigned/dry-run modes, do NOT touch the key file at all — the signer is optional
-            const sdk = await getSDK();
-            const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
-            const spin = spinner("Loading account...", silent);
-            spin.start();
-            const accountService = await initializeAccountService(dataService, mnemonic, [
-                {
-                    chainId: chainConfig.id,
-                    address: pool.pool,
-                    scope: pool.scope,
-                    deploymentBlock: chainConfig.startBlock,
-                },
-            ], chainConfig.id, true, // sync to pick up latest on-chain state
-            silent, true);
-            // Get spendable commitments for this pool
-            const spendable = accountService.getSpendableCommitments();
-            const poolCommitments = spendable.get(pool.scope) ?? [];
-            verbose(`Spendable commitments for scope: ${poolCommitments.length}`, isVerbose, silent);
-            const poolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
-            if (poolCommitments.length === 0) {
-                spin.stop();
-                throw new CLIError("No available Pool Accounts found for exit.", "INPUT", `You may not have deposits in ${pool.symbol}. Try 'privacy-pools deposit ...' first.`);
-            }
-            spin.stop();
-            // Select Pool Account
-            let selectedPoolAccount;
-            if (fromPaNumber !== undefined && fromPaNumber !== null) {
-                const requestedPoolAccount = poolAccounts.find((pa) => pa.paNumber === fromPaNumber);
-                if (!requestedPoolAccount) {
-                    throw new CLIError(`Unknown Pool Account ${poolAccountId(fromPaNumber)} for ${pool.symbol}.`, "INPUT", `Run 'privacy-pools accounts --chain ${chainConfig.name}' to list available Pool Accounts.`);
+            // Acquire process lock to prevent concurrent account mutations.
+            const releaseLock = acquireProcessLock();
+            try {
+                const mnemonic = loadMnemonic();
+                // Private key is only needed for on-chain submission, not --unsigned or --dry-run
+                let signerAddress = null;
+                if (!isUnsigned && !isDryRun) {
+                    const privateKey = loadPrivateKey();
+                    signerAddress = privateKeyToAccount(privateKey).address;
                 }
-                selectedPoolAccount = requestedPoolAccount;
-            }
-            else if (opts.commitment !== undefined) {
-                const idx = parseInt(opts.commitment, 10);
-                if (isNaN(idx) || idx < 0 || idx >= poolCommitments.length) {
-                    throw new CLIError(`Invalid commitment index: ${opts.commitment}. Valid range: 0-${poolCommitments.length - 1}`, "INPUT", "This legacy index is deprecated. Use --from-pa PA-<n> instead.");
-                }
-                const legacyCommitment = poolCommitments[idx];
-                const matchedPoolAccount = poolAccounts.find((pa) => pa.label.toString() === legacyCommitment.label.toString() &&
-                    pa.commitment.hash.toString() === legacyCommitment.hash.toString());
-                if (!matchedPoolAccount) {
-                    selectedPoolAccount = {
-                        paNumber: idx + 1,
-                        paId: poolAccountId(idx + 1),
-                        status: "spendable",
-                        aspStatus: "unknown",
-                        commitment: legacyCommitment,
-                        label: legacyCommitment.label,
-                        value: legacyCommitment.value,
-                        blockNumber: legacyCommitment.blockNumber,
-                        txHash: legacyCommitment.txHash,
-                    };
-                }
-                else {
-                    selectedPoolAccount = matchedPoolAccount;
-                }
-                if (!silent) {
-                    warn("--commitment is deprecated. Use --from-pa PA-<n> instead.", false);
-                }
-            }
-            else if (!skipPrompts) {
-                const selected = await select({
-                    message: "Select Pool Account to exit:",
-                    choices: poolAccounts.map((pa) => ({
-                        name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
-                        value: pa.paNumber,
-                    })),
-                });
-                selectedPoolAccount = poolAccounts.find((pa) => pa.paNumber === selected);
-            }
-            else {
-                throw new CLIError("Must specify --from-pa in non-interactive mode.", "INPUT", "Use --from-pa <PA-#> to select which Pool Account to exit.");
-            }
-            const commitment = selectedPoolAccount.commitment;
-            verbose(`Selected ${selectedPoolAccount.paId}: label=${commitment.label.toString()} value=${commitment.value.toString()}`, isVerbose, silent);
-            // Critical warning
-            if (!skipPrompts) {
-                process.stderr.write("\n");
-                warn("By exiting, you are withdrawing funds to your depositing address. You will not gain any privacy.", silent);
-                process.stderr.write("\n");
-                const ok = await confirm({
-                    message: `Ragequit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)} from ${pool.symbol} pool? This is irreversible.`,
-                    default: false,
-                });
-                if (!ok) {
-                    info("Ragequit cancelled.", silent);
-                    return;
-                }
-            }
-            // Pre-flight gas check (skip for unsigned - relying on external signer)
-            if (!isUnsigned && !isDryRun) {
-                const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-                await checkHasGas(publicClient, signerAddress);
-                // Pre-check: verify signer is the original depositor (avoids wasting proof generation)
-                try {
-                    const depositor = await publicClient.readContract({
+                // In unsigned/dry-run modes, do NOT touch the key file at all — the signer is optional
+                const sdk = await getSDK();
+                const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
+                const spin = spinner("Loading account...", silent);
+                spin.start();
+                const accountService = await initializeAccountService(dataService, mnemonic, [
+                    {
+                        chainId: chainConfig.id,
                         address: pool.pool,
-                        abi: [{
-                                name: "depositors",
-                                type: "function",
-                                stateMutability: "view",
-                                inputs: [{ name: "_label", type: "uint256" }],
-                                outputs: [{ name: "", type: "address" }],
-                            }],
-                        functionName: "depositors",
-                        args: [commitment.label],
-                    });
-                    if (depositor.toLowerCase() !== signerAddress.toLowerCase()) {
-                        throw new CLIError(`Signer ${signerAddress} is not the original depositor (${depositor}).`, "INPUT", "Only the original depositor can exit this Pool Account. Check your signer key.");
+                        scope: pool.scope,
+                        deploymentBlock: chainConfig.startBlock,
+                    },
+                ], chainConfig.id, true, // sync to pick up latest on-chain state
+                silent, true);
+                // Get spendable commitments for this pool
+                const spendable = accountService.getSpendableCommitments();
+                const poolCommitments = spendable.get(pool.scope) ?? [];
+                verbose(`Spendable commitments for scope: ${poolCommitments.length}`, isVerbose, silent);
+                const poolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
+                if (poolCommitments.length === 0) {
+                    spin.stop();
+                    throw new CLIError("No available Pool Accounts found for exit.", "INPUT", `You may not have deposits in ${pool.symbol}. Try 'privacy-pools deposit ...' first.`);
+                }
+                spin.stop();
+                // Select Pool Account
+                let selectedPoolAccount;
+                if (fromPaNumber !== undefined && fromPaNumber !== null) {
+                    const requestedPoolAccount = poolAccounts.find((pa) => pa.paNumber === fromPaNumber);
+                    if (!requestedPoolAccount) {
+                        throw new CLIError(`Unknown Pool Account ${poolAccountId(fromPaNumber)} for ${pool.symbol}.`, "INPUT", `Run 'privacy-pools accounts --chain ${chainConfig.name}' to list available Pool Accounts.`);
+                    }
+                    selectedPoolAccount = requestedPoolAccount;
+                }
+                else if (opts.commitment !== undefined) {
+                    const idx = parseInt(opts.commitment, 10);
+                    if (isNaN(idx) || idx < 0 || idx >= poolCommitments.length) {
+                        throw new CLIError(`Invalid commitment index: ${opts.commitment}. Valid range: 0-${poolCommitments.length - 1}`, "INPUT", "This legacy index is deprecated. Use --from-pa PA-<n> instead.");
+                    }
+                    const legacyCommitment = poolCommitments[idx];
+                    const matchedPoolAccount = poolAccounts.find((pa) => pa.label.toString() === legacyCommitment.label.toString() &&
+                        pa.commitment.hash.toString() === legacyCommitment.hash.toString());
+                    if (!matchedPoolAccount) {
+                        selectedPoolAccount = {
+                            paNumber: idx + 1,
+                            paId: poolAccountId(idx + 1),
+                            status: "spendable",
+                            aspStatus: "unknown",
+                            commitment: legacyCommitment,
+                            label: legacyCommitment.label,
+                            value: legacyCommitment.value,
+                            blockNumber: legacyCommitment.blockNumber,
+                            txHash: legacyCommitment.txHash,
+                        };
+                    }
+                    else {
+                        selectedPoolAccount = matchedPoolAccount;
+                    }
+                    if (!silent) {
+                        warn("--commitment is deprecated. Use --from-pa PA-<n> instead.", false);
                     }
                 }
-                catch (err) {
-                    // If the contract doesn't expose depositors(), skip the check
-                    if (err instanceof CLIError)
-                        throw err;
-                    verbose(`Could not verify depositor onchain: ${err instanceof Error ? err.message : String(err)}`, isVerbose, silent);
+                else if (!skipPrompts) {
+                    const selected = await select({
+                        message: "Select Pool Account to exit:",
+                        choices: poolAccounts.map((pa) => ({
+                            name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
+                            value: pa.paNumber,
+                        })),
+                    });
+                    selectedPoolAccount = poolAccounts.find((pa) => pa.paNumber === selected);
                 }
-            }
-            // Generate commitment proof
-            spin.start();
-            const proof = await withProofProgress(spin, "Generating commitment proof", () => sdk.proveCommitment(commitment.value, BigInt(commitment.label.toString()), commitment.nullifier, commitment.secret));
-            if (isDryRun) {
-                spin.succeed("Dry-run completed (no transaction submitted).");
+                else {
+                    throw new CLIError("Must specify --from-pa in non-interactive mode.", "INPUT", "Use --from-pa <PA-#> to select which Pool Account to exit.");
+                }
+                const commitment = selectedPoolAccount.commitment;
+                verbose(`Selected ${selectedPoolAccount.paId}: label=${commitment.label.toString()} value=${commitment.value.toString()}`, isVerbose, silent);
+                // Critical warning
+                if (!skipPrompts) {
+                    process.stderr.write("\n");
+                    warn("By exiting, you are withdrawing funds to your depositing address. You will not gain any privacy.", silent);
+                    process.stderr.write("\n");
+                    const ok = await confirm({
+                        message: `Ragequit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)} from ${pool.symbol} pool? This is irreversible.`,
+                        default: false,
+                    });
+                    if (!ok) {
+                        info("Ragequit cancelled.", silent);
+                        return;
+                    }
+                }
+                // Pre-flight gas check (skip for unsigned - relying on external signer)
+                if (!isUnsigned && !isDryRun) {
+                    const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+                    await checkHasGas(publicClient, signerAddress);
+                    // Pre-check: verify signer is the original depositor (avoids wasting proof generation)
+                    try {
+                        const depositor = await publicClient.readContract({
+                            address: pool.pool,
+                            abi: [{
+                                    name: "depositors",
+                                    type: "function",
+                                    stateMutability: "view",
+                                    inputs: [{ name: "_label", type: "uint256" }],
+                                    outputs: [{ name: "", type: "address" }],
+                                }],
+                            functionName: "depositors",
+                            args: [commitment.label],
+                        });
+                        if (depositor.toLowerCase() !== signerAddress.toLowerCase()) {
+                            throw new CLIError(`Signer ${signerAddress} is not the original depositor (${depositor}).`, "INPUT", "Only the original depositor can exit this Pool Account. Check your signer key.");
+                        }
+                    }
+                    catch (err) {
+                        // If the contract doesn't expose depositors(), skip the check
+                        if (err instanceof CLIError)
+                            throw err;
+                        verbose(`Could not verify depositor onchain: ${err instanceof Error ? err.message : String(err)}`, isVerbose, silent);
+                    }
+                }
+                // Generate commitment proof
+                spin.start();
+                const proof = await withProofProgress(spin, "Generating commitment proof", () => sdk.proveCommitment(commitment.value, BigInt(commitment.label.toString()), commitment.nullifier, commitment.secret));
+                if (isDryRun) {
+                    spin.succeed("Dry-run completed (no transaction submitted).");
+                    const ctx = createOutputContext(mode);
+                    renderRagequitDryRun(ctx, {
+                        chain: chainConfig.name,
+                        asset: pool.symbol,
+                        amount: commitment.value,
+                        decimals: pool.decimals,
+                        poolAccountNumber: selectedPoolAccount.paNumber,
+                        poolAccountId: selectedPoolAccount.paId,
+                        selectedCommitmentLabel: commitment.label,
+                        selectedCommitmentValue: commitment.value,
+                        proofPublicSignals: proof.publicSignals?.length ?? 0,
+                    });
+                    return;
+                }
+                if (isUnsigned) {
+                    const solidityProof = toSolidityProof(proof);
+                    const payload = buildUnsignedRagequitOutput({
+                        chainId: chainConfig.id,
+                        chainName: chainConfig.name,
+                        assetSymbol: pool.symbol,
+                        amount: commitment.value,
+                        from: signerAddress,
+                        poolAddress: pool.pool,
+                        selectedCommitmentLabel: commitment.label,
+                        selectedCommitmentValue: commitment.value,
+                        proof: solidityProof,
+                    });
+                    if (wantsTxFormat) {
+                        printRawTransactions(payload.transactions);
+                    }
+                    else {
+                        printJsonSuccess({
+                            ...payload,
+                            poolAccountNumber: selectedPoolAccount.paNumber,
+                            poolAccountId: selectedPoolAccount.paId,
+                        }, false);
+                    }
+                    return;
+                }
+                // Submit ragequit
+                const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
+                spin.text = "Submitting ragequit transaction...";
+                const tx = await contracts.ragequit(proof, pool.pool);
+                spin.text = "Waiting for confirmation...";
+                const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+                let receipt;
+                try {
+                    receipt = await publicClient.waitForTransactionReceipt({
+                        hash: tx.hash,
+                        timeout: 300_000,
+                    });
+                }
+                catch {
+                    throw new CLIError("Timed out waiting for ragequit confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
+                }
+                if (receipt.status !== "success") {
+                    throw new CLIError(`Ragequit transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
+                }
+                guardCriticalSection();
+                try {
+                    // Mark the account as ragequit so it's excluded from getSpendableCommitments()
+                    try {
+                        accountService.addRagequitToAccount(commitment.label, {
+                            ragequitter: signerAddress,
+                            commitment: commitment.hash,
+                            label: commitment.label,
+                            value: commitment.value,
+                            blockNumber: receipt.blockNumber,
+                            transactionHash: tx.hash,
+                        });
+                    }
+                    catch (err) {
+                        // Non-fatal: next sync will discover the ragequit event on-chain
+                        if (!silent) {
+                            process.stderr.write(`Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will pick it up.\n`);
+                        }
+                    }
+                    try {
+                        saveAccount(chainConfig.id, accountService.account);
+                    }
+                    catch (err) {
+                        process.stderr.write(`Warning: ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`);
+                        process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
+                    }
+                }
+                finally {
+                    releaseCriticalSection();
+                }
+                spin.succeed("Ragequit confirmed!");
                 const ctx = createOutputContext(mode);
-                renderRagequitDryRun(ctx, {
-                    chain: chainConfig.name,
-                    asset: pool.symbol,
+                renderRagequitSuccess(ctx, {
+                    txHash: tx.hash,
                     amount: commitment.value,
+                    asset: pool.symbol,
+                    chain: chainConfig.name,
                     decimals: pool.decimals,
                     poolAccountNumber: selectedPoolAccount.paNumber,
                     poolAccountId: selectedPoolAccount.paId,
-                    selectedCommitmentLabel: commitment.label,
-                    selectedCommitmentValue: commitment.value,
-                    proofPublicSignals: proof.publicSignals?.length ?? 0,
-                });
-                return;
-            }
-            if (isUnsigned) {
-                const solidityProof = toSolidityProof(proof);
-                const payload = buildUnsignedRagequitOutput({
-                    chainId: chainConfig.id,
-                    chainName: chainConfig.name,
-                    assetSymbol: pool.symbol,
-                    amount: commitment.value,
-                    from: signerAddress,
                     poolAddress: pool.pool,
-                    selectedCommitmentLabel: commitment.label,
-                    selectedCommitmentValue: commitment.value,
-                    proof: solidityProof,
+                    scope: pool.scope,
+                    blockNumber: receipt.blockNumber,
+                    explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
                 });
-                if (wantsTxFormat) {
-                    printRawTransactions(payload.transactions);
-                }
-                else {
-                    printJsonSuccess({
-                        ...payload,
-                        poolAccountNumber: selectedPoolAccount.paNumber,
-                        poolAccountId: selectedPoolAccount.paId,
-                    }, false);
-                }
-                return;
-            }
-            // Submit ragequit
-            const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
-            spin.text = "Submitting ragequit transaction...";
-            const tx = await contracts.ragequit(proof, pool.pool);
-            spin.text = "Waiting for confirmation...";
-            const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-            let receipt;
-            try {
-                receipt = await publicClient.waitForTransactionReceipt({
-                    hash: tx.hash,
-                    timeout: 300_000,
-                });
-            }
-            catch {
-                throw new CLIError("Timed out waiting for ragequit confirmation.", "RPC", `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`);
-            }
-            if (receipt.status !== "success") {
-                throw new CLIError(`Ragequit transaction reverted: ${tx.hash}`, "CONTRACT", "Check the transaction on a block explorer for details.");
-            }
-            guardCriticalSection();
-            try {
-                // Mark the account as ragequit so it's excluded from getSpendableCommitments()
-                try {
-                    accountService.addRagequitToAccount(commitment.label, {
-                        ragequitter: signerAddress,
-                        commitment: commitment.hash,
-                        label: commitment.label,
-                        value: commitment.value,
-                        blockNumber: receipt.blockNumber,
-                        transactionHash: tx.hash,
-                    });
-                }
-                catch (err) {
-                    // Non-fatal: next sync will discover the ragequit event on-chain
-                    if (!silent) {
-                        process.stderr.write(`Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will pick it up.\n`);
-                    }
-                }
-                try {
-                    saveAccount(chainConfig.id, accountService.account);
-                }
-                catch (err) {
-                    process.stderr.write(`Warning: ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`);
-                    process.stderr.write("⚠ Run 'privacy-pools sync' to update your local account state.\n");
-                }
             }
             finally {
-                releaseCriticalSection();
+                releaseLock();
             }
-            spin.succeed("Ragequit confirmed!");
-            const ctx = createOutputContext(mode);
-            renderRagequitSuccess(ctx, {
-                txHash: tx.hash,
-                amount: commitment.value,
-                asset: pool.symbol,
-                chain: chainConfig.name,
-                decimals: pool.decimals,
-                poolAccountNumber: selectedPoolAccount.paNumber,
-                poolAccountId: selectedPoolAccount.paId,
-                poolAddress: pool.pool,
-                scope: pool.scope,
-                blockNumber: receipt.blockNumber,
-                explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
-            });
         }
         catch (error) {
             printError(error, isJson || isUnsigned);

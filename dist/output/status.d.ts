@@ -11,6 +11,7 @@ export interface StatusCheckResult {
     defaultChain: string | null;
     selectedChain: string | null;
     rpcUrl: string | null;
+    rpcIsCustom: boolean;
     mnemonicSet: boolean;
     signerKeySet: boolean;
     signerKeyValid: boolean;

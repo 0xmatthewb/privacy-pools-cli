@@ -6,3 +6,5 @@ export interface ResolvedGlobalMode {
     skipPrompts: boolean;
 }
 export declare function resolveGlobalMode(globalOpts?: GlobalOptions): ResolvedGlobalMode;
+/** Returns the network timeout in milliseconds (default 30 000). */
+export declare function getNetworkTimeoutMs(): number;

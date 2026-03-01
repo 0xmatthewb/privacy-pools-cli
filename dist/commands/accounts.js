@@ -12,6 +12,7 @@ import { commandHelpText } from "../utils/help.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { buildAllPoolAccountRefs, buildPoolAccountRefs, } from "../utils/pool-accounts.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 export function createAccountsCommand() {
@@ -36,110 +37,116 @@ export function createAccountsCommand() {
             const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
             verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
             const mnemonic = loadMnemonic();
-            const spin = spinner("Loading accounts...", silent);
-            spin.start();
-            const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
-            verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
-            if (pools.length === 0) {
-                spin.stop();
-                renderAccountsNoPools(ctx, chainConfig.name);
-                return;
-            }
-            const poolInfos = pools.map((p) => ({
-                chainId: chainConfig.id,
-                address: p.pool,
-                scope: p.scope,
-                deploymentBlock: chainConfig.startBlock,
-            }));
-            const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
-            const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, false, silent, true);
-            if (opts.noSync !== true) {
-                spin.text = "Syncing...";
-                let syncFailures = 0;
-                for (const poolInfo of poolInfos) {
-                    const pi = toPoolInfo(poolInfo);
+            const releaseLock = acquireProcessLock();
+            try {
+                const spin = spinner("Loading accounts...", silent);
+                spin.start();
+                const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
+                verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
+                if (pools.length === 0) {
+                    spin.stop();
+                    renderAccountsNoPools(ctx, chainConfig.name);
+                    return;
+                }
+                const poolInfos = pools.map((p) => ({
+                    chainId: chainConfig.id,
+                    address: p.pool,
+                    scope: p.scope,
+                    deploymentBlock: chainConfig.startBlock,
+                }));
+                const dataService = getDataService(chainConfig, pools[0].pool, globalOpts?.rpcUrl);
+                const accountService = await initializeAccountService(dataService, mnemonic, poolInfos, chainConfig.id, false, silent, true);
+                if (opts.noSync !== true) {
+                    spin.text = "Syncing...";
+                    let syncFailures = 0;
+                    for (const poolInfo of poolInfos) {
+                        const pi = toPoolInfo(poolInfo);
+                        try {
+                            await withSuppressedSdkStdout(async () => {
+                                await accountService.getDepositEvents(pi);
+                                await accountService.getWithdrawalEvents(pi);
+                                await accountService.getRagequitEvents(pi);
+                            });
+                        }
+                        catch (err) {
+                            syncFailures++;
+                            const symbol = pools.find((p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase())?.symbol ?? poolInfo.address;
+                            warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
+                        }
+                    }
+                    if (syncFailures > 0 && mode.isJson) {
+                        throw new CLIError(`Account sync failed for ${syncFailures} pool(s).`, "RPC", "Retry with a healthy RPC before using account data.");
+                    }
+                    guardCriticalSection();
                     try {
-                        await withSuppressedSdkStdout(async () => {
-                            await accountService.getDepositEvents(pi);
-                            await accountService.getWithdrawalEvents(pi);
-                            await accountService.getRagequitEvents(pi);
-                        });
+                        saveAccount(chainConfig.id, accountService.account);
                     }
-                    catch (err) {
-                        syncFailures++;
-                        const symbol = pools.find((p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase())?.symbol ?? poolInfo.address;
-                        warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
+                    finally {
+                        releaseCriticalSection();
                     }
                 }
-                if (syncFailures > 0 && mode.isJson) {
-                    throw new CLIError(`Account sync failed for ${syncFailures} pool(s).`, "RPC", "Retry with a healthy RPC before using account data.");
+                const spendable = accountService.getSpendableCommitments();
+                const scopeSet = new Set();
+                for (const scope of spendable.keys()) {
+                    scopeSet.add(scope.toString());
                 }
-                guardCriticalSection();
-                try {
-                    saveAccount(chainConfig.id, accountService.account);
-                }
-                finally {
-                    releaseCriticalSection();
-                }
-            }
-            const spendable = accountService.getSpendableCommitments();
-            const scopeSet = new Set();
-            for (const scope of spendable.keys()) {
-                scopeSet.add(scope.toString());
-            }
-            if (opts.all) {
-                const map = accountService.account?.poolAccounts;
-                if (map instanceof Map) {
-                    for (const scope of map.keys()) {
-                        scopeSet.add(scope.toString());
+                if (opts.all) {
+                    const map = accountService.account?.poolAccounts;
+                    if (map instanceof Map) {
+                        for (const scope of map.keys()) {
+                            scopeSet.add(scope.toString());
+                        }
                     }
                 }
-            }
-            const sortedScopeStrings = Array.from(scopeSet).sort((a, b) => {
-                const aa = BigInt(a);
-                const bb = BigInt(b);
-                if (aa < bb)
-                    return -1;
-                if (aa > bb)
-                    return 1;
-                return 0;
-            });
-            // Fetch ASP approval status in parallel (non-fatal if unavailable)
-            const approvedLabelsByScope = new Map();
-            await Promise.all(sortedScopeStrings.map(async (scopeStr) => {
-                const pool = pools.find((p) => p.scope.toString() === scopeStr);
-                if (pool) {
-                    approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
+                const sortedScopeStrings = Array.from(scopeSet).sort((a, b) => {
+                    const aa = BigInt(a);
+                    const bb = BigInt(b);
+                    if (aa < bb)
+                        return -1;
+                    if (aa > bb)
+                        return 1;
+                    return 0;
+                });
+                // Fetch ASP approval status in parallel (non-fatal if unavailable)
+                const approvedLabelsByScope = new Map();
+                await Promise.all(sortedScopeStrings.map(async (scopeStr) => {
+                    const pool = pools.find((p) => p.scope.toString() === scopeStr);
+                    if (pool) {
+                        approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
+                    }
+                }));
+                spin.stop();
+                // Build render data
+                const groups = [];
+                for (const scopeStr of sortedScopeStrings) {
+                    const scopeBigInt = BigInt(scopeStr);
+                    const commitments = spendable.get(scopeBigInt) ?? [];
+                    const pool = pools.find((p) => p.scope.toString() === scopeStr);
+                    if (!pool)
+                        continue;
+                    const approvedLabels = approvedLabelsByScope.get(scopeStr);
+                    const poolAccounts = opts.all
+                        ? buildAllPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels)
+                        : buildPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels);
+                    poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
+                    groups.push({
+                        symbol: pool.symbol,
+                        poolAddress: pool.pool,
+                        decimals: pool.decimals,
+                        scope: pool.scope,
+                        poolAccounts,
+                    });
                 }
-            }));
-            spin.stop();
-            // Build render data
-            const groups = [];
-            for (const scopeStr of sortedScopeStrings) {
-                const scopeBigInt = BigInt(scopeStr);
-                const commitments = spendable.get(scopeBigInt) ?? [];
-                const pool = pools.find((p) => p.scope.toString() === scopeStr);
-                if (!pool)
-                    continue;
-                const approvedLabels = approvedLabelsByScope.get(scopeStr);
-                const poolAccounts = opts.all
-                    ? buildAllPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels)
-                    : buildPoolAccountRefs(accountService.account, pool.scope, commitments, approvedLabels);
-                poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
-                groups.push({
-                    symbol: pool.symbol,
-                    poolAddress: pool.pool,
-                    decimals: pool.decimals,
-                    scope: pool.scope,
-                    poolAccounts,
+                renderAccounts(ctx, {
+                    chain: chainConfig.name,
+                    groups,
+                    showDetails: !!opts.details,
+                    showAll: !!opts.all,
                 });
             }
-            renderAccounts(ctx, {
-                chain: chainConfig.name,
-                groups,
-                showDetails: !!opts.details,
-                showAll: !!opts.all,
-            });
+            finally {
+                releaseLock();
+            }
         }
         catch (error) {
             printError(error, mode.isJson);
