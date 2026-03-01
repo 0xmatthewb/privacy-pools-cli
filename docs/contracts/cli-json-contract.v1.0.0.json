@@ -62,15 +62,21 @@
     "status": {
       "successFields": {
         "configExists": "boolean",
+        "configDir": "string|null",
         "defaultChain": "string|null",
         "selectedChain": "string|null",
         "rpcUrl": "string|null",
+        "rpcIsCustom": "boolean",
         "mnemonicSet": "boolean",
         "signerKeySet": "boolean",
         "signerKeyValid": "boolean",
         "signerAddress": "0x-prefixed-address|null",
+        "entrypoint": "0x-prefixed-address|null",
+        "aspHost": "string|null",
+        "accountFiles": "[{ chain: string, chainId: number }]",
         "aspLive": "boolean|undefined",
-        "rpcLive": "boolean|undefined"
+        "rpcLive": "boolean|undefined",
+        "rpcBlockNumber": "string|undefined"
       }
     },
     "pools": {

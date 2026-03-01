@@ -52,7 +52,7 @@ List available Privacy Pools.
 privacy-pools pools --agent
 privacy-pools pools --agent --all-chains
 privacy-pools pools --agent --search ETH
-privacy-pools pools --agent --sort tvl
+privacy-pools pools --agent --sort tvl-desc
 ```
 
 JSON payload (single chain): `{ chain, search, sort, pools: [{ symbol, asset, pool, scope, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }] }`
@@ -103,7 +103,7 @@ privacy-pools status --agent
 privacy-pools status --agent --check
 ```
 
-JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, mnemonicSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }] }`
+JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, mnemonicSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }] }`
 
 `aspLive`, `rpcLive`, and `rpcBlockNumber` are only present when `--check`, `--check-rpc`, or `--check-asp` is passed.
 

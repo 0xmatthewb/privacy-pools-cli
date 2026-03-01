@@ -73,18 +73,22 @@ export function toPoolInfo(pool: {
 }
 
 /**
- * The SDK emits info logs with console.log in some account paths.
- * Suppress stdout temporarily so machine-mode JSON contracts remain parseable.
+ * The SDK emits logs via console.log (Logger.info) and console.debug
+ * (Logger.debug in DataService). Suppress both so machine-mode JSON
+ * output on stdout remains parseable.
  */
 export async function withSuppressedSdkStdout<T>(
   fn: () => Promise<T>
 ): Promise<T> {
   const originalLog = console.log;
+  const originalDebug = console.debug;
   console.log = () => {};
+  console.debug = () => {};
   try {
     return await fn();
   } finally {
     console.log = originalLog;
+    console.debug = originalDebug;
   }
 }
 
