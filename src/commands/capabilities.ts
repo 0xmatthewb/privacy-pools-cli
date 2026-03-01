@@ -5,6 +5,7 @@ import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderCapabilities } from "../output/capabilities.js";
+import { CHAINS, CHAIN_NAMES } from "../config/chains.js";
 
 const CAPABILITIES = {
   commands: [
@@ -136,6 +137,11 @@ const CAPABILITIES = {
     "4. privacy-pools accounts --json --chain <chain>  (wait for aspStatus: approved)",
     "5. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
   ],
+  supportedChains: CHAIN_NAMES.map((name) => ({
+    name,
+    chainId: CHAINS[name].id,
+    testnet: CHAINS[name].isTestnet,
+  })),
   jsonOutputContract: "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage }.",
 };
 
@@ -146,7 +152,7 @@ export function createCapabilitiesCommand(): Command {
       "after",
       "\nExamples:\n  privacy-pools capabilities\n  privacy-pools capabilities --json\n"
         + commandHelpText({
-          jsonFields: "{ commands[], globalFlags[], agentWorkflow[], jsonOutputContract }",
+          jsonFields: "{ commands[], globalFlags[], agentWorkflow[], supportedChains[], jsonOutputContract }",
         })
     )
     .action(async (_opts, cmd) => {

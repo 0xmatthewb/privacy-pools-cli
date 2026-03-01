@@ -641,7 +641,7 @@ describe("renderWithdrawQuote parity", () => {
     expect(stderr).toContain("Relayer quote");
     expect(stderr).toContain("Asset: ETH");
     expect(stderr).toContain("Quoted fee: 0.50%");
-    expect(stderr).toContain("On-chain max fee: 1.00%");
+    expect(stderr).toContain("Onchain max fee: 1.00%");
     expect(stderr).toContain("Recipient:");
     expect(stderr).toContain("Quote expires:");
   });

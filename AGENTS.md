@@ -38,6 +38,40 @@ privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient --agent
 
 Parse `success` first. On failure, read `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
 
+## Preflight Check
+
+Before running wallet-dependent commands, verify setup:
+
+```bash
+privacy-pools status --agent
+```
+
+Check `mnemonicSet: true` and `signerKeySet: true`. If `signerKeySet: false`, set `PRIVACY_POOLS_PRIVATE_KEY` in the agent's environment before running transaction commands.
+
+## Human + Agent Workflow
+
+When a human delegates CLI operations to an agent:
+
+1. **Human** runs `privacy-pools init` interactively (securely stores recovery phrase and signer key)
+2. **Human** sets `PRIVACY_POOLS_PRIVATE_KEY` env var in the agent's environment
+3. **Agent** uses `--agent` flag for all operations
+4. **Agent** runs `privacy-pools status --agent` to verify setup before transacting
+5. **Human** reviews transaction results
+
+## Global Flags
+
+| Flag | Description |
+| ---- | ----------- |
+| `--agent` | Alias for `--json --yes --quiet` |
+| `-j, --json` | Machine-readable JSON output on stdout |
+| `-y, --yes` | Skip confirmation prompts |
+| `-c, --chain <name>` | Target chain (ethereum, mainnet, arbitrum, ...) |
+| `-r, --rpc-url <url>` | Override RPC URL |
+| `-q, --quiet` | Suppress non-essential stderr output |
+| `-v, --verbose` | Enable verbose/debug output |
+| `--no-banner` | Disable ASCII banner output |
+| `--timeout <seconds>` | Override default timeout for RPC calls |
+
 ## Command Reference
 
 ### No Wallet Required
@@ -55,13 +89,13 @@ privacy-pools pools --agent --search ETH
 privacy-pools pools --agent --sort tvl-desc
 ```
 
-JSON payload (single chain): `{ chain, search, sort, pools: [{ symbol, asset, pool, scope, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }] }`
+JSON payload (single chain): `{ chain, search, sort, pools: [{ symbol, asset, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }] }`
 
 With `--all-chains`, each pool includes a `chain` field and the root includes `allChains: true`, `chains: [{ chain, pools, error }]`, and optional `warnings`.
 
 #### `activity`
 
-Public on-chain activity feed.
+Public onchain activity feed.
 
 ```bash
 privacy-pools activity --agent
@@ -74,15 +108,16 @@ With `--asset`, mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` 
 
 #### `stats global`
 
-Protocol-wide statistics.
+Protocol-wide statistics. This is the default subcommand for `stats`.
 
 ```bash
 privacy-pools stats global --agent
+privacy-pools stats --agent  # same as above
 ```
 
 JSON payload: `{ mode: "global-stats", chain, cacheTimestamp, allTime, last24h }`
 
-`allTime` and `last24h` are ASP-provided objects containing fields like `tvlUsd`, `avgDepositSizeUsd`, `totalDepositsCount`, `totalWithdrawalsCount`.
+`allTime` and `last24h` are objects provided by the ASP. Expected fields: `tvlUsd`, `avgDepositSizeUsd`, `totalDepositsCount`, `totalWithdrawalsCount`, `totalDepositsValue`, `totalWithdrawalsValue`, `totalDepositsValueUsd`, `totalWithdrawalsValueUsd`.
 
 #### `stats pool`
 
@@ -115,7 +150,7 @@ Machine-readable discovery manifest.
 privacy-pools capabilities --agent
 ```
 
-JSON payload: `{ commands[], globalFlags[], agentWorkflow[], jsonOutputContract }`
+JSON payload: `{ commands[], globalFlags[], agentWorkflow[], supportedChains[], jsonOutputContract }`
 
 ### Wallet Required
 
@@ -135,6 +170,8 @@ JSON payload: `{ defaultChain, signerKeySet, mnemonicRedacted? | mnemonic? }`
 
 When `--show-mnemonic` is passed (and mnemonic was generated), `mnemonic` contains the phrase. Otherwise `mnemonicRedacted: true`. When importing an existing mnemonic, neither field is present.
 
+> **CRITICAL**: When generating a new mnemonic, always pass `--show-mnemonic` to capture it in JSON output. Without this flag, the mnemonic is stored on disk but not returned — you cannot retrieve it later via the CLI. Losing the mnemonic means losing access to all deposited funds.
+
 `--skip-circuits` skips local circuit downloads. Recommended for agents.
 
 #### `deposit`
@@ -146,13 +183,15 @@ privacy-pools deposit 0.1 --asset ETH --agent
 privacy-pools deposit ETH 0.1 --agent --chain sepolia
 ```
 
-JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl }`
+JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextStep }`
 
 All numeric values are strings (wei). `committedValue` and `label` may be `null`.
 
+`nextStep` provides guidance: poll `accounts --agent` until `aspStatus = approved` (most deposits approve within 1 hour).
+
 #### `withdraw`
 
-Withdraw from a Privacy Pool. Relayed by default.
+Withdraw from a Privacy Pool. Relayed by default (recommended for privacy).
 
 ```bash
 privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient --agent
@@ -164,6 +203,8 @@ JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, block
 
 JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`.
 
+> **Note**: Direct withdrawals (`--direct`) are not privacy-preserving. Use relayed mode (default) for private withdrawals.
+
 **Withdrawal quote:**
 
 ```bash
@@ -172,9 +213,11 @@ privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient --agent
 
 JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, maxRelayFeeBPS, quoteFeeBPS, feeCommitmentPresent, quoteExpiresAt }`
 
+Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof generation takes longer, the CLI will auto-refresh the quote if the fee hasn't changed. If the fee changes, re-run the command to generate a fresh proof.
+
 #### `ragequit`
 
-Emergency withdrawal without ASP approval. Reveals the deposit address on-chain.
+Emergency withdrawal without ASP approval. Reveals the deposit address onchain — no privacy is gained.
 
 ```bash
 privacy-pools ragequit --asset ETH --from-pa PA-1 --agent
@@ -221,7 +264,7 @@ JSON payload: `{ chain, events: [{ type, asset, poolAddress, poolAccountNumber, 
 
 #### `sync`
 
-Resync local account state from on-chain events.
+Resync local account state from onchain events.
 
 ```bash
 privacy-pools sync --agent
@@ -229,6 +272,37 @@ privacy-pools sync --agent --asset ETH
 ```
 
 JSON payload: `{ chain, syncedPools, syncedSymbols, spendableCommitments }`
+
+## Auto-Sync Behavior
+
+| Command    | Auto-syncs? | Override      |
+| ---------- | ----------- | ------------- |
+| accounts   | Yes         | --no-sync     |
+| balance    | Yes         | --no-sync     |
+| history    | Yes         | --no-sync     |
+| deposit    | Yes         | N/A           |
+| withdraw   | Yes         | N/A           |
+| ragequit   | Yes         | N/A           |
+| sync       | Always      | N/A           |
+| pools      | No          | N/A (public)  |
+| activity   | No          | N/A (public)  |
+| stats      | No          | N/A (public)  |
+
+## Polling for ASP Approval
+
+After depositing, poll `accounts --agent` for `aspStatus` changes:
+
+- **Initial interval**: 60 seconds
+- **Backoff**: exponential, max 5 minutes between polls
+- **Most deposits approve within 1 hour**
+- **Maximum wait**: 7 days (rare edge cases)
+- Once `aspStatus = "approved"`, proceed with withdrawal
+
+## Crash Recovery
+
+Deposits are not idempotent. If a deposit fails after tx submission (e.g., CLI crashes between onchain confirmation and local state save), run `sync --agent` to detect the onchain deposit before retrying. Running `deposit` again without syncing will create a new deposit.
+
+For withdrawals: if the CLI crashes after proof generation but before relay submission, the proof is lost and must be regenerated. Re-run the withdraw command.
 
 ## Unsigned Transaction Mode
 
@@ -336,7 +410,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `PROOF_MALFORMED`                    | PROOF    | No        | Corrupt proof data                          |
 | `CONTRACT_NULLIFIER_ALREADY_SPENT`   | CONTRACT | No        | Pool Account already withdrawn              |
 | `CONTRACT_INCORRECT_ASP_ROOT`        | CONTRACT | Yes       | State changed, regenerate proof             |
-| `CONTRACT_INVALID_PROOF`             | CONTRACT | No        | Proof rejected on-chain                     |
+| `CONTRACT_INVALID_PROOF`             | CONTRACT | No        | Proof rejected onchain                      |
 | `CONTRACT_INVALID_PROCESSOOOR`       | CONTRACT | No        | Wrong withdrawal mode                       |
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED`| CONTRACT | No        | Duplicate precommitment, retry deposit      |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`   | CONTRACT | No        | Wrong signer for ragequit                   |
@@ -374,8 +448,10 @@ When `retryable: true` is present in the error response:
 | `sepolia`    | 11155111   | Yes     | For testing                     |
 | `op-sepolia` | 11155420   | Yes     | For testing (OP Stack)          |
 
+`mainnet` is accepted as an alias for `ethereum`.
+
 Specify with `--chain <name>` or set a default via `init --default-chain <name>`.
 
 ## Runtime Discovery
 
-For fully dynamic integration, call `capabilities --agent` at startup to receive a machine-readable manifest of all commands, flags, workflow steps, and the JSON output contract. This is useful if you cannot read this file at integration time.
+For fully dynamic integration, call `capabilities --agent` at startup to receive a machine-readable manifest of all commands, flags, workflow steps, supported chains, and the JSON output contract. This is useful if you cannot read this file at integration time.

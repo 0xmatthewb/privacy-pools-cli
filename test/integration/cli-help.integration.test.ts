@@ -8,15 +8,14 @@ describe("CLI help and discovery", () => {
     const result = runCli(["--help"], { home: createTempHome() });
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
-    expect(result.stdout).not.toContain("--agent");
     expect(result.stdout).not.toMatch(/\n\s+--quiet\s/);
     expect(result.stdout).not.toMatch(/\n\s+--verbose\s/);
     expect(result.stdout).not.toMatch(/\n\s+--no-banner\s/);
     expect(result.stdout).toContain("-c, --chain");
     expect(result.stdout).toContain("-j, --json");
     expect(result.stdout).toContain("-y, --yes");
-    expect(result.stdout).toContain("Agent mode:");
-    expect(result.stdout).toContain("Agent unsigned:");
+    expect(result.stdout).toContain("Get started:");
+    expect(result.stdout).toContain("Read-only (no wallet needed)");
     expect(result.stdout).toContain("init");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("pools");

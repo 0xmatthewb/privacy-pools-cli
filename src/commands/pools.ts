@@ -193,6 +193,7 @@ export function createPoolsCommand(): Command {
         );
         spin.start();
 
+        let chainsCompleted = 0;
         const chainResults: ChainPoolsResult[] = await Promise.all(
           chainsToQuery.map(async (chainConfig) => {
             try {
@@ -200,6 +201,11 @@ export function createPoolsCommand(): Command {
               return { chainConfig, pools };
             } catch (error) {
               return { chainConfig, pools: [], error };
+            } finally {
+              if (opts.allChains && chainsToQuery.length > 1) {
+                chainsCompleted++;
+                spin.text = `Fetching pools... (${chainsCompleted}/${chainsToQuery.length} chains done)`;
+              }
             }
           })
         );

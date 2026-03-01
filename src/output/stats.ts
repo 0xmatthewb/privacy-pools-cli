@@ -1,0 +1,123 @@
+/**
+ * Output renderer for the `stats` command.
+ *
+ * `src/commands/stats.ts` delegates final output here.
+ * Statistics fetching, subcommand routing, and spinner remain in
+ * the command handler.
+ */
+
+import type { OutputContext } from "./common.js";
+import { printJsonSuccess, printTable, isSilent } from "./common.js";
+import type { TimeBasedStatistics } from "../types.js";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export interface GlobalStatsRenderData {
+  mode: "global-stats";
+  chain: string;
+  cacheTimestamp: string | null;
+  allTime: TimeBasedStatistics | null;
+  last24h: TimeBasedStatistics | null;
+}
+
+export interface PoolStatsRenderData {
+  mode: "pool-stats";
+  chain: string;
+  asset: string;
+  pool: string;
+  scope: string;
+  cacheTimestamp: string | null;
+  allTime: TimeBasedStatistics | null;
+  last24h: TimeBasedStatistics | null;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** @internal Exported for unit testing. */
+export function parseUsd(value: unknown): string {
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value.replace(/,/g, ""));
+    if (Number.isFinite(parsed)) {
+      return `$${parsed.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+    }
+  }
+  return "-";
+}
+
+/** @internal Exported for unit testing. */
+export function parseCount(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.floor(value).toLocaleString("en-US");
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.floor(parsed).toLocaleString("en-US");
+    }
+  }
+  return "-";
+}
+
+function renderStatsTable(
+  allTime: TimeBasedStatistics | undefined | null,
+  last24h: TimeBasedStatistics | undefined | null,
+): void {
+  printTable(
+    ["Metric", "All Time", "Last 24h"],
+    [
+      ["Current TVL", parseUsd(allTime?.tvlUsd), parseUsd(last24h?.tvlUsd)],
+      ["Avg Deposit Size", parseUsd(allTime?.avgDepositSizeUsd), parseUsd(last24h?.avgDepositSizeUsd)],
+      ["Total Deposits", parseCount(allTime?.totalDepositsCount), parseCount(last24h?.totalDepositsCount)],
+      ["Total Withdrawals", parseCount(allTime?.totalWithdrawalsCount), parseCount(last24h?.totalWithdrawalsCount)],
+    ],
+  );
+}
+
+// ── Renderers ────────────────────────────────────────────────────────────────
+
+export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderData): void {
+  if (ctx.mode.isJson) {
+    printJsonSuccess(
+      {
+        mode: data.mode,
+        chain: data.chain,
+        cacheTimestamp: data.cacheTimestamp,
+        allTime: data.allTime,
+        last24h: data.last24h,
+      },
+      false,
+    );
+    return;
+  }
+
+  const silent = isSilent(ctx);
+  if (!silent) {
+    process.stderr.write(`\nGlobal statistics (${data.chain} endpoint):\n\n`);
+    renderStatsTable(data.allTime, data.last24h);
+  }
+}
+
+export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): void {
+  if (ctx.mode.isJson) {
+    printJsonSuccess(
+      {
+        mode: data.mode,
+        chain: data.chain,
+        asset: data.asset,
+        pool: data.pool,
+        scope: data.scope,
+        cacheTimestamp: data.cacheTimestamp,
+        allTime: data.allTime,
+        last24h: data.last24h,
+      },
+      false,
+    );
+    return;
+  }
+
+  const silent = isSilent(ctx);
+  if (!silent) {
+    process.stderr.write(`\nPool statistics for ${data.asset} on ${data.chain}:\n\n`);
+    renderStatsTable(data.allTime, data.last24h);
+  }
+}

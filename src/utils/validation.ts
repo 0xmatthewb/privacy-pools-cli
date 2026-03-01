@@ -30,7 +30,8 @@ export function resolveChain(
   const name = chainName ?? defaultChain ?? "ethereum";
 
   const normalized = name.toLowerCase();
-  const config = CHAINS[normalized];
+  const resolvedName = normalized === "mainnet" ? "ethereum" : normalized;
+  const config = CHAINS[resolvedName];
   if (!config) {
     throw new CLIError(
       `Unknown chain: ${name}`,
@@ -39,10 +40,10 @@ export function resolveChain(
     );
   }
 
-  const aspHostOverride = resolveChainHostOverride("ASP_HOST", normalized);
+  const aspHostOverride = resolveChainHostOverride("ASP_HOST", resolvedName);
   const relayerHostOverride = resolveChainHostOverride(
     "RELAYER_HOST",
-    normalized
+    resolvedName
   );
 
   if (!aspHostOverride && !relayerHostOverride) {

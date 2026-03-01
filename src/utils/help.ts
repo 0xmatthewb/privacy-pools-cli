@@ -65,13 +65,17 @@ export function styleCommanderHelp(raw: string): string {
 export function rootHelpFooter(): string {
   return [
     "",
-    `  Human mode:       ${chalk.cyan("privacy-pools init")}`,
+    chalk.bold("  Read-only (no wallet needed)"),
+    `    ${chalk.green("pools")}  ${chalk.green("activity")}  ${chalk.green("stats")}  ${chalk.green("status")}  ${chalk.green("guide")}`,
+    "",
+    chalk.bold("  Wallet required (run init first)"),
+    `    ${chalk.green("init")}  ${chalk.green("deposit")}  ${chalk.green("withdraw")}  ${chalk.green("ragequit")}  ${chalk.green("accounts")}  ${chalk.green("balance")}  ${chalk.green("history")}  ${chalk.green("sync")}`,
+    "",
+    `  Get started:      ${chalk.cyan("privacy-pools init")}`,
     `  Short alias:      ${chalk.cyan("pp init")}`,
-    `  Agent mode:       ${chalk.cyan("privacy-pools -j -y status")}`,
-    `  Agent unsigned:   ${chalk.cyan("privacy-pools -j -y deposit ETH 0.1 --unsigned --chain sepolia")}`,
     `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
     `  Command help:     ${chalk.cyan("privacy-pools <command> --help")}`,
-    `  Advanced flags:   ${chalk.cyan("See 'privacy-pools guide' for full global options and env vars")}`,
+    `  Advanced:         ${chalk.cyan("--dry-run, --unsigned, --agent (see 'privacy-pools guide')")}`,
   ].join("\n");
 }
 
@@ -111,7 +115,8 @@ export function guideText(): string {
     `  7. ${chalk.green("history")}        View transaction history`,
     `  *  ${chalk.green("sync")}           Re-sync onchain state (most commands sync automatically)`,
     `  *  ${chalk.green("status")}         Check setup anytime`,
-    `  *  ${chalk.green("ragequit")}       Public exit — returns funds to deposit address (alias: exit)`,
+    `  *  ${chalk.green("activity")}       Public onchain feed ${chalk.dim("(for your history, use 'history')")}`,
+    `  *  ${chalk.green("ragequit")}       Public exit — returns funds to deposit address, no privacy (alias: exit)`,
     `  *  ${chalk.green("withdraw quote")} Check relayer fees before withdrawing`,
     "",
     chalk.bold("Global Options"),

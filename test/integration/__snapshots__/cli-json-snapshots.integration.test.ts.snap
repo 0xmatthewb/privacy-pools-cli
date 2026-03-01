@@ -48,6 +48,7 @@ exports[`JSON envelope structure snapshots capabilities --json success envelope 
   "jsonOutputContract": "string",
   "schemaVersion": "string",
   "success": "boolean",
+  "supportedChains": "array(5)",
 }
 `;
 

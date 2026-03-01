@@ -2,9 +2,7 @@
  * Output boundary conformance test.
  *
  * Enforces the renderer-boundary contract:
- *   - Migrated commands delegate output formatting to `src/output/` renderers.
- *   - Only commands that have not yet been migrated (activity, stats) may use
- *     legacy inline output patterns.
+ *   - All commands delegate output formatting to `src/output/` renderers.
  *   - `printJsonSuccess` in migrated commands is limited to unsigned-output
  *     paths that intentionally bypass the renderer layer.
  *
@@ -21,6 +19,7 @@ const CLI_ROOT = process.cwd();
 
 /** Commands whose output was extracted to a renderer in src/output/. */
 const MIGRATED_COMMANDS = [
+  "src/commands/activity.ts",
   "src/commands/init.ts",
   "src/commands/sync.ts",
   "src/commands/accounts.ts",
@@ -30,16 +29,15 @@ const MIGRATED_COMMANDS = [
   "src/commands/ragequit.ts",
   "src/commands/withdraw.ts",
   "src/commands/status.ts",
+  "src/commands/stats.ts",
   "src/commands/pools.ts",
   "src/commands/guide.ts",
   "src/commands/capabilities.ts",
   "src/commands/completion.ts",
 ] as const;
 
-/** Commands that have NOT been migrated yet. */
-const UNMIGRATED_COMMANDS = [
-  "src/commands/activity.ts",
-  "src/commands/stats.ts",
+/** All commands have been migrated. */
+const UNMIGRATED_COMMANDS: readonly string[] = [
 ] as const;
 
 /**

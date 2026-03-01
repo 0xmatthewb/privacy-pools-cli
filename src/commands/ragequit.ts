@@ -28,7 +28,7 @@ import { printRawTransactions, toSolidityProof } from "../utils/unsigned.js";
 import { buildUnsignedRagequitOutput } from "../utils/unsigned-flows.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
-import type { GlobalOptions } from "../types.js";
+import type { GlobalOptions, PoolStats } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
@@ -131,7 +131,7 @@ export function createRagequitCommand(): Command {
         );
 
         // Resolve pool
-        let pool;
+        let pool: PoolStats;
         if (positionalOrFlagAsset) {
           pool = await resolvePool(chainConfig, positionalOrFlagAsset, globalOpts?.rpcUrl);
         } else if (!skipPrompts) {
@@ -303,7 +303,7 @@ export function createRagequitCommand(): Command {
         if (!skipPrompts) {
           process.stderr.write("\n");
           warn(
-            "By exiting, you are withdrawing funds to your depositing address. You will not gain any privacy.",
+            "By exiting, you are withdrawing funds to your depositing address and will not gain any privacy. If your deposit is approved, use 'withdraw' instead for private withdrawal.",
             silent
           );
           process.stderr.write("\n");

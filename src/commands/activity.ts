@@ -5,28 +5,17 @@ import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import { printJsonSuccess } from "../utils/json.js";
-import { formatAddress, formatAmount, printTable, spinner } from "../utils/format.js";
+import { formatAmount, spinner } from "../utils/format.js";
 import type { GlobalOptions, AspPublicEvent } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { createOutputContext } from "../output/common.js";
+import { renderActivity } from "../output/activity.js";
+import type { NormalizedActivityEvent } from "../output/activity.js";
 
 interface ActivityCommandOptions {
   asset?: string;
   page?: string;
   limit?: string;
-}
-
-interface NormalizedActivityEvent {
-  type: string;
-  txHash: string | null;
-  reviewStatus: string | null;
-  amountRaw: string | null;
-  amountFormatted: string;
-  timestampMs: number | null;
-  timeLabel: string;
-  poolSymbol: string | null;
-  poolAddress: string | null;
-  chainId: number | null;
 }
 
 /** @internal Exported for unit testing. */
@@ -120,15 +109,6 @@ function normalizeActivityEvent(
   };
 }
 
-function eventPoolLabel(event: NormalizedActivityEvent): string {
-  if (event.poolSymbol && event.chainId !== null) {
-    return `${event.poolSymbol}@${event.chainId}`;
-  }
-  if (event.poolSymbol) return event.poolSymbol;
-  if (event.chainId !== null) return `chain-${event.chainId}`;
-  return "-";
-}
-
 export function createActivityCommand(): Command {
   return new Command("activity")
     .description("Show public activity feed (global or for a specific pool)")
@@ -156,6 +136,7 @@ export function createActivityCommand(): Command {
         const config = loadConfig();
         const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
 
+        const ctx = createOutputContext(mode);
         const spin = spinner("Fetching public activity...", silent);
         spin.start();
 
@@ -172,52 +153,18 @@ export function createActivityCommand(): Command {
           const eventsRaw = Array.isArray(response.events) ? response.events : [];
           const events = eventsRaw.map((e) => normalizeActivityEvent(e, pool.symbol));
 
-          if (isJson) {
-            printJsonSuccess(
-              {
-                mode: "pool-activity",
-                chain: chainConfig.name,
-                asset: pool.symbol,
-                pool: pool.pool,
-                scope: pool.scope.toString(),
-                page: parseNumberish(response.page) ?? page,
-                perPage: parseNumberish(response.perPage) ?? perPage,
-                total: parseNumberish(response.total) ?? null,
-                totalPages: parseNumberish(response.totalPages) ?? null,
-                events: events.map((e) => ({
-                  type: e.type,
-                  txHash: e.txHash,
-                  reviewStatus: e.reviewStatus,
-                  amountRaw: e.amountRaw,
-                  poolSymbol: e.poolSymbol,
-                  poolAddress: e.poolAddress,
-                  chainId: e.chainId,
-                  timestamp: e.timestampMs,
-                })),
-              },
-              false
-            );
-            return;
-          }
-
-          if (silent) return;
-          process.stderr.write(`\nActivity for ${pool.symbol} on ${chainConfig.name}:\n\n`);
-          if (events.length === 0) {
-            process.stderr.write("No activity found.\n");
-            return;
-          }
-
-          printTable(
-            ["Type", "Pool", "Amount", "Status", "Time", "Tx"],
-            events.map((e) => [
-              e.type,
-              eventPoolLabel(e),
-              e.amountFormatted,
-              e.reviewStatus ?? "-",
-              e.timeLabel,
-              e.txHash ? formatAddress(e.txHash, 8) : "-",
-            ])
-          );
+          renderActivity(ctx, {
+            mode: "pool-activity",
+            chain: chainConfig.name,
+            page: parseNumberish(response.page) ?? page,
+            perPage: parseNumberish(response.perPage) ?? perPage,
+            total: parseNumberish(response.total) ?? null,
+            totalPages: parseNumberish(response.totalPages) ?? null,
+            events,
+            asset: pool.symbol,
+            pool: pool.pool,
+            scope: pool.scope.toString(),
+          });
           return;
         }
 
@@ -227,49 +174,15 @@ export function createActivityCommand(): Command {
         const eventsRaw = Array.isArray(response.events) ? response.events : [];
         const events = eventsRaw.map((e) => normalizeActivityEvent(e));
 
-        if (isJson) {
-          printJsonSuccess(
-            {
-              mode: "global-activity",
-              chain: chainConfig.name,
-              page: parseNumberish(response.page) ?? page,
-              perPage: parseNumberish(response.perPage) ?? perPage,
-              total: parseNumberish(response.total) ?? null,
-              totalPages: parseNumberish(response.totalPages) ?? null,
-              events: events.map((e) => ({
-                type: e.type,
-                txHash: e.txHash,
-                reviewStatus: e.reviewStatus,
-                amountRaw: e.amountRaw,
-                poolSymbol: e.poolSymbol,
-                poolAddress: e.poolAddress,
-                chainId: e.chainId,
-                timestamp: e.timestampMs,
-              })),
-            },
-            false
-          );
-          return;
-        }
-
-        if (silent) return;
-        process.stderr.write(`\nGlobal activity (${chainConfig.name} endpoint):\n\n`);
-        if (events.length === 0) {
-          process.stderr.write("No activity found.\n");
-          return;
-        }
-
-        printTable(
-          ["Type", "Pool", "Amount", "Status", "Time", "Tx"],
-          events.map((e) => [
-            e.type,
-            eventPoolLabel(e),
-            e.amountFormatted,
-            e.reviewStatus ?? "-",
-            e.timeLabel,
-            e.txHash ? formatAddress(e.txHash, 8) : "-",
-          ])
-        );
+        renderActivity(ctx, {
+          mode: "global-activity",
+          chain: chainConfig.name,
+          page: parseNumberish(response.page) ?? page,
+          perPage: parseNumberish(response.perPage) ?? perPage,
+          total: parseNumberish(response.total) ?? null,
+          totalPages: parseNumberish(response.totalPages) ?? null,
+          events,
+        });
       } catch (error) {
         printError(error, isJson);
       }

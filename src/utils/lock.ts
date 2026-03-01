@@ -10,7 +10,7 @@
  * check-then-create patterns.
  */
 
-import { openSync, closeSync, readFileSync, writeFileSync, unlinkSync, constants } from "fs";
+import { readFileSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import { getConfigDir, ensureConfigDir } from "../services/config.js";
 import { CLIError } from "./errors.js";
@@ -23,7 +23,9 @@ function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
+  } catch (err: unknown) {
+    // On Windows, EPERM means the process exists but we lack permission
+    if ((err as NodeJS.ErrnoException).code === "EPERM") return true;
     return false;
   }
 }
@@ -47,11 +49,9 @@ export function acquireProcessLock(): () => void {
   const lockPath = getLockFilePath();
   const pidStr = String(process.pid);
 
-  // Attempt atomic create via O_EXCL — fails with EEXIST if file exists.
+  // Attempt atomic create via 'wx' flag — fails with EEXIST if file exists.
   try {
-    const fd = openSync(lockPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
-    writeFileSync(fd, pidStr, "utf-8");
-    closeSync(fd);
+    writeFileSync(lockPath, pidStr, { flag: "wx", mode: 0o600 });
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
 
@@ -70,9 +70,7 @@ export function acquireProcessLock(): () => void {
     try { unlinkSync(lockPath); } catch { /* already gone */ }
 
     try {
-      const fd = openSync(lockPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
-      writeFileSync(fd, pidStr, "utf-8");
-      closeSync(fd);
+      writeFileSync(lockPath, pidStr, { flag: "wx", mode: 0o600 });
     } catch (retryErr: unknown) {
       if ((retryErr as NodeJS.ErrnoException).code === "EEXIST") {
         throw new CLIError(

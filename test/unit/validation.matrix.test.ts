@@ -82,6 +82,7 @@ const INVALID_ADDRESSES = [
 describe("validation matrix", () => {
   const CHAIN_CASES = [
     ["ethereum", 1],
+    ["mainnet", 1],
     ["arbitrum", 42161],
     ["optimism", 10],
     ["sepolia", 11155111],
@@ -97,7 +98,6 @@ describe("validation matrix", () => {
   const UNKNOWN_CHAIN_CASES = [
     "",
     "eth",
-    "mainnet",
     "arbitrum-one",
     "optimism-mainnet",
     "op_sepolia",

@@ -165,10 +165,13 @@ export function createDepositCommand(): Command {
         if (!skipPrompts) {
           info(`Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)})`, silent);
           info(`You will receive: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)} committed value`, silent);
+          if (pool.asset.toLowerCase() !== NATIVE_ASSET_ADDRESS.toLowerCase()) {
+            info("This will require 2 transactions: token approval + deposit.", silent);
+          }
           process.stderr.write("\n");
           const ok = await confirm({
             message: `Deposit ${formatAmount(amount, pool.decimals, pool.symbol)} into ${pool.symbol} pool on ${chainConfig.name}?`,
-            default: false,
+            default: true,
           });
           if (!ok) {
             info("Deposit cancelled.", silent);

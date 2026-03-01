@@ -38,7 +38,7 @@ import {
 import { explorerTxUrl } from "../config/chains.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
-import type { GlobalOptions } from "../types.js";
+import type { GlobalOptions, PoolStats } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote } from "../output/withdraw.js";
@@ -77,7 +77,7 @@ export function createWithdrawCommand(): Command {
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
     .option("-p, --from-pa <PA-#|#>", "Withdraw from a specific Pool Account (e.g. PA-2)")
-    .option("--direct", "Use direct withdrawal instead of relayed")
+    .option("--direct", "Use direct withdrawal (not privacy-preserving — use relayed mode for private withdrawals)")
     .option("--unsigned", "Build unsigned payload(s); do not submit")
     .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
     .option("--dry-run", "Generate and verify withdrawal artifacts without submitting")
@@ -148,9 +148,9 @@ export function createWithdrawCommand(): Command {
         verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
         verbose(`Mode: ${isDirect ? "direct" : "relayed"}`, isVerbose, silent);
         if (isDirect) {
-          info("Using direct withdrawal (funds sent to your signer address, no relay fee).", silent);
+          warn("Using direct withdrawal — this is NOT privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
         } else {
-          info("Using relayed withdrawal (stronger privacy via relayer routing).", silent);
+          info("Using relayed withdrawal (recommended — stronger privacy via relayer routing).", silent);
         }
 
         const { amount: amountStr, asset: positionalOrFlagAsset } = resolveAmountAndAssetInput(
@@ -201,7 +201,7 @@ export function createWithdrawCommand(): Command {
         }
 
         // Resolve pool
-        let pool;
+        let pool: PoolStats;
         if (positionalOrFlagAsset) {
           pool = await resolvePool(chainConfig, positionalOrFlagAsset, globalOpts?.rpcUrl);
         } else if (!skipPrompts) {
@@ -420,6 +420,7 @@ export function createWithdrawCommand(): Command {
           spin.start();
         } else if (approvedEligiblePoolAccounts.length > 0) {
           selectedPoolAccount = approvedEligiblePoolAccounts[0];
+          verbose(`Auto-selected ${selectedPoolAccount.paId} (balance: ${selectedPoolAccount.value.toString()})`, isVerbose, silent);
         }
 
         const commitment = selectedPoolAccount.commitment;

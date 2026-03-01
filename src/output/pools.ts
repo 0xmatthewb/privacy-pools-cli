@@ -75,6 +75,7 @@ export function poolToJson(
     asset: pool.asset,
     pool: pool.pool,
     scope: pool.scope.toString(),
+    decimals: pool.decimals,
     minimumDeposit: pool.minimumDepositAmount.toString(),
     vettingFeeBPS: pool.vettingFeeBPS.toString(),
     maxRelayFeeBPS: pool.maxRelayFeeBPS.toString(),

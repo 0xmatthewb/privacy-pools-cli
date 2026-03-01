@@ -97,6 +97,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         label: data.label?.toString() ?? null,
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
+        nextStep: "Poll 'privacy-pools accounts --agent' until aspStatus = approved (most deposits approve within 1 hour)",
       },
       false,
     );

@@ -239,6 +239,11 @@ export function createInitCommand(): Command {
         }
 
         if (!signerKey && !process.env.PRIVACY_POOLS_PRIVATE_KEY && !skipPrompts) {
+          process.stderr.write("\n");
+          process.stderr.write(chalk.dim("The signer key is the private key for the wallet that submits transactions onchain.") + "\n");
+          process.stderr.write(chalk.dim("This is separate from your recovery phrase (which protects your deposit secrets).") + "\n");
+          process.stderr.write(chalk.dim("You can skip this and set it later via PRIVACY_POOLS_PRIVATE_KEY environment variable.") + "\n");
+          process.stderr.write("\n");
           const keyInput = await password({
             message: "Signer private key (0x..., or press Enter to skip):",
             mask: "*",

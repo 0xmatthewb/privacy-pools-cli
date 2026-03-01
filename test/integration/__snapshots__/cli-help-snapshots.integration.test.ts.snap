@@ -26,13 +26,15 @@ Commands:
   stats               Show public statistics (global or per pool)
   guide               Show usage guide, workflow, and reference
   help                display help for command
-  Human mode:       privacy-pools init
+  Read-only (no wallet needed)
+    pools  activity  stats  status  guide
+  Wallet required (run init first)
+    init  deposit  withdraw  ragequit  accounts  balance  history  sync
+  Get started:      privacy-pools init
   Short alias:      pp init
-  Agent mode:       privacy-pools -j -y status
-  Agent unsigned:   privacy-pools -j -y deposit ETH 0.1 --unsigned --chain sepolia
   Full guide:       privacy-pools guide
   Command help:     privacy-pools <command> --help
-  Advanced flags:   See 'privacy-pools guide' for full global options and env vars"
+  Advanced:         --dry-run, --unsigned, --agent (see 'privacy-pools guide')"
 `;
 
 exports[`CLI --help snapshots init --help snapshot 1`] = `
@@ -169,7 +171,7 @@ Arguments:
 Options:
   -t, --to <address>                        Recipient address (required for relayed)
   -p, --from-pa <PA-#|#>                    Withdraw from a specific Pool Account (e.g. PA-2)
-  --direct                                  Use direct withdrawal instead of relayed
+  --direct                                  Use direct withdrawal (not privacy-preserving — use relayed mode for private withdrawals)
   --unsigned                                Build unsigned payload(s); do not submit
   --unsigned-format <format>                Unsigned output format (with --unsigned): envelope|tx
   --dry-run                                 Generate and verify withdrawal artifacts without submitting
@@ -302,7 +304,7 @@ Examples:
   privacy-pools capabilities
   privacy-pools capabilities --json
 JSON output (--json):
-  { commands[], globalFlags[], agentWorkflow[], jsonOutputContract }"
+  { commands[], globalFlags[], agentWorkflow[], supportedChains[], jsonOutputContract }"
 `;
 
 exports[`CLI --help snapshots completion --help snapshot 1`] = `

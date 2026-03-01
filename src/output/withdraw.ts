@@ -8,7 +8,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, isSilent } from "./common.js";
+import { printJsonSuccess, success, info, warn, isSilent } from "./common.js";
 import { formatAmount, formatAddress, formatTxHash, formatBPS } from "../utils/format.js";
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────
@@ -73,6 +73,9 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
     `Pool Account balance: ${formatAmount(data.selectedCommitmentValue, data.decimals, data.asset)}`,
     silent,
   );
+  if (data.withdrawMode === "direct") {
+    warn("Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
+  }
 }
 
 // ── Success ──────────────────────────────────────────────────────────────────
@@ -139,6 +142,9 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     const netAmount = data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n;
     info(`Relay fee: ${formatBPS(data.feeBPS)} — net received: ~${formatAmount(netAmount, data.decimals, data.asset)}`, silent);
   }
+  if (data.withdrawMode === "direct") {
+    warn("Note: Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
+  }
 }
 
 // ── Quote ────────────────────────────────────────────────────────────────────
@@ -193,7 +199,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
   info(`Min withdraw: ${minWithdrawFormatted}`, silent);
   info(`Quoted fee: ${formatBPS(data.quoteFeeBPS)}`, silent);
-  info(`On-chain max fee: ${formatBPS(data.maxRelayFeeBPS)}`, silent);
+  info(`Onchain max fee: ${formatBPS(data.maxRelayFeeBPS)}`, silent);
   if (data.recipient) {
     info(`Recipient: ${formatAddress(data.recipient)}`, silent);
   }
