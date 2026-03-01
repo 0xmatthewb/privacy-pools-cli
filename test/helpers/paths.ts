@@ -11,6 +11,14 @@ function nonEmptyEnv(name: string): string | undefined {
   return value && value.length > 0 ? value : undefined;
 }
 
+// Canonical upstream repos:
+//   Core:     https://github.com/0xbow-io/privacy-pools-core
+//   Frontend: https://github.com/0xbow-io/privacy-pools-website
+//
+// Note: docs/static/skills*.md files live on a fork branch
+// (0xmatthewb/privacy-pools-core, branch docs-ai-visibility) until
+// the upstream PR is merged. Skills-content conformance tests are
+// gated separately and skip when those files are absent.
 const coreRepoRootFromEnv = nonEmptyEnv("PP_CORE_REPO_ROOT");
 const frontendRepoRootFromEnv = nonEmptyEnv("PP_FRONTEND_REPO_ROOT");
 
