@@ -1,8 +1,12 @@
 import type { Ora } from "ora";
 
+/** Track whether we've shown the first-run message in this process. */
+let firstRunMessageShown = false;
+
 /**
  * Wraps an async proof-generation call with a spinner that shows elapsed time.
  * Prevents the "frozen spinner" effect during 10-30+ second ZK proof generation.
+ * On the first proof of the session, adds a brief note that circuits may be downloading.
  */
 export async function withProofProgress<T>(
   spin: Ora,
@@ -10,7 +14,12 @@ export async function withProofProgress<T>(
   fn: () => Promise<T>
 ): Promise<T> {
   const start = Date.now();
-  spin.text = `${label}...`;
+  const isFirstRun = !firstRunMessageShown;
+  firstRunMessageShown = true;
+
+  spin.text = isFirstRun
+    ? `${label}... (first proof may download circuits)`
+    : `${label}...`;
 
   const interval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - start) / 1000);

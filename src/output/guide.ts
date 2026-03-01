@@ -14,7 +14,8 @@ import { guideText } from "../utils/help.js";
 export function renderGuide(ctx: OutputContext): void {
   if (ctx.mode.isJson) {
     printJsonSuccess({
-      guide: "For agent integration, use 'privacy-pools capabilities --agent' or read AGENTS.md. For human-readable guide, run without --json.",
+      guide: "For agent integration, use 'privacy-pools capabilities --json' for full schema discovery. For human-readable guide, run without --json.",
+      agentCommand: "privacy-pools capabilities --json",
     });
     return;
   }

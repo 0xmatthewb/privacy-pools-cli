@@ -55,6 +55,14 @@ const CAPABILITIES = {
       requiresInit: true,
     },
     {
+      name: "withdraw quote",
+      description: "Request relayer fee quote without generating a proof",
+      usage: "withdraw quote <amount> --asset <symbol|address>",
+      flags: ["--asset <symbol|address>", "--to <address>"],
+      agentFlags: "--json",
+      requiresInit: true,
+    },
+    {
       name: "balance",
       description: "Show balances across pools",
       flags: ["--no-sync"],
@@ -84,7 +92,7 @@ const CAPABILITIES = {
     },
     {
       name: "status",
-      description: "Show configuration and connection status",
+      description: "Show configuration and check connection health (checks run by default)",
       flags: ["--check", "--check-rpc", "--check-asp"],
       agentFlags: "--json [--check] [--check-rpc] [--check-asp]",
       requiresInit: false,
@@ -92,7 +100,7 @@ const CAPABILITIES = {
     {
       name: "ragequit",
       aliases: ["exit"],
-      description: "Publicly withdraw funds without ASP approval (reveals your deposit address)",
+      description: "Publicly withdraw funds to your deposit address without ASP approval",
       usage: "ragequit --asset <symbol|address> --from-pa <PA-#>",
       flags: ["--asset <symbol|address>", "--from-pa <PA-#>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       agentFlags: "--json --yes",
@@ -134,15 +142,43 @@ const CAPABILITIES = {
     "1. privacy-pools init --json --yes --default-chain <chain> --skip-circuits",
     "2. privacy-pools pools --json --chain <chain>",
     "3. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-    "4. privacy-pools accounts --json --chain <chain>  (wait for aspStatus: approved)",
+    "4. privacy-pools accounts --json --chain <chain>  (poll until aspStatus: approved)",
     "5. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
   ],
+  agentNotes: {
+    polling: "After depositing, poll 'accounts --json' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
+    withdrawQuote: "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
+    firstRun: "First proof generation downloads ZK circuits (~60s). Subsequent proofs are faster (~10-30s).",
+    unsignedMode: "--unsigned builds transaction payloads without signing or submitting. Requires init (mnemonic) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    metaFlag: "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
+    statusCheck: "Run 'status --json' before transacting. Check readyForDeposit/readyForWithdraw/readyForUnsigned fields.",
+  },
+  schemas: {
+    aspApprovalStatus: {
+      values: ["approved", "pending", "unknown"],
+      description: "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'unknown' applies to exited or spent accounts.",
+    },
+    poolAccountStatus: {
+      values: ["spendable", "spent", "exited"],
+      description: "Lifecycle status of a Pool Account. 'spendable' means funds are available. 'spent' means withdrawn. 'exited' means ragequit/exit was used.",
+    },
+    errorCategories: {
+      values: ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],
+      exitCodes: { INPUT: 2, RPC: 3, ASP: 4, RELAYER: 5, PROOF: 6, CONTRACT: 7, UNKNOWN: 1 },
+      description: "Error responses include: errorCode (machine-readable), category, message, hint (suggested fix), retryable (boolean).",
+    },
+    unsignedOutput: {
+      envelopeFormat: "{ schemaVersion, success, mode, operation, chain, transactions: [{ to, data, value, ... }], ... }",
+      txFormat: "[{ to, data, value, valueHex, chainId }] — raw array, no envelope wrapper. Intended for direct piping to signing tools.",
+      note: "Default --unsigned emits the envelope format. Use --unsigned-format tx for raw transaction array only.",
+    },
+  },
   supportedChains: CHAIN_NAMES.map((name) => ({
     name,
     chainId: CHAINS[name].id,
     testnet: CHAINS[name].isTestnet,
   })),
-  jsonOutputContract: "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage }.",
+  jsonOutputContract: "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned-format tx emits a raw transaction array without the envelope.",
 };
 
 export function createCapabilitiesCommand(): Command {
@@ -152,7 +188,7 @@ export function createCapabilitiesCommand(): Command {
       "after",
       "\nExamples:\n  privacy-pools capabilities\n  privacy-pools capabilities --json\n"
         + commandHelpText({
-          jsonFields: "{ commands[], globalFlags[], agentWorkflow[], supportedChains[], jsonOutputContract }",
+          jsonFields: "{ commands[], globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], jsonOutputContract }",
         })
     )
     .action(async (_opts, cmd) => {

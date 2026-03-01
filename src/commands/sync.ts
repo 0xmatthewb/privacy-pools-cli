@@ -25,7 +25,7 @@ export function createSyncCommand(): Command {
       "\nExamples:\n  privacy-pools sync\n  privacy-pools sync --asset ETH --json\n  privacy-pools sync --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init",
-          jsonFields: "{ chain, syncedPools, syncedSymbols, spendableCommitments }",
+          jsonFields: "{ chain, syncedPools, syncedSymbols, spendableCommitments, previousSpendableCommitments }",
         })
     )
     .action(async (opts, cmd) => {
@@ -75,6 +75,22 @@ export function createSyncCommand(): Command {
           globalOpts?.rpcUrl
         );
 
+        // Get pre-sync spendable count so we can report the delta
+        const preSyncService = await initializeAccountService(
+          dataService,
+          mnemonic,
+          poolInfos,
+          chainConfig.id,
+          false,
+          silent,
+          false
+        );
+        const preSyncSpendable = preSyncService.getSpendableCommitments();
+        const previousSpendableCount = Array.from(preSyncSpendable.values()).reduce(
+          (acc, list) => acc + list.length,
+          0
+        );
+
         spin.text = "Syncing deposit/withdrawal/ragequit events...";
         const accountService = await initializeAccountService(
           dataService,
@@ -105,6 +121,7 @@ export function createSyncCommand(): Command {
           syncedPools: pools.length,
           syncedSymbols: pools.map((p) => p.symbol),
           spendableCommitments: spendableCount,
+          previousSpendableCommitments: previousSpendableCount,
         });
 
         } finally { releaseLock(); }

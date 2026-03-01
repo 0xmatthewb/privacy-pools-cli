@@ -1,4 +1,5 @@
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
+import { join } from "path";
 import { Command } from "commander";
 import { confirm, input, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
@@ -43,7 +44,12 @@ export function createInitCommand(): Command {
     .option("--skip-circuits", "Skip downloading circuit artifacts")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --force --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --json --show-mnemonic --skip-circuits\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
+      "\nPrivacy Pools uses two separate keys:"
+        + "\n  Recovery phrase  — generates your deposit secrets (for privacy)"
+        + "\n  Signer key      — signs onchain transactions (for execution)"
+        + "\n  These are independent. You can set the signer key later via PRIVACY_POOLS_PRIVATE_KEY env var."
+        + "\n  Note: PRIVACY_POOLS_PRIVATE_KEY takes precedence over a saved signer key file."
+        + "\n\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --force --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --json --show-mnemonic --skip-circuits\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
         + commandHelpText({
           jsonFields:
             "{ defaultChain, signerKeySet, mnemonicRedacted?, mnemonic? (only with --show-mnemonic) }",
@@ -165,30 +171,48 @@ export function createInitCommand(): Command {
           process.stderr.write(chalk.bold(mnemonic) + "\n");
           process.stderr.write("\n");
 
-          // Verification step: ask user to confirm 3 random words
+          // Offer to save recovery phrase to a file, then confirm backup
           if (!skipPrompts) {
-            const words = mnemonic.split(" ");
-            const indices: number[] = [];
-            while (indices.length < 3) {
-              const idx = Math.floor(Math.random() * words.length);
-              if (!indices.includes(idx)) indices.push(idx);
-            }
-            indices.sort((a, b) => a - b);
+            const saveAction = await select({
+              message: "How would you like to back up your recovery phrase?",
+              choices: [
+                { name: "Save to file (recommended)", value: "file" },
+                { name: "I've already copied it", value: "copied" },
+              ],
+            });
 
-            process.stderr.write(chalk.dim("Verify your backup by entering the requested words:\n\n"));
-            for (const idx of indices) {
-              const answer = await input({
-                message: `Word #${idx + 1}:`,
+            if (saveAction === "file") {
+              const defaultPath = join(process.cwd(), "privacy-pools-recovery.txt");
+              const filePath = await input({
+                message: "Save location:",
+                default: defaultPath,
               });
-              if (answer.trim().toLowerCase() !== words[idx].toLowerCase()) {
-                throw new CLIError(
-                  `Incorrect word #${idx + 1}.`,
-                  "INPUT",
-                  "Please re-run init and carefully save your recovery phrase."
-                );
-              }
+              const fileContent = [
+                "Privacy Pools Recovery Phrase",
+                "",
+                `Recovery Phrase:`,
+                mnemonic,
+                "",
+                "IMPORTANT: Keep this file secure. Delete it after transferring to a safe location.",
+                "Anyone with this phrase can access your Privacy Pools deposits.",
+              ].join("\n");
+              writeFileSync(filePath.trim(), fileContent, { mode: 0o600 });
+              success(`Recovery phrase saved to ${filePath.trim()}`, silent);
+              process.stderr.write(chalk.yellow("  Remember to move this file to a secure location and delete the original.\n"));
             }
-            success("Recovery phrase verified!", silent);
+
+            process.stderr.write("\n");
+            const confirmed = await confirm({
+              message: "I have securely backed up my recovery phrase.",
+              default: false,
+            });
+            if (!confirmed) {
+              throw new CLIError(
+                "You must confirm that your recovery phrase is backed up.",
+                "INPUT",
+                "Re-run 'privacy-pools init' when you are ready to save your recovery phrase."
+              );
+            }
             process.stderr.write("\n");
           }
         } else if (!mnemonicSource && isJson && !isQuiet) {

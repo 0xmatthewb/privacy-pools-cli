@@ -16,12 +16,12 @@ Commands:
   accounts            List your Pool Accounts (PA-1, PA-2, ...)
   balance             Show balances across pools
   withdraw            Withdraw from a Privacy Pool (relayed by default)
-  ragequit|exit       Publicly withdraw funds without ASP approval (reveals your
-                      deposit address)
+  ragequit|exit       Publicly withdraw funds to your deposit address without
+                      ASP approval
   history             Show chronological event history (deposits, withdrawals,
                       exits)
   sync                Sync local account state from onchain events
-  status              Show configuration and connection status
+  status              Show configuration and check connection health
   activity            Show public activity feed (global or for a specific pool)
   stats               Show public statistics (global or per pool)
   guide               Show usage guide, workflow, and reference
@@ -54,6 +54,11 @@ Options:
   --force                    Overwrite existing configuration without prompting
   --skip-circuits            Skip downloading circuit artifacts
   -h, --help                 display help for command
+Privacy Pools uses two separate keys:
+  Recovery phrase  — generates your deposit secrets (for privacy)
+  Signer key      — signs onchain transactions (for execution)
+  These are independent. You can set the signer key later via PRIVACY_POOLS_PRIVATE_KEY env var.
+  Note: PRIVACY_POOLS_PRIVATE_KEY takes precedence over a saved signer key file.
 Examples:
   privacy-pools init
   privacy-pools init --yes --default-chain sepolia --skip-circuits
@@ -66,7 +71,7 @@ JSON output (--json):
 
 exports[`CLI --help snapshots status --help snapshot 1`] = `
 "Usage: privacy-pools status [options]
-Show configuration and connection status
+Show configuration and check connection health
 Options:
   --check      Run both RPC and ASP health checks
   --check-rpc  Actively test RPC connectivity
@@ -194,7 +199,7 @@ JSON output (--json):
 
 exports[`CLI --help snapshots ragequit --help snapshot 1`] = `
 "Usage: privacy-pools ragequit|exit [options] [asset]
-Publicly withdraw funds without ASP approval (reveals your deposit address)
+Publicly withdraw funds to your deposit address without ASP approval
 Arguments:
   asset                         Optional positional asset alias (e.g., ragequit
                                 ETH)
@@ -207,6 +212,9 @@ Options:
                                 envelope|tx
   --dry-run                     Generate proof and validate without submitting
   -h, --help                    display help for command
+  Also known as 'exit'. This allows you to withdraw publicly to your deposit
+  address at any time. No ASP approval is needed, but your deposit address
+  is revealed onchain. If your deposit is approved, use 'withdraw' instead.
 Examples:
   privacy-pools ragequit --asset ETH -p PA-1
   privacy-pools ragequit ETH --unsigned -p PA-1
@@ -285,7 +293,7 @@ Examples:
 Prerequisites:
   Requires: init
 JSON output (--json):
-  { chain, syncedPools, syncedSymbols, spendableCommitments }"
+  { chain, syncedPools, syncedSymbols, spendableCommitments, previousSpendableCommitments }"
 `;
 
 exports[`CLI --help snapshots guide --help snapshot 1`] = `
@@ -304,7 +312,7 @@ Examples:
   privacy-pools capabilities
   privacy-pools capabilities --json
 JSON output (--json):
-  { commands[], globalFlags[], agentWorkflow[], supportedChains[], jsonOutputContract }"
+  { commands[], globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], jsonOutputContract }"
 `;
 
 exports[`CLI --help snapshots completion --help snapshot 1`] = `

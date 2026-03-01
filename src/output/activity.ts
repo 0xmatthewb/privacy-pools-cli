@@ -106,4 +106,14 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       e.txHash ? formatAddress(e.txHash, 8) : "-",
     ]),
   );
+
+  // Pagination footer
+  if (data.totalPages !== null && data.totalPages > 1) {
+    process.stderr.write(
+      `\n  Page ${data.page} of ${data.totalPages}` +
+        (data.total !== null ? ` (${data.total} events)` : "") +
+        (data.page < data.totalPages ? ` — next: --page ${data.page + 1}` : "") +
+        "\n",
+    );
+  }
 }

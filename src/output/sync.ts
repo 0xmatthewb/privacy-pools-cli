@@ -13,6 +13,7 @@ export interface SyncResult {
   syncedPools: number;
   syncedSymbols?: string[];
   spendableCommitments: number;
+  previousSpendableCommitments?: number;
 }
 
 /**
@@ -44,6 +45,7 @@ export function renderSyncComplete(
       syncedPools: result.syncedPools,
       syncedSymbols: result.syncedSymbols,
       spendableCommitments: result.spendableCommitments,
+      previousSpendableCommitments: result.previousSpendableCommitments,
     });
     return;
   }
@@ -53,5 +55,11 @@ export function renderSyncComplete(
     `Synced ${result.syncedPools} pool(s) on ${result.chain}.`,
     silent,
   );
+
+  const delta = result.spendableCommitments - (result.previousSpendableCommitments ?? result.spendableCommitments);
+  if (delta > 0) {
+    success(`Found ${delta} new Pool Account(s).`, silent);
+  }
+
   info(`Available Pool Accounts: ${result.spendableCommitments}`, silent);
 }

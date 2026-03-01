@@ -42,7 +42,7 @@ import {
 export function createRagequitCommand(): Command {
   return new Command("ragequit")
     .alias("exit")
-    .description("Publicly withdraw funds without ASP approval (reveals your deposit address)")
+    .description("Publicly withdraw funds to your deposit address without ASP approval")
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
     .option("-a, --asset <symbol|address>", "Asset pool to exit from")
     .option("-p, --from-pa <PA-#|#>", "Ragequit a specific Pool Account (e.g. PA-2)")
@@ -55,7 +55,10 @@ export function createRagequitCommand(): Command {
     .option("--dry-run", "Generate proof and validate without submitting")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools ragequit --asset ETH -p PA-1\n  privacy-pools ragequit ETH --unsigned -p PA-1\n  privacy-pools ragequit --asset ETH --dry-run -p PA-1\n  privacy-pools ragequit ETH -p PA-1 --chain sepolia\n"
+      "\n  Also known as 'exit'. This allows you to withdraw publicly to your deposit"
+        + "\n  address at any time. No ASP approval is needed, but your deposit address"
+        + "\n  is revealed onchain. If your deposit is approved, use 'withdraw' instead."
+        + "\n\nExamples:\n  privacy-pools ragequit --asset ETH -p PA-1\n  privacy-pools ragequit ETH --unsigned -p PA-1\n  privacy-pools ragequit --asset ETH --dry-run -p PA-1\n  privacy-pools ragequit ETH -p PA-1 --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
           jsonFields: "{ txHash, amount, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
@@ -299,13 +302,37 @@ export function createRagequitCommand(): Command {
           silent
         );
 
-        // Critical warning
+        // Critical warning — look up the depositor address to show where funds will go
         if (!skipPrompts) {
           process.stderr.write("\n");
+
+          // Try to resolve the deposit address so the user knows where funds go
+          let depositorAddr: string | null = null;
+          try {
+            const preflightClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+            depositorAddr = (await preflightClient.readContract({
+              address: pool.pool,
+              abi: [{
+                name: "depositors",
+                type: "function",
+                stateMutability: "view",
+                inputs: [{ name: "_label", type: "uint256" }],
+                outputs: [{ name: "", type: "address" }],
+              }],
+              functionName: "depositors",
+              args: [commitment.label],
+            })) as string;
+          } catch {
+            // If the lookup fails, proceed without showing the address
+          }
+
           warn(
-            "By exiting, you are withdrawing funds to your depositing address and will not gain any privacy. If your deposit is approved, use 'withdraw' instead for private withdrawal.",
+            "By exiting, you are withdrawing funds publicly to your deposit address and will not gain any privacy. If your deposit is approved, use 'withdraw' instead for a private withdrawal.",
             silent
           );
+          if (depositorAddr) {
+            info(`Funds will be sent to: ${depositorAddr}`, silent);
+          }
           process.stderr.write("\n");
 
           const ok = await confirm({

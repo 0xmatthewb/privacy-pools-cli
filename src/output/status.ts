@@ -55,6 +55,10 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
+    // Convenience fields for agents: can I transact right now?
+    status.readyForDeposit = result.configExists && result.mnemonicSet && result.signerKeyValid;
+    status.readyForWithdraw = result.configExists && result.mnemonicSet && result.signerKeyValid;
+    status.readyForUnsigned = result.configExists && result.mnemonicSet;
     printJsonSuccess(status);
     return;
   }

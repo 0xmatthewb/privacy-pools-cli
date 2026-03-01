@@ -54,6 +54,10 @@ export function renderBalanceEmpty(ctx: OutputContext, chain: string): void {
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   info(`No balances found on ${chain}. Deposit first to create Pool Accounts.`, silent);
+  info(
+    "Note: recent deposits may not appear until approved by the ASP.",
+    silent,
+  );
 }
 
 /**
@@ -75,5 +79,10 @@ export function renderBalance(ctx: OutputContext, data: BalanceRenderData): void
   printTable(
     ["Asset", "Balance", "Pool Accounts"],
     data.rows.map((r) => [r.symbol, r.formattedBalance, r.commitments.toString()]),
+  );
+  process.stderr.write("\n");
+  info(
+    "Note: only approved deposits are shown. Recent deposits may be pending ASP approval.",
+    silent,
   );
 }

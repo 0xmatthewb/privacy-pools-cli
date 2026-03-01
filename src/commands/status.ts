@@ -24,7 +24,7 @@ import type { StatusCheckResult } from "../output/status.js";
 
 export function createStatusCommand(): Command {
   return new Command("status")
-    .description("Show configuration and connection status")
+    .description("Show configuration and check connection health")
     .option("--check", "Run both RPC and ASP health checks")
     .option("--check-rpc", "Actively test RPC connectivity")
     .option("--check-asp", "Actively test ASP liveness")
@@ -90,9 +90,11 @@ export function createStatusCommand(): Command {
           accountFiles: [],
         };
 
-        // Health checks
+        // Health checks — run by default when a chain is selected.
+        // --check, --check-rpc, and --check-asp still work for explicit control.
         if (selectedChainConfig) {
-          const shouldCheckAll = opts.check === true;
+          const explicitOpt = opts.check !== undefined || opts.checkAsp !== undefined || opts.checkRpc !== undefined;
+          const shouldCheckAll = explicitOpt ? opts.check === true : true;
           const shouldCheckAsp = shouldCheckAll || opts.checkAsp === true;
           const shouldCheckRpc = shouldCheckAll || opts.checkRpc === true;
 

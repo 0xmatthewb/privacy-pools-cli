@@ -44,14 +44,14 @@ describe("CLI help and discovery", () => {
 
   const COMMAND_HELP_CASES = [
     ["init", "Initialize wallet and configuration"],
-    ["status", "Show configuration and connection status"],
+    ["status", "Show configuration and check connection health"],
     ["pools", "List available pools and assets"],
     ["activity", "Show public activity feed"],
     ["stats", "Show public statistics"],
     ["deposit", "Deposit ETH or ERC-20 tokens into a Privacy Pool"],
     ["withdraw", "Withdraw from a Privacy Pool (relayed by default)"],
-    ["ragequit", "Publicly withdraw funds without ASP approval"],
-    ["exit", "Publicly withdraw funds without ASP approval"],
+    ["ragequit", "Publicly withdraw funds to your deposit address without ASP approval"],
+    ["exit", "Publicly withdraw funds to your deposit address without ASP approval"],
     ["balance", "Show balances across pools"],
     ["accounts", "List your Pool Accounts"],
     ["history", "Show chronological event history"],

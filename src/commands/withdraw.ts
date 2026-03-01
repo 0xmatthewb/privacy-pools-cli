@@ -356,7 +356,9 @@ export function createWithdrawCommand(): Command {
           throw new CLIError(
             "No eligible Pool Account is currently approved for private withdrawal.",
             "ASP",
-            "Your balance may be sufficient, but this Pool Account is not yet eligible. Wait and retry, or use 'privacy-pools ragequit' for public recovery."
+            "Your deposit may still be pending ASP approval. Run 'privacy-pools accounts --json' to check aspStatus. Most deposits are approved within 1 hour.",
+            "ACCOUNT_NOT_APPROVED",
+            true
           );
         }
 
@@ -400,9 +402,11 @@ export function createWithdrawCommand(): Command {
 
           if (!approvedLabelSet.has(requested.label)) {
             throw new CLIError(
-              `${requested.paId} is not currently eligible for private withdrawal.`,
+              `${requested.paId} is not currently approved for private withdrawal.`,
               "ASP",
-              "Wait and retry, or use 'privacy-pools ragequit' for public recovery."
+              "This Pool Account may still be pending ASP approval. Run 'privacy-pools accounts --json' to check aspStatus.",
+              "ACCOUNT_NOT_APPROVED",
+              true
             );
           }
 
