@@ -17,6 +17,7 @@ import type { GlobalOptions } from "../types.js";
 import type { Address } from "viem";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderBalanceNoPools, renderBalanceEmpty, renderBalance } from "../output/balance.js";
 import type { BalanceRow, BalanceJsonEntry } from "../output/balance.js";
@@ -112,11 +113,16 @@ export function createBalanceCommand(): Command {
               "Retry with a healthy RPC before using balance data."
             );
           }
-          guardCriticalSection();
+          const releaseLock = acquireProcessLock();
           try {
-            saveAccount(chainConfig.id, accountService.account);
+            guardCriticalSection();
+            try {
+              saveAccount(chainConfig.id, accountService.account);
+            } finally {
+              releaseCriticalSection();
+            }
           } finally {
-            releaseCriticalSection();
+            releaseLock();
           }
         }
 

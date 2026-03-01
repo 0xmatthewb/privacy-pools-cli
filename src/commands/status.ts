@@ -9,10 +9,11 @@ import {
   loadSignerKey,
 } from "../services/config.js";
 import { CHAINS } from "../config/chains.js";
+import { resolveChain } from "../utils/validation.js";
 import { checkLiveness } from "../services/asp.js";
 import { getPublicClient } from "../services/sdk.js";
 import { accountExists } from "../services/account.js";
-import { printError, CLIError } from "../utils/errors.js";
+import { printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { privateKeyToAccount } from "viem/accounts";
@@ -46,15 +47,8 @@ export function createStatusCommand(): Command {
         const hasMnemonic = mnemonicExists();
         const signerKey = loadSignerKey();
         const selectedChainKey = globalOpts?.chain?.toLowerCase() ?? config?.defaultChain ?? null;
-        if (globalOpts?.chain && (!selectedChainKey || !CHAINS[selectedChainKey])) {
-          throw new CLIError(
-            `Unknown chain: ${globalOpts.chain}`,
-            "INPUT",
-            `Available chains: ${Object.keys(CHAINS).join(", ")}`
-          );
-        }
         const selectedChainConfig = selectedChainKey
-          ? CHAINS[selectedChainKey]
+          ? resolveChain(selectedChainKey)
           : null;
 
         let signerAddress: string | null = null;

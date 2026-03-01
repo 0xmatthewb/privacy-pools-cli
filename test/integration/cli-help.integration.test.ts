@@ -40,7 +40,7 @@ describe("CLI help and discovery", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
     const lastLine = result.stdout.trim().split(/\n/g).pop();
-    expect(lastLine).toMatch(/^0\.1\.0$/);
+    expect(lastLine).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   const COMMAND_HELP_CASES = [

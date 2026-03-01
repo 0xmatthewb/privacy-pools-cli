@@ -6,6 +6,7 @@ import chalk from "chalk";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { homedir } from "os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8"));
@@ -29,8 +30,14 @@ import { rootHelpFooter, styleCommanderHelp } from "./utils/help.js";
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 
-// Load .env if present
-loadEnv();
+// Load .env from the config directory (~/.privacy-pools/.env), not CWD.
+// Loading from CWD would let a malicious .env in a cloned repo silently
+// redirect RPC/ASP/relayer endpoints or swap the signer key.
+const configHome =
+  process.env.PRIVACY_POOLS_HOME?.trim() ||
+  process.env.PRIVACY_POOLS_CONFIG_DIR?.trim() ||
+  join(homedir(), ".privacy-pools");
+loadEnv({ path: join(configHome, ".env") });
 
 const argv = process.argv.slice(2);
 
