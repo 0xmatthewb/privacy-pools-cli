@@ -33,6 +33,7 @@ import { printRawTransactions } from "../utils/unsigned.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import {
   getNextPoolAccountNumber,
   poolAccountId,
@@ -174,6 +175,10 @@ export function createDepositCommand(): Command {
             return;
           }
         }
+
+        // Acquire process lock to prevent concurrent account mutations.
+        const releaseLock = acquireProcessLock();
+        try {
 
         // Load wallet/account state and generate deposit secrets.
         const mnemonic = loadMnemonic();
@@ -419,6 +424,8 @@ export function createDepositCommand(): Command {
           blockNumber: receipt.blockNumber,
           explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
         });
+
+        } finally { releaseLock(); }
       } catch (error) {
         printError(error, isJson || isUnsigned);
       }

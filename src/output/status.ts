@@ -15,6 +15,7 @@ export interface StatusCheckResult {
   defaultChain: string | null;
   selectedChain: string | null;
   rpcUrl: string | null;
+  rpcIsCustom: boolean;
   mnemonicSet: boolean;
   signerKeySet: boolean;
   signerKeyValid: boolean;
@@ -42,6 +43,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       defaultChain: result.defaultChain,
       selectedChain: result.selectedChain,
       rpcUrl: result.rpcUrl,
+      rpcIsCustom: result.rpcIsCustom,
       mnemonicSet: result.mnemonicSet,
       signerKeySet: result.signerKeySet,
       signerKeyValid: result.signerKeyValid,
@@ -94,7 +96,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   // Chain details
   if (result.selectedChain) {
     info(`Contract: ${result.entrypoint}`, silent);
-    info(`RPC: ${result.rpcUrl}`, silent);
+    info(`RPC: ${result.rpcUrl}${result.rpcIsCustom ? "" : chalk.dim(" (default)")}`, silent);
 
     const checks = result.healthChecksEnabled;
     if (ctx.isVerbose && checks) {

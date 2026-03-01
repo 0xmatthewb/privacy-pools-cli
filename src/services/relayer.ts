@@ -6,6 +6,7 @@ import type {
   RelayerRequestResponse,
 } from "../types.js";
 import { CLIError } from "../utils/errors.js";
+import { getNetworkTimeoutMs } from "../utils/mode.js";
 
 function isHexString(value: unknown): value is `0x${string}` {
   return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
@@ -23,7 +24,7 @@ async function relayerFetch(
       "Content-Type": "application/json",
       ...options?.headers,
     },
-    signal: options?.signal ?? AbortSignal.timeout(30_000),
+    signal: options?.signal ?? AbortSignal.timeout(getNetworkTimeoutMs()),
   });
 
   if (!res.ok) {

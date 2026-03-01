@@ -7,8 +7,21 @@ import { CLIError } from "./errors.js";
  * (proof generation, transaction submission).
  */
 
-// Conservative gas buffer: 200k gas * 50 gwei (~0.01 ETH on mainnet)
-const GAS_BUFFER_WEI = 200_000n * 50_000_000_000n;
+// Conservative gas limit estimate for Privacy Pool deposit/withdraw.
+const GAS_LIMIT = 200_000n;
+// Absolute floor: if the RPC gas price fetch fails, fall back to this.
+const FALLBACK_GAS_PRICE = 50_000_000_000n; // 50 gwei
+
+async function estimateGasBuffer(publicClient: PublicClient): Promise<bigint> {
+  try {
+    const gasPrice = await publicClient.getGasPrice();
+    // Add a 20% margin to the live gas price to account for fluctuation.
+    const bufferedPrice = gasPrice + (gasPrice / 5n);
+    return GAS_LIMIT * bufferedPrice;
+  } catch {
+    return GAS_LIMIT * FALLBACK_GAS_PRICE;
+  }
+}
 
 export async function checkNativeBalance(
   publicClient: PublicClient,
@@ -16,8 +29,11 @@ export async function checkNativeBalance(
   requiredWei: bigint,
   symbol: string
 ): Promise<void> {
-  const balance = await publicClient.getBalance({ address: signerAddress });
-  const totalNeeded = requiredWei + GAS_BUFFER_WEI;
+  const [balance, gasBuffer] = await Promise.all([
+    publicClient.getBalance({ address: signerAddress }),
+    estimateGasBuffer(publicClient),
+  ]);
+  const totalNeeded = requiredWei + gasBuffer;
   if (balance < totalNeeded) {
     const have = formatUnits(balance, 18);
     const need = formatUnits(totalNeeded, 18);

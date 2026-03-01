@@ -4,6 +4,7 @@ import {
   loadConfig,
   mnemonicExists,
   getRpcUrl,
+  resolveRpcEnvVar,
   getConfigDir,
   loadSignerKey,
 } from "../services/config.js";
@@ -71,6 +72,12 @@ export function createStatusCommand(): Command {
           }
         }
 
+        const rpcIsCustom = !!(
+          globalOpts?.rpcUrl ||
+          (selectedChainConfig && resolveRpcEnvVar(selectedChainConfig.id)) ||
+          (selectedChainConfig && config?.rpcOverrides?.[selectedChainConfig.id])
+        );
+
         const result: StatusCheckResult = {
           configExists: configReady,
           configDir: configReady ? getConfigDir() : null,
@@ -79,6 +86,7 @@ export function createStatusCommand(): Command {
           rpcUrl: selectedChainConfig
             ? getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)
             : null,
+          rpcIsCustom,
           mnemonicSet: hasMnemonic,
           signerKeySet: !!signerKey,
           signerKeyValid,

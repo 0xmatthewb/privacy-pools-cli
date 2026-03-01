@@ -101,6 +101,7 @@ program.addOption(
 );
 program.addOption(new Option("--no-banner", "Disable ASCII banner output").hideHelp());
 program.addOption(new Option("-v, --verbose", "Enable verbose output").hideHelp());
+program.addOption(new Option("--timeout <seconds>", "Network request timeout in seconds (default: 30)").hideHelp());
 
 // Show only command names in root help (no argument signatures)
 program.configureHelp({

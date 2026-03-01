@@ -22,6 +22,7 @@ import {
   buildPoolAccountRefs,
 } from "../utils/pool-accounts.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup } from "../output/accounts.js";
@@ -56,6 +57,9 @@ export function createAccountsCommand(): Command {
         verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
 
         const mnemonic = loadMnemonic();
+
+        const releaseLock = acquireProcessLock();
+        try {
 
         const spin = spinner("Loading accounts...", silent);
         spin.start();
@@ -199,6 +203,8 @@ export function createAccountsCommand(): Command {
           showDetails: !!opts.details,
           showAll: !!opts.all,
         });
+
+        } finally { releaseLock(); }
       } catch (error) {
         printError(error, mode.isJson);
       }

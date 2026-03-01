@@ -31,6 +31,7 @@ import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import {
   buildPoolAccountRefs,
   parsePoolAccountSelector,
@@ -162,6 +163,10 @@ export function createRagequitCommand(): Command {
           isVerbose,
           silent
         );
+
+        // Acquire process lock to prevent concurrent account mutations.
+        const releaseLock = acquireProcessLock();
+        try {
 
         const mnemonic = loadMnemonic();
 
@@ -488,6 +493,8 @@ export function createRagequitCommand(): Command {
           blockNumber: receipt.blockNumber,
           explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
         });
+
+        } finally { releaseLock(); }
       } catch (error) {
         printError(error, isJson || isUnsigned);
       }

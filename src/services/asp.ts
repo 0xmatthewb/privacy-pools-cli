@@ -7,6 +7,7 @@ import type {
   GlobalStatisticsResponse,
 } from "../types.js";
 import { CLIError } from "../utils/errors.js";
+import { getNetworkTimeoutMs } from "../utils/mode.js";
 
 async function aspFetch(
   chainConfig: ChainConfig,
@@ -29,7 +30,7 @@ async function aspFetch(
 
   const res = await fetch(url.toString(), {
     headers,
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(getNetworkTimeoutMs()),
   });
 
   if (!res.ok) {
@@ -77,7 +78,7 @@ async function aspFetchGlobal(
   }
 
   const res = await fetch(url.toString(), {
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(getNetworkTimeoutMs()),
   });
 
   if (!res.ok) {
@@ -221,7 +222,7 @@ export async function checkLiveness(chainConfig: ChainConfig): Promise<boolean> 
   try {
     const res = await fetch(
       `${chainConfig.aspHost}/${chainConfig.id}/health/liveness`,
-      { signal: AbortSignal.timeout(10_000) }
+      { signal: AbortSignal.timeout(Math.min(getNetworkTimeoutMs(), 10_000)) }
     );
     if (!res.ok) return false;
     const data = (await res.json()) as { status?: string };

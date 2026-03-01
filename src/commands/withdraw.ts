@@ -43,6 +43,7 @@ import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote } from "../output/withdraw.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import {
   buildPoolAccountRefs,
   parsePoolAccountSelector,
@@ -236,6 +237,10 @@ export function createWithdrawCommand(): Command {
         const withdrawalAmount = parseAmount(amountStr, pool.decimals);
         validatePositive(withdrawalAmount, "Withdrawal amount");
         verbose(`Requested withdrawal amount: ${withdrawalAmount.toString()}`, isVerbose, silent);
+
+        // Acquire process lock to prevent concurrent account mutations.
+        const releaseLock = acquireProcessLock();
+        try {
 
         // Load account & sync
         const mnemonic = loadMnemonic();
@@ -876,12 +881,24 @@ export function createWithdrawCommand(): Command {
             );
           }
 
-          // Check if feeCommitment expired before submit.
+          // Auto-refresh quote if it expired during proof generation.
+          // The proof context is bound to the fee BPS, so a refreshed quote
+          // with the same fee is safe; a fee change invalidates the proof.
           if (Date.now() > expirationMs) {
-            throw new CLIError(
-              "Relayer quote expired. Re-run the withdrawal.",
-              "RELAYER",
-              "Quotes are valid for about 60 seconds. Re-run withdrawal to fetch a fresh quote."
+            verbose("Quote expired after proof generation — auto-refreshing...", isVerbose, silent);
+            const previousFeeBPS = quote.feeBPS;
+            await fetchFreshQuote("Quote expired after proof. Refreshing...");
+            if (quote.feeBPS !== previousFeeBPS) {
+              throw new CLIError(
+                `Relayer fee changed during proof generation (${previousFeeBPS} → ${quote.feeBPS} BPS). Re-run the withdrawal.`,
+                "RELAYER",
+                "The proof is bound to the original fee. Re-run the withdrawal command to generate a fresh proof with the new fee."
+              );
+            }
+            verbose(
+              `Quote refreshed with same fee (${quote.feeBPS} BPS), expires ${new Date(expirationMs).toISOString()}`,
+              isVerbose,
+              silent
             );
           }
 
@@ -1023,6 +1040,8 @@ export function createWithdrawCommand(): Command {
             feeBPS: quote.feeBPS,
           });
         }
+
+        } finally { releaseLock(); }
       } catch (error) {
         printError(error, isJson || isUnsigned);
       }

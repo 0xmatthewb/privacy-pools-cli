@@ -9,6 +9,7 @@ import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
 import { spinner, verbose } from "../utils/format.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { acquireProcessLock } from "../utils/lock.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -38,6 +39,9 @@ export function createSyncCommand(): Command {
         const config = loadConfig();
         const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
         const mnemonic = loadMnemonic();
+
+        const releaseLock = acquireProcessLock();
+        try {
 
         const spin = spinner("Resolving pools for sync...", silent);
         spin.start();
@@ -102,6 +106,8 @@ export function createSyncCommand(): Command {
           syncedSymbols: pools.map((p) => p.symbol),
           spendableCommitments: spendableCount,
         });
+
+        } finally { releaseLock(); }
       } catch (error) {
         printError(error, mode.isJson);
       }

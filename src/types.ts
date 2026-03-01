@@ -25,6 +25,7 @@ export interface GlobalOptions {
   quiet?: boolean;
   yes?: boolean;
   verbose?: boolean;
+  timeout?: string;
 }
 
 export interface PoolStats {
