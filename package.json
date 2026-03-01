@@ -16,7 +16,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json && chmod +x dist/index.js",
+    "build": "tsc --project tsconfig.json",
+    "prepare": "tsc --project tsconfig.json",
     "cli": "bun src/index.ts",
     "dev": "bun src/index.ts",
     "start": "node dist/index.js",
