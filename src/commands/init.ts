@@ -32,8 +32,8 @@ import { renderInitResult } from "../output/init.js";
 export function createInitCommand(): Command {
   return new Command("init")
     .description("Initialize wallet and configuration")
-    .option("--mnemonic <phrase>", "Import an existing BIP-39 mnemonic phrase (unsafe: visible in process list)")
-    .option("--mnemonic-file <path>", "Import an existing BIP-39 mnemonic from a file")
+    .option("--mnemonic <phrase>", "Import an existing recovery phrase (unsafe: visible in process list)")
+    .option("--mnemonic-file <path>", "Import an existing recovery phrase from a file")
     .option(
       "--show-mnemonic",
       "Include generated mnemonic in JSON output (unsafe: may be logged or piped)"
@@ -46,11 +46,10 @@ export function createInitCommand(): Command {
     .addOption(new Option("--skip-circuits", "No-op (circuits are downloaded on first use)").hideHelp())
     .addHelpText(
       "after",
-      "\nPrivacy Pools uses two separate keys:"
-        + "\n  Recovery phrase  — generates your deposit secrets (for privacy)"
-        + "\n  Signer key      — signs onchain transactions (for execution)"
-        + "\n  These are independent. You can set the signer key later via PRIVACY_POOLS_PRIVATE_KEY env var."
-        + "\n  Note: PRIVACY_POOLS_PRIVATE_KEY takes precedence over a saved signer key file."
+      "\nPrivacy Pools uses two keys:"
+        + "\n  Recovery phrase  — keeps your deposits private (generated during init)"
+        + "\n  Wallet key       — pays gas and sends transactions (can be set later)"
+        + "\n  These are independent. Set the wallet key via PRIVACY_POOLS_PRIVATE_KEY env var."
         + "\n\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia\n  privacy-pools init --force --yes --default-chain sepolia\n  privacy-pools init --json --show-mnemonic\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
         + commandHelpText({
           jsonFields:
@@ -115,7 +114,7 @@ export function createInitCommand(): Command {
           throw new CLIError(
             "Invalid recovery phrase.",
             "INPUT",
-            "Provide a valid BIP-39 recovery phrase (12 or 24 words)."
+            "Provide a valid recovery phrase (12 or 24 words)."
           );
         }
 
@@ -191,7 +190,7 @@ export function createInitCommand(): Command {
           mnemonic = generateMnemonic();
         } else {
           const action = await select({
-            message: "Wallet setup:",
+            message: "How would you like to set up your wallet?",
             choices: [
               { name: "Generate new recovery phrase", value: "generate" },
               { name: "Import existing recovery phrase", value: "import" },
@@ -200,14 +199,14 @@ export function createInitCommand(): Command {
 
           if (action === "import") {
             const phrase = await password({
-              message: "Enter your BIP-39 recovery phrase:",
+              message: "Enter your recovery phrase (12 or 24 words):",
               mask: "*",
             });
             if (!validateMnemonic(phrase.trim())) {
               throw new CLIError(
                 "Invalid recovery phrase.",
                 "INPUT",
-                "Provide a valid BIP-39 recovery phrase (12 or 24 words)."
+                "Provide a valid recovery phrase (12 or 24 words)."
               );
             }
             mnemonic = phrase.trim();
@@ -296,12 +295,12 @@ export function createInitCommand(): Command {
 
         if (!signerKey && !process.env.PRIVACY_POOLS_PRIVATE_KEY && !skipPrompts) {
           process.stderr.write("\n");
-          process.stderr.write(chalk.dim("The signer key is the private key for the wallet that submits transactions onchain.") + "\n");
-          process.stderr.write(chalk.dim("This is separate from your recovery phrase (which protects your deposit secrets).") + "\n");
+          process.stderr.write(chalk.dim("The wallet key is the private key that pays gas and sends transactions.") + "\n");
+          process.stderr.write(chalk.dim("This is separate from your recovery phrase, which keeps your deposits private.") + "\n");
           process.stderr.write(chalk.dim("You can skip this and set it later via PRIVACY_POOLS_PRIVATE_KEY environment variable.") + "\n");
           process.stderr.write("\n");
           const keyInput = await password({
-            message: "Signer private key (0x..., or press Enter to skip):",
+            message: "Wallet private key (0x..., or Enter to skip):",
             mask: "*",
           });
           if (keyInput.trim()) {
@@ -329,7 +328,7 @@ export function createInitCommand(): Command {
 
         if (!defaultChain && !skipPrompts) {
           defaultChain = await select({
-            message: "Select default chain:",
+            message: "Which network would you like to use?",
             choices: [
               ...MAINNET_CHAIN_NAMES.map((name) => ({ name, value: name })),
               new Separator("── Testnets ──"),
@@ -391,11 +390,6 @@ export function createInitCommand(): Command {
           warning: mnemonicWarning,
         });
 
-        // Agent handoff hint
-        if (!isJson && !isQuiet) {
-          process.stderr.write("\n");
-          info("To delegate to an agent: set PRIVACY_POOLS_PRIVATE_KEY in the agent's environment.", silent);
-        }
       } catch (error) {
         printError(error, isJson);
       }

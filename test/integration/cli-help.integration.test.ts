@@ -15,7 +15,8 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("-j, --json");
     expect(result.stdout).toContain("-y, --yes");
     expect(result.stdout).toContain("Get started:");
-    expect(result.stdout).toContain("Read-only (no wallet needed)");
+    // Footer has two command categories (read-only + transact)
+    expect(result.stdout).toContain("no wallet needed");
     expect(result.stdout).toContain("init");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("pools");
@@ -85,7 +86,9 @@ describe("CLI help and discovery", () => {
   test("guide prints to stderr", () => {
     const result = runCli(["guide"], { home: createTempHome() });
     expect(result.status).toBe(0);
-    expect(result.stderr).toContain("Privacy Pools CLI - Quick Guide");
+    // Guide outputs to stderr and includes structural sections
+    expect(result.stderr).toContain("Quick Start");
+    expect(result.stderr).toContain("Workflow");
   });
 
   test("--no-banner suppresses banner during normal command execution", () => {

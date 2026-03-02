@@ -62,15 +62,16 @@ const LOGO_LINES = [
   " | |--' |   (  | |   ) / |  __  |\\  \\     ) (   ",
   " | |    | |\\ \\ | |  (_)  | |  |)| \\  `-.  | |   ",
   " /(     |_| \\)`-'       |_|  (_)  \\____\\/(_|   ",
-  "(__)        (__)                        (__)    ",
-  " ,---.   .---.   .---.  ,-.      .---.          ",
-  " | .-.\\ / .-. ) / .-. ) | |     ( .-._)         ",
-  " | |-' )| | |(_)| | |(_)| |    (_) \\            ",
-  " | |--' | | | | | | | | | |    _  \\ \\           ",
-  " | |    \\ `-' / \\ `-' / | `--.( `-'  )          ",
-  " /(      )---'   )---'  |( __.'`----'           ",
-  "(__)    (_)     (_)     (_)                     ",
+  "(_,---.   .---.)  .---.  ,-.      .---. (__)    ",
+  "  | .-.\\ / .-. ) / .-. ) | |     ( .-._)        ",
+  "  | |-' )| | |(_)| | |(_)| |    (_) \\           ",
+  "  | |--' | | | | | | | | | |    _  \\ \\          ",
+  "  | |    \\ `-' / \\ `-' / | `--.( `-'  )         ",
+  "  /(      )---'   )---'  |( __.'`----'          ",
+  " (__)    (_)     (_)     (_)                    ",
 ];
+
+const TAGLINE = "A compliant way to transact privately on Ethereum.";
 
 const FRAME_DELAY = 80;
 
@@ -87,7 +88,7 @@ export async function printBanner(): Promise<void> {
     for (const line of LOGO_LINES) {
       process.stderr.write(chalk.cyan(line) + "\n");
     }
-    process.stderr.write("\n");
+    process.stderr.write(chalk.dim(`  ${TAGLINE}`) + "\n\n");
     markBannerShown();
     return;
   }
@@ -97,6 +98,7 @@ export async function printBanner(): Promise<void> {
     process.stderr.write(chalk.cyan(line) + "\n");
     await sleep(FRAME_DELAY);
   }
+  process.stderr.write(chalk.dim(`  ${TAGLINE}`) + "\n");
 
   // Pause to let the banner breathe before the rest of the output
   await sleep(250);

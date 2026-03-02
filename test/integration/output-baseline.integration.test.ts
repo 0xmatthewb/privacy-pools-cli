@@ -43,7 +43,9 @@ describe("human-mode output contracts", () => {
   test("guide: stderr contains guide text, stdout is empty", () => {
     const result = runCli(["guide"], { home: createTempHome() });
     expect(result.status).toBe(0);
-    expect(result.stderr).toContain("Privacy Pools CLI - Quick Guide");
+    // Guide outputs to stderr with structural sections, nothing to stdout
+    expect(result.stderr).toContain("Quick Start");
+    expect(result.stderr).toContain("Workflow");
     expect(result.stdout.trim()).toBe("");
   });
 

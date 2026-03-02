@@ -2,7 +2,7 @@
 
 exports[`CLI --help snapshots root --help snapshot 1`] = `
 "Usage: privacy-pools [options] [command]
-Deposit, withdraw, and manage funds in Privacy Pools
+Privacy Pools — a compliant way to transact privately on Ethereum
 Options:
   -V, --version        output the version number
   -c, --chain <name>   Target chain (mainnet, arbitrum, optimism, ...)
@@ -29,24 +29,24 @@ Commands:
   guide                Show usage guide, workflow, and reference
   capabilities         Describe CLI capabilities for agent discovery
   help                 display help for command
-  Read-only (no wallet needed)
+  A compliant way to transact privately on Ethereum.
+  Explore (no wallet needed)
     pools  activity  stats  status  guide
-  Wallet required (run init first)
+  Transact (run init first)
     init  deposit  withdraw  ragequit  accounts  balance  history  sync
   Get started:      privacy-pools init
   Short alias:      pp init
   Full guide:       privacy-pools guide
-  Command help:     privacy-pools <command> --help
-  Advanced:         --dry-run, --unsigned, --agent (see 'privacy-pools guide')"
+  Command help:     privacy-pools <command> --help"
 `;
 
 exports[`CLI --help snapshots init --help snapshot 1`] = `
 "Usage: privacy-pools init [options]
 Initialize wallet and configuration
 Options:
-  --mnemonic <phrase>        Import an existing BIP-39 mnemonic phrase (unsafe:
-                             visible in process list)
-  --mnemonic-file <path>     Import an existing BIP-39 mnemonic from a file
+  --mnemonic <phrase>        Import an existing recovery phrase (unsafe: visible
+                             in process list)
+  --mnemonic-file <path>     Import an existing recovery phrase from a file
   --show-mnemonic            Include generated mnemonic in JSON output (unsafe:
                              may be logged or piped)
   --private-key <key>        Set the signer private key (unsafe: visible in
@@ -56,11 +56,10 @@ Options:
   --rpc-url <url>            Set RPC URL for the default chain
   --force                    Overwrite existing configuration without prompting
   -h, --help                 display help for command
-Privacy Pools uses two separate keys:
-  Recovery phrase  — generates your deposit secrets (for privacy)
-  Signer key      — signs onchain transactions (for execution)
-  These are independent. You can set the signer key later via PRIVACY_POOLS_PRIVATE_KEY env var.
-  Note: PRIVACY_POOLS_PRIVATE_KEY takes precedence over a saved signer key file.
+Privacy Pools uses two keys:
+  Recovery phrase  — keeps your deposits private (generated during init)
+  Wallet key       — pays gas and sends transactions (can be set later)
+  These are independent. Set the wallet key via PRIVACY_POOLS_PRIVATE_KEY env var.
 Examples:
   privacy-pools init
   privacy-pools init --yes --default-chain sepolia

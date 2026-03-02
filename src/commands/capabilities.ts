@@ -11,7 +11,7 @@ const CAPABILITIES = {
   commands: [
     {
       name: "init",
-      description: "Initialize wallet and configuration",
+      description: "Set up wallet and configuration",
       flags: ["--mnemonic <phrase>", "--mnemonic-file <path>", "--private-key <key>", "--private-key-file <path>", "--default-chain <chain>", "--force", "--show-mnemonic"],
       agentFlags: "--yes --json --default-chain <chain>",
       requiresInit: false,

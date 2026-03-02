@@ -65,17 +65,18 @@ export function styleCommanderHelp(raw: string): string {
 export function rootHelpFooter(): string {
   return [
     "",
-    chalk.bold("  Read-only (no wallet needed)"),
+    chalk.dim("  A compliant way to transact privately on Ethereum."),
+    "",
+    chalk.bold("  Explore (no wallet needed)"),
     `    ${chalk.green("pools")}  ${chalk.green("activity")}  ${chalk.green("stats")}  ${chalk.green("status")}  ${chalk.green("guide")}`,
     "",
-    chalk.bold("  Wallet required (run init first)"),
+    chalk.bold("  Transact (run init first)"),
     `    ${chalk.green("init")}  ${chalk.green("deposit")}  ${chalk.green("withdraw")}  ${chalk.green("ragequit")}  ${chalk.green("accounts")}  ${chalk.green("balance")}  ${chalk.green("history")}  ${chalk.green("sync")}`,
     "",
     `  Get started:      ${chalk.cyan("privacy-pools init")}`,
     `  Short alias:      ${chalk.cyan("pp init")}`,
     `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
     `  Command help:     ${chalk.cyan("privacy-pools <command> --help")}`,
-    `  Advanced:         ${chalk.cyan("--dry-run, --unsigned, --agent (see 'privacy-pools guide')")}`,
   ].join("\n");
 }
 
@@ -86,7 +87,7 @@ export function rootHelpFooter(): string {
  */
 export function guideText(): string {
   return [
-    chalk.bold.cyan("Privacy Pools CLI - Quick Guide"),
+    chalk.bold.cyan("Privacy Pools \u2014 Quick Guide"),
     "",
     chalk.bold("Install & Run"),
     `  ${chalk.cyan("npm i -g github:0xmatthewb/privacy-pools-cli")}`,
@@ -108,18 +109,18 @@ export function guideText(): string {
     chalk.dim("  appear in 'balance' until approved."),
     "",
     chalk.bold("Two-Key Model"),
-    `  Privacy Pools uses two separate keys:`,
-    `  ${chalk.yellow("Recovery phrase")}  — generates your deposit secrets (for privacy)`,
-    `  ${chalk.yellow("Signer key")}       — signs onchain transactions (for execution)`,
-    `  These are independent. You can set the signer key later via env var.`,
-    `  Note: ${chalk.yellow("PRIVACY_POOLS_PRIVATE_KEY")} env var takes precedence over a saved signer key file.`,
+    `  Privacy Pools uses two keys:`,
+    `  ${chalk.yellow("Recovery phrase")}  \u2014 keeps your deposits private (generated during init)`,
+    `  ${chalk.yellow("Wallet key")}       \u2014 pays gas and sends transactions (can be set later)`,
+    `  These are independent. You can set the wallet key later via env var.`,
+    `  Note: ${chalk.yellow("PRIVACY_POOLS_PRIVATE_KEY")} env var takes precedence over a saved key file.`,
     "",
     chalk.bold("Workflow"),
     `  1. ${chalk.green("init")}           Set up wallet and config (run once)`,
     `  2. ${chalk.green("pools")}          Browse available pools`,
-    `  3. ${chalk.green("deposit")}        Deposit into a pool (vetting fee collected by the pool's ASP)`,
-    `  4. ${chalk.green("accounts")}       Check Pool Account (PA) approval status`,
-    `  5. ${chalk.green("withdraw")}       Withdraw from a pool (once approved — relay fee shown before confirming)`,
+    `  3. ${chalk.green("deposit")}        Deposit into a pool (a small review fee is collected)`,
+    `  4. ${chalk.green("accounts")}       Check deposit approval status`,
+    `  5. ${chalk.green("withdraw")}       Withdraw privately (once approved \u2014 fee shown before confirming)`,
     `  6. ${chalk.green("balance")}        Check balances (only approved deposits shown)`,
     `  7. ${chalk.green("history")}        View transaction history`,
     `  *  ${chalk.green("sync")}           Re-sync onchain state (most commands sync automatically)`,

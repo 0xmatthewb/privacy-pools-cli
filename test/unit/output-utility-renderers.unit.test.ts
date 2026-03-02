@@ -31,7 +31,9 @@ describe("renderGuide parity", () => {
     const { stdout, stderr } = captureOutput(() => renderGuide(ctx));
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Privacy Pools CLI - Quick Guide");
+    // Guide outputs structural sections to stderr
+    expect(stderr).toContain("Quick Start");
+    expect(stderr).toContain("Workflow");
   });
 
   test("quiet mode: emits nothing", () => {

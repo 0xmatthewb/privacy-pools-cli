@@ -83,8 +83,10 @@ describe("renderInitResult parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Initialization complete.");
+    // Init completion outputs next-step commands to stderr
     expect(stderr).toContain("privacy-pools pools");
+    expect(stderr).toContain("privacy-pools deposit");
+    expect(stderr).toContain("privacy-pools guide");
   });
 
   test("quiet mode: emits nothing", () => {

@@ -87,7 +87,7 @@ const program = new Command();
 program
   .name("privacy-pools")
   .description(
-    "Deposit, withdraw, and manage funds in Privacy Pools"
+    "Privacy Pools \u2014 a compliant way to transact privately on Ethereum"
   )
   .version(pkg.version)
   .option("-c, --chain <name>", "Target chain (mainnet, arbitrum, optimism, ...)")
