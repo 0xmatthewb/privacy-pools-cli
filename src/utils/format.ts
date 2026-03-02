@@ -2,6 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import Table from "cli-table3";
 import { formatUnits } from "viem";
+import { highlight, accent, spinnerColor } from "./theme.js";
 
 export function formatAmount(
   value: bigint,
@@ -43,12 +44,12 @@ export function printTable(
 }
 
 export function spinner(text: string, quiet: boolean = false) {
-  return ora({ text, color: "cyan", stream: process.stderr, isSilent: quiet });
+  return ora({ text, color: spinnerColor, stream: process.stderr, isSilent: quiet });
 }
 
 export function success(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${chalk.green(`✓ ${message}`)}\n`);
+  process.stderr.write(`${highlight(`✓ ${message}`)}\n`);
 }
 
 export function warn(message: string, quiet: boolean = false): void {
@@ -58,7 +59,7 @@ export function warn(message: string, quiet: boolean = false): void {
 
 export function info(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${chalk.blue(`ℹ ${message}`)}\n`);
+  process.stderr.write(`${accent(`ℹ ${message}`)}\n`);
 }
 
 export function verbose(

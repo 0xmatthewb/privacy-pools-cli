@@ -8,6 +8,7 @@
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, success, warn, info, isSilent } from "./common.js";
+import { highlight, accentBold } from "../utils/theme.js";
 
 export interface StatusCheckResult {
   configExists: boolean;
@@ -65,7 +66,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   const silent = isSilent(ctx);
 
-  if (!silent) process.stderr.write(chalk.bold("\nPrivacy Pools CLI Status\n") + "\n");
+  if (!silent) process.stderr.write(`\n${accentBold("Privacy Pools CLI Status")}\n\n`);
 
   // Config
   if (result.configExists) {
@@ -137,7 +138,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     if (result.accountFiles.length > 0) {
       info("Account files:", silent);
       for (const [name, _chainId] of result.accountFiles) {
-        process.stderr.write(`  ${chalk.green("●")} ${name} (chain ${_chainId})\n`);
+        process.stderr.write(`  ${highlight("●")} ${name} (chain ${_chainId})\n`);
       }
     } else {
       info("No account files found.", silent);

@@ -8,6 +8,7 @@
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, warn, isSilent } from "./common.js";
+import { accentBold } from "../utils/theme.js";
 import { formatAddress, formatAmount, formatBPS } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 
@@ -151,9 +152,9 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   if (silent) return;
 
   if (allChains) {
-    process.stderr.write("\nPools across supported chains:\n\n");
+    process.stderr.write(`\n${accentBold("Pools across supported chains:")}\n\n`);
   } else {
-    process.stderr.write(`\nPools on ${chainName}:\n\n`);
+    process.stderr.write(`\n${accentBold(`Pools on ${chainName}:`)}\n\n`);
   }
 
   if (warnings.length > 0) {

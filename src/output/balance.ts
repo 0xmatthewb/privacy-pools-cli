@@ -7,6 +7,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
+import { accentBold } from "../utils/theme.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ export function renderBalance(ctx: OutputContext, data: BalanceRenderData): void
   const silent = isSilent(ctx);
   if (silent) return;
 
-  process.stderr.write(`\nBalances on ${data.chain}:\n\n`);
+  process.stderr.write(`\n${accentBold(`Balances on ${data.chain}:`)}\n\n`);
   printTable(
     ["Asset", "Balance", "Pool Accounts"],
     data.rows.map((r) => [r.symbol, r.formattedBalance, r.commitments.toString()]),

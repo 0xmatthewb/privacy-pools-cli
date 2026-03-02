@@ -10,6 +10,7 @@ import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatAddress, formatTxHash } from "../utils/format.js";
+import { highlight, accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
   }
 
   const silent = isSilent(ctx);
-  if (!silent) process.stderr.write(`\nPool Accounts (PA) on ${chain}:\n\n`);
+  if (!silent) process.stderr.write(`\n${accentBold(`Pool Accounts (PA) on ${chain}:`)}\n\n`);
   let renderedAny = false;
 
   for (const group of groups) {
@@ -93,7 +94,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
           pa.paId,
           pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
           pa.aspStatus === "approved"
-            ? chalk.green("Approved")
+            ? highlight("Approved")
             : pa.aspStatus === "pending"
               ? chalk.yellow("Pending")
               : "",
@@ -111,7 +112,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
           const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
           const aspSuffix =
             pa.aspStatus === "approved"
-              ? ` (${chalk.green("Approved")})`
+              ? ` (${highlight("Approved")})`
               : pa.aspStatus === "pending"
                 ? ` (${chalk.yellow("Pending")})`
                 : "";

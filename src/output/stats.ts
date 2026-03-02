@@ -8,6 +8,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, isSilent } from "./common.js";
+import { accentBold } from "../utils/theme.js";
 import type { TimeBasedStatistics } from "../types.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -108,11 +109,11 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
 
   if (data.perChain && data.perChain.length > 0) {
     for (const entry of data.perChain) {
-      process.stderr.write(`\nGlobal statistics (${entry.chain}):\n\n`);
+      process.stderr.write(`\n${accentBold(`Global statistics (${entry.chain}):`)}\n\n`);
       renderStatsTable(entry.allTime, entry.last24h);
     }
   } else {
-    process.stderr.write(`\nGlobal statistics (${data.chain}):\n\n`);
+    process.stderr.write(`\n${accentBold(`Global statistics (${data.chain}):`)}\n\n`);
     renderStatsTable(data.allTime, data.last24h);
   }
 }
@@ -137,7 +138,7 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
 
   const silent = isSilent(ctx);
   if (!silent) {
-    process.stderr.write(`\nPool statistics for ${data.asset} on ${data.chain}:\n\n`);
+    process.stderr.write(`\n${accentBold(`Pool statistics for ${data.asset} on ${data.chain}:`)}\n\n`);
     renderStatsTable(data.allTime, data.last24h);
   }
 }

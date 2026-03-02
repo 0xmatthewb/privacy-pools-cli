@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { accent } from "./theme.js";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -86,7 +87,7 @@ export async function printBanner(): Promise<void> {
   // Skip animation if output is not a TTY (piped, CI, etc.)
   if (!process.stderr.isTTY) {
     for (const line of LOGO_LINES) {
-      process.stderr.write(chalk.cyan(line) + "\n");
+      process.stderr.write(accent(line) + "\n");
     }
     process.stderr.write(chalk.dim(`  ${TAGLINE}`) + "\n\n");
     markBannerShown();
@@ -95,7 +96,7 @@ export async function printBanner(): Promise<void> {
 
   // Animate line-by-line
   for (const line of LOGO_LINES) {
-    process.stderr.write(chalk.cyan(line) + "\n");
+    process.stderr.write(accent(line) + "\n");
     await sleep(FRAME_DELAY);
   }
   process.stderr.write(chalk.dim(`  ${TAGLINE}`) + "\n");

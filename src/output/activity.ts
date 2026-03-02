@@ -9,6 +9,7 @@
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, isSilent } from "./common.js";
 import { formatAddress } from "../utils/format.js";
+import { accentBold } from "../utils/theme.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,9 +91,9 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   const chainLabel = data.chains ? data.chains.join(", ") : data.chain;
   const header =
     data.mode === "pool-activity"
-      ? `\nActivity for ${data.asset} on ${data.chain}:\n\n`
-      : `\nGlobal activity (${chainLabel}):\n\n`;
-  process.stderr.write(header);
+      ? accentBold(`Activity for ${data.asset} on ${data.chain}:`)
+      : accentBold(`Global activity (${chainLabel}):`);
+  process.stderr.write(`\n${header}\n\n`);
 
   if (data.events.length === 0) {
     process.stderr.write("No activity found.\n");

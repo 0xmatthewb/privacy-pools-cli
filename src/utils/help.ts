@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { accent, accentBold, highlight, subtle } from "./theme.js";
 
 type Section = "options" | "commands" | "arguments" | null;
 
@@ -16,12 +17,12 @@ export function styleCommanderHelp(raw: string): string {
     if (line.startsWith("Usage:")) {
       const usage = line.slice("Usage:".length).trim();
       section = null;
-      return `${chalk.bold.cyan("Usage:")} ${chalk.bold(usage)}`;
+      return `${accentBold("Usage:")} ${chalk.bold(usage)}`;
     }
 
     if (SECTION_HEADERS.has(trimmed)) {
       section = trimmed.replace(":", "").toLowerCase() as Section;
-      return chalk.bold.cyan(trimmed);
+      return accentBold(trimmed);
     }
 
     if (trimmed === "") {
@@ -39,7 +40,7 @@ export function styleCommanderHelp(raw: string): string {
     if (section === "commands") {
       const m = line.match(/^(\s{2,})([a-z][\w-]*(?:\s+\[[^\]]+\])?(?:\s+<[^>]+>)?)(\s{2,})(.+)$/i);
       if (m) {
-        return `${m[1]}${chalk.green(m[2])}${m[3]}${m[4]}`;
+        return `${m[1]}${highlight(m[2])}${m[3]}${m[4]}`;
       }
       return line;
     }
@@ -47,7 +48,7 @@ export function styleCommanderHelp(raw: string): string {
     if (section === "arguments") {
       const m = line.match(/^(\s{2,})([a-zA-Z][\w-]*)(\s{2,})(.+)$/);
       if (m) {
-        return `${m[1]}${chalk.magenta(m[2])}${m[3]}${m[4]}`;
+        return `${m[1]}${subtle(m[2])}${m[3]}${m[4]}`;
       }
       return line;
     }
@@ -65,15 +66,15 @@ export function styleCommanderHelp(raw: string): string {
 export function welcomeScreen(): string {
   const lines = [
     chalk.bold("  Explore (no wallet needed)"),
-    `    ${chalk.green("pools")}  ${chalk.green("activity")}  ${chalk.green("stats")}  ${chalk.green("status")}  ${chalk.green("guide")}`,
+    `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}`,
     "",
     chalk.bold("  Transact (run init first)"),
-    `    ${chalk.green("init")}  ${chalk.green("deposit")}  ${chalk.green("withdraw")}  ${chalk.green("ragequit")}  ${chalk.green("accounts")}  ${chalk.green("balance")}  ${chalk.green("history")}  ${chalk.green("sync")}`,
+    `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("balance")}  ${highlight("history")}  ${highlight("sync")}`,
     "",
-    `  Get started:      ${chalk.cyan("privacy-pools init")}`,
-    `  Short alias:      ${chalk.cyan("pp init")}`,
-    `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
-    `  All commands:     ${chalk.cyan("privacy-pools --help")}`,
+    `  Get started:      ${accent("privacy-pools init")}`,
+    `  Short alias:      ${accent("pp init")}`,
+    `  Full guide:       ${accent("privacy-pools guide")}`,
+    `  All commands:     ${accent("privacy-pools --help")}`,
   ];
 
   // Nudge from-source users to register the CLI commands on their PATH.
@@ -102,10 +103,10 @@ export function welcomeScreen(): string {
 export function rootHelpFooter(): string {
   return [
     "",
-    `  Get started:      ${chalk.cyan("privacy-pools init")}`,
-    `  Short alias:      ${chalk.cyan("pp init")}`,
-    `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
-    `  Command help:     ${chalk.cyan("privacy-pools <command> --help")}`,
+    `  Get started:      ${accent("privacy-pools init")}`,
+    `  Short alias:      ${accent("pp init")}`,
+    `  Full guide:       ${accent("privacy-pools guide")}`,
+    `  Command help:     ${accent("privacy-pools <command> --help")}`,
   ].join("\n");
 }
 
@@ -116,21 +117,21 @@ export function rootHelpFooter(): string {
  */
 export function guideText(): string {
   return [
-    chalk.bold.cyan("Privacy Pools \u2014 Quick Guide"),
+    accentBold("Privacy Pools \u2014 Quick Guide"),
     "",
     chalk.bold("Install & Run"),
-    `  ${chalk.cyan("npm i -g github:0xmatthewb/privacy-pools-cli")}`,
-    `  ${chalk.cyan("bun add -g github:0xmatthewb/privacy-pools-cli")}`,
-    `  ${chalk.cyan("pp status")}                                  ${chalk.dim("(short alias for privacy-pools)")}`,
-    `  ${chalk.cyan("bun run dev -- status")}                        ${chalk.dim("(from source, no global install)")}`,
-    `  ${chalk.cyan("privacy-pools completion zsh")}                   ${chalk.dim("(shell autocomplete)")}`,
+    `  ${accent("npm i -g github:0xmatthewb/privacy-pools-cli")}`,
+    `  ${accent("bun add -g github:0xmatthewb/privacy-pools-cli")}`,
+    `  ${accent("pp status")}                                  ${chalk.dim("(short alias for privacy-pools)")}`,
+    `  ${accent("bun run dev -- status")}                        ${chalk.dim("(from source, no global install)")}`,
+    `  ${accent("privacy-pools completion zsh")}                   ${chalk.dim("(shell autocomplete)")}`,
     "",
     chalk.bold("Quick Start"),
-    `  ${chalk.cyan("privacy-pools init")}`,
-    `  ${chalk.cyan("privacy-pools pools --chain sepolia")}`,
-    `  ${chalk.cyan("privacy-pools deposit 0.1 --asset ETH --chain sepolia")}`,
-    `  ${chalk.cyan("privacy-pools accounts --chain sepolia")}              ${chalk.dim("(wait for Approved status)")}`,
-    `  ${chalk.cyan("privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient -p PA-1 --chain sepolia")}`,
+    `  ${accent("privacy-pools init")}`,
+    `  ${accent("privacy-pools pools --chain sepolia")}`,
+    `  ${accent("privacy-pools deposit 0.1 --asset ETH --chain sepolia")}`,
+    `  ${accent("privacy-pools accounts --chain sepolia")}              ${chalk.dim("(wait for Approved status)")}`,
+    `  ${accent("privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient -p PA-1 --chain sepolia")}`,
     "",
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
     chalk.dim("  Most deposits are approved within 1 hour; some may take up to 7 days."),
@@ -145,18 +146,18 @@ export function guideText(): string {
     `  Note: ${chalk.yellow("PRIVACY_POOLS_PRIVATE_KEY")} env var takes precedence over a saved key file.`,
     "",
     chalk.bold("Workflow"),
-    `  1. ${chalk.green("init")}           Set up wallet and config (run once)`,
-    `  2. ${chalk.green("pools")}          Browse available pools`,
-    `  3. ${chalk.green("deposit")}        Deposit into a pool (a small review fee is collected)`,
-    `  4. ${chalk.green("accounts")}       Check deposit approval status`,
-    `  5. ${chalk.green("withdraw")}       Withdraw privately (once approved \u2014 fee shown before confirming)`,
-    `  6. ${chalk.green("balance")}        Check balances (only approved deposits shown)`,
-    `  7. ${chalk.green("history")}        View transaction history`,
-    `  *  ${chalk.green("sync")}           Re-sync onchain state (most commands sync automatically)`,
-    `  *  ${chalk.green("status")}         Check setup and connection health (checks run by default)`,
-    `  *  ${chalk.green("activity")}       Public onchain feed ${chalk.dim("(for your history, use 'history')")}`,
-    `  *  ${chalk.green("ragequit")}       Public exit — returns funds to deposit address, no privacy (alias: exit)`,
-    `  *  ${chalk.green("withdraw quote")} Check relayer fees before withdrawing`,
+    `  1. ${highlight("init")}           Set up wallet and config (run once)`,
+    `  2. ${highlight("pools")}          Browse available pools`,
+    `  3. ${highlight("deposit")}        Deposit into a pool (a small review fee is collected)`,
+    `  4. ${highlight("accounts")}       Check deposit approval status`,
+    `  5. ${highlight("withdraw")}       Withdraw privately (once approved \u2014 fee shown before confirming)`,
+    `  6. ${highlight("balance")}        Check balances (only approved deposits shown)`,
+    `  7. ${highlight("history")}        View transaction history`,
+    `  *  ${highlight("sync")}           Re-sync onchain state (most commands sync automatically)`,
+    `  *  ${highlight("status")}         Check setup and connection health (checks run by default)`,
+    `  *  ${highlight("activity")}       Public onchain feed ${chalk.dim("(for your history, use 'history')")}`,
+    `  *  ${highlight("ragequit")}       Public exit — returns funds to deposit address, no privacy (alias: exit)`,
+    `  *  ${highlight("withdraw quote")} Check relayer fees before withdrawing`,
     "",
     chalk.bold("Global Options"),
     `  ${chalk.yellow("-c, --chain <name>")}    Target chain (mainnet, arbitrum, optimism; testnets: sepolia, op-sepolia)`,
@@ -199,7 +200,7 @@ export function guideText(): string {
     `                   ~/.privacy-pools/config.json under ${chalk.dim('"rpcOverrides": { "<chainId>": "https://..." }')}.`,
     "",
     chalk.bold("Exit Codes"),
-    `  ${chalk.green("0")}  Success`,
+    `  ${highlight("0")}  Success`,
     `  ${chalk.red("1")}  Unknown/general error`,
     `  ${chalk.red("2")}  Input/validation error`,
     `  ${chalk.red("3")}  RPC/network error`,
@@ -209,7 +210,7 @@ export function guideText(): string {
     `  ${chalk.red("7")}  Contract revert`,
     "",
     chalk.bold("Agent Integration"),
-    `  For programmatic/agent use, run ${chalk.cyan("privacy-pools capabilities --json")} to discover`,
+    `  For programmatic/agent use, run ${accent("privacy-pools capabilities --json")} to discover`,
     "  commands, schemas, supported chains, error codes, and the recommended workflow.",
     "",
     chalk.dim("  Run privacy-pools <command> --help for command-specific details."),

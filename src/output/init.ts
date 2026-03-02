@@ -9,6 +9,7 @@
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, success, info, isSilent } from "./common.js";
+import { accent } from "../utils/theme.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -51,11 +52,11 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   success("Setup complete! Here's what to do next:", silent);
   if (!silent) {
     process.stderr.write("\n");
-    process.stderr.write(`  ${chalk.dim("1.")} Browse pools          ${chalk.cyan("privacy-pools pools")}\n`);
-    process.stderr.write(`  ${chalk.dim("2.")} Make a deposit         ${chalk.cyan("privacy-pools deposit 0.1 --asset ETH")}\n`);
-    process.stderr.write(`  ${chalk.dim("3.")} Check your accounts    ${chalk.cyan("privacy-pools accounts")}\n`);
-    process.stderr.write(`  ${chalk.dim("4.")} Withdraw funds         ${chalk.cyan("privacy-pools withdraw 0.05 --asset ETH --to 0x...")}\n`);
+    process.stderr.write(`  ${chalk.dim("1.")} Browse pools          ${accent("privacy-pools pools")}\n`);
+    process.stderr.write(`  ${chalk.dim("2.")} Make a deposit         ${accent("privacy-pools deposit 0.1 --asset ETH")}\n`);
+    process.stderr.write(`  ${chalk.dim("3.")} Check your accounts    ${accent("privacy-pools accounts")}\n`);
+    process.stderr.write(`  ${chalk.dim("4.")} Withdraw funds         ${accent("privacy-pools withdraw 0.05 --asset ETH --to 0x...")}\n`);
     process.stderr.write("\n");
-    info(`Full guide: ${chalk.cyan("privacy-pools guide")}`, silent);
+    info(`Full guide: ${accent("privacy-pools guide")}`, silent);
   }
 }

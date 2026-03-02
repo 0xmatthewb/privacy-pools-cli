@@ -9,6 +9,7 @@
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatTxHash } from "../utils/format.js";
+import { accentBold } from "../utils/theme.js";
 import type { HistoryEvent } from "../commands/history.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
 
   if (silent) return;
 
-  process.stderr.write(`\nHistory on ${chain} (last ${events.length} events):\n\n`);
+  process.stderr.write(`\n${accentBold(`History on ${chain} (last ${events.length} events):`)}\n\n`);
   printTable(
     ["Type", "PA", "Amount", "Tx", "Block"],
     events.map((e) => {
