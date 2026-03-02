@@ -66,6 +66,32 @@ describe("relayer service", () => {
     });
   });
 
+  test("requestQuote accepts large feeBPS (bounds check is caller responsibility)", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            baseFeeBPS: "10",
+            feeBPS: "99999",
+            gasPrice: "100",
+            detail: { relayTxCost: { gas: "1", eth: "1" } },
+          }),
+          { status: 200 }
+        )
+      )
+    ) as typeof fetch;
+
+    const quote = await requestQuote(chain, {
+      amount: 1000n,
+      asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      extraGas: false,
+    });
+
+    // Service layer validates format only — feeBPS "99999" is a valid numeric string.
+    // The withdraw command checks parsedFeeBPS > pool.maxRelayFeeBPS (withdraw.ts:726).
+    expect(quote.feeBPS).toBe("99999");
+  });
+
   test("requestQuote surfaces nested relayer error.message", async () => {
     globalThis.fetch = mock(() =>
       Promise.resolve(

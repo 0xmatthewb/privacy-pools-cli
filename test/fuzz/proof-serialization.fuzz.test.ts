@@ -37,6 +37,9 @@ describe("proof serialization fuzz", () => {
       expect(solidity.pB[1]).toEqual([BigInt(b11), BigInt(b10)]);
       expect(solidity.pC).toEqual([BigInt(c0), BigInt(c1)]);
       expect(solidity.pubSignals.length).toBe(8);
+      for (let j = 0; j < 8; j++) {
+        expect(solidity.pubSignals[j]).toBe(BigInt(raw.publicSignals[j]));
+      }
     }
   });
 
