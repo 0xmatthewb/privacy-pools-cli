@@ -97,6 +97,6 @@ describe("account service strict sync behavior", () => {
     );
 
     expect(service).toBeDefined();
-    expect(typeof service).toBe("object");
+    expect(service).toBeInstanceOf(AccountService);
   });
 });

@@ -1,0 +1,85 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, existsSync, writeFileSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { acquireProcessLock } from "../../src/utils/lock.ts";
+import { CLIError } from "../../src/utils/errors.ts";
+
+const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+
+function isolatedHome(): string {
+  return mkdtempSync(join(tmpdir(), "pp-lock-test-"));
+}
+
+describe("acquireProcessLock", () => {
+  afterEach(() => {
+    if (ORIGINAL_HOME === undefined) {
+      delete process.env.PRIVACY_POOLS_HOME;
+    } else {
+      process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+    }
+  });
+
+  test("creates lock file and release removes it", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const release = acquireProcessLock();
+    const lockPath = join(home, ".lock");
+
+    expect(existsSync(lockPath)).toBe(true);
+    expect(readFileSync(lockPath, "utf-8").trim()).toBe(String(process.pid));
+
+    release();
+    expect(existsSync(lockPath)).toBe(false);
+  });
+
+  test("double release is a no-op", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const release = acquireProcessLock();
+    release();
+    // Second call should not throw
+    release();
+  });
+
+  test("cleans up stale lock from dead PID and acquires", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const lockPath = join(home, ".lock");
+
+    // Simulate a stale lock from a PID that no longer exists (PID 2 is
+    // typically not a user process, and very unlikely to be alive as a
+    // privacy-pools instance — but even if it is, we just need it to not
+    // be *our* PID). Use a high PID that is almost certainly dead.
+    writeFileSync(lockPath, "99999999", { flag: "wx", mode: 0o600 });
+
+    const release = acquireProcessLock();
+    expect(readFileSync(lockPath, "utf-8").trim()).toBe(String(process.pid));
+    release();
+  });
+
+  test("same process can re-acquire after release", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const r1 = acquireProcessLock();
+    r1();
+
+    const r2 = acquireProcessLock();
+    r2();
+  });
+
+  test("corrupt lock file (non-numeric) is treated as stale", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const lockPath = join(home, ".lock");
+
+    writeFileSync(lockPath, "not-a-pid", { flag: "wx", mode: 0o600 });
+
+    const release = acquireProcessLock();
+    expect(readFileSync(lockPath, "utf-8").trim()).toBe(String(process.pid));
+    release();
+  });
+});

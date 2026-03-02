@@ -202,4 +202,43 @@ describe("relayer service", () => {
       message: expect.stringContaining("transaction hash"),
     });
   });
+
+  test("submitRelayRequest returns txHash on valid success payload", async () => {
+    const validTxHash =
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            success: true,
+            txHash: validTxHash,
+            timestamp: Date.now(),
+            requestId: "relay-123",
+          }),
+          { status: 200 }
+        )
+      )
+    ) as typeof fetch;
+
+    const result = await submitRelayRequest(chain, {
+      scope: 1n,
+      withdrawal: {
+        processooor: "0x0000000000000000000000000000000000000001",
+        data: "0x",
+      },
+      proof: { _pA: ["0", "0"], _pB: [["0", "0"], ["0", "0"]], _pC: ["0", "0"], _pubSignals: [] },
+      publicSignals: [],
+      feeCommitment: {
+        expiration: Date.now() + 60_000,
+        withdrawalData: "0x1234",
+        asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        amount: "1000",
+        extraGas: false,
+        signedRelayerCommitment: "0x5678",
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.txHash).toBe(validTxHash);
+  });
 });

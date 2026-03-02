@@ -89,11 +89,12 @@ describe("wallet service", () => {
   });
 
   describe("getMasterKeys", () => {
-    test("returns object with spending and viewing keys from valid mnemonic", () => {
+    test("returns object with masterNullifier and masterSecret fields", () => {
       const mnemonic = "test test test test test test test test test test test junk";
       const keys = getMasterKeys(mnemonic);
       expect(keys).toBeDefined();
-      expect(typeof keys).toBe("object");
+      expect(keys).toHaveProperty("masterNullifier");
+      expect(keys).toHaveProperty("masterSecret");
     });
 
     test("same mnemonic produces same keys", () => {
@@ -101,6 +102,15 @@ describe("wallet service", () => {
       const k1 = getMasterKeys(mnemonic);
       const k2 = getMasterKeys(mnemonic);
       expect(k1).toEqual(k2);
+    });
+
+    test("different mnemonics produce different keys", () => {
+      const m1 = "test test test test test test test test test test test junk";
+      const m2 = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+      const k1 = getMasterKeys(m1);
+      const k2 = getMasterKeys(m2);
+      expect(k1.masterNullifier).not.toEqual(k2.masterNullifier);
+      expect(k1.masterSecret).not.toEqual(k2.masterSecret);
     });
   });
 

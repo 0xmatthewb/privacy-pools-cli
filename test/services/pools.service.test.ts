@@ -182,4 +182,43 @@ describe("pools service", () => {
     expect(pools.length).toBe(1);
     expect(pools[0].totalDepositsCount).toBe(7);
   });
+
+  test("listPools throws when ASP returns HTTP 500", async () => {
+    const chainId = 31340;
+    const server = createServer((_req, res) => {
+      res.writeHead(500, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "internal error" }));
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+    const addr = server.address();
+    if (!addr || typeof addr === "string") throw new Error("bind failed");
+    const url = `http://127.0.0.1:${addr.port}`;
+    const closer: MockServer = { url, close: () => new Promise<void>((r, j) => server.close((e) => e ? j(e) : r())) };
+    toClose.push(closer);
+
+    const chainConfig = {
+      ...CHAINS.ethereum,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      aspHost: url,
+    };
+
+    await expect(listPools(chainConfig, url)).rejects.toThrow();
+  });
+
+  test("listPools returns empty array for empty pools payload", async () => {
+    const chainId = 31341;
+    const server = await startMockServer(chainId, { pools: [] });
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.ethereum,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      aspHost: server.url,
+    };
+
+    const pools = await listPools(chainConfig, server.url);
+    expect(pools.length).toBe(0);
+  });
 });
