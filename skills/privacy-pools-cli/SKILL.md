@@ -212,8 +212,11 @@ Responses include `"dryRun": true` and all validation results. Supported on: `de
 | `PRIVACY_POOLS_PRIVATE_KEY` | Ethereum private key (alternative to init wizard) |
 | `PRIVACY_POOLS_HOME` | Override config directory (default: `~/.privacy-pools`) |
 | `PRIVACY_POOLS_CONFIG_DIR` | Alias for `PRIVACY_POOLS_HOME` |
+| `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
+| `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
+| `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 
-The CLI also loads `.env` files via dotenv. RPC URL can be overridden per-command with `--rpc-url <url>`.
+The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not from the current working directory. RPC URL can also be overridden per-command with `--rpc-url <url>`.
 
 ---
 
@@ -269,6 +272,7 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 | `-q, --quiet` | Suppress non-essential stderr |
 | `-v, --verbose` | Debug output |
 | `--no-banner` | Disable ASCII banner |
+| `--timeout <seconds>` | Network/transaction timeout (default: 30) |
 
 ---
 

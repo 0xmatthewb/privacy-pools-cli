@@ -257,7 +257,10 @@ pp status --agent [--check] [--check-rpc] [--check-asp]
   "signerAddress": "0x...",
   "entrypoint": "0x6818809eefce719e480a7526d76bd3e561526b46",
   "aspHost": "https://api.0xbow.io",
-  "accountFiles": [{ "chain": "mainnet", "chainId": 1 }]
+  "accountFiles": [{ "chain": "mainnet", "chainId": 1 }],
+  "readyForDeposit": true,
+  "readyForWithdraw": true,
+  "readyForUnsigned": true
 }
 ```
 
@@ -296,6 +299,19 @@ pp capabilities --agent
     "4. privacy-pools accounts --json --chain <chain>  (wait for aspStatus: approved)",
     "5. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
   ],
+  "agentNotes": {
+    "polling": "After depositing, poll 'accounts --json' ...",
+    "withdrawQuote": "Use 'withdraw quote' to check fees ...",
+    "firstRun": "First proof downloads circuits (~60s) ...",
+    "unsignedMode": "--unsigned builds tx payloads without signing ...",
+    "metaFlag": "--agent is equivalent to --json --yes --quiet ...",
+    "statusCheck": "Run 'status --json' before transacting. Check readyForDeposit/readyForWithdraw/readyForUnsigned."
+  },
+  "schemas": {
+    "aspApprovalStatus": { "values": ["approved", "pending", "unknown"] },
+    "poolAccountStatus": { "values": ["spendable", "spent", "exited"] },
+    "errorCategories": { "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"] }
+  },
   "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage }."
 }
 ```
@@ -349,11 +365,12 @@ pp deposit ETH 0.1 --agent --chain sepolia
   "scope": "123...",
   "label": "456...",
   "blockNumber": "22153800",
-  "explorerUrl": "https://etherscan.io/tx/0x..."
+  "explorerUrl": "https://etherscan.io/tx/0x...",
+  "nextStep": "Poll 'privacy-pools accounts --agent' until aspStatus = approved (most deposits approve within 1 hour)"
 }
 ```
 
-`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. All token amounts and block numbers are strings.
+`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextStep` provides agent guidance. All token amounts and block numbers are strings.
 
 **Dry-run** (`--dry-run`):
 
@@ -525,7 +542,7 @@ pp accounts --agent [--all] [--details]
     {
       "poolAccountNumber": 1,
       "poolAccountId": "PA-1",
-      "status": "active",
+      "status": "spendable",
       "aspStatus": "approved",
       "asset": "ETH",
       "scope": "123...",
@@ -535,11 +552,12 @@ pp accounts --agent [--all] [--details]
       "blockNumber": "22153800",
       "txHash": "0x..."
     }
-  ]
+  ],
+  "pendingCount": 0
 }
 ```
 
-`status` values: `"active"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`.
+`status` values: `"spendable"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`. `pendingCount` is the number of accounts with `aspStatus: "pending"`.
 
 Poll `aspStatus` after depositing — wait for `"approved"` before withdrawing via the relayed path.
 
@@ -596,8 +614,11 @@ pp sync --agent [--asset <symbol>]
 | `PRIVACY_POOLS_PRIVATE_KEY` | Ethereum private key (alternative to init wizard) |
 | `PRIVACY_POOLS_HOME` | Override config directory (default: `~/.privacy-pools`) |
 | `PRIVACY_POOLS_CONFIG_DIR` | Alias for `PRIVACY_POOLS_HOME` |
+| `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
+| `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
+| `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 
-The CLI loads `.env` files via dotenv. All flags take precedence over environment variables.
+The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not from the current working directory. All flags take precedence over environment variables.
 
 ---
 
