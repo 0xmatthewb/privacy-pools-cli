@@ -1,5 +1,51 @@
 import chalk from "chalk";
 
+// ── Invocation prefix (set once at startup by src/index.ts) ──────────
+
+let _prefix = "privacy-pools";
+let _short: string | null = "pp";
+let _fromSource = false;
+
+/**
+ * Called once at startup.  When the CLI is run via an npm/bun script
+ * (`npm start`, `bun run dev`, …) the prefix becomes e.g. `npm start --`
+ * so that copy-pasted examples actually work for from-source users.
+ */
+export function setInvocationPrefix(
+  prefix: string,
+  short: string | null,
+  fromSource: boolean,
+): void {
+  _prefix = prefix;
+  _short = short;
+  _fromSource = fromSource;
+}
+
+/** Build a full command string, e.g. `npm start -- init` or `privacy-pools init`. */
+export function cmd(sub: string): string {
+  return `${_prefix} ${sub}`;
+}
+
+/** Short alias (`pp`) or `null` when running from source. */
+export function shortAlias(): string | null {
+  return _short;
+}
+
+/** True when running via `npm start` / `bun run dev` rather than a global install. */
+export function isFromSource(): boolean {
+  return _fromSource;
+}
+
+/**
+ * Format an Examples block for command --help text.
+ * Uses `cmd()` so examples adapt to the current invocation method.
+ */
+export function cmdExamples(examples: string[]): string {
+  return "\nExamples:\n" + examples.map((ex) => `  ${cmd(ex)}`).join("\n") + "\n";
+}
+
+// ── Help styling ─────────────────────────────────────────────────────
+
 type Section = "options" | "commands" | "arguments" | null;
 
 const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
@@ -63,18 +109,41 @@ export function styleCommanderHelp(raw: string): string {
  * Orients the user quickly without the full Commander listing.
  */
 export function welcomeScreen(): string {
-  return [
+  const lines = [
     chalk.bold("  Explore (no wallet needed)"),
     `    ${chalk.green("pools")}  ${chalk.green("activity")}  ${chalk.green("stats")}  ${chalk.green("status")}  ${chalk.green("guide")}`,
     "",
     chalk.bold("  Transact (run init first)"),
     `    ${chalk.green("init")}  ${chalk.green("deposit")}  ${chalk.green("withdraw")}  ${chalk.green("ragequit")}  ${chalk.green("accounts")}  ${chalk.green("balance")}  ${chalk.green("history")}  ${chalk.green("sync")}`,
     "",
-    `  Get started:      ${chalk.cyan("privacy-pools init")}`,
-    `  Short alias:      ${chalk.cyan("pp init")}`,
-    `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
-    `  All commands:     ${chalk.cyan("privacy-pools --help")}`,
-  ].join("\n");
+    `  Get started:      ${chalk.cyan(cmd("init"))}`,
+  ];
+
+  if (_short) {
+    lines.push(`  Short alias:      ${chalk.cyan(`${_short} init`)}`);
+  }
+
+  lines.push(
+    `  Full guide:       ${chalk.cyan(cmd("guide"))}`,
+    `  All commands:     ${chalk.cyan(cmd("--help"))}`,
+  );
+
+  if (_fromSource) {
+    lines.push(
+      "",
+      chalk.dim("  Tip: install globally for shorter commands:"),
+      chalk.dim("    npm i -g github:0xmatthewb/privacy-pools-cli"),
+      chalk.dim("    then use: pp init"),
+    );
+  }
+
+  lines.push(
+    "",
+    chalk.yellow("  This CLI is experimental. Use at your own risk."),
+    chalk.yellow("  For large transactions, use https://privacypools.com."),
+  );
+
+  return lines.join("\n");
 }
 
 /**
@@ -82,13 +151,21 @@ export function welcomeScreen(): string {
  * shown by Commander, so this just adds quick-start pointers.
  */
 export function rootHelpFooter(): string {
-  return [
+  const lines = [
     "",
-    `  Get started:      ${chalk.cyan("privacy-pools init")}`,
-    `  Short alias:      ${chalk.cyan("pp init")}`,
-    `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
-    `  Command help:     ${chalk.cyan("privacy-pools <command> --help")}`,
-  ].join("\n");
+    `  Get started:      ${chalk.cyan(cmd("init"))}`,
+  ];
+
+  if (_short) {
+    lines.push(`  Short alias:      ${chalk.cyan(`${_short} init`)}`);
+  }
+
+  lines.push(
+    `  Full guide:       ${chalk.cyan(cmd("guide"))}`,
+    `  Command help:     ${chalk.cyan(cmd("<command> --help"))}`,
+  );
+
+  return lines.join("\n");
 }
 
 /**
@@ -105,14 +182,14 @@ export function guideText(): string {
     `  ${chalk.cyan("bun add -g github:0xmatthewb/privacy-pools-cli")}`,
     `  ${chalk.cyan("pp status")}                                  ${chalk.dim("(short alias for privacy-pools)")}`,
     `  ${chalk.cyan("bun run dev -- status")}                        ${chalk.dim("(from source, no global install)")}`,
-    `  ${chalk.cyan("privacy-pools completion zsh")}                   ${chalk.dim("(shell autocomplete)")}`,
+    `  ${chalk.cyan(cmd("completion zsh"))}                   ${chalk.dim("(shell autocomplete)")}`,
     "",
     chalk.bold("Quick Start"),
-    `  ${chalk.cyan("privacy-pools init")}`,
-    `  ${chalk.cyan("privacy-pools pools --chain sepolia")}`,
-    `  ${chalk.cyan("privacy-pools deposit 0.1 --asset ETH --chain sepolia")}`,
-    `  ${chalk.cyan("privacy-pools accounts --chain sepolia")}              ${chalk.dim("(wait for Approved status)")}`,
-    `  ${chalk.cyan("privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient -p PA-1 --chain sepolia")}`,
+    `  ${chalk.cyan(cmd("init"))}`,
+    `  ${chalk.cyan(cmd("pools --chain sepolia"))}`,
+    `  ${chalk.cyan(cmd("deposit 0.1 --asset ETH --chain sepolia"))}`,
+    `  ${chalk.cyan(cmd("accounts --chain sepolia"))}              ${chalk.dim("(wait for Approved status)")}`,
+    `  ${chalk.cyan(cmd("withdraw 0.05 --asset ETH --to 0xRecipient -p PA-1 --chain sepolia"))}`,
     "",
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
     chalk.dim("  Most deposits are approved within 1 hour; some may take up to 7 days."),
@@ -173,8 +250,8 @@ export function guideText(): string {
     `  ${chalk.yellow("--dry-run")}    Validate and generate proofs without submitting.`,
     "",
     chalk.bold("Troubleshooting"),
-    "  Stale data?      Run 'privacy-pools sync' to re-sync from onchain events.",
-    "  ASP unreachable?  Check 'privacy-pools status' (health checks run by default).",
+    `  Stale data?      Run '${cmd("sync")}' to re-sync from onchain events.`,
+    `  ASP unreachable?  Check '${cmd("status")}' (health checks run by default).`,
     "  Long proof time?  First proof downloads circuits (~60s). Subsequent proofs are faster.",
     "  Not approved?     Deposits are reviewed by the ASP. Most approve within 1 hour.",
     "  Custom RPC?       Pass --rpc-url on any command, or save per-chain overrides in",
@@ -191,10 +268,10 @@ export function guideText(): string {
     `  ${chalk.red("7")}  Contract revert`,
     "",
     chalk.bold("Agent Integration"),
-    `  For programmatic/agent use, run ${chalk.cyan("privacy-pools capabilities --json")} to discover`,
+    `  For programmatic/agent use, run ${chalk.cyan(cmd("capabilities --json"))} to discover`,
     "  commands, schemas, supported chains, error codes, and the recommended workflow.",
     "",
-    chalk.dim("  Run privacy-pools <command> --help for command-specific details."),
+    chalk.dim(`  Run ${cmd("<command> --help")} for command-specific details.`),
   ].join("\n");
 }
 

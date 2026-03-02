@@ -2,6 +2,8 @@
 
 Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Deposit, withdraw, and manage funds with onchain privacy while remaining compliant through the Association Set Provider (ASP).
 
+> **Warning:** This CLI is experimental. Use at your own risk. For large transactions, use [privacypools.com](https://privacypools.com).
+
 ## What is Privacy Pools?
 
 Privacy Pools v1 breaks the onchain link between deposit and withdrawal addresses while maintaining regulatory compliance. Deposits are public, but when you withdraw, a zero-knowledge proof proves your deposit was approved by the ASP without revealing which deposit is yours. The anonymity set is everyone else who deposited into the same pool and was approved.
@@ -228,6 +230,7 @@ privacy-pools status
 privacy-pools status --check           # test both RPC and ASP connectivity
 privacy-pools status --check-rpc       # test RPC only
 privacy-pools status --check-asp       # test ASP only
+privacy-pools status --no-check        # skip all connectivity checks
 ```
 
 ### `guide`
@@ -412,6 +415,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with the `PR
 | `PRIVACY_POOLS_PRIVATE_KEY` | Signer private key (takes precedence over `.signer` file) |
 | `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
+| `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 
