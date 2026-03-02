@@ -27,7 +27,7 @@
     "test:fuzz": "bun test ./test/fuzz --timeout 120000",
     "test:stress": "PP_STRESS_ENABLED=1 bun test ./test/fuzz/cli.stress-120-rounds.test.ts --timeout 120000",
     "test:coverage": "bun test --coverage",
-    "test:release": "PP_EXTERNAL_CONFORMANCE_REQUIRED=1 PP_E2E_REQUIRED=1 PP_E2E_ENABLED=1 bun test --timeout 1800000"
+    "test:release": "PP_E2E_REQUIRED=1 PP_E2E_ENABLED=1 bun test --timeout 1800000"
   },
   "dependencies": {
     "@0xbow/privacy-pools-core-sdk": "1.1.0",

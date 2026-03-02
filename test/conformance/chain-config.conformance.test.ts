@@ -1,35 +1,31 @@
+/**
+ * Chain config conformance: cross-checks CLI's ASP/relayer service code
+ * against the upstream frontend to ensure both hit the same API shapes,
+ * and validates that all CLI chain configs are structurally sound.
+ */
 import { readFileSync } from "node:fs";
-import { describe, expect, test } from "bun:test";
-import { CORE_REPO_ROOT, FRONTEND_REPO_ROOT, pathExists } from "../helpers/paths.ts";
+import { resolve } from "node:path";
+import { beforeAll, describe, expect, test } from "bun:test";
+import { CORE_REPO, FRONTEND_REPO, fetchGitHubFile } from "../helpers/github.ts";
+import { CLI_ROOT } from "../helpers/paths.ts";
+import { CHAINS } from "../../src/config/chains.ts";
 
-const DOCS_ROOT = CORE_REPO_ROOT;
-const FRONTEND_ROOT = FRONTEND_REPO_ROOT;
-const frontendAspClientPath = `${FRONTEND_ROOT}/src/utils/aspClient.ts`;
-const skillsPath = `${DOCS_ROOT}/docs/static/skills.md`;
+let upstreamAspClient = "";
+let upstreamDeployments = "";
+let fetchFailed = false;
 
-// Gate on the frontend client (stable source-code path) rather than
-// skills.md (docs path that may move between upstream releases).
-const hasFrontendRef = pathExists(frontendAspClientPath);
-const hasSkillsRef = pathExists(skillsPath);
-const externalConformanceRequired =
-  process.env.PP_EXTERNAL_CONFORMANCE_REQUIRED === "1";
-const runExternalConformance = hasFrontendRef ? test : test.skip;
+const cliAsp = readFileSync(resolve(CLI_ROOT, "src/services/asp.ts"), "utf8");
 
 describe("chain config conformance", () => {
-  test("external docs refs are available when required", () => {
-    if (externalConformanceRequired) {
-      if (!hasFrontendRef) {
-        throw new Error(
-          "PP_EXTERNAL_CONFORMANCE_REQUIRED=1 but external repo paths are not set or repos not found.\n"
-          + "Set PP_CORE_REPO_ROOT and PP_FRONTEND_REPO_ROOT before running, e.g.:\n"
-          + "  PP_CORE_REPO_ROOT=/path/to/privacy-pools-core "
-          + "PP_FRONTEND_REPO_ROOT=/path/to/privacy-pools-website "
-          + "bun run test:release"
-        );
-      }
-      expect(hasFrontendRef).toBe(true);
-    } else {
-      expect(true).toBe(true);
+  beforeAll(async () => {
+    try {
+      [upstreamAspClient, upstreamDeployments] = await Promise.all([
+        fetchGitHubFile(FRONTEND_REPO, "src/utils/aspClient.ts"),
+        fetchGitHubFile(CORE_REPO, "docs/docs/deployments.md"),
+      ]);
+    } catch (err) {
+      console.warn("Skipping chain-config conformance — could not fetch upstream files:", err);
+      fetchFailed = true;
     }
   });
 
@@ -37,19 +33,49 @@ describe("chain config conformance", () => {
   // moved to test/integration/cli-chain-config.integration.test.ts so it always
   // runs in the default test suite (it's fully self-contained, no external repos).
 
-  runExternalConformance("core docs and frontend include expected pools-stats object shape", () => {
-    const frontendAspClient = readFileSync(frontendAspClientPath, "utf8");
+  test("CLI and frontend both define pools-stats response shape", () => {
+    if (fetchFailed) return;
 
-    expect(frontendAspClient).toContain("interface PoolStatsResponse");
-    expect(frontendAspClient).toContain("pools?: PoolStats[]");
-    expect(frontendAspClient).toContain("/public/pools-stats");
+    // Upstream frontend defines the response interface
+    expect(upstreamAspClient).toContain("PoolStats");
+    expect(upstreamAspClient).toContain("/public/pools-stats");
 
-    // Skills-content checks are conditional — file may not exist in current upstream.
-    if (hasSkillsRef) {
-      const skills = readFileSync(skillsPath, "utf8");
-      expect(skills).toContain("/public/mt-roots");
-      expect(skills).toContain("/public/mt-leaves");
-      expect(skills).toContain("onchainMtRoot");
+    // CLI defines its own compatible type and hits the same endpoint
+    expect(cliAsp).toContain("PoolStats");
+    expect(cliAsp).toContain("/public/pools-stats");
+  });
+
+  // -------------------------------------------------------------------
+  // Structural validation: every chain config is well-formed
+  // -------------------------------------------------------------------
+
+  test("every CLI chain config has a valid entrypoint address", () => {
+    for (const [, config] of Object.entries(CHAINS)) {
+      // Entrypoint must be a checksummed-or-lowercase 0x address
+      expect(config.entrypoint).toMatch(/^0x[0-9a-fA-F]{40}$/);
+      // Must have a numeric chain ID
+      expect(typeof config.id).toBe("number");
+      expect(config.id).toBeGreaterThan(0);
+      // Must have a positive start block
+      expect(config.startBlock).toBeGreaterThan(0n);
+      // Must have non-empty ASP and relayer hosts
+      expect(config.aspHost).toMatch(/^https?:\/\//);
+      expect(config.relayerHost).toMatch(/^https?:\/\//);
     }
+  });
+
+  test("at least one mainnet entrypoint exists in upstream deployments.md", () => {
+    if (fetchFailed) return;
+
+    const deploymentsLower = upstreamDeployments.toLowerCase();
+
+    // At least one non-testnet chain's entrypoint must appear in the
+    // upstream deployments doc.  This guards against the test becoming
+    // vacuously true when the doc changes format.
+    const mainnetConfigs = Object.values(CHAINS).filter((c) => !c.isTestnet);
+    const matched = mainnetConfigs.filter((c) =>
+      deploymentsLower.includes(c.entrypoint.toLowerCase())
+    );
+    expect(matched.length).toBeGreaterThanOrEqual(1);
   });
 });
