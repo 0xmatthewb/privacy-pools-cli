@@ -17,7 +17,7 @@ privacy-pools capabilities --agent
 privacy-pools pools --agent
 
 # Full workflow
-privacy-pools init --agent --default-chain ethereum --skip-circuits
+privacy-pools init --agent --default-chain mainnet --skip-circuits
 privacy-pools deposit 0.1 --asset ETH --agent
 privacy-pools accounts --agent   # poll until aspStatus = "approved"
 privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient --agent
@@ -62,10 +62,10 @@ When a human delegates CLI operations to an agent:
 
 | Flag | Description |
 | ---- | ----------- |
-| `--agent` | Alias for `--json --yes --quiet` |
+| `--agent` | Machine-friendly mode (alias for `--json --yes --quiet`) |
 | `-j, --json` | Machine-readable JSON output on stdout |
 | `-y, --yes` | Skip confirmation prompts |
-| `-c, --chain <name>` | Target chain (ethereum, mainnet, arbitrum, ...) |
+| `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `-q, --quiet` | Suppress non-essential stderr output |
 | `-v, --verbose` | Enable verbose/debug output |
@@ -80,7 +80,7 @@ These commands work immediately after install — no `init` or private keys need
 
 #### `pools`
 
-List available Privacy Pools.
+List available Privacy Pools. When no `--chain` is specified, defaults to querying all mainnets.
 
 ```bash
 privacy-pools pools --agent
@@ -95,7 +95,7 @@ With `--all-chains`, each pool includes a `chain` field and the root includes `a
 
 #### `activity`
 
-Public onchain activity feed.
+Public onchain activity feed. When no `--chain` is specified, defaults to querying all mainnets.
 
 ```bash
 privacy-pools activity --agent
@@ -108,7 +108,7 @@ With `--asset`, mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` 
 
 #### `stats global`
 
-Protocol-wide statistics. This is the default subcommand for `stats`.
+Protocol-wide statistics. This is the default subcommand for `stats`. When no `--chain` is specified, defaults to querying all mainnets.
 
 ```bash
 privacy-pools stats global --agent
@@ -161,16 +161,18 @@ These commands require `privacy-pools init` to have been run first.
 Initialize wallet and configuration.
 
 ```bash
-privacy-pools init --agent --default-chain ethereum --skip-circuits
+privacy-pools init --agent --default-chain mainnet --skip-circuits
 privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain sepolia
-privacy-pools init --agent --private-key 0x... --default-chain ethereum
+privacy-pools init --agent --private-key 0x... --default-chain mainnet
 ```
 
-JSON payload: `{ defaultChain, signerKeySet, mnemonicRedacted? | mnemonic? }`
+JSON payload: `{ defaultChain, signerKeySet, mnemonicRedacted? | mnemonic?, warning? }`
 
-When `--show-mnemonic` is passed (and mnemonic was generated), `mnemonic` contains the phrase. Otherwise `mnemonicRedacted: true`. When importing an existing mnemonic, neither field is present.
+When `--show-mnemonic` is passed (and mnemonic was generated), `mnemonic` contains the phrase. Otherwise `mnemonicRedacted: true` and a `warning` field is included indicating the mnemonic must be captured. When importing an existing mnemonic, neither field is present.
 
 > **CRITICAL**: When generating a new mnemonic, always pass `--show-mnemonic` to capture it in JSON output. Without this flag, the mnemonic is stored on disk but not returned — you cannot retrieve it later via the CLI. Losing the mnemonic means losing access to all deposited funds.
+
+> **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
 
 `--skip-circuits` skips local circuit downloads. Recommended for agents.
 
@@ -320,7 +322,7 @@ privacy-pools deposit 0.1 --asset ETH --unsigned --agent
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "asset": "ETH",
   "amount": "100000000000000000",
   "precommitment": "12345...",
@@ -442,13 +444,13 @@ When `retryable: true` is present in the error response:
 
 | Name         | Chain ID   | Testnet | Notes                           |
 | ------------ | ---------- | ------- | ------------------------------- |
-| `ethereum`   | 1          | No      | Default chain, largest pools    |
+| `mainnet`    | 1          | No      | Default chain, largest pools    |
 | `arbitrum`   | 42161      | No      | Lower gas costs                 |
 | `optimism`   | 10         | No      | Lower gas costs                 |
 | `sepolia`    | 11155111   | Yes     | For testing                     |
 | `op-sepolia` | 11155420   | Yes     | For testing (OP Stack)          |
 
-`mainnet` is accepted as an alias for `ethereum`.
+`ethereum` is accepted as an alias for `mainnet`.
 
 Specify with `--chain <name>` or set a default via `init --default-chain <name>`.
 

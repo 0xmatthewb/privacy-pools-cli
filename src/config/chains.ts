@@ -8,9 +8,9 @@ import {
 import type { ChainConfig } from "../types.js";
 
 export const CHAINS: Record<string, ChainConfig> = {
-  ethereum: {
+  mainnet: {
     id: 1,
-    name: "ethereum",
+    name: "mainnet",
     chain: mainnet,
     entrypoint: "0x6818809eefce719e480a7526d76bd3e561526b46",
     startBlock: 22153709n,
@@ -61,6 +61,21 @@ export const CHAINS: Record<string, ChainConfig> = {
 };
 
 export const CHAIN_NAMES = Object.keys(CHAINS);
+
+/** Mainnet chain names only (excludes testnets). */
+export const MAINNET_CHAIN_NAMES = CHAIN_NAMES.filter(
+  (name) => !CHAINS[name].isTestnet,
+);
+
+/** Testnet chain names only. */
+export const TESTNET_CHAIN_NAMES = CHAIN_NAMES.filter(
+  (name) => CHAINS[name].isTestnet,
+);
+
+/** Default chains for read-only commands (all mainnets). */
+export function getDefaultReadOnlyChains(): ChainConfig[] {
+  return MAINNET_CHAIN_NAMES.map((name) => CHAINS[name]);
+}
 
 export const NATIVE_ASSET_ADDRESS =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as const;

@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import { homedir } from "os";
 import { Command } from "commander";
 import { confirm, input, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
@@ -18,7 +19,8 @@ import {
   validateMnemonic,
 } from "../services/wallet.js";
 import { warmCircuits } from "../services/sdk.js";
-import { CHAIN_NAMES, CHAINS } from "../config/chains.js";
+import { CHAIN_NAMES, CHAINS, MAINNET_CHAIN_NAMES, TESTNET_CHAIN_NAMES } from "../config/chains.js";
+import { Separator } from "@inquirer/select";
 import { success, warn, spinner, info } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
@@ -72,7 +74,7 @@ export function createInitCommand(): Command {
 
         if (hasExisting && !forceOverwrite && skipPrompts) {
           throw new CLIError(
-            "Existing configuration found. Use --force to overwrite.",
+            "Your wallet is already set up. To start over, add --force.",
             "INPUT",
             "Re-run with --force to replace existing config and recovery phrase."
           );
@@ -182,7 +184,7 @@ export function createInitCommand(): Command {
             });
 
             if (saveAction === "file") {
-              const defaultPath = join(process.cwd(), "privacy-pools-recovery.txt");
+              const defaultPath = join(homedir(), "privacy-pools-recovery.txt");
               const filePath = await input({
                 message: "Save location:",
                 default: defaultPath,
@@ -313,15 +315,19 @@ export function createInitCommand(): Command {
         if (!defaultChain && !skipPrompts) {
           defaultChain = await select({
             message: "Select default chain:",
-            choices: CHAIN_NAMES.map((name) => ({
-              name,
-              value: name,
-            })),
+            choices: [
+              ...MAINNET_CHAIN_NAMES.map((name) => ({ name, value: name })),
+              new Separator("── Testnets ──"),
+              ...TESTNET_CHAIN_NAMES.map((name) => ({
+                name: `${name} (testnet)`,
+                value: name,
+              })),
+            ],
           });
         }
 
         const config = loadConfig();
-        config.defaultChain = (defaultChain ?? config.defaultChain ?? "ethereum").toLowerCase();
+        config.defaultChain = (defaultChain ?? config.defaultChain ?? "mainnet").toLowerCase();
 
         const rpcUrl = opts.rpcUrl ?? globalOpts?.rpcUrl;
         if (rpcUrl) {
@@ -335,7 +341,15 @@ export function createInitCommand(): Command {
         if (!isJson) success(`Default chain set to ${config.defaultChain}.`, silent);
 
         // --- Circuit Artifacts ---
-        if (!opts.skipCircuits) {
+        let skipCircuits = opts.skipCircuits ?? false;
+        if (!skipCircuits && !skipPrompts) {
+          const downloadCircuits = await confirm({
+            message: "Download ZK circuit artifacts now? (~60 seconds, can be skipped and downloaded on first use)",
+            default: true,
+          });
+          if (!downloadCircuits) skipCircuits = true;
+        }
+        if (!skipCircuits) {
           const spin = spinner("Downloading circuit artifacts...", silent);
           spin.start();
           try {
@@ -350,13 +364,28 @@ export function createInitCommand(): Command {
 
         const resolvedSignerKey = loadSignerKey();
         const ctx = createOutputContext(mode);
+
+        // Warn agent users about mnemonic capture
+        const mnemonicGenerated = !mnemonicSource;
+        const mnemonicWarning =
+          mnemonicGenerated && isJson && !opts.showMnemonic
+            ? "Mnemonic generated but not included in output. Re-run with --show-mnemonic to capture it. Without the mnemonic, deposited funds cannot be recovered."
+            : undefined;
+
         renderInitResult(ctx, {
           defaultChain: config.defaultChain,
           signerKeySet: !!resolvedSignerKey,
           mnemonicImported: !!mnemonicSource,
           showMnemonic: !!opts.showMnemonic,
           mnemonic,
+          warning: mnemonicWarning,
         });
+
+        // Agent handoff hint
+        if (!isJson && !isQuiet) {
+          process.stderr.write("\n");
+          info("To delegate to an agent: set PRIVACY_POOLS_PRIVATE_KEY in the agent's environment.", silent);
+        }
       } catch (error) {
         printError(error, isJson);
       }

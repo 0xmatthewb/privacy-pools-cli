@@ -90,17 +90,17 @@ program
     "Deposit, withdraw, and manage funds in Privacy Pools"
   )
   .version(pkg.version)
-  .option("-c, --chain <name>", "Target chain (ethereum, sepolia, ...)")
+  .option("-c, --chain <name>", "Target chain (mainnet, arbitrum, optimism, ...)")
   .option("-j, --json", "Machine-readable JSON output")
   .option("-y, --yes", "Skip confirmation prompts");
 
-// Advanced options (kept available but hidden from root help to reduce noise)
+// Advanced options
 program.addOption(new Option("-r, --rpc-url <url>", "Override RPC URL").hideHelp());
 program.addOption(
   new Option(
     "--agent",
-    "Compatibility alias for --json --yes --quiet"
-  ).hideHelp()
+    "Machine-friendly mode (alias for --json --yes --quiet)"
+  )
 );
 program.addOption(
   new Option("-q, --quiet", "Suppress non-essential output (agent-friendly)")
@@ -108,7 +108,7 @@ program.addOption(
 );
 program.addOption(new Option("--no-banner", "Disable ASCII banner output").hideHelp());
 program.addOption(new Option("-v, --verbose", "Enable verbose output").hideHelp());
-program.addOption(new Option("--timeout <seconds>", "RPC/API request timeout in seconds; does not affect tx confirmations (default: 30)").hideHelp());
+program.addOption(new Option("--timeout <seconds>", "RPC/API request timeout in seconds (default: 30)"));
 
 // Show only command names in root help (no argument signatures)
 program.configureHelp({
@@ -168,7 +168,7 @@ program.addCommand(createStatusCommand());
 program.addCommand(createActivityCommand());
 program.addCommand(createStatsCommand());
 program.addCommand(createGuideCommand());
-program.addCommand(createCapabilitiesCommand(), { hidden: true });
+program.addCommand(createCapabilitiesCommand());
 program.addCommand(createCompletionCommand(), { hidden: true });
 
 if (isMachineMode) {

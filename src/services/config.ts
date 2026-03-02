@@ -69,7 +69,7 @@ export function loadConfig(): CLIConfig {
 
   const configFile = getConfigFilePath();
   if (!existsSync(configFile)) {
-    return { defaultChain: "ethereum", rpcOverrides: {} };
+    return { defaultChain: "mainnet", rpcOverrides: {} };
   }
 
   let parsed: unknown;
@@ -212,31 +212,58 @@ export function resolveRpcEnvVar(chainId: number): string | undefined {
   return global || undefined;
 }
 
+// Default public RPCs per chain (primary + fallbacks).
+// Users can override per chain via init --rpc-url or config.json.
+const DEFAULT_RPC_URLS: Record<number, string[]> = {
+  1: [
+    "https://eth.llamarpc.com",
+    "https://eth.drpc.org",
+    "https://ethereum-rpc.publicnode.com",
+  ],
+  42161: [
+    "https://arbitrum.drpc.org",
+    "https://arbitrum-one-rpc.publicnode.com",
+  ],
+  10: [
+    "https://optimism.drpc.org",
+    "https://optimism-rpc.publicnode.com",
+  ],
+  11155111: [
+    "https://sepolia.drpc.org",
+    "https://ethereum-sepolia-rpc.publicnode.com",
+  ],
+  11155420: [
+    "https://optimism-sepolia.drpc.org",
+    "https://sepolia.optimism.io",
+  ],
+};
+
 export function getRpcUrl(chainId: number, overrideFromFlag?: string): string {
-  // Precedence: flag > env var > config file > built-in default
-  if (overrideFromFlag?.trim()) return overrideFromFlag.trim();
+  return getRpcUrls(chainId, overrideFromFlag)[0];
+}
+
+/**
+ * Returns an ordered list of RPC URLs for the given chain.
+ * First entry is the primary; remaining are fallbacks.
+ *
+ * Precedence: flag > env var > config file > built-in defaults.
+ * When a user-specified URL is used (flag/env/config), only that
+ * single URL is returned (no automatic fallbacks).
+ */
+export function getRpcUrls(chainId: number, overrideFromFlag?: string): string[] {
+  if (overrideFromFlag?.trim()) return [overrideFromFlag.trim()];
 
   const envUrl = resolveRpcEnvVar(chainId);
-  if (envUrl) return envUrl;
+  if (envUrl) return [envUrl];
 
   const config = loadConfig();
-  if (config.rpcOverrides[chainId]) return config.rpcOverrides[chainId];
+  if (config.rpcOverrides[chainId]) return [config.rpcOverrides[chainId]];
 
-  // Default public RPCs (one per supported chain).
-  // Users can override per chain via init --rpc-url or config.json.
-  const defaults: Record<number, string> = {
-    1: "https://eth.llamarpc.com",
-    42161: "https://arbitrum.drpc.org",
-    10: "https://optimism.drpc.org",
-    11155111: "https://sepolia.drpc.org",
-    11155420: "https://optimism-sepolia.drpc.org",
-  };
-
-  const url = defaults[chainId];
-  if (!url) throw new CLIError(
+  const urls = DEFAULT_RPC_URLS[chainId];
+  if (!urls || urls.length === 0) throw new CLIError(
     `No RPC URL configured for chain ${chainId}.`,
     "RPC",
     "Pass --rpc-url <url> on the command, or set PP_RPC_URL in your environment."
   );
-  return url;
+  return urls;
 }

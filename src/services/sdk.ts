@@ -2,10 +2,10 @@ import {
   PrivacyPoolSDK,
   DataService,
 } from "@0xbow/privacy-pools-core-sdk";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, fallback, http } from "viem";
 import type { PublicClient, Address } from "viem";
 import type { ChainConfig } from "../types.js";
-import { getRpcUrl } from "./config.js";
+import { getRpcUrl, getRpcUrls } from "./config.js";
 import { loadPrivateKey } from "./wallet.js";
 
 // Use dynamic import for Circuits since it may need async init
@@ -49,10 +49,14 @@ export function getPublicClient(
   chainConfig: ChainConfig,
   rpcOverride?: string
 ): PublicClient {
-  const rpcUrl = getRpcUrl(chainConfig.id, rpcOverride);
+  const urls = getRpcUrls(chainConfig.id, rpcOverride);
+  const transport =
+    urls.length === 1
+      ? http(urls[0])
+      : fallback(urls.map((url) => http(url)));
   return createPublicClient({
     chain: chainConfig.chain,
-    transport: http(rpcUrl),
+    transport,
   });
 }
 

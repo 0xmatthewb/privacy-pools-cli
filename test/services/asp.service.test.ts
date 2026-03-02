@@ -9,7 +9,7 @@ import {
   fetchPoolsStats,
 } from "../../src/services/asp.ts";
 
-const chain = CHAINS.ethereum;
+const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
 
 describe("asp service", () => {

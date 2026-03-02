@@ -28,7 +28,7 @@ import {
 } from "../../src/services/relayer.ts";
 import { CLIError, classifyError } from "../../src/utils/errors.ts";
 
-const chain = CHAINS.ethereum;
+const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
 
 /* ------------------------------------------------------------------ */

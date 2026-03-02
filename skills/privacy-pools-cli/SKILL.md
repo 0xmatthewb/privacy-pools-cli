@@ -40,7 +40,7 @@ Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (a
 | Activity feed | `pp activity --agent` | No wallet needed |
 | Check status | `pp status --agent --check` | No wallet needed |
 | Discover capabilities | `pp capabilities --agent` | No wallet needed |
-| Initialize wallet | `pp init --agent --default-chain ethereum --skip-circuits` | One-time setup |
+| Initialize wallet | `pp init --agent --default-chain mainnet --skip-circuits` | One-time setup |
 | Deposit ETH | `pp deposit 0.1 --asset ETH --agent` | Requires init |
 | Deposit (unsigned) | `pp deposit 0.1 --asset ETH --unsigned --agent` | No wallet key needed |
 | Check accounts | `pp accounts --agent` | Poll for aspStatus |
@@ -87,7 +87,7 @@ Errors:
     "code": "INPUT_ERROR",
     "category": "INPUT",
     "message": "Unknown chain: foo",
-    "hint": "Available chains: ethereum, arbitrum, optimism, sepolia, op-sepolia",
+    "hint": "Available chains: mainnet, arbitrum, optimism, sepolia, op-sepolia",
     "retryable": false
   }
 }
@@ -113,7 +113,7 @@ pp deposit 0.1 --asset ETH --unsigned --agent
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "asset": "ETH",
   "amount": "100000000000000000",
   "precommitment": "12345...",
@@ -221,13 +221,13 @@ The CLI also loads `.env` files via dotenv. RPC URL can be overridden per-comman
 
 | Chain | ID | Testnet |
 |-------|----|---------|
-| `ethereum` | 1 | No |
+| `mainnet` | 1 | No |
 | `arbitrum` | 42161 | No |
 | `optimism` | 10 | No |
 | `sepolia` | 11155111 | Yes |
 | `op-sepolia` | 11155420 | Yes |
 
-Default: `ethereum`. Override with `--chain <name>` or set via `init --default-chain <name>`.
+Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only commands (`pools`, `activity`, `stats global`) default to all mainnets when no `--chain` is specified.
 
 ---
 
@@ -236,7 +236,7 @@ Default: `ethereum`. Override with `--chain <name>` or set via `init --default-c
 ```
 1. pp capabilities --agent                                    # Discover all commands
 2. pp pools --agent                                           # Browse available pools
-3. pp init --agent --default-chain ethereum --skip-circuits   # Initialize (once)
+3. pp init --agent --default-chain mainnet --skip-circuits   # Initialize (once)
 4. pp deposit 0.1 --asset ETH --agent                         # Deposit
 5. pp accounts --agent                                        # Poll until aspStatus: "approved"
 6. pp withdraw 0.1 --asset ETH --to <addr> --agent            # Withdraw
@@ -264,7 +264,7 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 | `--agent` | Alias for `--json --yes --quiet` |
 | `-j, --json` | Machine-readable JSON on stdout |
 | `-y, --yes` | Skip confirmation prompts |
-| `-c, --chain <name>` | Target chain (ethereum, sepolia, ...) |
+| `-c, --chain <name>` | Target chain (mainnet, sepolia, ...) |
 | `-r, --rpc-url <url>` | Override RPC endpoint |
 | `-q, --quiet` | Suppress non-essential stderr |
 | `-v, --verbose` | Debug output |

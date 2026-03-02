@@ -77,7 +77,7 @@ describe("JSON envelope structure snapshots", () => {
   });
 
   test("activity --json error envelope shape (ASP offline)", () => {
-    const result = runCli(["--json", "--chain", "ethereum", "activity"], {
+    const result = runCli(["--json", "--chain", "mainnet", "activity"], {
       home: createTempHome(),
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
@@ -89,7 +89,7 @@ describe("JSON envelope structure snapshots", () => {
   });
 
   test("stats --json error envelope shape (ASP offline)", () => {
-    const result = runCli(["--json", "--chain", "ethereum", "stats"], {
+    const result = runCli(["--json", "--chain", "mainnet", "stats"], {
       home: createTempHome(),
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,

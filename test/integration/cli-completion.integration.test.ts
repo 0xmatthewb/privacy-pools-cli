@@ -109,7 +109,7 @@ describe("completion command", () => {
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
-    expect(lines).toContain("ethereum");
+    expect(lines).toContain("mainnet");
     expect(lines).toContain("sepolia");
   });
 

@@ -50,16 +50,16 @@ describe("pools command", () => {
     expect(combined).toContain("pools");
   });
 
-  test("pools uses default chain from config when none specified", () => {
+  test("pools with explicit --chain targets single chain (after init)", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
-    const result = runCli(["--json", "pools"], {
+    const result = runCli(["--json", "pools", "--chain", "sepolia"], {
       home,
       timeoutMs: 10_000,
       env: OFFLINE_POOL_ENV,
     });
     expect(result.timedOut).toBe(false);
-    // Should not fail with "missing chain" since init set default
+    // Should not fail with "missing chain" — explicit --chain targets sepolia
     expect(result.stdout.trim()).not.toBe("");
     const parsed = parseJsonOutput<{ success: boolean }>(result.stdout);
     expect(typeof parsed.success).toBe("boolean");

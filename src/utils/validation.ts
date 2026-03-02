@@ -27,10 +27,10 @@ export function resolveChain(
   chainName?: string,
   defaultChain?: string
 ): ChainConfig {
-  const name = chainName ?? defaultChain ?? "ethereum";
+  const name = chainName ?? defaultChain ?? "mainnet";
 
   const normalized = name.toLowerCase();
-  const resolvedName = normalized === "mainnet" ? "ethereum" : normalized;
+  const resolvedName = normalized === "ethereum" ? "mainnet" : normalized;
   const config = CHAINS[resolvedName];
   if (!config) {
     throw new CLIError(

@@ -129,7 +129,7 @@ export function guideText(): string {
     `  *  ${chalk.green("withdraw quote")} Check relayer fees before withdrawing`,
     "",
     chalk.bold("Global Options"),
-    `  ${chalk.yellow("-c, --chain <name>")}    Target chain (ethereum, arbitrum, optimism, sepolia, op-sepolia)`,
+    `  ${chalk.yellow("-c, --chain <name>")}    Target chain (mainnet, arbitrum, optimism; testnets: sepolia, op-sepolia)`,
     `  ${chalk.yellow("-r, --rpc-url <url>")}   Override RPC URL`,
     `  ${chalk.yellow("-j, --json")}            Machine-readable JSON output`,
     `  ${chalk.yellow("-y, --yes")}             Skip confirmation prompts`,

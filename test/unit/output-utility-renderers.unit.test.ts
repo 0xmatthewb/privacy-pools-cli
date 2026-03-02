@@ -196,7 +196,7 @@ describe("renderSyncComplete parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderSyncComplete(ctx, {
-        chain: "ethereum",
+        chain: "mainnet",
         syncedPools: 2,
         syncedSymbols: ["ETH", "DAI"],
         spendableCommitments: 5,
@@ -206,7 +206,7 @@ describe("renderSyncComplete parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(json.chain).toBe("ethereum");
+    expect(json.chain).toBe("mainnet");
     expect(json.syncedPools).toBe(2);
     expect(json.syncedSymbols).toEqual(["ETH", "DAI"]);
     expect(json.spendableCommitments).toBe(5);
@@ -217,14 +217,14 @@ describe("renderSyncComplete parity", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
       renderSyncComplete(ctx, {
-        chain: "ethereum",
+        chain: "mainnet",
         syncedPools: 2,
         spendableCommitments: 5,
       }),
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Synced 2 pool(s) on ethereum");
+    expect(stderr).toContain("Synced 2 pool(s) on mainnet");
     expect(stderr).toContain("Available Pool Accounts: 5");
   });
 
@@ -232,7 +232,7 @@ describe("renderSyncComplete parity", () => {
     const ctx = createOutputContext(makeMode({ isQuiet: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderSyncComplete(ctx, {
-        chain: "ethereum",
+        chain: "mainnet",
         syncedPools: 1,
         spendableCommitments: 0,
       }),

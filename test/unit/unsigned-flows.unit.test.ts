@@ -52,7 +52,7 @@ describe("unsigned payload contract + ABI decodability", () => {
 
     const payload = buildUnsignedDepositOutput({
       chainId: 1,
-      chainName: "ethereum",
+      chainName: "mainnet",
       entrypoint,
       assetAddress: asset,
       assetSymbol: "USDC",

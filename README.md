@@ -65,13 +65,15 @@ After depositing, your Pool Account will show `aspStatus: pending` until the ASP
 
 | Chain | Chain ID | Type |
 |-------|----------|------|
-| `ethereum` | 1 | Mainnet |
+| `mainnet` | 1 | Mainnet |
 | `arbitrum` | 42161 | Mainnet |
 | `optimism` | 10 | Mainnet |
 | `sepolia` | 11155111 | Testnet |
 | `op-sepolia` | 11155420 | Testnet |
 
-Set the chain per-command with `--chain <name>`, or set a default during `init`.
+Set the chain per-command with `--chain <name>`, or set a default during `init`. The default chain is `mainnet`.
+
+Each chain has multiple built-in RPC URLs with automatic fallback. If the primary RPC endpoint is unreachable, the CLI transparently retries with a fallback URL. You can still override with `--rpc-url`.
 
 ## Commands
 
@@ -96,14 +98,16 @@ privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key
 | `--force` | Overwrite existing config without prompting |
 | `--show-mnemonic` | Include mnemonic in JSON output (unsafe) |
 
-During interactive setup, `init` verifies you've saved your mnemonic by asking you to confirm 3 random words.
+During interactive setup, `init` asks whether to download circuit artifacts and writes a recovery backup to `~/privacy-pools-recovery.txt` by default. It also verifies you've saved your mnemonic by asking you to confirm 3 random words.
 
 ### `pools`
 
-List available Privacy Pools on a chain.
+List available Privacy Pools on a chain. When no `--chain` is specified, shows all mainnets (mainnet, arbitrum, optimism). Use `--all-chains` to include testnets.
 
 ```bash
-privacy-pools pools --chain sepolia
+privacy-pools pools                    # all mainnets
+privacy-pools pools --chain sepolia    # specific chain
+privacy-pools pools --all-chains       # all chains including testnets
 ```
 
 ### `deposit`
@@ -113,7 +117,7 @@ Deposit ETH or ERC-20 tokens into a Privacy Pool.
 ```bash
 privacy-pools deposit 0.1 --asset ETH --chain sepolia
 privacy-pools deposit ETH 0.1 --chain sepolia          # asset-first syntax also works
-privacy-pools deposit 100 --asset USDC --chain ethereum
+privacy-pools deposit 100 --asset USDC --chain mainnet
 ```
 
 | Flag | Description |
@@ -237,7 +241,7 @@ privacy-pools guide
 
 ### `capabilities`
 
-Describe all CLI commands, flags, and workflows in a structured format. Useful for agent/tool discovery.
+Describe all CLI commands, flags, and workflows in a structured format. Visible in `--help`. Useful for agent/tool discovery.
 
 ```bash
 privacy-pools capabilities --json
@@ -245,12 +249,13 @@ privacy-pools capabilities --json
 
 ### `activity`
 
-Show the public activity feed — recent deposits, withdrawals, and exits — either globally or for a specific pool.
+Show the public activity feed — recent deposits, withdrawals, and exits — either globally or for a specific pool. When no `--chain` is specified, shows all mainnets. Use `--all-chains` to include testnets.
 
 ```bash
-privacy-pools activity --chain sepolia
-privacy-pools activity --asset ETH --chain sepolia    # filter to one pool
-privacy-pools activity --page 2 --limit 20            # pagination
+privacy-pools activity                                 # all mainnets
+privacy-pools activity --chain sepolia                 # specific chain
+privacy-pools activity --asset ETH --chain sepolia     # filter to one pool
+privacy-pools activity --page 2 --limit 20             # pagination
 ```
 
 | Flag | Description |
@@ -261,10 +266,11 @@ privacy-pools activity --page 2 --limit 20            # pagination
 
 ### `stats`
 
-Show public protocol statistics (all-time and last 24h). Has two subcommands: `global` and `pool`.
+Show public protocol statistics (all-time and last 24h). Has two subcommands: `global` and `pool`. `stats global` defaults to all mainnets when no `--chain` is specified; use `--all-chains` to include testnets.
 
 ```bash
-privacy-pools stats global --chain sepolia            # global stats
+privacy-pools stats global                            # all mainnets
+privacy-pools stats global --chain sepolia            # specific chain
 privacy-pools stats pool --asset ETH --chain sepolia  # per-pool stats
 ```
 
@@ -296,12 +302,13 @@ These flags work on every command:
 |------|-------|-------------|
 | `--json` | `-j` | Machine-readable JSON output on stdout |
 | `--yes` | `-y` | Skip confirmation prompts |
-| `--chain <name>` | `-c` | Target chain (`ethereum`, `arbitrum`, `optimism`, `sepolia`, `op-sepolia`) |
+| `--chain <name>` | `-c` | Target chain (`mainnet`, `arbitrum`, `optimism`, `sepolia`, `op-sepolia`) |
 | `--rpc-url <url>` | `-r` | Override RPC URL for the chain |
 | `--quiet` | `-q` | Suppress non-essential stderr output |
 | `--verbose` | `-v` | Enable verbose/debug output |
 | `--no-banner` | | Disable ASCII banner |
-| `--agent` | | Alias for `--json --yes --quiet` |
+| `--agent` | | Machine-friendly mode (alias for `--json --yes --quiet`) |
+| `--timeout <ms>` | | Transaction timeout in milliseconds |
 
 ## Agent / Machine Mode
 

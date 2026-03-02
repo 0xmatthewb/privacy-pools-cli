@@ -6,7 +6,7 @@ import {
   submitRelayRequest,
 } from "../../src/services/relayer.ts";
 
-const chain = CHAINS.ethereum;
+const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
 
 describe("relayer service", () => {

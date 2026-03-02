@@ -58,7 +58,7 @@ describe("renderPoolsEmpty parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: PoolsRenderData = {
       allChains: true,
-      chainName: "ethereum",
+      chainName: "mainnet",
       search: null,
       sort: "default",
       filteredPools: [],

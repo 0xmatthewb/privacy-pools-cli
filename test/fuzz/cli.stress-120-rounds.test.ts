@@ -14,7 +14,7 @@ describe("CLI stress audit", () => {
     "runs 120 deterministic rounds with parseable JSON outputs",
     () => {
     const home = createTempHome();
-    const init = initSeededHome(home, "ethereum");
+    const init = initSeededHome(home, "mainnet");
     expect(init.status).toBe(0);
 
     const commandMatrix: string[][] = [

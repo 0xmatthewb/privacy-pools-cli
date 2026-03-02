@@ -55,9 +55,10 @@ export function createRagequitCommand(): Command {
     .option("--dry-run", "Generate proof and validate without submitting")
     .addHelpText(
       "after",
-      "\n  Also known as 'exit'. This allows you to withdraw publicly to your deposit"
-        + "\n  address at any time. No ASP approval is needed, but your deposit address"
-        + "\n  is revealed onchain. If your deposit is approved, use 'withdraw' instead."
+      "\n  Use 'withdraw' to withdraw privately once your deposit is ASP-approved."
+        + "\n  Use 'ragequit' at any time to recover funds publicly to your deposit"
+        + "\n  address, even if not approved. No ASP approval is needed, but your"
+        + "\n  deposit address is revealed onchain."
         + "\n\nExamples:\n  privacy-pools ragequit --asset ETH -p PA-1\n  privacy-pools ragequit ETH --unsigned -p PA-1\n  privacy-pools ragequit --asset ETH --dry-run -p PA-1\n  privacy-pools ragequit ETH -p PA-1 --chain sepolia\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",

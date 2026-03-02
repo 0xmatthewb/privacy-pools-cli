@@ -123,7 +123,7 @@ export function parseJsonOutput<T = unknown>(stdout: string): T {
   }
 }
 
-export function initSeededHome(home: string, chain: string = "ethereum"): CliRunResult {
+export function initSeededHome(home: string, chain: string = "mainnet"): CliRunResult {
   const mnemonic = "test test test test test test test test test test test junk";
   const privateKey = "0x1111111111111111111111111111111111111111111111111111111111111111";
 

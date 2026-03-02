@@ -14,6 +14,8 @@ import type {
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderGlobalStats, renderPoolStats } from "../output/stats.js";
+import { getDefaultReadOnlyChains } from "../config/chains.js";
+import type { ChainStatsEntry } from "../output/stats.js";
 
 interface PoolStatsCommandOptions {
   asset?: string;
@@ -27,7 +29,7 @@ export function createStatsCommand(): Command {
     .description("Show public statistics (global or per pool)")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain ethereum\n"
+      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain mainnet\n"
     );
 
   command
@@ -35,7 +37,7 @@ export function createStatsCommand(): Command {
     .description("Show global Privacy Pools statistics (all-time and last 24h)")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --json --chain ethereum\n"
+      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --json --chain mainnet\n"
         + commandHelpText({
           jsonFields: "{ mode, chain, cacheTimestamp?, allTime?, last24h? }",
         })
@@ -47,8 +49,49 @@ export function createStatsCommand(): Command {
 
       try {
         const config = loadConfig();
-        const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+        const explicitChain = globalOpts?.chain;
         const silent = isJson || mode.isQuiet;
+
+        if (!explicitChain) {
+          // Multi-chain: fetch from all mainnets in parallel
+          const chainsToQuery = getDefaultReadOnlyChains();
+          const chainNames = chainsToQuery.map((c) => c.name);
+          const spin = spinner("Fetching global statistics across mainnets...", silent);
+          spin.start();
+
+          const results = await Promise.all(
+            chainsToQuery.map(async (chain) => {
+              try {
+                return { chain: chain.name, stats: await fetchGlobalStatistics(chain) };
+              } catch {
+                return { chain: chain.name, stats: null };
+              }
+            }),
+          );
+          spin.stop();
+
+          const perChain: ChainStatsEntry[] = results.map((r) => ({
+            chain: r.chain,
+            cacheTimestamp: r.stats?.cacheTimestamp ?? null,
+            allTime: r.stats?.allTime ?? null,
+            last24h: r.stats?.last24h ?? null,
+          }));
+
+          const ctx = createOutputContext(mode);
+          renderGlobalStats(ctx, {
+            mode: "global-stats",
+            chain: "all-mainnets",
+            chains: chainNames,
+            cacheTimestamp: null,
+            allTime: null,
+            last24h: null,
+            perChain,
+          });
+          return;
+        }
+
+        // Single chain: explicit --chain flag
+        const chainConfig = resolveChain(explicitChain, config.defaultChain);
         const spin = spinner("Fetching global statistics...", silent);
         spin.start();
         const stats: GlobalStatisticsResponse = await fetchGlobalStatistics(chainConfig);
@@ -73,7 +116,7 @@ export function createStatsCommand(): Command {
     .option("-a, --asset <symbol|address>", "Pool asset (symbol like ETH, USDC, or token address)")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain ethereum\n"
+      "\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain mainnet\n"
         + commandHelpText({
           jsonFields: "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
         })

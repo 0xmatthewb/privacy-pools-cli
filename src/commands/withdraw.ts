@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { confirm, select } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 import {
   generateMerkleProof,
   calculateContext,
@@ -170,25 +170,39 @@ export function createWithdrawCommand(): Command {
         verbose(`Signer: ${signerAddress ?? "(unsigned mode)"}`, isVerbose, silent);
 
         // Validate --to / --direct constraints
+        let recipientAddress: Address;
         if (!isDirect && !opts.to) {
-          throw new CLIError(
-            "Relayed withdrawals require --to <address>.",
-            "INPUT",
-            "Specify a recipient with --to, or use --direct for direct withdrawal."
-          );
-        }
-
-        if (isDirect && !opts.to && !signerAddress) {
+          if (!skipPrompts) {
+            const prompted = await input({
+              message: "Recipient address:",
+              validate: (val) => {
+                try {
+                  validateAddress(val, "Recipient");
+                  return true;
+                } catch (e) {
+                  return e instanceof Error ? e.message : "Invalid address.";
+                }
+              },
+            });
+            recipientAddress = validateAddress(prompted, "Recipient");
+          } else {
+            throw new CLIError(
+              "Relayed withdrawals require --to <address>.",
+              "INPUT",
+              "Specify a recipient with --to, or use --direct for direct withdrawal."
+            );
+          }
+        } else if (isDirect && !opts.to && !signerAddress) {
           throw new CLIError(
             "Direct withdrawal requires --to <address> in unsigned mode (no signer key available).",
             "INPUT",
             "Specify a recipient address with --to 0x..."
           );
+        } else {
+          recipientAddress = opts.to
+            ? validateAddress(opts.to, "Recipient")
+            : signerAddress!;
         }
-
-        const recipientAddress: Address = opts.to
-          ? validateAddress(opts.to, "Recipient")
-          : signerAddress!;
 
         if (isDirect && opts.to && signerAddress) {
           if (recipientAddress.toLowerCase() !== signerAddress.toLowerCase()) {
@@ -575,8 +589,13 @@ export function createWithdrawCommand(): Command {
 
           if (!skipPrompts) {
             spin.stop();
+            warn(
+              `Direct withdrawal sends funds to your signer address (${formatAddress(directAddress)}). This is NOT privacy-preserving — your deposit address will be linked to your withdrawal onchain.`,
+              silent
+            );
+            process.stderr.write("\n");
             const ok = await confirm({
-              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}?`,
+              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}? (no privacy)`,
               default: false,
             });
             if (!ok) {
@@ -1061,7 +1080,7 @@ export function createWithdrawCommand(): Command {
     .option("-t, --to <address>", "Recipient address (recommended for signed fee commitment)")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote 100 --asset USDC --json --chain ethereum\n"
+      "\nExamples:\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote 100 --asset USDC --json --chain mainnet\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ mode, chain, asset, amount, quoteFeeBPS, quoteExpiresAt, ... }",

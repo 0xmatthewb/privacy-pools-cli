@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
+import { getDefaultReadOnlyChains } from "../config/chains.js";
 import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
@@ -117,7 +118,7 @@ export function createActivityCommand(): Command {
     .option("--limit <n>", "Items per page", "12")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools activity\n  privacy-pools activity --page 2 --limit 20\n  privacy-pools activity --asset ETH\n  privacy-pools activity --asset USDC --json --chain ethereum\n"
+      "\nExamples:\n  privacy-pools activity\n  privacy-pools activity --page 2 --limit 20\n  privacy-pools activity --asset ETH\n  privacy-pools activity --asset USDC --json --chain mainnet\n"
         + commandHelpText({
           jsonFields: "{ mode, chain, page, perPage, total?, totalPages?, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }",
         })
@@ -132,15 +133,16 @@ export function createActivityCommand(): Command {
       try {
         const page = parsePositiveInt(opts.page, "page");
         const perPage = parsePositiveInt(opts.limit, "limit");
+        const explicitChain = globalOpts?.chain;
 
         const config = loadConfig();
-        const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
-
         const ctx = createOutputContext(mode);
         const spin = spinner("Fetching public activity...", silent);
         spin.start();
 
+        // --asset requires a single chain for pool resolution
         if (opts.asset) {
+          const chainConfig = resolveChain(explicitChain, config.defaultChain);
           const pool = await resolvePool(chainConfig, opts.asset, globalOpts?.rpcUrl);
           const response = await fetchPoolEvents(
             chainConfig,
@@ -168,6 +170,47 @@ export function createActivityCommand(): Command {
           return;
         }
 
+        // Global activity: multi-chain when no --chain specified
+        if (!explicitChain) {
+          const chainsToQuery = getDefaultReadOnlyChains();
+          const chainNames = chainsToQuery.map((c) => c.name);
+          const allEvents: NormalizedActivityEvent[] = [];
+
+          const results = await Promise.all(
+            chainsToQuery.map(async (chain) => {
+              try {
+                return await fetchGlobalEvents(chain, page, perPage);
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          for (const response of results) {
+            if (!response) continue;
+            const eventsRaw = Array.isArray(response.events) ? response.events : [];
+            allEvents.push(...eventsRaw.map((e) => normalizeActivityEvent(e)));
+          }
+
+          // Sort by timestamp descending, then truncate to perPage
+          allEvents.sort((a, b) => (b.timestampMs ?? 0) - (a.timestampMs ?? 0));
+          spin.stop();
+
+          renderActivity(ctx, {
+            mode: "global-activity",
+            chain: "all-mainnets",
+            chains: chainNames,
+            page,
+            perPage,
+            total: null,
+            totalPages: null,
+            events: allEvents.slice(0, perPage),
+          });
+          return;
+        }
+
+        // Single chain global activity
+        const chainConfig = resolveChain(explicitChain, config.defaultChain);
         const response = await fetchGlobalEvents(chainConfig, page, perPage);
         spin.stop();
 

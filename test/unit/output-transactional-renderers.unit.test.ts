@@ -58,7 +58,7 @@ describe("renderInitResult parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
       renderInitResult(ctx, {
-        defaultChain: "ethereum",
+        defaultChain: "mainnet",
         signerKeySet: true,
         mnemonicImported: true,
         showMnemonic: false,
@@ -68,7 +68,7 @@ describe("renderInitResult parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.mnemonic).toBeUndefined();
     expect(json.mnemonicRedacted).toBeUndefined();
-    expect(json.defaultChain).toBe("ethereum");
+    expect(json.defaultChain).toBe("mainnet");
   });
 
   test("human mode: emits success messages to stderr", () => {

@@ -214,8 +214,8 @@ describe("JSON-mode envelope completeness", () => {
   });
 
   test("sync --json (ASP offline): error envelope with ASP category", () => {
-    const home = seededHome("ethereum");
-    const result = runCli(["--json", "--chain", "ethereum", "sync"], {
+    const home = seededHome("mainnet");
+    const result = runCli(["--json", "--chain", "mainnet", "sync"], {
       home,
       timeoutMs: 10_000,
       env: OFFLINE_ENV,
@@ -339,8 +339,8 @@ describe("error envelope field completeness", () => {
   });
 
   test("ASP error has all envelope fields", () => {
-    const home = seededHome("ethereum");
-    const result = runCli(["--json", "--chain", "ethereum", "balance"], {
+    const home = seededHome("mainnet");
+    const result = runCli(["--json", "--chain", "mainnet", "balance"], {
       home,
       timeoutMs: 10_000,
       env: OFFLINE_ENV,

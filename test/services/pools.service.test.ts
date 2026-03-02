@@ -120,7 +120,7 @@ describe("pools service", () => {
     toClose.push(server);
 
     const chainConfig = {
-      ...CHAINS.ethereum,
+      ...CHAINS.mainnet,
       id: chainId,
       entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
       aspHost: server.url,
@@ -150,7 +150,7 @@ describe("pools service", () => {
     toClose.push(server);
 
     const chainConfig = {
-      ...CHAINS.ethereum,
+      ...CHAINS.mainnet,
       id: chainId,
       entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
       aspHost: server.url,
@@ -172,7 +172,7 @@ describe("pools service", () => {
     toClose.push(server);
 
     const chainConfig = {
-      ...CHAINS.ethereum,
+      ...CHAINS.mainnet,
       id: chainId,
       entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
       aspHost: server.url,
@@ -197,7 +197,7 @@ describe("pools service", () => {
     toClose.push(closer);
 
     const chainConfig = {
-      ...CHAINS.ethereum,
+      ...CHAINS.mainnet,
       id: chainId,
       entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
       aspHost: url,
@@ -212,7 +212,7 @@ describe("pools service", () => {
     toClose.push(server);
 
     const chainConfig = {
-      ...CHAINS.ethereum,
+      ...CHAINS.mainnet,
       id: chainId,
       entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
       aspHost: server.url,

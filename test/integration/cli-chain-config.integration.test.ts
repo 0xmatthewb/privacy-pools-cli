@@ -15,7 +15,7 @@ import { CHAINS } from "../../src/config/chains.ts";
 describe("chain config anchors", () => {
   test("CLI chain config matches canonical deployment anchors", () => {
     const expected = {
-      ethereum: {
+      mainnet: {
         id: 1,
         entrypoint: "0x6818809eefce719e480a7526d76bd3e561526b46",
         startBlock: "22153709",

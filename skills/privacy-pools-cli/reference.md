@@ -4,7 +4,7 @@ Detailed payload spec, JSON output shapes, and unsigned transaction format for a
 
 ## Unsigned payload spec
 
-All `--unsigned` output targets the chain specified by `--chain` (default: `ethereum`, chain ID 1).
+All `--unsigned` output targets the chain specified by `--chain` (default: `mainnet`, chain ID 1).
 
 ### Payload shape (envelope format)
 
@@ -14,7 +14,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: `ethe
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "asset": "ETH",
   "amount": "100000000000000000",
   "precommitment": "12345...",
@@ -101,11 +101,13 @@ All responses include `{ "schemaVersion": "1.3.0", "success": true, ... }` envel
 pp pools --agent [--all-chains] [--search <query>] [--sort <mode>]
 ```
 
-**Single chain:**
+Defaults to all mainnets when no `--chain` is specified.
+
+**Single chain** (with `--chain`):
 
 ```json
 {
-  "chain": "ethereum",
+  "chain": "mainnet",
   "search": null,
   "sort": "default",
   "pools": [
@@ -142,7 +144,7 @@ pp pools --agent [--all-chains] [--search <query>] [--sort <mode>]
   "allChains": true,
   "search": null,
   "sort": "default",
-  "chains": [{ "chain": "ethereum", "pools": 2, "error": null }],
+  "chains": [{ "chain": "mainnet", "pools": 2, "error": null }],
   "pools": [ ... ],
   "warnings": [{ "chain": "sepolia", "category": "ASP", "message": "..." }]
 }
@@ -156,12 +158,14 @@ All numeric token amounts are in wei (strings). USD values, counts, and growth r
 pp activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
 ```
 
+Defaults to all mainnets when no `--chain` is specified.
+
 **Global:**
 
 ```json
 {
   "mode": "global-activity",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "page": 1,
   "perPage": 12,
   "total": 100,
@@ -191,10 +195,12 @@ pp activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
 pp stats global --agent
 ```
 
+Defaults to all mainnets when no `--chain` is specified.
+
 ```json
 {
   "mode": "global-stats",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "cacheTimestamp": "2025-01-15T12:00:00Z",
   "allTime": {
     "tvlUsd": "1000000",
@@ -222,7 +228,7 @@ pp stats pool --asset ETH --agent
 ```json
 {
   "mode": "pool-stats",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "asset": "ETH",
   "pool": "0x...",
   "scope": "123...",
@@ -242,8 +248,8 @@ pp status --agent [--check] [--check-rpc] [--check-asp]
 {
   "configExists": true,
   "configDir": "/home/user/.privacy-pools",
-  "defaultChain": "ethereum",
-  "selectedChain": "ethereum",
+  "defaultChain": "mainnet",
+  "selectedChain": "mainnet",
   "rpcUrl": "https://...",
   "mnemonicSet": true,
   "signerKeySet": true,
@@ -251,7 +257,7 @@ pp status --agent [--check] [--check-rpc] [--check-asp]
   "signerAddress": "0x...",
   "entrypoint": "0x6818809eefce719e480a7526d76bd3e561526b46",
   "aspHost": "https://api.0xbow.io",
-  "accountFiles": [{ "chain": "ethereum", "chainId": 1 }]
+  "accountFiles": [{ "chain": "mainnet", "chainId": 1 }]
 }
 ```
 
@@ -297,15 +303,15 @@ pp capabilities --agent
 ### `init`
 
 ```bash
-pp init --agent --default-chain ethereum --skip-circuits
+pp init --agent --default-chain mainnet --skip-circuits
 pp init --agent --mnemonic "word1 word2 ..." --default-chain sepolia
-pp init --agent --private-key 0x... --default-chain ethereum
-pp init --agent --private-key-file ./key.txt --default-chain ethereum
+pp init --agent --private-key 0x... --default-chain mainnet
+pp init --agent --private-key-file ./key.txt --default-chain mainnet
 ```
 
 ```json
 {
-  "defaultChain": "ethereum",
+  "defaultChain": "mainnet",
   "signerKeySet": true,
   "mnemonicRedacted": true
 }
@@ -336,7 +342,7 @@ pp deposit ETH 0.1 --agent --chain sepolia
   "amount": "100000000000000000",
   "committedValue": "99500000000000000",
   "asset": "ETH",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "poolAccountNumber": 1,
   "poolAccountId": "PA-1",
   "poolAddress": "0x...",
@@ -355,7 +361,7 @@ pp deposit ETH 0.1 --agent --chain sepolia
 {
   "dryRun": true,
   "operation": "deposit",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "asset": "ETH",
   "amount": "100000000000000000",
   "poolAccountNumber": 1,
@@ -389,7 +395,7 @@ pp withdraw 0.1 --asset ETH --direct --agent
   "poolAddress": "0x...",
   "scope": "123...",
   "asset": "ETH",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "poolAccountNumber": 1,
   "poolAccountId": "PA-1",
   "feeBPS": "50"
@@ -406,7 +412,7 @@ pp withdraw 0.1 --asset ETH --direct --agent
   "dryRun": true,
   "amount": "50000000000000000",
   "asset": "ETH",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "recipient": "0x...",
   "poolAccountNumber": 1,
   "poolAccountId": "PA-1",
@@ -429,7 +435,7 @@ pp withdraw quote 0.1 --asset ETH --to 0xRecipient --agent
 ```json
 {
   "mode": "relayed-quote",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "asset": "ETH",
   "amount": "100000000000000000",
   "recipient": "0x...",
@@ -456,7 +462,7 @@ pp ragequit --asset ETH --from-pa PA-1 --agent
   "txHash": "0x...",
   "amount": "100000000000000000",
   "asset": "ETH",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "poolAccountNumber": 1,
   "poolAccountId": "PA-1",
   "poolAddress": "0x...",
@@ -472,7 +478,7 @@ pp ragequit --asset ETH --from-pa PA-1 --agent
 {
   "dryRun": true,
   "operation": "ragequit",
-  "chain": "ethereum",
+  "chain": "mainnet",
   "asset": "ETH",
   "amount": "100000000000000000",
   "poolAccountNumber": 1,
@@ -491,7 +497,7 @@ pp balance --agent
 
 ```json
 {
-  "chain": "ethereum",
+  "chain": "mainnet",
   "balances": [
     {
       "asset": "ETH",
@@ -514,7 +520,7 @@ pp accounts --agent [--all] [--details]
 
 ```json
 {
-  "chain": "ethereum",
+  "chain": "mainnet",
   "accounts": [
     {
       "poolAccountNumber": 1,
@@ -545,7 +551,7 @@ pp history --agent [--limit <n>]
 
 ```json
 {
-  "chain": "ethereum",
+  "chain": "mainnet",
   "events": [
     {
       "type": "deposit",
@@ -572,7 +578,7 @@ pp sync --agent [--asset <symbol>]
 
 ```json
 {
-  "chain": "ethereum",
+  "chain": "mainnet",
   "syncedPools": 2,
   "syncedSymbols": ["ETH", "USDC"],
   "spendableCommitments": 5
@@ -609,7 +615,7 @@ All errors in JSON mode:
     "code": "INPUT_ERROR",
     "category": "INPUT",
     "message": "Unknown chain: foo",
-    "hint": "Available chains: ethereum, arbitrum, optimism, sepolia, op-sepolia",
+    "hint": "Available chains: mainnet, arbitrum, optimism, sepolia, op-sepolia",
     "retryable": false
   }
 }
@@ -663,7 +669,7 @@ When `retryable: true`:
 
 | Name | Chain ID | Testnet | Entrypoint |
 |------|----------|---------|------------|
-| `ethereum` | 1 | No | `0x6818809eefce719e480a7526d76bd3e561526b46` |
+| `mainnet` | 1 | No | `0x6818809eefce719e480a7526d76bd3e561526b46` |
 | `arbitrum` | 42161 | No | `0x44192215fed782896be2ce24e0bfbf0bf825d15e` |
 | `optimism` | 10 | No | `0x44192215fed782896be2ce24e0bfbf0bf825d15e` |
 | `sepolia` | 11155111 | Yes | `0x34a2068192b1297f2a7f85d7d8cde66f8f0921cb` |

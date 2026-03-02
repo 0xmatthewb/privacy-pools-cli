@@ -50,8 +50,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (ctx.mode.isJson) {
     const jsonData: Record<string, unknown>[] = [];
+    let pendingCount = 0;
     for (const group of groups) {
       for (const pa of group.poolAccounts) {
+        if (pa.aspStatus === "pending") pendingCount++;
         const c = pa.commitment;
         jsonData.push({
           poolAccountNumber: pa.paNumber,
@@ -68,7 +70,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
         });
       }
     }
-    printJsonSuccess({ chain, accounts: jsonData });
+    printJsonSuccess({ chain, accounts: jsonData, pendingCount });
     return;
   }
 
@@ -133,8 +135,11 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       info(`No available Pool Accounts found. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.`, silent);
     }
     if (!silent) process.stderr.write("\n");
-  } else if (!showAll && !silent) {
-    info("Exited or spent accounts are hidden. Use --all to show them.", silent);
+  } else if (!silent) {
+    info("Use -p PA-1 with withdraw or ragequit to target a specific Pool Account.", silent);
+    if (!showAll) {
+      info("Exited or spent accounts are hidden. Use --all to show them.", silent);
+    }
     process.stderr.write("\n");
   }
 }

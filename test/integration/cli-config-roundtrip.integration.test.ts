@@ -21,6 +21,13 @@ interface StatusJson {
   configExists?: boolean;
 }
 
+// Use offline ASP + RPC to make health checks fail fast (connection refused is instant).
+// Without this, `status` tries real ASP + RPC health checks which add latency.
+const OFFLINE_ENV = {
+  PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+  PRIVACY_POOLS_RPC_URL: "http://127.0.0.1:9",
+};
+
 describe("config round-trip", () => {
   test("init persists default chain and status reads it back", () => {
     const home = createTempHome();
@@ -38,7 +45,7 @@ describe("config round-trip", () => {
     expect(init.status).toBe(0);
 
     // Status should reflect the configured default chain
-    const status = runCli(["--json", "status"], { home, timeoutMs: 10_000 });
+    const status = runCli(["--json", "status"], { home, timeoutMs: 10_000, env: OFFLINE_ENV });
     expect(status.status).toBe(0);
     const json = parseJsonOutput<StatusJson>(status.stdout);
     expect(json.success).toBe(true);
@@ -51,7 +58,7 @@ describe("config round-trip", () => {
     const home1 = createTempHome();
     const home2 = createTempHome();
 
-    for (const [home, chain] of [[home1, "sepolia"], [home2, "ethereum"]] as const) {
+    for (const [home, chain] of [[home1, "sepolia"], [home2, "mainnet"]] as const) {
       runCli(
         [
           "--json", "init",
@@ -66,15 +73,15 @@ describe("config round-trip", () => {
     }
 
     const s1 = parseJsonOutput<StatusJson>(
-      runCli(["--json", "status"], { home: home1, timeoutMs: 10_000 }).stdout
+      runCli(["--json", "status"], { home: home1, timeoutMs: 10_000, env: OFFLINE_ENV }).stdout
     );
     const s2 = parseJsonOutput<StatusJson>(
-      runCli(["--json", "status"], { home: home2, timeoutMs: 10_000 }).stdout
+      runCli(["--json", "status"], { home: home2, timeoutMs: 10_000, env: OFFLINE_ENV }).stdout
     );
 
     expect(s1.defaultChain).toBe("sepolia");
-    expect(s2.defaultChain).toBe("ethereum");
-  });
+    expect(s2.defaultChain).toBe("mainnet");
+  }, 30_000);
 
   test("--chain flag overrides stored default chain", () => {
     const home = createTempHome();
@@ -92,19 +99,19 @@ describe("config round-trip", () => {
 
     // Verify default is sepolia
     const s1 = parseJsonOutput<StatusJson>(
-      runCli(["--json", "status"], { home, timeoutMs: 10_000 }).stdout
+      runCli(["--json", "status"], { home, timeoutMs: 10_000, env: OFFLINE_ENV }).stdout
     );
     expect(s1.defaultChain).toBe("sepolia");
 
-    // Override with --chain ethereum — selectedChain should reflect override
+    // Override with --chain mainnet — selectedChain should reflect override
     const s2 = parseJsonOutput<StatusJson>(
-      runCli(["--json", "status", "--chain", "ethereum"], { home, timeoutMs: 10_000 }).stdout
+      runCli(["--json", "status", "--chain", "mainnet"], { home, timeoutMs: 10_000, env: OFFLINE_ENV }).stdout
     );
     expect(s2.success).toBe(true);
-    expect(s2.selectedChain).toBe("ethereum");
+    expect(s2.selectedChain).toBe("mainnet");
     // Default should still be sepolia
     expect(s2.defaultChain).toBe("sepolia");
-  });
+  }, 30_000);
 
   test("re-init overwrites previous config", () => {
     const home = createTempHome();
@@ -122,13 +129,13 @@ describe("config round-trip", () => {
       { home, timeoutMs: 60_000 }
     );
 
-    // Re-init with ethereum (requires --force to overwrite)
+    // Re-init with mainnet (requires --force to overwrite)
     runCli(
       [
         "--json", "init",
         "--mnemonic", "test test test test test test test test test test test junk",
         "--private-key", "0x2222222222222222222222222222222222222222222222222222222222222222",
-        "--default-chain", "ethereum",
+        "--default-chain", "mainnet",
         "--skip-circuits",
         "--force",
         "--yes",
@@ -137,8 +144,8 @@ describe("config round-trip", () => {
     );
 
     const status = parseJsonOutput<StatusJson>(
-      runCli(["--json", "status"], { home, timeoutMs: 10_000 }).stdout
+      runCli(["--json", "status"], { home, timeoutMs: 10_000, env: OFFLINE_ENV }).stdout
     );
-    expect(status.defaultChain).toBe("ethereum");
-  });
+    expect(status.defaultChain).toBe("mainnet");
+  }, 30_000);
 });

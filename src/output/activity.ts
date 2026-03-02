@@ -28,6 +28,8 @@ export interface NormalizedActivityEvent {
 export interface ActivityRenderData {
   mode: "pool-activity" | "global-activity";
   chain: string;
+  /** When multiple chains are queried, lists the chain names. */
+  chains?: string[];
   page: number;
   perPage: number;
   total: number | null;
@@ -57,6 +59,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     const payload: Record<string, unknown> = {
       mode: data.mode,
       chain: data.chain,
+      ...(data.chains ? { chains: data.chains } : {}),
       page: data.page,
       perPage: data.perPage,
       total: data.total,
@@ -84,10 +87,11 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   const silent = isSilent(ctx);
   if (silent) return;
 
+  const chainLabel = data.chains ? data.chains.join(", ") : data.chain;
   const header =
     data.mode === "pool-activity"
       ? `\nActivity for ${data.asset} on ${data.chain}:\n\n`
-      : `\nGlobal activity (${data.chain} endpoint):\n\n`;
+      : `\nGlobal activity (${chainLabel}):\n\n`;
   process.stderr.write(header);
 
   if (data.events.length === 0) {

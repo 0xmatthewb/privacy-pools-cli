@@ -12,12 +12,23 @@ import type { TimeBasedStatistics } from "../types.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export interface GlobalStatsRenderData {
-  mode: "global-stats";
+export interface ChainStatsEntry {
   chain: string;
   cacheTimestamp: string | null;
   allTime: TimeBasedStatistics | null;
   last24h: TimeBasedStatistics | null;
+}
+
+export interface GlobalStatsRenderData {
+  mode: "global-stats";
+  chain: string;
+  /** When multiple chains are queried, lists the chain names. */
+  chains?: string[];
+  cacheTimestamp: string | null;
+  allTime: TimeBasedStatistics | null;
+  last24h: TimeBasedStatistics | null;
+  /** Per-chain results when multi-chain. */
+  perChain?: ChainStatsEntry[];
 }
 
 export interface PoolStatsRenderData {
@@ -77,22 +88,31 @@ function renderStatsTable(
 
 export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderData): void {
   if (ctx.mode.isJson) {
-    printJsonSuccess(
-      {
-        mode: data.mode,
-        chain: data.chain,
-        cacheTimestamp: data.cacheTimestamp,
-        allTime: data.allTime,
-        last24h: data.last24h,
-      },
-      false,
-    );
+    const payload: Record<string, unknown> = {
+      mode: data.mode,
+      chain: data.chain,
+      ...(data.chains ? { chains: data.chains } : {}),
+      cacheTimestamp: data.cacheTimestamp,
+      allTime: data.allTime,
+      last24h: data.last24h,
+    };
+    if (data.perChain) {
+      payload.perChain = data.perChain;
+    }
+    printJsonSuccess(payload, false);
     return;
   }
 
   const silent = isSilent(ctx);
-  if (!silent) {
-    process.stderr.write(`\nGlobal statistics (${data.chain} endpoint):\n\n`);
+  if (silent) return;
+
+  if (data.perChain && data.perChain.length > 0) {
+    for (const entry of data.perChain) {
+      process.stderr.write(`\nGlobal statistics (${entry.chain}):\n\n`);
+      renderStatsTable(entry.allTime, entry.last24h);
+    }
+  } else {
+    process.stderr.write(`\nGlobal statistics (${data.chain}):\n\n`);
     renderStatsTable(data.allTime, data.last24h);
   }
 }

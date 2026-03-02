@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { CHAINS, CHAIN_NAMES } from "../config/chains.js";
+import { CHAINS, CHAIN_NAMES, getDefaultReadOnlyChains } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { listPools } from "../services/pools.js";
@@ -149,7 +149,7 @@ function sortPools(
 export function createPoolsCommand(): Command {
   return new Command("pools")
     .description("List available pools and assets")
-    .option("--all-chains", "List pools across all supported chains")
+    .option("--all-chains", "Include testnet chains (mainnets shown by default)")
     .option("--search <query>", "Filter by chain/symbol/address/scope")
     .option(
       "--sort <mode>",
@@ -158,7 +158,7 @@ export function createPoolsCommand(): Command {
     )
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools pools\n  privacy-pools pools --all-chains --sort tvl-desc\n  privacy-pools pools --search usdc --sort asset-asc\n  privacy-pools pools --json --chain ethereum\n"
+      "\nExamples:\n  privacy-pools pools\n  privacy-pools pools --all-chains --sort tvl-desc\n  privacy-pools pools --search usdc --sort asset-asc\n  privacy-pools pools --json --chain mainnet\n"
         + commandHelpText({
           jsonFields: "{ chain|allChains, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
         })
@@ -170,23 +170,32 @@ export function createPoolsCommand(): Command {
       const silent = isSilent(ctx);
 
       try {
-        if (opts.allChains && globalOpts?.rpcUrl) {
+        const explicitChain = globalOpts?.chain;
+        const isMultiChain = opts.allChains || !explicitChain;
+
+        if (isMultiChain && globalOpts?.rpcUrl) {
           throw new CLIError(
-            "--rpc-url cannot be combined with --all-chains.",
+            "--rpc-url cannot be combined with multi-chain queries.",
             "INPUT",
-            "Use per-chain RPC overrides via 'privacy-pools init', or run a single-chain query."
+            "Use --chain <name> to target a single chain with --rpc-url."
           );
         }
 
         const config = loadConfig();
         const sortMode = parseSortMode(opts.sort);
         const searchQuery = opts.search?.trim();
-        const chainsToQuery = opts.allChains
-          ? CHAIN_NAMES.map((name) => CHAINS[name])
-          : [resolveChain(globalOpts?.chain, config.defaultChain)];
+
+        let chainsToQuery: ChainConfig[];
+        if (opts.allChains) {
+          chainsToQuery = CHAIN_NAMES.map((name) => CHAINS[name]);
+        } else if (explicitChain) {
+          chainsToQuery = [resolveChain(explicitChain, config.defaultChain)];
+        } else {
+          chainsToQuery = getDefaultReadOnlyChains();
+        }
 
         const spin = spinner(
-          opts.allChains
+          isMultiChain
             ? "Fetching pools across chains..."
             : `Fetching pools for ${chainsToQuery[0].name}...`,
           silent
@@ -202,7 +211,7 @@ export function createPoolsCommand(): Command {
             } catch (error) {
               return { chainConfig, pools: [], error };
             } finally {
-              if (opts.allChains && chainsToQuery.length > 1) {
+              if (isMultiChain && chainsToQuery.length > 1) {
                 chainsCompleted++;
                 spin.text = `Fetching pools... (${chainsCompleted}/${chainsToQuery.length} chains done)`;
               }
@@ -227,7 +236,7 @@ export function createPoolsCommand(): Command {
         );
 
         const renderData: PoolsRenderData = {
-          allChains: !!opts.allChains,
+          allChains: isMultiChain,
           chainName: chainsToQuery[0].name,
           search: searchQuery ?? null,
           sort: sortMode,
@@ -247,7 +256,7 @@ export function createPoolsCommand(): Command {
 
         renderData.filteredPools = sortPools(applySearch(rawPools, searchQuery), sortMode);
 
-        if (opts.allChains) {
+        if (isMultiChain) {
           renderData.chainSummaries = chainResults.map((result) => ({
             chain: result.chainConfig.name,
             pools: result.pools.length,

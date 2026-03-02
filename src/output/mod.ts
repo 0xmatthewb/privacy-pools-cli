@@ -100,6 +100,7 @@ export {
   renderPoolStats,
   parseUsd,
   parseCount,
+  type ChainStatsEntry,
   type GlobalStatsRenderData,
   type PoolStatsRenderData,
 } from "./stats.js";

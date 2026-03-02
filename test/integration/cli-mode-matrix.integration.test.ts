@@ -41,10 +41,10 @@ interface ModeTestCase {
 }
 
 const PUBLIC_COMMANDS: ModeTestCase[] = [
-  { command: "status",   args: ["status"],               needsInit: false, expectedExitNonZero: false },
-  { command: "activity", args: ["activity"],              needsInit: false, expectedExitNonZero: true },
-  { command: "stats",    args: ["stats"],                 needsInit: false, expectedExitNonZero: true },
-  { command: "pools",    args: ["--chain", "sepolia", "pools"], needsInit: false, expectedExitNonZero: true },
+  { command: "status",   args: ["status"],                                  needsInit: false, expectedExitNonZero: false },
+  { command: "activity", args: ["--chain", "mainnet", "activity"],          needsInit: false, expectedExitNonZero: true },
+  { command: "stats",    args: ["--chain", "mainnet", "stats"],             needsInit: false, expectedExitNonZero: true },
+  { command: "pools",    args: ["--chain", "sepolia", "pools"],             needsInit: false, expectedExitNonZero: true },
 ];
 
 const INIT_COMMANDS: ModeTestCase[] = [

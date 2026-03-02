@@ -7,6 +7,11 @@ const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
 
+const OFFLINE_ENV = {
+  PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+  PRIVACY_POOLS_RPC_URL: "http://127.0.0.1:9",
+};
+
 describe("CLI command integration", () => {
   test("init + status produce valid JSON and persisted signer", () => {
     const home = createTempHome();
@@ -46,7 +51,7 @@ describe("CLI command integration", () => {
 
   test("status honors --chain override without mutating configured defaultChain", () => {
     const home = createTempHome();
-    initSeededHome(home, "ethereum");
+    initSeededHome(home, "mainnet");
 
     const statusResult = runCli(["--json", "--chain", "sepolia", "status"], {
       home,
@@ -64,7 +69,7 @@ describe("CLI command integration", () => {
 
     expect(statusJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(statusJson.success).toBe(true);
-    expect(statusJson.defaultChain).toBe("ethereum");
+    expect(statusJson.defaultChain).toBe("mainnet");
     expect(statusJson.selectedChain).toBe("sepolia");
     expect(typeof statusJson.rpcUrl).toBe("string");
     expect(statusJson.rpcUrl).toContain("sepolia");
@@ -171,9 +176,9 @@ describe("CLI command integration", () => {
 
   test("balance/accounts keep JSON contract when ASP is unreachable", () => {
     const home = createTempHome();
-    initSeededHome(home, "ethereum");
+    initSeededHome(home, "mainnet");
 
-    const balance = runCli(["--json", "--chain", "ethereum", "balance"], {
+    const balance = runCli(["--json", "--chain", "mainnet", "balance"], {
       home,
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
@@ -190,7 +195,7 @@ describe("CLI command integration", () => {
     expect(balanceJson.success).toBe(false);
     expect(balanceJson.error.category).toBe("ASP");
 
-    const accounts = runCli(["--json", "--chain", "ethereum", "accounts"], {
+    const accounts = runCli(["--json", "--chain", "mainnet", "accounts"], {
       home,
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
@@ -215,13 +220,13 @@ describe("CLI command integration", () => {
 
     writeFileSync(
       join(cfgDir, "config.json"),
-      JSON.stringify({ defaultChain: "ethereum", rpcOverrides: {} }, null, 2),
+      JSON.stringify({ defaultChain: "mainnet", rpcOverrides: {} }, null, 2),
       "utf8"
     );
     writeFileSync(join(cfgDir, ".mnemonic"), "test test test test test test test test test test test junk", "utf8");
     writeFileSync(join(cfgDir, ".signer"), "not-a-private-key", "utf8");
 
-    const statusResult = runCli(["--json", "status"], { home, timeoutMs: 60_000 });
+    const statusResult = runCli(["--json", "status"], { home, env: OFFLINE_ENV });
     expect(statusResult.status).toBe(0);
 
     const statusJson = parseJsonOutput<{
@@ -260,9 +265,9 @@ describe("CLI command integration", () => {
 
   test("sync command preserves JSON envelope when ASP is unreachable", () => {
     const home = createTempHome();
-    initSeededHome(home, "ethereum");
+    initSeededHome(home, "mainnet");
 
-    const result = runCli(["--json", "--chain", "ethereum", "sync"], {
+    const result = runCli(["--json", "--chain", "mainnet", "sync"], {
       home,
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
@@ -369,13 +374,13 @@ describe("CLI command integration", () => {
 
   test("deposit positional alias parses asset-first form (deposit ETH 0.1)", () => {
     const home = createTempHome();
-    initSeededHome(home, "ethereum");
+    initSeededHome(home, "mainnet");
 
     const result = runCli(
       [
         "--json",
         "--chain",
-        "ethereum",
+        "mainnet",
         "--rpc-url",
         "http://127.0.0.1:9",
         "deposit",
@@ -400,13 +405,13 @@ describe("CLI command integration", () => {
 
   test("withdraw quote positional alias parses asset-first form (withdraw quote ETH 0.1)", () => {
     const home = createTempHome();
-    initSeededHome(home, "ethereum");
+    initSeededHome(home, "mainnet");
 
     const result = runCli(
       [
         "--json",
         "--chain",
-        "ethereum",
+        "mainnet",
         "--rpc-url",
         "http://127.0.0.1:9",
         "withdraw",
@@ -431,13 +436,13 @@ describe("CLI command integration", () => {
 
   test("withdraw positional alias parses asset-first form (withdraw ETH 0.1 --direct)", () => {
     const home = createTempHome();
-    initSeededHome(home, "ethereum");
+    initSeededHome(home, "mainnet");
 
     const result = runCli(
       [
         "--json",
         "--chain",
-        "ethereum",
+        "mainnet",
         "--rpc-url",
         "http://127.0.0.1:9",
         "withdraw",
@@ -463,13 +468,13 @@ describe("CLI command integration", () => {
 
   test("ragequit positional alias parses asset-only form (ragequit ETH)", () => {
     const home = createTempHome();
-    initSeededHome(home, "ethereum");
+    initSeededHome(home, "mainnet");
 
     const result = runCli(
       [
         "--json",
         "--chain",
-        "ethereum",
+        "mainnet",
         "--rpc-url",
         "http://127.0.0.1:9",
         "ragequit",
@@ -493,7 +498,7 @@ describe("CLI command integration", () => {
 
   test("positional + --asset together is rejected as ambiguous", () => {
     const home = createTempHome();
-    initSeededHome(home, "ethereum");
+    initSeededHome(home, "mainnet");
 
     const result = runCli(["--json", "deposit", "ETH", "0.1", "--asset", "ETH", "--yes"], {
       home,
@@ -531,7 +536,7 @@ describe("CLI command integration", () => {
 
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
-    expect(json.defaultChain).toBe("ethereum");
+    expect(json.defaultChain).toBe("mainnet");
     expect(json.mnemonic).toBeUndefined();
     expect(json.mnemonicRedacted).toBe(true);
   });
@@ -554,7 +559,7 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("Use --force to overwrite");
+    expect(json.error.message).toContain("--force");
   });
 
   test("--json init --force allows overwrite and reports persisted signerKeySet accurately", () => {
@@ -790,7 +795,7 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("Use --force to overwrite");
+    expect(json.error.message).toContain("--force");
   });
 
   test("machine-mode parse errors are JSON (unknown command via --agent)", () => {

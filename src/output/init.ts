@@ -18,6 +18,8 @@ export interface InitRenderResult {
   showMnemonic: boolean;
   /** The mnemonic phrase (included only when showMnemonic && !mnemonicImported). */
   mnemonic?: string;
+  /** Warning message to include in JSON output (e.g. for agent mnemonic capture). */
+  warning?: string;
 }
 
 /**
@@ -35,6 +37,9 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
       } else {
         jsonOutput.mnemonicRedacted = true;
       }
+    }
+    if (result.warning) {
+      jsonOutput.warning = result.warning;
     }
     printJsonSuccess(jsonOutput, false);
     return;

@@ -131,7 +131,7 @@ const CAPABILITIES = {
   globalFlags: [
     { flag: "-j, --json", description: "Machine-readable JSON output on stdout" },
     { flag: "-y, --yes", description: "Skip confirmation prompts" },
-    { flag: "-c, --chain <name>", description: "Target chain (ethereum, sepolia, ...)" },
+    { flag: "-c, --chain <name>", description: "Target chain (mainnet, arbitrum, optimism, ...)" },
     { flag: "-r, --rpc-url <url>", description: "Override RPC URL" },
     { flag: "-q, --quiet", description: "Suppress non-essential stderr output" },
     { flag: "-v, --verbose", description: "Enable verbose/debug output" },

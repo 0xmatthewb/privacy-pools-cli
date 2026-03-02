@@ -29,8 +29,8 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("accounts");
     expect(result.stdout).toContain("history");
     expect(result.stdout).toContain("sync");
-    // capabilities and completion are hidden from root --help (still accessible directly)
-    expect(result.stdout).not.toContain("capabilities");
+    // capabilities is now visible; completion is still hidden
+    expect(result.stdout).toContain("capabilities");
     expect(result.stdout).not.toContain("completion");
   });
 

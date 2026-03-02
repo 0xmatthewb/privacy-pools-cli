@@ -116,7 +116,7 @@ describe("activity input validation", () => {
 describe("activity ASP-offline error envelopes", () => {
   test("activity --json (global) with ASP offline returns error envelope", () => {
     const result = runCli(
-      ["--json", "--chain", "ethereum", "activity"],
+      ["--json", "--chain", "mainnet", "activity"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -138,7 +138,7 @@ describe("activity ASP-offline error envelopes", () => {
 
   test("activity --json --asset ETH with ASP offline returns ASP error envelope", () => {
     const result = runCli(
-      ["--json", "--chain", "ethereum", "activity", "--asset", "ETH"],
+      ["--json", "--chain", "mainnet", "activity", "--asset", "ETH"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     // Pool resolution goes through resolvePool → ASP client → classified as ASP error
@@ -163,7 +163,7 @@ describe("activity ASP-offline error envelopes", () => {
 describe("activity human-mode output contracts", () => {
   test("activity human-mode error (ASP offline): stderr has Error, stdout is empty", () => {
     const result = runCli(
-      ["--chain", "ethereum", "activity"],
+      ["--chain", "mainnet", "activity"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -201,7 +201,7 @@ describe("activity human-mode output contracts", () => {
 describe("activity --agent mode", () => {
   test("--agent activity (global, ASP offline): JSON error on stdout, stderr empty", () => {
     const result = runCli(
-      ["--agent", "--chain", "ethereum", "activity"],
+      ["--agent", "--chain", "mainnet", "activity"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -218,7 +218,7 @@ describe("activity --agent mode", () => {
 
   test("--agent activity with --page/--limit flags: JSON error on stdout, stderr empty", () => {
     const result = runCli(
-      ["--agent", "--chain", "ethereum", "activity", "--page", "2", "--limit", "5"],
+      ["--agent", "--chain", "mainnet", "activity", "--page", "2", "--limit", "5"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -240,7 +240,7 @@ describe("activity --agent mode", () => {
 describe("activity --quiet suppression", () => {
   test("activity --quiet (ASP offline): error still exits non-zero, stdout empty", () => {
     const result = runCli(
-      ["--quiet", "--chain", "ethereum", "activity"],
+      ["--quiet", "--chain", "mainnet", "activity"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -285,7 +285,7 @@ describe("activity error envelope completeness", () => {
 
   test("ASP-offline error has all envelope fields", () => {
     const result = runCli(
-      ["--json", "--chain", "ethereum", "activity"],
+      ["--json", "--chain", "mainnet", "activity"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);

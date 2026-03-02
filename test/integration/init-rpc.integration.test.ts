@@ -69,7 +69,7 @@ describe("init rpc override integration", () => {
       rpcOverrides: Record<string, string>;
     };
 
-    expect(config.defaultChain).toBe("ethereum");
+    expect(config.defaultChain).toBe("mainnet");
     expect(config.rpcOverrides["1"]).toBe(rpcUrl);
   });
 });
