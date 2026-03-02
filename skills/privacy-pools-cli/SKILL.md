@@ -40,7 +40,7 @@ Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (a
 | Activity feed | `pp activity --agent` | No wallet needed |
 | Check status | `pp status --agent --check` | No wallet needed |
 | Discover capabilities | `pp capabilities --agent` | No wallet needed |
-| Initialize wallet | `pp init --agent --default-chain mainnet --skip-circuits` | One-time setup |
+| Initialize wallet | `pp init --agent --default-chain mainnet` | One-time setup |
 | Deposit ETH | `pp deposit 0.1 --asset ETH --agent` | Requires init |
 | Deposit (unsigned) | `pp deposit 0.1 --asset ETH --unsigned --agent` | No wallet key needed |
 | Check accounts | `pp accounts --agent` | Poll for aspStatus |
@@ -236,7 +236,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 ```
 1. pp capabilities --agent                                    # Discover all commands
 2. pp pools --agent                                           # Browse available pools
-3. pp init --agent --default-chain mainnet --skip-circuits   # Initialize (once)
+3. pp init --agent --default-chain mainnet   # Initialize (once)
 4. pp deposit 0.1 --asset ETH --agent                         # Deposit
 5. pp accounts --agent                                        # Poll until aspStatus: "approved"
 6. pp withdraw 0.1 --asset ETH --to <addr> --agent            # Withdraw

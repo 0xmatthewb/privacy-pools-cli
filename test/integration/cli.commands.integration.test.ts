@@ -517,7 +517,7 @@ describe("CLI command integration", () => {
 
   test("--json init is non-interactive without --yes", () => {
     const home = createTempHome();
-    const result = runCli(["--json", "init", "--skip-circuits"], {
+    const result = runCli(["--json", "init"], {
       home,
       timeoutMs: 60_000,
     });
@@ -545,7 +545,7 @@ describe("CLI command integration", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
 
-    const result = runCli(["--json", "init", "--skip-circuits"], {
+    const result = runCli(["--json", "init"], {
       home,
       timeoutMs: 60_000,
     });
@@ -566,7 +566,7 @@ describe("CLI command integration", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
 
-    const result = runCli(["--json", "init", "--skip-circuits", "--force"], {
+    const result = runCli(["--json", "init", "--force"], {
       home,
       timeoutMs: 60_000,
     });
@@ -588,7 +588,7 @@ describe("CLI command integration", () => {
   });
 
   test("--json init --show-mnemonic includes generated mnemonic", () => {
-    const result = runCli(["--json", "init", "--skip-circuits", "--show-mnemonic"], {
+    const result = runCli(["--json", "init", "--show-mnemonic"], {
       home: createTempHome(),
       timeoutMs: 60_000,
     });
@@ -758,7 +758,6 @@ describe("CLI command integration", () => {
         privateKey,
         "--default-chain",
         "sepolia",
-        "--skip-circuits",
       ],
       { home, timeoutMs: 60_000 }
     );
@@ -780,7 +779,7 @@ describe("CLI command integration", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
 
-    const result = runCli(["--agent", "init", "--skip-circuits"], {
+    const result = runCli(["--agent", "init"], {
       home,
       timeoutMs: 60_000,
     });
@@ -889,7 +888,7 @@ describe("CLI command integration", () => {
   });
 
   test("--agent init with generated mnemonic is stdout-json only", () => {
-    const result = runCli(["--agent", "init", "--skip-circuits"], {
+    const result = runCli(["--agent", "init"], {
       home: createTempHome(),
       timeoutMs: 60_000,
     });
@@ -909,7 +908,7 @@ describe("CLI command integration", () => {
   });
 
   test("--agent init --show-mnemonic includes generated mnemonic", () => {
-    const result = runCli(["--agent", "init", "--skip-circuits", "--show-mnemonic"], {
+    const result = runCli(["--agent", "init", "--show-mnemonic"], {
       home: createTempHome(),
       timeoutMs: 60_000,
     });

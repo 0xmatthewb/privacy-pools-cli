@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { confirm, input, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import {
@@ -18,7 +18,7 @@ import {
   generateMnemonic,
   validateMnemonic,
 } from "../services/wallet.js";
-import { warmCircuits } from "../services/sdk.js";
+
 import { CHAIN_NAMES, CHAINS, MAINNET_CHAIN_NAMES, TESTNET_CHAIN_NAMES } from "../config/chains.js";
 import { Separator } from "@inquirer/select";
 import { success, warn, spinner, info } from "../utils/format.js";
@@ -43,7 +43,7 @@ export function createInitCommand(): Command {
     .option("--default-chain <chain>", "Set default chain")
     .option("--rpc-url <url>", "Set RPC URL for the default chain")
     .option("--force", "Overwrite existing configuration without prompting")
-    .option("--skip-circuits", "Skip downloading circuit artifacts")
+    .addOption(new Option("--skip-circuits", "No-op (circuits are downloaded on first use)").hideHelp())
     .addHelpText(
       "after",
       "\nPrivacy Pools uses two separate keys:"
@@ -51,7 +51,7 @@ export function createInitCommand(): Command {
         + "\n  Signer key      — signs onchain transactions (for execution)"
         + "\n  These are independent. You can set the signer key later via PRIVACY_POOLS_PRIVATE_KEY env var."
         + "\n  Note: PRIVACY_POOLS_PRIVATE_KEY takes precedence over a saved signer key file."
-        + "\n\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --force --yes --default-chain sepolia --skip-circuits\n  privacy-pools init --json --show-mnemonic --skip-circuits\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
+        + "\n\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia\n  privacy-pools init --force --yes --default-chain sepolia\n  privacy-pools init --json --show-mnemonic\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
         + commandHelpText({
           jsonFields:
             "{ defaultChain, signerKeySet, mnemonicRedacted?, mnemonic? (only with --show-mnemonic) }",
@@ -371,28 +371,6 @@ export function createInitCommand(): Command {
 
         saveConfig(config);
         if (!isJson) success(`Default chain set to ${config.defaultChain}.`, silent);
-
-        // --- Circuit Artifacts ---
-        let skipCircuits = opts.skipCircuits ?? false;
-        if (!skipCircuits && !skipPrompts) {
-          const downloadCircuits = await confirm({
-            message: "Download ZK circuit artifacts now? (~60 seconds, can be skipped and downloaded on first use)",
-            default: true,
-          });
-          if (!downloadCircuits) skipCircuits = true;
-        }
-        if (!skipCircuits) {
-          const spin = spinner("Downloading circuit artifacts...", silent);
-          spin.start();
-          try {
-            await warmCircuits();
-            spin.succeed("Circuit artifacts ready.");
-          } catch (error) {
-            spin.warn(
-              "Circuit artifact download failed. They will be downloaded on first use."
-            );
-          }
-        }
 
         const resolvedSignerKey = loadSignerKey();
         const ctx = createOutputContext(mode);

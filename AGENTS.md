@@ -17,7 +17,7 @@ privacy-pools capabilities --agent
 privacy-pools pools --agent
 
 # Full workflow
-privacy-pools init --agent --default-chain mainnet --skip-circuits
+privacy-pools init --agent --default-chain mainnet
 privacy-pools deposit 0.1 --asset ETH --agent
 privacy-pools accounts --agent   # poll until aspStatus = "approved"
 privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient --agent
@@ -161,7 +161,7 @@ These commands require `privacy-pools init` to have been run first.
 Initialize wallet and configuration.
 
 ```bash
-privacy-pools init --agent --default-chain mainnet --skip-circuits
+privacy-pools init --agent --default-chain mainnet
 privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain sepolia
 privacy-pools init --agent --private-key 0x... --default-chain mainnet
 ```
@@ -174,7 +174,7 @@ When `--show-mnemonic` is passed (and mnemonic was generated), `mnemonic` contai
 
 > **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
 
-`--skip-circuits` skips local circuit downloads. Recommended for agents.
+Circuit artifacts are downloaded automatically on first proof generation (~60s one-time).
 
 #### `deposit`
 

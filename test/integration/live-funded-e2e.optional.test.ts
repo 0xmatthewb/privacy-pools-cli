@@ -81,7 +81,6 @@ describe("live funded e2e (optional)", () => {
         privateKey,
         "--default-chain",
         chain,
-        "--skip-circuits",
         "--yes",
       ];
       if (rpcUrl) {
@@ -146,7 +145,6 @@ describe("live funded e2e (optional)", () => {
         privateKey,
         "--default-chain",
         chain,
-        "--skip-circuits",
         "--yes",
       ];
       if (rpcUrl) {
@@ -208,7 +206,6 @@ describe("live funded e2e (optional)", () => {
         privateKey,
         "--default-chain",
         chain,
-        "--skip-circuits",
         "--yes",
       ];
       if (rpcUrl) {

@@ -20,7 +20,6 @@ describe("mnemonic security", () => {
         "--mnemonic", TEST_MNEMONIC,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
-        "--skip-circuits",
         "--yes",
       ],
       { home, timeoutMs: 60_000 }
@@ -40,7 +39,6 @@ describe("mnemonic security", () => {
         "--mnemonic", TEST_MNEMONIC,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
-        "--skip-circuits",
         "--yes",
       ],
       { home, timeoutMs: 60_000 }
@@ -63,7 +61,6 @@ describe("mnemonic security", () => {
         "--mnemonic", TEST_MNEMONIC,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
-        "--skip-circuits",
         "--yes",
       ],
       { home, timeoutMs: 60_000 }
@@ -84,7 +81,6 @@ describe("mnemonic security", () => {
         "--mnemonic", "not a valid mnemonic phrase at all",
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
-        "--skip-circuits",
         "--yes",
       ],
       { home, timeoutMs: 60_000 }

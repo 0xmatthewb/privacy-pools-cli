@@ -83,7 +83,7 @@ Initialize wallet and configuration. Generates a BIP-39 mnemonic (your deposit s
 
 ```bash
 privacy-pools init
-privacy-pools init --default-chain sepolia --skip-circuits
+privacy-pools init --default-chain sepolia
 privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key.txt
 ```
 
@@ -94,11 +94,10 @@ privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key
 | `--mnemonic-file <path>` | Import BIP-39 phrase from a file |
 | `--private-key <key>` | Set signer private key (unsafe: visible in process list) |
 | `--private-key-file <path>` | Set signer private key from a file |
-| `--skip-circuits` | Skip downloading circuit artifacts |
 | `--force` | Overwrite existing config without prompting |
 | `--show-mnemonic` | Include mnemonic in JSON output (unsafe) |
 
-During interactive setup, `init` asks whether to download circuit artifacts and offers to write a recovery backup to `~/privacy-pools-recovery.txt`. It also asks you to confirm that you've securely backed up your recovery phrase before proceeding.
+During interactive setup, `init` offers to write a recovery backup to `~/privacy-pools-recovery.txt`. It also asks you to confirm that you've securely backed up your recovery phrase before proceeding. Circuit artifacts are downloaded automatically on first use.
 
 ### `pools`
 
@@ -318,7 +317,7 @@ For automation, scripts, and AI agents, use `--json --yes` (or `--agent`) to get
 
 ```bash
 # 1. Initialize
-privacy-pools init -j -y --default-chain sepolia --skip-circuits
+privacy-pools init -j -y --default-chain sepolia
 
 # 2. Discover pools
 privacy-pools pools -j --chain sepolia

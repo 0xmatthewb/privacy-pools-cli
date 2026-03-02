@@ -23,7 +23,6 @@ describe("init rpc override integration", () => {
         "sepolia",
         "--rpc-url",
         rpcUrl,
-        "--skip-circuits",
         "--yes",
       ],
       { home }
@@ -55,7 +54,6 @@ describe("init rpc override integration", () => {
         privateKey,
         "--rpc-url",
         rpcUrl,
-        "--skip-circuits",
         "--yes",
       ],
       { home }

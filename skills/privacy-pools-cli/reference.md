@@ -290,7 +290,7 @@ pp capabilities --agent
     { "flag": "--agent", "description": "Alias for --json --yes --quiet" }
   ],
   "agentWorkflow": [
-    "1. privacy-pools init --json --yes --default-chain <chain> --skip-circuits",
+    "1. privacy-pools init --json --yes --default-chain <chain>",
     "2. privacy-pools pools --json --chain <chain>",
     "3. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
     "4. privacy-pools accounts --json --chain <chain>  (wait for aspStatus: approved)",
@@ -303,7 +303,7 @@ pp capabilities --agent
 ### `init`
 
 ```bash
-pp init --agent --default-chain mainnet --skip-circuits
+pp init --agent --default-chain mainnet
 pp init --agent --mnemonic "word1 word2 ..." --default-chain sepolia
 pp init --agent --private-key 0x... --default-chain mainnet
 pp init --agent --private-key-file ./key.txt --default-chain mainnet

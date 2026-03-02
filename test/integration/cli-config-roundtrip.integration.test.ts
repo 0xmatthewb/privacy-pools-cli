@@ -37,7 +37,6 @@ describe("config round-trip", () => {
         "--mnemonic", "test test test test test test test test test test test junk",
         "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
         "--default-chain", "sepolia",
-        "--skip-circuits",
         "--yes",
       ],
       { home, timeoutMs: 60_000 }
@@ -65,7 +64,6 @@ describe("config round-trip", () => {
           "--mnemonic", "test test test test test test test test test test test junk",
           "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
           "--default-chain", chain,
-          "--skip-circuits",
           "--yes",
         ],
         { home, timeoutMs: 60_000 }
@@ -91,7 +89,6 @@ describe("config round-trip", () => {
         "--mnemonic", "test test test test test test test test test test test junk",
         "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
         "--default-chain", "sepolia",
-        "--skip-circuits",
         "--yes",
       ],
       { home, timeoutMs: 60_000 }
@@ -123,7 +120,6 @@ describe("config round-trip", () => {
         "--mnemonic", "test test test test test test test test test test test junk",
         "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
         "--default-chain", "sepolia",
-        "--skip-circuits",
         "--yes",
       ],
       { home, timeoutMs: 60_000 }
@@ -136,7 +132,6 @@ describe("config round-trip", () => {
         "--mnemonic", "test test test test test test test test test test test junk",
         "--private-key", "0x2222222222222222222222222222222222222222222222222222222222222222",
         "--default-chain", "mainnet",
-        "--skip-circuits",
         "--force",
         "--yes",
       ],

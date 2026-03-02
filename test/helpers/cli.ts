@@ -149,7 +149,6 @@ export function initSeededHome(home: string, chain: string = "mainnet"): CliRunR
       privateKey,
       "--default-chain",
       chain,
-      "--skip-circuits",
       "--yes",
     ],
     { home, timeoutMs: 60_000 }

@@ -177,7 +177,6 @@ describe("JSON envelope structure snapshots", () => {
         "--mnemonic", "test test test test test test test test test test test junk",
         "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
         "--default-chain", "sepolia",
-        "--skip-circuits",
         "--yes",
       ],
       { home: createTempHome(), timeoutMs: 30_000 },

@@ -55,7 +55,6 @@ Options:
   --default-chain <chain>    Set default chain
   --rpc-url <url>            Set RPC URL for the default chain
   --force                    Overwrite existing configuration without prompting
-  --skip-circuits            Skip downloading circuit artifacts
   -h, --help                 display help for command
 Privacy Pools uses two separate keys:
   Recovery phrase  — generates your deposit secrets (for privacy)
@@ -64,9 +63,9 @@ Privacy Pools uses two separate keys:
   Note: PRIVACY_POOLS_PRIVATE_KEY takes precedence over a saved signer key file.
 Examples:
   privacy-pools init
-  privacy-pools init --yes --default-chain sepolia --skip-circuits
-  privacy-pools init --force --yes --default-chain sepolia --skip-circuits
-  privacy-pools init --json --show-mnemonic --skip-circuits
+  privacy-pools init --yes --default-chain sepolia
+  privacy-pools init --force --yes --default-chain sepolia
+  privacy-pools init --json --show-mnemonic
   privacy-pools init --mnemonic "word ..." --private-key 0x...
 JSON output (--json):
   { defaultChain, signerKeySet, mnemonicRedacted?, mnemonic? (only with --show-mnemonic) }"

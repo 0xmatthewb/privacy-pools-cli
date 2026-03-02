@@ -78,10 +78,3 @@ export function getDataService(
   ]);
 }
 
-export async function warmCircuits(): Promise<void> {
-  const circuits = await getCircuits();
-  // Init artifacts triggers download/cache
-  if (typeof circuits.initArtifacts === "function") {
-    await circuits.initArtifacts("latest");
-  }
-}
