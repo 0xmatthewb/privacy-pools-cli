@@ -238,12 +238,14 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 
 ```
 1. pp capabilities --agent                                    # Discover all commands
-2. pp pools --agent                                           # Browse available pools
+2. pp pools --agent                                           # Browse available pools (check minimumDeposit)
 3. pp init --agent --default-chain mainnet   # Initialize (once)
-4. pp deposit 0.1 --asset ETH --agent                         # Deposit
+4. pp deposit 0.1 --asset ETH --agent                         # Deposit (must be >= minimumDeposit)
 5. pp accounts --agent                                        # Poll until aspStatus: "approved"
 6. pp withdraw 0.1 --asset ETH --to <addr> --agent            # Withdraw
 ```
+
+**Before depositing**, check the `minimumDeposit` field from `pp pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change — always query at runtime rather than hard-coding.
 
 ---
 
@@ -260,7 +262,17 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 
 ---
 
-## 10. Global flags
+## 10. Security
+
+- The **mnemonic** is the master secret. Anyone with it can spend all deposited funds. Store it in an encrypted file or secrets manager — never in plain text, logs, or source control.
+- When using `--show-mnemonic` during `init`, capture the output programmatically and write it to a secure store. Do not log or display it to end users.
+- The config directory (`~/.privacy-pools`) contains key material. Restrict filesystem permissions (`chmod 700`).
+- Avoid setting `PRIVACY_POOLS_PRIVATE_KEY` in shared or CI environments where env vars may be logged. Prefer `--private-key-file` with a restricted-access file.
+- Agents that call `init --agent --show-mnemonic` should pipe the `mnemonic` field from the JSON response directly to a secrets manager, then discard it from memory.
+
+---
+
+## 11. Global flags
 
 | Flag | Description |
 |------|-------------|
@@ -276,7 +288,7 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 
 ---
 
-## Additional resources
+## 12. Additional resources
 
 For the full command reference with JSON payload shapes, see [reference.md](reference.md).
 

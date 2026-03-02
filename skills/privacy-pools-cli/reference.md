@@ -349,6 +349,8 @@ pp deposit 0.1 --asset ETH --agent
 pp deposit ETH 0.1 --agent --chain sepolia
 ```
 
+> **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `pp pools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
+
 **Success:**
 
 ```json
