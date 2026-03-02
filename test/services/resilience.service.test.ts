@@ -1,5 +1,5 @@
 /**
- * Resilience tests — HTTP failure modes for ASP, Relayer, and error classification.
+ * Resilience tests — HTTP failure modes for ASP and Relayer services.
  *
  * Existing service tests cover happy paths and a few status codes.
  * This file systematically tests what happens when external services:
@@ -7,6 +7,9 @@
  *   - Return malformed / empty / unparseable responses
  *   - Return unexpected status codes
  *   - Return 200 with invalid payloads
+ *
+ * Note: classifyError tests live in test/unit/errors-extended.unit.test.ts
+ * and test/fuzz/error-classification.fuzz.test.ts.
  */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { CHAINS } from "../../src/config/chains.ts";
@@ -26,7 +29,7 @@ import {
   requestQuote,
   submitRelayRequest,
 } from "../../src/services/relayer.ts";
-import { CLIError, classifyError } from "../../src/utils/errors.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 
 const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
@@ -178,8 +181,7 @@ describe("resilience: ASP malformed responses", () => {
     await expect(fetchApprovedLabels(chain, 1n)).resolves.toBeNull();
   });
 
-  test("fetchApprovedLabels degrades to null on empty aspLeaves", async () => {
-    // Empty array is valid — should return empty set, not null
+  test("fetchApprovedLabels returns empty Set on empty aspLeaves", async () => {
     globalThis.fetch = mockResponse({ aspLeaves: [], stateTreeLeaves: [] });
     await expect(fetchApprovedLabels(chain, 1n)).resolves.toEqual(new Set());
   });
@@ -497,79 +499,3 @@ describe("resilience: Relayer HTTP error statuses", () => {
   });
 });
 
-/* ------------------------------------------------------------------ */
-/*  classifyError — Network error classification                      */
-/* ------------------------------------------------------------------ */
-
-describe("resilience: classifyError for network-like errors", () => {
-  test("timeout errors → RPC category, retryable", () => {
-    const err = classifyError(new Error("The operation timed out due to timeout"));
-    expect(err.category).toBe("RPC");
-    expect(err.code).toBe("RPC_NETWORK_ERROR");
-    expect(err.retryable).toBe(true);
-  });
-
-  test("fetch errors → RPC category, retryable", () => {
-    const err = classifyError(new Error("fetch failed: ECONNRESET"));
-    expect(err.category).toBe("RPC");
-    expect(err.code).toBe("RPC_NETWORK_ERROR");
-    expect(err.retryable).toBe(true);
-  });
-
-  test("ECONNREFUSED → RPC category, retryable", () => {
-    const err = classifyError(new Error("connect ECONNREFUSED 127.0.0.1:8545"));
-    expect(err.category).toBe("RPC");
-    expect(err.code).toBe("RPC_NETWORK_ERROR");
-    expect(err.retryable).toBe(true);
-  });
-
-  test("CLIError passes through classifyError unchanged", () => {
-    const original = new CLIError("test", "ASP", "hint", "ASP_ERROR", false);
-    const classified = classifyError(original);
-    expect(classified).toBe(original);
-  });
-
-  test("unknown error without network keywords → UNKNOWN", () => {
-    const err = classifyError(new Error("something unexpected happened"));
-    expect(err.category).toBe("UNKNOWN");
-    expect(err.code).toBe("UNKNOWN_ERROR");
-    expect(err.retryable).toBe(false);
-  });
-
-  test("non-Error thrown value → UNKNOWN with string message", () => {
-    const err = classifyError("a plain string error");
-    expect(err.category).toBe("UNKNOWN");
-    expect(err.message).toBe("a plain string error");
-  });
-
-  test("null thrown value → UNKNOWN", () => {
-    const err = classifyError(null);
-    expect(err.category).toBe("UNKNOWN");
-  });
-
-  test("contract revert NullifierAlreadySpent → CONTRACT category", () => {
-    const err = classifyError(new Error("execution reverted: NullifierAlreadySpent"));
-    expect(err.category).toBe("CONTRACT");
-    expect(err.code).toBe("CONTRACT_NULLIFIER_ALREADY_SPENT");
-    expect(err.retryable).toBe(false);
-  });
-
-  test("contract revert InvalidProof → CONTRACT category", () => {
-    const err = classifyError(new Error("execution reverted: InvalidProof"));
-    expect(err.category).toBe("CONTRACT");
-    expect(err.code).toBe("CONTRACT_INVALID_PROOF");
-  });
-
-  test("SDK MERKLE_ERROR code → PROOF category, retryable", () => {
-    const err = classifyError({ code: "MERKLE_ERROR", message: "not found" });
-    expect(err.category).toBe("PROOF");
-    expect(err.code).toBe("PROOF_MERKLE_ERROR");
-    expect(err.retryable).toBe(true);
-  });
-
-  test("SDK PROOF_GENERATION_FAILED code → PROOF category", () => {
-    const err = classifyError({ code: "PROOF_GENERATION_FAILED", message: "failed" });
-    expect(err.category).toBe("PROOF");
-    expect(err.code).toBe("PROOF_GENERATION_FAILED");
-  });
-});

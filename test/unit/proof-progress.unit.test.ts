@@ -1,11 +1,15 @@
-import { describe, expect, test } from "bun:test";
-import { withProofProgress } from "../../src/utils/proof-progress.ts";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { withProofProgress, resetFirstRunMessage } from "../../src/utils/proof-progress.ts";
 
 function mockSpinner(): { text: string } {
   return { text: "" };
 }
 
 describe("withProofProgress", () => {
+  beforeEach(() => {
+    resetFirstRunMessage();
+  });
+
   test("returns wrapped function result", async () => {
     const spin = mockSpinner();
     const result = await withProofProgress(spin as any, "Test", async () => 42);
@@ -19,7 +23,11 @@ describe("withProofProgress", () => {
     expect(result).toEqual(obj);
   });
 
-  test("sets initial spinner text", async () => {
+  test("sets initial spinner text (non-first-run)", async () => {
+    const spin0 = mockSpinner();
+    // Consume the first-run message so we test the steady-state label.
+    await withProofProgress(spin0 as any, "Warm", async () => "ok");
+
     const spin = mockSpinner();
     let captured = "";
     await withProofProgress(spin as any, "Generating", async () => {
@@ -86,13 +94,35 @@ describe("withProofProgress", () => {
   test("updates spinner text with elapsed time after delay", async () => {
     const spin = mockSpinner();
     const result = await withProofProgress(spin as any, "Proving", async () => {
-      await new Promise((r) => setTimeout(r, 1200));
+      await new Promise((r) => setTimeout(r, 1050));
       return "proof";
     });
     expect(result).toBe("proof");
-    // After ~1.2s the interval should have fired at least once, adding elapsed seconds
-    // The text should have included the elapsed time marker at some point.
-    // We verify by checking the final spinner text contains the elapsed pattern.
+    // After ~1.05s the interval should have fired at least once, adding elapsed seconds.
     expect(spin.text).toMatch(/Proving\.\.\. \(\d+s\)/);
+  });
+
+  test("first call shows circuit download message", async () => {
+    const spin = mockSpinner();
+    let captured = "";
+    await withProofProgress(spin as any, "Generating", async () => {
+      captured = spin.text;
+      return "done";
+    });
+    expect(captured).toBe("Generating... (first proof may download circuits)");
+  });
+
+  test("second call omits circuit download message", async () => {
+    const spin1 = mockSpinner();
+    await withProofProgress(spin1 as any, "First", async () => "ok");
+
+    const spin2 = mockSpinner();
+    let captured = "";
+    await withProofProgress(spin2 as any, "Second", async () => {
+      captured = spin2.text;
+      return "ok";
+    });
+    expect(captured).toBe("Second...");
+    expect(captured).not.toContain("first proof");
   });
 });

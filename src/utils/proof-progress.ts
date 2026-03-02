@@ -8,6 +8,11 @@ let firstRunMessageShown = false;
  * Prevents the "frozen spinner" effect during 10-30+ second ZK proof generation.
  * On the first proof of the session, adds a brief note that circuits may be downloading.
  */
+/** @internal Exported for test isolation only. */
+export function resetFirstRunMessage(): void {
+  firstRunMessageShown = false;
+}
+
 export async function withProofProgress<T>(
   spin: Ora,
   label: string,

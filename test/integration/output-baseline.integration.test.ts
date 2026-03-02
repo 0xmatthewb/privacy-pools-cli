@@ -5,7 +5,7 @@
  * that will be touched by the output-module refactor.
  *
  * Categories:
- *   1. Human-mode smoke tests  (stderr patterns, stdout empty)
+ *   1. Human-mode output contracts  (stderr patterns, stdout empty)
  *   2. JSON-mode envelope tests (stdout JSON, stderr silent)
  *   3. --unsigned error envelope tests
  *   4. --dry-run flag acceptance
@@ -36,7 +36,7 @@ function seededHome(chain: string = "sepolia"): string {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 1. Human-mode smoke tests
+// 1. Human-mode output contracts
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe("human-mode output contracts", () => {
@@ -76,7 +76,10 @@ describe("human-mode output contracts", () => {
 
   test("status (with init): stderr shows config, stdout is empty", () => {
     const home = seededHome();
-    const result = runCli(["--no-banner", "status"], { home });
+    const result = runCli(
+      ["--no-banner", "--rpc-url", "http://127.0.0.1:9", "status"],
+      { home, env: OFFLINE_ENV },
+    );
     expect(result.status).toBe(0);
     expect(result.stderr).toContain("Privacy Pools CLI Status");
     expect(result.stderr).toContain("Recovery phrase: set");

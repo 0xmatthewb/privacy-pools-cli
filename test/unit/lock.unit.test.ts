@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test, spyOn } from "bun:test";
 import { mkdtempSync, existsSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -81,5 +81,45 @@ describe("acquireProcessLock", () => {
     const release = acquireProcessLock();
     expect(readFileSync(lockPath, "utf-8").trim()).toBe(String(process.pid));
     release();
+  });
+
+  test("throws CLIError when lock held by alive foreign PID", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const lockPath = join(home, ".lock");
+
+    // Write a foreign PID that we'll make appear alive via mock.
+    const foreignPid = 99999998;
+    writeFileSync(lockPath, String(foreignPid), { flag: "wx", mode: 0o600 });
+
+    // Mock process.kill so signal-0 check reports the PID as alive.
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number) => {
+      if (pid === foreignPid && (signal === 0 || signal === undefined)) return true;
+      throw Object.assign(new Error("ESRCH"), { code: "ESRCH" });
+    }) as typeof process.kill);
+
+    try {
+      expect(() => acquireProcessLock()).toThrow(CLIError);
+      expect(() => acquireProcessLock()).toThrow("Another privacy-pools operation is in progress");
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  test("release is a no-op when lock PID differs from process.pid", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const release = acquireProcessLock();
+    const lockPath = join(home, ".lock");
+    expect(existsSync(lockPath)).toBe(true);
+
+    // Overwrite the lock content with a different PID
+    writeFileSync(lockPath, "12345", { encoding: "utf-8" });
+
+    // Release should skip unlink because PIDs don't match
+    release();
+    expect(existsSync(lockPath)).toBe(true);
+    expect(readFileSync(lockPath, "utf-8").trim()).toBe("12345");
   });
 });

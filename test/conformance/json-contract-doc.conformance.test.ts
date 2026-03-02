@@ -4,6 +4,9 @@ import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { EXIT_CODES } from "../../src/utils/errors.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
+// NB: The filename "v1.0.0" denotes the JSON-contract *format* version, not
+// the document content version (currently 1.3.0).  Do not rename the file
+// without updating all external tooling references.
 const CONTRACT_DOC_PATH =
   `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.0.0.json`;
 

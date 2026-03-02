@@ -203,7 +203,10 @@ describe("pools service", () => {
       aspHost: url,
     };
 
-    await expect(listPools(chainConfig, url)).rejects.toThrow();
+    await expect(listPools(chainConfig, url)).rejects.toMatchObject({
+      category: "ASP",
+      hint: expect.stringContaining("network connection"),
+    });
   });
 
   test("listPools returns empty array for empty pools payload", async () => {

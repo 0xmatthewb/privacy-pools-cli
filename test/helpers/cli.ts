@@ -1,3 +1,15 @@
+/**
+ * CLI integration test helpers.
+ *
+ * COVERAGE NOTE: Integration tests spawn the CLI as a child process via
+ * spawnSync, so code-coverage tools only instrument the test harness —
+ * not the CLI source executed in the subprocess.  Line-coverage numbers
+ * from integration runs are therefore non-authoritative for command code.
+ * Use unit tests (test/unit/) for source-level coverage; use these
+ * integration tests for behavioral contracts (exit codes, JSON envelopes,
+ * stream separation, flag acceptance).
+ */
+
 import { spawnSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";

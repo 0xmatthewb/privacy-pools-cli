@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { classifyError, CLIError } from "../../src/utils/errors.ts";
+import { createSeededRng, getFuzzSeed } from "../helpers/fuzz.ts";
 
 /**
  * Fuzz test: classifyError should never throw, regardless of input.
@@ -87,19 +88,12 @@ describe("error classification fuzz", () => {
   }
 
   test("100 seeded random strings never throw", () => {
-    // Seeded PRNG for reproducible fuzz runs (xorshift32)
-    let seed = 0xDEADBEEF;
-    function nextRand(): number {
-      seed ^= seed << 13;
-      seed ^= seed >> 17;
-      seed ^= seed << 5;
-      return (seed >>> 0) / 0xFFFFFFFF;
-    }
+    const rng = createSeededRng(getFuzzSeed() ^ 0xDEADBEEF);
 
     for (let i = 0; i < 100; i++) {
-      const len = Math.floor(nextRand() * 200);
+      const len = Math.floor(rng.nextFloat() * 200);
       const randomStr = Array.from({ length: len }, () =>
-        String.fromCharCode(Math.floor(nextRand() * 128))
+        String.fromCharCode(Math.floor(rng.nextFloat() * 128))
       ).join("");
 
       const result = classifyError(randomStr);
@@ -109,18 +103,12 @@ describe("error classification fuzz", () => {
   });
 
   test("100 seeded random Error objects never throw", () => {
-    let seed = 0xCAFEBABE;
-    function nextRand(): number {
-      seed ^= seed << 13;
-      seed ^= seed >> 17;
-      seed ^= seed << 5;
-      return (seed >>> 0) / 0xFFFFFFFF;
-    }
+    const rng = createSeededRng(getFuzzSeed() ^ 0xCAFEBABE);
 
     for (let i = 0; i < 100; i++) {
-      const len = Math.floor(nextRand() * 200);
+      const len = Math.floor(rng.nextFloat() * 200);
       const randomMsg = Array.from({ length: len }, () =>
-        String.fromCharCode(Math.floor(nextRand() * 128))
+        String.fromCharCode(Math.floor(rng.nextFloat() * 128))
       ).join("");
 
       const result = classifyError(new Error(randomMsg));

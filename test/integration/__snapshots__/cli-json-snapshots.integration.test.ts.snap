@@ -36,7 +36,6 @@ exports[`JSON envelope structure snapshots status --json (initialized) success e
   "readyForDeposit": "boolean",
   "readyForUnsigned": "boolean",
   "readyForWithdraw": "boolean",
-  "rpcBlockNumber": "string",
   "rpcIsCustom": "boolean",
   "rpcLive": "boolean",
   "rpcUrl": "string",

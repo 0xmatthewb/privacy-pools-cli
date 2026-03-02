@@ -88,7 +88,7 @@ describe("relayer service", () => {
     });
 
     // Service layer validates format only — feeBPS "99999" is a valid numeric string.
-    // The withdraw command checks parsedFeeBPS > pool.maxRelayFeeBPS (withdraw.ts:726).
+    // The withdraw command is responsible for bounds-checking against pool.maxRelayFeeBPS.
     expect(quote.feeBPS).toBe("99999");
   });
 

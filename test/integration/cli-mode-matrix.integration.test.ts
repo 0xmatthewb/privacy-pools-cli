@@ -97,13 +97,20 @@ describe("output mode matrix", () => {
         expect(result.stdout.trim()).toBe("");
       });
 
-      test("human mode: error on stderr, empty stdout (when error)", () => {
-        if (!tc.expectedExitNonZero) return; // skip for status (exits 0)
-
+      test("human mode: correct stream separation", () => {
         const result = runCli(tc.args, baseOpts);
-        expect(result.status).not.toBe(0);
-        expect(result.stderr).toContain("Error");
-        expect(result.stdout.trim()).toBe("");
+
+        if (tc.expectedExitNonZero) {
+          // error path: stderr has error, stdout empty
+          expect(result.status).not.toBe(0);
+          expect(result.stderr).toContain("Error");
+          expect(result.stdout.trim()).toBe("");
+        } else {
+          // success path (e.g. status): exits 0, output on stderr, stdout empty
+          expect(result.status).toBe(0);
+          expect(result.stderr.length).toBeGreaterThan(0);
+          expect(result.stdout.trim()).toBe("");
+        }
       });
     });
   }

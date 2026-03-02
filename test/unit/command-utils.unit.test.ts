@@ -21,7 +21,7 @@ describe("parseUsd", () => {
     expect(parseUsd("1,234,567")).toBe("$1,234,567");
   });
 
-  test("truncates fractional digits", () => {
+  test("rounds fractional digits", () => {
     expect(parseUsd("1234.99")).toBe("$1,235");
   });
 

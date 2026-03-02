@@ -58,7 +58,10 @@ describe("JSON envelope structure snapshots", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
 
-    const result = runCli(["--json", "status"], { home, timeoutMs: 10_000 });
+    const result = runCli(
+      ["--json", "--rpc-url", "http://127.0.0.1:9", "status"],
+      { home, timeoutMs: 10_000, env: OFFLINE_ASP_ENV },
+    );
     expect(result.status).toBe(0);
 
     const json = parseJsonOutput<Record<string, unknown>>(result.stdout);

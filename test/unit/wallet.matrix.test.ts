@@ -1,3 +1,12 @@
+/**
+ * Parametrized purity tests for wallet derivation functions.
+ *
+ * NOTE: test/services/wallet.service.test.ts covers the same functions
+ * with filesystem integration (mnemonic persistence, config dir).
+ * The overlap is intentional — this file validates pure computation
+ * properties, while the service test validates I/O integration.
+ */
+
 import { describe, expect, test } from "bun:test";
 import { privateKeyToAccount } from "viem/accounts";
 import {

@@ -4,7 +4,8 @@
  */
 
 const RAW_BASE = "https://raw.githubusercontent.com";
-const BRANCH = "main";
+/** Set CONFORMANCE_UPSTREAM_REF to a commit SHA for deterministic CI runs. */
+const BRANCH = process.env.CONFORMANCE_UPSTREAM_REF || "main";
 
 export const CORE_REPO = "0xbow-io/privacy-pools-core";
 export const FRONTEND_REPO = "0xbow-io/privacy-pools-website";

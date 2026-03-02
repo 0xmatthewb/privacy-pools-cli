@@ -6,29 +6,31 @@ const OFFLINE_POOL_ENV = {
 };
 
 describe("--unsigned-format tx output normalization", () => {
-  test("deposit --unsigned-format tx produces array output even for single tx", () => {
+  test("deposit --unsigned-format tx is accepted and progresses past input validation", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
-    // This will fail at pool resolution but we test the flag is accepted
     const result = runCli(
-      ["deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
+      ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    // If it gets far enough to produce output, verify it's an array
-    if (result.stdout.trim() && result.stdout.trim().startsWith("[")) {
-      const parsed = JSON.parse(result.stdout.trim());
-      expect(Array.isArray(parsed)).toBe(true);
+    // Must produce valid JSON — both flags were parsed correctly
+    const json = parseJsonOutput<{
+      success: boolean;
+      error?: { category: string };
+    }>(result.stdout);
+    expect(typeof json.success).toBe("boolean");
+    // If it failed, the error must NOT be INPUT — proving flags were accepted
+    if (!json.success && json.error) {
+      expect(json.error.category).not.toBe("INPUT");
     }
-    // The flag itself should be recognized
-    const combined = `${result.stdout}\n${result.stderr}`;
-    expect(combined).not.toContain("unknown option '--unsigned-format'");
   });
 
-  test("withdraw --unsigned-format tx flag is accepted", () => {
+  test("withdraw --unsigned-format tx is accepted and progresses past input validation", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
       [
+        "--json",
         "withdraw",
         "0.01",
         "--asset",
@@ -44,19 +46,31 @@ describe("--unsigned-format tx output normalization", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    const combined = `${result.stdout}\n${result.stderr}`;
-    expect(combined).not.toContain("unknown option");
+    const json = parseJsonOutput<{
+      success: boolean;
+      error?: { category: string };
+    }>(result.stdout);
+    expect(typeof json.success).toBe("boolean");
+    if (!json.success && json.error) {
+      expect(json.error.category).not.toBe("INPUT");
+    }
   });
 
-  test("ragequit --unsigned-format tx flag is accepted", () => {
+  test("ragequit --unsigned-format tx is accepted and progresses past input validation", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
-      ["ragequit", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
+      ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    const combined = `${result.stdout}\n${result.stderr}`;
-    expect(combined).not.toContain("unknown option");
+    const json = parseJsonOutput<{
+      success: boolean;
+      error?: { category: string };
+    }>(result.stdout);
+    expect(typeof json.success).toBe("boolean");
+    if (!json.success && json.error) {
+      expect(json.error.category).not.toBe("INPUT");
+    }
   });
 });
 

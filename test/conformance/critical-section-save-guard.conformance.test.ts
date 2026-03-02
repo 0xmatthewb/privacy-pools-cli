@@ -21,9 +21,20 @@ describe("critical section conformance", () => {
       expect(source).toContain("guardCriticalSection");
       expect(source).toContain("releaseCriticalSection");
       expect(source).toContain("saveAccount(");
-      expect(source).toMatch(
-        /guardCriticalSection\(\);[\s\S]*saveAccount\([\s\S]*releaseCriticalSection\(\);/
-      );
+
+      // Count every saveAccount( call in the file
+      const saveMatches = source.match(/saveAccount\(/g);
+      expect(saveMatches).not.toBeNull();
+      const saveCount = saveMatches!.length;
+
+      // Count guard→save→release sequences (non-greedy to match individual triples)
+      const guardedPattern =
+        /guardCriticalSection\(\);[\s\S]*?saveAccount\([\s\S]*?releaseCriticalSection\(\);/g;
+      const guardedMatches = source.match(guardedPattern);
+      expect(guardedMatches).not.toBeNull();
+
+      // Every saveAccount must live inside its own guarded region
+      expect(guardedMatches!.length).toBe(saveCount);
     }
   });
 });

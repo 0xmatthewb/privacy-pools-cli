@@ -63,28 +63,92 @@ export function printRawTransactions(
 }
 
 export function toSolidityProof(raw: Groth16Like): SolidityProof {
+  // Validate container shape before accessing nested properties.
+  const proof = (raw as unknown as Record<string, unknown>)?.proof;
+  if (
+    typeof proof !== "object" ||
+    proof === null ||
+    !Array.isArray((proof as Record<string, unknown>).pi_a) ||
+    !Array.isArray((proof as Record<string, unknown>).pi_b) ||
+    !Array.isArray((proof as Record<string, unknown>).pi_c)
+  ) {
+    throw new CLIError(
+      "Malformed proof structure: expected proof with pi_a, pi_b, and pi_c arrays.",
+      "PROOF",
+      "Regenerate the proof and retry.",
+      "PROOF_MALFORMED"
+    );
+  }
+
+  const { pi_a, pi_b, pi_c } = proof as {
+    pi_a: unknown[];
+    pi_b: unknown[];
+    pi_c: unknown[];
+  };
+
+  if (pi_a.length < 2) {
+    throw new CLIError(
+      "Malformed proof structure: pi_a requires at least 2 elements.",
+      "PROOF",
+      "Regenerate the proof and retry.",
+      "PROOF_MALFORMED"
+    );
+  }
+
+  if (
+    pi_b.length < 2 ||
+    !Array.isArray(pi_b[0]) || (pi_b[0] as unknown[]).length < 2 ||
+    !Array.isArray(pi_b[1]) || (pi_b[1] as unknown[]).length < 2
+  ) {
+    throw new CLIError(
+      "Malformed proof structure: pi_b requires at least 2 pairs of 2 elements.",
+      "PROOF",
+      "Regenerate the proof and retry.",
+      "PROOF_MALFORMED"
+    );
+  }
+
+  if (pi_c.length < 2) {
+    throw new CLIError(
+      "Malformed proof structure: pi_c requires at least 2 elements.",
+      "PROOF",
+      "Regenerate the proof and retry.",
+      "PROOF_MALFORMED"
+    );
+  }
+
+  const pubSignals = (raw as unknown as Record<string, unknown>)?.publicSignals;
+  if (!Array.isArray(pubSignals)) {
+    throw new CLIError(
+      "Malformed proof structure: expected publicSignals array.",
+      "PROOF",
+      "Regenerate the proof and retry.",
+      "PROOF_MALFORMED"
+    );
+  }
+
   return {
     pA: [
-      toBigIntValue(raw.proof.pi_a[0], "proof.pi_a[0]"),
-      toBigIntValue(raw.proof.pi_a[1], "proof.pi_a[1]"),
+      toBigIntValue(pi_a[0] as BigNumberish, "proof.pi_a[0]"),
+      toBigIntValue(pi_a[1] as BigNumberish, "proof.pi_a[1]"),
     ],
     // Solidity verifier layout expects each pair reversed.
     pB: [
       [
-        toBigIntValue(raw.proof.pi_b[0][1], "proof.pi_b[0][1]"),
-        toBigIntValue(raw.proof.pi_b[0][0], "proof.pi_b[0][0]"),
+        toBigIntValue((pi_b[0] as BigNumberish[])[1], "proof.pi_b[0][1]"),
+        toBigIntValue((pi_b[0] as BigNumberish[])[0], "proof.pi_b[0][0]"),
       ],
       [
-        toBigIntValue(raw.proof.pi_b[1][1], "proof.pi_b[1][1]"),
-        toBigIntValue(raw.proof.pi_b[1][0], "proof.pi_b[1][0]"),
+        toBigIntValue((pi_b[1] as BigNumberish[])[1], "proof.pi_b[1][1]"),
+        toBigIntValue((pi_b[1] as BigNumberish[])[0], "proof.pi_b[1][0]"),
       ],
     ],
     pC: [
-      toBigIntValue(raw.proof.pi_c[0], "proof.pi_c[0]"),
-      toBigIntValue(raw.proof.pi_c[1], "proof.pi_c[1]"),
+      toBigIntValue(pi_c[0] as BigNumberish, "proof.pi_c[0]"),
+      toBigIntValue(pi_c[1] as BigNumberish, "proof.pi_c[1]"),
     ],
-    pubSignals: raw.publicSignals.map((value, idx) =>
-      toBigIntValue(value, `publicSignals[${idx}]`)
+    pubSignals: pubSignals.map((value: unknown, idx: number) =>
+      toBigIntValue(value as BigNumberish, `publicSignals[${idx}]`)
     ),
   };
 }
