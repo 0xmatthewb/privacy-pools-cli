@@ -214,7 +214,7 @@ export function resolveRpcEnvVar(chainId: number): string | undefined {
 
 export function getRpcUrl(chainId: number, overrideFromFlag?: string): string {
   // Precedence: flag > env var > config file > built-in default
-  if (overrideFromFlag) return overrideFromFlag;
+  if (overrideFromFlag?.trim()) return overrideFromFlag.trim();
 
   const envUrl = resolveRpcEnvVar(chainId);
   if (envUrl) return envUrl;
