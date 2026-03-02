@@ -68,23 +68,17 @@ describe("--dry-run flag acceptance", () => {
     expect(combined).not.toContain("unknown option");
   });
 
-  test("deposit --dry-run --json output has dryRun field when it succeeds enough to reach dry-run", () => {
-    // This will likely fail at pool resolution but confirms the flag path works
+  test("deposit --dry-run --json produces valid JSON error envelope", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    // If the command got far enough before hitting RPC issues, stdout should be JSON
-    if (result.stdout.trim()) {
-      try {
-        const parsed = parseJsonOutput(result.stdout);
-        // Either success with dryRun or error JSON - both valid
-        expect(typeof parsed).toBe("object");
-      } catch {
-        // If stdout isn't JSON, it's fine - command may have errored
-      }
-    }
+    // Command will fail at pool resolution (offline ASP) but must produce valid JSON
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = parseJsonOutput<{ success: boolean; schemaVersion?: string }>(result.stdout);
+    expect(typeof parsed).toBe("object");
+    expect(typeof parsed.success).toBe("boolean");
   });
 });

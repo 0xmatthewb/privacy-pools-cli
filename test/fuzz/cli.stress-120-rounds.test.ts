@@ -33,8 +33,20 @@ describe("CLI stress audit", () => {
 
       // Every round must complete without timeout and return JSON on stdout.
       expect(result.timedOut).toBe(false);
-      const json = parseJsonOutput<{ success?: boolean }>(result.stdout);
+      const json = parseJsonOutput<{
+        success?: boolean;
+        schemaVersion?: string;
+        error?: { category?: string };
+      }>(result.stdout);
       expect(typeof json).toBe("object");
+      expect(json).not.toBeNull();
+      // Commands against offline services will fail — verify structured error
+      if (json.success === false) {
+        expect(typeof json.error?.category).toBe("string");
+      }
+      if (json.schemaVersion) {
+        expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+      }
       ok++;
     }
 

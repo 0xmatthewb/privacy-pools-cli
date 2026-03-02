@@ -63,8 +63,9 @@ describe("withProofProgress", () => {
     expect(result).toBe("ok");
     // If interval was not cleared, spin.text would keep changing.
     // Capture the text after completion and verify it stays stable.
+    // Use 1100ms — slightly above the 1s interval — to avoid flakiness.
     const textAfter = spin.text;
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 1100));
     expect(spin.text).toBe(textAfter);
   });
 
@@ -78,7 +79,7 @@ describe("withProofProgress", () => {
       // expected
     }
     const textAfter = spin.text;
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 1100));
     expect(spin.text).toBe(textAfter);
   });
 

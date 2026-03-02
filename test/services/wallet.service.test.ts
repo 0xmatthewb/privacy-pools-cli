@@ -3,7 +3,11 @@ import {
   generateMnemonic,
   validateMnemonic,
   getSignerAddress,
+  getMasterKeys,
+  loadMnemonic,
+  loadPrivateKey,
 } from "../../src/services/wallet.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 
 describe("wallet service", () => {
   describe("generateMnemonic", () => {
@@ -81,6 +85,80 @@ describe("wallet service", () => {
         "0x2222222222222222222222222222222222222222222222222222222222222222"
       );
       expect(a1).not.toBe(a2);
+    });
+  });
+
+  describe("getMasterKeys", () => {
+    test("returns object with spending and viewing keys from valid mnemonic", () => {
+      const mnemonic = "test test test test test test test test test test test junk";
+      const keys = getMasterKeys(mnemonic);
+      expect(keys).toBeDefined();
+      expect(typeof keys).toBe("object");
+    });
+
+    test("same mnemonic produces same keys", () => {
+      const mnemonic = "test test test test test test test test test test test junk";
+      const k1 = getMasterKeys(mnemonic);
+      const k2 = getMasterKeys(mnemonic);
+      expect(k1).toEqual(k2);
+    });
+  });
+
+  describe("loadMnemonic", () => {
+    test("throws CLIError with INPUT category when no mnemonic file exists", () => {
+      // With a fresh temp PRIVACY_POOLS_HOME, there's no mnemonic file
+      const origHome = process.env.PRIVACY_POOLS_HOME;
+      const { mkdtempSync } = require("node:fs");
+      const { join } = require("node:path");
+      const { tmpdir } = require("node:os");
+      const tempDir = mkdtempSync(join(tmpdir(), "pp-wallet-test-"));
+      process.env.PRIVACY_POOLS_HOME = tempDir;
+      try {
+        expect(() => loadMnemonic()).toThrow(CLIError);
+        try {
+          loadMnemonic();
+        } catch (err) {
+          expect(err).toBeInstanceOf(CLIError);
+          expect((err as CLIError).category).toBe("INPUT");
+        }
+      } finally {
+        if (origHome !== undefined) {
+          process.env.PRIVACY_POOLS_HOME = origHome;
+        } else {
+          delete process.env.PRIVACY_POOLS_HOME;
+        }
+      }
+    });
+  });
+
+  describe("loadPrivateKey", () => {
+    test("throws CLIError with INPUT category when no signer file exists", () => {
+      const origHome = process.env.PRIVACY_POOLS_HOME;
+      const origKey = process.env.PRIVACY_POOLS_PRIVATE_KEY;
+      const { mkdtempSync } = require("node:fs");
+      const { join } = require("node:path");
+      const { tmpdir } = require("node:os");
+      const tempDir = mkdtempSync(join(tmpdir(), "pp-wallet-test-"));
+      process.env.PRIVACY_POOLS_HOME = tempDir;
+      delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
+      try {
+        expect(() => loadPrivateKey()).toThrow(CLIError);
+        try {
+          loadPrivateKey();
+        } catch (err) {
+          expect(err).toBeInstanceOf(CLIError);
+          expect((err as CLIError).category).toBe("INPUT");
+        }
+      } finally {
+        if (origHome !== undefined) {
+          process.env.PRIVACY_POOLS_HOME = origHome;
+        } else {
+          delete process.env.PRIVACY_POOLS_HOME;
+        }
+        if (origKey !== undefined) {
+          process.env.PRIVACY_POOLS_PRIVATE_KEY = origKey;
+        }
+      }
     });
   });
 });

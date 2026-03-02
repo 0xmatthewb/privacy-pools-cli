@@ -27,7 +27,7 @@ describe("pools command", () => {
     expect(result.status).toBe(4);
   });
 
-  test("pools --json with init shows chain info in error", () => {
+  test("pools --json with init returns valid JSON error envelope (ASP offline)", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(["--json", "pools", "--chain", "sepolia"], {
@@ -36,11 +36,11 @@ describe("pools command", () => {
       env: OFFLINE_POOL_ENV,
     });
     expect(result.timedOut).toBe(false);
-    // Will fail with ASP/RPC error since no real network, but should be valid JSON
-    if (result.stdout.trim()) {
-      const parsed = parseJsonOutput<{ success: boolean; error?: { category?: string } }>(result.stdout);
-      expect(typeof parsed.success).toBe("boolean");
-    }
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = parseJsonOutput<{ success: boolean; error?: { category?: string } }>(result.stdout);
+    expect(typeof parsed.success).toBe("boolean");
+    // Offline ASP → error
+    expect(parsed.success).toBe(false);
   });
 
   test("pools --help shows help text", () => {
@@ -50,10 +50,9 @@ describe("pools command", () => {
     expect(combined).toContain("pools");
   });
 
-  test("pools requires chain specification", () => {
+  test("pools uses default chain from config when none specified", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
-    // Without explicit chain, should use default from config
     const result = runCli(["--json", "pools"], {
       home,
       timeoutMs: 10_000,
@@ -61,13 +60,8 @@ describe("pools command", () => {
     });
     expect(result.timedOut).toBe(false);
     // Should not fail with "missing chain" since init set default
-    if (result.stdout.trim()) {
-      try {
-        const parsed = parseJsonOutput(result.stdout);
-        expect(typeof parsed).toBe("object");
-      } catch {
-        // stdout might not be valid JSON if error
-      }
-    }
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = parseJsonOutput<{ success: boolean }>(result.stdout);
+    expect(typeof parsed.success).toBe("boolean");
   });
 });

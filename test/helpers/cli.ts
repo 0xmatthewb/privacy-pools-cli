@@ -104,7 +104,23 @@ export function runBuiltCli(
 }
 
 export function parseJsonOutput<T = unknown>(stdout: string): T {
-  return JSON.parse(stdout.trim()) as T;
+  const trimmed = stdout.trim();
+  if (!trimmed) {
+    throw new Error(
+      `parseJsonOutput: stdout is empty — no JSON to parse.\n` +
+      `  (received ${stdout.length} chars of whitespace-only output)`
+    );
+  }
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch (err) {
+    const preview = trimmed.length > 200 ? trimmed.slice(0, 200) + "…" : trimmed;
+    throw new Error(
+      `parseJsonOutput: failed to parse stdout as JSON.\n` +
+      `  Parse error: ${err instanceof Error ? err.message : String(err)}\n` +
+      `  stdout preview: ${preview}`
+    );
+  }
 }
 
 export function initSeededHome(home: string, chain: string = "ethereum"): CliRunResult {

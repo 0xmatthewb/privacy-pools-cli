@@ -98,6 +98,13 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     }
   });
 
+  test("upstream fetch succeeded (canary — all protocol tests below are skipped if this fails)", () => {
+    if (fetchFailed) {
+      console.warn("WARN: upstream GitHub fetch failed — protocol conformance tests are NOT running");
+    }
+    expect(fetchFailed).toBe(false);
+  });
+
   const run = (name: string, fn: () => void) => {
     test(name, () => {
       if (fetchFailed) return;

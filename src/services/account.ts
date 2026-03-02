@@ -6,7 +6,8 @@ import { getAccountsDir, ensureConfigDir } from "./config.js";
 import { CLIError } from "../utils/errors.js";
 
 // BigInt + Map aware JSON serializer
-function serialize(value: unknown): string {
+/** @internal Exported for testing only. */
+export function serialize(value: unknown): string {
   return JSON.stringify(value, (_key, val) => {
     if (typeof val === "bigint") {
       return { __type: "bigint", value: val.toString() };
@@ -19,7 +20,8 @@ function serialize(value: unknown): string {
 }
 
 // BigInt + Map aware JSON deserializer
-function deserialize(raw: string): unknown {
+/** @internal Exported for testing only. */
+export function deserialize(raw: string): unknown {
   return JSON.parse(raw, (_key, val) => {
     if (val?.__type === "bigint") return BigInt(val.value);
     if (val?.__type === "map") return new Map(val.value);

@@ -86,10 +86,20 @@ describe("error classification fuzz", () => {
     });
   }
 
-  test("100 random strings never throw", () => {
+  test("100 seeded random strings never throw", () => {
+    // Seeded PRNG for reproducible fuzz runs (xorshift32)
+    let seed = 0xDEADBEEF;
+    function nextRand(): number {
+      seed ^= seed << 13;
+      seed ^= seed >> 17;
+      seed ^= seed << 5;
+      return (seed >>> 0) / 0xFFFFFFFF;
+    }
+
     for (let i = 0; i < 100; i++) {
-      const randomStr = Array.from({ length: Math.random() * 200 }, () =>
-        String.fromCharCode(Math.floor(Math.random() * 128))
+      const len = Math.floor(nextRand() * 200);
+      const randomStr = Array.from({ length: len }, () =>
+        String.fromCharCode(Math.floor(nextRand() * 128))
       ).join("");
 
       const result = classifyError(randomStr);
@@ -98,10 +108,19 @@ describe("error classification fuzz", () => {
     }
   });
 
-  test("100 random Error objects never throw", () => {
+  test("100 seeded random Error objects never throw", () => {
+    let seed = 0xCAFEBABE;
+    function nextRand(): number {
+      seed ^= seed << 13;
+      seed ^= seed >> 17;
+      seed ^= seed << 5;
+      return (seed >>> 0) / 0xFFFFFFFF;
+    }
+
     for (let i = 0; i < 100; i++) {
-      const randomMsg = Array.from({ length: Math.random() * 200 }, () =>
-        String.fromCharCode(Math.floor(Math.random() * 128))
+      const len = Math.floor(nextRand() * 200);
+      const randomMsg = Array.from({ length: len }, () =>
+        String.fromCharCode(Math.floor(nextRand() * 128))
       ).join("");
 
       const result = classifyError(new Error(randomMsg));

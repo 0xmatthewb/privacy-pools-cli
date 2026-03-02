@@ -68,14 +68,9 @@ describe("--json output includes operation field", () => {
       ["--json", "deposit", "0.01", "--asset", "ETH", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    if (result.stdout.trim()) {
-      try {
-        const parsed = parseJsonOutput<{ schemaVersion?: string; success?: boolean }>(result.stdout);
-        expect(parsed.schemaVersion).toBe("1.3.0");
-        expect(typeof parsed.success).toBe("boolean");
-      } catch {
-        // command may not have produced JSON
-      }
-    }
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = parseJsonOutput<{ schemaVersion?: string; success?: boolean }>(result.stdout);
+    expect(parsed.schemaVersion).toBe("1.3.0");
+    expect(typeof parsed.success).toBe("boolean");
   });
 });

@@ -95,39 +95,43 @@ describe("resilience: ASP network failures", () => {
     mock.restore();
   });
 
+  // NOTE: ASP service functions do NOT wrap raw fetch rejections in CLIError.
+  // The classifyError utility handles that at the command handler level.
+  // These tests verify the raw errors propagate with correct messages.
+
   test("fetchMerkleRoots rejects on network error", async () => {
     globalThis.fetch = mockNetworkError("fetch failed");
-    await expect(fetchMerkleRoots(chain, 1n)).rejects.toBeDefined();
+    await expect(fetchMerkleRoots(chain, 1n)).rejects.toThrow("fetch failed");
   });
 
   test("fetchMerkleLeaves rejects on ECONNREFUSED", async () => {
     globalThis.fetch = mockNetworkError("ECONNREFUSED");
-    await expect(fetchMerkleLeaves(chain, 1n)).rejects.toBeDefined();
+    await expect(fetchMerkleLeaves(chain, 1n)).rejects.toThrow("ECONNREFUSED");
   });
 
   test("fetchPoolEvents rejects on timeout", async () => {
     globalThis.fetch = mockNetworkError("The operation was aborted");
-    await expect(fetchPoolEvents(chain, 1n, 1, 10)).rejects.toBeDefined();
+    await expect(fetchPoolEvents(chain, 1n, 1, 10)).rejects.toThrow("aborted");
   });
 
   test("fetchGlobalEvents rejects on network error", async () => {
     globalThis.fetch = mockNetworkError("network down");
-    await expect(fetchGlobalEvents(chain, 1, 10)).rejects.toBeDefined();
+    await expect(fetchGlobalEvents(chain, 1, 10)).rejects.toThrow("network down");
   });
 
   test("fetchPoolsStats rejects on network error", async () => {
     globalThis.fetch = mockNetworkError("fetch failed");
-    await expect(fetchPoolsStats(chain)).rejects.toBeDefined();
+    await expect(fetchPoolsStats(chain)).rejects.toThrow("fetch failed");
   });
 
   test("fetchPoolStatistics rejects on network error", async () => {
     globalThis.fetch = mockNetworkError("ECONNREFUSED");
-    await expect(fetchPoolStatistics(chain, 1n)).rejects.toBeDefined();
+    await expect(fetchPoolStatistics(chain, 1n)).rejects.toThrow("ECONNREFUSED");
   });
 
   test("fetchGlobalStatistics rejects on network error", async () => {
     globalThis.fetch = mockNetworkError("timeout");
-    await expect(fetchGlobalStatistics(chain)).rejects.toBeDefined();
+    await expect(fetchGlobalStatistics(chain)).rejects.toThrow("timeout");
   });
 
   test("fetchApprovedLabels degrades to null on network error", async () => {
@@ -151,19 +155,22 @@ describe("resilience: ASP malformed responses", () => {
     mock.restore();
   });
 
+  // NOTE: res.json() on non-JSON bodies throws SyntaxError, not CLIError.
+  // The classifyError utility handles wrapping at the command handler level.
+
   test("fetchMerkleRoots rejects on non-JSON 200 response", async () => {
     globalThis.fetch = mockText("this is not json");
-    await expect(fetchMerkleRoots(chain, 1n)).rejects.toBeDefined();
+    await expect(fetchMerkleRoots(chain, 1n)).rejects.toThrow();
   });
 
   test("fetchMerkleLeaves rejects on empty 200 response", async () => {
     globalThis.fetch = mockText("");
-    await expect(fetchMerkleLeaves(chain, 1n)).rejects.toBeDefined();
+    await expect(fetchMerkleLeaves(chain, 1n)).rejects.toThrow();
   });
 
   test("fetchMerkleRoots rejects on HTML error page", async () => {
     globalThis.fetch = mockText("<html><body>502 Bad Gateway</body></html>");
-    await expect(fetchMerkleRoots(chain, 1n)).rejects.toBeDefined();
+    await expect(fetchMerkleRoots(chain, 1n)).rejects.toThrow();
   });
 
   test("fetchApprovedLabels degrades to null on non-JSON response", async () => {
@@ -248,23 +255,26 @@ describe("resilience: Relayer network failures", () => {
     mock.restore();
   });
 
+  // NOTE: Relayer service functions do NOT wrap raw fetch rejections in CLIError.
+  // The classifyError utility handles that at the command handler level.
+
   test("getRelayerDetails rejects on network error", async () => {
     globalThis.fetch = mockNetworkError("fetch failed");
     await expect(
       getRelayerDetails(chain, VALID_ADDRESS)
-    ).rejects.toBeDefined();
+    ).rejects.toThrow("fetch failed");
   });
 
   test("requestQuote rejects on timeout", async () => {
     globalThis.fetch = mockNetworkError("The operation was aborted");
-    await expect(requestQuote(chain, QUOTE_PARAMS)).rejects.toBeDefined();
+    await expect(requestQuote(chain, QUOTE_PARAMS)).rejects.toThrow("aborted");
   });
 
   test("submitRelayRequest rejects on ECONNREFUSED", async () => {
     globalThis.fetch = mockNetworkError("ECONNREFUSED");
     await expect(
       submitRelayRequest(chain, RELAY_PARAMS)
-    ).rejects.toBeDefined();
+    ).rejects.toThrow("ECONNREFUSED");
   });
 });
 
@@ -278,11 +288,12 @@ describe("resilience: Relayer malformed responses", () => {
     mock.restore();
   });
 
+  // NOTE: res.json() on non-JSON bodies throws SyntaxError, not CLIError.
   test("getRelayerDetails rejects on non-JSON 200 response", async () => {
     globalThis.fetch = mockText("not json");
     await expect(
       getRelayerDetails(chain, VALID_ADDRESS)
-    ).rejects.toBeDefined();
+    ).rejects.toThrow();
   });
 
   test("requestQuote rejects when feeBPS is missing", async () => {
@@ -534,5 +545,31 @@ describe("resilience: classifyError for network-like errors", () => {
   test("null thrown value → UNKNOWN", () => {
     const err = classifyError(null);
     expect(err.category).toBe("UNKNOWN");
+  });
+
+  test("contract revert NullifierAlreadySpent → CONTRACT category", () => {
+    const err = classifyError(new Error("execution reverted: NullifierAlreadySpent"));
+    expect(err.category).toBe("CONTRACT");
+    expect(err.code).toBe("CONTRACT_NULLIFIER_ALREADY_SPENT");
+    expect(err.retryable).toBe(false);
+  });
+
+  test("contract revert InvalidProof → CONTRACT category", () => {
+    const err = classifyError(new Error("execution reverted: InvalidProof"));
+    expect(err.category).toBe("CONTRACT");
+    expect(err.code).toBe("CONTRACT_INVALID_PROOF");
+  });
+
+  test("SDK MERKLE_ERROR code → PROOF category, retryable", () => {
+    const err = classifyError({ code: "MERKLE_ERROR", message: "not found" });
+    expect(err.category).toBe("PROOF");
+    expect(err.code).toBe("PROOF_MERKLE_ERROR");
+    expect(err.retryable).toBe(true);
+  });
+
+  test("SDK PROOF_GENERATION_FAILED code → PROOF category", () => {
+    const err = classifyError({ code: "PROOF_GENERATION_FAILED", message: "failed" });
+    expect(err.category).toBe("PROOF");
+    expect(err.code).toBe("PROOF_GENERATION_FAILED");
   });
 });

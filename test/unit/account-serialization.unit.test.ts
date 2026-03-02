@@ -1,33 +1,5 @@
 import { describe, expect, test } from "bun:test";
-
-/**
- * The serialize/deserialize helpers in src/services/account.ts are not
- * exported, so we replicate the exact same logic here to verify that
- * BigInt and Map values survive a JSON round-trip.
- */
-function serialize(value: unknown): string {
-  return JSON.stringify(
-    value,
-    (_key, val) => {
-      if (typeof val === "bigint") {
-        return { __type: "bigint", value: val.toString() };
-      }
-      if (val instanceof Map) {
-        return { __type: "map", value: Array.from(val.entries()) };
-      }
-      return val;
-    },
-    2
-  );
-}
-
-function deserialize(raw: string): unknown {
-  return JSON.parse(raw, (_key, val) => {
-    if (val?.__type === "bigint") return BigInt(val.value);
-    if (val?.__type === "map") return new Map(val.value);
-    return val;
-  });
-}
+import { serialize, deserialize } from "../../src/services/account.ts";
 
 describe("account serialization round-trip", () => {
   test("handles BigInt values", () => {

@@ -129,54 +129,38 @@ describe("CLI help and discovery", () => {
 
   test("--json --help returns JSON with mode help", () => {
     const result = runCli(["--json", "--help"], { home: createTempHome() });
-    if (result.stdout.trim()) {
-      try {
-        const parsed = JSON.parse(result.stdout.trim());
-        expect(parsed.mode).toBe("help");
-        expect(typeof parsed.help).toBe("string");
-      } catch {
-        // help output may not be JSON in all modes
-      }
-    }
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.mode).toBe("help");
+    expect(typeof parsed.help).toBe("string");
   });
 
   test("-j --help returns JSON with mode help", () => {
     const result = runCli(["-j", "--help"], { home: createTempHome() });
-    if (result.stdout.trim()) {
-      try {
-        const parsed = JSON.parse(result.stdout.trim());
-        expect(parsed.mode).toBe("help");
-        expect(typeof parsed.help).toBe("string");
-      } catch {
-        // help output may not be JSON in all modes
-      }
-    }
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.mode).toBe("help");
+    expect(typeof parsed.help).toBe("string");
   });
 
   test("bundled short flags -jh return JSON help envelope", () => {
     const result = runCli(["-jh"], { home: createTempHome() });
-    if (result.stdout.trim()) {
-      try {
-        const parsed = JSON.parse(result.stdout.trim());
-        expect(parsed.mode).toBe("help");
-        expect(typeof parsed.help).toBe("string");
-      } catch {
-        // help output may not be JSON in all modes
-      }
-    }
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.mode).toBe("help");
+    expect(typeof parsed.help).toBe("string");
   });
 
   test("--json --version returns JSON with mode version", () => {
     const result = runCli(["--json", "--version"], { home: createTempHome() });
-    if (result.stdout.trim()) {
-      try {
-        const parsed = JSON.parse(result.stdout.trim());
-        expect(parsed.mode).toBe("version");
-        expect(parsed.version).toMatch(/\d+\.\d+\.\d+/);
-      } catch {
-        // version output may not be JSON in all modes
-      }
-    }
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.mode).toBe("version");
+    expect(parsed.version).toMatch(/\d+\.\d+\.\d+/);
   });
 
   // --- Flag presence in command help ---

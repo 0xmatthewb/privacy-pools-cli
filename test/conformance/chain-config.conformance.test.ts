@@ -33,6 +33,13 @@ describe("chain config conformance", () => {
   // moved to test/integration/cli-chain-config.integration.test.ts so it always
   // runs in the default test suite (it's fully self-contained, no external repos).
 
+  test("upstream fetch succeeded (canary — upstream tests below are skipped if this fails)", () => {
+    if (fetchFailed) {
+      console.warn("WARN: upstream GitHub fetch failed — conformance tests are NOT running");
+    }
+    expect(fetchFailed).toBe(false);
+  });
+
   test("CLI and frontend both define pools-stats response shape", () => {
     if (fetchFailed) return;
 

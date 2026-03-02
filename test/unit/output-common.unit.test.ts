@@ -59,49 +59,68 @@ describe("isSilent", () => {
 // ── Barrel re-exports ────────────────────────────────────────────────────────
 
 describe("barrel re-exports", () => {
-  test("mod.ts exports all expected symbols", async () => {
-    const mod = await import("../../src/output/mod.ts");
-
+  // Exhaustive list of expected function exports from mod.ts.
+  // If a renderer is added or removed, this test must be updated.
+  const EXPECTED_FUNCTIONS = [
     // Shared primitives
-    expect(typeof mod.createOutputContext).toBe("function");
-    expect(typeof mod.isSilent).toBe("function");
-    expect(typeof mod.printJsonSuccess).toBe("function");
-    expect(typeof mod.info).toBe("function");
-    expect(typeof mod.success).toBe("function");
-    expect(typeof mod.warn).toBe("function");
-    expect(typeof mod.printTable).toBe("function");
-
+    "createOutputContext",
+    "isSilent",
+    "printJsonSuccess",
+    "info",
+    "success",
+    "warn",
+    "printTable",
     // Core command renderers
-    expect(typeof mod.renderGuide).toBe("function");
-    expect(typeof mod.renderCapabilities).toBe("function");
-    expect(typeof mod.renderCompletionScript).toBe("function");
-    expect(typeof mod.renderCompletionQuery).toBe("function");
-    expect(typeof mod.renderSyncEmpty).toBe("function");
-    expect(typeof mod.renderSyncComplete).toBe("function");
-
+    "renderGuide",
+    "renderCapabilities",
+    "renderCompletionScript",
+    "renderCompletionQuery",
+    "renderSyncEmpty",
+    "renderSyncComplete",
     // Reporting command renderers
-    expect(typeof mod.renderStatus).toBe("function");
-    expect(typeof mod.renderPoolsEmpty).toBe("function");
-    expect(typeof mod.renderPools).toBe("function");
-    expect(typeof mod.poolToJson).toBe("function");
-    expect(typeof mod.renderBalanceNoPools).toBe("function");
-    expect(typeof mod.renderBalanceEmpty).toBe("function");
-    expect(typeof mod.renderBalance).toBe("function");
-    expect(typeof mod.renderAccountsNoPools).toBe("function");
-    expect(typeof mod.renderAccounts).toBe("function");
-    expect(typeof mod.renderHistoryNoPools).toBe("function");
-    expect(typeof mod.renderHistory).toBe("function");
-
+    "renderStatus",
+    "renderPoolsEmpty",
+    "renderPools",
+    "poolToJson",
+    "renderBalanceNoPools",
+    "renderBalanceEmpty",
+    "renderBalance",
+    "renderAccountsNoPools",
+    "renderAccounts",
+    "renderHistoryNoPools",
+    "renderHistory",
     // Transactional command renderers
-    expect(typeof mod.renderInitResult).toBe("function");
-    expect(typeof mod.renderDepositDryRun).toBe("function");
-    expect(typeof mod.renderDepositSuccess).toBe("function");
-    expect(typeof mod.renderRagequitDryRun).toBe("function");
-    expect(typeof mod.renderRagequitSuccess).toBe("function");
+    "renderInitResult",
+    "renderDepositDryRun",
+    "renderDepositSuccess",
+    "renderRagequitDryRun",
+    "renderRagequitSuccess",
+    // Withdraw renderers
+    "renderWithdrawDryRun",
+    "renderWithdrawSuccess",
+    "renderWithdrawQuote",
+    // Activity + stats renderers
+    "renderActivity",
+    "renderGlobalStats",
+    "renderPoolStats",
+    "parseUsd",
+    "parseCount",
+  ] as const;
 
-    // Withdraw renderer
-    expect(typeof mod.renderWithdrawDryRun).toBe("function");
-    expect(typeof mod.renderWithdrawSuccess).toBe("function");
-    expect(typeof mod.renderWithdrawQuote).toBe("function");
+  test("mod.ts exports all expected function symbols", async () => {
+    const mod = await import("../../src/output/mod.ts");
+    for (const name of EXPECTED_FUNCTIONS) {
+      expect(typeof (mod as Record<string, unknown>)[name]).toBe("function");
+    }
+  });
+
+  test("mod.ts does not export unexpected function symbols", async () => {
+    const mod = await import("../../src/output/mod.ts");
+    const actualFunctions = Object.entries(mod)
+      .filter(([, v]) => typeof v === "function")
+      .map(([k]) => k)
+      .sort();
+    const expectedSorted = [...EXPECTED_FUNCTIONS].sort();
+    expect(actualFunctions).toEqual(expectedSorted);
   });
 });
