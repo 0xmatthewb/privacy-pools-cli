@@ -170,52 +170,43 @@ export function createActivityCommand(): Command {
           return;
         }
 
-        // Global activity: multi-chain when no --chain specified
+        // Global activity: the ASP global endpoint returns cross-chain data,
+        // so we call it exactly once regardless of how many chains are configured.
+        // Use the first default chain config (for its aspHost).
         if (!explicitChain) {
           const chainsToQuery = getDefaultReadOnlyChains();
           const chainNames = chainsToQuery.map((c) => c.name);
-          const allEvents: NormalizedActivityEvent[] = [];
+          const representativeChain = chainsToQuery[0];
 
-          const results = await Promise.all(
-            chainsToQuery.map(async (chain) => {
-              try {
-                return await fetchGlobalEvents(chain, page, perPage);
-              } catch {
-                return null;
-              }
-            })
-          );
-
-          for (const response of results) {
-            if (!response) continue;
-            const eventsRaw = Array.isArray(response.events) ? response.events : [];
-            allEvents.push(...eventsRaw.map((e) => normalizeActivityEvent(e)));
-          }
-
-          // Sort by timestamp descending, then truncate to perPage
-          allEvents.sort((a, b) => (b.timestampMs ?? 0) - (a.timestampMs ?? 0));
+          const response = await fetchGlobalEvents(representativeChain, page, perPage);
           spin.stop();
+
+          const eventsRaw = Array.isArray(response.events) ? response.events : [];
+          const events = eventsRaw.map((e) => normalizeActivityEvent(e));
 
           renderActivity(ctx, {
             mode: "global-activity",
             chain: "all-mainnets",
             chains: chainNames,
-            page,
-            perPage,
-            total: null,
-            totalPages: null,
-            events: allEvents.slice(0, perPage),
+            page: parseNumberish(response.page) ?? page,
+            perPage: parseNumberish(response.perPage) ?? perPage,
+            total: parseNumberish(response.total) ?? null,
+            totalPages: parseNumberish(response.totalPages) ?? null,
+            events,
           });
           return;
         }
 
-        // Single chain global activity
+        // Single chain global activity: call the global endpoint once and
+        // filter results to only events matching the selected chain.
         const chainConfig = resolveChain(explicitChain, config.defaultChain);
         const response = await fetchGlobalEvents(chainConfig, page, perPage);
         spin.stop();
 
         const eventsRaw = Array.isArray(response.events) ? response.events : [];
-        const events = eventsRaw.map((e) => normalizeActivityEvent(e));
+        const events = eventsRaw
+          .map((e) => normalizeActivityEvent(e))
+          .filter((e) => e.chainId === null || e.chainId === chainConfig.id);
 
         renderActivity(ctx, {
           mode: "global-activity",

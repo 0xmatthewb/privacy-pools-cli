@@ -66,6 +66,90 @@ export function createInitCommand(): Command {
       const skipPrompts = mode.skipPrompts;
 
       try {
+        // ── Phase 1: Eager validation (before any disk writes) ──────────
+
+        // Validate --mnemonic / --mnemonic-file mutual exclusion
+        if (opts.mnemonic && opts.mnemonicFile) {
+          throw new CLIError(
+            "Cannot specify both --mnemonic and --mnemonic-file.",
+            "INPUT",
+            "Use one or the other, not both."
+          );
+        }
+
+        // Validate --private-key / --private-key-file mutual exclusion
+        if (opts.privateKey && opts.privateKeyFile) {
+          throw new CLIError(
+            "Cannot specify both --private-key and --private-key-file.",
+            "INPUT",
+            "Use one or the other, not both."
+          );
+        }
+
+        // Validate --default-chain early (before any secrets are written)
+        if (opts.defaultChain && !CHAINS[opts.defaultChain.toLowerCase()]) {
+          throw new CLIError(
+            `Unknown chain: ${opts.defaultChain}`,
+            "INPUT",
+            `Available chains: ${CHAIN_NAMES.join(", ")}`
+          );
+        }
+
+        // Read and validate mnemonic source if provided via flag
+        let mnemonicSource: string | undefined;
+        if (opts.mnemonicFile) {
+          try {
+            mnemonicSource = readFileSync(opts.mnemonicFile, "utf-8").trim();
+          } catch (err) {
+            throw new CLIError(
+              `Could not read mnemonic file: ${opts.mnemonicFile}`,
+              "INPUT",
+              err instanceof Error ? err.message : undefined
+            );
+          }
+        } else if (opts.mnemonic) {
+          mnemonicSource = opts.mnemonic;
+        }
+
+        if (mnemonicSource && !validateMnemonic(mnemonicSource)) {
+          throw new CLIError(
+            "Invalid recovery phrase.",
+            "INPUT",
+            "Provide a valid BIP-39 recovery phrase (12 or 24 words)."
+          );
+        }
+
+        // Read and validate signer key source if provided via flag
+        let signerKeySource: string | undefined;
+        if (opts.privateKeyFile) {
+          try {
+            signerKeySource = readFileSync(opts.privateKeyFile, "utf-8").trim();
+          } catch (err) {
+            throw new CLIError(
+              `Could not read private key file: ${opts.privateKeyFile}`,
+              "INPUT",
+              err instanceof Error ? err.message : undefined
+            );
+          }
+        } else if (opts.privateKey) {
+          signerKeySource = opts.privateKey;
+        }
+
+        if (signerKeySource) {
+          const normalized = signerKeySource.startsWith("0x")
+            ? signerKeySource
+            : `0x${signerKeySource}`;
+          if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
+            throw new CLIError(
+              "Invalid private key format.",
+              "INPUT",
+              "Private key must be 64 hex characters (with or without 0x prefix)."
+            );
+          }
+        }
+
+        // ── Phase 2: Interactive prompts and gathering ──────────────────
+
         ensureConfigDir();
 
         // Check for existing configuration or mnemonic
@@ -96,41 +180,10 @@ export function createInitCommand(): Command {
         // --- Mnemonic ---
         let mnemonic: string;
 
-        if (opts.mnemonic && opts.mnemonicFile) {
-          throw new CLIError(
-            "Cannot specify both --mnemonic and --mnemonic-file.",
-            "INPUT",
-            "Use one or the other, not both."
-          );
-        }
-
-        // Resolve mnemonic from --mnemonic-file, --mnemonic, or generate
-        let mnemonicSource: string | undefined;
-        if (opts.mnemonicFile) {
-          try {
-            mnemonicSource = readFileSync(opts.mnemonicFile, "utf-8").trim();
-          } catch (err) {
-            throw new CLIError(
-              `Could not read mnemonic file: ${opts.mnemonicFile}`,
-              "INPUT",
-              err instanceof Error ? err.message : undefined
-            );
-          }
-        } else if (opts.mnemonic) {
-          if (!silent) {
+        if (mnemonicSource) {
+          if (opts.mnemonic && !silent) {
             process.stderr.write(
               chalk.yellow("Warning: --mnemonic is visible in process list and shell history. Prefer --mnemonic-file or stdin.\n")
-            );
-          }
-          mnemonicSource = opts.mnemonic;
-        }
-
-        if (mnemonicSource) {
-          if (!validateMnemonic(mnemonicSource)) {
-            throw new CLIError(
-              "Invalid recovery phrase.",
-              "INPUT",
-              "Provide a valid BIP-39 recovery phrase (12 or 24 words)."
             );
           }
           mnemonic = mnemonicSource;
@@ -232,36 +285,13 @@ export function createInitCommand(): Command {
           }
         }
 
-        saveMnemonicToFile(mnemonic);
-        if (!isJson) success("Recovery phrase saved.", silent);
+        // --- Signer Key (interactive prompt if needed) ---
+        let signerKey: string | undefined = signerKeySource;
 
-        // --- Signer Key ---
-        if (opts.privateKey && opts.privateKeyFile) {
-          throw new CLIError(
-            "Cannot specify both --private-key and --private-key-file.",
-            "INPUT",
-            "Use one or the other, not both."
+        if (signerKeySource && opts.privateKey && !silent) {
+          process.stderr.write(
+            chalk.yellow("Warning: --private-key is visible in process list and shell history. Prefer --private-key-file or PRIVACY_POOLS_PRIVATE_KEY env var.\n")
           );
-        }
-
-        let signerKey: string | undefined;
-        if (opts.privateKeyFile) {
-          try {
-            signerKey = readFileSync(opts.privateKeyFile, "utf-8").trim();
-          } catch (err) {
-            throw new CLIError(
-              `Could not read private key file: ${opts.privateKeyFile}`,
-              "INPUT",
-              err instanceof Error ? err.message : undefined
-            );
-          }
-        } else if (opts.privateKey) {
-          if (!silent) {
-            process.stderr.write(
-              chalk.yellow("Warning: --private-key is visible in process list and shell history. Prefer --private-key-file or PRIVACY_POOLS_PRIVATE_KEY env var.\n")
-            );
-          }
-          signerKey = opts.privateKey;
         }
 
         if (!signerKey && !process.env.PRIVACY_POOLS_PRIVATE_KEY && !skipPrompts) {
@@ -279,38 +309,23 @@ export function createInitCommand(): Command {
           }
         }
 
+        // Validate interactively-entered signer key
+        let normalizedSignerKey: string | undefined;
         if (signerKey) {
-          const normalized = signerKey.startsWith("0x")
+          normalizedSignerKey = signerKey.startsWith("0x")
             ? signerKey
             : `0x${signerKey}`;
-          if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
+          if (!/^0x[0-9a-fA-F]{64}$/.test(normalizedSignerKey)) {
             throw new CLIError(
               "Invalid private key format.",
               "INPUT",
               "Private key must be 64 hex characters (with or without 0x prefix)."
             );
           }
-          saveSignerKey(normalized);
-          if (!isJson) success("Signer key saved.", silent);
-        } else if (process.env.PRIVACY_POOLS_PRIVATE_KEY) {
-          if (!isJson) info("Using PRIVACY_POOLS_PRIVATE_KEY from environment.", silent);
-        } else {
-          if (!isJson) warn(
-            "No signer key set. You'll need to set PRIVACY_POOLS_PRIVATE_KEY for transactions.",
-            silent
-          );
         }
 
-        // --- Default Chain ---
+        // --- Default Chain (interactive prompt if needed) ---
         let defaultChain = opts.defaultChain;
-
-        if (defaultChain && !CHAINS[defaultChain.toLowerCase()]) {
-          throw new CLIError(
-            `Unknown chain: ${defaultChain}`,
-            "INPUT",
-            `Available chains: ${CHAIN_NAMES.join(", ")}`
-          );
-        }
 
         if (!defaultChain && !skipPrompts) {
           defaultChain = await select({
@@ -324,6 +339,23 @@ export function createInitCommand(): Command {
               })),
             ],
           });
+        }
+
+        // ── Phase 3: Atomic persistence (all writes together) ───────────
+
+        saveMnemonicToFile(mnemonic);
+        if (!isJson) success("Recovery phrase saved.", silent);
+
+        if (normalizedSignerKey) {
+          saveSignerKey(normalizedSignerKey);
+          if (!isJson) success("Signer key saved.", silent);
+        } else if (process.env.PRIVACY_POOLS_PRIVATE_KEY) {
+          if (!isJson) info("Using PRIVACY_POOLS_PRIVATE_KEY from environment.", silent);
+        } else {
+          if (!isJson) warn(
+            "No signer key set. You'll need to set PRIVACY_POOLS_PRIVATE_KEY for transactions.",
+            silent
+          );
         }
 
         const config = loadConfig();

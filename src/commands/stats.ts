@@ -15,7 +15,6 @@ import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderGlobalStats, renderPoolStats } from "../output/stats.js";
 import { getDefaultReadOnlyChains } from "../config/chains.js";
-import type { ChainStatsEntry } from "../output/stats.js";
 
 interface PoolStatsCommandOptions {
   asset?: string;
@@ -53,39 +52,25 @@ export function createStatsCommand(): Command {
         const silent = isJson || mode.isQuiet;
 
         if (!explicitChain) {
-          // Multi-chain: fetch from all mainnets in parallel
+          // Global stats: the ASP global endpoint returns cross-chain data,
+          // so we call it exactly once using a representative chain config.
           const chainsToQuery = getDefaultReadOnlyChains();
           const chainNames = chainsToQuery.map((c) => c.name);
-          const spin = spinner("Fetching global statistics across mainnets...", silent);
+          const representativeChain = chainsToQuery[0];
+          const spin = spinner("Fetching global statistics...", silent);
           spin.start();
 
-          const results = await Promise.all(
-            chainsToQuery.map(async (chain) => {
-              try {
-                return { chain: chain.name, stats: await fetchGlobalStatistics(chain) };
-              } catch {
-                return { chain: chain.name, stats: null };
-              }
-            }),
-          );
+          const stats: GlobalStatisticsResponse = await fetchGlobalStatistics(representativeChain);
           spin.stop();
-
-          const perChain: ChainStatsEntry[] = results.map((r) => ({
-            chain: r.chain,
-            cacheTimestamp: r.stats?.cacheTimestamp ?? null,
-            allTime: r.stats?.allTime ?? null,
-            last24h: r.stats?.last24h ?? null,
-          }));
 
           const ctx = createOutputContext(mode);
           renderGlobalStats(ctx, {
             mode: "global-stats",
             chain: "all-mainnets",
             chains: chainNames,
-            cacheTimestamp: null,
-            allTime: null,
-            last24h: null,
-            perChain,
+            cacheTimestamp: stats.cacheTimestamp ?? null,
+            allTime: stats.allTime ?? null,
+            last24h: stats.last24h ?? null,
           });
           return;
         }

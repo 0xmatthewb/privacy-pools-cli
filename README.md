@@ -98,7 +98,7 @@ privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key
 | `--force` | Overwrite existing config without prompting |
 | `--show-mnemonic` | Include mnemonic in JSON output (unsafe) |
 
-During interactive setup, `init` asks whether to download circuit artifacts and writes a recovery backup to `~/privacy-pools-recovery.txt` by default. It also verifies you've saved your mnemonic by asking you to confirm 3 random words.
+During interactive setup, `init` asks whether to download circuit artifacts and offers to write a recovery backup to `~/privacy-pools-recovery.txt`. It also asks you to confirm that you've securely backed up your recovery phrase before proceeding.
 
 ### `pools`
 
@@ -249,7 +249,7 @@ privacy-pools capabilities --json
 
 ### `activity`
 
-Show the public activity feed — recent deposits, withdrawals, and exits — either globally or for a specific pool. When no `--chain` is specified, shows all mainnets. Use `--all-chains` to include testnets.
+Show the public activity feed — recent deposits, withdrawals, and exits — either globally or for a specific pool. When no `--chain` is specified, shows global activity across all chains.
 
 ```bash
 privacy-pools activity                                 # all mainnets
@@ -266,7 +266,7 @@ privacy-pools activity --page 2 --limit 20             # pagination
 
 ### `stats`
 
-Show public protocol statistics (all-time and last 24h). Has two subcommands: `global` and `pool`. `stats global` defaults to all mainnets when no `--chain` is specified; use `--all-chains` to include testnets.
+Show public protocol statistics (all-time and last 24h). Has two subcommands: `global` and `pool`. `stats global` shows aggregate cross-chain statistics when no `--chain` is specified.
 
 ```bash
 privacy-pools stats global                            # all mainnets
@@ -308,7 +308,7 @@ These flags work on every command:
 | `--verbose` | `-v` | Enable verbose/debug output |
 | `--no-banner` | | Disable ASCII banner |
 | `--agent` | | Machine-friendly mode (alias for `--json --yes --quiet`) |
-| `--timeout <ms>` | | Transaction timeout in milliseconds |
+| `--timeout <seconds>` | | Network/transaction timeout in seconds |
 
 ## Agent / Machine Mode
 

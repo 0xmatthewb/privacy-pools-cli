@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { CHAINS, CHAIN_NAMES, getDefaultReadOnlyChains } from "../config/chains.js";
+import { CHAINS, CHAIN_NAMES, getDefaultReadOnlyChains, getAllChainsWithOverrides } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { listPools } from "../services/pools.js";
@@ -187,7 +187,7 @@ export function createPoolsCommand(): Command {
 
         let chainsToQuery: ChainConfig[];
         if (opts.allChains) {
-          chainsToQuery = CHAIN_NAMES.map((name) => CHAINS[name]);
+          chainsToQuery = getAllChainsWithOverrides();
         } else if (explicitChain) {
           chainsToQuery = [resolveChain(explicitChain, config.defaultChain)];
         } else {

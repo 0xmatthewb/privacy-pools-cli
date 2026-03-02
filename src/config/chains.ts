@@ -7,6 +7,38 @@ import {
 } from "viem/chains";
 import type { ChainConfig } from "../types.js";
 
+function normalizedChainEnvSuffix(chainName: string): string {
+  return chainName.replace(/[^a-z0-9]/gi, "_").toUpperCase();
+}
+
+function resolveHostOverride(
+  type: "ASP_HOST" | "RELAYER_HOST",
+  chainName: string
+): string | undefined {
+  const chainSuffix = normalizedChainEnvSuffix(chainName);
+  const chainScoped =
+    process.env[`PRIVACY_POOLS_${type}_${chainSuffix}`]?.trim() ||
+    process.env[`PP_${type}_${chainSuffix}`]?.trim();
+  if (chainScoped) return chainScoped;
+
+  const global =
+    process.env[`PRIVACY_POOLS_${type}`]?.trim() ||
+    process.env[`PP_${type}`]?.trim();
+  return global || undefined;
+}
+
+/** Apply env-var host overrides to a chain config. */
+export function resolveChainOverrides(config: ChainConfig): ChainConfig {
+  const aspHostOverride = resolveHostOverride("ASP_HOST", config.name);
+  const relayerHostOverride = resolveHostOverride("RELAYER_HOST", config.name);
+  if (!aspHostOverride && !relayerHostOverride) return config;
+  return {
+    ...config,
+    aspHost: aspHostOverride ?? config.aspHost,
+    relayerHost: relayerHostOverride ?? config.relayerHost,
+  };
+}
+
 export const CHAINS: Record<string, ChainConfig> = {
   mainnet: {
     id: 1,
@@ -72,9 +104,14 @@ export const TESTNET_CHAIN_NAMES = CHAIN_NAMES.filter(
   (name) => CHAINS[name].isTestnet,
 );
 
-/** Default chains for read-only commands (all mainnets). */
+/** All chain configs with host overrides applied (includes testnets). */
+export function getAllChainsWithOverrides(): ChainConfig[] {
+  return CHAIN_NAMES.map((name) => resolveChainOverrides(CHAINS[name]));
+}
+
+/** Default chains for read-only commands (all mainnets, with host overrides applied). */
 export function getDefaultReadOnlyChains(): ChainConfig[] {
-  return MAINNET_CHAIN_NAMES.map((name) => CHAINS[name]);
+  return MAINNET_CHAIN_NAMES.map((name) => resolveChainOverrides(CHAINS[name]));
 }
 
 export const NATIVE_ASSET_ADDRESS =
