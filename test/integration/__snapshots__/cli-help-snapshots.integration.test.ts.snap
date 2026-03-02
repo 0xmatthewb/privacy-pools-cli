@@ -29,11 +29,6 @@ Commands:
   guide                Show usage guide, workflow, and reference
   capabilities         Describe CLI capabilities for agent discovery
   help                 display help for command
-  A compliant way to transact privately on Ethereum.
-  Explore (no wallet needed)
-    pools  activity  stats  status  guide
-  Transact (run init first)
-    init  deposit  withdraw  ragequit  accounts  balance  history  sync
   Get started:      privacy-pools init
   Short alias:      pp init
   Full guide:       privacy-pools guide

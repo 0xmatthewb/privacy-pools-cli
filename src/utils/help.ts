@@ -59,19 +59,30 @@ export function styleCommanderHelp(raw: string): string {
 }
 
 /**
- * Minimal footer for root --help. Points users to the right places
- * without overwhelming them with a tutorial.
+ * Condensed welcome screen shown on bare `privacy-pools` (no args).
+ * Orients the user quickly without the full Commander listing.
  */
-export function rootHelpFooter(): string {
+export function welcomeScreen(): string {
   return [
-    "",
-    chalk.dim("  A compliant way to transact privately on Ethereum."),
-    "",
     chalk.bold("  Explore (no wallet needed)"),
     `    ${chalk.green("pools")}  ${chalk.green("activity")}  ${chalk.green("stats")}  ${chalk.green("status")}  ${chalk.green("guide")}`,
     "",
     chalk.bold("  Transact (run init first)"),
     `    ${chalk.green("init")}  ${chalk.green("deposit")}  ${chalk.green("withdraw")}  ${chalk.green("ragequit")}  ${chalk.green("accounts")}  ${chalk.green("balance")}  ${chalk.green("history")}  ${chalk.green("sync")}`,
+    "",
+    `  Get started:      ${chalk.cyan("privacy-pools init")}`,
+    `  Short alias:      ${chalk.cyan("pp init")}`,
+    `  Full guide:       ${chalk.cyan("privacy-pools guide")}`,
+    `  All commands:     ${chalk.cyan("privacy-pools --help")}`,
+  ].join("\n");
+}
+
+/**
+ * Brief footer for root --help. The full command listing is already
+ * shown by Commander, so this just adds quick-start pointers.
+ */
+export function rootHelpFooter(): string {
+  return [
     "",
     `  Get started:      ${chalk.cyan("privacy-pools init")}`,
     `  Short alias:      ${chalk.cyan("pp init")}`,

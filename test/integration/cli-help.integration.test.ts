@@ -15,8 +15,8 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("-j, --json");
     expect(result.stdout).toContain("-y, --yes");
     expect(result.stdout).toContain("Get started:");
-    // Footer has two command categories (read-only + transact)
-    expect(result.stdout).toContain("no wallet needed");
+    // Command categories now live in the welcome screen (bare invocation),
+    // not in the --help footer — verify commands are listed by Commander instead
     expect(result.stdout).toContain("init");
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("pools");
@@ -109,23 +109,39 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
   });
 
-  test("banner is shown only once per session identifier", () => {
+  test("banner is shown on bare invocation, only once per session", () => {
     const home = createTempHome();
     const sessionId = `pp-cli-test-session-${Date.now()}`;
 
-    const first = runCli(["status"], {
+    // Bare invocation shows banner + welcome screen
+    const first = runCli([], {
       home,
       env: { TERM_SESSION_ID: sessionId },
     });
     expect(first.status).toBe(0);
     expect(first.stderr).toContain(BANNER_SENTINEL);
+    expect(first.stdout).toContain("Explore (no wallet needed)");
 
-    const second = runCli(["status"], {
+    // Second bare invocation in same session suppresses banner
+    const second = runCli([], {
       home,
       env: { TERM_SESSION_ID: sessionId },
     });
     expect(second.status).toBe(0);
     expect(second.stderr).not.toContain(BANNER_SENTINEL);
+    expect(second.stdout).toContain("Explore (no wallet needed)");
+  });
+
+  test("banner is not shown before commands", () => {
+    const home = createTempHome();
+    const sessionId = `pp-cli-test-banner-cmd-${Date.now()}`;
+
+    const result = runCli(["status"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).not.toContain(BANNER_SENTINEL);
   });
 
   // --- JSON help/version envelopes ---

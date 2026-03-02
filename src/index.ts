@@ -26,7 +26,7 @@ import { createHistoryCommand } from "./commands/history.js";
 import { createCapabilitiesCommand } from "./commands/capabilities.js";
 import { createCompletionCommand } from "./commands/completion.js";
 import { printBanner } from "./utils/banner.js";
-import { rootHelpFooter, styleCommanderHelp } from "./utils/help.js";
+import { rootHelpFooter, styleCommanderHelp, welcomeScreen } from "./utils/help.js";
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 
@@ -70,17 +70,9 @@ const isMachineMode = isJson || isUnsigned || isAgent;
 const isHelpLike = argv.includes("--help") || hasShortFlag(argv, "h") || firstCommandToken === "help";
 const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
 const isCompletionLike = firstCommandToken === "completion";
-const noBanner = argv.includes("--no-banner");
 const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
-const shouldShowBanner =
-  !isMachineMode &&
-  !isQuiet &&
-  !noBanner &&
-  !isHelpLike &&
-  !isVersionLike &&
-  !isCompletionLike;
+const isWelcome = argv.length === 0 && !isMachineMode;
 let machineCapturedOut = "";
-let bannerRendered = false;
 
 const program = new Command();
 
@@ -132,10 +124,12 @@ program.configureOutput({
       machineCapturedOut += str;
       return;
     }
+    if (isWelcome) return; // Suppress Commander's default help; we show our own welcome screen
     const styled = styleCommanderHelp(str);
     process.stdout.write(styled);
   },
   writeErr: (str: string) => {
+    if (isWelcome) return; // Suppress Commander's stderr help for welcome screen
     if (!isMachineMode) process.stderr.write(str);
   },
   outputError: (str, write) => {
@@ -146,13 +140,6 @@ program.configureOutput({
 });
 program.addHelpText("after", rootHelpFooter());
 program.exitOverride();
-
-program.hook("preAction", async () => {
-  if (shouldShowBanner && !bannerRendered) {
-    bannerRendered = true;
-    await printBanner();
-  }
-});
 
 // Commands ordered by typical workflow
 program.addCommand(createInitCommand());
@@ -247,6 +234,13 @@ function mapCommanderError(error: unknown): CLIError | null {
         (err as { code?: string }).code === "commander.helpDisplayed" ||
         (err as { code?: string }).code === "commander.version")
     ) {
+      // Bare invocation: show banner (once per session) + condensed welcome
+      if (isWelcome) {
+        await printBanner();
+        process.stdout.write(welcomeScreen() + "\n");
+        process.exit(0);
+      }
+
       const commanderCode = (err as { code?: string }).code;
       if (captureMachineOutput) {
         if (commanderCode === "commander.version") {
