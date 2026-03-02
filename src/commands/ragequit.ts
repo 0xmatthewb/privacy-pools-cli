@@ -29,7 +29,7 @@ import { buildUnsignedRagequitOutput } from "../utils/unsigned-flows.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions, PoolStats } from "../types.js";
-import { resolveGlobalMode } from "../utils/mode.js";
+import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
@@ -451,7 +451,7 @@ export function createRagequitCommand(): Command {
         try {
           receipt = await publicClient.waitForTransactionReceipt({
             hash: tx.hash as `0x${string}`,
-            timeout: 300_000,
+            timeout: getConfirmationTimeoutMs(),
           });
         } catch {
           throw new CLIError(

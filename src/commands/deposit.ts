@@ -31,7 +31,7 @@ import { buildUnsignedDepositOutput } from "../utils/unsigned-flows.js";
 import { checkNativeBalance, checkErc20Balance, checkHasGas } from "../utils/preflight.js";
 import { printRawTransactions } from "../utils/unsigned.js";
 import { privateKeyToAccount } from "viem/accounts";
-import { resolveGlobalMode } from "../utils/mode.js";
+import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
@@ -343,7 +343,7 @@ export function createDepositCommand(): Command {
         try {
           receipt = await publicClient.waitForTransactionReceipt({
             hash: tx.hash as `0x${string}`,
-            timeout: 300_000,
+            timeout: getConfirmationTimeoutMs(),
           });
         } catch {
           throw new CLIError(

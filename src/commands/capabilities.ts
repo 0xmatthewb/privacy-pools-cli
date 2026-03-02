@@ -93,8 +93,8 @@ const CAPABILITIES = {
     {
       name: "status",
       description: "Show configuration and check connection health (checks run by default)",
-      flags: ["--check", "--check-rpc", "--check-asp"],
-      agentFlags: "--json [--check] [--check-rpc] [--check-asp]",
+      flags: ["--check", "--no-check", "--check-rpc", "--check-asp"],
+      agentFlags: "--json [--no-check] [--check-rpc] [--check-asp]",
       requiresInit: false,
     },
     {
@@ -137,6 +137,7 @@ const CAPABILITIES = {
     { flag: "-v, --verbose", description: "Enable verbose/debug output" },
     { flag: "--no-banner", description: "Disable ASCII banner output" },
     { flag: "--agent", description: "Alias for --json --yes --quiet" },
+    { flag: "--timeout <seconds>", description: "Network/transaction timeout in seconds (default: 30)" },
   ],
   agentWorkflow: [
     "1. privacy-pools init --json --yes --default-chain <chain> --skip-circuits",

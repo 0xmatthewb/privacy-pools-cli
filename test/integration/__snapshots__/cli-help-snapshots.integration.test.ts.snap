@@ -77,12 +77,14 @@ exports[`CLI --help snapshots status --help snapshot 1`] = `
 Show configuration and check connection health
 Options:
   --check      Run both RPC and ASP health checks
+  --no-check   Suppress default health checks
   --check-rpc  Actively test RPC connectivity
   --check-asp  Actively test ASP liveness
   -h, --help   display help for command
 Examples:
   privacy-pools status
   privacy-pools status --check
+  privacy-pools status --no-check
   privacy-pools status --json --check-rpc
   privacy-pools status --chain sepolia --rpc-url https://...
 JSON output (--json):

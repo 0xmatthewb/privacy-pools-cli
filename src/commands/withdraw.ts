@@ -39,7 +39,7 @@ import { explorerTxUrl } from "../config/chains.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions, PoolStats } from "../types.js";
-import { resolveGlobalMode } from "../utils/mode.js";
+import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote } from "../output/withdraw.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
@@ -618,7 +618,7 @@ export function createWithdrawCommand(): Command {
           try {
             receipt = await publicClient.waitForTransactionReceipt({
               hash: tx.hash as `0x${string}`,
-              timeout: 300_000,
+              timeout: getConfirmationTimeoutMs(),
             });
           } catch {
             throw new CLIError(
@@ -1003,7 +1003,7 @@ export function createWithdrawCommand(): Command {
           try {
             receipt = await publicClient.waitForTransactionReceipt({
               hash: result.txHash as `0x${string}`,
-              timeout: 300_000,
+              timeout: getConfirmationTimeoutMs(),
             });
           } catch {
             throw new CLIError(

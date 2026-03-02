@@ -58,7 +58,7 @@ exports[`JSON envelope structure snapshots capabilities --json success envelope 
   "agentNotes.withdrawQuote": "string",
   "agentWorkflow": "array(5)",
   "commands": "array(16)",
-  "globalFlags": "array(8)",
+  "globalFlags": "array(9)",
   "jsonOutputContract": "string",
   "schemaVersion": "string",
   "schemas.aspApprovalStatus.description": "string",

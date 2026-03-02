@@ -7,6 +7,7 @@ import type { PublicClient, Address } from "viem";
 import type { ChainConfig } from "../types.js";
 import { getRpcUrl, getRpcUrls } from "./config.js";
 import { loadPrivateKey } from "./wallet.js";
+import { getNetworkTimeoutMs } from "../utils/mode.js";
 
 // Use dynamic import for Circuits since it may need async init
 let _circuits: any = null;
@@ -50,10 +51,11 @@ export function getPublicClient(
   rpcOverride?: string
 ): PublicClient {
   const urls = getRpcUrls(chainConfig.id, rpcOverride);
+  const timeoutMs = getNetworkTimeoutMs();
   const transport =
     urls.length === 1
-      ? http(urls[0])
-      : fallback(urls.map((url) => http(url)));
+      ? http(urls[0], { timeout: timeoutMs })
+      : fallback(urls.map((url) => http(url, { timeout: timeoutMs })));
   return createPublicClient({
     chain: chainConfig.chain,
     transport,

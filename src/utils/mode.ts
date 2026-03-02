@@ -41,3 +41,22 @@ function setNetworkTimeoutMs(ms: number): void {
 export function getNetworkTimeoutMs(): number {
   return _networkTimeoutMs;
 }
+
+const MIN_CONFIRMATION_TIMEOUT_MS = 60_000;
+const DEFAULT_CONFIRMATION_TIMEOUT_MS = 300_000;
+
+/**
+ * Returns the timeout for on-chain tx confirmation waits.
+ *
+ * When `--timeout` is set, uses the larger of the user's value and a
+ * safe floor (60 s) so short timeouts intended for health checks don't
+ * abort real transaction confirmations.  Without `--timeout` the default
+ * is 300 s (unchanged from prior behavior).
+ */
+export function getConfirmationTimeoutMs(): number {
+  if (_networkTimeoutMs === DEFAULT_NETWORK_TIMEOUT_MS) {
+    // No explicit --timeout flag was provided; use the legacy 300 s default.
+    return DEFAULT_CONFIRMATION_TIMEOUT_MS;
+  }
+  return Math.max(_networkTimeoutMs, MIN_CONFIRMATION_TIMEOUT_MS);
+}
