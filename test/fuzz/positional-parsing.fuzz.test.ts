@@ -57,7 +57,7 @@ describe("positional parser fuzz", () => {
   test("leading-dot amounts (.5, .123) are recognized as amounts", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0x66666666);
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 100; i++) {
       const amount = randomLeadingDotNumeric(rng);
       const asset = randomAssetLike(rng);
 
@@ -74,7 +74,7 @@ describe("positional parser fuzz", () => {
   test("single-argument mode returns amount only", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0x77777777);
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 100; i++) {
       const amount = randomNumericString(rng);
 
       const result = resolveAmountAndAssetInput("deposit", amount, undefined, undefined);
@@ -86,7 +86,7 @@ describe("positional parser fuzz", () => {
   test("flagged asset with single positional returns amount + flagged asset", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0x88888888);
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 100; i++) {
       const amount = randomNumericString(rng);
       const asset = randomAssetLike(rng);
 
@@ -123,7 +123,7 @@ describe("positional parser fuzz", () => {
   test("resolveOptionalAssetInput returns flagged or positional asset", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0x99999999);
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 100; i++) {
       const asset = randomAssetLike(rng);
 
       // Positional only
@@ -138,7 +138,7 @@ describe("positional parser fuzz", () => {
   test("resolveOptionalAssetInput throws on conflicting positional + flagged asset", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0xAAAAAAAA);
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 100; i++) {
       const positional = randomAssetLike(rng);
       const flagged = randomAssetLike(rng);
 

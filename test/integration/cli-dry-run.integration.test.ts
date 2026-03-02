@@ -21,28 +21,23 @@ describe("--dry-run flag acceptance", () => {
     expect(result.stderr).toContain("No asset specified");
   });
 
-  test("deposit --dry-run is accepted and progresses past input validation", () => {
+  test("deposit --dry-run is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    // Must produce valid JSON — flag was parsed correctly
+    expect(result.status).toBe(4);
     const json = parseJsonOutput<{
       success: boolean;
-      schemaVersion?: string;
       error?: { category: string };
     }>(result.stdout);
-    expect(typeof json.success).toBe("boolean");
-    // If it failed, the error must NOT be INPUT — proving the flag was accepted
-    // and the command progressed to ASP/RPC pool resolution
-    if (!json.success && json.error) {
-      expect(json.error.category).not.toBe("INPUT");
-    }
+    expect(json.success).toBe(false);
+    expect(json.error?.category).toBe("ASP");
   });
 
-  test("withdraw --dry-run is accepted and progresses past input validation", () => {
+  test("withdraw --dry-run is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
@@ -61,31 +56,29 @@ describe("--dry-run flag acceptance", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
+    expect(result.status).toBe(4);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
-    expect(typeof json.success).toBe("boolean");
-    if (!json.success && json.error) {
-      expect(json.error.category).not.toBe("INPUT");
-    }
+    expect(json.success).toBe(false);
+    expect(json.error?.category).toBe("ASP");
   });
 
-  test("ragequit --dry-run is accepted and progresses past input validation", () => {
+  test("ragequit --dry-run is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
+    expect(result.status).toBe(4);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
-    expect(typeof json.success).toBe("boolean");
-    if (!json.success && json.error) {
-      expect(json.error.category).not.toBe("INPUT");
-    }
+    expect(json.success).toBe(false);
+    expect(json.error?.category).toBe("ASP");
   });
 
   test("deposit --dry-run --json produces valid JSON error envelope", () => {
@@ -95,17 +88,14 @@ describe("--dry-run flag acceptance", () => {
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.stdout.trim()).not.toBe("");
+    expect(result.status).toBe(4);
     const parsed = parseJsonOutput<{
       success: boolean;
       schemaVersion: string;
       error?: { category: string };
     }>(result.stdout);
     expect(parsed.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(typeof parsed.success).toBe("boolean");
-    // Should fail at pool resolution, not at input parsing
-    if (!parsed.success && parsed.error) {
-      expect(parsed.error.category).not.toBe("INPUT");
-    }
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.category).toBe("ASP");
   });
 });

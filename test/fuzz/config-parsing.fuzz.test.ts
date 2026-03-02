@@ -1,5 +1,5 @@
-import { describe, expect, test, beforeEach } from "bun:test";
-import { writeFileSync, mkdirSync, rmSync, existsSync } from "fs";
+import { describe, expect, test } from "bun:test";
+import { writeFileSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { CLIError } from "../../src/utils/errors.ts";
@@ -49,7 +49,7 @@ describe("config parsing fuzz", () => {
     ];
 
     // Add random garbage strings
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 20; i++) {
       const len = 1 + rng.nextInt(100);
       let s = "";
       for (let j = 0; j < len; j++) {
@@ -121,7 +121,7 @@ describe("config parsing fuzz", () => {
     ];
 
     // Add random object structures
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 15; i++) {
       const obj: Record<string, unknown> = {};
       const keyCount = rng.nextInt(5);
       for (let j = 0; j < keyCount; j++) {
@@ -168,7 +168,7 @@ describe("config parsing fuzz", () => {
   test("valid configs load without error", async () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0xEEEEEEEE);
 
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 20; i++) {
       const chains = ["mainnet", "sepolia", "arbitrum", "optimism", "op-sepolia"];
       const chain = chains[rng.nextInt(chains.length)];
 

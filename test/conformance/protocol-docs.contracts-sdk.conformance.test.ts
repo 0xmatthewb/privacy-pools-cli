@@ -33,7 +33,6 @@ let upstreamRelayerClient = "";
 let upstreamSdkIndex = "";
 let upstreamSdkCrypto = "";
 let upstreamAccountService = "";
-let upstreamProofLib = "";
 let upstreamIState = "";
 
 // --- CLI source code (read synchronously) ---
@@ -68,7 +67,6 @@ describe("protocol conformance: CLI ↔ upstream", () => {
         upstreamSdkIndex,
         upstreamSdkCrypto,
         upstreamAccountService,
-        upstreamProofLib,
         upstreamIState,
       ] = await Promise.all([
         fetchGitHubFile(CORE_REPO, "docs/docs/deployments.md"),
@@ -83,7 +81,6 @@ describe("protocol conformance: CLI ↔ upstream", () => {
         fetchGitHubFile(CORE_REPO, "packages/sdk/src/index.ts"),
         fetchGitHubFile(CORE_REPO, "packages/sdk/src/crypto.ts"),
         fetchGitHubFile(CORE_REPO, "packages/sdk/src/core/account.service.ts"),
-        fetchGitHubFile(CORE_REPO, "packages/contracts/src/contracts/lib/ProofLib.sol"),
         fetchGitHubFile(CORE_REPO, "packages/contracts/src/interfaces/IState.sol"),
       ]);
 
@@ -229,79 +226,9 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   }
 
   // ---------------------------------------------------------------
-  // 9. Unsigned ABI signatures: CLI ↔ upstream Solidity
-  //    These are the most safety-critical definitions in the CLI.
-  //    They encode the exact function signatures for on-chain
-  //    transactions. If these drift, user funds are at risk.
+  // 9. [Removed] Unsigned ABI signature checks — superseded by
+  //    semantic 4-byte selector parity in abi-selector-parity.conformance.test.ts
   // ---------------------------------------------------------------
-
-  run("CLI withdraw ABI matches upstream IPrivacyPool.sol", () => {
-    // CLI defines: function withdraw((address processooor, bytes data) _withdrawal, ...)
-    expect(cliUnsignedFlows).toContain("function withdraw(");
-    expect(cliUnsignedFlows).toContain("processooor");
-
-    // Upstream must have matching function and struct
-    expect(upstreamIPrivacyPool).toContain("function withdraw(");
-    expect(upstreamIPrivacyPool).toContain("struct Withdrawal");
-    expect(upstreamIPrivacyPool).toContain("processooor");
-  });
-
-  run("CLI relay ABI matches upstream IEntrypoint.sol", () => {
-    // CLI defines: function relay(... _withdrawal, ... _proof, uint256 _scope)
-    expect(cliUnsignedFlows).toContain("function relay(");
-    expect(cliUnsignedFlows).toContain("_scope");
-
-    // Upstream must have matching function
-    expect(upstreamIEntrypoint).toContain("function relay(");
-  });
-
-  run("CLI deposit ABIs match upstream IEntrypoint.sol overloads", () => {
-    // CLI defines native: function deposit(uint256 _precommitment) payable
-    expect(cliUnsignedFlows).toContain("function deposit(uint256 _precommitment)");
-
-    // CLI defines ERC20: function deposit(address _asset, uint256 _value, uint256 _precommitment)
-    expect(cliUnsignedFlows).toContain("function deposit(address _asset");
-
-    // Upstream must have both deposit overloads
-    expect(upstreamIEntrypoint).toContain("function deposit(");
-    expect(upstreamIEntrypoint).toContain("_precommitment");
-  });
-
-  run("CLI ragequit ABI matches upstream IPrivacyPool.sol", () => {
-    // CLI defines: function ragequit(... _proof)
-    expect(cliUnsignedFlows).toContain("function ragequit(");
-
-    // Upstream must have matching function
-    expect(upstreamIPrivacyPool).toContain("ragequit");
-  });
-
-  run("CLI withdrawal proof uses 8 public signals matching upstream ProofLib.sol", () => {
-    // CLI withdraw and relay ABIs both hardcode uint256[8] pubSignals
-    expect(cliUnsignedFlows).toContain("uint256[8] pubSignals");
-    expect(cliUnsignedFlows).toContain("function withdraw(");
-    expect(cliUnsignedFlows).toContain("function relay(");
-
-    // Upstream ProofLib.sol defines the WithdrawProof struct used by IPrivacyPool/IEntrypoint
-    expect(upstreamProofLib).toContain("WithdrawProof");
-    expect(upstreamProofLib).toContain("uint256[8]");
-
-    // IPrivacyPool.sol and IEntrypoint.sol use ProofLib's WithdrawProof
-    expect(upstreamIPrivacyPool).toContain("WithdrawProof");
-    expect(upstreamIEntrypoint).toContain("WithdrawProof");
-  });
-
-  run("CLI ragequit proof uses 4 public signals matching upstream ProofLib.sol", () => {
-    // CLI ragequit ABI hardcodes uint256[4] pubSignals (different from withdrawal's 8)
-    expect(cliUnsignedFlows).toContain("function ragequit(");
-    expect(cliUnsignedFlows).toContain("uint256[4] pubSignals");
-
-    // Upstream ProofLib.sol defines the RagequitProof struct
-    expect(upstreamProofLib).toContain("RagequitProof");
-    expect(upstreamProofLib).toContain("uint256[4]");
-
-    // IPrivacyPool.sol uses ProofLib's RagequitProof
-    expect(upstreamIPrivacyPool).toContain("RagequitProof");
-  });
 
   // ---------------------------------------------------------------
   // 10. IPrivacyPool.sol: events and structs ↔ CLI decoding

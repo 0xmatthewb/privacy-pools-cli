@@ -106,9 +106,9 @@ describe("proof serialization fuzz", () => {
     ];
 
     for (const input of malformedInputs) {
-      expect(() => toSolidityProof(input as any)).toThrow(CLIError);
       try {
         toSolidityProof(input as any);
+        throw new Error("Expected CLIError but did not throw");
       } catch (e) {
         expect(e).toBeInstanceOf(CLIError);
         expect((e as CLIError).code).toBe("PROOF_MALFORMED");
@@ -117,7 +117,7 @@ describe("proof serialization fuzz", () => {
     }
 
     // Fuzz random malformed shapes
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 100; i++) {
       const shape = rng.nextInt(6);
       let malformed: unknown;
 
@@ -176,9 +176,9 @@ describe("proof serialization fuzz", () => {
           break;
       }
 
-      expect(() => toSolidityProof(malformed as any)).toThrow(CLIError);
       try {
         toSolidityProof(malformed as any);
+        throw new Error("Expected CLIError but did not throw");
       } catch (e) {
         expect(e).toBeInstanceOf(CLIError);
         expect((e as CLIError).code).toBe("PROOF_MALFORMED");

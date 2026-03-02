@@ -2,51 +2,63 @@ import { describe, expect, test } from "bun:test";
 import { withSuppressedSdkStdout } from "../../src/services/account.ts";
 
 describe("account service stdout guard", () => {
-  test("suppresses console.log inside the guard and restores it after", async () => {
+  test("suppresses console.log and console.debug inside the guard and restores both after", async () => {
     const originalLog = console.log;
-    const outerCapture: unknown[][] = [];
-    const patchedLog = (...args: unknown[]) => {
-      outerCapture.push(args);
-    };
+    const originalDebug = console.debug;
+    const logCapture: unknown[][] = [];
+    const debugCapture: unknown[][] = [];
+    const patchedLog = (...args: unknown[]) => { logCapture.push(args); };
+    const patchedDebug = (...args: unknown[]) => { debugCapture.push(args); };
 
     console.log = patchedLog;
+    console.debug = patchedDebug;
     try {
       let logInsideGuard: typeof console.log | undefined;
+      let debugInsideGuard: typeof console.debug | undefined;
 
       await withSuppressedSdkStdout(async () => {
-        // Inside the guard, console.log should NOT be our patchedLog —
-        // it should be replaced with a no-op so SDK noise is swallowed.
         logInsideGuard = console.log;
+        debugInsideGuard = console.debug;
         console.log("sdk-noise");
+        console.debug("sdk-debug-noise");
       });
 
-      // The guard must have replaced console.log during execution.
+      // Both must have been replaced during execution.
       expect(logInsideGuard).not.toBe(patchedLog);
-      // SDK noise must not have reached our outer capture.
-      expect(outerCapture.length).toBe(0);
-      // After the guard, console.log must be restored to our patchedLog.
+      expect(debugInsideGuard).not.toBe(patchedDebug);
+      // Neither noise line must have reached outer captures.
+      expect(logCapture.length).toBe(0);
+      expect(debugCapture.length).toBe(0);
+      // Both must be restored after the guard.
       expect(console.log).toBe(patchedLog);
+      expect(console.debug).toBe(patchedDebug);
     } finally {
       console.log = originalLog;
+      console.debug = originalDebug;
     }
   });
 
-  test("restores console.log when guarded call throws", async () => {
+  test("restores console.log and console.debug when guarded call throws", async () => {
     const originalLog = console.log;
+    const originalDebug = console.debug;
     const patchedLog = () => {};
+    const patchedDebug = () => {};
 
     console.log = patchedLog;
+    console.debug = patchedDebug;
     try {
       const run = withSuppressedSdkStdout(async () => {
-        // console.log should be replaced inside the guard even on error path
         expect(console.log).not.toBe(patchedLog);
+        expect(console.debug).not.toBe(patchedDebug);
         throw new Error("boom");
       });
       await expect(run).rejects.toThrow("boom");
-      // Must be restored after the error
+      // Both must be restored after the error
       expect(console.log).toBe(patchedLog);
+      expect(console.debug).toBe(patchedDebug);
     } finally {
       console.log = originalLog;
+      console.debug = originalDebug;
     }
   });
 });

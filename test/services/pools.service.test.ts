@@ -209,6 +209,40 @@ describe("pools service", () => {
     });
   });
 
+  test("listPools throws RPC_POOL_RESOLUTION_FAILED when ASP returns pools but all on-chain reads fail", async () => {
+    const chainId = 31342;
+    const aspStatsUrl = `/${chainId}/public/pools-stats`;
+    const statsPayload = { pools: [{ tokenAddress: "0x00000000000000000000000000000000000000b1" }] };
+    const savedFetch = globalThis.fetch;
+
+    // Mock fetch: serve ASP stats, reject all other (RPC) requests
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes(aspStatsUrl)) {
+        return new Response(JSON.stringify(statsPayload), { status: 200 });
+      }
+      // RPC calls → network-level failure that isRpcLikeError recognizes
+      throw new Error("fetch failed: ECONNREFUSED");
+    }) as typeof fetch;
+
+    try {
+      const chainConfig = {
+        ...CHAINS.mainnet,
+        id: chainId,
+        entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+        aspHost: "http://127.0.0.1:1",
+      };
+
+      await expect(listPools(chainConfig, "http://127.0.0.1:1")).rejects.toMatchObject({
+        category: "RPC",
+        code: "RPC_POOL_RESOLUTION_FAILED",
+        retryable: true,
+      });
+    } finally {
+      globalThis.fetch = savedFetch;
+    }
+  });
+
   test("listPools returns empty array for empty pools payload", async () => {
     const chainId = 31341;
     const server = await startMockServer(chainId, { pools: [] });

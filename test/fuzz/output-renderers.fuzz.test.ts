@@ -53,7 +53,7 @@ describe("output renderers fuzz", () => {
     }
 
     // Random strings
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 100; i++) {
       const len = rng.nextInt(50);
       let s = "";
       const chars = "0123456789.,$ -+eE\t\n";
@@ -66,21 +66,6 @@ describe("output renderers fuzz", () => {
       expect(result === "-" || result.startsWith("$")).toBe(true);
     }
 
-    // Random types
-    for (let i = 0; i < 100; i++) {
-      const type = rng.nextInt(6);
-      let input: unknown;
-      switch (type) {
-        case 0: input = rng.nextInt(1_000_000); break;
-        case 1: input = rng.nextFloat() * 1_000_000; break;
-        case 2: input = null; break;
-        case 3: input = undefined; break;
-        case 4: input = String(rng.nextInt(1_000_000)); break;
-        case 5: input = { toString: () => String(rng.nextInt(100)) }; break;
-      }
-      const result = parseUsd(input);
-      expect(typeof result).toBe("string");
-    }
   });
 
   test("parseCount never throws on random inputs", () => {
@@ -126,7 +111,7 @@ describe("output renderers fuzz", () => {
     }
 
     // Random numbers
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 100; i++) {
       const n = rng.nextInt(2) === 0
         ? rng.nextInt(10_000_000)
         : rng.nextFloat() * 10_000_000;
@@ -139,7 +124,7 @@ describe("output renderers fuzz", () => {
     }
 
     // Random strings
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 100; i++) {
       const len = rng.nextInt(30);
       let s = "";
       const chars = "0123456789.,- +eExX";

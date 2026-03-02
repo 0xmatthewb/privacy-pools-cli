@@ -6,26 +6,23 @@ const OFFLINE_POOL_ENV = {
 };
 
 describe("--unsigned-format tx output normalization", () => {
-  test("deposit --unsigned-format tx is accepted and progresses past input validation", () => {
+  test("deposit --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    // Must produce valid JSON — both flags were parsed correctly
+    expect(result.status).toBe(4);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
-    expect(typeof json.success).toBe("boolean");
-    // If it failed, the error must NOT be INPUT — proving flags were accepted
-    if (!json.success && json.error) {
-      expect(json.error.category).not.toBe("INPUT");
-    }
+    expect(json.success).toBe(false);
+    expect(json.error?.category).toBe("ASP");
   });
 
-  test("withdraw --unsigned-format tx is accepted and progresses past input validation", () => {
+  test("withdraw --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
@@ -46,31 +43,29 @@ describe("--unsigned-format tx output normalization", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
+    expect(result.status).toBe(4);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
-    expect(typeof json.success).toBe("boolean");
-    if (!json.success && json.error) {
-      expect(json.error.category).not.toBe("INPUT");
-    }
+    expect(json.success).toBe(false);
+    expect(json.error?.category).toBe("ASP");
   });
 
-  test("ragequit --unsigned-format tx is accepted and progresses past input validation", () => {
+  test("ragequit --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
+    expect(result.status).toBe(4);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
-    expect(typeof json.success).toBe("boolean");
-    if (!json.success && json.error) {
-      expect(json.error.category).not.toBe("INPUT");
-    }
+    expect(json.success).toBe(false);
+    expect(json.error?.category).toBe("ASP");
   });
 });
 

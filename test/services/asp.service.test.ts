@@ -123,6 +123,17 @@ describe("asp service", () => {
     await expect(fetchApprovedLabels(chain, 1n)).resolves.toEqual(new Set(["1", "2", "3"]));
   });
 
+  test("maps 400 errors to ASP category with version/sync hint", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response("{}", { status: 400, statusText: "Bad Request" }))
+    ) as typeof fetch;
+
+    await expect(fetchMerkleRoots(chain, 1n)).rejects.toMatchObject({
+      category: "ASP",
+      hint: expect.stringContaining("out of date"),
+    });
+  });
+
   test("maps 404 errors to ASP category", async () => {
     globalThis.fetch = mock(() =>
       Promise.resolve(new Response("{}", { status: 404, statusText: "Not Found" }))

@@ -26,46 +26,6 @@ describe("packaged CLI smoke", () => {
     home = createTempHome("pp-smoke-dist-");
   }, 120_000);
 
-  // ── Preserved original tests (split into two) ───────────────────────────
-
-  test("dist binary runs in agent mode with JSON envelopes", () => {
-    const statusResult = runBuiltCli(["--agent", "status"], {
-      home,
-      timeoutMs: 60_000,
-    });
-    expect(statusResult.status).toBe(0);
-    expect(statusResult.stderr.trim()).toBe("");
-
-    const statusJson = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      configExists: boolean;
-    }>(statusResult.stdout);
-    expect(statusJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(statusJson.success).toBe(true);
-    expect(statusJson.configExists).toBe(false);
-  });
-
-  test("unknown command returns JSON error envelope from dist", () => {
-    const unknownResult = runBuiltCli(["--agent", "not-a-command"], {
-      home,
-      timeoutMs: 60_000,
-    });
-    expect(unknownResult.status).toBe(2);
-    expect(unknownResult.stderr.trim()).toBe("");
-
-    const unknownJson = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      errorCode: string;
-      error: { category: string };
-    }>(unknownResult.stdout);
-    expect(unknownJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(unknownJson.success).toBe(false);
-    expect(unknownJson.errorCode).toBe("INPUT_ERROR");
-    expect(unknownJson.error.category).toBe("INPUT");
-  });
-
   // ── Binary boot ──────────────────────────────────────────────────────────
 
   describe("binary boot", () => {
@@ -137,7 +97,6 @@ describe("packaged CLI smoke", () => {
       expect(result.status).toBe(2);
       expect(result.stderr.trim()).toBe("");
       const json = parseJsonOutput<{
-        schemaVersion: string;
         success: boolean;
         errorCode: string;
         error: { category: string };
@@ -152,7 +111,6 @@ describe("packaged CLI smoke", () => {
       expect(result.status).toBe(2);
       expect(result.stderr.trim()).toBe("");
       const json = parseJsonOutput<{
-        schemaVersion: string;
         success: boolean;
         errorCode: string;
         error: { category: string };
@@ -167,7 +125,6 @@ describe("packaged CLI smoke", () => {
       expect(result.status).toBe(2);
       expect(result.stderr.trim()).toBe("");
       const json = parseJsonOutput<{
-        schemaVersion: string;
         success: boolean;
         errorCode: string;
         error: { category: string };
@@ -175,6 +132,46 @@ describe("packaged CLI smoke", () => {
       expect(json.success).toBe(false);
       expect(json.errorCode).toBe("INPUT_ERROR");
       expect(json.error.category).toBe("INPUT");
+    });
+  });
+
+  // ── Offline network paths ────────────────────────────────────────────────
+
+  describe("offline network paths", () => {
+    const OFFLINE_ENV = { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" };
+
+    test("pools --agent (offline): structured error envelope", () => {
+      const result = runBuiltCli(
+        ["--agent", "pools", "--chain", "mainnet"],
+        { home, env: OFFLINE_ENV },
+      );
+      expect(result.status).toBeGreaterThan(0);
+      expect(result.stderr.trim()).toBe("");
+      const json = parseJsonOutput<{
+        success: boolean;
+        errorCode: string;
+        error: { category: string };
+      }>(result.stdout);
+      expect(json.success).toBe(false);
+      expect(typeof json.errorCode).toBe("string");
+      expect(typeof json.error.category).toBe("string");
+    });
+
+    test("stats --agent (offline): structured error envelope", () => {
+      const result = runBuiltCli(
+        ["--agent", "stats", "--chain", "mainnet"],
+        { home, env: OFFLINE_ENV },
+      );
+      expect(result.status).toBeGreaterThan(0);
+      expect(result.stderr.trim()).toBe("");
+      const json = parseJsonOutput<{
+        success: boolean;
+        errorCode: string;
+        error: { category: string };
+      }>(result.stdout);
+      expect(json.success).toBe(false);
+      expect(typeof json.errorCode).toBe("string");
+      expect(typeof json.error.category).toBe("string");
     });
   });
 
@@ -191,17 +188,23 @@ describe("packaged CLI smoke", () => {
     test("JSON-mode success: stdout has JSON, stderr is empty", () => {
       const result = runBuiltCli(["--json", "status"], { home });
       expect(result.status).toBe(0);
-      const json = JSON.parse(result.stdout.trim());
+      const json = parseJsonOutput<{ success: boolean }>(result.stdout);
       expect(json.success).toBe(true);
       expect(result.stderr.trim()).toBe("");
     });
 
-    test("JSON-mode error: stdout has JSON, stderr is empty", () => {
+    test("JSON-mode error: stdout has JSON error envelope, stderr is empty", () => {
       const result = runBuiltCli(["--agent", "not-a-command"], { home });
       expect(result.status).toBe(2);
-      const json = JSON.parse(result.stdout.trim());
-      expect(json.success).toBe(false);
       expect(result.stderr.trim()).toBe("");
+      const json = parseJsonOutput<{
+        success: boolean;
+        errorCode: string;
+        error: { category: string };
+      }>(result.stdout);
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.error.category).toBe("INPUT");
     });
   });
 
@@ -234,4 +237,19 @@ describe("packaged CLI smoke", () => {
       expect(typeof errJson.errorCode).toBe("string");
     });
   });
+
+  // ── Packaged artifact ──────────────────────────────────────────────────────
+
+  test("npm pack includes dist entry point and package.json", () => {
+    const pack = spawnSync(
+      "npm",
+      ["pack", "--dry-run", "--ignore-scripts"],
+      { cwd: CLI_CWD, encoding: "utf8", timeout: 30_000 },
+    );
+    expect(pack.status).toBe(0);
+    // npm pack --dry-run lists included files to stderr
+    const listing = pack.stderr;
+    expect(listing).toContain("dist/index.js");
+    expect(listing).toContain("package.json");
+  }, 30_000);
 }, 180_000);

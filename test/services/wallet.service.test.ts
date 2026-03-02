@@ -139,6 +139,34 @@ describe("wallet service", () => {
         }
       }
     });
+
+    test("throws CLIError with INPUT category when mnemonic file contains invalid content", () => {
+      const origHome = process.env.PRIVACY_POOLS_HOME;
+      const { mkdtempSync, writeFileSync } = require("node:fs");
+      const { join } = require("node:path");
+      const { tmpdir } = require("node:os");
+      const tempDir = mkdtempSync(join(tmpdir(), "pp-wallet-test-"));
+      writeFileSync(join(tempDir, ".mnemonic"), "not a valid bip39 mnemonic phrase at all", "utf-8");
+      process.env.PRIVACY_POOLS_HOME = tempDir;
+      try {
+        expect(() => loadMnemonic()).toThrow(CLIError);
+        try {
+          loadMnemonic();
+        } catch (err) {
+          expect(err).toBeInstanceOf(CLIError);
+          const e = err as CLIError;
+          expect(e.category).toBe("INPUT");
+          expect(e.message).toContain("invalid or corrupted");
+          expect(e.hint).toContain("Re-initialize");
+        }
+      } finally {
+        if (origHome !== undefined) {
+          process.env.PRIVACY_POOLS_HOME = origHome;
+        } else {
+          delete process.env.PRIVACY_POOLS_HOME;
+        }
+      }
+    });
   });
 
   describe("loadPrivateKey", () => {

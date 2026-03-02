@@ -29,6 +29,10 @@ const MISSING_REQUIRED_E2E_ENV_VARS = REQUIRED_E2E_ENV_VARS.filter(
 );
 const LIVE_E2E_READY = LIVE_E2E && MISSING_REQUIRED_E2E_ENV_VARS.length === 0;
 const liveTest = LIVE_E2E_READY ? test : test.skip;
+const liveDirectWithdrawTest =
+  LIVE_E2E_READY && process.env.PP_E2E_RUN_DIRECT_WITHDRAW === "1" ? test : test.skip;
+const liveRelayedWithdrawTest =
+  LIVE_E2E_READY && process.env.PP_E2E_RUN_RELAYED_WITHDRAW === "1" ? test : test.skip;
 
 describe("live funded e2e (optional)", () => {
   test("fails fast when live e2e is required but disabled", () => {
@@ -120,13 +124,9 @@ describe("live funded e2e (optional)", () => {
     900_000
   );
 
-  liveTest(
+  liveDirectWithdrawTest(
     "direct withdrawal flow succeeds when explicitly enabled",
     () => {
-      if (process.env.PP_E2E_RUN_DIRECT_WITHDRAW !== "1") {
-        return;
-      }
-
       const chain = requiredEnv("PP_E2E_CHAIN");
       const mnemonic = requiredEnv("PP_E2E_MNEMONIC");
       const privateKey = requiredEnv("PP_E2E_PRIVATE_KEY");
@@ -184,13 +184,9 @@ describe("live funded e2e (optional)", () => {
     1_200_000
   );
 
-  liveTest(
+  liveRelayedWithdrawTest(
     "relayed withdrawal flow succeeds when explicitly enabled",
     () => {
-      if (process.env.PP_E2E_RUN_RELAYED_WITHDRAW !== "1") {
-        return;
-      }
-
       const chain = requiredEnv("PP_E2E_CHAIN");
       const mnemonic = requiredEnv("PP_E2E_MNEMONIC");
       const privateKey = requiredEnv("PP_E2E_PRIVATE_KEY");

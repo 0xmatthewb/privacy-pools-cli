@@ -2,10 +2,11 @@
  * Transaction command pipeline integration tests.
  *
  * Tests deposit, withdraw, and ragequit commands as deep as possible
- * without a live chain.  With valid inputs and an offline ASP/RPC, each
+ * without a live chain.  With valid inputs and an offline ASP, each
  * command should progress through input parsing, amount validation, chain
- * selection, and flag handling — then fail at pool resolution (ASP or RPC
- * error, NOT INPUT).  This proves the entire input pipeline works.
+ * selection, and flag handling — then fail at pool resolution with
+ * category "ASP" / exit 4.  This proves the entire input pipeline works
+ * and pins the exact failure stage so behavioral drift is caught.
  *
  * True success-path tests (generating precommitments, building unsigned
  * tx payloads, submitting transactions) require either:
@@ -34,45 +35,46 @@ function seededHome(): string {
   return home;
 }
 
-// Helper: assert the command progressed past all input validation
-function expectPastInputValidation(
+// Helper: assert the command progressed past all input validation and
+// failed at pool resolution (ASP unreachable), the expected offline stage.
+function expectPoolResolutionFailure(
+  result: { status: number | null },
   json: { success: boolean; error?: { category: string } },
 ): void {
-  expect(typeof json.success).toBe("boolean");
-  if (!json.success) {
-    expect(json.error).toBeDefined();
-    expect(json.error!.category).not.toBe("INPUT");
-  }
+  expect(json.success).toBe(false);
+  expect(json.error).toBeDefined();
+  expect(json.error!.category).toBe("ASP");
+  expect(result.status).toBe(4);
 }
 
 // ── deposit pipeline ─────────────────────────────────────────────────────────
 
 describe("deposit command pipeline", () => {
-  test("deposit --dry-run --json with valid args progresses past input validation", () => {
+  test("deposit --dry-run --json fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
-    expectPastInputValidation(json);
+    expectPoolResolutionFailure(result, json);
   });
 
-  test("deposit --unsigned --json with valid args progresses past input validation", () => {
+  test("deposit --unsigned --json fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--chain", "sepolia"],
       { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
-    expectPastInputValidation(json);
+    expectPoolResolutionFailure(result, json);
   });
 
-  test("deposit --unsigned --unsigned-format tx with valid args progresses past input validation", () => {
+  test("deposit --unsigned --unsigned-format tx fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
-    expectPastInputValidation(json);
+    expectPoolResolutionFailure(result, json);
   });
 
   test("deposit --dry-run rejects zero amount", () => {
@@ -107,7 +109,7 @@ describe("deposit command pipeline", () => {
 describe("withdraw command pipeline", () => {
   const RECIPIENT = "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A";
 
-  test("withdraw --dry-run --direct with valid args progresses past input validation", () => {
+  test("withdraw --dry-run --direct fails at ASP pool resolution", () => {
     const result = runCli(
       [
         "--json", "withdraw", "0.01",
@@ -117,10 +119,10 @@ describe("withdraw command pipeline", () => {
       { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
-    expectPastInputValidation(json);
+    expectPoolResolutionFailure(result, json);
   });
 
-  test("withdraw --unsigned --direct with valid args progresses past input validation", () => {
+  test("withdraw --unsigned --direct fails at ASP pool resolution", () => {
     const result = runCli(
       [
         "--json", "withdraw", "0.01",
@@ -130,7 +132,7 @@ describe("withdraw command pipeline", () => {
       { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
-    expectPastInputValidation(json);
+    expectPoolResolutionFailure(result, json);
   });
 
   test("withdraw --dry-run without --asset returns INPUT error", () => {
@@ -167,22 +169,22 @@ describe("withdraw command pipeline", () => {
 // ── ragequit pipeline ────────────────────────────────────────────────────────
 
 describe("ragequit command pipeline", () => {
-  test("ragequit --dry-run with valid args progresses past input validation", () => {
+  test("ragequit --dry-run fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
-    expectPastInputValidation(json);
+    expectPoolResolutionFailure(result, json);
   });
 
-  test("ragequit --unsigned with valid args progresses past input validation", () => {
+  test("ragequit --unsigned fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--chain", "sepolia"],
       { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
-    expectPastInputValidation(json);
+    expectPoolResolutionFailure(result, json);
   });
 
   test("ragequit --dry-run without --asset returns INPUT error", () => {

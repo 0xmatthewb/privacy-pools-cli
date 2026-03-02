@@ -9,6 +9,19 @@ import {
 const STRESS_ENABLED = process.env.PP_STRESS_ENABLED === "1";
 const stressTest = STRESS_ENABLED ? test : test.skip;
 
+/**
+ * Hermetic offline env overrides.
+ *
+ * Forces all network-dependent paths (RPC, ASP, relayer) to connect
+ * to a closed loopback port, so commands fail fast with structured
+ * errors instead of hanging on real network I/O.
+ */
+const OFFLINE_ENV = {
+  PP_RPC_URL: "http://127.0.0.1:9",
+  PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+  PRIVACY_POOLS_RELAYER_HOST: "http://127.0.0.1:9",
+};
+
 describe("CLI stress audit", () => {
   stressTest(
     "runs 120 deterministic rounds with parseable JSON outputs and correct error classification",
@@ -18,24 +31,24 @@ describe("CLI stress audit", () => {
     expect(init.status).toBe(0);
 
     // Each lane has full arguments and expected error behavior.
-    // In an offline test env, `status` succeeds (local config check),
-    // while deposit/withdraw/ragequit fail on RPC/ASP/RELAYER errors
-    // (not on early INPUT validation).
+    // With OFFLINE_ENV, `status` succeeds (local config check only),
+    // while deposit/withdraw/ragequit fail fast on ASP errors
+    // (they pass input validation but hit the unreachable ASP).
     const commandMatrix: {
       args: string[];
       label: string;
       expectedCategory?: string;
-      expectedCode?: string;
+      expectedSuccess?: boolean;
     }[] = [
       {
         args: ["--json", "status"],
         label: "status",
-        // status may succeed or fail depending on connectivity
+        expectedSuccess: true,
       },
       {
         args: ["--json", "deposit", "0.01", "--asset", "ETH", "--yes"],
         label: "deposit",
-        expectedCategory: "INPUT",
+        expectedCategory: "ASP",
       },
       {
         args: [
@@ -44,16 +57,17 @@ describe("CLI stress audit", () => {
           "--yes",
         ],
         label: "withdraw",
-        expectedCategory: "INPUT",
+        expectedCategory: "ASP",
       },
       {
         args: ["--json", "ragequit", "--asset", "ETH", "--yes"],
         label: "ragequit",
-        expectedCategory: "INPUT",
+        expectedCategory: "ASP",
       },
       {
         args: ["--json", "status", "--check"],
         label: "status --check",
+        expectedSuccess: true,
       },
     ];
 
@@ -62,7 +76,11 @@ describe("CLI stress audit", () => {
 
     for (let i = 0; i < rounds; i++) {
       const lane = commandMatrix[i % commandMatrix.length];
-      const result = runCli(lane.args, { home, timeoutMs: 20_000 });
+      const result = runCli(lane.args, {
+        home,
+        timeoutMs: 15_000,
+        env: OFFLINE_ENV,
+      });
 
       // Every round must complete without timeout and return JSON on stdout.
       expect(result.timedOut).toBe(false);
@@ -77,6 +95,10 @@ describe("CLI stress audit", () => {
       // Assert exit code is non-null (process completed)
       expect(result.status).not.toBeNull();
 
+      if (lane.expectedSuccess) {
+        expect(json.success).toBe(true);
+      }
+
       if (json.success === false) {
         // Verify structured error
         expect(typeof json.error?.category).toBe("string");
@@ -85,9 +107,6 @@ describe("CLI stress audit", () => {
         // Verify expected error category when specified
         if (lane.expectedCategory) {
           expect(json.error?.category).toBe(lane.expectedCategory);
-        }
-        if (lane.expectedCode) {
-          expect(json.error?.code).toBe(lane.expectedCode);
         }
       }
 
