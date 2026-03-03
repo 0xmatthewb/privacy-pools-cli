@@ -5,63 +5,133 @@ type Section = "options" | "commands" | "arguments" | null;
 
 const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
 
+/* ── Root-level command groups (order determines display order) ── */
+
+const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities"];
+const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "balance", "history", "sync"];
+const EXPLORE_SET = new Set(EXPLORE_ORDER);
+const TRANSACT_SET = new Set(TRANSACT_ORDER);
+
+const CMD_RE = /^(\s{2,})([a-z][\w-]*(?:\|[a-z][\w-]*)?(?:\s+\[[^\]]+\])?(?:\s+<[^>]+>)?)(\s{2,})(.+)$/i;
+
+function styleCmdLine(line: string): string {
+  const m = line.match(CMD_RE);
+  if (!m) return line;
+  const cmdText = m[2];
+  const pipeIdx = cmdText.indexOf("|");
+  const s = pipeIdx === -1
+    ? highlight(cmdText)
+    : highlight(cmdText.slice(0, pipeIdx)) + chalk.dim(cmdText.slice(pipeIdx));
+  return `${m[1]}${s}${m[3]}${m[4]}`;
+}
+
 export function styleCommanderHelp(raw: string): string {
   if (!raw.includes("Usage:")) return raw;
 
   const lines = raw.split("\n");
   let section: Section = null;
+  const result: string[] = [];
+  let cmdBuffer: string[] = [];
 
-  const styled = lines.map((line) => {
+  function flushCommands(): void {
+    if (cmdBuffer.length === 0) return;
+
+    // Parse command entries (primary line + any continuation lines)
+    type Entry = { name: string; lines: string[] };
+    const entries: Entry[] = [];
+    for (const line of cmdBuffer) {
+      const m = line.match(/^  ([a-z][\w-]*)(?:\|[a-z][\w-]*)?\s/);
+      if (m) {
+        entries.push({ name: m[1], lines: [line] });
+      } else if (entries.length > 0) {
+        entries[entries.length - 1].lines.push(line);
+      }
+    }
+
+    // Only group root-level commands; sub-commands pass through unsorted
+    const isRoot = entries.some(
+      (e) => EXPLORE_SET.has(e.name) || TRANSACT_SET.has(e.name),
+    );
+    if (!isRoot) {
+      for (const e of entries) result.push(...e.lines.map(styleCmdLine));
+      cmdBuffer = [];
+      return;
+    }
+
+    const byName = new Map(entries.map((e) => [e.name, e]));
+
+    function emitGroup(header: string, order: string[]): void {
+      const group = order.filter((n) => byName.has(n)).map((n) => byName.get(n)!);
+      if (group.length === 0) return;
+      result.push(`  ${chalk.bold(header)}`);
+      for (const e of group) result.push(...e.lines.map(styleCmdLine));
+    }
+
+    emitGroup("Explore (no wallet needed)", EXPLORE_ORDER);
+    result.push("");
+    emitGroup("Transact (run init first)", TRANSACT_ORDER);
+
+    cmdBuffer = [];
+  }
+
+  for (const line of lines) {
     const trimmed = line.trim();
+
+    // A blank line while inside the commands section ends it
+    if (trimmed === "") {
+      if (section === "commands") {
+        flushCommands();
+        section = null;
+      }
+      result.push(line);
+      continue;
+    }
 
     if (line.startsWith("Usage:")) {
       const usage = line.slice("Usage:".length).trim();
       section = null;
-      return `${accentBold("Usage:")} ${chalk.bold(usage)}`;
+      result.push(`${accentBold("Usage:")} ${chalk.bold(usage)}`);
+      continue;
     }
 
     if (SECTION_HEADERS.has(trimmed)) {
       section = trimmed.replace(":", "").toLowerCase() as Section;
-      return accentBold(trimmed);
+      result.push(accentBold(trimmed));
+      continue;
     }
 
-    if (trimmed === "") {
-      return line;
+    if (section === "commands") {
+      cmdBuffer.push(line);
+      continue;
     }
 
     if (section === "options") {
       const m = line.match(/^(\s{2,})(-[^-].*?|--[a-zA-Z0-9][^ ]*(?: [^ ]+)?.*?)(\s{2,})(.+)$/);
       if (m) {
-        return `${m[1]}${chalk.yellow(m[2])}${m[3]}${m[4]}`;
+        result.push(`${m[1]}${chalk.yellow(m[2])}${m[3]}${m[4]}`);
+        continue;
       }
-      return line;
-    }
-
-    if (section === "commands") {
-      const m = line.match(/^(\s{2,})([a-z][\w-]*(?:\|[a-z][\w-]*)?(?:\s+\[[^\]]+\])?(?:\s+<[^>]+>)?)(\s{2,})(.+)$/i);
-      if (m) {
-        const cmdText = m[2];
-        const pipeIdx = cmdText.indexOf("|");
-        const styled = pipeIdx === -1
-          ? highlight(cmdText)
-          : highlight(cmdText.slice(0, pipeIdx)) + chalk.dim(cmdText.slice(pipeIdx));
-        return `${m[1]}${styled}${m[3]}${m[4]}`;
-      }
-      return line;
+      result.push(line);
+      continue;
     }
 
     if (section === "arguments") {
       const m = line.match(/^(\s{2,})([a-zA-Z][\w-]*)(\s{2,})(.+)$/);
       if (m) {
-        return `${m[1]}${subtle(m[2])}${m[3]}${m[4]}`;
+        result.push(`${m[1]}${subtle(m[2])}${m[3]}${m[4]}`);
+        continue;
       }
-      return line;
+      result.push(line);
+      continue;
     }
 
-    return line;
-  });
+    result.push(line);
+  }
 
-  return styled.join("\n");
+  // Flush any remaining buffered commands (e.g. no trailing blank line)
+  flushCommands();
+
+  return result.join("\n");
 }
 
 /**
@@ -76,8 +146,7 @@ export function welcomeScreen(): string {
     chalk.bold("  Transact (run init first)"),
     `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("balance")}  ${highlight("history")}  ${highlight("sync")}`,
     "",
-    `  Get started:      ${accent("privacy-pools init")}`,
-    `  Short alias:      ${accent("pp init")}`,
+    `  Get started:      ${accent("privacy-pools init")}  ${chalk.dim("(or")} ${accent("pp init")}${chalk.dim(")")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
     `  All commands:     ${accent("privacy-pools --help")}`,
   ];
@@ -109,8 +178,7 @@ export function welcomeScreen(): string {
 export function rootHelpFooter(): string {
   return [
     "",
-    `  Get started:      ${accent("privacy-pools init")}`,
-    `  Short alias:      ${accent("pp init")}`,
+    `  Get started:      ${accent("privacy-pools init")}  ${chalk.dim("(or")} ${accent("pp init")}${chalk.dim(")")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
     `  Command help:     ${accent("privacy-pools <command> --help")}`,
   ].join("\n");

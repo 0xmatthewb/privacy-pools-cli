@@ -12,25 +12,25 @@ Options:
   --timeout <seconds>  RPC/API request timeout in seconds (default: 30)
   -h, --help           display help for command
 Commands:
-  init                 Initialize wallet and configuration
+  Explore (no wallet needed)
   pools                List available pools and assets
+  activity             Show public activity feed (global or for a specific pool)
+  stats                Show public statistics (global or per pool)
+  status               Show configuration and check connection health
+  guide                Show usage guide, workflow, and reference
+  capabilities         Describe CLI capabilities for agent discovery
+  Transact (run init first)
+  init                 Initialize wallet and configuration
   deposit              Deposit ETH or ERC-20 tokens into a Privacy Pool
-  accounts             List your Pool Accounts (PA-1, PA-2, ...)
-  balance              Show balances across pools
   withdraw             Withdraw from a Privacy Pool (relayed by default)
   ragequit|exit        Publicly withdraw funds to your deposit address without
                        ASP approval
+  accounts             List your Pool Accounts (PA-1, PA-2, ...)
+  balance              Show balances across pools
   history              Show chronological event history (deposits, withdrawals,
                        exits)
   sync                 Sync local account state from onchain events
-  status               Show configuration and check connection health
-  activity             Show public activity feed (global or for a specific pool)
-  stats                Show public statistics (global or per pool)
-  guide                Show usage guide, workflow, and reference
-  capabilities         Describe CLI capabilities for agent discovery
-  help                 display help for command
-  Get started:      privacy-pools init
-  Short alias:      pp init
+  Get started:      privacy-pools init  (or pp init)
   Full guide:       privacy-pools guide
   Command help:     privacy-pools <command> --help"
 `;

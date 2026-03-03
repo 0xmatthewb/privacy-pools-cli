@@ -45,6 +45,48 @@ describe("styleCommanderHelp", () => {
     expect(plain).toContain("deposit");
   });
 
+  test("groups root-level commands into Explore and Transact", () => {
+    const raw = [
+      "Usage: privacy-pools [options] [command]",
+      "",
+      "Commands:",
+      "  init             Initialize wallet",
+      "  pools            List available pools",
+      "  deposit          Deposit ETH into a pool",
+      "  activity         Show public activity feed",
+      "  help             display help for command",
+    ].join("\n");
+    const result = styleCommanderHelp(raw);
+    const plain = stripAnsi(result);
+    // Group headers appear
+    expect(plain).toContain("Explore (no wallet needed)");
+    expect(plain).toContain("Transact (run init first)");
+    // Explore commands appear before Transact commands
+    const explorePos = plain.indexOf("Explore");
+    const transactPos = plain.indexOf("Transact");
+    const poolsPos = plain.indexOf("pools");
+    const initPos = plain.indexOf("init");
+    expect(explorePos).toBeLessThan(transactPos);
+    expect(poolsPos).toBeLessThan(transactPos);
+    expect(transactPos).toBeLessThan(initPos);
+    // Commander's built-in help command is omitted from grouped output
+    expect(plain).not.toContain("display help for command");
+  });
+
+  test("does not group sub-commands (non-root)", () => {
+    const raw = [
+      "Usage: privacy-pools withdraw [options] <amount>",
+      "",
+      "Commands:",
+      "  quote            Get a relayer fee quote",
+    ].join("\n");
+    const result = styleCommanderHelp(raw);
+    const plain = stripAnsi(result);
+    expect(plain).not.toContain("Explore");
+    expect(plain).not.toContain("Transact");
+    expect(plain).toContain("quote");
+  });
+
   test("styles command|alias — primary highlighted, alias dimmed", () => {
     const raw = [
       "Usage: privacy-pools [options] [command]",
