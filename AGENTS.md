@@ -72,7 +72,7 @@ When a human delegates CLI operations to an agent:
 | `-v, --verbose` | Enable verbose/debug output |
 | `--no-banner` | Disable ASCII banner output |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
-| `--timeout <seconds>` | Override default timeout for RPC calls |
+| `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
 
 ## Command Reference
 
