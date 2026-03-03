@@ -14,6 +14,7 @@ import { accentBold } from "../utils/theme.js";
 export interface BalanceRow {
   symbol: string;
   formattedBalance: string;
+  usdValue: string;
   commitments: number;
 }
 
@@ -21,6 +22,7 @@ export interface BalanceJsonEntry {
   asset: string;
   assetAddress: string;
   balance: string;
+  usdValue: string | null;
   commitments: number;
   poolAccounts: number;
 }
@@ -77,9 +79,14 @@ export function renderBalance(ctx: OutputContext, data: BalanceRenderData): void
   if (silent) return;
 
   process.stderr.write(`\n${accentBold(`Balances on ${data.chain}:`)}\n\n`);
+  const hasUsd = data.rows.some((r) => r.usdValue !== "-");
   printTable(
-    ["Asset", "Balance", "Pool Accounts"],
-    data.rows.map((r) => [r.symbol, r.formattedBalance, r.commitments.toString()]),
+    hasUsd ? ["Asset", "Balance", "USD Value", "Pool Accounts"] : ["Asset", "Balance", "Pool Accounts"],
+    data.rows.map((r) =>
+      hasUsd
+        ? [r.symbol, r.formattedBalance, r.usdValue, r.commitments.toString()]
+        : [r.symbol, r.formattedBalance, r.commitments.toString()],
+    ),
   );
   process.stderr.write("\n");
   info(

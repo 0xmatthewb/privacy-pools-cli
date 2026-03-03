@@ -10,7 +10,7 @@ import {
   withSuppressedSdkStdout,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
-import { spinner, formatAmount, displayDecimals, warn, verbose } from "../utils/format.js";
+import { spinner, formatAmount, displayDecimals, deriveTokenPrice, formatUsdValue, warn, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
@@ -144,9 +144,13 @@ export function createBalanceCommand(): Command {
             0n
           );
 
+          const price = deriveTokenPrice(pool);
+          const usdValue = formatUsdValue(totalValue, pool.decimals, price);
+
           rows.push({
             symbol: pool.symbol,
             formattedBalance: formatAmount(totalValue, pool.decimals, pool.symbol, displayDecimals(pool.decimals)),
+            usdValue,
             commitments: commitments.length,
           });
 
@@ -154,6 +158,7 @@ export function createBalanceCommand(): Command {
             asset: pool.symbol,
             assetAddress: pool.asset,
             balance: totalValue.toString(),
+            usdValue: price !== null ? usdValue : null,
             commitments: commitments.length,
             poolAccounts: commitments.length,
           });

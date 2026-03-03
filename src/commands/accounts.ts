@@ -11,7 +11,7 @@ import {
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { fetchApprovedLabels } from "../services/asp.js";
-import { spinner, warn, verbose } from "../utils/format.js";
+import { spinner, warn, verbose, deriveTokenPrice } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
@@ -193,6 +193,7 @@ export function createAccountsCommand(): Command {
             poolAddress: pool.pool,
             decimals: pool.decimals,
             scope: pool.scope,
+            tokenPrice: deriveTokenPrice(pool),
             poolAccounts,
           });
         }

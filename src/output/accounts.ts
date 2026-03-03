@@ -9,7 +9,7 @@
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
-import { formatAmount, formatAddress, formatTxHash, displayDecimals } from "../utils/format.js";
+import { formatAmount, formatAddress, formatTxHash, displayDecimals, formatUsdValue } from "../utils/format.js";
 import { highlight, accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 
@@ -20,6 +20,7 @@ export interface AccountPoolGroup {
   poolAddress: string;
   decimals: number;
   scope: bigint;
+  tokenPrice: number | null;
   poolAccounts: PoolAccountRef[];
 }
 
@@ -88,27 +89,40 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     if (silent) continue;
 
     const dd = displayDecimals(group.decimals);
+    const hasUsd = group.tokenPrice !== null;
     if (showDetails) {
+      const detailHeaders = hasUsd
+        ? ["PA", "Status", "ASP", "Value", "USD", "Commitment", "Label", "Block", "Tx"]
+        : ["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"];
       printTable(
-        ["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"],
-        group.poolAccounts.map((pa) => [
-          pa.paId,
-          pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
-          pa.aspStatus === "approved"
-            ? highlight("Approved")
-            : pa.aspStatus === "pending"
-              ? chalk.yellow("Pending")
-              : "",
-          formatAmount(pa.value, group.decimals, group.symbol, dd),
-          formatAddress(`0x${pa.commitment.hash.toString(16).padStart(64, "0")}`, 8),
-          formatAddress(`0x${pa.label.toString(16).padStart(64, "0")}`, 8),
-          pa.blockNumber.toString(),
-          formatTxHash(pa.txHash),
-        ]),
+        detailHeaders,
+        group.poolAccounts.map((pa) => {
+          const base = [
+            pa.paId,
+            pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
+            pa.aspStatus === "approved"
+              ? highlight("Approved")
+              : pa.aspStatus === "pending"
+                ? chalk.yellow("Pending")
+                : "",
+            formatAmount(pa.value, group.decimals, group.symbol, dd),
+          ];
+          if (hasUsd) base.push(formatUsdValue(pa.value, group.decimals, group.tokenPrice));
+          base.push(
+            formatAddress(`0x${pa.commitment.hash.toString(16).padStart(64, "0")}`, 8),
+            formatAddress(`0x${pa.label.toString(16).padStart(64, "0")}`, 8),
+            pa.blockNumber.toString(),
+            formatTxHash(pa.txHash),
+          );
+          return base;
+        }),
       );
     } else {
+      const summaryHeaders = hasUsd
+        ? ["PA", "Balance", "USD", "Status", "Tx"]
+        : ["PA", "Balance", "Status", "Tx"];
       printTable(
-        ["PA", "Balance", "Status", "Tx"],
+        summaryHeaders,
         group.poolAccounts.map((pa) => {
           const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
           const aspSuffix =
@@ -117,12 +131,16 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
               : pa.aspStatus === "pending"
                 ? ` (${chalk.yellow("Pending")})`
                 : "";
-          return [
+          const row = [
             pa.paId,
             formatAmount(pa.value, group.decimals, group.symbol, dd),
+          ];
+          if (hasUsd) row.push(formatUsdValue(pa.value, group.decimals, group.tokenPrice));
+          row.push(
             `${statusLabel}${aspSuffix}`,
             formatTxHash(pa.txHash),
-          ];
+          );
+          return row;
         }),
       );
     }

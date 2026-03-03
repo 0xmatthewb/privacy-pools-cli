@@ -59,6 +59,57 @@ export function formatAmount(
   return symbol ? `${formatted} ${symbol}` : formatted;
 }
 
+// ── USD helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Parse a raw USD string (from ASP) into a formatted dollar string.
+ * Returns "-" when the value is missing or unparseable.
+ */
+export function parseUsd(value: unknown): string {
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value.replace(/,/g, ""));
+    if (Number.isFinite(parsed)) {
+      return `$${parsed.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+    }
+  }
+  return "-";
+}
+
+/**
+ * Derive an implied token price (USD per whole token) from a pool's aggregate
+ * USD and native-token values.  Returns `null` when the data is insufficient.
+ */
+export function deriveTokenPrice(
+  pool: { decimals: number; acceptedDepositsValue?: bigint; acceptedDepositsValueUsd?: string; totalInPoolValue?: bigint; totalInPoolValueUsd?: string },
+): number | null {
+  const usdStr = pool.acceptedDepositsValueUsd ?? pool.totalInPoolValueUsd;
+  const tokenVal = pool.acceptedDepositsValue ?? pool.totalInPoolValue;
+  if (!usdStr || tokenVal === undefined || tokenVal === 0n) return null;
+
+  const usd = Number(usdStr.replace(/,/g, ""));
+  const tokens = Number(formatUnits(tokenVal, pool.decimals));
+  if (!Number.isFinite(usd) || !Number.isFinite(tokens) || tokens === 0) return null;
+  return usd / tokens;
+}
+
+/**
+ * Format a token amount as a USD string using a pre-derived price.
+ * Returns "-" when the price is unavailable.
+ */
+export function formatUsdValue(
+  tokenAmount: bigint,
+  decimals: number,
+  price: number | null,
+): string {
+  if (price === null) return "-";
+  const tokens = Number(formatUnits(tokenAmount, decimals));
+  const usd = tokens * price;
+  if (!Number.isFinite(usd)) return "-";
+  return `$${usd.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+// ── Address / hash helpers ──────────────────────────────────────────────────
+
 export function formatAddress(address: string, chars: number = 6): string {
   if (address.length <= chars * 2 + 2) return address;
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;

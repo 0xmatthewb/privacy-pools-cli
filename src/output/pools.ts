@@ -9,7 +9,7 @@ import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
-import { formatAmount, formatBPS, displayDecimals } from "../utils/format.js";
+import { formatAmount, formatBPS, displayDecimals, parseUsd } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -167,8 +167,8 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   }
 
   const headers = allChains
-    ? ["Chain", "Asset", "Total Deposits", "Accepted Funds", "Pending", "Min Deposit", "Vetting Fee"]
-    : ["Asset", "Total Deposits", "Accepted Funds", "Pending", "Min Deposit", "Vetting Fee"];
+    ? ["Chain", "Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
+    : ["Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
 
   printTable(
     headers,
@@ -182,6 +182,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
           pool.decimals,
           pool.symbol,
         ),
+        parseUsd(pool.acceptedDepositsValueUsd ?? pool.totalInPoolValueUsd),
         formatStatAmount(
           pool.pendingDepositsValue,
           pool.decimals,

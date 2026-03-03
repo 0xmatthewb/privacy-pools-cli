@@ -38,9 +38,14 @@ export function styleCommanderHelp(raw: string): string {
     }
 
     if (section === "commands") {
-      const m = line.match(/^(\s{2,})([a-z][\w-]*(?:\s+\[[^\]]+\])?(?:\s+<[^>]+>)?)(\s{2,})(.+)$/i);
+      const m = line.match(/^(\s{2,})([a-z][\w-]*(?:\|[a-z][\w-]*)?(?:\s+\[[^\]]+\])?(?:\s+<[^>]+>)?)(\s{2,})(.+)$/i);
       if (m) {
-        return `${m[1]}${highlight(m[2])}${m[3]}${m[4]}`;
+        const cmdText = m[2];
+        const pipeIdx = cmdText.indexOf("|");
+        const styled = pipeIdx === -1
+          ? highlight(cmdText)
+          : highlight(cmdText.slice(0, pipeIdx)) + chalk.dim(cmdText.slice(pipeIdx));
+        return `${m[1]}${styled}${m[3]}${m[4]}`;
       }
       return line;
     }

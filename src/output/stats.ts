@@ -9,6 +9,7 @@
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
+import { parseUsd } from "../utils/format.js";
 import type { TimeBasedStatistics } from "../types.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -45,16 +46,8 @@ export interface PoolStatsRenderData {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** @internal Exported for unit testing. */
-export function parseUsd(value: unknown): string {
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value.replace(/,/g, ""));
-    if (Number.isFinite(parsed)) {
-      return `$${parsed.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-    }
-  }
-  return "-";
-}
+// parseUsd is now in ../utils/format.ts — re-exported here for test compat.
+export { parseUsd } from "../utils/format.js";
 
 /** @internal Exported for unit testing. */
 export function parseCount(value: unknown): string {
