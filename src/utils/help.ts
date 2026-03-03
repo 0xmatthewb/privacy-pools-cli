@@ -79,7 +79,8 @@ export function welcomeScreen(): string {
 
   // Nudge from-source users to register the CLI commands on their PATH.
   if (process.env.npm_lifecycle_event) {
-    const linkCmd = process.versions.bun ? "bun link" : "npm link";
+    const isBun = !!(process.versions.bun || process.env.npm_execpath?.includes("bun"));
+    const linkCmd = isBun ? "bun link" : "npm link";
     lines.push(
       "",
       chalk.dim("  Running from source? Register the CLI on your PATH:"),
