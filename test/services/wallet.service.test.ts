@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   generateMnemonic,
   validateMnemonic,
@@ -8,6 +10,11 @@ import {
   loadPrivateKey,
 } from "../../src/services/wallet.ts";
 import { CLIError } from "../../src/utils/errors.ts";
+import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
+
+afterEach(() => {
+  cleanupTrackedTempDirs();
+});
 
 describe("wallet service", () => {
   describe("generateMnemonic", () => {
@@ -118,10 +125,7 @@ describe("wallet service", () => {
     test("throws CLIError with INPUT category when no mnemonic file exists", () => {
       // With a fresh temp PRIVACY_POOLS_HOME, there's no mnemonic file
       const origHome = process.env.PRIVACY_POOLS_HOME;
-      const { mkdtempSync } = require("node:fs");
-      const { join } = require("node:path");
-      const { tmpdir } = require("node:os");
-      const tempDir = mkdtempSync(join(tmpdir(), "pp-wallet-test-"));
+      const tempDir = createTrackedTempDir("pp-wallet-test-");
       process.env.PRIVACY_POOLS_HOME = tempDir;
       try {
         expect(() => loadMnemonic()).toThrow(CLIError);
@@ -142,10 +146,7 @@ describe("wallet service", () => {
 
     test("throws CLIError with INPUT category when mnemonic file contains invalid content", () => {
       const origHome = process.env.PRIVACY_POOLS_HOME;
-      const { mkdtempSync, writeFileSync } = require("node:fs");
-      const { join } = require("node:path");
-      const { tmpdir } = require("node:os");
-      const tempDir = mkdtempSync(join(tmpdir(), "pp-wallet-test-"));
+      const tempDir = createTrackedTempDir("pp-wallet-test-");
       writeFileSync(join(tempDir, ".mnemonic"), "not a valid bip39 mnemonic phrase at all", "utf-8");
       process.env.PRIVACY_POOLS_HOME = tempDir;
       try {
@@ -173,10 +174,7 @@ describe("wallet service", () => {
     test("throws CLIError with INPUT category when no signer file exists", () => {
       const origHome = process.env.PRIVACY_POOLS_HOME;
       const origKey = process.env.PRIVACY_POOLS_PRIVATE_KEY;
-      const { mkdtempSync } = require("node:fs");
-      const { join } = require("node:path");
-      const { tmpdir } = require("node:os");
-      const tempDir = mkdtempSync(join(tmpdir(), "pp-wallet-test-"));
+      const tempDir = createTrackedTempDir("pp-wallet-test-");
       process.env.PRIVACY_POOLS_HOME = tempDir;
       delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
       try {

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { loadPrivateKey, getSignerAddress } from "../../src/services/wallet.ts";
 import { CLIError } from "../../src/utils/errors.ts";
+import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
 const VALID_KEY_NO_PREFIX =
   "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -25,10 +25,11 @@ describe("loadPrivateKey", () => {
     } else {
       delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
     }
+    cleanupTrackedTempDirs();
   });
 
   function isolatedHome(): string {
-    return mkdtempSync(join(tmpdir(), "pp-wallet-pk-test-"));
+    return createTrackedTempDir("pp-wallet-pk-test-");
   }
 
   function writeSignerFile(homeDir: string, content: string): void {

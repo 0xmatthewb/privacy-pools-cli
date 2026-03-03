@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import {
   getConfigDir,
   getRpcUrl,
@@ -12,18 +11,20 @@ import {
   loadSignerKey,
 } from "../../src/services/config.ts";
 import { CLIError } from "../../src/utils/errors.ts";
+import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const SAVED_HOME = process.env.PRIVACY_POOLS_HOME;
 
 function isolatedHome(): string {
-  return mkdtempSync(join(tmpdir(), "pp-cfg-test-"));
+  return createTrackedTempDir("pp-cfg-test-");
 }
 
 function restoreHome(): void {
   if (SAVED_HOME === undefined) delete process.env.PRIVACY_POOLS_HOME;
   else process.env.PRIVACY_POOLS_HOME = SAVED_HOME;
+  cleanupTrackedTempDirs();
 }
 
 /** Write a config.json into temp dir and invalidate the singleton cache. */

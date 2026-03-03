@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, test, spyOn } from "bun:test";
-import { mkdtempSync, existsSync, writeFileSync, readFileSync } from "node:fs";
+import { existsSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { acquireProcessLock } from "../../src/utils/lock.ts";
 import { CLIError } from "../../src/utils/errors.ts";
+import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 
 function isolatedHome(): string {
-  return mkdtempSync(join(tmpdir(), "pp-lock-test-"));
+  return createTrackedTempDir("pp-lock-test-");
 }
 
 describe("acquireProcessLock", () => {
@@ -18,6 +18,7 @@ describe("acquireProcessLock", () => {
     } else {
       process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
     }
+    cleanupTrackedTempDirs();
   });
 
   test("creates lock file and release removes it", () => {

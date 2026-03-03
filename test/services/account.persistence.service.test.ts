@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
+import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 import {
   loadAccount,
   saveAccount,
@@ -17,7 +17,7 @@ const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_INIT_WITH_EVENTS = AccountService.initializeWithEvents;
 
 function isolatedHome(): string {
-  const home = mkdtempSync(join(tmpdir(), "pp-account-persist-test-"));
+  const home = createTrackedTempDir("pp-account-persist-test-");
   // Ensure accounts subdirectory exists
   mkdirSync(join(home, "accounts"), { recursive: true });
   return home;
@@ -40,6 +40,7 @@ describe("account persistence", () => {
     } else {
       process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
     }
+    cleanupTrackedTempDirs();
   });
 
   /* ---------------------------------------------------------------- */

@@ -1,16 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
 import { initializeAccountService } from "../../src/services/account.ts";
+import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
 const ORIGINAL_HOME_OVERRIDE = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_INIT_WITH_EVENTS = AccountService.initializeWithEvents;
 
 function isolatedHome(): string {
-  return mkdtempSync(join(tmpdir(), "pp-account-service-test-"));
+  return createTrackedTempDir("pp-account-service-test-");
 }
 
 function samplePool() {
@@ -30,6 +28,7 @@ describe("account service strict sync behavior", () => {
     } else {
       process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME_OVERRIDE;
     }
+    cleanupTrackedTempDirs();
   });
 
   test("strictSync=true fails closed when initializeWithEvents fails", async () => {

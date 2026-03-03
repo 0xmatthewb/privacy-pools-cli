@@ -88,6 +88,7 @@ export function acquireProcessLock(): () => void {
   const release = () => {
     if (released) return;
     released = true;
+    process.removeListener("exit", release);
     try {
       // Only remove if it's still ours
       const pid = readLockPid(lockPath);

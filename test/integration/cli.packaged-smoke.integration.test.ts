@@ -243,13 +243,21 @@ describe("packaged CLI smoke", () => {
   test("npm pack includes dist entry point and package.json", () => {
     const pack = spawnSync(
       "npm",
-      ["pack", "--dry-run", "--ignore-scripts"],
+      ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
       { cwd: CLI_CWD, encoding: "utf8", timeout: 30_000 },
     );
     expect(pack.status).toBe(0);
-    // npm pack --dry-run lists included files to stderr
-    const listing = pack.stderr;
-    expect(listing).toContain("dist/index.js");
-    expect(listing).toContain("package.json");
+    const output = `${pack.stdout}\n${pack.stderr}`.trim();
+    const jsonStart = output.indexOf("[");
+    const jsonEnd = output.lastIndexOf("]");
+    expect(jsonStart).toBeGreaterThanOrEqual(0);
+    expect(jsonEnd).toBeGreaterThan(jsonStart);
+
+    const manifest = JSON.parse(output.slice(jsonStart, jsonEnd + 1)) as Array<{
+      files?: Array<{ path?: string }>;
+    }>;
+    const filePaths = new Set((manifest[0]?.files ?? []).map((entry) => entry.path));
+    expect(filePaths.has("dist/index.js")).toBe(true);
+    expect(filePaths.has("package.json")).toBe(true);
   }, 30_000);
 }, 180_000);

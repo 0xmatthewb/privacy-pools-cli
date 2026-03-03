@@ -11,9 +11,10 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll } from "bun:test";
 import { CLI_ROOT } from "./paths.ts";
 
 export const CLI_CWD = CLI_ROOT;
@@ -34,8 +35,41 @@ export interface CliRunResult {
   errorMessage?: string;
 }
 
+const trackedTempHomes = new Set<string>();
+let cleanupHookRegistered = false;
+
+function cleanupTrackedTempHomes(): void {
+  for (const dir of trackedTempHomes) {
+    try {
+      rmSync(dir, {
+        recursive: true,
+        force: true,
+        // Windows can transiently hold handles briefly after child exit.
+        maxRetries: 3,
+        retryDelay: 50,
+      });
+    } catch {
+      // Best effort cleanup.
+    }
+  }
+  trackedTempHomes.clear();
+}
+
+function ensureCleanupHook(): void {
+  if (cleanupHookRegistered) return;
+  cleanupHookRegistered = true;
+  // Bun test runner lifecycle (reliable within test workers).
+  afterAll(cleanupTrackedTempHomes);
+  // Fallback for non-test invocations of this helper.
+  process.once("beforeExit", cleanupTrackedTempHomes);
+  process.once("exit", cleanupTrackedTempHomes);
+}
+ensureCleanupHook();
+
 export function createTempHome(prefix: string = "pp-cli-test-"): string {
-  return mkdtempSync(join(tmpdir(), prefix));
+  const home = mkdtempSync(join(tmpdir(), prefix));
+  trackedTempHomes.add(home);
+  return home;
 }
 
 export function runCli(args: string[], options: CliRunOptions = {}): CliRunResult {
@@ -47,8 +81,6 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
     cwd: CLI_CWD,
     env: {
       ...process.env,
-      HOME: home,
-      USERPROFILE: home,
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,
     },
@@ -87,8 +119,6 @@ export function runBuiltCli(
     cwd: CLI_CWD,
     env: {
       ...process.env,
-      HOME: home,
-      USERPROFILE: home,
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,
     },
