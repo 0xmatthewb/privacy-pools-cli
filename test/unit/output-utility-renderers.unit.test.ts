@@ -253,6 +253,7 @@ const STUB_STATUS: StatusCheckResult = {
   defaultChain: "sepolia",
   selectedChain: "sepolia",
   rpcUrl: "https://rpc.sepolia.example",
+  rpcIsCustom: false,
   mnemonicSet: true,
   signerKeySet: true,
   signerKeyValid: true,

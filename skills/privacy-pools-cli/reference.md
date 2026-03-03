@@ -166,6 +166,7 @@ Defaults to all mainnets when no `--chain` is specified.
 {
   "mode": "global-activity",
   "chain": "mainnet",
+  "chains": ["mainnet", "arbitrum", "optimism"],
   "page": 1,
   "perPage": 12,
   "total": 100,
@@ -185,6 +186,8 @@ Defaults to all mainnets when no `--chain` is specified.
 }
 ```
 
+`chains` is present when querying multiple chains (no `--chain` specified). With a specific `--chain`, `chains` is omitted.
+
 **Per-pool** (`--asset`): `mode` is `"pool-activity"` and root includes `asset`, `pool`, and `scope`.
 
 `timestamp` is milliseconds since epoch (number or null). `total` and `totalPages` may be null.
@@ -201,6 +204,7 @@ Defaults to all mainnets when no `--chain` is specified.
 {
   "mode": "global-stats",
   "chain": "mainnet",
+  "chains": ["mainnet", "arbitrum", "optimism"],
   "cacheTimestamp": "2025-01-15T12:00:00Z",
   "allTime": {
     "tvlUsd": "1000000",
@@ -213,11 +217,19 @@ Defaults to all mainnets when no `--chain` is specified.
     "avgDepositSizeUsd": "600",
     "totalDepositsCount": 15,
     "totalWithdrawalsCount": 8
-  }
+  },
+  "perChain": [
+    {
+      "chain": "mainnet",
+      "cacheTimestamp": "2025-01-15T12:00:00Z",
+      "allTime": { "tvlUsd": "500000", "totalDepositsCount": 1000, "totalWithdrawalsCount": 750 },
+      "last24h": { "tvlUsd": "500000", "totalDepositsCount": 10, "totalWithdrawalsCount": 5 }
+    }
+  ]
 }
 ```
 
-`cacheTimestamp`, `allTime`, and `last24h` may be null. The `allTime`/`last24h` objects come from the ASP service and may contain additional fields.
+`chains` and `perChain` are present when querying multiple chains (no `--chain` specified). With a specific `--chain`, both are omitted. `cacheTimestamp`, `allTime`, and `last24h` may be null. The `allTime`/`last24h` objects come from the ASP service and may contain additional fields.
 
 ### `stats pool`
 
@@ -251,12 +263,16 @@ pp status --agent [--check] [--check-rpc] [--check-asp]
   "defaultChain": "mainnet",
   "selectedChain": "mainnet",
   "rpcUrl": "https://...",
+  "rpcIsCustom": false,
   "mnemonicSet": true,
   "signerKeySet": true,
   "signerKeyValid": true,
   "signerAddress": "0x...",
   "entrypoint": "0x6818809eefce719e480a7526d76bd3e561526b46",
   "aspHost": "https://api.0xbow.io",
+  "aspLive": true,
+  "rpcLive": true,
+  "rpcBlockNumber": "22153800",
   "accountFiles": [{ "chain": "mainnet", "chainId": 1 }],
   "readyForDeposit": true,
   "readyForWithdraw": true,
@@ -264,13 +280,13 @@ pp status --agent [--check] [--check-rpc] [--check-asp]
 }
 ```
 
-When health checks are run (`--check`, `--check-rpc`, `--check-asp`), additional fields appear:
+Health checks run by default when a chain is selected. Pass `--no-check` to suppress them, or use `--check-rpc` / `--check-asp` to run only specific checks.
 
 | Field | Type | When present |
 |-------|------|-------------|
-| `aspLive` | boolean | `--check` or `--check-asp` |
-| `rpcLive` | boolean | `--check` or `--check-rpc` |
-| `rpcBlockNumber` | string | `--check` or `--check-rpc` (when RPC is live) |
+| `aspLive` | boolean | Default when chain selected; `--check` or `--check-asp` |
+| `rpcLive` | boolean | Default when chain selected; `--check` or `--check-rpc` |
+| `rpcBlockNumber` | string | When `rpcLive` is true |
 
 ### `capabilities`
 
@@ -312,6 +328,13 @@ pp capabilities --agent
     "poolAccountStatus": { "values": ["spendable", "spent", "exited"] },
     "errorCategories": { "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"] }
   },
+  "supportedChains": [
+    { "name": "mainnet", "chainId": 1, "testnet": false },
+    { "name": "arbitrum", "chainId": 42161, "testnet": false },
+    { "name": "optimism", "chainId": 10, "testnet": false },
+    { "name": "sepolia", "chainId": 11155111, "testnet": true },
+    { "name": "op-sepolia", "chainId": 11155420, "testnet": true }
+  ],
   "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage }."
 }
 ```
@@ -590,11 +613,12 @@ pp sync --agent [--asset <symbol>]
   "chain": "mainnet",
   "syncedPools": 2,
   "syncedSymbols": ["ETH", "USDC"],
-  "spendableCommitments": 5
+  "spendableCommitments": 5,
+  "previousSpendableCommitments": 3
 }
 ```
 
-`syncedSymbols` is present on successful sync (may be omitted on empty sync).
+`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousSpendableCommitments` shows the count before sync — compare with `spendableCommitments` to detect newly discovered accounts.
 
 ---
 

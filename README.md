@@ -1,24 +1,24 @@
 # Privacy Pools CLI
 
-Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Deposit, withdraw, and manage funds with onchain privacy, without sacrificing regulatory compliance.
+Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Deposit assets publicly and withdraw them privately, with regulatory compliance through Association Set Provider (ASP) approval.
 
 > **Warning:** This CLI is experimental. Use at your own risk. For large transactions, use [privacypools.com](https://privacypools.com).
 
 ## What is Privacy Pools?
 
-On public blockchains, every transaction is visible to everyone. While transparency is a core feature, it means every transfer reveals the full balances and history of both parties.
+On public blockchains like Ethereum, every transaction is visible to everyone. While this transparency is a core feature, it creates significant privacy challenges for users. Every transaction reveals the full balances and transaction history of both parties.
 
-Privacy Pools enables private withdrawals through zero-knowledge proofs and commitment schemes. You deposit assets into a pool and later withdraw them, partially or fully, without creating an onchain link between your deposit and withdrawal addresses. An Association Set Provider (ASP) maintains a set of approved deposits, preventing illicit funds from entering the system while preserving privacy for compliant users.
+Privacy Pools enables private withdrawals through a combination of zero-knowledge proofs and commitment schemes. Users can deposit assets into a pool and later withdraw them, either partially or fully, without creating an onchain link between their deposit and withdrawal addresses. The protocol uses an Association Set Provider (ASP) to maintain a set of approved deposits, preventing potentially illicit funds from entering the system and enabling regulatory compliance.
 
-The protocol is **non-custodial**: you maintain control of your funds through cryptographic commitments at all times.
+The protocol is **non-custodial**: users maintain control of their funds through cryptographic commitments.
 
 **Key concepts:**
 
 - **Pool Account (PA-1, PA-2, ...)**: Each deposit creates a numbered Pool Account. This is how you refer to your funds throughout the CLI.
-- **ASP (Association Set Provider)**: A compliance layer that screens deposits and maintains a Merkle tree of approved labels. Your Pool Account must be ASP-approved before you can withdraw privately.
-- **Relayed withdrawal**: The default mode. A relayer submits your transaction so there is no onchain link between your wallet and the recipient. Costs a small fee.
-- **Direct withdrawal**: You submit the withdrawal yourself. Cheaper, but provides weaker privacy because your wallet appears onchain.
-- **Ragequit / Exit**: A safety mechanism that lets the original depositor publicly reclaim funds without ASP approval. Useful if your deposit hasn't been approved or approval was revoked.
+- **ASP (Association Set Provider)**: The compliance layer that controls which deposits can be privately withdrawn. Maintains approved labels and supplies cryptographic proof data for withdrawals.
+- **Relayed withdrawal**: The withdrawal is processed through a relayer for enhanced privacy. The relayer pays gas and takes a configurable fee. No onchain link between your wallet and the recipient.
+- **Direct withdrawal**: The user directly interacts with the pool contract. Simpler flow and no relayer fees, but provides basic privacy because the user's wallet appears onchain.
+- **Ragequit / Exit**: A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Ensures the ability to recover funds when the deposit label is not approved by the ASP or its approval was revoked.
 
 ## Installation
 
@@ -61,7 +61,7 @@ privacy-pools deposit 0.1 --asset ETH --chain sepolia
 # 4. Check your Pool Accounts (wait for ASP approval before withdrawing)
 privacy-pools accounts --chain sepolia
 
-# 5. Withdraw to any address (relayed by default, stronger privacy)
+# 5. Withdraw to any address (relayed by default, enhanced privacy)
 privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1 --chain sepolia
 ```
 
@@ -85,7 +85,7 @@ Each chain has multiple built-in RPC URLs with automatic fallback. If the primar
 
 ### `init`
 
-Initialize wallet and configuration. Generates a BIP-39 mnemonic (your deposit secrets) and a signer key (your onchain identity). Run once.
+Initialize wallet and configuration. Generates a BIP-39 mnemonic (used to derive deposit commitments) and a signer key (your onchain identity). Run once.
 
 ```bash
 privacy-pools init
@@ -117,7 +117,7 @@ privacy-pools pools --all-chains       # all chains including testnets
 
 ### `deposit`
 
-Deposit into a pool.
+Deposit assets (ETH or ERC20 tokens) into a pool, creating a private commitment that can later be used for private withdrawals or ragequit operations.
 
 ```bash
 privacy-pools deposit 0.1 --asset ETH --chain sepolia
@@ -134,13 +134,13 @@ privacy-pools deposit 100 --asset USDC --chain mainnet
 
 ### `withdraw`
 
-Withdraw from a pool. Uses a relayer by default for stronger privacy. Add `--direct` to withdraw directly to your signer address instead.
+Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relayer pays gas and takes a fee). Add `--direct` to interact with the pool contract directly (no relayer fees, basic privacy).
 
 ```bash
-# Relayed withdrawal (default, stronger privacy)
+# Relayed withdrawal (default, enhanced privacy)
 privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1 --chain sepolia
 
-# Direct withdrawal (cheaper, weaker privacy than relayed)
+# Direct withdrawal (no relayer fees, basic privacy)
 privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia
 
 # Get a fee quote without withdrawing
@@ -201,7 +201,7 @@ privacy-pools sync --asset ETH     # sync a single pool
 
 ### `ragequit` (alias: `exit`)
 
-Emergency public exit that returns funds to your deposit address and sacrifices privacy. Use this if the ASP hasn't approved your deposit, or if you need your funds back immediately.
+A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Use when the deposit label is not approved by the ASP or its approval was revoked.
 
 ```bash
 privacy-pools ragequit --asset ETH -p PA-1 --chain sepolia

@@ -56,7 +56,8 @@
         "defaultChain": "string",
         "signerKeySet": "boolean",
         "mnemonicRedacted": "boolean? (true when a new mnemonic was generated but not printed)",
-        "mnemonic": "string? (present only when newly generated and --show-mnemonic is provided)"
+        "mnemonic": "string? (present only when newly generated and --show-mnemonic is provided)",
+        "warning": "string? (security guidance for agents)"
       }
     },
     "status": {
@@ -74,29 +75,78 @@
         "entrypoint": "0x-prefixed-address|null",
         "aspHost": "string|null",
         "accountFiles": "[{ chain: string, chainId: number }]",
-        "aspLive": "boolean|undefined",
-        "rpcLive": "boolean|undefined",
-        "rpcBlockNumber": "string|undefined"
+        "aspLive": "boolean|undefined (present when health checks run)",
+        "rpcLive": "boolean|undefined (present when health checks run)",
+        "rpcBlockNumber": "string|undefined (present when rpc check succeeds)",
+        "readyForDeposit": "boolean (configExists && mnemonicSet && signerKeyValid)",
+        "readyForWithdraw": "boolean (configExists && mnemonicSet && signerKeyValid)",
+        "readyForUnsigned": "boolean (configExists && mnemonicSet)"
       }
     },
     "pools": {
       "successFields": {
-        "chain": "string",
-        "pools": "Pool[]"
+        "chain": "string (single-chain mode)",
+        "allChains": "boolean? (true when no --chain specified)",
+        "search": "string|null",
+        "sort": "string",
+        "chains": "ChainSummary[]? (multi-chain mode: { chain, pools, error })",
+        "pools": "Pool[]",
+        "warnings": "PoolWarning[]? (multi-chain mode)"
+      },
+      "poolFields": {
+        "symbol": "string",
+        "asset": "0x-prefixed-address",
+        "pool": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "decimals": "number",
+        "minimumDeposit": "decimal-string-wei",
+        "vettingFeeBPS": "decimal-string",
+        "maxRelayFeeBPS": "decimal-string",
+        "totalInPoolValue": "decimal-string-wei|null",
+        "totalInPoolValueUsd": "string|null",
+        "totalDepositsValue": "decimal-string-wei|null",
+        "totalDepositsValueUsd": "string|null",
+        "acceptedDepositsValue": "decimal-string-wei|null",
+        "acceptedDepositsValueUsd": "string|null",
+        "pendingDepositsValue": "decimal-string-wei|null",
+        "pendingDepositsValueUsd": "string|null",
+        "totalDepositsCount": "number|null",
+        "acceptedDepositsCount": "number|null",
+        "pendingDepositsCount": "number|null",
+        "growth24h": "number|null",
+        "pendingGrowth24h": "number|null",
+        "chain": "string? (present in multi-chain mode)"
       }
     },
     "deposit": {
       "successFields": {
-        "operation": "string",
+        "operation": "\"deposit\"",
         "txHash": "0x-prefixed-hash",
         "amount": "decimal-string-wei",
         "committedValue": "decimal-string-wei|null",
+        "asset": "string",
+        "chain": "string",
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
-        "asset": "string",
-        "chain": "string"
+        "poolAddress": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "label": "decimal-string|null",
+        "blockNumber": "decimal-string",
+        "explorerUrl": "string|null",
+        "nextStep": "string (agent guidance)"
       },
       "variants": {
+        "dryRun": {
+          "dryRun": true,
+          "operation": "\"deposit\"",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "precommitment": "decimal-string",
+          "balanceSufficient": "boolean|\"unknown\""
+        },
         "unsigned": {
           "mode": "unsigned",
           "operation": "deposit",
@@ -113,17 +163,38 @@
     },
     "withdraw": {
       "successFields": {
-        "operation": "string",
-        "mode": "direct|relayed",
+        "operation": "\"withdraw\"",
+        "mode": "\"direct\"|\"relayed\"",
         "txHash": "0x-prefixed-hash",
+        "blockNumber": "decimal-string",
         "amount": "decimal-string-wei",
         "recipient": "0x-prefixed-address",
+        "explorerUrl": "string|null",
+        "poolAddress": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "asset": "string",
+        "chain": "string",
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
-        "asset": "string",
-        "chain": "string"
+        "feeBPS": "string? (relayed mode only)",
+        "fee": "null? (direct mode only)"
       },
       "variants": {
+        "dryRun": {
+          "mode": "\"direct\"|\"relayed\"",
+          "dryRun": true,
+          "amount": "decimal-string-wei",
+          "asset": "string",
+          "chain": "string",
+          "recipient": "0x-prefixed-address",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "proofPublicSignals": "number",
+          "feeBPS": "string? (relayed only)",
+          "quoteExpiresAt": "iso8601-string? (relayed only)"
+        },
         "unsignedDirect": {
           "mode": "unsigned",
           "operation": "withdraw",
@@ -157,19 +228,6 @@
         },
         "unsignedTx": {
           "--unsigned-format tx": "RawUnsignedTransaction[]"
-        },
-        "dryRun": {
-          "mode": "direct|relayed",
-          "dryRun": true,
-          "amount": "decimal-string-wei",
-          "asset": "string",
-          "chain": "string",
-          "recipient": "0x-prefixed-address",
-          "poolAccountNumber": "number",
-          "poolAccountId": "string (PA-#)",
-          "selectedCommitmentLabel": "decimal-string",
-          "selectedCommitmentValue": "decimal-string-wei",
-          "proofPublicSignals": "number"
         }
       },
       "subcommands": {
@@ -180,6 +238,7 @@
           "amount": "decimal-string-wei",
           "recipient": "0x-prefixed-address|null",
           "minWithdrawAmount": "decimal-string-wei",
+          "minWithdrawAmountFormatted": "string (human-readable e.g. 0.01 ETH)",
           "maxRelayFeeBPS": "string",
           "quoteFeeBPS": "string",
           "feeCommitmentPresent": "boolean",
@@ -192,15 +251,31 @@
         "exit"
       ],
       "successFields": {
-        "operation": "string",
+        "operation": "\"ragequit\"",
         "txHash": "0x-prefixed-hash",
         "amount": "decimal-string-wei",
+        "asset": "string",
+        "chain": "string",
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
-        "asset": "string",
-        "chain": "string"
+        "poolAddress": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "blockNumber": "decimal-string",
+        "explorerUrl": "string|null"
       },
       "variants": {
+        "dryRun": {
+          "dryRun": true,
+          "operation": "\"ragequit\"",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "proofPublicSignals": "number"
+        },
         "unsigned": {
           "mode": "unsigned",
           "operation": "ragequit",
@@ -218,23 +293,135 @@
         }
       }
     },
-    "balance": {
-      "successFields": {
-        "chain": "string",
-        "balances": "Balance[] (includes commitments + poolAccounts count)"
-      }
-    },
     "accounts": {
       "successFields": {
         "chain": "string",
-        "accounts": "Account[] (includes poolAccountId + poolAccountNumber + status)"
+        "accounts": "Account[]",
+        "balances": "Balance[]",
+        "pendingCount": "number"
+      },
+      "accountFields": {
+        "poolAccountNumber": "number",
+        "poolAccountId": "string (PA-#)",
+        "status": "\"spendable\"|\"spent\"|\"exited\"",
+        "aspStatus": "\"pending\"|\"approved\"",
+        "asset": "string",
+        "scope": "decimal-string",
+        "value": "decimal-string-wei",
+        "hash": "decimal-string",
+        "label": "decimal-string",
+        "blockNumber": "decimal-string",
+        "txHash": "0x-prefixed-hash"
+      },
+      "balanceFields": {
+        "asset": "string",
+        "balance": "decimal-string-wei (total spendable)",
+        "usdValue": "string|null (formatted USD e.g. $1,000.00)",
+        "poolAccounts": "number (spendable account count)"
+      }
+    },
+    "history": {
+      "successFields": {
+        "chain": "string",
+        "events": "HistoryEvent[]"
+      },
+      "eventFields": {
+        "type": "\"deposit\"|\"withdrawal\"|\"ragequit\"",
+        "asset": "string",
+        "poolAddress": "0x-prefixed-address",
+        "poolAccountNumber": "number",
+        "poolAccountId": "string (PA-#)",
+        "value": "decimal-string-wei",
+        "blockNumber": "decimal-string",
+        "txHash": "0x-prefixed-hash",
+        "explorerUrl": "string|null"
+      }
+    },
+    "activity": {
+      "successFields": {
+        "mode": "\"pool-activity\"|\"global-activity\"",
+        "chain": "string",
+        "chains": "string[]? (global-activity with multiple chains)",
+        "page": "number",
+        "perPage": "number",
+        "total": "number|null",
+        "totalPages": "number|null",
+        "events": "ActivityEvent[]"
+      },
+      "poolActivityExtraFields": {
+        "asset": "string",
+        "pool": "0x-prefixed-address",
+        "scope": "decimal-string"
+      },
+      "eventFields": {
+        "type": "string",
+        "txHash": "0x-prefixed-hash|null",
+        "reviewStatus": "string|null",
+        "amountRaw": "decimal-string-wei|null",
+        "poolSymbol": "string|null",
+        "poolAddress": "0x-prefixed-address|null",
+        "chainId": "number|null",
+        "timestamp": "number|null (milliseconds)"
+      }
+    },
+    "stats": {
+      "globalStats": {
+        "mode": "\"global-stats\"",
+        "chain": "string",
+        "chains": "string[]? (multi-chain mode)",
+        "cacheTimestamp": "iso8601-string|null",
+        "allTime": "TimeBasedStatistics|null",
+        "last24h": "TimeBasedStatistics|null",
+        "perChain": "ChainStatsEntry[]? (multi-chain mode)"
+      },
+      "poolStats": {
+        "mode": "\"pool-stats\"",
+        "chain": "string",
+        "asset": "string",
+        "pool": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "cacheTimestamp": "iso8601-string|null",
+        "allTime": "TimeBasedStatistics|null",
+        "last24h": "TimeBasedStatistics|null"
+      },
+      "timeBasedStatisticsFields": {
+        "tvlUsd": "string|null",
+        "avgDepositSizeUsd": "string|null",
+        "totalDepositsCount": "number|null",
+        "totalWithdrawalsCount": "number|null"
+      },
+      "chainStatsEntryFields": {
+        "chain": "string",
+        "cacheTimestamp": "iso8601-string|null",
+        "allTime": "TimeBasedStatistics|null",
+        "last24h": "TimeBasedStatistics|null"
+      }
+    },
+    "capabilities": {
+      "successFields": {
+        "commands": "Command[]",
+        "globalFlags": "Flag[]",
+        "agentWorkflow": "string[]",
+        "jsonOutputContract": "string (semver)",
+        "agentNotes": "string[]",
+        "schemas": "object",
+        "supportedChains": "Chain[]"
       }
     },
     "sync": {
       "successFields": {
         "chain": "string",
         "syncedPools": "number",
-        "spendableCommitments": "number"
+        "syncedSymbols": "string[]? (present on successful sync)",
+        "spendableCommitments": "number",
+        "previousSpendableCommitments": "number? (count before sync)"
+      }
+    },
+    "guide": {
+      "note": "Outputs formatted help text to stderr in interactive mode. In JSON mode, returns the guide as a string.",
+      "successFields": {
+        "mode": "\"help\"",
+        "help": "string (formatted guide text)"
       }
     },
     "meta": {

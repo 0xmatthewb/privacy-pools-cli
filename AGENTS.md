@@ -104,7 +104,9 @@ privacy-pools activity --agent
 privacy-pools activity --agent --asset ETH --limit 20
 ```
 
-JSON payload (global): `{ mode: "global-activity", chain, page, perPage, total, totalPages, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }`
+JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }`
+
+When querying all mainnets (no `--chain`), `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
 
 With `--asset`, mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` fields.
 
@@ -117,7 +119,9 @@ privacy-pools stats global --agent
 privacy-pools stats --agent  # same as above
 ```
 
-JSON payload: `{ mode: "global-stats", chain, cacheTimestamp, allTime, last24h }`
+JSON payload: `{ mode: "global-stats", chain, chains?, cacheTimestamp, allTime, last24h, perChain? }`
+
+When querying all mainnets (no `--chain`), `chains` lists the chain names and `perChain` contains per-chain `{ chain, cacheTimestamp, allTime, last24h }` entries.
 
 `allTime` and `last24h` are objects provided by the ASP. Expected fields: `tvlUsd`, `avgDepositSizeUsd`, `totalDepositsCount`, `totalWithdrawalsCount`, `totalDepositsValue`, `totalWithdrawalsValue`, `totalDepositsValueUsd`, `totalWithdrawalsValueUsd`.
 
@@ -265,7 +269,7 @@ privacy-pools sync --agent
 privacy-pools sync --agent --asset ETH
 ```
 
-JSON payload: `{ chain, syncedPools, syncedSymbols, spendableCommitments }`
+JSON payload: `{ chain, syncedPools, syncedSymbols?, spendableCommitments, previousSpendableCommitments? }`
 
 ## Auto-Sync Behavior
 
