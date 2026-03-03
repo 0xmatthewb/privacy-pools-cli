@@ -6,7 +6,7 @@ import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import { formatAmount, spinner } from "../utils/format.js";
+import { formatAmount, displayDecimals, spinner } from "../utils/format.js";
 import type { GlobalOptions, AspPublicEvent } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
@@ -86,7 +86,7 @@ function normalizeActivityEvent(
   let amountFormatted = "-";
   if (amountRaw && /^-?\d+$/.test(amountRaw)) {
     try {
-      amountFormatted = formatAmount(BigInt(amountRaw), decimals, symbol ?? undefined);
+      amountFormatted = formatAmount(BigInt(amountRaw), decimals, symbol ?? undefined, displayDecimals(decimals));
     } catch {
       amountFormatted = amountRaw;
     }

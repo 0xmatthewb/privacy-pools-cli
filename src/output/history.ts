@@ -8,7 +8,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
-import { formatAmount, formatTxHash } from "../utils/format.js";
+import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 import { accentBold } from "../utils/theme.js";
 import type { HistoryEvent } from "../commands/history.js";
 
@@ -86,7 +86,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
       return [
         typeLabel,
         e.paId,
-        formatAmount(e.value, pool?.decimals ?? 18, e.asset),
+        formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
         formatTxHash(e.txHash),
         e.blockNumber.toString(),
       ];

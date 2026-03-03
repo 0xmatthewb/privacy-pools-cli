@@ -9,7 +9,7 @@
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
-import { formatAmount, formatAddress, formatTxHash } from "../utils/format.js";
+import { formatAmount, formatAddress, formatTxHash, displayDecimals } from "../utils/format.js";
 import { highlight, accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 
@@ -87,6 +87,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
     if (silent) continue;
 
+    const dd = displayDecimals(group.decimals);
     if (showDetails) {
       printTable(
         ["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"],
@@ -98,7 +99,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             : pa.aspStatus === "pending"
               ? chalk.yellow("Pending")
               : "",
-          formatAmount(pa.value, group.decimals, group.symbol),
+          formatAmount(pa.value, group.decimals, group.symbol, dd),
           formatAddress(`0x${pa.commitment.hash.toString(16).padStart(64, "0")}`, 8),
           formatAddress(`0x${pa.label.toString(16).padStart(64, "0")}`, 8),
           pa.blockNumber.toString(),
@@ -118,7 +119,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
                 : "";
           return [
             pa.paId,
-            formatAmount(pa.value, group.decimals, group.symbol),
+            formatAmount(pa.value, group.decimals, group.symbol, dd),
             `${statusLabel}${aspSuffix}`,
             formatTxHash(pa.txHash),
           ];

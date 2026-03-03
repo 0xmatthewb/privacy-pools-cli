@@ -8,7 +8,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, success, info, isSilent } from "./common.js";
-import { formatAmount, formatTxHash } from "../utils/format.js";
+import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface RagequitDryRunData {
   chain: string;
@@ -67,7 +67,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
   info(`Chain: ${data.chain}`, silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
-  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
+  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}`, silent);
   info("Privacy note: ragequit is a public withdrawal that returns funds to your deposit address.", silent);
 }
 
@@ -98,7 +98,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success(
-    `Ragequit ${data.poolAccountId} — withdrew ${formatAmount(data.amount, data.decimals, data.asset)} back to deposit address.`,
+    `Ragequit ${data.poolAccountId} — withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to deposit address.`,
     silent,
   );
   info(`Tx: ${formatTxHash(data.txHash)}`, silent);

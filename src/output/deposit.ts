@@ -8,7 +8,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, success, info, isSilent } from "./common.js";
-import { formatAmount, formatTxHash } from "../utils/format.js";
+import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface DepositDryRunData {
   chain: string;
@@ -67,7 +67,7 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
   info(`Chain: ${data.chain}`, silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
-  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset)}`, silent);
+  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}`, silent);
   const balanceLabel =
     data.balanceSufficient === "unknown"
       ? "unknown (no signer key provided)"
@@ -106,11 +106,12 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  success(`Deposit submitted: ${formatAmount(data.amount, data.decimals, data.asset)}.`, silent);
+  const dd = displayDecimals(data.decimals);
+  success(`Deposit submitted: ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
   if (data.committedValue !== undefined) {
     info(
-      `Net deposited: ${formatAmount(data.committedValue, data.decimals, data.asset)} (after vetting fee collected by the pool's ASP)`,
+      `Net deposited: ${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after vetting fee collected by the pool's ASP)`,
       silent,
     );
   }

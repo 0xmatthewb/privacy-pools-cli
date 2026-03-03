@@ -4,12 +4,58 @@ import Table from "cli-table3";
 import { formatUnits } from "viem";
 import { highlight, accent, spinnerColor } from "./theme.js";
 
+/**
+ * Pick a sensible number of display decimals based on the token's native
+ * decimal count.  6-decimal stablecoins get 2; everything else gets 4.
+ */
+export function displayDecimals(_tokenDecimals: number): number {
+  return 2;
+}
+
+/**
+ * Truncate a formatted decimal string to at most `max` fractional digits,
+ * trimming trailing zeros.  When the integer part is "0" and truncation
+ * would lose all significant digits (e.g. 0.0005 → 0.00), we extend to
+ * include the first non-zero digit so small values stay visible.
+ */
+function truncateDecimals(value: string, max: number): string {
+  const dot = value.indexOf(".");
+  if (dot === -1) return value;
+
+  const intPart = value.slice(0, dot);
+  const decPart = value.slice(dot + 1);
+
+  if (decPart.length <= max) {
+    const trimmed = decPart.replace(/0+$/, "");
+    return trimmed.length > 0 ? `${intPart}.${trimmed}` : intPart;
+  }
+
+  let digits = max;
+
+  // For fractional-only values, ensure at least the first significant digit
+  // is visible (e.g. 0.0005 keeps 4 digits rather than truncating to "0").
+  if (intPart === "0" && /^0*$/.test(decPart.slice(0, max))) {
+    const firstSig = decPart.search(/[1-9]/);
+    if (firstSig >= 0 && firstSig >= max) {
+      digits = firstSig + 1;
+    }
+  }
+
+  const truncated = decPart.slice(0, digits);
+  const trimmed = truncated.replace(/0+$/, "");
+  return trimmed.length > 0 ? `${intPart}.${trimmed}` : intPart || "0";
+}
+
 export function formatAmount(
   value: bigint,
   decimals: number,
-  symbol?: string
+  symbol?: string,
+  maxDecimals?: number,
 ): string {
-  const formatted = formatUnits(value, decimals);
+  let formatted = formatUnits(value, decimals);
+  if (maxDecimals !== undefined) {
+    formatted = truncateDecimals(formatted, maxDecimals);
+  }
   return symbol ? `${formatted} ${symbol}` : formatted;
 }
 

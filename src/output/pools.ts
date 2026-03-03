@@ -9,7 +9,7 @@ import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
-import { formatAddress, formatAmount, formatBPS } from "../utils/format.js";
+import { formatAmount, formatBPS, displayDecimals } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -50,21 +50,14 @@ function formatStatAmount(
   symbol: string,
 ): string {
   if (value === undefined) return "-";
-  return formatAmount(value, decimals, symbol);
+  return formatAmount(value, decimals, symbol, displayDecimals(decimals));
 }
 
-function formatDepositsSummary(pool: PoolStats): string {
-  const count =
-    pool.totalDepositsCount !== undefined
-      ? pool.totalDepositsCount.toLocaleString("en-US")
-      : null;
-  const value =
-    pool.totalDepositsValue !== undefined
-      ? formatAmount(pool.totalDepositsValue, pool.decimals, pool.symbol)
-      : null;
-
-  if (count && value) return `${count} (${value})`;
-  return count ?? value ?? "-";
+function formatDepositsCount(pool: PoolStats): string {
+  if (pool.totalDepositsCount !== undefined) {
+    return pool.totalDepositsCount.toLocaleString("en-US");
+  }
+  return "-";
 }
 
 export function poolToJson(
@@ -173,13 +166,17 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     return;
   }
 
+  const headers = allChains
+    ? ["Chain", "Asset", "Total Deposits", "Accepted Funds", "Pending", "Min Deposit", "Vetting Fee"]
+    : ["Asset", "Total Deposits", "Accepted Funds", "Pending", "Min Deposit", "Vetting Fee"];
+
   printTable(
-    allChains
-      ? ["Chain", "Asset", "TVL", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"]
-      : ["Asset", "TVL", "Pending", "Deposits", "Min Deposit", "Vetting Fee", "Relay Fee"],
+    headers,
     filteredPools.map(({ chain, pool }) => {
+      const dd = displayDecimals(pool.decimals);
       const baseRow = [
         pool.symbol,
+        formatDepositsCount(pool),
         formatStatAmount(
           pool.acceptedDepositsValue ?? pool.totalInPoolValue,
           pool.decimals,
@@ -190,21 +187,20 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
           pool.decimals,
           pool.symbol,
         ),
-        formatDepositsSummary(pool),
         formatAmount(
           pool.minimumDepositAmount,
           pool.decimals,
           pool.symbol,
+          dd,
         ),
         formatBPS(pool.vettingFeeBPS),
-        formatBPS(pool.maxRelayFeeBPS),
       ];
       return allChains ? [chain, ...baseRow] : baseRow;
     }),
   );
   process.stderr.write(
     chalk.dim(
-      "\nVetting fees are deducted on deposit. Relay fees apply to relayed withdrawals.\n",
+      "\nVetting fees are deducted on deposit.\n",
     ),
   );
 }

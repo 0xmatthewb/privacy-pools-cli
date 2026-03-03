@@ -10,7 +10,7 @@ import {
   withSuppressedSdkStdout,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
-import { spinner, formatAmount, warn, verbose } from "../utils/format.js";
+import { spinner, formatAmount, displayDecimals, warn, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
@@ -146,7 +146,7 @@ export function createBalanceCommand(): Command {
 
           rows.push({
             symbol: pool.symbol,
-            formattedBalance: formatAmount(totalValue, pool.decimals, pool.symbol),
+            formattedBalance: formatAmount(totalValue, pool.decimals, pool.symbol, displayDecimals(pool.decimals)),
             commitments: commitments.length,
           });
 

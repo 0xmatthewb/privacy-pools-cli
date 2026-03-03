@@ -271,47 +271,53 @@ export async function listPools(
   if (statsEntries.length > 0) {
     let rpcReadFailures = 0;
 
-    for (const entry of statsEntries) {
-      try {
-        const assetAddress = resolvePoolAssetAddress(
-          entry as Record<string, unknown>
-        );
-        if (!assetAddress) {
-          continue;
-        }
-        const assetConfig = await getAssetConfigReadOnly(
-          publicClient,
-          chainConfig.entrypoint,
-          assetAddress
-        );
-        const scope = await getScopeReadOnly(
-          publicClient,
-          assetConfig.pool
-        );
-        const { symbol, decimals } = await resolveTokenMetadata(
-          publicClient,
-          assetAddress
-        );
-        const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
+    const results = await Promise.all(
+      statsEntries.map(async (entry) => {
+        try {
+          const assetAddress = resolvePoolAssetAddress(
+            entry as Record<string, unknown>
+          );
+          if (!assetAddress) return null;
 
-        pools.push({
-          asset: assetAddress,
-          pool: assetConfig.pool,
-          scope,
-          symbol,
-          decimals,
-          minimumDepositAmount: assetConfig.minimumDepositAmount,
-          vettingFeeBPS: assetConfig.vettingFeeBPS,
-          maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
-          ...metrics,
-        });
-      } catch (error) {
-        if (isRpcLikeError(error)) {
-          rpcReadFailures++;
+          // Fetch asset config and token metadata in parallel
+          const [assetConfig, tokenMeta] = await Promise.all([
+            getAssetConfigReadOnly(
+              publicClient,
+              chainConfig.entrypoint,
+              assetAddress
+            ),
+            resolveTokenMetadata(publicClient, assetAddress),
+          ]);
+
+          // Scope requires the pool address from assetConfig
+          const scope = await getScopeReadOnly(
+            publicClient,
+            assetConfig.pool
+          );
+          const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
+
+          return {
+            asset: assetAddress,
+            pool: assetConfig.pool,
+            scope,
+            symbol: tokenMeta.symbol,
+            decimals: tokenMeta.decimals,
+            minimumDepositAmount: assetConfig.minimumDepositAmount,
+            vettingFeeBPS: assetConfig.vettingFeeBPS,
+            maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
+            ...metrics,
+          } satisfies PoolStats;
+        } catch (error) {
+          if (isRpcLikeError(error)) {
+            rpcReadFailures++;
+          }
+          return null;
         }
-        // Skip pools that fail on-chain validation/metadata fetch
-        continue;
-      }
+      })
+    );
+
+    for (const result of results) {
+      if (result !== null) pools.push(result);
     }
 
     if (pools.length === 0 && rpcReadFailures > 0) {
