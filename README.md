@@ -470,7 +470,6 @@ bun run test:fuzz         # fuzz tests (longer timeout)
 bun run test:stress       # stress test (120 rounds)
 bun run test:coverage     # test suite with coverage
 bun run test:conformance  # conformance tests (extended timeout)
-bun run test:release      # full release gate (e2e + external conformance)
 ```
 
 ## License
