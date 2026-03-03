@@ -8,7 +8,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, warn, isSilent } from "./common.js";
+import { printJsonSuccess, success, info, warn, isSilent, guardCsvUnsupported } from "./common.js";
 import { formatAmount, formatAddress, formatTxHash, formatBPS, displayDecimals } from "../utils/format.js";
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────
@@ -37,6 +37,8 @@ export interface WithdrawDryRunData {
  * Prints a human-readable summary of what would happen without submitting.
  */
 export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunData): void {
+  guardCsvUnsupported(ctx, "withdraw --dry-run");
+
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
       mode: data.withdrawMode,
@@ -102,6 +104,8 @@ export interface WithdrawSuccessData {
  * Render withdraw success output (both direct and relayed).
  */
 export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessData): void {
+  guardCsvUnsupported(ctx, "withdraw");
+
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
       operation: "withdraw",
@@ -174,6 +178,8 @@ export interface WithdrawQuoteData {
  * Render withdraw quote output.
  */
 export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData): void {
+  guardCsvUnsupported(ctx, "withdraw quote");
+
   const dd = displayDecimals(data.decimals);
   const minWithdrawFormatted = formatAmount(
     BigInt(data.minWithdrawAmount),
@@ -204,7 +210,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  info("Relayer quote", silent);
+  info("Withdrawal quote (review before proceeding):", silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, dd)}`, silent);
   info(`Min withdraw: ${minWithdrawFormatted}`, silent);
@@ -214,6 +220,10 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     info(`Recipient: ${formatAddress(data.recipient)}`, silent);
   }
   if (data.quoteExpiresAt) {
-    info(`Quote expires: ${data.quoteExpiresAt}`, silent);
+    const expiresIn = new Date(data.quoteExpiresAt).getTime() - Date.now();
+    const expiresLabel = expiresIn > 0
+      ? `${Math.ceil(expiresIn / 1000)}s remaining`
+      : "expired";
+    info(`Quote expires: ${data.quoteExpiresAt} (${expiresLabel})`, silent);
   }
 }

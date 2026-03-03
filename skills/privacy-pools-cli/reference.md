@@ -276,11 +276,18 @@ pp status --agent [--check] [--check-rpc] [--check-asp]
   "accountFiles": [{ "chain": "mainnet", "chainId": 1 }],
   "readyForDeposit": true,
   "readyForWithdraw": true,
-  "readyForUnsigned": true
+  "readyForUnsigned": true,
+  "handoffChecklist": [
+    { "key": "config", "met": true, "remedy": "privacy-pools init --agent --show-mnemonic" },
+    { "key": "mnemonic", "met": true, "remedy": "Capture mnemonic from init output" },
+    { "key": "signerKey", "met": true, "remedy": "export PRIVACY_POOLS_PRIVATE_KEY=0x..." }
+  ]
 }
 ```
 
 Health checks run by default when a chain is selected. Pass `--no-check` to suppress them, or use `--check-rpc` / `--check-asp` to run only specific checks.
+
+`handoffChecklist` is an array of `{ key, met, remedy }` objects for agent orchestrators: each entry names a prerequisite (`config`, `mnemonic`, `signerKey`), whether it is met, and a remediation command if not.
 
 | Field | Type | When present |
 |-------|------|-------------|
@@ -352,7 +359,15 @@ pp init --agent --private-key-file ./key.txt --default-chain mainnet
 {
   "defaultChain": "mainnet",
   "signerKeySet": true,
-  "mnemonicRedacted": true
+  "mnemonicRedacted": true,
+  "nextSteps": {
+    "requiresMnemonicCapture": true,
+    "requiresSignerKey": false,
+    "suggestedCommands": [
+      "privacy-pools status --agent",
+      "privacy-pools pools --agent"
+    ]
+  }
 }
 ```
 
@@ -362,6 +377,7 @@ pp init --agent --private-key-file ./key.txt --default-chain mainnet
 | `signerKeySet` | boolean | Whether a signer key was configured |
 | `mnemonic` | string | Only when `--show-mnemonic` and mnemonic was generated (not imported) |
 | `mnemonicRedacted` | boolean | `true` when mnemonic was generated but `--show-mnemonic` was not passed |
+| `nextSteps` | object | Agent handoff guidance: `requiresMnemonicCapture` (bool), `requiresSignerKey` (bool), `suggestedCommands` (string[]) |
 
 When importing an existing mnemonic or private key, neither `mnemonic` nor `mnemonicRedacted` is present.
 

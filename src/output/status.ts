@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, warn, info, isSilent } from "./common.js";
+import { printJsonSuccess, success, warn, info, isSilent, guardCsvUnsupported } from "./common.js";
 import { highlight, accentBold } from "../utils/theme.js";
 
 export interface StatusCheckResult {
@@ -37,6 +37,8 @@ export interface StatusCheckResult {
  * Render the status command output.
  */
 export function renderStatus(ctx: OutputContext, result: StatusCheckResult): void {
+  guardCsvUnsupported(ctx, "status");
+
   if (ctx.mode.isJson) {
     const status: Record<string, unknown> = {
       configExists: result.configExists,
@@ -60,6 +62,12 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     status.readyForDeposit = result.configExists && result.mnemonicSet && result.signerKeyValid;
     status.readyForWithdraw = result.configExists && result.mnemonicSet && result.signerKeyValid;
     status.readyForUnsigned = result.configExists && result.mnemonicSet;
+    // Machine-readable handoff checklist for agent orchestrators.
+    status.handoffChecklist = [
+      { key: "config", met: result.configExists, remedy: "privacy-pools init --agent --show-mnemonic" },
+      { key: "mnemonic", met: result.mnemonicSet, remedy: "Capture mnemonic from init output" },
+      { key: "signerKey", met: result.signerKeyValid, remedy: "export PRIVACY_POOLS_PRIVATE_KEY=0x..." },
+    ];
     printJsonSuccess(status);
     return;
   }

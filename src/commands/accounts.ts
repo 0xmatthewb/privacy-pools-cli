@@ -54,7 +54,7 @@ export function createAccountsCommand(): Command {
 
         const mnemonic = loadMnemonic();
 
-        const spin = spinner("Loading accounts...", silent);
+        const spin = spinner("Discovering pools...", silent);
         spin.start();
 
         const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
@@ -79,6 +79,7 @@ export function createAccountsCommand(): Command {
           globalOpts?.rpcUrl
         );
 
+        spin.text = "Initializing account state...";
         const accountService = await initializeAccountService(
           dataService,
           mnemonic,
@@ -89,7 +90,7 @@ export function createAccountsCommand(): Command {
           true
         );
 
-        spin.text = "Syncing...";
+        spin.text = "Syncing onchain events...";
         await syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
           skip: opts.noSync === true,
           force: false,
@@ -121,6 +122,7 @@ export function createAccountsCommand(): Command {
         });
 
         // Fetch ASP approval status in parallel (non-fatal if unavailable)
+        spin.text = "Checking ASP approval status...";
         const approvedLabelsByScope = new Map<string, Set<string> | null>();
         await Promise.all(
           sortedScopeStrings.map(async (scopeStr) => {

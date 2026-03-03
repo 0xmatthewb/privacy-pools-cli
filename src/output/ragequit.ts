@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, isSilent } from "./common.js";
+import { printJsonSuccess, success, info, isSilent, guardCsvUnsupported } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface RagequitDryRunData {
@@ -42,6 +42,8 @@ export interface RagequitSuccessData {
  * Prints a human-readable summary of what would happen without submitting.
  */
 export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunData): void {
+  guardCsvUnsupported(ctx, "ragequit --dry-run");
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
       {
@@ -68,13 +70,15 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
   info(`Asset: ${data.asset}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}`, silent);
-  info("Privacy note: exit is a public withdrawal that returns funds to your deposit address.", silent);
+  info("Privacy note: Exit (ragequit) is a public, non-private withdrawal that returns funds to your deposit address.", silent);
 }
 
 /**
  * Render ragequit success output.
  */
 export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessData): void {
+  guardCsvUnsupported(ctx, "ragequit");
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
       {
@@ -102,7 +106,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success(
-    `Exit ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to deposit address.`,
+    `Exit (ragequit) ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to deposit address.`,
     silent,
   );
   info(`Tx: ${formatTxHash(data.txHash)}`, silent);

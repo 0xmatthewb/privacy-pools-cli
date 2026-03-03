@@ -15,6 +15,7 @@ import {
   warn,
   printTable,
 } from "../utils/format.js";
+import { CLIError } from "../utils/errors.js";
 
 // ── Re-exports so renderers only need one import ─────────────────────────────
 
@@ -64,4 +65,21 @@ export function isSilent(ctx: OutputContext): boolean {
  */
 export function isCsv(ctx: OutputContext): boolean {
   return ctx.mode.isCsv;
+}
+
+/** Commands that support `--format csv` output. */
+const CSV_SUPPORTED_COMMANDS = ["pools", "accounts", "activity", "stats", "history"];
+
+/**
+ * Throw an INPUT error when `--format csv` is used with a command that does
+ * not produce tabular data.  Call at the top of any renderer that lacks CSV
+ * support.
+ */
+export function guardCsvUnsupported(ctx: OutputContext, commandName: string): void {
+  if (!ctx.mode.isCsv) return;
+  throw new CLIError(
+    `--format csv is not supported for '${commandName}'.`,
+    "INPUT",
+    `CSV output is available for: ${CSV_SUPPORTED_COMMANDS.join(", ")}.`,
+  );
 }

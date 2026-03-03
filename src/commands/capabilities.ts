@@ -4,10 +4,10 @@ import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
-import { renderCapabilities } from "../output/capabilities.js";
+import { renderCapabilities, type CapabilitiesPayload } from "../output/capabilities.js";
 import { CHAINS, CHAIN_NAMES } from "../config/chains.js";
 
-const CAPABILITIES = {
+const CAPABILITIES: CapabilitiesPayload = {
   commands: [
     {
       name: "init",
@@ -15,6 +15,7 @@ const CAPABILITIES = {
       flags: ["--mnemonic <phrase>", "--mnemonic-file <path>", "--private-key <key>", "--private-key-file <path>", "--default-chain <chain>", "--force", "--show-mnemonic"],
       agentFlags: "--yes --json --default-chain <chain>",
       requiresInit: false,
+      expectedLatencyClass: "fast",
     },
     {
       name: "pools",
@@ -22,6 +23,7 @@ const CAPABILITIES = {
       flags: ["--all-chains", "--search <query>", "--sort <mode>"],
       agentFlags: "--json [--all-chains] [--search <query>] [--sort <mode>]",
       requiresInit: false,
+      expectedLatencyClass: "medium",
     },
     {
       name: "activity",
@@ -29,6 +31,7 @@ const CAPABILITIES = {
       flags: ["--asset <symbol|address>", "--page <n>", "--limit <n>"],
       agentFlags: "--json [--asset <symbol>] [--page <n>] [--limit <n>]",
       requiresInit: false,
+      expectedLatencyClass: "medium",
     },
     {
       name: "stats",
@@ -37,6 +40,7 @@ const CAPABILITIES = {
       flags: ["global", "pool --asset <symbol|address>"],
       agentFlags: "global --json (or: pool --asset <symbol> --json)",
       requiresInit: false,
+      expectedLatencyClass: "medium",
     },
     {
       name: "deposit",
@@ -45,6 +49,7 @@ const CAPABILITIES = {
       flags: ["--asset <symbol|address>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       agentFlags: "--json --yes",
       requiresInit: true,
+      expectedLatencyClass: "slow",
     },
     {
       name: "withdraw",
@@ -53,6 +58,7 @@ const CAPABILITIES = {
       flags: ["--asset <symbol|address>", "--to <address>", "--from-pa <PA-#>", "--direct", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       agentFlags: "--json --yes",
       requiresInit: true,
+      expectedLatencyClass: "slow",
     },
     {
       name: "withdraw quote",
@@ -61,6 +67,7 @@ const CAPABILITIES = {
       flags: ["--asset <symbol|address>", "--to <address>"],
       agentFlags: "--json",
       requiresInit: true,
+      expectedLatencyClass: "medium",
     },
     {
       name: "accounts",
@@ -68,6 +75,7 @@ const CAPABILITIES = {
       flags: ["--no-sync", "--all", "--details"],
       agentFlags: "--json",
       requiresInit: true,
+      expectedLatencyClass: "slow",
     },
     {
       name: "history",
@@ -75,6 +83,7 @@ const CAPABILITIES = {
       flags: ["--no-sync", "--limit <n>"],
       agentFlags: "--json",
       requiresInit: true,
+      expectedLatencyClass: "medium",
     },
     {
       name: "sync",
@@ -82,6 +91,7 @@ const CAPABILITIES = {
       flags: ["-a, --asset <symbol|address>"],
       agentFlags: "--json [--asset <symbol>]",
       requiresInit: true,
+      expectedLatencyClass: "slow",
     },
     {
       name: "status",
@@ -89,6 +99,7 @@ const CAPABILITIES = {
       flags: ["--check", "--no-check", "--check-rpc", "--check-asp"],
       agentFlags: "--json [--no-check] [--check-rpc] [--check-asp]",
       requiresInit: false,
+      expectedLatencyClass: "fast",
     },
     {
       name: "ragequit",
@@ -98,6 +109,7 @@ const CAPABILITIES = {
       flags: ["--asset <symbol|address>", "--from-pa <PA-#>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       agentFlags: "--json --yes",
       requiresInit: true,
+      expectedLatencyClass: "slow",
     },
     {
       name: "guide",
@@ -105,6 +117,7 @@ const CAPABILITIES = {
       flags: [],
       agentFlags: "--json",
       requiresInit: false,
+      expectedLatencyClass: "fast",
     },
     {
       name: "completion",
@@ -112,6 +125,7 @@ const CAPABILITIES = {
       flags: ["[shell]", "--shell <shell>", "--query", "--cword <index>"],
       agentFlags: "--json <shell>",
       requiresInit: false,
+      expectedLatencyClass: "fast",
     },
     {
       name: "capabilities",
@@ -119,6 +133,7 @@ const CAPABILITIES = {
       flags: [],
       agentFlags: "--json",
       requiresInit: false,
+      expectedLatencyClass: "fast",
     },
   ],
   globalFlags: [
@@ -174,6 +189,7 @@ const CAPABILITIES = {
     chainId: CHAINS[name].id,
     testnet: CHAINS[name].isTestnet,
   })),
+  safeReadOnlyCommands: ["pools", "activity", "stats", "status", "capabilities"],
   jsonOutputContract: "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned-format tx emits a raw transaction array without the envelope.",
 };
 

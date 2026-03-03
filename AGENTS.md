@@ -144,9 +144,9 @@ privacy-pools status --agent
 privacy-pools status --agent --check
 ```
 
-JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, mnemonicSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned }`
+JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, mnemonicSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, handoffChecklist: [{ key, met, remedy }] }`
 
-`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are convenience booleans agents can check before transacting. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
+`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are convenience booleans agents can check before transacting. `handoffChecklist` is an array of `{ key, met, remedy }` objects for agent orchestrators: each entry names a prerequisite (`config`, `mnemonic`, `signerKey`), whether it is met, and a remediation command if not. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
 
 #### `capabilities`
 
@@ -172,7 +172,7 @@ privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
 privacy-pools init --agent --private-key 0x... --default-chain mainnet
 ```
 
-JSON payload: `{ defaultChain, signerKeySet, mnemonicRedacted? | mnemonic?, warning? }`
+JSON payload: `{ defaultChain, signerKeySet, mnemonicRedacted? | mnemonic?, warning?, nextSteps: { requiresMnemonicCapture, requiresSignerKey, suggestedCommands[] } }`
 
 When `--show-mnemonic` is passed (and mnemonic was generated), `mnemonic` contains the phrase. Otherwise `mnemonicRedacted: true` and a `warning` field is included indicating the mnemonic must be captured. When importing an existing mnemonic, neither field is present.
 

@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, isSilent } from "./common.js";
+import { printJsonSuccess, success, info, isSilent, guardCsvUnsupported } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface DepositDryRunData {
@@ -43,6 +43,8 @@ export interface DepositSuccessData {
  * Prints a human-readable summary of what would happen without submitting.
  */
 export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData): void {
+  guardCsvUnsupported(ctx, "deposit --dry-run");
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
       {
@@ -81,6 +83,8 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
  * Render deposit success output.
  */
 export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessData): void {
+  guardCsvUnsupported(ctx, "deposit");
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
       {

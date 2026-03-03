@@ -8,6 +8,7 @@ exports[`JSON envelope structure snapshots status --json success envelope shape 
   "configExists": "boolean",
   "defaultChain": "null",
   "entrypoint": "null",
+  "handoffChecklist": "array(3)",
   "mnemonicSet": "boolean",
   "readyForDeposit": "boolean",
   "readyForUnsigned": "boolean",
@@ -32,6 +33,7 @@ exports[`JSON envelope structure snapshots status --json (initialized) success e
   "configExists": "boolean",
   "defaultChain": "string",
   "entrypoint": "string",
+  "handoffChecklist": "array(3)",
   "mnemonicSet": "boolean",
   "readyForDeposit": "boolean",
   "readyForUnsigned": "boolean",
@@ -60,6 +62,7 @@ exports[`JSON envelope structure snapshots capabilities --json success envelope 
   "commands": "array(15)",
   "globalFlags": "array(11)",
   "jsonOutputContract": "string",
+  "safeReadOnlyCommands": "array(5)",
   "schemaVersion": "string",
   "schemas.aspApprovalStatus.description": "string",
   "schemas.aspApprovalStatus.values": "array(3)",
@@ -169,6 +172,9 @@ exports[`JSON envelope structure snapshots history --json envelope shape (initia
 exports[`JSON envelope structure snapshots init --json success envelope shape 1`] = `
 {
   "defaultChain": "string",
+  "nextSteps.requiresMnemonicCapture": "boolean",
+  "nextSteps.requiresSignerKey": "boolean",
+  "nextSteps.suggestedCommands": "array(2)",
   "schemaVersion": "string",
   "signerKeySet": "boolean",
   "success": "boolean",

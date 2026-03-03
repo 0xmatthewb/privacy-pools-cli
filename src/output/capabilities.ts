@@ -5,7 +5,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess } from "./common.js";
+import { printJsonSuccess, guardCsvUnsupported } from "./common.js";
 
 /**
  * The static capabilities payload.
@@ -20,10 +20,15 @@ export interface CapabilitiesPayload {
     usage?: string;
     agentFlags?: string;
     requiresInit: boolean;
+    expectedLatencyClass?: "fast" | "medium" | "slow";
   }>;
   globalFlags: Array<{ flag: string; description: string }>;
   agentWorkflow: string[];
+  agentNotes?: Record<string, string>;
+  schemas?: Record<string, Record<string, unknown>>;
+  supportedChains?: Array<{ name: string; chainId: number; testnet: boolean }>;
   jsonOutputContract: string;
+  safeReadOnlyCommands?: string[];
 }
 
 /**
@@ -33,6 +38,8 @@ export function renderCapabilities(
   ctx: OutputContext,
   payload: CapabilitiesPayload,
 ): void {
+  guardCsvUnsupported(ctx, "capabilities");
+
   if (ctx.mode.isJson) {
     printJsonSuccess(payload);
     return;

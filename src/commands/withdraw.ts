@@ -1109,6 +1109,13 @@ export function createWithdrawCommand(): Command {
       const silent = isQuiet || isJson;
       const isVerbose = globalOpts?.verbose ?? false;
 
+      // Commander.js consumes --asset / --to at the parent `withdraw` command
+      // before the `quote` subcommand sees them.  Fall back to parent opts so
+      // that `withdraw quote 0.1 --asset ETH --to 0x...` works as documented.
+      const withdrawOpts = subCmd.parent?.opts() as Record<string, unknown> | undefined;
+      const effectiveAsset = (opts.asset ?? withdrawOpts?.asset) as string | undefined;
+      const effectiveTo = (opts.to ?? withdrawOpts?.to) as string | undefined;
+
       try {
         const config = loadConfig();
         const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
@@ -1118,7 +1125,7 @@ export function createWithdrawCommand(): Command {
           "withdraw quote",
           firstArg,
           secondArg,
-          opts.asset
+          effectiveAsset
         );
 
         let pool;
@@ -1140,8 +1147,8 @@ export function createWithdrawCommand(): Command {
         const amount = parseAmount(amountStr, pool.decimals);
         validatePositive(amount, "Quote amount");
 
-        const recipient = opts.to
-          ? validateAddress(opts.to, "Recipient")
+        const recipient = effectiveTo
+          ? validateAddress(effectiveTo, "Recipient")
           : undefined;
 
         const spin = spinner("Requesting relayer quote...", silent);

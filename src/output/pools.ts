@@ -233,7 +233,9 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   );
   process.stderr.write(
     chalk.dim(
-      "\nVetting fees are deducted on deposit.\n",
+      "\nVetting fees are deducted on deposit.\n" +
+      "Accepted Funds: deposits approved by the ASP (ready for private withdrawal).\n" +
+      "Pending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
     ),
   );
 }

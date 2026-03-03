@@ -353,7 +353,7 @@ describe("renderRagequitSuccess parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Exit PA-2");
+    expect(stderr).toContain("Exit (ragequit) PA-2");
     expect(stderr).toContain("withdrew");
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
@@ -648,7 +648,7 @@ describe("renderWithdrawQuote parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Relayer quote");
+    expect(stderr).toContain("Withdrawal quote");
     expect(stderr).toContain("Asset: ETH");
     expect(stderr).toContain("Quoted fee: 0.50%");
     expect(stderr).toContain("Onchain max fee: 1.00%");
