@@ -61,7 +61,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  success("Dry-run complete — no transaction was submitted.", silent);
+  success("Dry-run complete. No transaction was submitted.", silent);
   info(`Mode: ${data.withdrawMode}`, silent);
   info(`Recipient: ${formatAddress(data.recipient)}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
@@ -147,7 +147,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   if (data.withdrawMode === "relayed" && data.feeBPS) {
     const feeBpsNum = Number(data.feeBPS);
     const netAmount = data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n;
-    info(`Relay fee: ${formatBPS(data.feeBPS)} — net received: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}`, silent);
+    info(`Relay fee: ${formatBPS(data.feeBPS)}. Net received: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}`, silent);
   }
   if (data.withdrawMode === "direct") {
     warn("Note: Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);

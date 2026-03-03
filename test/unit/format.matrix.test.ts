@@ -6,6 +6,8 @@ import {
   formatTxHash,
   deriveTokenPrice,
   formatUsdValue,
+  isStablecoinPrice,
+  usdSuffix,
   info,
   printTable,
   stageHeader,
@@ -286,6 +288,80 @@ describe("format utils matrix", () => {
     test("handles very small amounts", () => {
       // 1 wei at $2000 ≈ $0
       expect(formatUsdValue(1n, 18, 2000)).toBe("$0");
+    });
+  });
+
+  // ── isStablecoinPrice ────────────────────────────────────────────────────────
+
+  describe("isStablecoinPrice", () => {
+    test("returns false for null", () => {
+      expect(isStablecoinPrice(null)).toBe(false);
+    });
+
+    test("returns true for $1.00 (USDC/DAI)", () => {
+      expect(isStablecoinPrice(1.0)).toBe(true);
+    });
+
+    test("returns true for $0.999 (slightly depegged stablecoin)", () => {
+      expect(isStablecoinPrice(0.999)).toBe(true);
+    });
+
+    test("returns true at lower boundary ($0.90)", () => {
+      expect(isStablecoinPrice(0.90)).toBe(true);
+    });
+
+    test("returns true at upper boundary ($1.10)", () => {
+      expect(isStablecoinPrice(1.10)).toBe(true);
+    });
+
+    test("returns false below stablecoin range ($0.89)", () => {
+      expect(isStablecoinPrice(0.89)).toBe(false);
+    });
+
+    test("returns false above stablecoin range ($1.11)", () => {
+      expect(isStablecoinPrice(1.11)).toBe(false);
+    });
+
+    test("returns false for ETH-like price ($3200)", () => {
+      expect(isStablecoinPrice(3200)).toBe(false);
+    });
+
+    test("returns false for zero", () => {
+      expect(isStablecoinPrice(0)).toBe(false);
+    });
+  });
+
+  // ── usdSuffix ────────────────────────────────────────────────────────────────
+
+  describe("usdSuffix", () => {
+    test("returns formatted suffix for non-stablecoin", () => {
+      // 0.1 ETH at $3200 = ~$320
+      expect(usdSuffix(100000000000000000n, 18, 3200)).toBe(" (~$320)");
+    });
+
+    test("returns empty string for null price", () => {
+      expect(usdSuffix(100000000000000000n, 18, null)).toBe("");
+    });
+
+    test("returns empty string for stablecoin price ($1.00)", () => {
+      expect(usdSuffix(100000000n, 6, 1.0)).toBe("");
+    });
+
+    test("returns empty string for stablecoin price ($0.999)", () => {
+      expect(usdSuffix(100000000n, 6, 0.999)).toBe("");
+    });
+
+    test("comma-formats large USD values", () => {
+      // 1 ETH at $3200 = ~$3,200
+      expect(usdSuffix(1000000000000000000n, 18, 3200)).toBe(" (~$3,200)");
+    });
+
+    test("handles zero amount", () => {
+      expect(usdSuffix(0n, 18, 3200)).toBe(" (~$0)");
+    });
+
+    test("returns empty string for non-finite result", () => {
+      expect(usdSuffix(1000000000000000000n, 18, Infinity)).toBe("");
     });
   });
 });

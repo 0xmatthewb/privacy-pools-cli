@@ -2,7 +2,7 @@
 
 exports[`CLI --help snapshots root --help snapshot 1`] = `
 "Usage: privacy-pools [options] [command]
-Privacy Pools — a compliant way to transact privately on Ethereum
+Privacy Pools: a compliant way to transact privately on Ethereum
   Explore (no wallet needed)
   pools                List available pools and assets
   activity             Show public activity feed
@@ -51,8 +51,8 @@ Options:
   --force                    Overwrite existing configuration without prompting
   -h, --help                 display help for command
 Privacy Pools uses two keys:
-  Recovery phrase  — keeps your deposits private (generated during init)
-  Wallet key       — pays gas and sends transactions (can be set later)
+  Recovery phrase: keeps your deposits private (generated during init)
+  Wallet key:     pays gas and sends transactions (can be set later)
   These are independent. Set the wallet key via PRIVACY_POOLS_PRIVATE_KEY env var.
 Examples:
   privacy-pools init
@@ -173,7 +173,7 @@ Arguments:
 Options:
   -t, --to <address>                        Recipient address (required for relayed)
   -p, --from-pa <PA-#|#>                    Withdraw from a specific Pool Account (e.g. PA-2)
-  --direct                                  Use direct withdrawal (not privacy-preserving — use relayed mode for private withdrawals)
+  --direct                                  Use direct withdrawal (not privacy-preserving; use relayed mode for private withdrawals)
   --unsigned                                Build unsigned payload(s); do not submit
   --unsigned-format <format>                Unsigned output format (with --unsigned): envelope|tx
   --dry-run                                 Generate and verify withdrawal artifacts without submitting

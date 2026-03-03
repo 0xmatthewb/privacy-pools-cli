@@ -25,6 +25,8 @@ import {
   formatAmount,
   formatAddress,
   formatBPS,
+  deriveTokenPrice,
+  usdSuffix,
 } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -78,7 +80,7 @@ export function createWithdrawCommand(): Command {
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
     .option("-p, --from-pa <PA-#|#>", "Withdraw from a specific Pool Account (e.g. PA-2)")
-    .option("--direct", "Use direct withdrawal (not privacy-preserving — use relayed mode for private withdrawals)")
+    .option("--direct", "Use direct withdrawal (not privacy-preserving; use relayed mode for private withdrawals)")
     .option("--unsigned", "Build unsigned payload(s); do not submit")
     .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
     .option("--dry-run", "Generate and verify withdrawal artifacts without submitting")
@@ -149,9 +151,9 @@ export function createWithdrawCommand(): Command {
         verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
         verbose(`Mode: ${isDirect ? "direct" : "relayed"}`, isVerbose, silent);
         if (isDirect) {
-          warn("Using direct withdrawal — this is NOT privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
+          warn("Using direct withdrawal. This is NOT privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
         } else {
-          info("Using relayed withdrawal (recommended — stronger privacy via relayer routing).", silent);
+          info("Using relayed withdrawal (recommended: stronger privacy via relayer routing).", silent);
         }
 
         const { amount: amountStr, asset: positionalOrFlagAsset } = resolveAmountAndAssetInput(
@@ -252,6 +254,8 @@ export function createWithdrawCommand(): Command {
         const withdrawalAmount = parseAmount(amountStr, pool.decimals);
         validatePositive(withdrawalAmount, "Withdrawal amount");
         verbose(`Requested withdrawal amount: ${withdrawalAmount.toString()}`, isVerbose, silent);
+        const tokenPrice = deriveTokenPrice(pool);
+        const withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
 
         // Acquire process lock to prevent concurrent account mutations.
         const releaseLock = acquireProcessLock();
@@ -595,12 +599,12 @@ export function createWithdrawCommand(): Command {
           if (!skipPrompts) {
             spin.stop();
             warn(
-              `Direct withdrawal sends funds to your signer address (${formatAddress(directAddress)}). This is NOT privacy-preserving — your deposit address will be linked to your withdrawal onchain.`,
+              `Direct withdrawal sends funds to your signer address (${formatAddress(directAddress)}). This is NOT privacy-preserving. Your deposit address will be linked to your withdrawal onchain.`,
               silent
             );
             process.stderr.write("\n");
             const ok = await confirm({
-              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}? (no privacy)`,
+              message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}${withdrawalUsd} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}? (no privacy)`,
               default: false,
             });
             if (!ok) {
@@ -815,7 +819,7 @@ export function createWithdrawCommand(): Command {
                 silent
               );
               const ok = await confirm({
-                message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)} on ${chainConfig.name}?`,
+                message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}${withdrawalUsd} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)} on ${chainConfig.name}?`,
                 default: false,
               });
               if (!ok) {
@@ -918,7 +922,7 @@ export function createWithdrawCommand(): Command {
           // The proof context is bound to the fee BPS, so a refreshed quote
           // with the same fee is safe; a fee change invalidates the proof.
           if (Date.now() > expirationMs) {
-            verbose("Quote expired after proof generation — auto-refreshing...", isVerbose, silent);
+            verbose("Quote expired after proof generation. Auto-refreshing...", isVerbose, silent);
             const previousFeeBPS = quote.feeBPS;
             await fetchFreshQuote("Quote expired after proof. Refreshing...");
             if (quote.feeBPS !== previousFeeBPS) {

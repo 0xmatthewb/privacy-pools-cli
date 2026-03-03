@@ -18,6 +18,8 @@ import {
   verbose,
   formatAmount,
   formatAddress,
+  deriveTokenPrice,
+  usdSuffix,
 } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -304,6 +306,8 @@ export function createRagequitCommand(): Command {
           isVerbose,
           silent
         );
+        const tokenPrice = deriveTokenPrice(pool);
+        const recoverUsd = usdSuffix(commitment.value, pool.decimals, tokenPrice);
 
         // Critical warning — look up the depositor address to show where funds will go
         if (!skipPrompts) {
@@ -339,7 +343,7 @@ export function createRagequitCommand(): Command {
           process.stderr.write("\n");
 
           const ok = await confirm({
-            message: `Ragequit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)} from ${pool.symbol} pool? This is irreversible.`,
+            message: `Ragequit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)}${recoverUsd} from ${pool.symbol} pool? This is irreversible.`,
             default: false,
           });
           if (!ok) {

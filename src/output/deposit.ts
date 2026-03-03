@@ -63,7 +63,7 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  success("Dry-run complete — no transaction was submitted.", silent);
+  success("Dry-run complete. No transaction was submitted.", silent);
   info(`Chain: ${data.chain}`, silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);

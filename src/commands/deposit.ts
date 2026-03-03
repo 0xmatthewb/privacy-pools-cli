@@ -20,6 +20,8 @@ import {
   formatAmount,
   formatAddress,
   formatBPS,
+  deriveTokenPrice,
+  usdSuffix,
 } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -163,17 +165,21 @@ export function createDepositCommand(): Command {
         // Show fee preview and confirm
         const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
         const estimatedCommitted = amount - feeAmount;
+        const tokenPrice = deriveTokenPrice(pool);
+        const amountUsd = usdSuffix(amount, pool.decimals, tokenPrice);
+        const feeUsd = usdSuffix(feeAmount, pool.decimals, tokenPrice);
+        const committedUsd = usdSuffix(estimatedCommitted, pool.decimals, tokenPrice);
         if (!skipPrompts) {
           const isErc20 = pool.asset.toLowerCase() !== NATIVE_ASSET_ADDRESS.toLowerCase();
-          info(`Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)})`, silent);
-          info(`You will receive: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)} committed value`, silent);
+          info(`Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)}${feeUsd})`, silent);
+          info(`You will receive: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd} committed value`, silent);
           if (isErc20) {
             info("This will require 2 transactions: token approval + deposit.", silent);
           }
           process.stderr.write("\n");
           const txNote = isErc20 ? " (2 transactions: approve + deposit)" : "";
           const ok = await confirm({
-            message: `Deposit ${formatAmount(amount, pool.decimals, pool.symbol)} into ${pool.symbol} pool on ${chainConfig.name}?${txNote}`,
+            message: `Deposit ${formatAmount(amount, pool.decimals, pool.symbol)}${amountUsd} into ${pool.symbol} pool on ${chainConfig.name}?${txNote}`,
             default: true,
           });
           if (!ok) {

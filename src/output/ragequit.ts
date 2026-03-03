@@ -63,7 +63,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  success("Dry-run complete — no transaction was submitted.", silent);
+  success("Dry-run complete. No transaction was submitted.", silent);
   info(`Chain: ${data.chain}`, silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
@@ -102,7 +102,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success(
-    `Exit ${data.poolAccountId} — withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to deposit address.`,
+    `Exit ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to deposit address.`,
     silent,
   );
   info(`Tx: ${formatTxHash(data.txHash)}`, silent);

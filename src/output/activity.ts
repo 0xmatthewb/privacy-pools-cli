@@ -132,7 +132,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     process.stderr.write(
       `\n  Page ${data.page} of ${data.totalPages}` +
         (data.total !== null ? ` (${data.total} events)` : "") +
-        (data.page < data.totalPages ? ` — next: --page ${data.page + 1}` : "") +
+        (data.page < data.totalPages ? `. Next: --page ${data.page + 1}` : "") +
         "\n",
     );
   }

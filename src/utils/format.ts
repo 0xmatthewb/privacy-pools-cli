@@ -108,6 +108,30 @@ export function formatUsdValue(
   return `$${usd.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+/**
+ * Returns true when the derived price suggests a USD-pegged stablecoin,
+ * making a USD annotation redundant.
+ */
+export function isStablecoinPrice(price: number | null): boolean {
+  if (price === null) return false;
+  return price >= 0.90 && price <= 1.10;
+}
+
+/**
+ * Build a parenthesized approximate USD suffix for confirmation prompts.
+ * Returns "" when USD data is unavailable or the token is a stablecoin.
+ */
+export function usdSuffix(
+  amount: bigint,
+  decimals: number,
+  price: number | null,
+): string {
+  if (price === null || isStablecoinPrice(price)) return "";
+  const formatted = formatUsdValue(amount, decimals, price);
+  if (formatted === "-") return "";
+  return ` (~${formatted})`;
+}
+
 // ── Address / hash helpers ──────────────────────────────────────────────────
 
 export function formatAddress(address: string, chars: number = 6): string {

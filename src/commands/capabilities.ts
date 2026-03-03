@@ -165,7 +165,7 @@ const CAPABILITIES = {
     },
     unsignedOutput: {
       envelopeFormat: "{ schemaVersion, success, mode, operation, chain, transactions: [{ to, data, value, ... }], ... }",
-      txFormat: "[{ to, data, value, valueHex, chainId }] — raw array, no envelope wrapper. Intended for direct piping to signing tools.",
+      txFormat: "[{ to, data, value, valueHex, chainId }]: raw array, no envelope wrapper. Intended for direct piping to signing tools.",
       note: "Default --unsigned emits the envelope format. Use --unsigned-format tx for raw transaction array only.",
     },
   },
