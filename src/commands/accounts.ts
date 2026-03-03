@@ -25,13 +25,13 @@ import type { AccountPoolGroup } from "../output/accounts.js";
 
 export function createAccountsCommand(): Command {
   return new Command("accounts")
-    .description("List your Pool Accounts with balances")
+    .description("List your Pool Accounts (individual deposit lineages) with balances")
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option("--all", "Include exited and fully spent Pool Accounts")
     .option("--details", "Show additional details per Pool Account")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --json\n  privacy-pools accounts --no-sync --chain sepolia\n"
+      "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --json\n  privacy-pools accounts --no-sync --chain mainnet\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ chain, accounts: [{ poolAccountId, status, asset, scope, value, hash, label, ... }] }",

@@ -165,7 +165,7 @@ program.addCommand(createAccountsCommand());
 program.addCommand(createWithdrawCommand());
 program.addCommand(createRagequitCommand());
 program.addCommand(createHistoryCommand());
-program.addCommand(createSyncCommand(), { hidden: true });
+program.addCommand(createSyncCommand());
 program.addCommand(createStatusCommand());
 program.addCommand(createActivityCommand());
 program.addCommand(createStatsCommand());

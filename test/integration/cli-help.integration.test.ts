@@ -28,8 +28,8 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("exit");
     expect(result.stdout).toContain("accounts");
     expect(result.stdout).toContain("history");
-    // sync and completion are hidden; capabilities is visible
-    expect(result.stdout).not.toContain("sync");
+    // sync is visible; completion is hidden; capabilities is visible
+    expect(result.stdout).toContain("sync");
     expect(result.stdout).toContain("capabilities");
     expect(result.stdout).not.toContain("completion");
   });
@@ -52,7 +52,7 @@ describe("CLI help and discovery", () => {
     ["withdraw", "Withdraw from a pool"],
     ["ragequit", "Publicly withdraw funds to your deposit address"],
     ["exit", "Publicly withdraw funds to your deposit address"],
-    ["accounts", "List your Pool Accounts with balances"],
+    ["accounts", "List your Pool Accounts (individual deposit lineages) with balances"],
     ["history", "Show chronological event history"],
     ["sync", "Force-sync local account state from onchain events"],
     ["capabilities", "Describe CLI capabilities for agent discovery"],

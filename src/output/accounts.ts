@@ -211,7 +211,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       info("Exited or spent accounts are hidden. Use --all to show them.", silent);
     }
     info(
-      "Note: only approved deposits are shown. Recent deposits may be pending ASP approval.",
+      "Note: only approved deposits are shown. Recent deposits may be pending ASP approval (most approve within ~1 hour, up to 7 days).",
       silent,
     );
     process.stderr.write("\n");

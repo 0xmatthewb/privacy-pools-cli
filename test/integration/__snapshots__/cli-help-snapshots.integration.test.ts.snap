@@ -15,9 +15,11 @@ Privacy Pools — a compliant way to transact privately on Ethereum
   deposit              Deposit into a pool
   withdraw             Withdraw from a pool
   ragequit|exit        Publicly withdraw funds to your deposit address
-  accounts             List your Pool Accounts with balances
+  accounts             List your Pool Accounts (individual deposit lineages)
+                       with balances
   history              Show chronological event history (deposits, withdrawals,
                        exits)
+  sync                 Force-sync local account state from onchain events
 Options:
   -V, --version        output the version number
   -c, --chain <name>   Target chain (mainnet, arbitrum, optimism, ...)
@@ -54,8 +56,8 @@ Privacy Pools uses two keys:
   These are independent. Set the wallet key via PRIVACY_POOLS_PRIVATE_KEY env var.
 Examples:
   privacy-pools init
-  privacy-pools init --yes --default-chain sepolia
-  privacy-pools init --force --yes --default-chain sepolia
+  privacy-pools init --yes --default-chain mainnet
+  privacy-pools init --force --yes --default-chain mainnet
   privacy-pools init --json --show-mnemonic
   privacy-pools init --mnemonic "word ..." --private-key 0x...
 JSON output (--json):
@@ -76,7 +78,7 @@ Examples:
   privacy-pools status --check
   privacy-pools status --no-check
   privacy-pools status --json --check-rpc
-  privacy-pools status --chain sepolia --rpc-url https://...
+  privacy-pools status --chain mainnet --rpc-url https://...
 JSON output (--json):
   { configExists, defaultChain, selectedChain, rpcUrl, mnemonicSet, signerKeySet, signerAddress, aspLive?, rpcLive? }"
 `;
@@ -155,7 +157,7 @@ Examples:
   privacy-pools deposit 0.05 --asset ETH --json --yes
   privacy-pools deposit ETH 0.05 --unsigned
   privacy-pools deposit 0.1 --asset ETH --dry-run
-  privacy-pools deposit ETH 0.1 --chain sepolia
+  privacy-pools deposit ETH 0.1 --chain mainnet
 Prerequisites:
   Requires: init
 JSON output (--json):
@@ -185,7 +187,7 @@ Examples:
   privacy-pools withdraw 0.05 --asset ETH --direct
   privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run
   privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
-  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia
+  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain mainnet
 Prerequisites:
   Requires: init (account state should be synced)
 JSON output (--json):
@@ -215,7 +217,7 @@ Examples:
   privacy-pools ragequit --asset ETH -p PA-1
   privacy-pools ragequit ETH --unsigned -p PA-1
   privacy-pools ragequit --asset ETH --dry-run -p PA-1
-  privacy-pools ragequit ETH -p PA-1 --chain sepolia
+  privacy-pools ragequit ETH -p PA-1 --chain mainnet
 Prerequisites:
   Requires: init (account state should be synced)
 JSON output (--json):
@@ -224,7 +226,7 @@ JSON output (--json):
 
 exports[`CLI --help snapshots accounts --help snapshot 1`] = `
 "Usage: privacy-pools accounts [options]
-List your Pool Accounts with balances
+List your Pool Accounts (individual deposit lineages) with balances
 Options:
   --no-sync   Use cached data (faster, but may be stale)
   --all       Include exited and fully spent Pool Accounts
@@ -235,7 +237,7 @@ Examples:
   privacy-pools accounts --all
   privacy-pools accounts --details
   privacy-pools accounts --json
-  privacy-pools accounts --no-sync --chain sepolia
+  privacy-pools accounts --no-sync --chain mainnet
 Prerequisites:
   Requires: init
 JSON output (--json):
@@ -253,7 +255,7 @@ Examples:
   privacy-pools history
   privacy-pools history --limit 10
   privacy-pools history --json
-  privacy-pools history --no-sync --chain sepolia
+  privacy-pools history --no-sync --chain mainnet
 Prerequisites:
   Requires: init
 JSON output (--json):
@@ -269,7 +271,7 @@ Options:
 Examples:
   privacy-pools sync
   privacy-pools sync --asset ETH --json
-  privacy-pools sync --chain sepolia
+  privacy-pools sync --chain mainnet
 Prerequisites:
   Requires: init
 JSON output (--json):

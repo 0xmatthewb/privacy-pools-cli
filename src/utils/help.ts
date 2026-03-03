@@ -8,7 +8,7 @@ const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
 /* ── Root-level command groups (order determines display order) ── */
 
 const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities"];
-const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "history"];
+const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "history", "sync"];
 const EXPLORE_SET = new Set(EXPLORE_ORDER);
 const TRANSACT_SET = new Set(TRANSACT_ORDER);
 
@@ -172,7 +172,7 @@ export function welcomeScreen(): string {
     `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}`,
     "",
     chalk.bold("  Transact (run init first)"),
-    `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("history")}`,
+    `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("history")}  ${highlight("sync")}`,
     "",
     `  Get started:      ${accent("privacy-pools init")}  ${chalk.dim("(or")} ${accent("pp init")}${chalk.dim(")")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
@@ -230,10 +230,11 @@ export function guideText(): string {
     "",
     chalk.bold("Quick Start"),
     `  ${accent("privacy-pools init")}`,
-    `  ${accent("privacy-pools pools --chain sepolia")}`,
-    `  ${accent("privacy-pools deposit 0.1 --asset ETH --chain sepolia")}`,
-    `  ${accent("privacy-pools accounts --chain sepolia")}              ${chalk.dim("(wait for Approved status)")}`,
-    `  ${accent("privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient -p PA-1 --chain sepolia")}`,
+    `  ${accent("privacy-pools pools")}                                          ${chalk.dim("(browse available pools)")}`,
+    `  ${accent("privacy-pools deposit 0.1 --asset ETH")}`,
+    `  ${accent("privacy-pools accounts")}                                       ${chalk.dim("(wait for Approved status)")}`,
+    `  ${accent("privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient -p PA-1")}`,
+    chalk.dim("  Commands use your default chain (set during init). Add --chain <name> to override."),
     "",
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
     chalk.dim("  Most deposits are approved within 1 hour; some may take up to 7 days."),
@@ -312,6 +313,23 @@ export function guideText(): string {
     `  ${chalk.red("5")}  Relayer error`,
     `  ${chalk.red("6")}  Proof generation error`,
     `  ${chalk.red("7")}  Contract revert`,
+    "",
+    chalk.bold("Using CLI with an Existing Website Account"),
+    `  If you already use ${accent("privacypools.com")}, you can access the same account from the CLI:`,
+    `  1. Export your 12/24-word recovery phrase from the website.`,
+    `  2. Run: ${accent('privacy-pools init --mnemonic "word1 word2 ..."')}`,
+    `  3. Set your signer key: ${accent("export PRIVACY_POOLS_PRIVATE_KEY=0x...")}`,
+    `  4. Run: ${accent("privacy-pools accounts")}  ${chalk.dim("(syncs on-chain state automatically)")}`,
+    `  Your Pool Accounts and balances will appear once synced.`,
+    "",
+    chalk.bold("Terminology"),
+    `  ${chalk.yellow("Recovery phrase")}          12/24-word mnemonic that controls private account state.`,
+    `  ${chalk.yellow("Signer key (wallet key)")}  Private key that pays gas and sends transactions.`,
+    `  ${chalk.yellow("Pool Account (PA)")}        Individual deposit lineage tracked for withdrawal/exit.`,
+    `  ${chalk.yellow("ASP status")}               Approval state: ${highlight("approved")} (ready) or ${chalk.yellow("pending")} (waiting).`,
+    `  ${chalk.yellow("Relayed withdrawal")}       Privacy-preserving withdrawal via a relayer (recommended).`,
+    `  ${chalk.yellow("Direct withdrawal")}        Non-private withdrawal; links deposit and withdrawal onchain.`,
+    `  ${chalk.yellow("Exit (Ragequit)")}          Public, irreversible recovery to original deposit address.`,
     "",
     chalk.bold("Agent Integration"),
     `  For programmatic/agent use, run ${accent("privacy-pools capabilities --json")} to discover`,

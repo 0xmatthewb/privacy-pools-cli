@@ -53,17 +53,19 @@ privacy-pools init
 pp init
 
 # 2. See what pools are available
-privacy-pools pools --chain sepolia
+privacy-pools pools
 
 # 3. Deposit into a pool
-privacy-pools deposit 0.1 --asset ETH --chain sepolia
+privacy-pools deposit 0.1 --asset ETH
 
 # 4. Check your Pool Accounts (wait for ASP approval before withdrawing)
-privacy-pools accounts --chain sepolia
+privacy-pools accounts
 
 # 5. Withdraw to any address (relayed by default, enhanced privacy)
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1 --chain sepolia
+privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1
 ```
+
+Commands use your default chain (set during `init`). Add `--chain <name>` to override.
 
 After depositing, your Pool Account will show `aspStatus: pending` until the ASP approves it. Once approved, you can withdraw. Most deposits are approved within 1 hour, but some can take up to 7 days.
 
@@ -89,7 +91,7 @@ Initialize wallet and configuration. Generates a BIP-39 mnemonic (used to derive
 
 ```bash
 privacy-pools init
-privacy-pools init --default-chain sepolia
+privacy-pools init --default-chain mainnet
 privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key.txt
 ```
 
@@ -111,7 +113,7 @@ List available Privacy Pools on a chain. When no `--chain` is specified, shows a
 
 ```bash
 privacy-pools pools                    # all mainnets
-privacy-pools pools --chain sepolia    # specific chain
+privacy-pools pools --chain mainnet    # specific chain
 privacy-pools pools --all-chains       # all chains including testnets
 ```
 
@@ -120,9 +122,9 @@ privacy-pools pools --all-chains       # all chains including testnets
 Deposit assets (ETH or ERC20 tokens) into a pool, creating a private commitment that can later be used for private withdrawals or ragequit operations.
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --chain sepolia
-privacy-pools deposit ETH 0.1 --chain sepolia          # asset-first syntax also works
-privacy-pools deposit 100 --asset USDC --chain mainnet
+privacy-pools deposit 0.1 --asset ETH
+privacy-pools deposit ETH 0.1                          # asset-first syntax also works
+privacy-pools deposit 100 --asset USDC
 ```
 
 | Flag | Description |
@@ -138,13 +140,13 @@ Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relaye
 
 ```bash
 # Relayed withdrawal (default, enhanced privacy)
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1 --chain sepolia
+privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1
 
 # Direct withdrawal (no relayer fees, basic privacy)
-privacy-pools withdraw 0.05 --asset ETH --direct --chain sepolia
+privacy-pools withdraw 0.05 --asset ETH --direct
 
 # Get a fee quote without withdrawing
-privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient... --chain sepolia
+privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
 ```
 
 | Flag | Description |
@@ -162,7 +164,7 @@ privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient... --chain sepolia
 List your Pool Accounts with balances, ASP approval status, and account lifecycle info. Includes per-pool balance totals (in the table footer for human output, and in a `balances` array for JSON output).
 
 ```bash
-privacy-pools accounts --chain sepolia
+privacy-pools accounts
 privacy-pools accounts --all                  # include spent and exited accounts
 privacy-pools accounts --details              # show commitment hashes, labels, and tx info
 ```
@@ -181,7 +183,7 @@ privacy-pools accounts --details              # show commitment hashes, labels, 
 Show chronological event history (deposits, withdrawals, exits). Auto-syncs in the background.
 
 ```bash
-privacy-pools history --chain sepolia
+privacy-pools history
 privacy-pools history --limit 10
 ```
 
@@ -192,10 +194,10 @@ privacy-pools history --limit 10
 
 ### `sync`
 
-Force-sync local account state from onchain events. Most commands auto-sync in the background (with a 2-minute freshness window), so you rarely need this. Use it after a failed transaction or to force a refresh. Hidden from `--help` but always accessible.
+Force-sync local account state from onchain events. Most commands auto-sync in the background (with a 2-minute freshness window), so you rarely need this. Use it after a failed transaction or to force a refresh.
 
 ```bash
-privacy-pools sync --chain sepolia
+privacy-pools sync
 privacy-pools sync --asset ETH     # sync a single pool
 ```
 
@@ -204,8 +206,8 @@ privacy-pools sync --asset ETH     # sync a single pool
 A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Use when the deposit label is not approved by the ASP or its approval was revoked.
 
 ```bash
-privacy-pools ragequit --asset ETH -p PA-1 --chain sepolia
-privacy-pools exit ETH -p PA-1 --chain sepolia              # same thing
+privacy-pools ragequit --asset ETH -p PA-1
+privacy-pools exit ETH -p PA-1                         # same thing
 ```
 
 | Flag | Description |
@@ -250,8 +252,8 @@ Show the public activity feed (recent deposits, withdrawals, and exits), either 
 
 ```bash
 privacy-pools activity                                 # all mainnets
-privacy-pools activity --chain sepolia                 # specific chain
-privacy-pools activity --asset ETH --chain sepolia     # filter to one pool
+privacy-pools activity --chain mainnet                # specific chain
+privacy-pools activity --asset ETH --chain mainnet    # filter to one pool
 privacy-pools activity --page 2 --limit 20             # pagination
 ```
 
@@ -267,8 +269,8 @@ Show public protocol statistics (all-time and last 24h). Has two subcommands: `g
 
 ```bash
 privacy-pools stats global                            # all mainnets
-privacy-pools stats global --chain sepolia            # specific chain
-privacy-pools stats pool --asset ETH --chain sepolia  # per-pool stats
+privacy-pools stats global --chain mainnet            # specific chain
+privacy-pools stats pool --asset ETH --chain mainnet  # per-pool stats
 ```
 
 | Subcommand | Flag | Description |
@@ -317,20 +319,20 @@ For automation, scripts, and AI agents, use `--json --yes` (or `--agent`) to get
 
 ```bash
 # 1. Initialize
-privacy-pools init -j -y --default-chain sepolia
+privacy-pools init -j -y --default-chain mainnet
 
 # 2. Discover pools
-privacy-pools pools -j --chain sepolia
+privacy-pools pools -j
 
 # 3. Deposit
-privacy-pools deposit 0.1 --asset ETH -j -y --chain sepolia
+privacy-pools deposit 0.1 --asset ETH -j -y
 
 # 4. Poll for ASP approval
-privacy-pools accounts -j --chain sepolia
+privacy-pools accounts -j
 # → wait until aspStatus is "approved"
 
 # 5. Withdraw
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -j -y --chain sepolia
+privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -j -y
 ```
 
 **Output stream convention:**
@@ -371,14 +373,14 @@ Build transaction payloads offline without submitting. Useful for external signi
 
 ```bash
 # Envelope format (default): includes metadata and proof artifacts
-privacy-pools deposit 0.1 --asset ETH --unsigned -j --chain sepolia
+privacy-pools deposit 0.1 --asset ETH --unsigned -j
 
 # Raw tx format: just the transaction objects, ready to sign and broadcast
-privacy-pools deposit 0.1 --asset ETH --unsigned --unsigned-format tx -j --chain sepolia
+privacy-pools deposit 0.1 --asset ETH --unsigned --unsigned-format tx -j
 
 # Works with withdraw and ragequit too
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --unsigned -j --chain sepolia
-privacy-pools ragequit --asset ETH -p PA-1 --unsigned -j --chain sepolia
+privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --unsigned -j
+privacy-pools ragequit --asset ETH -p PA-1 --unsigned -j
 ```
 
 ## Dry Run
@@ -386,9 +388,9 @@ privacy-pools ragequit --asset ETH -p PA-1 --unsigned -j --chain sepolia
 Validate inputs, check balances, and generate proofs without submitting anything onchain.
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --dry-run --chain sepolia
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --dry-run --chain sepolia
-privacy-pools ragequit --asset ETH -p PA-1 --dry-run --chain sepolia
+privacy-pools deposit 0.1 --asset ETH --dry-run
+privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --dry-run
+privacy-pools ragequit --asset ETH -p PA-1 --dry-run
 ```
 
 ## Configuration

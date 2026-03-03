@@ -84,7 +84,7 @@ export function createWithdrawCommand(): Command {
     .option("-a, --asset <symbol|address>", "Asset to withdraw")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... -p PA-2\n  privacy-pools withdraw 0.05 --asset ETH --direct\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain sepolia\n"
+      "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... -p PA-2\n  privacy-pools withdraw 0.05 --asset ETH --direct\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain mainnet\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
           jsonFields: "{ mode, txHash, amount, recipient, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
@@ -1115,7 +1115,7 @@ export function createWithdrawCommand(): Command {
           throw new CLIError(
             "No asset specified. Use --asset <symbol|address>.",
             "INPUT",
-            "Example: privacy-pools withdraw quote 0.1 --asset ETH --chain sepolia"
+            "Example: privacy-pools withdraw quote 0.1 --asset ETH"
           );
         }
         verbose(

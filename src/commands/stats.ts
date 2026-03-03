@@ -116,7 +116,7 @@ export function createStatsCommand(): Command {
           throw new CLIError(
             "Missing required --asset <symbol|address>.",
             "INPUT",
-            "Example: privacy-pools stats pool --asset ETH --chain sepolia"
+            "Example: privacy-pools stats pool --asset ETH"
           );
         }
 

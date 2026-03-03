@@ -49,6 +49,10 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
+  if (result.mnemonicImported && !silent) {
+    info("Reminder: your signer key pays gas; your recovery phrase controls private account state.", silent);
+    process.stderr.write("\n");
+  }
   success("Setup complete! Here's what to do next:", silent);
   if (!silent) {
     process.stderr.write("\n");

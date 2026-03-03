@@ -50,7 +50,7 @@ export function createInitCommand(): Command {
         + "\n  Recovery phrase  — keeps your deposits private (generated during init)"
         + "\n  Wallet key       — pays gas and sends transactions (can be set later)"
         + "\n  These are independent. Set the wallet key via PRIVACY_POOLS_PRIVATE_KEY env var."
-        + "\n\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain sepolia\n  privacy-pools init --force --yes --default-chain sepolia\n  privacy-pools init --json --show-mnemonic\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
+        + "\n\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain mainnet\n  privacy-pools init --force --yes --default-chain mainnet\n  privacy-pools init --json --show-mnemonic\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
         + commandHelpText({
           jsonFields:
             "{ defaultChain, signerKeySet, mnemonicRedacted?, mnemonic? (only with --show-mnemonic) }",

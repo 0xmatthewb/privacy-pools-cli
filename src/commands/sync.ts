@@ -20,7 +20,7 @@ export function createSyncCommand(): Command {
     .option("-a, --asset <symbol|address>", "Sync only a single pool asset")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools sync\n  privacy-pools sync --asset ETH --json\n  privacy-pools sync --chain sepolia\n"
+      "\nExamples:\n  privacy-pools sync\n  privacy-pools sync --asset ETH --json\n  privacy-pools sync --chain mainnet\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ chain, syncedPools, syncedSymbols, spendableCommitments, previousSpendableCommitments }",

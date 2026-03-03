@@ -168,7 +168,7 @@ Initialize wallet and configuration.
 
 ```bash
 privacy-pools init --agent --default-chain mainnet
-privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain sepolia
+privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
 privacy-pools init --agent --private-key 0x... --default-chain mainnet
 ```
 
@@ -188,7 +188,7 @@ Deposit ETH or ERC-20 tokens into a Privacy Pool.
 
 ```bash
 privacy-pools deposit 0.1 --asset ETH --agent
-privacy-pools deposit ETH 0.1 --agent --chain sepolia
+privacy-pools deposit ETH 0.1 --agent
 ```
 
 JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextStep }`
@@ -262,7 +262,7 @@ JSON payload: `{ chain, events: [{ type, asset, poolAddress, poolAccountNumber, 
 
 #### `sync`
 
-Force-sync local account state from onchain events. Hidden from `--help` but always accessible. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
+Force-sync local account state from onchain events. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
 
 ```bash
 privacy-pools sync --agent

@@ -64,7 +64,7 @@ const CAPABILITIES = {
     },
     {
       name: "accounts",
-      description: "List your Pool Accounts with balances",
+      description: "List your Pool Accounts (individual deposit lineages) with balances",
       flags: ["--no-sync", "--all", "--details"],
       agentFlags: "--json",
       requiresInit: true,

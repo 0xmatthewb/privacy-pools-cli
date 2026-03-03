@@ -31,7 +31,7 @@ export function createStatusCommand(): Command {
     .option("--check-asp", "Actively test ASP liveness")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --json --check-rpc\n  privacy-pools status --chain sepolia --rpc-url https://...\n"
+      "\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --json --check-rpc\n  privacy-pools status --chain mainnet --rpc-url https://...\n"
         + commandHelpText({
           jsonFields: "{ configExists, defaultChain, selectedChain, rpcUrl, mnemonicSet, signerKeySet, signerAddress, aspLive?, rpcLive? }",
         })

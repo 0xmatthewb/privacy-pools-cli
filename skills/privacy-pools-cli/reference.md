@@ -343,7 +343,7 @@ pp capabilities --agent
 
 ```bash
 pp init --agent --default-chain mainnet
-pp init --agent --mnemonic "word1 word2 ..." --default-chain sepolia
+pp init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
 pp init --agent --private-key 0x... --default-chain mainnet
 pp init --agent --private-key-file ./key.txt --default-chain mainnet
 ```
@@ -369,7 +369,7 @@ When importing an existing mnemonic or private key, neither `mnemonic` nor `mnem
 
 ```bash
 pp deposit 0.1 --asset ETH --agent
-pp deposit ETH 0.1 --agent --chain sepolia
+pp deposit ETH 0.1 --agent
 ```
 
 > **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `pp pools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
@@ -602,7 +602,7 @@ pp history --agent [--limit <n>]
 
 ### `sync`
 
-Force-sync local account state. Hidden from `--help` but always accessible. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
+Force-sync local account state. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
 
 ```bash
 pp sync --agent [--asset <symbol>]
