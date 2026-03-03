@@ -9,11 +9,11 @@ import chalk from "chalk";
 
 // ── Accent colours ────────────────────────────────────────────────────────────
 
-/** Muted steel-blue — banner art, command examples, section headers. */
-export const accent = chalk.hex("#7BA3BF");
+/** Steel-blue — banner art, command examples, section headers. */
+export const accent = chalk.hex("#5B9BD5");
 
 /** Bold variant for section headings (e.g. "Usage:", "Quick Guide"). */
-export const accentBold = chalk.bold.hex("#7BA3BF");
+export const accentBold = chalk.bold.hex("#5B9BD5");
 
 /** Muted amber — success marks, command names, positive-status indicators. */
 export const highlight = chalk.hex("#D4944A");
