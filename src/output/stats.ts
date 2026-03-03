@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { parseUsd } from "../utils/format.js";
 import type { TimeBasedStatistics } from "../types.js";
@@ -63,19 +63,23 @@ export function parseCount(value: unknown): string {
   return "-";
 }
 
+function statsRows(
+  allTime: TimeBasedStatistics | undefined | null,
+  last24h: TimeBasedStatistics | undefined | null,
+): string[][] {
+  return [
+    ["Current TVL", parseUsd(allTime?.tvlUsd), parseUsd(last24h?.tvlUsd)],
+    ["Avg Deposit Size", parseUsd(allTime?.avgDepositSizeUsd), parseUsd(last24h?.avgDepositSizeUsd)],
+    ["Total Deposits", parseCount(allTime?.totalDepositsCount), parseCount(last24h?.totalDepositsCount)],
+    ["Total Withdrawals", parseCount(allTime?.totalWithdrawalsCount), parseCount(last24h?.totalWithdrawalsCount)],
+  ];
+}
+
 function renderStatsTable(
   allTime: TimeBasedStatistics | undefined | null,
   last24h: TimeBasedStatistics | undefined | null,
 ): void {
-  printTable(
-    ["Metric", "All Time", "Last 24h"],
-    [
-      ["Current TVL", parseUsd(allTime?.tvlUsd), parseUsd(last24h?.tvlUsd)],
-      ["Avg Deposit Size", parseUsd(allTime?.avgDepositSizeUsd), parseUsd(last24h?.avgDepositSizeUsd)],
-      ["Total Deposits", parseCount(allTime?.totalDepositsCount), parseCount(last24h?.totalDepositsCount)],
-      ["Total Withdrawals", parseCount(allTime?.totalWithdrawalsCount), parseCount(last24h?.totalWithdrawalsCount)],
-    ],
-  );
+  printTable(["Metric", "All Time", "Last 24h"], statsRows(allTime, last24h));
 }
 
 // ── Renderers ────────────────────────────────────────────────────────────────
@@ -94,6 +98,21 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
       payload.perChain = data.perChain;
     }
     printJsonSuccess(payload, false);
+    return;
+  }
+
+  if (ctx.mode.isCsv) {
+    if (data.perChain && data.perChain.length > 0) {
+      const rows: string[][] = [];
+      for (const entry of data.perChain) {
+        for (const row of statsRows(entry.allTime, entry.last24h)) {
+          rows.push([entry.chain, ...row]);
+        }
+      }
+      printCsv(["Chain", "Metric", "All Time", "Last 24h"], rows);
+    } else {
+      printCsv(["Metric", "All Time", "Last 24h"], statsRows(data.allTime, data.last24h));
+    }
     return;
   }
 
@@ -126,6 +145,11 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
       },
       false,
     );
+    return;
+  }
+
+  if (ctx.mode.isCsv) {
+    printCsv(["Metric", "All Time", "Last 24h"], statsRows(data.allTime, data.last24h));
     return;
   }
 

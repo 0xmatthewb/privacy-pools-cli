@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, isSilent } from "./common.js";
 import { formatAddress } from "../utils/format.js";
 import { accentBold } from "../utils/theme.js";
 
@@ -82,6 +82,21 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       payload.scope = data.scope;
     }
     printJsonSuccess(payload, false);
+    return;
+  }
+
+  if (ctx.mode.isCsv) {
+    printCsv(
+      ["Type", "Pool", "Amount", "Status", "Time", "Tx"],
+      data.events.map((e) => [
+        e.type,
+        eventPoolLabel(e),
+        e.amountFormatted,
+        e.reviewStatus ?? "-",
+        e.timeLabel,
+        e.txHash ? formatAddress(e.txHash, 8) : "-",
+      ]),
+    );
     return;
   }
 

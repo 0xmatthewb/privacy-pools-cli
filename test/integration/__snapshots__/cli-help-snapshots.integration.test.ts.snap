@@ -22,6 +22,7 @@ Options:
   -V, --version        output the version number
   -c, --chain <name>   Target chain (mainnet, arbitrum, optimism, ...)
   -j, --json           Machine-readable JSON output
+  --format <format>    Output format: table (default), csv, json
   -y, --yes            Skip confirmation prompts
   --agent              Machine-friendly mode (alias for --json --yes --quiet)
   --timeout <seconds>  RPC/API request timeout in seconds (default: 30)

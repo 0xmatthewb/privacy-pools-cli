@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 import { accentBold } from "../utils/theme.js";
 import type { HistoryEvent } from "../commands/history.js";
@@ -37,6 +37,10 @@ export function renderHistoryNoPools(ctx: OutputContext, chain: string): void {
     printJsonSuccess({ chain, events: [] });
     return;
   }
+  if (ctx.mode.isCsv) {
+    printCsv(["Type", "PA", "Amount", "Tx", "Block"], []);
+    return;
+  }
   info(`No pools found on ${chain}.`, isSilent(ctx));
 }
 
@@ -61,6 +65,27 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
         explorerUrl: explorerTxUrl(chainId, e.txHash),
       })),
     });
+    return;
+  }
+
+  if (ctx.mode.isCsv) {
+    printCsv(
+      ["Type", "PA", "Amount", "Tx", "Block"],
+      events.map((e) => {
+        const pool = poolByAddress.get(e.poolAddress);
+        const typeLabel =
+          e.type === "deposit" ? "Deposit" :
+          e.type === "withdrawal" ? "Withdraw" :
+          "Ragequit";
+        return [
+          typeLabel,
+          e.paId,
+          formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
+          e.txHash,
+          e.blockNumber.toString(),
+        ];
+      }),
+    );
     return;
   }
 

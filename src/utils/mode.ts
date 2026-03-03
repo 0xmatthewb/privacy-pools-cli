@@ -1,9 +1,13 @@
 import type { GlobalOptions } from "../types.js";
 
+export type OutputFormat = "table" | "csv" | "json";
+
 export interface ResolvedGlobalMode {
   isAgent: boolean;
   isJson: boolean;
+  isCsv: boolean;
   isQuiet: boolean;
+  format: OutputFormat;
   skipPrompts: boolean;
 }
 
@@ -11,17 +15,23 @@ export function resolveGlobalMode(
   globalOpts?: GlobalOptions
 ): ResolvedGlobalMode {
   const isAgent = globalOpts?.agent ?? false;
-  const isJson = (globalOpts?.json ?? false) || isAgent;
+  const explicitFormat = globalOpts?.format?.toLowerCase() as OutputFormat | undefined;
+  const format: OutputFormat =
+    explicitFormat === "csv" ? "csv" :
+    explicitFormat === "json" || (globalOpts?.json ?? false) || isAgent ? "json" :
+    "table";
+  const isJson = format === "json";
+  const isCsv = format === "csv";
   const isQuiet = (globalOpts?.quiet ?? false) || isAgent;
-  // JSON/machine mode must never block on interactive prompts.
-  const skipPrompts = (globalOpts?.yes ?? false) || isAgent || isJson;
+  // JSON/CSV/machine mode must never block on interactive prompts.
+  const skipPrompts = (globalOpts?.yes ?? false) || isAgent || isJson || isCsv;
 
   // Persist timeout from global flags for services to pick up.
   if (globalOpts?.timeout !== undefined) {
     setNetworkTimeoutMs(parseTimeoutFlag(globalOpts.timeout));
   }
 
-  return { isAgent, isJson, isQuiet, skipPrompts };
+  return { isAgent, isJson, isCsv, isQuiet, format, skipPrompts };
 }
 
 const DEFAULT_NETWORK_TIMEOUT_MS = 30_000;

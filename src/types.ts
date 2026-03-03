@@ -26,6 +26,7 @@ export interface GlobalOptions {
   yes?: boolean;
   verbose?: boolean;
   timeout?: string;
+  format?: string;
 }
 
 export interface PoolStats {

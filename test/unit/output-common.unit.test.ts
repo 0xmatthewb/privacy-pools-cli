@@ -48,6 +48,11 @@ describe("isSilent", () => {
     expect(isSilent(ctx)).toBe(true);
   });
 
+  test("true when csv", () => {
+    const ctx = createOutputContext(makeMode({ isCsv: true, format: "csv" }));
+    expect(isSilent(ctx)).toBe(true);
+  });
+
   test("true when agent (json + quiet)", () => {
     const ctx = createOutputContext(
       makeMode({ isAgent: true, isJson: true, isQuiet: true }),
@@ -65,7 +70,9 @@ describe("barrel re-exports", () => {
     // Shared primitives
     "createOutputContext",
     "isSilent",
+    "isCsv",
     "printJsonSuccess",
+    "printCsv",
     "info",
     "success",
     "warn",

@@ -12,7 +12,9 @@ export function makeMode(overrides: Partial<ResolvedGlobalMode> = {}): ResolvedG
   return {
     isAgent: false,
     isJson: false,
+    isCsv: false,
     isQuiet: false,
+    format: "table" as const,
     skipPrompts: false,
     ...overrides,
   };

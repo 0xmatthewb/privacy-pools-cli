@@ -8,7 +8,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable, info, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatAddress, formatTxHash, displayDecimals, formatUsdValue } from "../utils/format.js";
 import { highlight, accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
@@ -41,6 +41,10 @@ export function renderAccountsNoPools(ctx: OutputContext, chain: string): void {
     printJsonSuccess({ chain, accounts: [] });
     return;
   }
+  if (ctx.mode.isCsv) {
+    printCsv(["PA", "Status", "ASP", "Asset", "Value", "Tx"], []);
+    return;
+  }
   info(`No pools found on ${chain}.`, isSilent(ctx));
 }
 
@@ -49,6 +53,27 @@ export function renderAccountsNoPools(ctx: OutputContext, chain: string): void {
  */
 export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): void {
   const { chain, groups, showDetails, showAll } = data;
+
+  if (ctx.mode.isCsv) {
+    const csvHeaders = ["PA", "Status", "ASP", "Asset", "Value", "Block", "Tx"];
+    const csvRows: string[][] = [];
+    for (const group of groups) {
+      const dd = displayDecimals(group.decimals);
+      for (const pa of group.poolAccounts) {
+        csvRows.push([
+          pa.paId,
+          pa.status,
+          pa.aspStatus ?? "",
+          group.symbol,
+          formatAmount(pa.value, group.decimals, group.symbol, dd),
+          pa.blockNumber.toString(),
+          pa.txHash,
+        ]);
+      }
+    }
+    printCsv(csvHeaders, csvRows);
+    return;
+  }
 
   if (ctx.mode.isJson) {
     const jsonData: Record<string, unknown>[] = [];

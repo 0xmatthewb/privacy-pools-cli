@@ -26,6 +26,7 @@ import { createCapabilitiesCommand } from "./commands/capabilities.js";
 import { createCompletionCommand } from "./commands/completion.js";
 import { printBanner } from "./utils/banner.js";
 import { rootHelpFooter, styleCommanderHelp, welcomeScreen } from "./utils/help.js";
+import { checkForUpdateInBackground, getUpdateNotice } from "./utils/update-check.js";
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 
@@ -39,6 +40,15 @@ const configHome =
 loadEnv({ path: join(configHome, ".env") });
 
 const argv = process.argv.slice(2);
+
+// --no-color: set NO_COLOR before any chalk output is produced.
+// chalk v5 reads this env var lazily, so setting it here is sufficient.
+if (argv.includes("--no-color")) {
+  process.env.NO_COLOR = "1";
+}
+
+// Fire-and-forget update check — caches result for 24h, never blocks.
+checkForUpdateInBackground(pkg.version);
 
 function hasShortFlag(args: string[], flag: string): boolean {
   for (const token of args) {
@@ -61,11 +71,16 @@ function firstNonOptionToken(args: string[]): string | undefined {
 }
 
 const firstCommandToken = firstNonOptionToken(argv);
-const isJson = argv.includes("--json") || hasShortFlag(argv, "j");
+const formatFlagValue = (() => {
+  const idx = argv.indexOf("--format");
+  return idx !== -1 && idx + 1 < argv.length ? argv[idx + 1].toLowerCase() : null;
+})();
+const isJson = argv.includes("--json") || hasShortFlag(argv, "j") || formatFlagValue === "json";
+const isCsvMode = formatFlagValue === "csv";
 const isAgent = argv.includes("--agent");
 const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
 const isUnsigned = argv.includes("--unsigned");
-const isMachineMode = isJson || isUnsigned || isAgent;
+const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
 const isHelpLike = argv.includes("--help") || hasShortFlag(argv, "h") || firstCommandToken === "help";
 const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
 const isCompletionLike = firstCommandToken === "completion";
@@ -83,6 +98,7 @@ program
   .version(pkg.version)
   .option("-c, --chain <name>", "Target chain (mainnet, arbitrum, optimism, ...)")
   .option("-j, --json", "Machine-readable JSON output")
+  .option("--format <format>", "Output format: table (default), csv, json")
   .option("-y, --yes", "Skip confirmation prompts");
 
 // Advanced options
@@ -100,6 +116,7 @@ program.addOption(
 program.addOption(new Option("--no-banner", "Disable ASCII banner output").hideHelp());
 program.addOption(new Option("-v, --verbose", "Enable verbose output").hideHelp());
 program.addOption(new Option("--timeout <seconds>", "RPC/API request timeout in seconds (default: 30)"));
+program.addOption(new Option("--no-color", "Disable colored output (also respects NO_COLOR env var)").hideHelp());
 
 // Show only command names in root help (no argument signatures)
 program.configureHelp({
@@ -236,6 +253,8 @@ function mapCommanderError(error: unknown): CLIError | null {
       if (isWelcome) {
         await printBanner();
         process.stdout.write(welcomeScreen() + "\n");
+        const notice = getUpdateNotice(pkg.version);
+        if (notice) process.stderr.write(chalk.dim(notice) + "\n");
         process.exit(0);
       }
 

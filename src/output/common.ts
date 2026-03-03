@@ -8,6 +8,7 @@
 
 import type { ResolvedGlobalMode } from "../utils/mode.js";
 import { printJsonSuccess } from "../utils/json.js";
+import { printCsv } from "./csv.js";
 import {
   info,
   success,
@@ -19,6 +20,7 @@ import {
 
 export {
   printJsonSuccess,
+  printCsv,
   info,
   success,
   warn,
@@ -51,8 +53,15 @@ export function createOutputContext(
 
 /**
  * Whether human-mode informational messages should be suppressed.
- * True when quiet *or* JSON mode is active.
+ * True when quiet, JSON, or CSV mode is active.
  */
 export function isSilent(ctx: OutputContext): boolean {
-  return ctx.mode.isQuiet || ctx.mode.isJson;
+  return ctx.mode.isQuiet || ctx.mode.isJson || ctx.mode.isCsv;
+}
+
+/**
+ * Whether CSV output is requested.
+ */
+export function isCsv(ctx: OutputContext): boolean {
+  return ctx.mode.isCsv;
 }

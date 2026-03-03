@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printTable, info, warn, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
@@ -106,6 +106,11 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
     return;
   }
 
+  if (ctx.mode.isCsv) {
+    printCsv(["Chain", "Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"], []);
+    return;
+  }
+
   const silent = isSilent(ctx);
   if (data.allChains) {
     info("No pools found across supported chains.", silent);
@@ -138,6 +143,33 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
         pools: filteredPools.map((entry) => poolToJson(entry.pool)),
       });
     }
+    return;
+  }
+
+  if (ctx.mode.isCsv) {
+    const csvHeaders = allChains
+      ? ["Chain", "Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
+      : ["Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
+    printCsv(
+      csvHeaders,
+      filteredPools.map(({ chain, pool }) => {
+        const dd = displayDecimals(pool.decimals);
+        const baseRow = [
+          pool.symbol,
+          formatDepositsCount(pool),
+          formatStatAmount(
+            pool.acceptedDepositsValue ?? pool.totalInPoolValue,
+            pool.decimals,
+            pool.symbol,
+          ),
+          parseUsd(pool.acceptedDepositsValueUsd ?? pool.totalInPoolValueUsd),
+          formatStatAmount(pool.pendingDepositsValue, pool.decimals, pool.symbol),
+          formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol, dd),
+          formatBPS(pool.vettingFeeBPS),
+        ];
+        return allChains ? [chain, ...baseRow] : baseRow;
+      }),
+    );
     return;
   }
 

@@ -7,7 +7,9 @@ describe("resolveGlobalMode", () => {
     expect(result).toEqual({
       isAgent: false,
       isJson: false,
+      isCsv: false,
       isQuiet: false,
+      format: "table",
       skipPrompts: false,
     });
   });
@@ -17,7 +19,9 @@ describe("resolveGlobalMode", () => {
     expect(result).toEqual({
       isAgent: false,
       isJson: false,
+      isCsv: false,
       isQuiet: false,
+      format: "table",
       skipPrompts: false,
     });
   });
@@ -59,5 +63,35 @@ describe("resolveGlobalMode", () => {
     expect(result.isJson).toBe(true);
     expect(result.isQuiet).toBe(true);
     expect(result.skipPrompts).toBe(true);
+  });
+
+  test("--format csv sets isCsv and skipPrompts", () => {
+    const result = resolveGlobalMode({ format: "csv" });
+    expect(result.isCsv).toBe(true);
+    expect(result.isJson).toBe(false);
+    expect(result.format).toBe("csv");
+    expect(result.skipPrompts).toBe(true);
+  });
+
+  test("--format json is equivalent to --json", () => {
+    const result = resolveGlobalMode({ format: "json" });
+    expect(result.isJson).toBe(true);
+    expect(result.isCsv).toBe(false);
+    expect(result.format).toBe("json");
+    expect(result.skipPrompts).toBe(true);
+  });
+
+  test("--format table is the default", () => {
+    const result = resolveGlobalMode({ format: "table" });
+    expect(result.isJson).toBe(false);
+    expect(result.isCsv).toBe(false);
+    expect(result.format).toBe("table");
+    expect(result.skipPrompts).toBe(false);
+  });
+
+  test("--json takes precedence when --format is not set", () => {
+    const result = resolveGlobalMode({ json: true });
+    expect(result.format).toBe("json");
+    expect(result.isJson).toBe(true);
   });
 });
