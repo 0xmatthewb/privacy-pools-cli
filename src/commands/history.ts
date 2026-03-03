@@ -10,19 +10,15 @@ import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
   initializeAccountService,
-  saveAccount,
-  toPoolInfo,
-  withSuppressedSdkStdout,
+  syncAccountEvents,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
-import { spinner, warn, verbose } from "../utils/format.js";
+import { spinner, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
-import { acquireProcessLock } from "../utils/lock.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderHistoryNoPools, renderHistory } from "../output/history.js";
 
@@ -203,42 +199,15 @@ export function createHistoryCommand(): Command {
           true
         );
 
-        if (opts.noSync !== true) {
-          spin.text = "Syncing...";
-          let syncFailures = 0;
-          for (const poolInfo of poolInfos) {
-            const pi = toPoolInfo(poolInfo);
-            try {
-              await withSuppressedSdkStdout(async () => {
-                await accountService.getDepositEvents(pi);
-                await accountService.getWithdrawalEvents(pi);
-                await accountService.getRagequitEvents(pi);
-              });
-            } catch (err) {
-              syncFailures++;
-              const symbol = pools.find((p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase())?.symbol ?? poolInfo.address;
-              warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
-            }
-          }
-          if (syncFailures > 0 && mode.isJson) {
-            throw new CLIError(
-              `History sync failed for ${syncFailures} pool(s).`,
-              "RPC",
-              "Retry with a healthy RPC before using history data."
-            );
-          }
-          const releaseLock = acquireProcessLock();
-          try {
-            guardCriticalSection();
-            try {
-              saveAccount(chainConfig.id, accountService.account);
-            } finally {
-              releaseCriticalSection();
-            }
-          } finally {
-            releaseLock();
-          }
-        }
+        spin.text = "Syncing...";
+        await syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
+          skip: opts.noSync === true,
+          force: false,
+          silent,
+          isJson: mode.isJson,
+          isVerbose,
+          errorLabel: "History",
+        });
 
         // Extract chronological events from local account state.
         const events = buildHistoryEventsFromAccount(accountService.account, pools);

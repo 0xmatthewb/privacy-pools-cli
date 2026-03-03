@@ -3,6 +3,21 @@
 exports[`CLI --help snapshots root --help snapshot 1`] = `
 "Usage: privacy-pools [options] [command]
 Privacy Pools — a compliant way to transact privately on Ethereum
+  Explore (no wallet needed)
+  pools                List available pools and assets
+  activity             Show public activity feed
+  stats                Show public statistics
+  status               Show configuration and check connection health
+  guide                Show usage guide, workflow, and reference
+  capabilities         Describe CLI capabilities for agent discovery
+  Transact (run init first)
+  init                 Initialize wallet and configuration
+  deposit              Deposit into a pool
+  withdraw             Withdraw from a pool
+  ragequit|exit        Publicly withdraw funds to your deposit address
+  accounts             List your Pool Accounts with balances
+  history              Show chronological event history (deposits, withdrawals,
+                       exits)
 Options:
   -V, --version        output the version number
   -c, --chain <name>   Target chain (mainnet, arbitrum, optimism, ...)
@@ -11,25 +26,6 @@ Options:
   --agent              Machine-friendly mode (alias for --json --yes --quiet)
   --timeout <seconds>  RPC/API request timeout in seconds (default: 30)
   -h, --help           display help for command
-Commands:
-  Explore (no wallet needed)
-  pools                List available pools and assets
-  activity             Show public activity feed (global or for a specific pool)
-  stats                Show public statistics (global or per pool)
-  status               Show configuration and check connection health
-  guide                Show usage guide, workflow, and reference
-  capabilities         Describe CLI capabilities for agent discovery
-  Transact (run init first)
-  init                 Initialize wallet and configuration
-  deposit              Deposit ETH or ERC-20 tokens into a Privacy Pool
-  withdraw             Withdraw from a Privacy Pool (relayed by default)
-  ragequit|exit        Publicly withdraw funds to your deposit address without
-                       ASP approval
-  accounts             List your Pool Accounts (PA-1, PA-2, ...)
-  balance              Show balances across pools
-  history              Show chronological event history (deposits, withdrawals,
-                       exits)
-  sync                 Sync local account state from onchain events
   Get started:      privacy-pools init  (or pp init)
   Full guide:       privacy-pools guide
   Command help:     privacy-pools <command> --help"
@@ -105,7 +101,7 @@ JSON output (--json):
 
 exports[`CLI --help snapshots activity --help snapshot 1`] = `
 "Usage: privacy-pools activity [options]
-Show public activity feed (global or for a specific pool)
+Show public activity feed
 Options:
   -a, --asset <symbol|address>  Filter to one pool asset on the selected chain
   --page <n>                    Page number (default: "1")
@@ -122,7 +118,7 @@ JSON output (--json):
 
 exports[`CLI --help snapshots stats --help snapshot 1`] = `
 "Usage: privacy-pools stats [options] [command]
-Show public statistics (global or per pool)
+Show public statistics
 Options:
   -h, --help      display help for command
 Commands:
@@ -137,7 +133,7 @@ Examples:
 
 exports[`CLI --help snapshots deposit --help snapshot 1`] = `
 "Usage: privacy-pools deposit [options] <amountOrAsset> [amount]
-Deposit ETH or ERC-20 tokens into a Privacy Pool
+Deposit into a pool
 Arguments:
   amountOrAsset                 Amount to deposit (or asset symbol, see
                                 examples)
@@ -167,7 +163,7 @@ JSON output (--json):
 
 exports[`CLI --help snapshots withdraw --help snapshot 1`] = `
 "Usage: privacy-pools withdraw [options] [command] <amountOrAsset> [amount]
-Withdraw from a Privacy Pool (relayed by default)
+Withdraw from a pool
 Arguments:
   amountOrAsset                             Amount to withdraw (or asset symbol, see examples)
   amount                                    Amount (when asset is the first argument)
@@ -197,7 +193,7 @@ JSON output (--json):
 
 exports[`CLI --help snapshots ragequit --help snapshot 1`] = `
 "Usage: privacy-pools ragequit|exit [options] [asset]
-Publicly withdraw funds to your deposit address without ASP approval
+Publicly withdraw funds to your deposit address
 Arguments:
   asset                         Optional positional asset alias (e.g., ragequit
                                 ETH)
@@ -225,25 +221,9 @@ JSON output (--json):
   { txHash, amount, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }"
 `;
 
-exports[`CLI --help snapshots balance --help snapshot 1`] = `
-"Usage: privacy-pools balance [options]
-Show balances across pools
-Options:
-  --no-sync   Use cached data (faster, but may be stale)
-  -h, --help  display help for command
-Examples:
-  privacy-pools balance
-  privacy-pools balance --json
-  privacy-pools balance --no-sync --chain sepolia
-Prerequisites:
-  Requires: init
-JSON output (--json):
-  { chain, balances: [{ asset, assetAddress, balance, commitments, poolAccounts }] }"
-`;
-
 exports[`CLI --help snapshots accounts --help snapshot 1`] = `
 "Usage: privacy-pools accounts [options]
-List your Pool Accounts (PA-1, PA-2, ...)
+List your Pool Accounts with balances
 Options:
   --no-sync   Use cached data (faster, but may be stale)
   --all       Include exited and fully spent Pool Accounts
@@ -281,7 +261,7 @@ JSON output (--json):
 
 exports[`CLI --help snapshots sync --help snapshot 1`] = `
 "Usage: privacy-pools sync [options]
-Sync local account state from onchain events
+Force-sync local account state from onchain events
 Options:
   -a, --asset <symbol|address>  Sync only a single pool asset
   -h, --help                    display help for command

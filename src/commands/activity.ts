@@ -112,7 +112,7 @@ function normalizeActivityEvent(
 
 export function createActivityCommand(): Command {
   return new Command("activity")
-    .description("Show public activity feed (global or for a specific pool)")
+    .description("Show public activity feed")
     .option("-a, --asset <symbol|address>", "Filter to one pool asset on the selected chain")
     .option("--page <n>", "Page number", "1")
     .option("--limit <n>", "Items per page", "12")

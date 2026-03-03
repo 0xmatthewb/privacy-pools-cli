@@ -29,7 +29,6 @@ const COMMANDS = [
   "deposit",
   "withdraw",
   "ragequit",
-  "balance",
   "accounts",
   "history",
   "sync",

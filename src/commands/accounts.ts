@@ -5,14 +5,12 @@ import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
   initializeAccountService,
-  saveAccount,
-  toPoolInfo,
-  withSuppressedSdkStdout,
+  syncAccountEvents,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { fetchApprovedLabels } from "../services/asp.js";
-import { spinner, warn, verbose, deriveTokenPrice } from "../utils/format.js";
-import { CLIError, printError } from "../utils/errors.js";
+import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
+import { printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import type { Address } from "viem";
@@ -21,15 +19,13 @@ import {
   buildAllPoolAccountRefs,
   buildPoolAccountRefs,
 } from "../utils/pool-accounts.js";
-import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
-import { acquireProcessLock } from "../utils/lock.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup } from "../output/accounts.js";
 
 export function createAccountsCommand(): Command {
   return new Command("accounts")
-    .description("List your Pool Accounts (PA-1, PA-2, ...)")
+    .description("List your Pool Accounts with balances")
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option("--all", "Include exited and fully spent Pool Accounts")
     .option("--details", "Show additional details per Pool Account")
@@ -57,9 +53,6 @@ export function createAccountsCommand(): Command {
         verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
 
         const mnemonic = loadMnemonic();
-
-        const releaseLock = acquireProcessLock();
-        try {
 
         const spin = spinner("Loading accounts...", silent);
         spin.start();
@@ -96,37 +89,15 @@ export function createAccountsCommand(): Command {
           true
         );
 
-        if (opts.noSync !== true) {
-          spin.text = "Syncing...";
-          let syncFailures = 0;
-          for (const poolInfo of poolInfos) {
-            const pi = toPoolInfo(poolInfo);
-            try {
-              await withSuppressedSdkStdout(async () => {
-                await accountService.getDepositEvents(pi);
-                await accountService.getWithdrawalEvents(pi);
-                await accountService.getRagequitEvents(pi);
-              });
-            } catch (err) {
-              syncFailures++;
-              const symbol = pools.find((p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase())?.symbol ?? poolInfo.address;
-              warn(`Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`, silent);
-            }
-          }
-          if (syncFailures > 0 && mode.isJson) {
-            throw new CLIError(
-              `Account sync failed for ${syncFailures} pool(s).`,
-              "RPC",
-              "Retry with a healthy RPC before using account data."
-            );
-          }
-          guardCriticalSection();
-          try {
-            saveAccount(chainConfig.id, accountService.account);
-          } finally {
-            releaseCriticalSection();
-          }
-        }
+        spin.text = "Syncing...";
+        await syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
+          skip: opts.noSync === true,
+          force: false,
+          silent,
+          isJson: mode.isJson,
+          isVerbose,
+          errorLabel: "Account",
+        });
 
         const spendable = accountService.getSpendableCommitments();
         const scopeSet = new Set<string>();
@@ -204,8 +175,6 @@ export function createAccountsCommand(): Command {
           showDetails: !!opts.details,
           showAll: !!opts.all,
         });
-
-        } finally { releaseLock(); }
       } catch (error) {
         printError(error, mode.isJson);
       }

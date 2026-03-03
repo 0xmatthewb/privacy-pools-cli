@@ -48,7 +48,6 @@ const PUBLIC_COMMANDS: ModeTestCase[] = [
 ];
 
 const INIT_COMMANDS: ModeTestCase[] = [
-  { command: "balance",  args: ["balance"],               needsInit: true,  expectedExitNonZero: true },
   { command: "accounts", args: ["accounts"],              needsInit: true,  expectedExitNonZero: true },
   { command: "history",  args: ["history"],               needsInit: true,  expectedExitNonZero: true },
   { command: "sync",     args: ["sync"],                  needsInit: true,  expectedExitNonZero: true },

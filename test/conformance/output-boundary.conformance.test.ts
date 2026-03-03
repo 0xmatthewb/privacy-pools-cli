@@ -23,7 +23,6 @@ const MIGRATED_COMMANDS = [
   "src/commands/init.ts",
   "src/commands/sync.ts",
   "src/commands/accounts.ts",
-  "src/commands/balance.ts",
   "src/commands/history.ts",
   "src/commands/deposit.ts",
   "src/commands/ragequit.ts",

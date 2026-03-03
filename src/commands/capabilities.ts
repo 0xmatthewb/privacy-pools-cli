@@ -25,14 +25,14 @@ const CAPABILITIES = {
     },
     {
       name: "activity",
-      description: "Show public activity feed (global or specific pool)",
+      description: "Show public activity feed",
       flags: ["--asset <symbol|address>", "--page <n>", "--limit <n>"],
       agentFlags: "--json [--asset <symbol>] [--page <n>] [--limit <n>]",
       requiresInit: false,
     },
     {
       name: "stats",
-      description: "Show public statistics (global or per pool)",
+      description: "Show public statistics",
       usage: "stats",
       flags: ["global", "pool --asset <symbol|address>"],
       agentFlags: "global --json (or: pool --asset <symbol> --json)",
@@ -40,7 +40,7 @@ const CAPABILITIES = {
     },
     {
       name: "deposit",
-      description: "Deposit ETH or ERC-20 tokens into a Privacy Pool",
+      description: "Deposit into a pool",
       usage: "deposit <amount> --asset <symbol|address>",
       flags: ["--asset <symbol|address>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       agentFlags: "--json --yes",
@@ -48,7 +48,7 @@ const CAPABILITIES = {
     },
     {
       name: "withdraw",
-      description: "Withdraw from a Privacy Pool (relayed by default)",
+      description: "Withdraw from a pool",
       usage: "withdraw <amount> --asset <symbol|address> --to <address>",
       flags: ["--asset <symbol|address>", "--to <address>", "--from-pa <PA-#>", "--direct", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       agentFlags: "--json --yes",
@@ -63,15 +63,8 @@ const CAPABILITIES = {
       requiresInit: true,
     },
     {
-      name: "balance",
-      description: "Show balances across pools",
-      flags: ["--no-sync"],
-      agentFlags: "--json",
-      requiresInit: true,
-    },
-    {
       name: "accounts",
-      description: "List your Pool Accounts (PA-1, PA-2, ...)",
+      description: "List your Pool Accounts with balances",
       flags: ["--no-sync", "--all", "--details"],
       agentFlags: "--json",
       requiresInit: true,
@@ -85,7 +78,7 @@ const CAPABILITIES = {
     },
     {
       name: "sync",
-      description: "Sync local account state from onchain events",
+      description: "Force-sync local account state (usually automatic)",
       flags: ["-a, --asset <symbol|address>"],
       agentFlags: "--json [--asset <symbol>]",
       requiresInit: true,
@@ -100,7 +93,7 @@ const CAPABILITIES = {
     {
       name: "ragequit",
       aliases: ["exit"],
-      description: "Publicly withdraw funds to your deposit address without ASP approval",
+      description: "Publicly withdraw funds to your deposit address",
       usage: "ragequit --asset <symbol|address> --from-pa <PA-#>",
       flags: ["--asset <symbol|address>", "--from-pa <PA-#>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       agentFlags: "--json --yes",

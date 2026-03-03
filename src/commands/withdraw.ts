@@ -12,7 +12,7 @@ import { resolveChain, parseAmount, validateAddress, validatePositive } from "..
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
 import { getSDK, getContracts, getPublicClient, getDataService } from "../services/sdk.js";
-import { initializeAccountService, saveAccount } from "../services/account.js";
+import { initializeAccountService, saveAccount, saveSyncMeta } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
 import { fetchMerkleRoots, fetchMerkleLeaves, fetchDepositsLargerThan } from "../services/asp.js";
 import { getRelayerDetails, requestQuote, submitRelayRequest } from "../services/relayer.js";
@@ -72,7 +72,7 @@ const poolCurrentRootAbi = [
 
 export function createWithdrawCommand(): Command {
   const command = new Command("withdraw")
-    .description("Withdraw from a Privacy Pool (relayed by default)")
+    .description("Withdraw from a pool")
     .argument("<amountOrAsset>", "Amount to withdraw (or asset symbol, see examples)")
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
@@ -648,6 +648,7 @@ export function createWithdrawCommand(): Command {
                 tx.hash as Hex
               );
               saveAccount(chainConfig.id, accountService.account);
+              saveSyncMeta(chainConfig.id);
             } catch (saveErr) {
               process.stderr.write(
                 `\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
@@ -1033,6 +1034,7 @@ export function createWithdrawCommand(): Command {
                 result.txHash as Hex
               );
               saveAccount(chainConfig.id, accountService.account);
+              saveSyncMeta(chainConfig.id);
             } catch (saveErr) {
               process.stderr.write(
                 `\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`

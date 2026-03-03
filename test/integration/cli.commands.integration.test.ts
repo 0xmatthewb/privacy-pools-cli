@@ -174,26 +174,9 @@ describe("CLI command integration", () => {
     expect(json.error.category).toBe("INPUT");
   });
 
-  test("balance/accounts keep JSON contract when ASP is unreachable", () => {
+  test("accounts keeps JSON contract when ASP is unreachable", () => {
     const home = createTempHome();
     initSeededHome(home, "mainnet");
-
-    const balance = runCli(["--json", "--chain", "mainnet", "balance"], {
-      home,
-      timeoutMs: 10_000,
-      env: OFFLINE_ASP_ENV,
-    });
-    expect(balance.status).toBe(4);
-    const balanceJson = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string };
-    }>(
-      balance.stdout
-    );
-    expect(balanceJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(balanceJson.success).toBe(false);
-    expect(balanceJson.error.category).toBe("ASP");
 
     const accounts = runCli(["--json", "--chain", "mainnet", "accounts"], {
       home,
@@ -1018,23 +1001,6 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
     expect(json.error.message).toContain("No recovery phrase found");
-  });
-
-  test("balance --sync is rejected (use default sync or --no-sync)", () => {
-    const result = runCli(["--json", "balance", "--sync", "--chain", "sepolia"], {
-      home: createTempHome(),
-    });
-    expect(result.status).toBe(2);
-
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string; message: string };
-    }>(result.stdout);
-    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("unknown option '--sync'");
   });
 
 });

@@ -345,7 +345,7 @@ describe("error envelope field completeness", () => {
 
   test("ASP error has all envelope fields", () => {
     const home = seededHome("mainnet");
-    const result = runCli(["--json", "--chain", "mainnet", "balance"], {
+    const result = runCli(["--json", "--chain", "mainnet", "accounts"], {
       home,
       timeoutMs: 10_000,
       env: OFFLINE_ENV,

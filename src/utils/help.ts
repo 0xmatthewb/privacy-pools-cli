@@ -8,7 +8,7 @@ const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
 /* ── Root-level command groups (order determines display order) ── */
 
 const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities"];
-const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "balance", "history", "sync"];
+const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "history"];
 const EXPLORE_SET = new Set(EXPLORE_ORDER);
 const TRANSACT_SET = new Set(TRANSACT_ORDER);
 
@@ -32,6 +32,13 @@ export function styleCommanderHelp(raw: string): string {
   let section: Section = null;
   const result: string[] = [];
   let cmdBuffer: string[] = [];
+  let optBuffer: { header: string; lines: string[] } | null = null;
+
+  function styleOptionLine(line: string): string {
+    const m = line.match(/^(\s{2,})(-[^-].*?|--[a-zA-Z0-9][^ ]*(?: [^ ]+)?.*?)(\s{2,})(.+)$/);
+    if (m) return `${m[1]}${chalk.yellow(m[2])}${m[3]}${m[4]}`;
+    return line;
+  }
 
   function flushCommands(): void {
     if (cmdBuffer.length === 0) return;
@@ -74,13 +81,22 @@ export function styleCommanderHelp(raw: string): string {
     cmdBuffer = [];
   }
 
+  function flushDeferredOptions(): void {
+    if (!optBuffer) return;
+    result.push(optBuffer.header);
+    for (const line of optBuffer.lines) result.push(styleOptionLine(line));
+    optBuffer = null;
+  }
+
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // A blank line while inside the commands section ends it
+    // A blank line while inside a section ends it
     if (trimmed === "") {
       if (section === "commands") {
         flushCommands();
+        // Emit deferred options now that commands are done
+        flushDeferredOptions();
         section = null;
       }
       result.push(line);
@@ -96,7 +112,18 @@ export function styleCommanderHelp(raw: string): string {
 
     if (SECTION_HEADERS.has(trimmed)) {
       section = trimmed.replace(":", "").toLowerCase() as Section;
-      result.push(accentBold(trimmed));
+      if (section === "options" && !optBuffer) {
+        // Defer options — they'll be emitted after commands
+        optBuffer = { header: accentBold(trimmed), lines: [] };
+      } else {
+        // Commands header: emit deferred options first if commands already flushed
+        if (section === "commands" && optBuffer) {
+          // Options were buffered but commands come next — keep deferring
+        } else {
+          flushDeferredOptions();
+          result.push(accentBold(trimmed));
+        }
+      }
       continue;
     }
 
@@ -105,13 +132,13 @@ export function styleCommanderHelp(raw: string): string {
       continue;
     }
 
+    if (section === "options" && optBuffer) {
+      optBuffer.lines.push(line);
+      continue;
+    }
+
     if (section === "options") {
-      const m = line.match(/^(\s{2,})(-[^-].*?|--[a-zA-Z0-9][^ ]*(?: [^ ]+)?.*?)(\s{2,})(.+)$/);
-      if (m) {
-        result.push(`${m[1]}${chalk.yellow(m[2])}${m[3]}${m[4]}`);
-        continue;
-      }
-      result.push(line);
+      result.push(styleOptionLine(line));
       continue;
     }
 
@@ -128,8 +155,9 @@ export function styleCommanderHelp(raw: string): string {
     result.push(line);
   }
 
-  // Flush any remaining buffered commands (e.g. no trailing blank line)
+  // Flush any remaining buffered sections
   flushCommands();
+  flushDeferredOptions();
 
   return result.join("\n");
 }
@@ -144,7 +172,7 @@ export function welcomeScreen(): string {
     `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}`,
     "",
     chalk.bold("  Transact (run init first)"),
-    `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("balance")}  ${highlight("history")}  ${highlight("sync")}`,
+    `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("history")}`,
     "",
     `  Get started:      ${accent("privacy-pools init")}  ${chalk.dim("(or")} ${accent("pp init")}${chalk.dim(")")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
@@ -210,7 +238,7 @@ export function guideText(): string {
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
     chalk.dim("  Most deposits are approved within 1 hour; some may take up to 7 days."),
     chalk.dim("  Only approved deposits can be withdrawn privately. Recent deposits may not"),
-    chalk.dim("  appear in 'balance' until approved."),
+    chalk.dim("  appear in 'accounts' until approved."),
     "",
     chalk.bold("Two-Key Model"),
     `  Privacy Pools uses two keys:`,
@@ -223,11 +251,9 @@ export function guideText(): string {
     `  1. ${highlight("init")}           Set up wallet and config (run once)`,
     `  2. ${highlight("pools")}          Browse available pools`,
     `  3. ${highlight("deposit")}        Deposit into a pool (a small review fee is collected)`,
-    `  4. ${highlight("accounts")}       Check deposit approval status`,
+    `  4. ${highlight("accounts")}       Check deposit approval status and balances`,
     `  5. ${highlight("withdraw")}       Withdraw privately (once approved \u2014 fee shown before confirming)`,
-    `  6. ${highlight("balance")}        Check balances (only approved deposits shown)`,
-    `  7. ${highlight("history")}        View transaction history`,
-    `  *  ${highlight("sync")}           Re-sync onchain state (most commands sync automatically)`,
+    `  6. ${highlight("history")}        View transaction history`,
     `  *  ${highlight("status")}         Check setup and connection health (checks run by default)`,
     `  *  ${highlight("activity")}       Public onchain feed ${chalk.dim("(for your history, use 'history')")}`,
     `  *  ${highlight("ragequit")}       Public exit — returns funds to deposit address, no privacy (alias: exit)`,
@@ -266,7 +292,7 @@ export function guideText(): string {
     `  ${chalk.yellow("--dry-run")}    Validate and generate proofs without submitting.`,
     "",
     chalk.bold("Troubleshooting"),
-    "  Stale data?      Run 'privacy-pools sync' to re-sync from onchain events.",
+    "  Stale data?      Commands auto-sync; force a full re-sync with 'privacy-pools sync'.",
     "  ASP unreachable?  Check 'privacy-pools status' (health checks run by default).",
     "  Long proof time?  First proof downloads circuits (~60s). Subsequent proofs are faster.",
     "  Not approved?     Deposits are reviewed by the ASP. Most approve within 1 hour.",

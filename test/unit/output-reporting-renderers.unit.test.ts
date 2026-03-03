@@ -5,7 +5,6 @@
 import { describe, expect, test } from "bun:test";
 import { createOutputContext } from "../../src/output/common.ts";
 import { renderPoolsEmpty, renderPools, poolToJson, type PoolsRenderData } from "../../src/output/pools.ts";
-import { renderBalanceNoPools, renderBalanceEmpty, renderBalance } from "../../src/output/balance.ts";
 import { renderAccountsNoPools, renderAccounts, type AccountPoolGroup } from "../../src/output/accounts.ts";
 import { renderHistoryNoPools, renderHistory } from "../../src/output/history.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
@@ -163,129 +162,6 @@ describe("poolToJson", () => {
   test("includes chain when provided", () => {
     const json = poolToJson(STUB_POOL, "sepolia");
     expect(json.chain).toBe("sepolia");
-  });
-});
-
-// ── renderBalanceNoPools parity ──────────────────────────────────────────────
-
-describe("renderBalanceNoPools parity", () => {
-  test("JSON mode: emits empty balances envelope", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() => renderBalanceNoPools(ctx, "sepolia"));
-
-    const json = JSON.parse(stdout.trim());
-    expect(json.success).toBe(true);
-    expect(json.chain).toBe("sepolia");
-    expect(json.balances).toEqual([]);
-    expect(stderr).toBe("");
-  });
-
-  test("human mode: emits no-pools message", () => {
-    const ctx = createOutputContext(makeMode());
-    const { stdout, stderr } = captureOutput(() => renderBalanceNoPools(ctx, "sepolia"));
-
-    expect(stdout).toBe("");
-    expect(stderr).toContain("No pools found on sepolia");
-  });
-});
-
-// ── renderBalanceEmpty parity ────────────────────────────────────────────────
-
-describe("renderBalanceEmpty parity", () => {
-  test("JSON mode: emits empty balances", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout } = captureOutput(() => renderBalanceEmpty(ctx, "sepolia"));
-
-    const json = JSON.parse(stdout.trim());
-    expect(json.success).toBe(true);
-    expect(json.balances).toEqual([]);
-  });
-
-  test("human mode: emits deposit-first message", () => {
-    const ctx = createOutputContext(makeMode());
-    const { stderr } = captureOutput(() => renderBalanceEmpty(ctx, "sepolia"));
-
-    expect(stderr).toContain("No balances found on sepolia");
-    expect(stderr).toContain("Deposit first");
-  });
-});
-
-// ── renderBalance parity ────────────────────────────────────────────────────
-
-describe("renderBalance parity", () => {
-  test("JSON mode: emits balances envelope", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() =>
-      renderBalance(ctx, {
-        chain: "sepolia",
-        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "-", commitments: 2 }],
-        jsonData: [{ asset: "ETH", assetAddress: "0xeee", balance: "1000000000000000000", usdValue: null, commitments: 2, poolAccounts: 2 }],
-      }),
-    );
-
-    const json = JSON.parse(stdout.trim());
-    expect(json.success).toBe(true);
-    expect(json.chain).toBe("sepolia");
-    expect(json.balances.length).toBe(1);
-    expect(json.balances[0].asset).toBe("ETH");
-    expect(stderr).toBe("");
-  });
-
-  test("JSON mode: includes usdValue when available", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout } = captureOutput(() =>
-      renderBalance(ctx, {
-        chain: "sepolia",
-        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "$2,000", commitments: 2 }],
-        jsonData: [{ asset: "ETH", assetAddress: "0xeee", balance: "1000000000000000000", usdValue: "$2,000", commitments: 2, poolAccounts: 2 }],
-      }),
-    );
-
-    const json = JSON.parse(stdout.trim());
-    expect(json.balances[0].usdValue).toBe("$2,000");
-  });
-
-  test("human mode: emits balance table to stderr", () => {
-    const ctx = createOutputContext(makeMode());
-    const { stdout, stderr } = captureOutput(() =>
-      renderBalance(ctx, {
-        chain: "sepolia",
-        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "-", commitments: 2 }],
-        jsonData: [],
-      }),
-    );
-
-    expect(stdout).toBe("");
-    expect(stderr).toContain("Balances on sepolia");
-    expect(stderr).toContain("ETH");
-    expect(stderr).toContain("Pool Accounts");
-  });
-
-  test("human mode: shows USD Value column when available", () => {
-    const ctx = createOutputContext(makeMode());
-    const { stderr } = captureOutput(() =>
-      renderBalance(ctx, {
-        chain: "sepolia",
-        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "$2,000", commitments: 2 }],
-        jsonData: [],
-      }),
-    );
-
-    expect(stderr).toContain("USD Value");
-    expect(stderr).toContain("$2,000");
-  });
-
-  test("human mode: hides USD Value column when all dashes", () => {
-    const ctx = createOutputContext(makeMode());
-    const { stderr } = captureOutput(() =>
-      renderBalance(ctx, {
-        chain: "sepolia",
-        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "-", commitments: 2 }],
-        jsonData: [],
-      }),
-    );
-
-    expect(stderr).not.toContain("USD Value");
   });
 });
 

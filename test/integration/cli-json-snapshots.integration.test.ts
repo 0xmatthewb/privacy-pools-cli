@@ -128,20 +128,6 @@ describe("JSON envelope structure snapshots", () => {
     expect(jsonShape(json)).toMatchSnapshot();
   });
 
-  test("balance --json envelope shape (initialized, offline)", () => {
-    const home = createTempHome();
-    initSeededHome(home, "sepolia");
-
-    const result = runCli(["--json", "balance"], {
-      home,
-      timeoutMs: 15_000,
-      env: OFFLINE_ASP_ENV,
-    });
-
-    const json = parseJsonOutput<Record<string, unknown>>(result.stdout);
-    expect(jsonShape(json)).toMatchSnapshot();
-  });
-
   test("accounts --json envelope shape (initialized, offline)", () => {
     const home = createTempHome();
     initSeededHome(home, "sepolia");

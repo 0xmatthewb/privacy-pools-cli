@@ -52,10 +52,17 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (ctx.mode.isJson) {
     const jsonData: Record<string, unknown>[] = [];
+    const balances: Record<string, unknown>[] = [];
     let pendingCount = 0;
     for (const group of groups) {
+      let groupTotal = 0n;
+      let spendableCount = 0;
       for (const pa of group.poolAccounts) {
         if (pa.aspStatus === "pending") pendingCount++;
+        if (pa.status === "spendable") {
+          groupTotal += pa.value;
+          spendableCount++;
+        }
         const c = pa.commitment;
         jsonData.push({
           poolAccountNumber: pa.paNumber,
@@ -71,8 +78,16 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
           txHash: pa.txHash,
         });
       }
+      if (spendableCount > 0) {
+        balances.push({
+          asset: group.symbol,
+          balance: groupTotal.toString(),
+          usdValue: group.tokenPrice !== null ? formatUsdValue(groupTotal, group.decimals, group.tokenPrice) : null,
+          poolAccounts: spendableCount,
+        });
+      }
     }
-    printJsonSuccess({ chain, accounts: jsonData, pendingCount });
+    printJsonSuccess({ chain, accounts: jsonData, balances, pendingCount });
     return;
   }
 
@@ -145,7 +160,17 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       );
     }
 
-    if (!silent) process.stderr.write("\n");
+    // Summary footer for this pool group
+    if (!silent) {
+      const spendablePAs = group.poolAccounts.filter((pa) => pa.status === "spendable");
+      if (spendablePAs.length > 0) {
+        const total = spendablePAs.reduce((sum, pa) => sum + pa.value, 0n);
+        const totalFmt = formatAmount(total, group.decimals, group.symbol, dd);
+        const usdFmt = hasUsd ? `  ${formatUsdValue(total, group.decimals, group.tokenPrice)}` : "";
+        process.stderr.write(chalk.dim(`    Total: ${totalFmt}${usdFmt}  (${spendablePAs.length} account${spendablePAs.length === 1 ? "" : "s"})\n`));
+      }
+      process.stderr.write("\n");
+    }
   }
 
   if (!renderedAny) {
@@ -160,6 +185,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     if (!showAll) {
       info("Exited or spent accounts are hidden. Use --all to show them.", silent);
     }
+    info(
+      "Note: only approved deposits are shown. Recent deposits may be pending ASP approval.",
+      silent,
+    );
     process.stderr.write("\n");
   }
 }

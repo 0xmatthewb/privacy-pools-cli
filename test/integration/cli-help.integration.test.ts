@@ -26,11 +26,10 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("withdraw");
     expect(result.stdout).toContain("ragequit");
     expect(result.stdout).toContain("exit");
-    expect(result.stdout).toContain("balance");
     expect(result.stdout).toContain("accounts");
     expect(result.stdout).toContain("history");
-    expect(result.stdout).toContain("sync");
-    // capabilities is now visible; completion is still hidden
+    // sync and completion are hidden; capabilities is visible
+    expect(result.stdout).not.toContain("sync");
     expect(result.stdout).toContain("capabilities");
     expect(result.stdout).not.toContain("completion");
   });
@@ -49,14 +48,13 @@ describe("CLI help and discovery", () => {
     ["pools", "List available pools and assets"],
     ["activity", "Show public activity feed"],
     ["stats", "Show public statistics"],
-    ["deposit", "Deposit ETH or ERC-20 tokens into a Privacy Pool"],
-    ["withdraw", "Withdraw from a Privacy Pool (relayed by default)"],
-    ["ragequit", "Publicly withdraw funds to your deposit address without ASP approval"],
-    ["exit", "Publicly withdraw funds to your deposit address without ASP approval"],
-    ["balance", "Show balances across pools"],
-    ["accounts", "List your Pool Accounts"],
+    ["deposit", "Deposit into a pool"],
+    ["withdraw", "Withdraw from a pool"],
+    ["ragequit", "Publicly withdraw funds to your deposit address"],
+    ["exit", "Publicly withdraw funds to your deposit address"],
+    ["accounts", "List your Pool Accounts with balances"],
     ["history", "Show chronological event history"],
-    ["sync", "Sync local account state from onchain events"],
+    ["sync", "Force-sync local account state from onchain events"],
     ["capabilities", "Describe CLI capabilities for agent discovery"],
     ["completion", "Generate shell completion script"],
   ] as const;
@@ -226,13 +224,6 @@ describe("CLI help and discovery", () => {
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--all");
     expect(combined).toContain("--details");
-    expect(combined).toContain("--no-sync");
-    expect(combined).not.toContain("--sync");
-  });
-
-  test("balance --help shows --no-sync option", () => {
-    const result = runCli(["balance", "--help"], { home: createTempHome() });
-    const combined = result.stdout + result.stderr;
     expect(combined).toContain("--no-sync");
     expect(combined).not.toContain("--sync");
   });

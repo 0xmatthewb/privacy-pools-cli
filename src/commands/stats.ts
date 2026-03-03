@@ -25,7 +25,7 @@ export { parseUsd, parseCount } from "../output/stats.js";
 
 export function createStatsCommand(): Command {
   const command = new Command("stats")
-    .description("Show public statistics (global or per pool)")
+    .description("Show public statistics")
     .addHelpText(
       "after",
       "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain mainnet\n"

@@ -4,6 +4,9 @@ import { AccountService, DataService, type PoolInfo } from "@0xbow/privacy-pools
 import type { Address } from "viem";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
 import { CLIError } from "../utils/errors.js";
+import { acquireProcessLock } from "../utils/lock.js";
+import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import { warn, verbose as logVerbose } from "../utils/format.js";
 
 // BigInt + Map aware JSON serializer
 /** @internal Exported for testing only. */
@@ -211,4 +214,133 @@ export async function initializeAccountService(
   }
 
   return accountService;
+}
+
+// ── Sync metadata (freshness tracking) ──────────────────────────────
+
+/** How long a previous sync stays "fresh" before query commands re-sync. */
+const SYNC_FRESHNESS_MS = 120_000; // 2 minutes
+
+function getSyncMetaPath(chainId: number): string {
+  return join(getAccountsDir(), `${chainId}.sync.json`);
+}
+
+/** Read sync metadata for a chain. Returns null if missing or corrupt. */
+export function loadSyncMeta(chainId: number): { lastSyncTime: number } | null {
+  const path = getSyncMetaPath(chainId);
+  if (!existsSync(path)) return null;
+  try {
+    const raw = readFileSync(path, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.lastSyncTime === "number") return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Stamp the current time as the last successful sync for a chain. */
+export function saveSyncMeta(chainId: number): void {
+  ensureConfigDir();
+  const path = getSyncMetaPath(chainId);
+  const tmpPath = path + ".tmp";
+  writeFileSync(
+    tmpPath,
+    JSON.stringify({ lastSyncTime: Date.now() }),
+    { encoding: "utf-8", mode: 0o600 },
+  );
+  renameSync(tmpPath, path);
+}
+
+/** True if the chain was synced within the TTL window. */
+export function isSyncFresh(
+  chainId: number,
+  ttlMs: number = SYNC_FRESHNESS_MS,
+): boolean {
+  const meta = loadSyncMeta(chainId);
+  if (!meta) return false;
+  return Date.now() - meta.lastSyncTime < ttlMs;
+}
+
+// ── Shared sync-events helper ───────────────────────────────────────
+
+export interface SyncEventsOptions {
+  /** When true, skip sync entirely (--no-sync). */
+  skip: boolean;
+  /** When true, ignore freshness TTL and always sync. */
+  force: boolean;
+  silent: boolean;
+  isJson: boolean;
+  isVerbose: boolean;
+  /** Prefix for error messages, e.g. "Balance" or "Sync". */
+  errorLabel: string;
+}
+
+/**
+ * Sync account events if needed (respects freshness TTL and --no-sync).
+ * On success the account state and sync metadata are persisted atomically.
+ * Returns true if a sync was actually performed.
+ */
+export async function syncAccountEvents(
+  accountService: AccountService,
+  poolInfos: Array<{
+    chainId: number;
+    address: Address;
+    scope: bigint;
+    deploymentBlock: bigint;
+  }>,
+  pools: Array<{ pool: string; symbol: string }>,
+  chainId: number,
+  opts: SyncEventsOptions,
+): Promise<boolean> {
+  if (opts.skip) return false;
+  if (!opts.force && isSyncFresh(chainId)) {
+    logVerbose("Skipping sync (recently synced)", opts.isVerbose, opts.silent);
+    return false;
+  }
+
+  let syncFailures = 0;
+  for (const poolInfo of poolInfos) {
+    const pi = toPoolInfo(poolInfo);
+    try {
+      await withSuppressedSdkStdout(async () => {
+        await accountService.getDepositEvents(pi);
+        await accountService.getWithdrawalEvents(pi);
+        await accountService.getRagequitEvents(pi);
+      });
+    } catch (err) {
+      syncFailures++;
+      const symbol =
+        pools.find(
+          (p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase(),
+        )?.symbol ?? poolInfo.address;
+      warn(
+        `Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`,
+        opts.silent,
+      );
+    }
+  }
+
+  if (syncFailures > 0 && opts.isJson) {
+    throw new CLIError(
+      `${opts.errorLabel} sync failed for ${syncFailures} pool(s).`,
+      "RPC",
+      "Retry with a healthy RPC before using this data.",
+    );
+  }
+
+  const releaseLock = acquireProcessLock();
+  try {
+    guardCriticalSection();
+    try {
+      saveAccount(chainId, accountService.account);
+      saveSyncMeta(chainId);
+    } finally {
+      releaseCriticalSection();
+    }
+  } finally {
+    releaseLock();
+  }
+
+  return true;
 }

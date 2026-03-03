@@ -10,7 +10,7 @@ import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
 import { getContracts, getPublicClient, getDataService } from "../services/sdk.js";
 import { resolvePool, listPools } from "../services/pools.js";
-import { initializeAccountService, saveAccount } from "../services/account.js";
+import { initializeAccountService, saveAccount, saveSyncMeta } from "../services/account.js";
 import { NATIVE_ASSET_ADDRESS, explorerTxUrl } from "../config/chains.js";
 import {
   spinner,
@@ -45,7 +45,7 @@ const depositedEventAbi = parseAbi([
 
 export function createDepositCommand(): Command {
   return new Command("deposit")
-    .description("Deposit ETH or ERC-20 tokens into a Privacy Pool")
+    .description("Deposit into a pool")
     .argument("<amountOrAsset>", "Amount to deposit (or asset symbol, see examples)")
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-a, --asset <symbol|address>", "Asset to deposit (symbol like ETH, USDC, or contract address)")
@@ -399,6 +399,7 @@ export function createDepositCommand(): Command {
                 tx.hash as Hex
               );
               saveAccount(chainConfig.id, accountService.account);
+              saveSyncMeta(chainConfig.id);
             } catch (saveErr) {
               process.stderr.write(
                 `\nWarning: deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`

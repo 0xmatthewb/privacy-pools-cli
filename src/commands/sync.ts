@@ -4,12 +4,10 @@ import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
-import { initializeAccountService, saveAccount } from "../services/account.js";
+import { initializeAccountService, syncAccountEvents } from "../services/account.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
 import { spinner, verbose } from "../utils/format.js";
-import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
-import { acquireProcessLock } from "../utils/lock.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -18,7 +16,7 @@ import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
 
 export function createSyncCommand(): Command {
   return new Command("sync")
-    .description("Sync local account state from onchain events")
+    .description("Force-sync local account state from onchain events")
     .option("-a, --asset <symbol|address>", "Sync only a single pool asset")
     .addHelpText(
       "after",
@@ -39,9 +37,6 @@ export function createSyncCommand(): Command {
         const config = loadConfig();
         const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
         const mnemonic = loadMnemonic();
-
-        const releaseLock = acquireProcessLock();
-        try {
 
         const spin = spinner("Resolving pools for sync...", silent);
         spin.start();
@@ -92,23 +87,16 @@ export function createSyncCommand(): Command {
         );
 
         spin.text = "Syncing deposit/withdrawal/ragequit events...";
-        const accountService = await initializeAccountService(
-          dataService,
-          mnemonic,
-          poolInfos,
-          chainConfig.id,
-          true,
+        await syncAccountEvents(preSyncService, poolInfos, pools, chainConfig.id, {
+          skip: false,
+          force: true,
           silent,
-          true
-        );
+          isJson: mode.isJson,
+          isVerbose,
+          errorLabel: "Sync",
+        });
 
-        guardCriticalSection();
-        try {
-          saveAccount(chainConfig.id, accountService.account);
-        } finally {
-          releaseCriticalSection();
-        }
-        const spendable = accountService.getSpendableCommitments();
+        const spendable = preSyncService.getSpendableCommitments();
         const spendableCount = Array.from(spendable.values()).reduce(
           (acc, list) => acc + list.length,
           0
@@ -123,8 +111,6 @@ export function createSyncCommand(): Command {
           spendableCommitments: spendableCount,
           previousSpendableCommitments: previousSpendableCount,
         });
-
-        } finally { releaseLock(); }
       } catch (error) {
         printError(error, mode.isJson);
       }

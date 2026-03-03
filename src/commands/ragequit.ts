@@ -7,7 +7,7 @@ import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
 import { getSDK, getContracts, getPublicClient, getDataService } from "../services/sdk.js";
-import { initializeAccountService, saveAccount } from "../services/account.js";
+import { initializeAccountService, saveAccount, saveSyncMeta } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
 import {
@@ -42,7 +42,7 @@ import {
 export function createRagequitCommand(): Command {
   return new Command("ragequit")
     .alias("exit")
-    .description("Publicly withdraw funds to your deposit address without ASP approval")
+    .description("Publicly withdraw funds to your deposit address")
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
     .option("-a, --asset <symbol|address>", "Asset pool to exit from")
     .option("-p, --from-pa <PA-#|#>", "Ragequit a specific Pool Account (e.g. PA-2)")
@@ -494,6 +494,7 @@ export function createRagequitCommand(): Command {
 
           try {
             saveAccount(chainConfig.id, accountService.account);
+            saveSyncMeta(chainConfig.id);
           } catch (err) {
             process.stderr.write(
               `Warning: ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`
