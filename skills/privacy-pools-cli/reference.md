@@ -508,29 +508,6 @@ pp ragequit --asset ETH --from-pa PA-1 --agent
 }
 ```
 
-### `balance`
-
-```bash
-pp balance --agent
-```
-
-```json
-{
-  "chain": "mainnet",
-  "balances": [
-    {
-      "asset": "ETH",
-      "assetAddress": "0xEeee...EEeE",
-      "balance": "500000000000000000",
-      "commitments": 3,
-      "poolAccounts": 3
-    }
-  ]
-}
-```
-
-`balance` is total spendable amount in wei (string). `commitments` and `poolAccounts` are counts (numbers).
-
 ### `accounts`
 
 ```bash
@@ -555,13 +532,23 @@ pp accounts --agent [--all] [--details]
       "txHash": "0x..."
     }
   ],
+  "balances": [
+    {
+      "asset": "ETH",
+      "balance": "500000000000000000",
+      "usdValue": "$1,000.00",
+      "poolAccounts": 3
+    }
+  ],
   "pendingCount": 0
 }
 ```
 
 `status` values: `"spendable"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`. `pendingCount` is the number of accounts with `aspStatus: "pending"`.
 
-Poll `aspStatus` after depositing — wait for `"approved"` before withdrawing via the relayed path.
+`balances` contains per-pool totals for spendable accounts. `balance` is the total spendable amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
+
+Poll `aspStatus` after depositing and wait for `"approved"` before withdrawing via the relayed path.
 
 ### `history`
 
@@ -592,6 +579,8 @@ pp history --agent [--limit <n>]
 
 ### `sync`
 
+Force-sync local account state. Hidden from `--help` but always accessible. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
+
 ```bash
 pp sync --agent [--asset <symbol>]
 ```
@@ -619,6 +608,8 @@ pp sync --agent [--asset <symbol>]
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
+| `NO_COLOR` | Disable colored output (same as `--no-color`) |
+| `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
 
 The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not from the current working directory. All flags take precedence over environment variables.
 

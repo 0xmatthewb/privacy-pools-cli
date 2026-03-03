@@ -1,6 +1,6 @@
 # Privacy Pools CLI
 
-Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Deposit, withdraw, and manage funds with onchain privacy — without sacrificing regulatory compliance.
+Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Deposit, withdraw, and manage funds with onchain privacy, without sacrificing regulatory compliance.
 
 > **Warning:** This CLI is experimental. Use at your own risk. For large transactions, use [privacypools.com](https://privacypools.com).
 
@@ -8,17 +8,17 @@ Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Dep
 
 On public blockchains, every transaction is visible to everyone. While transparency is a core feature, it means every transfer reveals the full balances and history of both parties.
 
-Privacy Pools enables private withdrawals through zero-knowledge proofs and commitment schemes. You deposit assets into a pool and later withdraw them — partially or fully — without creating an onchain link between your deposit and withdrawal addresses. An Association Set Provider (ASP) maintains a set of approved deposits, preventing illicit funds from entering the system while preserving privacy for compliant users.
+Privacy Pools enables private withdrawals through zero-knowledge proofs and commitment schemes. You deposit assets into a pool and later withdraw them, partially or fully, without creating an onchain link between your deposit and withdrawal addresses. An Association Set Provider (ASP) maintains a set of approved deposits, preventing illicit funds from entering the system while preserving privacy for compliant users.
 
 The protocol is **non-custodial**: you maintain control of your funds through cryptographic commitments at all times.
 
 **Key concepts:**
 
-- **Pool Account (PA-1, PA-2, ...)**: Each deposit creates a numbered Pool Account — this is how you refer to your funds throughout the CLI.
+- **Pool Account (PA-1, PA-2, ...)**: Each deposit creates a numbered Pool Account. This is how you refer to your funds throughout the CLI.
 - **ASP (Association Set Provider)**: A compliance layer that screens deposits and maintains a Merkle tree of approved labels. Your Pool Account must be ASP-approved before you can withdraw privately.
 - **Relayed withdrawal**: The default mode. A relayer submits your transaction so there is no onchain link between your wallet and the recipient. Costs a small fee.
 - **Direct withdrawal**: You submit the withdrawal yourself. Cheaper, but provides weaker privacy because your wallet appears onchain.
-- **Ragequit / Exit**: A safety mechanism that lets the original depositor publicly reclaim funds without ASP approval — useful if your deposit hasn't been approved or approval was revoked.
+- **Ragequit / Exit**: A safety mechanism that lets the original depositor publicly reclaim funds without ASP approval. Useful if your deposit hasn't been approved or approval was revoked.
 
 ## Installation
 
@@ -159,7 +159,7 @@ privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient... --chain sepolia
 
 ### `accounts`
 
-List your Pool Accounts with balances, ASP approval status, and account lifecycle info.
+List your Pool Accounts with balances, ASP approval status, and account lifecycle info. Includes per-pool balance totals (in the table footer for human output, and in a `balances` array for JSON output).
 
 ```bash
 privacy-pools accounts --chain sepolia
@@ -178,7 +178,7 @@ privacy-pools accounts --details              # show commitment hashes, labels, 
 
 ### `history`
 
-Show chronological event history (deposits, withdrawals, exits).
+Show chronological event history (deposits, withdrawals, exits). Auto-syncs in the background.
 
 ```bash
 privacy-pools history --chain sepolia
@@ -192,7 +192,7 @@ privacy-pools history --limit 10
 
 ### `sync`
 
-Sync local account state from onchain events. Most commands sync automatically, but you can run this manually after a failed transaction or to force a refresh.
+Force-sync local account state from onchain events. Most commands auto-sync in the background (with a 2-minute freshness window), so you rarely need this. Use it after a failed transaction or to force a refresh. Hidden from `--help` but always accessible.
 
 ```bash
 privacy-pools sync --chain sepolia
@@ -201,7 +201,7 @@ privacy-pools sync --asset ETH     # sync a single pool
 
 ### `ragequit` (alias: `exit`)
 
-Emergency public exit mechanism that returns funds to your deposit address and sacrifices privacy. Use this if the ASP hasn't approved your deposit, or if you need your funds back immediately.
+Emergency public exit that returns funds to your deposit address and sacrifices privacy. Use this if the ASP hasn't approved your deposit, or if you need your funds back immediately.
 
 ```bash
 privacy-pools ragequit --asset ETH -p PA-1 --chain sepolia
@@ -246,7 +246,7 @@ privacy-pools capabilities --json
 
 ### `activity`
 
-Show the public activity feed — recent deposits, withdrawals, and exits — either globally or for a specific pool. When no `--chain` is specified, shows global activity across all chains.
+Show the public activity feed (recent deposits, withdrawals, and exits), either globally or for a specific pool. When no `--chain` is specified, shows global activity across all chains.
 
 ```bash
 privacy-pools activity                                 # all mainnets
@@ -273,7 +273,7 @@ privacy-pools stats pool --asset ETH --chain sepolia  # per-pool stats
 
 | Subcommand | Flag | Description |
 |------------|------|-------------|
-| `global` | — | Show aggregate statistics across all pools |
+| `global` | | Show aggregate statistics across all pools |
 | `pool` | `-a, --asset <symbol\|address>` | Show statistics for a specific pool |
 
 ### `completion`
@@ -298,12 +298,14 @@ These flags work on every command:
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--json` | `-j` | Machine-readable JSON output on stdout |
+| `--format <fmt>` | | Output format: `table` (default), `csv`, `json` |
 | `--yes` | `-y` | Skip confirmation prompts |
 | `--chain <name>` | `-c` | Target chain (`mainnet`, `arbitrum`, `optimism`, `sepolia`, `op-sepolia`) |
 | `--rpc-url <url>` | `-r` | Override RPC URL for the chain |
 | `--quiet` | `-q` | Suppress non-essential stderr output |
 | `--verbose` | `-v` | Enable verbose/debug output |
 | `--no-banner` | | Disable ASCII banner |
+| `--no-color` | | Disable colored output (also respects `NO_COLOR` env var) |
 | `--agent` | | Machine-friendly mode (alias for `--json --yes --quiet`) |
 | `--timeout <seconds>` | | Network/transaction timeout in seconds |
 
@@ -333,8 +335,8 @@ privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -j -y --chain sepoli
 
 **Output stream convention:**
 
-- **stdout** — reserved exclusively for machine-readable JSON (when `--json` is set). Never contains human-readable text.
-- **stderr** — all human-readable messages (progress spinners, prompts, status lines, errors).
+- **stdout** is reserved exclusively for machine-readable JSON (when `--json` is set). It never contains human-readable text.
+- **stderr** carries all human-readable messages (progress spinners, prompts, status lines, errors).
 
 This means you can safely pipe stdout to `jq` or another parser without worrying about stray text.
 
@@ -354,7 +356,7 @@ Every command emits a JSON object on stdout when `--json` is set:
 
 | Code | Category | Meaning |
 |------|----------|---------|
-| 0 | — | Success |
+| 0 | | Success |
 | 1 | UNKNOWN | General error |
 | 2 | INPUT | Invalid input or validation failure |
 | 3 | RPC | RPC / network error |
@@ -413,21 +415,23 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with the `PR
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
+| `NO_COLOR` | Disable colored output (same as `--no-color`) |
+| `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
 
 ## Project Structure
 
 ```
 src/
   commands/       Command handlers (one per CLI command)
-  output/         Output renderers — own all JSON payload assembly and
-                  human-mode formatting. Commands delegate here.
+  output/         Output renderers (JSON payload assembly and
+                  human-mode formatting). Commands delegate here.
     common.ts     Shared OutputContext, isSilent(), re-exported primitives
     mod.ts        Barrel re-export of all renderers
     <command>.ts  Per-command renderer (e.g., deposit.ts, withdraw.ts)
   config/         Chain configuration and contract addresses
   services/       SDK, wallet, account, ASP, and relayer service wrappers
   utils/          Shared utilities (validation, formatting, errors, mode)
-  index.ts        Entry point — registers all commands
+  index.ts        Entry point; registers all commands
   types.ts        Shared TypeScript types
 test/
   unit/           Unit tests for individual modules

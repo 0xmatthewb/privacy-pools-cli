@@ -64,12 +64,14 @@ When a human delegates CLI operations to an agent:
 | ---- | ----------- |
 | `--agent` | Machine-friendly mode (alias for `--json --yes --quiet`) |
 | `-j, --json` | Machine-readable JSON output on stdout |
+| `--format <fmt>` | Output format: `table` (default), `csv`, `json` |
 | `-y, --yes` | Skip confirmation prompts |
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `-q, --quiet` | Suppress non-essential stderr output |
 | `-v, --verbose` | Enable verbose/debug output |
 | `--no-banner` | Disable ASCII banner output |
+| `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
 | `--timeout <seconds>` | Override default timeout for RPC calls |
 
 ## Command Reference
@@ -227,28 +229,18 @@ privacy-pools ragequit --asset ETH --from-pa PA-1 --agent
 
 JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }`
 
-#### `balance`
-
-Show balances across all pools.
-
-```bash
-privacy-pools balance --agent
-```
-
-JSON payload: `{ chain, balances: [{ asset, assetAddress, balance, commitments, poolAccounts }] }`
-
-`balance` is total spendable balance in wei (string). `commitments` and `poolAccounts` are counts.
-
 #### `accounts`
 
-List Pool Accounts with their approval status.
+List Pool Accounts with their approval status and per-pool balance totals.
 
 ```bash
 privacy-pools accounts --agent
 privacy-pools accounts --agent --all --details
 ```
 
-JSON payload: `{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash }], pendingCount }`
+JSON payload: `{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount }`
+
+`balances` contains per-pool totals for spendable accounts. `balance` is total spendable amount in wei (string). `usdValue` is a formatted USD string (or null if price data is unavailable).
 
 **Poll `aspStatus`**: After depositing, poll `accounts --agent` until `aspStatus` changes from `"pending"` to `"approved"`. Only approved accounts can be withdrawn via the relayed path.
 
@@ -266,7 +258,7 @@ JSON payload: `{ chain, events: [{ type, asset, poolAddress, poolAccountNumber, 
 
 #### `sync`
 
-Resync local account state from onchain events.
+Force-sync local account state from onchain events. Hidden from `--help` but always accessible. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
 
 ```bash
 privacy-pools sync --agent
@@ -277,11 +269,12 @@ JSON payload: `{ chain, syncedPools, syncedSymbols, spendableCommitments }`
 
 ## Auto-Sync Behavior
 
+Query commands auto-sync with a 2-minute freshness TTL. If data was synced within the last 2 minutes, the sync is skipped for faster responses. The `sync` command always force-refreshes regardless of freshness.
+
 | Command    | Auto-syncs? | Override      |
 | ---------- | ----------- | ------------- |
-| accounts   | Yes         | --no-sync     |
-| balance    | Yes         | --no-sync     |
-| history    | Yes         | --no-sync     |
+| accounts   | Yes (TTL)   | --no-sync     |
+| history    | Yes (TTL)   | --no-sync     |
 | deposit    | Yes         | N/A           |
 | withdraw   | Yes         | N/A           |
 | ragequit   | Yes         | N/A           |

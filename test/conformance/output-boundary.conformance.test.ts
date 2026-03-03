@@ -118,7 +118,7 @@ describe("output boundary conformance", () => {
   test("every renderer in src/output/ is re-exported from mod.ts with symbol coverage", () => {
     const modSource = readSource("src/output/mod.ts");
     const rendererFiles = readdirSync(`${CLI_ROOT}/src/output`)
-      .filter((f) => f.endsWith(".ts") && f !== "mod.ts" && f !== "common.ts");
+      .filter((f) => f.endsWith(".ts") && f !== "mod.ts" && f !== "common.ts" && f !== "csv.ts");
 
     for (const file of rendererFiles) {
       const baseName = file.replace(/\.ts$/, "");

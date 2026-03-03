@@ -320,7 +320,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   const ACCOUNT_SERVICE_METHODS = [
     { method: "createDepositSecrets", usedBy: "deposit.ts" },
     { method: "createWithdrawalSecrets", usedBy: "withdraw.ts" },
-    { method: "getSpendableCommitments", usedBy: "withdraw/ragequit/accounts/balance" },
+    { method: "getSpendableCommitments", usedBy: "withdraw/ragequit/accounts" },
     { method: "addPoolAccount", usedBy: "deposit.ts" },
     { method: "addRagequitToAccount", usedBy: "ragequit.ts" },
     { method: "addWithdrawalCommitment", usedBy: "withdraw.ts" },

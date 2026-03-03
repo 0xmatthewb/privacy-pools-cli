@@ -4,8 +4,9 @@ version: 0.1.0
 description: >
   Deposit, withdraw, and manage funds in Privacy Pools v1 on Ethereum, Arbitrum,
   and Optimism. Use when the user or agent needs to interact with Privacy Pools:
-  browsing pools, depositing, withdrawing, checking balances, building unsigned
-  transaction payloads for external signers, or querying on-chain activity.
+  browsing pools, depositing, withdrawing, checking accounts and balances,
+  building unsigned transaction payloads for external signers, or querying
+  on-chain activity.
 author: matthewb
 permissions:
   - filesystem:read
@@ -17,7 +18,7 @@ triggers:
   - pattern: privacy pools
   - pattern: privacy pool deposit
   - pattern: privacy pool withdraw
-  - pattern: privacy pool balance
+  - pattern: privacy pool accounts
   - pattern: privacy pool ragequit
   - pattern: unsigned deposit
   - pattern: unsigned withdraw
@@ -43,15 +44,14 @@ Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (a
 | Initialize wallet | `pp init --agent --default-chain mainnet` | One-time setup |
 | Deposit ETH | `pp deposit 0.1 --asset ETH --agent` | Requires init |
 | Deposit (unsigned) | `pp deposit 0.1 --asset ETH --unsigned --agent` | No wallet key needed |
-| Check accounts | `pp accounts --agent` | Poll for aspStatus |
+| Check accounts | `pp accounts --agent` | Poll for aspStatus; includes balances |
 | Withdraw (relayed) | `pp withdraw 0.05 --asset ETH --to 0x... --agent` | Requires init |
 | Withdraw (unsigned) | `pp withdraw 0.05 --asset ETH --to 0x... --unsigned --agent` | No wallet key needed |
 | Withdrawal quote | `pp withdraw quote 0.1 --asset ETH --to 0x... --agent` | Fee estimate |
 | Ragequit | `pp ragequit --asset ETH --from-pa PA-1 --agent` | Emergency exit |
 | Dry-run | `pp deposit 0.1 --asset ETH --dry-run --agent` | Validate without submitting |
-| Show balances | `pp balance --agent` | Requires init |
 | Event history | `pp history --agent` | Requires init |
-| Sync state | `pp sync --agent` | Requires init |
+| Force sync | `pp sync --agent` | Rarely needed (auto-sync with 2min TTL) |
 
 ---
 
@@ -215,6 +215,8 @@ Responses include `"dryRun": true` and all validation results. Supported on: `de
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
+| `NO_COLOR` | Disable colored output (same as `--no-color`) |
+| `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
 
 The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not from the current working directory. RPC URL can also be overridden per-command with `--rpc-url <url>`.
 
@@ -278,12 +280,14 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 |------|-------------|
 | `--agent` | Alias for `--json --yes --quiet` |
 | `-j, --json` | Machine-readable JSON on stdout |
+| `--format <fmt>` | Output format: `table` (default), `csv`, `json` |
 | `-y, --yes` | Skip confirmation prompts |
 | `-c, --chain <name>` | Target chain (mainnet, sepolia, ...) |
 | `-r, --rpc-url <url>` | Override RPC endpoint |
 | `-q, --quiet` | Suppress non-essential stderr |
 | `-v, --verbose` | Debug output |
 | `--no-banner` | Disable ASCII banner |
+| `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
 | `--timeout <seconds>` | Network/transaction timeout (default: 30) |
 
 ---

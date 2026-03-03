@@ -1,5 +1,5 @@
 /**
- * Unit tests for reporting output renderers: pools, balance, accounts, history.
+ * Unit tests for reporting output renderers: pools, accounts, history.
  */
 
 import { describe, expect, test } from "bun:test";
