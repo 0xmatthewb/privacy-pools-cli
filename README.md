@@ -119,7 +119,7 @@ privacy-pools pools --all-chains       # all chains including testnets
 
 ### `deposit`
 
-Deposit assets (ETH or ERC20 tokens) into a pool, creating a private commitment that can later be used for private withdrawals or ragequit operations.
+Deposit assets (ETH or ERC20 tokens) into a pool, creating a private commitment that can later be used for private withdrawals or emergency exits.
 
 ```bash
 privacy-pools deposit 0.1 --asset ETH
@@ -175,7 +175,7 @@ privacy-pools accounts --details              # show commitment hashes, labels, 
 | `--all` | Include exited and fully spent Pool Accounts |
 | `--details` | Show low-level commitment details (hash, label, block, tx) |
 
-**Pool Account statuses:** `spendable` (can withdraw), `spent` (fully withdrawn), `exited` (ragequit).
+**Pool Account statuses:** `spendable` (can withdraw), `spent` (fully withdrawn), `exited` (exit/ragequit).
 **ASP statuses:** `approved` (can withdraw privately), `pending` (waiting for ASP), `unknown`.
 
 ### `history`
@@ -378,7 +378,7 @@ privacy-pools deposit 0.1 --asset ETH --unsigned -j
 # Raw tx format: just the transaction objects, ready to sign and broadcast
 privacy-pools deposit 0.1 --asset ETH --unsigned --unsigned-format tx -j
 
-# Works with withdraw and ragequit too
+# Works with withdraw and exit too
 privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --unsigned -j
 privacy-pools ragequit --asset ETH -p PA-1 --unsigned -j
 ```

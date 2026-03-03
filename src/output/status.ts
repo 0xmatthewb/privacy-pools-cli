@@ -143,6 +143,16 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     } else {
       info("No account files found.", silent);
     }
+    // Readiness summary
+    const canDeposit = result.configExists && result.mnemonicSet && result.signerKeyValid;
+    const canUnsigned = result.configExists && result.mnemonicSet;
+    if (canDeposit) {
+      success("Ready: deposit, withdraw, exit, unsigned", silent);
+    } else if (canUnsigned) {
+      info("Ready: unsigned mode only (no signer key)", silent);
+    } else {
+      warn("Not ready: run 'privacy-pools init' to get started", silent);
+    }
     process.stderr.write("\n");
   }
 }

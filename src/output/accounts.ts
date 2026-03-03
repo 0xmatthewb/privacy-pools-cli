@@ -206,7 +206,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     }
     if (!silent) process.stderr.write("\n");
   } else if (!silent) {
-    info("Use -p PA-1 with withdraw or ragequit to target a specific Pool Account.", silent);
+    info("Use -p PA-1 with withdraw or exit to target a specific Pool Account.", silent);
     if (!showAll) {
       info("Exited or spent accounts are hidden. Use --all to show them.", silent);
     }

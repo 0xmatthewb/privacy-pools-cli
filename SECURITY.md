@@ -62,7 +62,7 @@ concurrent CLI instances from corrupting shared state:
 
 ### Critical Sections
 
-Transaction commands (deposit, withdraw, ragequit) guard the window
+Transaction commands (deposit, withdraw, exit/ragequit) guard the window
 between on-chain confirmation and local state persistence:
 
 - `SIGINT` and `SIGTERM` are deferred while a critical section is active

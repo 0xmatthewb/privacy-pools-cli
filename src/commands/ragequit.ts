@@ -12,6 +12,7 @@ import { resolvePool, listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
 import {
   spinner,
+  stageHeader,
   info,
   warn,
   verbose,
@@ -190,6 +191,7 @@ export function createRagequitCommand(): Command {
           globalOpts?.rpcUrl
         );
 
+        stageHeader(1, 3, "Loading account state", silent);
         const spin = spinner("Loading account...", silent);
         spin.start();
 
@@ -381,6 +383,7 @@ export function createRagequitCommand(): Command {
         }
 
         // Generate commitment proof
+        stageHeader(2, 3, "Generating commitment proof", silent);
         spin.start();
 
         const proof = await withProofProgress(
@@ -441,8 +444,9 @@ export function createRagequitCommand(): Command {
         }
 
         // Submit ragequit
+        stageHeader(3, 3, "Submitting exit", silent);
         const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
-        spin.text = "Submitting ragequit transaction...";
+        spin.text = "Submitting exit transaction...";
         const tx = await contracts.ragequit(proof, pool.pool);
 
         spin.text = "Waiting for confirmation...";
@@ -506,7 +510,7 @@ export function createRagequitCommand(): Command {
         } finally {
           releaseCriticalSection();
         }
-        spin.succeed("Ragequit confirmed!");
+        spin.succeed("Exit confirmed!");
 
         const ctx = createOutputContext(mode);
         renderRagequitSuccess(ctx, {

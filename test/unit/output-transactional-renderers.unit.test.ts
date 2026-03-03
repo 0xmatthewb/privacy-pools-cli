@@ -342,6 +342,7 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.scope).toBe("42");
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
+    expect(json.nextStep).toContain("privacy-pools accounts");
     expect(stderr).toBe("");
   });
 
@@ -352,11 +353,12 @@ describe("renderRagequitSuccess parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Ragequit PA-2");
+    expect(stderr).toContain("Exit PA-2");
     expect(stderr).toContain("withdrew");
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
+    expect(stderr).toContain("privacy-pools accounts");
   });
 
   test("human mode: omits Explorer when explorerUrl is null", () => {
@@ -523,6 +525,8 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.poolAccountNumber).toBe(1);
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
+    expect(json.nextStep).toContain("privacy-pools accounts");
+    expect(json.nextStep).toContain("direct withdrawal links");
     expect(stderr).toBe("");
   });
 
@@ -536,6 +540,8 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.mode).toBe("relayed");
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
+    expect(json.nextStep).toContain("privacy-pools accounts");
+    expect(json.nextStep).not.toContain("direct withdrawal links");
     expect(stderr).toBe("");
   });
 
@@ -552,6 +558,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).not.toContain("Relay fee:");
+    expect(stderr).toContain("privacy-pools accounts");
   });
 
   test("human mode (relayed): includes relay fee", () => {
@@ -563,6 +570,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrew");
     expect(stderr).toContain("Relay fee: 0.50%");
+    expect(stderr).toContain("privacy-pools accounts");
   });
 
   test("human mode: omits Explorer when explorerUrl is null", () => {

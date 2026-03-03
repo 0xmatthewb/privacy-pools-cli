@@ -177,7 +177,8 @@
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
         "feeBPS": "string? (relayed mode only)",
-        "fee": "null? (direct mode only)"
+        "fee": "null? (direct mode only)",
+        "nextStep": "string (agent guidance)"
       },
       "variants": {
         "dryRun": {
@@ -261,7 +262,8 @@
         "poolAddress": "0x-prefixed-address",
         "scope": "decimal-string",
         "blockNumber": "decimal-string",
-        "explorerUrl": "string|null"
+        "explorerUrl": "string|null",
+        "nextStep": "string (agent guidance)"
       },
       "variants": {
         "dryRun": {

@@ -308,4 +308,28 @@ describe("renderStatus parity", () => {
 
     expect(stderr).toContain("Health checks skipped");
   });
+
+  test("human mode: shows full readiness when config+mnemonic+signer present", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
+
+    expect(stderr).toContain("Ready: deposit, withdraw, exit, unsigned");
+  });
+
+  test("human mode: shows unsigned-only readiness when no signer key", () => {
+    const ctx = createOutputContext(makeMode());
+    const result = { ...STUB_STATUS, signerKeySet: false, signerKeyValid: false, signerAddress: null };
+    const { stderr } = captureOutput(() => renderStatus(ctx, result));
+
+    expect(stderr).toContain("unsigned mode only");
+  });
+
+  test("human mode: shows not-ready when no config", () => {
+    const ctx = createOutputContext(makeMode());
+    const result = { ...STUB_STATUS, configExists: false, configDir: null, mnemonicSet: false, signerKeySet: false, signerKeyValid: false, signerAddress: null };
+    const { stderr } = captureOutput(() => renderStatus(ctx, result));
+
+    expect(stderr).toContain("Not ready");
+    expect(stderr).toContain("privacy-pools init");
+  });
 });

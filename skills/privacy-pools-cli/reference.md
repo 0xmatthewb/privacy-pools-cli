@@ -85,7 +85,7 @@ The envelope format includes additional context fields depending on the operatio
 - `quoteExpiresAt`: ISO timestamp for quote expiry
 - `relayerRequest`: full relayer request payload (for submission)
 
-**Ragequit:**
+**Exit (Ragequit):**
 - `operation`: `"ragequit"`
 - `selectedCommitmentLabel`, `selectedCommitmentValue`: commitment details as decimal strings
 
@@ -440,11 +440,12 @@ pp withdraw 0.1 --asset ETH --direct --agent
   "chain": "mainnet",
   "poolAccountNumber": 1,
   "poolAccountId": "PA-1",
-  "feeBPS": "50"
+  "feeBPS": "50",
+  "nextStep": "Run 'privacy-pools accounts --chain mainnet' to verify updated balance."
 }
 ```
 
-**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`.
+**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, and `nextStep` includes a note that direct withdrawal links deposit and withdrawal onchain.
 
 **Dry-run:**
 
@@ -490,10 +491,11 @@ pp withdraw quote 0.1 --asset ETH --to 0xRecipient --agent
 }
 ```
 
-### `ragequit`
+### `ragequit` (alias: `exit`)
 
 ```bash
 pp ragequit --asset ETH --from-pa PA-1 --agent
+pp exit --asset ETH --from-pa PA-1 --agent
 ```
 
 **Success:**
@@ -510,7 +512,8 @@ pp ragequit --asset ETH --from-pa PA-1 --agent
   "poolAddress": "0x...",
   "scope": "123...",
   "blockNumber": "22154000",
-  "explorerUrl": "https://etherscan.io/tx/0x..."
+  "explorerUrl": "https://etherscan.io/tx/0x...",
+  "nextStep": "Funds returned to deposit address. Run 'privacy-pools accounts --chain mainnet' to verify the Pool Account is exited."
 }
 ```
 
@@ -677,7 +680,7 @@ All errors in JSON mode:
 | `CONTRACT_INVALID_PROOF` | CONTRACT | No | Proof rejected on-chain |
 | `CONTRACT_INVALID_PROCESSOOOR` | CONTRACT | No | Wrong withdrawal mode |
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED` | CONTRACT | No | Duplicate precommitment, retry deposit |
-| `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | Wrong signer for ragequit |
+| `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | Wrong signer for exit |
 | `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool not ready, wait and retry |
 | `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error |
 

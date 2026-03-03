@@ -20,6 +20,7 @@ triggers:
   - pattern: privacy pool withdraw
   - pattern: privacy pool accounts
   - pattern: privacy pool ragequit
+  - pattern: privacy pool exit
   - pattern: unsigned deposit
   - pattern: unsigned withdraw
   - pattern: compliant withdrawal
@@ -48,7 +49,7 @@ Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (a
 | Withdraw (relayed) | `pp withdraw 0.05 --asset ETH --to 0x... --agent` | Requires init |
 | Withdraw (unsigned) | `pp withdraw 0.05 --asset ETH --to 0x... --unsigned --agent` | No wallet key needed |
 | Withdrawal quote | `pp withdraw quote 0.1 --asset ETH --to 0x... --agent` | Fee estimate |
-| Ragequit | `pp ragequit --asset ETH --from-pa PA-1 --agent` | Emergency exit |
+| Exit (ragequit) | `pp exit --asset ETH --from-pa PA-1 --agent` | Emergency exit |
 | Dry-run | `pp deposit 0.1 --asset ETH --dry-run --agent` | Validate without submitting |
 | Event history | `pp history --agent` | Requires init |
 | Force sync | `pp sync --agent` | Rarely needed (auto-sync with 2min TTL) |
@@ -161,7 +162,7 @@ pp deposit 0.1 --asset ETH --unsigned --unsigned-format tx --agent
 | `from` | string\|null | envelope only | Signer address if known, otherwise `null` |
 | `description` | string | yes | Human-readable step description |
 
-Supported on: `deposit`, `withdraw`, `ragequit`.
+Supported on: `deposit`, `withdraw`, `exit` (ragequit).
 
 ERC-20 deposits produce two transactions (approve + deposit). Submit them in order.
 
@@ -170,7 +171,7 @@ ERC-20 deposits produce two transactions (approve + deposit). Submit them in ord
 - **Deposit**: `operation: "deposit"`, `precommitment`
 - **Withdraw (direct)**: `operation: "withdraw"`, `withdrawMode: "direct"`, `recipient`, `selectedCommitmentLabel`, `selectedCommitmentValue`
 - **Withdraw (relayed)**: `operation: "withdraw"`, `withdrawMode: "relayed"`, `recipient`, `selectedCommitmentLabel`, `selectedCommitmentValue`, `feeBPS`, `quoteExpiresAt`, `relayerRequest`
-- **Ragequit**: `operation: "ragequit"`, `selectedCommitmentLabel`, `selectedCommitmentValue`
+- **Exit (ragequit)**: `operation: "ragequit"`, `selectedCommitmentLabel`, `selectedCommitmentValue`
 
 ---
 
@@ -201,7 +202,7 @@ pp withdraw 0.05 --asset ETH --to 0x... --dry-run --agent
 pp ragequit --asset ETH --from-pa PA-1 --dry-run --agent
 ```
 
-Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `ragequit`.
+Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `exit` (ragequit).
 
 ---
 

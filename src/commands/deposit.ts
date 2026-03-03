@@ -14,6 +14,7 @@ import { initializeAccountService, saveAccount, saveSyncMeta } from "../services
 import { NATIVE_ASSET_ADDRESS, explorerTxUrl } from "../config/chains.js";
 import {
   spinner,
+  stageHeader,
   info,
   verbose,
   formatAmount,
@@ -310,7 +311,9 @@ export function createDepositCommand(): Command {
         const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
 
         // ERC20 approval
+        const depositSteps = isNative ? 1 : 2;
         if (!isNative) {
+          stageHeader(1, depositSteps, "Approving token spend", silent);
           const spin = spinner("Approving token spend...", silent);
           spin.start();
           try {
@@ -328,6 +331,7 @@ export function createDepositCommand(): Command {
         }
 
         // Deposit transaction
+        if (!isNative) stageHeader(2, depositSteps, "Submitting deposit", silent);
         const spin = spinner("Submitting deposit transaction...", silent);
         spin.start();
 

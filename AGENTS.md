@@ -207,9 +207,9 @@ privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient --from-pa PA-2 --agent
 privacy-pools withdraw 0.1 --asset ETH --direct --agent
 ```
 
-JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS }`
+JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, nextStep }`
 
-JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`.
+JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`. `nextStep` includes a note about direct withdrawals linking deposit and withdrawal onchain.
 
 > **Note**: Direct withdrawals (`--direct`) are not privacy-preserving. Use relayed mode (default) for private withdrawals.
 
@@ -223,15 +223,16 @@ JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWith
 
 Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof generation takes longer, the CLI will auto-refresh the quote if the fee hasn't changed. If the fee changes, re-run the command to generate a fresh proof.
 
-#### `ragequit`
+#### `ragequit` (alias: `exit`)
 
-Emergency withdrawal without ASP approval. Reveals the deposit address onchain — no privacy is gained.
+Emergency exit without ASP approval. Reveals the deposit address onchain — no privacy is gained.
 
 ```bash
-privacy-pools ragequit --asset ETH --from-pa PA-1 --agent
+privacy-pools exit --asset ETH --from-pa PA-1 --agent
+privacy-pools ragequit --asset ETH --from-pa PA-1 --agent   # same thing
 ```
 
-JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }`
+JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextStep }`
 
 #### `accounts`
 
@@ -412,7 +413,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `CONTRACT_INVALID_PROOF`             | CONTRACT | No        | Proof rejected onchain                      |
 | `CONTRACT_INVALID_PROCESSOOOR`       | CONTRACT | No        | Wrong withdrawal mode                       |
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED`| CONTRACT | No        | Duplicate precommitment, retry deposit      |
-| `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`   | CONTRACT | No        | Wrong signer for ragequit                   |
+| `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`   | CONTRACT | No        | Wrong signer for exit                       |
 | `CONTRACT_NO_ROOTS_AVAILABLE`        | CONTRACT | Yes       | Pool not ready, wait and retry              |
 | `UNKNOWN_ERROR`                      | UNKNOWN  | No        | Unexpected error                            |
 

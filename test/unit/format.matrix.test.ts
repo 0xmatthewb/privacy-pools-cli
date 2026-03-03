@@ -8,6 +8,7 @@ import {
   formatUsdValue,
   info,
   printTable,
+  stageHeader,
   success,
   verbose,
   warn,
@@ -126,6 +127,32 @@ describe("format utils matrix", () => {
     expect(logs.some((l) => l.includes("ℹ") && l.includes("heads-up"))).toBe(true);
     expect(logs.some((l) => l.includes("quiet"))).toBe(false);
     expect(logs.some((l) => l.includes("noisy"))).toBe(true);
+  });
+
+  test("stageHeader writes step banner to stderr", () => {
+    const logs: string[] = [];
+    process.stderr.write = ((chunk: unknown) => {
+      logs.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    stageHeader(2, 5, "Building proofs");
+
+    const output = logs.join("");
+    expect(output).toContain("[Step 2/5]");
+    expect(output).toContain("Building proofs");
+  });
+
+  test("stageHeader is silent when quiet=true", () => {
+    const logs: string[] = [];
+    process.stderr.write = ((chunk: unknown) => {
+      logs.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    stageHeader(1, 3, "Loading", true);
+
+    expect(logs.length).toBe(0);
   });
 
   test("quiet logging suppresses output", () => {

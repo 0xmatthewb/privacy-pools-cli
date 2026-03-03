@@ -168,3 +168,13 @@ export function verbose(
     process.stderr.write(`${chalk.dim(message)}\n`);
   }
 }
+
+export function stageHeader(
+  step: number,
+  total: number,
+  label: string,
+  quiet: boolean = false,
+): void {
+  if (quiet) return;
+  process.stderr.write(`\n${chalk.bold(`[Step ${step}/${total}]`)} ${label}\n`);
+}

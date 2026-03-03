@@ -18,6 +18,7 @@ import { fetchMerkleRoots, fetchMerkleLeaves, fetchDepositsLargerThan } from "..
 import { getRelayerDetails, requestQuote, submitRelayRequest } from "../services/relayer.js";
 import {
   spinner,
+  stageHeader,
   info,
   warn,
   verbose,
@@ -267,6 +268,8 @@ export function createWithdrawCommand(): Command {
           globalOpts?.rpcUrl
         );
 
+        const withdrawSteps = isDirect ? 4 : 5;
+        stageHeader(1, withdrawSteps, "Syncing account state", silent);
         const spin = spinner("Syncing account state...", silent);
         spin.start();
 
@@ -316,6 +319,7 @@ export function createWithdrawCommand(): Command {
         }
 
         // Fetch ASP data
+        stageHeader(2, withdrawSteps, "Fetching ASP data and building proofs", silent);
         spin.text = "Fetching ASP data...";
         const roots = await fetchMerkleRoots(chainConfig, pool.scope);
         const leaves = await fetchMerkleLeaves(chainConfig, pool.scope);
@@ -506,6 +510,7 @@ export function createWithdrawCommand(): Command {
           verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
 
           // Re-verify parity right before proving
+          stageHeader(3, withdrawSteps, "Generating ZK proof", silent);
           const latestRootCheck = await publicClient.readContract({
             address: chainConfig.entrypoint,
             abi: entrypointLatestRootAbi,
@@ -605,6 +610,7 @@ export function createWithdrawCommand(): Command {
             spin.start();
           }
 
+          stageHeader(4, withdrawSteps, "Submitting withdrawal", silent);
           spin.text = "Submitting withdrawal transaction...";
           const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
           const tx = await contracts.withdraw(
@@ -682,6 +688,7 @@ export function createWithdrawCommand(): Command {
           // --- Relayed Withdrawal ---
           // Preload circuits (already done via sdk.proveWithdrawal init)
           // Get relayer details + quote
+          stageHeader(3, withdrawSteps, "Requesting relayer quote", silent);
           spin.text = "Requesting relayer quote...";
           const details = await getRelayerDetails(chainConfig, pool.asset);
           verbose(
@@ -861,6 +868,7 @@ export function createWithdrawCommand(): Command {
           verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
 
           // Re-verify parity right before proving
+          stageHeader(4, withdrawSteps, "Generating ZK proof", silent);
           const latestRootCheck = await publicClient.readContract({
             address: chainConfig.entrypoint,
             abi: entrypointLatestRootAbi,
@@ -989,6 +997,7 @@ export function createWithdrawCommand(): Command {
             return;
           }
 
+          stageHeader(5, withdrawSteps, "Submitting to relayer", silent);
           spin.text = "Submitting to relayer...";
           const result = await submitRelayRequest(chainConfig, {
             scope: pool.scope,
