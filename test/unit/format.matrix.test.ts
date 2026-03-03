@@ -4,6 +4,8 @@ import {
   formatAmount,
   formatBPS,
   formatTxHash,
+  deriveTokenPrice,
+  formatUsdValue,
   info,
   printTable,
   success,
@@ -139,5 +141,124 @@ describe("format utils matrix", () => {
     verbose("noisy", true, true);
 
     expect(logs.length).toBe(0);
+  });
+
+  // ── deriveTokenPrice ────────────────────────────────────────────────────────
+
+  describe("deriveTokenPrice", () => {
+    test("derives price from acceptedDepositsValue/Usd", () => {
+      const price = deriveTokenPrice({
+        decimals: 18,
+        acceptedDepositsValue: 10000000000000000000n, // 10 ETH
+        acceptedDepositsValueUsd: "20000",            // $20,000
+      });
+      expect(price).toBeCloseTo(2000, 0);
+    });
+
+    test("falls back to totalInPool when accepted is missing", () => {
+      const price = deriveTokenPrice({
+        decimals: 18,
+        totalInPoolValue: 5000000000000000000n,  // 5 ETH
+        totalInPoolValueUsd: "15000",            // $15,000
+      });
+      expect(price).toBeCloseTo(3000, 0);
+    });
+
+    test("prefers accepted over totalInPool", () => {
+      const price = deriveTokenPrice({
+        decimals: 18,
+        acceptedDepositsValue: 10000000000000000000n,
+        acceptedDepositsValueUsd: "20000",
+        totalInPoolValue: 100000000000000000000n,
+        totalInPoolValueUsd: "1000",
+      });
+      // Should use accepted: 20000 / 10 = 2000
+      expect(price).toBeCloseTo(2000, 0);
+    });
+
+    test("returns null when USD string is missing", () => {
+      expect(deriveTokenPrice({
+        decimals: 18,
+        acceptedDepositsValue: 10000000000000000000n,
+      })).toBeNull();
+    });
+
+    test("returns null when token value is 0", () => {
+      expect(deriveTokenPrice({
+        decimals: 18,
+        acceptedDepositsValue: 0n,
+        acceptedDepositsValueUsd: "100",
+      })).toBeNull();
+    });
+
+    test("returns null when token value is undefined", () => {
+      expect(deriveTokenPrice({
+        decimals: 18,
+        acceptedDepositsValueUsd: "100",
+      })).toBeNull();
+    });
+
+    test("returns null for non-numeric USD string", () => {
+      expect(deriveTokenPrice({
+        decimals: 18,
+        acceptedDepositsValue: 1000000000000000000n,
+        acceptedDepositsValueUsd: "abc",
+      })).toBeNull();
+    });
+
+    test("handles 6-decimal tokens (USDC)", () => {
+      const price = deriveTokenPrice({
+        decimals: 6,
+        acceptedDepositsValue: 1000000000n, // 1000 USDC
+        acceptedDepositsValueUsd: "1000",
+      });
+      expect(price).toBeCloseTo(1, 2);
+    });
+
+    test("strips commas from USD string", () => {
+      const price = deriveTokenPrice({
+        decimals: 18,
+        acceptedDepositsValue: 1000000000000000000n,
+        acceptedDepositsValueUsd: "2,500",
+      });
+      expect(price).toBeCloseTo(2500, 0);
+    });
+  });
+
+  // ── formatUsdValue ──────────────────────────────────────────────────────────
+
+  describe("formatUsdValue", () => {
+    test("formats token amount at given price", () => {
+      // 1 ETH at $2000
+      expect(formatUsdValue(1000000000000000000n, 18, 2000)).toBe("$2,000");
+    });
+
+    test("formats fractional amounts", () => {
+      // 0.5 ETH at $2000 = $1000
+      expect(formatUsdValue(500000000000000000n, 18, 2000)).toBe("$1,000");
+    });
+
+    test("returns dash when price is null", () => {
+      expect(formatUsdValue(1000000000000000000n, 18, null)).toBe("-");
+    });
+
+    test("formats 6-decimal tokens", () => {
+      // 100 USDC at $1
+      expect(formatUsdValue(100000000n, 6, 1)).toBe("$100");
+    });
+
+    test("rounds to zero decimal places", () => {
+      // 1 ETH at $2000.50 → $2,001 (rounds)
+      expect(formatUsdValue(1000000000000000000n, 18, 2000.5)).toBe("$2,001");
+    });
+
+    test("handles zero amount", () => {
+      expect(formatUsdValue(0n, 18, 2000)).toBe("$0");
+    });
+
+    test("handles very small amounts", () => {
+      // 1 wei at $2000 ≈ $0
+      expect(formatUsdValue(1n, 18, 2000)).toBe("$0");
+    });
   });
 });

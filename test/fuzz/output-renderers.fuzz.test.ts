@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseUsd, parseCount } from "../../src/output/stats.ts";
+import { deriveTokenPrice, formatUsdValue } from "../../src/utils/format.ts";
 import { createSeededRng, getFuzzSeed } from "../helpers/fuzz.ts";
 
 /**
@@ -134,6 +135,88 @@ describe("output renderers fuzz", () => {
 
       const result = parseCount(s);
       expect(typeof result).toBe("string");
+    }
+  });
+
+  test("deriveTokenPrice never throws on random inputs", () => {
+    const rng = createSeededRng(getFuzzSeed() ^ 0xABCD1234);
+
+    // Fixed edge cases
+    const edgeCases: Array<Parameters<typeof deriveTokenPrice>[0]> = [
+      { decimals: 18 },
+      { decimals: 18, acceptedDepositsValue: 0n, acceptedDepositsValueUsd: "0" },
+      { decimals: 18, acceptedDepositsValue: 0n, acceptedDepositsValueUsd: "100" },
+      { decimals: 18, acceptedDepositsValue: 1n, acceptedDepositsValueUsd: "" },
+      { decimals: 18, acceptedDepositsValue: 1n, acceptedDepositsValueUsd: "abc" },
+      { decimals: 18, acceptedDepositsValue: 1n, acceptedDepositsValueUsd: "NaN" },
+      { decimals: 18, acceptedDepositsValue: 1n, acceptedDepositsValueUsd: "Infinity" },
+      { decimals: 0, acceptedDepositsValue: 42n, acceptedDepositsValueUsd: "100" },
+      { decimals: 6, totalInPoolValue: 1000000n, totalInPoolValueUsd: "1" },
+      { decimals: 18, acceptedDepositsValue: 10n ** 30n, acceptedDepositsValueUsd: "9".repeat(50) },
+    ];
+
+    for (const input of edgeCases) {
+      const result = deriveTokenPrice(input);
+      expect(result === null || typeof result === "number").toBe(true);
+      if (typeof result === "number") {
+        expect(Number.isFinite(result)).toBe(true);
+      }
+    }
+
+    // Random inputs
+    for (let i = 0; i < 100; i++) {
+      const decimals = rng.nextInt(19);
+      const valueBits = rng.nextInt(128);
+      const value = valueBits === 0 ? 0n : BigInt(rng.nextUInt32()) ** BigInt(rng.nextInt(3) + 1);
+      const usdStr = rng.nextInt(3) === 0
+        ? undefined
+        : String(rng.nextFloat() * 1_000_000);
+
+      const result = deriveTokenPrice({
+        decimals,
+        acceptedDepositsValue: value,
+        acceptedDepositsValueUsd: usdStr,
+      });
+      expect(result === null || (typeof result === "number" && Number.isFinite(result))).toBe(true);
+    }
+  });
+
+  test("formatUsdValue never throws on random inputs", () => {
+    const rng = createSeededRng(getFuzzSeed() ^ 0xDEAD5678);
+
+    // Fixed edge cases
+    const edgeCases: Array<[bigint, number, number | null]> = [
+      [0n, 18, null],
+      [0n, 18, 0],
+      [0n, 18, 2000],
+      [1n, 18, 2000],
+      [10n ** 18n, 18, 2000],
+      [10n ** 30n, 18, 2000],
+      [1n, 0, 1],
+      [10n ** 6n, 6, 1],
+      [0n, 0, null],
+      [1n, 18, Infinity],
+      [1n, 18, NaN],
+      [1n, 18, -1],
+    ];
+
+    for (const [amount, decimals, price] of edgeCases) {
+      const result = formatUsdValue(amount, decimals, price);
+      expect(typeof result).toBe("string");
+      expect(result === "-" || result.startsWith("$")).toBe(true);
+    }
+
+    // Random inputs
+    for (let i = 0; i < 100; i++) {
+      const decimals = rng.nextInt(19);
+      const amount = BigInt(rng.nextUInt32()) * BigInt(rng.nextInt(10) + 1);
+      const price = rng.nextInt(3) === 0
+        ? null
+        : rng.nextFloat() * 10000;
+
+      const result = formatUsdValue(amount, decimals, price);
+      expect(typeof result).toBe("string");
+      expect(result === "-" || result.startsWith("$")).toBe(true);
     }
   });
 });

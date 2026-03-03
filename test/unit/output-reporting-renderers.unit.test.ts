@@ -124,6 +124,29 @@ describe("renderPools parity", () => {
 
     expect(stderr).toContain('No pools matched search query "nonexistent"');
   });
+
+  test("human mode: includes USD Value column header", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() => renderPools(ctx, STUB_POOLS_DATA));
+
+    expect(stderr).toContain("USD Value");
+  });
+
+  test("human mode: shows USD amount when pool has USD data", () => {
+    const ctx = createOutputContext(makeMode());
+    const poolWithUsd = {
+      ...STUB_POOL,
+      acceptedDepositsValue: 10000000000000000000n,
+      acceptedDepositsValueUsd: "20000",
+    };
+    const data: PoolsRenderData = {
+      ...STUB_POOLS_DATA,
+      filteredPools: [{ chain: "sepolia", chainId: 11155111, pool: poolWithUsd }],
+    };
+    const { stderr } = captureOutput(() => renderPools(ctx, data));
+
+    expect(stderr).toContain("$20,000");
+  });
 });
 
 // ── poolToJson parity ───────────────────────────────────────────────────────
@@ -195,8 +218,8 @@ describe("renderBalance parity", () => {
     const { stdout, stderr } = captureOutput(() =>
       renderBalance(ctx, {
         chain: "sepolia",
-        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", commitments: 2 }],
-        jsonData: [{ asset: "ETH", assetAddress: "0xeee", balance: "1000000000000000000", commitments: 2, poolAccounts: 2 }],
+        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "-", commitments: 2 }],
+        jsonData: [{ asset: "ETH", assetAddress: "0xeee", balance: "1000000000000000000", usdValue: null, commitments: 2, poolAccounts: 2 }],
       }),
     );
 
@@ -208,12 +231,26 @@ describe("renderBalance parity", () => {
     expect(stderr).toBe("");
   });
 
+  test("JSON mode: includes usdValue when available", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderBalance(ctx, {
+        chain: "sepolia",
+        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "$2,000", commitments: 2 }],
+        jsonData: [{ asset: "ETH", assetAddress: "0xeee", balance: "1000000000000000000", usdValue: "$2,000", commitments: 2, poolAccounts: 2 }],
+      }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.balances[0].usdValue).toBe("$2,000");
+  });
+
   test("human mode: emits balance table to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
       renderBalance(ctx, {
         chain: "sepolia",
-        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", commitments: 2 }],
+        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "-", commitments: 2 }],
         jsonData: [],
       }),
     );
@@ -222,6 +259,33 @@ describe("renderBalance parity", () => {
     expect(stderr).toContain("Balances on sepolia");
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Pool Accounts");
+  });
+
+  test("human mode: shows USD Value column when available", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderBalance(ctx, {
+        chain: "sepolia",
+        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "$2,000", commitments: 2 }],
+        jsonData: [],
+      }),
+    );
+
+    expect(stderr).toContain("USD Value");
+    expect(stderr).toContain("$2,000");
+  });
+
+  test("human mode: hides USD Value column when all dashes", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderBalance(ctx, {
+        chain: "sepolia",
+        rows: [{ symbol: "ETH", formattedBalance: "1.0 ETH", usdValue: "-", commitments: 2 }],
+        jsonData: [],
+      }),
+    );
+
+    expect(stderr).not.toContain("USD Value");
   });
 });
 
@@ -263,6 +327,7 @@ describe("renderAccounts parity", () => {
     poolAddress: "0x1111111111111111111111111111111111111111",
     decimals: 18,
     scope: 42n,
+    tokenPrice: null,
     poolAccounts: [
       {
         paNumber: 1,
@@ -276,6 +341,11 @@ describe("renderAccounts parity", () => {
         txHash: "0xaabbccddee1234567890aabbccddee1234567890aabbccddee1234567890aabb",
       },
     ],
+  };
+
+  const STUB_GROUP_WITH_USD: AccountPoolGroup = {
+    ...STUB_GROUP,
+    tokenPrice: 2000,
   };
 
   test("JSON mode: emits accounts envelope", () => {
@@ -345,6 +415,50 @@ describe("renderAccounts parity", () => {
     );
 
     expect(stderr).toContain("No available Pool Accounts found");
+  });
+
+  test("human mode (summary): shows USD column when tokenPrice is set", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        groups: [STUB_GROUP_WITH_USD],
+        showDetails: false,
+        showAll: false,
+      }),
+    );
+
+    expect(stderr).toContain("USD");
+    expect(stderr).toContain("$2,000");
+  });
+
+  test("human mode (summary): hides USD column when tokenPrice is null", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        groups: [STUB_GROUP],
+        showDetails: false,
+        showAll: false,
+      }),
+    );
+
+    expect(stderr).not.toContain("USD");
+  });
+
+  test("human mode (detail): shows USD column when tokenPrice is set", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        groups: [STUB_GROUP_WITH_USD],
+        showDetails: true,
+        showAll: false,
+      }),
+    );
+
+    expect(stderr).toContain("USD");
+    expect(stderr).toContain("$2,000");
   });
 });
 
