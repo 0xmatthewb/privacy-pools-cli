@@ -17,6 +17,7 @@ import {
 import {
   generateMnemonic,
   validateMnemonic,
+  extractMnemonicFromFile,
 } from "../services/wallet.js";
 
 import { CHAIN_NAMES, CHAINS, MAINNET_CHAIN_NAMES, TESTNET_CHAIN_NAMES } from "../config/chains.js";
@@ -33,7 +34,7 @@ export function createInitCommand(): Command {
   return new Command("init")
     .description("Initialize wallet and configuration")
     .option("--mnemonic <phrase>", "Import an existing recovery phrase (unsafe: visible in process list)")
-    .option("--mnemonic-file <path>", "Import an existing recovery phrase from a file")
+    .option("--mnemonic-file <path>", "Import recovery phrase from a file (raw phrase or Privacy Pools backup file)")
     .option(
       "--show-mnemonic",
       "Include generated mnemonic in JSON output (unsafe: may be logged or piped)"
@@ -97,8 +98,9 @@ export function createInitCommand(): Command {
         // Read and validate mnemonic source if provided via flag
         let mnemonicSource: string | undefined;
         if (opts.mnemonicFile) {
+          let fileContent: string;
           try {
-            mnemonicSource = readFileSync(opts.mnemonicFile, "utf-8").trim();
+            fileContent = readFileSync(opts.mnemonicFile, "utf-8");
           } catch (err) {
             throw new CLIError(
               `Could not read mnemonic file: ${opts.mnemonicFile}`,
@@ -106,6 +108,17 @@ export function createInitCommand(): Command {
               err instanceof Error ? err.message : undefined
             );
           }
+          // Extract mnemonic from raw or structured backup files
+          // (CLI backup, website recovery downloads, or plain mnemonic)
+          const extracted = extractMnemonicFromFile(fileContent);
+          if (!extracted) {
+            throw new CLIError(
+              "No valid recovery phrase found in file.",
+              "INPUT",
+              "The file should contain a valid BIP-39 recovery phrase (12 or 24 words), either as raw text or inside a Privacy Pools backup file."
+            );
+          }
+          mnemonicSource = extracted;
         } else if (opts.mnemonic) {
           mnemonicSource = opts.mnemonic;
         }

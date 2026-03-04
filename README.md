@@ -99,7 +99,7 @@ privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key
 |------|-------------|
 | `--default-chain <chain>` | Set default chain |
 | `--mnemonic <phrase>` | Import existing BIP-39 phrase (unsafe: visible in process list) |
-| `--mnemonic-file <path>` | Import BIP-39 phrase from a file |
+| `--mnemonic-file <path>` | Import BIP-39 phrase from a file (raw phrase or Privacy Pools backup file) |
 | `--private-key <key>` | Set signer private key (unsafe: visible in process list) |
 | `--private-key-file <path>` | Set signer private key from a file |
 | `--force` | Overwrite existing config without prompting |

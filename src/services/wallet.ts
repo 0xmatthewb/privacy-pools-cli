@@ -18,6 +18,42 @@ export function validateMnemonic(mnemonic: string): boolean {
   return bip39ValidateMnemonic(mnemonic.trim(), bip39EnglishWordlist);
 }
 
+/**
+ * Extract a BIP-39 mnemonic from file content that may contain headers,
+ * labels, and warnings (e.g. CLI backup files or website recovery downloads).
+ *
+ * Strategy:
+ *   1. Try the entire trimmed content as a mnemonic (handles raw-only files).
+ *   2. Scan line-by-line for exactly one valid mnemonic line.
+ *   3. Return null if zero or multiple mnemonic lines are found.
+ */
+export function extractMnemonicFromFile(content: string): string | null {
+  const trimmed = content.trim();
+
+  // Fast path: entire content is a raw mnemonic
+  if (validateMnemonic(trimmed)) {
+    return trimmed;
+  }
+
+  // Slow path: scan each line for a valid mnemonic
+  const lines = trimmed.split(/\r?\n/);
+  let found: string | null = null;
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    // Skip empty lines and lines that are clearly not mnemonics:
+    // fewer than 12 space-separated tokens can't be a valid BIP-39 phrase
+    if (!line || line.split(/\s+/).length < 12) continue;
+    if (validateMnemonic(line)) {
+      // If we already found one, the file is ambiguous — fail safely
+      if (found !== null) return null;
+      found = line;
+    }
+  }
+
+  return found;
+}
+
 export function getMasterKeys(mnemonic: string) {
   return generateMasterKeys(mnemonic);
 }

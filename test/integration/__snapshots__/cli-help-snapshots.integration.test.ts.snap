@@ -40,7 +40,8 @@ Initialize wallet and configuration
 Options:
   --mnemonic <phrase>        Import an existing recovery phrase (unsafe: visible
                              in process list)
-  --mnemonic-file <path>     Import an existing recovery phrase from a file
+  --mnemonic-file <path>     Import recovery phrase from a file (raw phrase or
+                             Privacy Pools backup file)
   --show-mnemonic            Include generated mnemonic in JSON output (unsafe:
                              may be logged or piped)
   --private-key <key>        Set the signer private key (unsafe: visible in
