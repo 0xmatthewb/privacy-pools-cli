@@ -27,6 +27,7 @@ import {
 
 const OFFLINE_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+  PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
 };
 
 function seededHome(): string {
@@ -36,15 +37,17 @@ function seededHome(): string {
 }
 
 // Helper: assert the command progressed past all input validation and
-// failed at pool resolution (ASP unreachable), the expected offline stage.
+// failed at pool resolution (ASP + RPC both unreachable), the expected offline stage.
 function expectPoolResolutionFailure(
   result: { status: number | null },
   json: { success: boolean; error?: { category: string } },
 ): void {
   expect(json.success).toBe(false);
   expect(json.error).toBeDefined();
-  expect(json.error!.category).toBe("ASP");
-  expect(result.status).toBe(4);
+  // With KNOWN_POOLS fallback (F-02), the CLI tries ASP → KNOWN_POOLS → RPC.
+  // Both ASP and RPC are blocked, so pool resolution fails with RPC error.
+  expect(json.error!.category).toBe("RPC");
+  expect(result.status).toBe(3);  // RPC = exit 3
 }
 
 // ── deposit pipeline ─────────────────────────────────────────────────────────

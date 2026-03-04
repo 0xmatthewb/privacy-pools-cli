@@ -109,24 +109,26 @@ privacy-pools activity --agent
 privacy-pools activity --agent --asset ETH --limit 20
 ```
 
-JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }`
+JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }`
 
 When querying all mainnets (no `--chain`), `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
 
-With `--asset`, mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` fields.
+When filtering by `--chain` without `--asset`, events are filtered client-side. In this case `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
+
+With `--asset`, mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` fields. Pagination totals are accurate (server-side filtering).
 
 #### `stats global`
 
-Protocol-wide statistics. This is the default subcommand for `stats`. When no `--chain` is specified, defaults to querying all mainnets.
+Protocol-wide statistics. This is the default subcommand for `stats`. Always shows aggregate cross-chain data. The `--chain` flag is **not** supported for `stats global`; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
 
 ```bash
 privacy-pools stats global --agent
 privacy-pools stats --agent  # same as above
 ```
 
-JSON payload: `{ mode: "global-stats", chain, chains?, cacheTimestamp, allTime, last24h, perChain? }`
+JSON payload: `{ mode: "global-stats", chain: "all-mainnets", chains, cacheTimestamp, allTime, last24h, perChain? }`
 
-When querying all mainnets (no `--chain`), `chains` lists the chain names and `perChain` contains per-chain `{ chain, cacheTimestamp, allTime, last24h }` entries.
+`chains` lists the chain names queried and `perChain` contains per-chain `{ chain, cacheTimestamp, allTime, last24h }` entries.
 
 `allTime` and `last24h` are objects provided by the ASP. Expected fields: `tvlUsd`, `avgDepositSizeUsd`, `totalDepositsCount`, `totalWithdrawalsCount`, `totalDepositsValue`, `totalWithdrawalsValue`, `totalDepositsValueUsd`, `totalWithdrawalsValueUsd`.
 
@@ -240,7 +242,7 @@ Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof gen
 
 #### `ragequit` (alias: `exit`)
 
-Emergency exit without ASP approval. Reveals the deposit address onchain — no privacy is gained.
+Emergency exit without ASP approval. Reveals the deposit address onchain — no privacy is gained. Works even when the ASP is offline — the CLI falls back to a built-in pool registry verified on-chain.
 
 ```bash
 privacy-pools exit ETH --from-pa PA-1 --agent
@@ -417,6 +419,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `INPUT_ERROR`                        | INPUT    | No        | Bad arguments, missing flags               |
 | `RPC_ERROR`                          | RPC      | No        | RPC call failure                            |
 | `RPC_NETWORK_ERROR`                  | RPC      | Yes       | Network connectivity issue                  |
+| `RPC_POOL_RESOLUTION_FAILED`         | RPC      | Yes       | Pool resolution failed (ASP + RPC both down)|
 | `ASP_ERROR`                          | ASP      | No        | ASP service failure                         |
 | `RELAYER_ERROR`                      | RELAYER  | No        | Relayer request failure                     |
 | `PROOF_ERROR`                        | PROOF    | No        | Proof generation failure                    |
@@ -449,7 +452,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 
 When `retryable: true` is present in the error response:
 
-1. For `RPC_NETWORK_ERROR`: exponential backoff (1s, 2s, 4s), max 3 retries
+1. For `RPC_NETWORK_ERROR` or `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
 2. For `CONTRACT_INCORRECT_ASP_ROOT` or `PROOF_MERKLE_ERROR`: run `sync --agent` first, then retry the original command
 3. For `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
 

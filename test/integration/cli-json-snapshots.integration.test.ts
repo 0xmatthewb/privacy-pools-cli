@@ -92,7 +92,7 @@ describe("JSON envelope structure snapshots", () => {
   });
 
   test("stats --json error envelope shape (ASP offline)", () => {
-    const result = runCli(["--json", "--chain", "mainnet", "stats"], {
+    const result = runCli(["--json", "stats"], {
       home: createTempHome(),
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,

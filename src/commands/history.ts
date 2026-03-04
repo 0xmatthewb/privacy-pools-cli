@@ -184,7 +184,7 @@ export function createHistoryCommand(): Command {
           deploymentBlock: chainConfig.startBlock,
         }));
 
-        const dataService = getDataService(
+        const dataService = await getDataService(
           chainConfig,
           pools[0].pool,
           globalOpts?.rpcUrl

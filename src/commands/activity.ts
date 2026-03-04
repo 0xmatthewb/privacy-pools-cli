@@ -200,9 +200,10 @@ export function createActivityCommand(): Command {
           chain: chainConfig.name,
           page: parseNumberish(response.page) ?? page,
           perPage: parseNumberish(response.perPage) ?? perPage,
-          total: parseNumberish(response.total) ?? null,
-          totalPages: parseNumberish(response.totalPages) ?? null,
+          total: null,
+          totalPages: null,
           events,
+          chainFiltered: true,
         });
       } catch (error) {
         printError(error, isJson);

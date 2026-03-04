@@ -194,7 +194,7 @@ export function createDepositCommand(): Command {
 
         // Load wallet/account state and generate deposit secrets.
         const mnemonic = loadMnemonic();
-        const dataService = getDataService(
+        const dataService = await getDataService(
           chainConfig,
           pool.pool,
           globalOpts?.rpcUrl

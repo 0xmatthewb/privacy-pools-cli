@@ -3,26 +3,28 @@ import { runCli, createTempHome, mustInitSeededHome, parseJsonOutput } from "../
 
 const OFFLINE_POOL_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+  PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
 };
 
 describe("--unsigned-format tx output normalization", () => {
-  test("deposit --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
+  test("deposit --unsigned-format tx is accepted and fails at pool resolution (ASP+RPC offline)", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(4);
+    // With KNOWN_POOLS fallback, CLI tries ASP → KNOWN_POOLS → RPC (both offline)
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("ASP");
+    expect(json.error?.category).toBe("RPC");
   });
 
-  test("withdraw --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
+  test("withdraw --unsigned-format tx is accepted and fails at pool resolution (ASP+RPC offline)", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
@@ -43,29 +45,29 @@ describe("--unsigned-format tx output normalization", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(4);
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("ASP");
+    expect(json.error?.category).toBe("RPC");
   });
 
-  test("ragequit --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
+  test("ragequit --unsigned-format tx is accepted and fails at pool resolution (ASP+RPC offline)", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(4);
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("ASP");
+    expect(json.error?.category).toBe("RPC");
   });
 });
 

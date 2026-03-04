@@ -79,6 +79,24 @@ from the current working directory. This prevents a malicious `.env` in a
 cloned repository from silently redirecting RPC, ASP, or relayer endpoints
 or swapping the signer key.
 
+### ASP-Offline Pool Resolution
+
+When the ASP is unreachable, the CLI falls back to a built-in pool
+registry (`KNOWN_POOLS` in `src/config/chains.ts`) for symbol-to-address
+resolution. This ensures emergency commands like `ragequit` work even
+when the ASP is offline. The hardcoded addresses are always **verified
+on-chain** via the entrypoint contract before use — if pool addresses
+change, the on-chain check catches the mismatch and returns a clear
+error.
+
+### RPC Health Probing
+
+Before each SDK operation, the CLI probes candidate RPC URLs with a
+lightweight `eth_blockNumber` call (capped at 3 seconds) and uses the
+first healthy one. When only one URL is configured, the probe is skipped
+entirely. If all probes fail, the first URL is used so downstream
+operations produce the natural error.
+
 ### Preflight Checks
 
 Before submitting any transaction, the CLI runs preflight gates:

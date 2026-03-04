@@ -189,11 +189,11 @@ Defaults to all mainnets when no `--chain` is specified.
 }
 ```
 
-`chains` is present when querying multiple chains (no `--chain` specified). With a specific `--chain`, `chains` is omitted.
+`chains` is present when querying multiple chains (no `--chain` specified). With a specific `--chain` but no `--asset`, events are filtered client-side: `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
-**Per-pool** (`--asset`): `mode` is `"pool-activity"` and root includes `asset`, `pool`, and `scope`.
+**Per-pool** (`--asset`): `mode` is `"pool-activity"` and root includes `asset`, `pool`, and `scope`. Pagination totals are accurate (server-side filtering).
 
-`timestamp` is milliseconds since epoch (number or null). `total` and `totalPages` may be null.
+`timestamp` is milliseconds since epoch (number or null). `total` and `totalPages` may be null (always null when `chainFiltered: true`).
 
 ### `stats global`
 
@@ -201,12 +201,12 @@ Defaults to all mainnets when no `--chain` is specified.
 pp stats global --agent
 ```
 
-Defaults to all mainnets when no `--chain` is specified.
+Always returns aggregate cross-chain statistics. The `--chain` flag is **not** supported; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
 
 ```json
 {
   "mode": "global-stats",
-  "chain": "mainnet",
+  "chain": "all-mainnets",
   "chains": ["mainnet", "arbitrum", "optimism"],
   "cacheTimestamp": "2025-01-15T12:00:00Z",
   "allTime": {
@@ -232,7 +232,7 @@ Defaults to all mainnets when no `--chain` is specified.
 }
 ```
 
-`chains` and `perChain` are present when querying multiple chains (no `--chain` specified). With a specific `--chain`, both are omitted. `cacheTimestamp`, `allTime`, and `last24h` may be null. The `allTime`/`last24h` objects come from the ASP service and may contain additional fields.
+`chain` is always `"all-mainnets"`. `chains` lists the queried chain names. `perChain` contains per-chain breakdowns. `cacheTimestamp`, `allTime`, and `last24h` may be null. The `allTime`/`last24h` objects come from the ASP service and may contain additional fields.
 
 ### `stats pool`
 
@@ -696,6 +696,7 @@ All errors in JSON mode:
 | `INPUT_ERROR` | INPUT | No | Bad arguments, missing flags |
 | `RPC_ERROR` | RPC | No | RPC call failure |
 | `RPC_NETWORK_ERROR` | RPC | Yes | Network connectivity issue |
+| `RPC_POOL_RESOLUTION_FAILED` | RPC | Yes | Pool resolution failed (ASP + RPC both down) |
 | `ASP_ERROR` | ASP | No | ASP service failure |
 | `RELAYER_ERROR` | RELAYER | No | Relayer request failure |
 | `PROOF_ERROR` | PROOF | No | Proof generation failure |
@@ -727,7 +728,7 @@ All errors in JSON mode:
 ### Retry strategy
 
 When `retryable: true`:
-1. `RPC_NETWORK_ERROR`: exponential backoff (1s, 2s, 4s), max 3 retries
+1. `RPC_NETWORK_ERROR` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
 2. `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `pp sync --agent`, then retry
 3. `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
 

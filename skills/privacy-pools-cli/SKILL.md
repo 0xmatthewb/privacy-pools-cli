@@ -37,7 +37,7 @@ Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (a
 | Action | CLI (agent-friendly) | Notes |
 |--------|---------------------|-------|
 | Browse pools | `pp pools --agent` | No wallet needed |
-| Global stats | `pp stats global --agent` | No wallet needed |
+| Global stats | `pp stats global --agent` | No wallet needed; `--chain` not supported |
 | Pool stats | `pp stats pool --asset ETH --agent` | No wallet needed |
 | Activity feed | `pp activity --agent` | No wallet needed |
 | Check status | `pp status --agent --check` | No wallet needed |
@@ -235,7 +235,7 @@ The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not fr
 | `sepolia` | 11155111 | Yes |
 | `op-sepolia` | 11155420 | Yes |
 
-Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only commands (`pools`, `activity`, `stats global`) default to all mainnets when no `--chain` is specified.
+Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only commands (`pools`, `activity`) default to all mainnets when no `--chain` is specified. `stats global` always returns cross-chain aggregates and does not accept `--chain`; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
 
 ---
 
@@ -256,12 +256,12 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 
 ## 9. Error handling
 
-Error codes: `INPUT_ERROR`, `RPC_ERROR`, `RPC_NETWORK_ERROR`, `ASP_ERROR`, `RELAYER_ERROR`, `PROOF_ERROR`, `PROOF_GENERATION_FAILED`, `PROOF_MERKLE_ERROR`, `PROOF_MALFORMED`, `CONTRACT_NULLIFIER_ALREADY_SPENT`, `CONTRACT_INCORRECT_ASP_ROOT`, `CONTRACT_INVALID_PROOF`, `CONTRACT_INVALID_PROCESSOOOR`, `CONTRACT_PRECOMMITMENT_ALREADY_USED`, `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`, `CONTRACT_NO_ROOTS_AVAILABLE`, `UNKNOWN_ERROR`.
+Error codes: `INPUT_ERROR`, `RPC_ERROR`, `RPC_NETWORK_ERROR`, `RPC_POOL_RESOLUTION_FAILED`, `ASP_ERROR`, `RELAYER_ERROR`, `PROOF_ERROR`, `PROOF_GENERATION_FAILED`, `PROOF_MERKLE_ERROR`, `PROOF_MALFORMED`, `CONTRACT_NULLIFIER_ALREADY_SPENT`, `CONTRACT_INCORRECT_ASP_ROOT`, `CONTRACT_INVALID_PROOF`, `CONTRACT_INVALID_PROCESSOOOR`, `CONTRACT_PRECOMMITMENT_ALREADY_USED`, `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`, `CONTRACT_NO_ROOTS_AVAILABLE`, `UNKNOWN_ERROR`.
 
 Exit codes: 0 (success), 1 (unknown), 2 (input), 3 (RPC), 4 (ASP), 5 (relayer), 6 (proof), 7 (contract).
 
 Retryable errors include `retryable: true`. Recommended retry strategy:
-- `RPC_NETWORK_ERROR`: exponential backoff (1s, 2s, 4s), max 3 retries
+- `RPC_NETWORK_ERROR` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
 - `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `pp sync --agent` first, then retry
 - `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
 

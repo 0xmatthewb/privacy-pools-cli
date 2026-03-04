@@ -5,7 +5,7 @@ import {
 import { createPublicClient, fallback, http } from "viem";
 import type { PublicClient, Address } from "viem";
 import type { ChainConfig } from "../types.js";
-import { getRpcUrl, getRpcUrls } from "./config.js";
+import { getRpcUrls } from "./config.js";
 import { loadPrivateKey } from "./wallet.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 
@@ -35,7 +35,7 @@ export async function getContracts(
   privateKeyOverride?: string
 ) {
   const sdk = await getSDK();
-  const rpcUrl = getRpcUrl(chainConfig.id, rpcOverride);
+  const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
   const privateKey = privateKeyOverride ?? loadPrivateKey();
 
   return sdk.createContractInstance(
@@ -62,12 +62,55 @@ export function getPublicClient(
   });
 }
 
-export function getDataService(
+/**
+ * Probes RPC URLs in order and returns the first that responds to
+ * `eth_blockNumber` within a short timeout.  Falls back to the first
+ * URL if all probes fail so the caller still gets the natural error.
+ *
+ * When only a single URL is available the probe is skipped entirely
+ * (fast path – no network call).
+ */
+export async function getHealthyRpcUrl(
+  chainId: number,
+  rpcOverride?: string
+): Promise<string> {
+  const urls = getRpcUrls(chainId, rpcOverride);
+  if (urls.length <= 1) return urls[0];
+
+  const probeTimeoutMs = Math.min(getNetworkTimeoutMs(), 3_000);
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_blockNumber",
+          params: [],
+        }),
+        signal: AbortSignal.timeout(probeTimeoutMs),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { result?: string };
+        if (json.result) return url;
+      }
+    } catch {
+      // URL unhealthy – try next
+    }
+  }
+
+  // All probes failed; return first URL so downstream gets the natural error.
+  return urls[0];
+}
+
+export async function getDataService(
   chainConfig: ChainConfig,
   poolAddress: Address,
   rpcOverride?: string
-): DataService {
-  const rpcUrl = getRpcUrl(chainConfig.id, rpcOverride);
+): Promise<DataService> {
+  const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
   return new DataService([
     {
       chainId: chainConfig.id,

@@ -136,13 +136,17 @@ describe("activity ASP-offline error envelopes", () => {
     expect(result.stderr.trim()).toBe("");
   });
 
-  test("activity --json --asset ETH with ASP offline returns ASP error envelope", () => {
+  test("activity --json --asset ETH with ASP+RPC offline returns RPC error envelope", () => {
     const result = runCli(
       ["--json", "--chain", "mainnet", "activity", "--asset", "ETH"],
-      { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
+      { home: createTempHome(), timeoutMs: 10_000, env: {
+        ...OFFLINE_ASP_ENV,
+        PRIVACY_POOLS_RPC_URL_ETHEREUM: "http://127.0.0.1:9",
+      }}
     );
-    // Pool resolution goes through resolvePool → ASP client → classified as ASP error
-    expect(result.status).toBe(4);
+    // With KNOWN_POOLS fallback (F-02), pool resolution tries ASP → KNOWN_POOLS → RPC.
+    // Both are offline, so it fails with RPC error (exit 3).
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       schemaVersion: string;
@@ -151,7 +155,7 @@ describe("activity ASP-offline error envelopes", () => {
     }>(result.stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(false);
-    expect(json.error.category).toBe("ASP");
+    expect(json.error.category).toBe("RPC");
     expect(result.stderr.trim()).toBe("");
   });
 });

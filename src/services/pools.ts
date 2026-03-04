@@ -1,7 +1,7 @@
 import type { Address, PublicClient } from "viem";
 import { erc20Abi, parseAbi } from "viem";
 import type { ChainConfig, PoolStats } from "../types.js";
-import { NATIVE_ASSET_ADDRESS } from "../config/chains.js";
+import { NATIVE_ASSET_ADDRESS, KNOWN_POOLS } from "../config/chains.js";
 import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
 import { getPublicClient } from "./sdk.js";
 import { CLIError } from "../utils/errors.js";
@@ -387,12 +387,16 @@ export async function resolvePool(
     }
   }
 
-  // Try to resolve by symbol name
-  const pools = await listPools(chainConfig, rpcOverride);
+  // Try to resolve by symbol name via ASP first.
   const normalized = assetInput.toUpperCase();
-  const match = pools.find((p) => p.symbol.toUpperCase() === normalized);
 
-  if (!match) {
+  try {
+    const pools = await listPools(chainConfig, rpcOverride);
+    const match = pools.find((p) => p.symbol.toUpperCase() === normalized);
+
+    if (match) return match;
+
+    // ASP reachable but symbol not found — no fallback needed.
     const available = pools.map((p) => p.symbol).join(", ");
     throw new CLIError(
       `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
@@ -401,7 +405,60 @@ export async function resolvePool(
         ? `Available assets: ${available}`
         : "No pools found. Try using --asset with a contract address."
     );
+  } catch (error) {
+    // Re-throw non-ASP errors (e.g. INPUT errors from the block above).
+    if (error instanceof CLIError && error.category !== "ASP") {
+      throw error;
+    }
+    // ASP unreachable — fall through to hardcoded fallback.
   }
 
-  return match;
+  // Fallback: resolve symbol via hardcoded known-pool registry and
+  // verify on-chain.  This allows emergency commands (e.g. ragequit)
+  // to work when the ASP is offline.
+  const knownAssets = KNOWN_POOLS[chainConfig.id];
+  const knownAddress = knownAssets?.[normalized];
+
+  if (knownAddress) {
+    try {
+      const assetConfig = await getAssetConfigReadOnly(
+        publicClient,
+        chainConfig.entrypoint,
+        knownAddress
+      );
+      const scope = await getScopeReadOnly(publicClient, assetConfig.pool);
+      const { symbol, decimals } = await resolveTokenMetadata(
+        publicClient,
+        knownAddress
+      );
+
+      return {
+        asset: knownAddress,
+        pool: assetConfig.pool,
+        scope,
+        symbol,
+        decimals,
+        minimumDepositAmount: assetConfig.minimumDepositAmount,
+        vettingFeeBPS: assetConfig.vettingFeeBPS,
+        maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
+      };
+    } catch (rpcError) {
+      // In the KNOWN_POOLS fallback path the ASP is already confirmed
+      // unreachable, so any error from the on-chain verification call is
+      // an RPC failure regardless of the specific error message format.
+      throw new CLIError(
+        `ASP is offline and RPC fallback also failed for "${assetInput}" on ${chainConfig.name}.`,
+        "RPC",
+        "Check your RPC URL and network connectivity, then retry.",
+        "RPC_POOL_RESOLUTION_FAILED",
+        true
+      );
+    }
+  }
+
+  throw new CLIError(
+    `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
+    "INPUT",
+    "The ASP may be offline. Try using --asset with a token contract address (0x...)."
+  );
 }

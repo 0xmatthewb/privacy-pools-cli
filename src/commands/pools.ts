@@ -201,7 +201,7 @@ export function createPoolsCommand(): Command {
           let myPoolAccounts: PoolAccountRef[] | null = null;
           try {
             const mnemonic = loadMnemonic();
-            const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
+            const dataService = await getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
             const accountService = await initializeAccountService(
               dataService,
               mnemonic,

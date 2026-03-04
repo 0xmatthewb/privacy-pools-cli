@@ -36,7 +36,7 @@ export function createStatsCommand(): Command {
     .description("Show global Privacy Pools statistics (all-time and last 24h)")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --json --chain mainnet\n"
+      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --json\n"
         + commandHelpText({
           jsonFields: "{ mode, chain, cacheTimestamp?, allTime?, last24h? }",
         })
@@ -47,45 +47,35 @@ export function createStatsCommand(): Command {
       const isJson = mode.isJson;
 
       try {
-        const config = loadConfig();
         const explicitChain = globalOpts?.chain;
         const silent = isJson || mode.isQuiet;
 
-        if (!explicitChain) {
-          // Global stats: the ASP global endpoint returns cross-chain data,
-          // so we call it exactly once using a representative chain config.
-          const chainsToQuery = getDefaultReadOnlyChains();
-          const chainNames = chainsToQuery.map((c) => c.name);
-          const representativeChain = chainsToQuery[0];
-          const spin = spinner("Fetching global statistics...", silent);
-          spin.start();
-
-          const stats: GlobalStatisticsResponse = await fetchGlobalStatistics(representativeChain);
-          spin.stop();
-
-          const ctx = createOutputContext(mode);
-          renderGlobalStats(ctx, {
-            mode: "global-stats",
-            chain: "all-mainnets",
-            chains: chainNames,
-            cacheTimestamp: stats.cacheTimestamp ?? null,
-            allTime: stats.allTime ?? null,
-            last24h: stats.last24h ?? null,
-          });
-          return;
+        // Global statistics are aggregated across all chains by the ASP.
+        // The --chain flag is not meaningful here; reject it early.
+        if (explicitChain) {
+          throw new CLIError(
+            "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
+            "INPUT",
+            "For chain-specific data use: privacy-pools stats pool --asset <symbol> --chain <chain>"
+          );
         }
 
-        // Single chain: explicit --chain flag
-        const chainConfig = resolveChain(explicitChain, config.defaultChain);
+        // Global stats: the ASP global endpoint returns cross-chain data,
+        // so we call it exactly once using a representative chain config.
+        const chainsToQuery = getDefaultReadOnlyChains();
+        const chainNames = chainsToQuery.map((c) => c.name);
+        const representativeChain = chainsToQuery[0];
         const spin = spinner("Fetching global statistics...", silent);
         spin.start();
-        const stats: GlobalStatisticsResponse = await fetchGlobalStatistics(chainConfig);
+
+        const stats: GlobalStatisticsResponse = await fetchGlobalStatistics(representativeChain);
         spin.stop();
 
         const ctx = createOutputContext(mode);
         renderGlobalStats(ctx, {
           mode: "global-stats",
-          chain: chainConfig.name,
+          chain: "all-mainnets",
+          chains: chainNames,
           cacheTimestamp: stats.cacheTimestamp ?? null,
           allTime: stats.allTime ?? null,
           last24h: stats.last24h ?? null,

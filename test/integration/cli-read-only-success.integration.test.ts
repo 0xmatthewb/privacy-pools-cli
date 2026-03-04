@@ -53,11 +53,12 @@ describe("activity success path", () => {
       schemaVersion: string;
       mode: string;
       chain: string;
+      chainFiltered: boolean;
       events: Array<{ type: string; txHash: string | null }>;
       page: number;
       perPage: number;
-      total: number;
-      totalPages: number;
+      total: number | null;
+      totalPages: number | null;
     }>(result.stdout);
 
     expect(json.success).toBe(true);
@@ -70,8 +71,10 @@ describe("activity success path", () => {
     expect(json.events[0]).toHaveProperty("txHash");
     expect(typeof json.page).toBe("number");
     expect(typeof json.perPage).toBe("number");
-    expect(typeof json.total).toBe("number");
-    expect(typeof json.totalPages).toBe("number");
+    // Chain-filtered global activity nulls pagination totals (F-03)
+    expect(json.total).toBeNull();
+    expect(json.totalPages).toBeNull();
+    expect(json.chainFiltered).toBe(true);
     expect(result.stderr.trim()).toBe("");
   });
 
@@ -97,9 +100,9 @@ describe("activity success path", () => {
 // ── stats ────────────────────────────────────────────────────────────────────
 
 describe("stats global success path", () => {
-  test("stats --json --chain sepolia returns valid global statistics", () => {
+  test("stats --json returns valid global statistics", () => {
     const result = runCli(
-      ["--json", "--chain", "sepolia", "stats"],
+      ["--json", "stats"],
       { home: createTempHome(), timeoutMs: 15_000, env: fixtureEnv() },
     );
     expect(result.status).toBe(0);
@@ -108,7 +111,6 @@ describe("stats global success path", () => {
       success: boolean;
       schemaVersion: string;
       mode: string;
-      chain: string;
       cacheTimestamp: string | null;
       allTime: {
         tvl?: string;
@@ -122,7 +124,6 @@ describe("stats global success path", () => {
     expect(json.success).toBe(true);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.mode).toBe("global-stats");
-    expect(json.chain).toBe("sepolia");
     expect(json.cacheTimestamp).not.toBeNull();
     // allTime statistics structure
     expect(json.allTime).not.toBeNull();
@@ -132,9 +133,9 @@ describe("stats global success path", () => {
     expect(result.stderr.trim()).toBe("");
   });
 
-  test("stats global --json --chain sepolia returns same structure", () => {
+  test("stats global --json returns same structure", () => {
     const result = runCli(
-      ["--json", "--chain", "sepolia", "stats", "global"],
+      ["--json", "stats", "global"],
       { home: createTempHome(), timeoutMs: 15_000, env: fixtureEnv() },
     );
     expect(result.status).toBe(0);
@@ -148,6 +149,22 @@ describe("stats global success path", () => {
     expect(json.success).toBe(true);
     expect(json.mode).toBe("global-stats");
     expect(json.allTime).not.toBeNull();
+  });
+
+  test("stats global --json --chain rejects with INPUT error", () => {
+    const result = runCli(
+      ["--json", "--chain", "sepolia", "stats", "global"],
+      { home: createTempHome(), timeoutMs: 15_000, env: fixtureEnv() },
+    );
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string };
+    }>(result.stdout);
+
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
   });
 });
 

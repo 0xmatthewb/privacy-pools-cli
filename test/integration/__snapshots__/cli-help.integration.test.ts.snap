@@ -350,7 +350,7 @@ Options:
   -h, --help  display help for command
 Examples:
   privacy-pools stats global
-  privacy-pools stats global --json --chain mainnet
+  privacy-pools stats global --json
 JSON output (--json):
   { mode, chain, cacheTimestamp?, allTime?, last24h? }"
 `;

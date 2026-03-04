@@ -187,7 +187,7 @@ export function createRagequitCommand(): Command {
 
         const sdk = await getSDK();
 
-        const dataService = getDataService(
+        const dataService = await getDataService(
           chainConfig,
           pool.pool,
           globalOpts?.rpcUrl

@@ -59,8 +59,9 @@ describe("stats input validation", () => {
 
   test("stats works without init (public read-only command)", () => {
     // stats (global) is a public endpoint — it should NOT require init.
+    // Without --chain it fetches all-mainnets and fails at ASP (not INPUT).
     const result = runCli(
-      ["--json", "--chain", "sepolia", "stats"],
+      ["--json", "stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     // If it required init, it would exit 2 with INPUT. Instead it tries to
@@ -76,6 +77,22 @@ describe("stats input validation", () => {
     // NOT INPUT — proves it passed config/init gate
     expect(json.error.category).not.toBe("INPUT");
   });
+
+  test("stats global --chain rejects with INPUT error", () => {
+    const result = runCli(
+      ["--json", "--chain", "mainnet", "stats", "global"],
+      { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
+    );
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string; message: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("--chain");
+  });
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -85,7 +102,7 @@ describe("stats input validation", () => {
 describe("stats ASP-offline error envelopes", () => {
   test("stats --json (global, default) with ASP offline returns error envelope", () => {
     const result = runCli(
-      ["--json", "--chain", "mainnet", "stats"],
+      ["--json", "stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -107,7 +124,7 @@ describe("stats ASP-offline error envelopes", () => {
 
   test("stats global --json with ASP offline returns error envelope", () => {
     const result = runCli(
-      ["--json", "--chain", "mainnet", "stats", "global"],
+      ["--json", "stats", "global"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -122,13 +139,16 @@ describe("stats ASP-offline error envelopes", () => {
     expect(result.stderr.trim()).toBe("");
   });
 
-  test("stats pool --json --asset ETH with ASP offline returns ASP error envelope", () => {
+  test("stats pool --json --asset ETH with ASP+RPC offline returns RPC error envelope", () => {
     const result = runCli(
       ["--json", "--chain", "mainnet", "stats", "pool", "--asset", "ETH"],
-      { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
+      { home: createTempHome(), timeoutMs: 10_000, env: {
+        ...OFFLINE_ASP_ENV,
+        PRIVACY_POOLS_RPC_URL_ETHEREUM: "http://127.0.0.1:9",
+      }}
     );
-    // Pool resolution goes through resolvePool → ASP client → classified as ASP error
-    expect(result.status).toBe(4);
+    // Pool resolution falls through ASP → KNOWN_POOLS → on-chain RPC (also offline) → exit 3
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       schemaVersion: string;
@@ -137,7 +157,6 @@ describe("stats ASP-offline error envelopes", () => {
     }>(result.stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(false);
-    expect(json.error.category).toBe("ASP");
     expect(result.stderr.trim()).toBe("");
   });
 });
@@ -149,7 +168,7 @@ describe("stats ASP-offline error envelopes", () => {
 describe("stats human-mode output contracts", () => {
   test("stats human-mode error (ASP offline): stderr has Error, stdout is empty", () => {
     const result = runCli(
-      ["--chain", "mainnet", "stats"],
+      ["stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -175,7 +194,7 @@ describe("stats human-mode output contracts", () => {
 describe("stats --agent mode", () => {
   test("--agent stats (global, ASP offline): JSON error on stdout, stderr empty", () => {
     const result = runCli(
-      ["--agent", "--chain", "mainnet", "stats"],
+      ["--agent", "stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -211,7 +230,7 @@ describe("stats --agent mode", () => {
 
   test("--agent stats global (ASP offline): JSON error on stdout, stderr empty", () => {
     const result = runCli(
-      ["--agent", "--chain", "mainnet", "stats", "global"],
+      ["--agent", "stats", "global"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -233,7 +252,7 @@ describe("stats --agent mode", () => {
 describe("stats --quiet suppression", () => {
   test("stats --quiet (ASP offline): error still exits non-zero, stdout is empty", () => {
     const result = runCli(
-      ["--quiet", "--chain", "mainnet", "stats"],
+      ["--quiet", "stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);
@@ -248,7 +267,7 @@ describe("stats --quiet suppression", () => {
 describe("stats error envelope completeness", () => {
   test("stats global ASP-offline error has all envelope fields", () => {
     const result = runCli(
-      ["--json", "--chain", "mainnet", "stats", "global"],
+      ["--json", "stats", "global"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).toBe(1);

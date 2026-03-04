@@ -3,6 +3,7 @@ import { runCli, createTempHome, mustInitSeededHome, parseJsonOutput } from "../
 
 const OFFLINE_POOL_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+  PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
 };
 
 describe("--dry-run flag acceptance", () => {
@@ -21,23 +22,24 @@ describe("--dry-run flag acceptance", () => {
     expect(result.stderr).toContain("No asset specified");
   });
 
-  test("deposit --dry-run is accepted and fails at ASP pool resolution", () => {
+  test("deposit --dry-run is accepted and fails at pool resolution (ASP+RPC offline)", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(4);
+    // With KNOWN_POOLS fallback, CLI tries ASP → KNOWN_POOLS → RPC (both offline)
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("ASP");
+    expect(json.error?.category).toBe("RPC");
   });
 
-  test("withdraw --dry-run is accepted and fails at ASP pool resolution", () => {
+  test("withdraw --dry-run is accepted and fails at pool resolution (ASP+RPC offline)", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
@@ -56,29 +58,29 @@ describe("--dry-run flag acceptance", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(4);
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("ASP");
+    expect(json.error?.category).toBe("RPC");
   });
 
-  test("ragequit --dry-run is accepted and fails at ASP pool resolution", () => {
+  test("ragequit --dry-run is accepted and fails at pool resolution (ASP+RPC offline)", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(4);
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       error?: { category: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("ASP");
+    expect(json.error?.category).toBe("RPC");
   });
 
   test("deposit --dry-run --json produces valid JSON error envelope", () => {
@@ -88,7 +90,7 @@ describe("--dry-run flag acceptance", () => {
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(4);
+    expect(result.status).toBe(3);
     const parsed = parseJsonOutput<{
       success: boolean;
       schemaVersion: string;
@@ -96,6 +98,6 @@ describe("--dry-run flag acceptance", () => {
     }>(result.stdout);
     expect(parsed.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.success).toBe(false);
-    expect(parsed.error?.category).toBe("ASP");
+    expect(parsed.error?.category).toBe("RPC");
   });
 });

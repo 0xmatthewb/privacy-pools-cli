@@ -81,7 +81,7 @@ After depositing, your Pool Account will show `aspStatus: pending` until the ASP
 
 Set the chain per-command with `--chain <name>`, or set a default during `init`. The default chain is `mainnet`.
 
-Each chain has multiple built-in RPC URLs with automatic fallback. If the primary RPC endpoint is unreachable, the CLI transparently retries with a fallback URL. You can still override with `--rpc-url`.
+Each chain has multiple built-in RPC URLs with automatic fallback. Before each operation, the CLI probes candidate URLs and selects the first healthy one. If all probes fail, it falls back to the primary URL so you still get the natural error. You can override with `--rpc-url`.
 
 ## Commands
 
@@ -212,7 +212,7 @@ privacy-pools sync --asset ETH     # sync a single pool
 
 ### `ragequit` (alias: `exit`)
 
-A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Use when the deposit label is not approved by the ASP or its approval was revoked.
+A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Use when the deposit label is not approved by the ASP or its approval was revoked. Works even when the ASP is offline — the CLI falls back to a built-in pool registry verified on-chain.
 
 ```bash
 privacy-pools ragequit ETH -p PA-1
@@ -257,12 +257,12 @@ privacy-pools capabilities --json
 
 ### `activity`
 
-Show the public activity feed (recent deposits, withdrawals, and exits), either globally or for a specific pool. When no `--chain` is specified, shows global activity across all chains.
+Show the public activity feed (recent deposits, withdrawals, and exits), either globally or for a specific pool. When no `--chain` is specified, shows global activity across all chains. When filtering by `--chain` without `--asset`, events are filtered client-side and pagination totals (`total`, `totalPages`) are unavailable.
 
 ```bash
 privacy-pools activity                                 # all mainnets
-privacy-pools activity --chain mainnet                # specific chain
-privacy-pools activity --asset ETH --chain mainnet    # filter to one pool
+privacy-pools activity --chain mainnet                # specific chain (pagination totals unavailable)
+privacy-pools activity --asset ETH --chain mainnet    # filter to one pool (server-side, full pagination)
 privacy-pools activity --page 2 --limit 20             # pagination
 ```
 
@@ -274,17 +274,16 @@ privacy-pools activity --page 2 --limit 20             # pagination
 
 ### `stats`
 
-Show public protocol statistics (all-time and last 24h). Has two subcommands: `global` and `pool`. `stats global` shows aggregate cross-chain statistics when no `--chain` is specified.
+Show public protocol statistics (all-time and last 24h). Has two subcommands: `global` and `pool`. `stats global` always shows aggregate cross-chain statistics; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
 
 ```bash
-privacy-pools stats global                            # all mainnets
-privacy-pools stats global --chain mainnet            # specific chain
+privacy-pools stats global                            # all mainnets (aggregated)
 privacy-pools stats pool --asset ETH --chain mainnet  # per-pool stats
 ```
 
 | Subcommand | Flag | Description |
 |------------|------|-------------|
-| `global` | | Show aggregate statistics across all pools |
+| `global` | | Show aggregate statistics across all chains (does not accept `--chain`) |
 | `pool` | `-a, --asset <symbol\|address>` | Show statistics for a specific pool |
 
 ### `completion`

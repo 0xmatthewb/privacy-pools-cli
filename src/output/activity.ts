@@ -40,6 +40,8 @@ export interface ActivityRenderData {
   asset?: string;
   pool?: string;
   scope?: string;
+  /** True when events were filtered client-side by chain, making pagination totals unavailable. */
+  chainFiltered?: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -80,6 +82,10 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       payload.asset = data.asset;
       payload.pool = data.pool;
       payload.scope = data.scope;
+    }
+    if (data.chainFiltered) {
+      payload.chainFiltered = true;
+      payload.note = "Pagination totals are unavailable when filtering by chain. Results may be sparse.";
     }
     printJsonSuccess(payload, false);
     return;
@@ -134,6 +140,12 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
         (data.total !== null ? ` (${data.total} events)` : "") +
         (data.page < data.totalPages ? `. Next: --page ${data.page + 1}` : "") +
         "\n",
+    );
+  }
+
+  if (data.chainFiltered) {
+    process.stderr.write(
+      `\n  Note: Results filtered to ${data.chain}. Some pages may be sparse.\n`,
     );
   }
 }

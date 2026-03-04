@@ -332,7 +332,7 @@ export function createWithdrawCommand(): Command {
         const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
         const sdk = await getSDK();
 
-        const dataService = getDataService(
+        const dataService = await getDataService(
           chainConfig,
           pool.pool,
           globalOpts?.rpcUrl
