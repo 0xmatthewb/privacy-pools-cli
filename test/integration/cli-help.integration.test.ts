@@ -256,3 +256,69 @@ describe("CLI help and discovery", () => {
     expect(combined).toContain("Describe CLI capabilities for agent discovery");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Help text snapshots — baselines exact output for regression detection.
+//
+// To update snapshots after intentional changes:
+//   bun test --update-snapshots test/integration/cli-help.integration.test.ts
+// ---------------------------------------------------------------------------
+
+/** Strip ANSI escape codes and normalize whitespace for stable snapshots. */
+function normalizeHelp(text: string): string {
+  return text
+    .replace(/\x1b\[[0-9;]*m/g, "")   // strip ANSI color codes
+    .replace(/\r\n/g, "\n")            // normalize line endings
+    .replace(/\s+$/gm, "");            // strip trailing whitespace per line
+}
+
+const SNAPSHOT_COMMANDS = [
+  "init",
+  "status",
+  "pools",
+  "activity",
+  "stats",
+  "deposit",
+  "withdraw",
+  "ragequit",
+  "accounts",
+  "history",
+  "sync",
+  "guide",
+  "capabilities",
+  "completion",
+] as const;
+
+describe("CLI --help snapshots", () => {
+  test("root --help snapshot", () => {
+    const result = runCli(["--help"], { home: createTempHome(), timeoutMs: 10_000 });
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+
+  for (const command of SNAPSHOT_COMMANDS) {
+    test(`${command} --help snapshot`, () => {
+      const result = runCli([command, "--help"], { home: createTempHome(), timeoutMs: 10_000 });
+      expect(result.status).toBe(0);
+      expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+    });
+  }
+
+  test("withdraw quote --help snapshot", () => {
+    const result = runCli(["withdraw", "quote", "--help"], { home: createTempHome(), timeoutMs: 10_000 });
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+
+  test("stats global --help snapshot", () => {
+    const result = runCli(["stats", "global", "--help"], { home: createTempHome(), timeoutMs: 10_000 });
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+
+  test("stats pool --help snapshot", () => {
+    const result = runCli(["stats", "pool", "--help"], { home: createTempHome(), timeoutMs: 10_000 });
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+});

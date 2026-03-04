@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { runCli, createTempHome, initSeededHome, parseJsonOutput } from "../helpers/cli.ts";
+import { runCli, createTempHome, mustInitSeededHome, parseJsonOutput } from "../helpers/cli.ts";
 
 const OFFLINE_POOL_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
@@ -8,7 +8,7 @@ const OFFLINE_POOL_ENV = {
 describe("--unsigned-format tx output normalization", () => {
   test("deposit --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
@@ -24,7 +24,7 @@ describe("--unsigned-format tx output normalization", () => {
 
   test("withdraw --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       [
         "--json",
@@ -54,7 +54,7 @@ describe("--unsigned-format tx output normalization", () => {
 
   test("ragequit --unsigned-format tx is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
@@ -72,7 +72,7 @@ describe("--unsigned-format tx output normalization", () => {
 describe("--json output includes operation field", () => {
   test("deposit --json error output has schemaVersion", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }

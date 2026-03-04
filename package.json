@@ -23,6 +23,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "bun test ./test/unit ./test/integration ./test/fuzz ./test/services",
+    "test:ci": "bun test ./test/unit ./test/integration ./test/fuzz ./test/services && bun test ./test/conformance --timeout 120000",
     "test:all": "bun test ./test/unit ./test/integration ./test/fuzz ./test/services && bun test ./test/conformance --timeout 120000",
     "test:conformance": "bun test ./test/conformance --timeout 120000",
     "test:fuzz": "bun test ./test/fuzz --timeout 120000",

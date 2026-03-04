@@ -12,7 +12,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   createTempHome,
-  initSeededHome,
+  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -56,7 +56,7 @@ describe("JSON envelope structure snapshots", () => {
 
   test("status --json (initialized) success envelope shape", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(
       ["--json", "--rpc-url", "http://127.0.0.1:9", "status"],
@@ -130,7 +130,7 @@ describe("JSON envelope structure snapshots", () => {
 
   test("accounts --json envelope shape (initialized, offline)", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "accounts"], {
       home,
@@ -144,7 +144,7 @@ describe("JSON envelope structure snapshots", () => {
 
   test("history --json envelope shape (initialized, offline)", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "history"], {
       home,

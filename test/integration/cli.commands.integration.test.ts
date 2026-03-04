@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createTempHome, initSeededHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
+import { createTempHome, initSeededHome, mustInitSeededHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
 
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
@@ -51,7 +51,7 @@ describe("CLI command integration", () => {
 
   test("status honors --chain override without mutating configured defaultChain", () => {
     const home = createTempHome();
-    initSeededHome(home, "mainnet");
+    mustInitSeededHome(home, "mainnet");
 
     const statusResult = runCli(["--json", "--chain", "sepolia", "status"], {
       home,
@@ -77,7 +77,7 @@ describe("CLI command integration", () => {
 
   test("status --check runs both health checks", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const statusResult = runCli(
       ["-j", "-c", "sepolia", "--rpc-url", "http://127.0.0.1:9", "status", "--check"],
@@ -104,7 +104,7 @@ describe("CLI command integration", () => {
 
   test("deposit without --asset in --yes mode fails with INPUT error", () => {
     const home = createTempHome();
-    initSeededHome(home);
+    mustInitSeededHome(home);
 
     const result = runCli(["--json", "deposit", "0.1", "--yes"], { home });
     expect(result.status).toBe(2);
@@ -123,7 +123,7 @@ describe("CLI command integration", () => {
 
   test("withdraw without --to in relayed mode fails fast", () => {
     const home = createTempHome();
-    initSeededHome(home);
+    mustInitSeededHome(home);
 
     const result = runCli(["--json", "withdraw", "0.1", "--yes"], { home });
     expect(result.status).toBe(2);
@@ -176,7 +176,7 @@ describe("CLI command integration", () => {
 
   test("accounts keeps JSON contract when ASP is unreachable", () => {
     const home = createTempHome();
-    initSeededHome(home, "mainnet");
+    mustInitSeededHome(home, "mainnet");
 
     const accounts = runCli(["--json", "--chain", "mainnet", "accounts"], {
       home,
@@ -248,7 +248,7 @@ describe("CLI command integration", () => {
 
   test("sync command preserves JSON envelope when ASP is unreachable", () => {
     const home = createTempHome();
-    initSeededHome(home, "mainnet");
+    mustInitSeededHome(home, "mainnet");
 
     const result = runCli(["--json", "--chain", "mainnet", "sync"], {
       home,
@@ -270,7 +270,7 @@ describe("CLI command integration", () => {
 
   test("withdraw quote without --asset fails with INPUT envelope", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "withdraw", "quote", "0.1"], {
       home,
@@ -291,7 +291,7 @@ describe("CLI command integration", () => {
 
   test("deposit --unsigned emits machine-readable INPUT error without --asset", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["deposit", "0.1", "--unsigned"], {
       home,
@@ -313,7 +313,7 @@ describe("CLI command integration", () => {
 
   test("withdraw --unsigned emits machine-readable INPUT error without --asset", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["withdraw", "0.1", "--unsigned"], {
       home,
@@ -335,7 +335,7 @@ describe("CLI command integration", () => {
 
   test("ragequit --unsigned emits machine-readable INPUT error without --asset", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["ragequit", "--unsigned"], {
       home,
@@ -357,7 +357,7 @@ describe("CLI command integration", () => {
 
   test("deposit positional alias parses asset-first form (deposit ETH 0.1)", () => {
     const home = createTempHome();
-    initSeededHome(home, "mainnet");
+    mustInitSeededHome(home, "mainnet");
 
     const result = runCli(
       [
@@ -388,7 +388,7 @@ describe("CLI command integration", () => {
 
   test("withdraw quote positional alias parses asset-first form (withdraw quote ETH 0.1)", () => {
     const home = createTempHome();
-    initSeededHome(home, "mainnet");
+    mustInitSeededHome(home, "mainnet");
 
     const result = runCli(
       [
@@ -419,7 +419,7 @@ describe("CLI command integration", () => {
 
   test("withdraw positional alias parses asset-first form (withdraw ETH 0.1 --direct)", () => {
     const home = createTempHome();
-    initSeededHome(home, "mainnet");
+    mustInitSeededHome(home, "mainnet");
 
     const result = runCli(
       [
@@ -451,7 +451,7 @@ describe("CLI command integration", () => {
 
   test("ragequit positional alias parses asset-only form (ragequit ETH)", () => {
     const home = createTempHome();
-    initSeededHome(home, "mainnet");
+    mustInitSeededHome(home, "mainnet");
 
     const result = runCli(
       [
@@ -481,7 +481,7 @@ describe("CLI command integration", () => {
 
   test("positional + --asset together is rejected as ambiguous", () => {
     const home = createTempHome();
-    initSeededHome(home, "mainnet");
+    mustInitSeededHome(home, "mainnet");
 
     const result = runCli(["--json", "deposit", "ETH", "0.1", "--asset", "ETH", "--yes"], {
       home,
@@ -526,7 +526,7 @@ describe("CLI command integration", () => {
 
   test("--json init refuses to overwrite existing state without --force", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "init"], {
       home,
@@ -547,7 +547,7 @@ describe("CLI command integration", () => {
 
   test("--json init --force allows overwrite and reports persisted signerKeySet accurately", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "init", "--force"], {
       home,
@@ -591,7 +591,7 @@ describe("CLI command integration", () => {
 
   test("--json deposit is non-interactive and fails fast without --asset", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "deposit", "0.1"], {
       home,
@@ -611,7 +611,7 @@ describe("CLI command integration", () => {
 
   test("--json withdraw is non-interactive and fails fast without --asset", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "withdraw", "0.1", "--direct"], {
       home,
@@ -631,7 +631,7 @@ describe("CLI command integration", () => {
 
   test("--json ragequit is non-interactive and fails fast without --asset", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "ragequit"], {
       home,
@@ -651,7 +651,7 @@ describe("CLI command integration", () => {
 
   test("--json exit is non-interactive and fails fast without --asset", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--json", "exit"], {
       home,
@@ -671,7 +671,7 @@ describe("CLI command integration", () => {
 
   test("withdraw rejects malformed --from-pa before network calls", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(
       ["--json", "withdraw", "0.1", "--asset", "ETH", "--to", "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A", "--from-pa", "not-a-pa", "--chain", "sepolia"],
@@ -690,7 +690,7 @@ describe("CLI command integration", () => {
 
   test("ragequit rejects malformed --from-pa before network calls", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--from-pa", "not-a-pa", "--chain", "sepolia"],
@@ -709,7 +709,7 @@ describe("CLI command integration", () => {
 
   test("ragequit rejects --from-pa when combined with deprecated --commitment", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--from-pa", "PA-1", "--commitment", "0", "--chain", "sepolia"],
@@ -760,7 +760,7 @@ describe("CLI command integration", () => {
 
   test("--agent init refuses overwrite without --force", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(["--agent", "init"], {
       home,

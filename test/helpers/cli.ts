@@ -184,3 +184,17 @@ export function initSeededHome(home: string, chain: string = "mainnet"): CliRunR
     { home, timeoutMs: 60_000 }
   );
 }
+
+/**
+ * Like initSeededHome but throws if init exits non-zero.
+ * Prevents tests from silently passing when setup fails.
+ */
+export function mustInitSeededHome(home: string, chain?: string): string {
+  const result = initSeededHome(home, chain);
+  if (result.status !== 0) {
+    throw new Error(
+      `mustInitSeededHome failed (exit ${result.status}):\n${result.stderr}`
+    );
+  }
+  return home;
+}

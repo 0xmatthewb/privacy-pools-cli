@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { runCli, createTempHome, initSeededHome, parseJsonOutput } from "../helpers/cli.ts";
+import { runCli, createTempHome, mustInitSeededHome, parseJsonOutput } from "../helpers/cli.ts";
 
 const OFFLINE_POOL_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
@@ -8,7 +8,7 @@ const OFFLINE_POOL_ENV = {
 describe("--dry-run flag acceptance", () => {
   test("deposit --dry-run without --json keeps human-readable errors", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(["deposit", "0.01", "--dry-run", "--chain", "sepolia"], {
       home,
       timeoutMs: 10_000,
@@ -23,7 +23,7 @@ describe("--dry-run flag acceptance", () => {
 
   test("deposit --dry-run is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
@@ -39,7 +39,7 @@ describe("--dry-run flag acceptance", () => {
 
   test("withdraw --dry-run is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       [
         "--json",
@@ -67,7 +67,7 @@ describe("--dry-run flag acceptance", () => {
 
   test("ragequit --dry-run is accepted and fails at ASP pool resolution", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
@@ -83,7 +83,7 @@ describe("--dry-run flag acceptance", () => {
 
   test("deposit --dry-run --json produces valid JSON error envelope", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }

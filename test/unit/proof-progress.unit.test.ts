@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { withProofProgress, resetFirstRunMessage } from "../../src/utils/proof-progress.ts";
 
 function mockSpinner(): { text: string } {
@@ -66,18 +66,20 @@ describe("withProofProgress", () => {
   });
 
   test("completes cleanly without lingering intervals on success", async () => {
+    jest.useFakeTimers();
     const spin = mockSpinner();
     const result = await withProofProgress(spin as any, "Quick", async () => "ok");
     expect(result).toBe("ok");
     // If interval was not cleared, spin.text would keep changing.
-    // Capture the text after completion and verify it stays stable.
-    // Use 1100ms — slightly above the 1s interval — to avoid flakiness.
+    // Advance past the 1s interval to verify no lingering callback fires.
     const textAfter = spin.text;
-    await new Promise((r) => setTimeout(r, 1100));
+    jest.advanceTimersByTime(1100);
     expect(spin.text).toBe(textAfter);
+    jest.useRealTimers();
   });
 
   test("completes cleanly without lingering intervals on error", async () => {
+    jest.useFakeTimers();
     const spin = mockSpinner();
     try {
       await withProofProgress(spin as any, "Fail", async () => {
@@ -87,19 +89,24 @@ describe("withProofProgress", () => {
       // expected
     }
     const textAfter = spin.text;
-    await new Promise((r) => setTimeout(r, 1100));
+    jest.advanceTimersByTime(1100);
     expect(spin.text).toBe(textAfter);
+    jest.useRealTimers();
   });
 
   test("updates spinner text with elapsed time after delay", async () => {
+    jest.useFakeTimers();
     const spin = mockSpinner();
-    const result = await withProofProgress(spin as any, "Proving", async () => {
+    const promise = withProofProgress(spin as any, "Proving", async () => {
       await new Promise((r) => setTimeout(r, 1050));
       return "proof";
     });
+    // Advance past both the 1000ms interval and the 1050ms inner timeout.
+    jest.advanceTimersByTime(1100);
+    const result = await promise;
     expect(result).toBe("proof");
-    // After ~1.05s the interval should have fired at least once, adding elapsed seconds.
     expect(spin.text).toMatch(/Proving\.\.\. \(\d+s\)/);
+    jest.useRealTimers();
   });
 
   test("first call shows circuit download message", async () => {

@@ -15,7 +15,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   createTempHome,
-  initSeededHome,
+  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -31,7 +31,7 @@ const OFFLINE_ENV = {
 
 function seededHome(chain: string = "sepolia"): string {
   const home = createTempHome();
-  initSeededHome(home, chain);
+  mustInitSeededHome(home, chain);
   return home;
 }
 
@@ -535,7 +535,59 @@ describe("--dry-run output contracts", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 7. stdout/stderr stream separation
+// 7. Mode-contract matrix (representative commands)
+//
+// Verifies the 4 output modes work correctly for both public and init-required
+// commands. Uses one representative of each category rather than exhaustively
+// testing every command — specific commands are covered by dedicated test files.
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("mode-contract matrix", () => {
+  const MATRIX = [
+    { label: "public (activity)",       args: ["--chain", "mainnet", "activity"], needsInit: false },
+    { label: "init-required (accounts)", args: ["accounts"],                       needsInit: true },
+  ] as const;
+
+  for (const tc of MATRIX) {
+    describe(tc.label, () => {
+      const home = tc.needsInit ? seededHome() : createTempHome();
+      const opts = { home, timeoutMs: 15_000, env: OFFLINE_ENV };
+
+      test("--json: parseable JSON on stdout, stderr empty", () => {
+        const result = runCli(["--json", ...tc.args], opts);
+        expect(result.status).not.toBe(null);
+        const json = parseJsonOutput<{ schemaVersion: string; success: boolean }>(result.stdout);
+        expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+        expect(typeof json.success).toBe("boolean");
+        expect(result.stderr.trim()).toBe("");
+      });
+
+      test("--agent: parseable JSON on stdout, stderr empty", () => {
+        const result = runCli(["--agent", ...tc.args], opts);
+        expect(result.status).not.toBe(null);
+        const json = parseJsonOutput<{ schemaVersion: string; success: boolean }>(result.stdout);
+        expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+        expect(typeof json.success).toBe("boolean");
+        expect(result.stderr.trim()).toBe("");
+      });
+
+      test("--quiet: stdout empty", () => {
+        const result = runCli(["--quiet", ...tc.args], opts);
+        expect(result.stdout.trim()).toBe("");
+      });
+
+      test("human: error on stderr, stdout empty", () => {
+        const result = runCli(tc.args, opts);
+        expect(result.status).not.toBe(0);
+        expect(result.stderr).toContain("Error");
+        expect(result.stdout.trim()).toBe("");
+      });
+    });
+  }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 8. stdout/stderr stream separation
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe("stdout/stderr stream separation", () => {

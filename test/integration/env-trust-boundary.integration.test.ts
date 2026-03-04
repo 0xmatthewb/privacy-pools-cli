@@ -18,14 +18,14 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createTempHome, initSeededHome } from "../helpers/cli.ts";
+import { createTempHome, mustInitSeededHome } from "../helpers/cli.ts";
 import { CLI_CWD } from "../helpers/cli.ts";
 
 describe(".env trust boundary", () => {
   test("CWD .env does not override config-home for sensitive env vars", () => {
     // 1. Set up a seeded home so status --json returns a full config.
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     // 2. Create a temporary CWD with a poisoned .env that tries to override
     //    the RPC URL and private key.
@@ -91,7 +91,7 @@ describe(".env trust boundary", () => {
   test("config-home .env IS loaded for sensitive vars", () => {
     // Verify the positive case: values written to configHome/.env are used.
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const configDir = join(home, ".privacy-pools");
     const MARKER_ASP = "http://config-home-marker.test:9999";

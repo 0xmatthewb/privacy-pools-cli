@@ -7,6 +7,8 @@ const RAW_BASE = "https://raw.githubusercontent.com";
 /** Set CONFORMANCE_UPSTREAM_REF to a commit SHA for deterministic CI runs. */
 const BRANCH = process.env.CONFORMANCE_UPSTREAM_REF || "main";
 
+const FETCH_TIMEOUT_MS = 15_000;
+
 export const CORE_REPO = "0xbow-io/privacy-pools-core";
 export const FRONTEND_REPO = "0xbow-io/privacy-pools-website";
 
@@ -21,11 +23,17 @@ export async function fetchGitHubFile(
   if (hit !== undefined) return hit;
 
   const url = `${RAW_BASE}/${repo}/${BRANCH}/${path}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`GET ${url} \u2192 ${res.status} ${res.statusText}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) {
+      throw new Error(`GET ${url} \u2192 ${res.status} ${res.statusText}`);
+    }
+    const text = await res.text();
+    cache.set(key, text);
+    return text;
+  } finally {
+    clearTimeout(timeout);
   }
-  const text = await res.text();
-  cache.set(key, text);
-  return text;
 }

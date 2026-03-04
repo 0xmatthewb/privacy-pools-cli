@@ -17,7 +17,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   createTempHome,
-  initSeededHome,
+  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -29,7 +29,7 @@ const OFFLINE_ASP_ENV = {
 
 function seededHome(chain: string = "sepolia"): string {
   const home = createTempHome();
-  initSeededHome(home, chain);
+  mustInitSeededHome(home, chain);
   return home;
 }
 

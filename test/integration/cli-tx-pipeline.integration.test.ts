@@ -20,7 +20,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   createTempHome,
-  initSeededHome,
+  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -31,7 +31,7 @@ const OFFLINE_ENV = {
 
 function seededHome(): string {
   const home = createTempHome();
-  initSeededHome(home, "sepolia");
+  mustInitSeededHome(home, "sepolia");
   return home;
 }
 

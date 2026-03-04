@@ -14,7 +14,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   createTempHome,
-  initSeededHome,
+  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -188,7 +188,7 @@ describe("pools with fixture server", () => {
 describe("status health check success path", () => {
   test("status --json with fixture server reports aspLive true", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     const result = runCli(
       ["--json", "--rpc-url", "http://127.0.0.1:9", "status"],

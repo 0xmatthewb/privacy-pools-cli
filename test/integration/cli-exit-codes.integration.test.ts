@@ -8,7 +8,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   createTempHome,
-  initSeededHome,
+  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -31,7 +31,7 @@ const EXIT_CODE_MAP: Record<string, number> = {
 describe("exit-code matrix", () => {
   test("INPUT error → exit code 2 (missing required option)", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
@@ -76,7 +76,7 @@ describe("exit-code matrix", () => {
 
   test("exit code 2 for invalid --limit value (history)", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "history", "--limit", "-5"],
       { home, timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
@@ -87,7 +87,7 @@ describe("exit-code matrix", () => {
 
   test("JSON error envelopes always include category and code fields", () => {
     const home = createTempHome();
-    initSeededHome(home, "sepolia");
+    mustInitSeededHome(home, "sepolia");
 
     // Trigger an ASP error
     const result = runCli(
