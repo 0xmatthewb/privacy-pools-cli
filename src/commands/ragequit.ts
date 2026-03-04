@@ -62,7 +62,7 @@ export function createRagequitCommand(): Command {
         + "\n  Use 'ragequit' at any time to recover funds publicly to your deposit"
         + "\n  address, even if not approved. No ASP approval is needed, but your"
         + "\n  deposit address is revealed onchain."
-        + "\n\nExamples:\n  privacy-pools ragequit --asset ETH -p PA-1\n  privacy-pools ragequit ETH --unsigned -p PA-1\n  privacy-pools ragequit --asset ETH --dry-run -p PA-1\n  privacy-pools ragequit ETH -p PA-1 --chain mainnet\n"
+        + "\n\nExamples:\n  privacy-pools ragequit ETH -p PA-1\n  privacy-pools ragequit ETH --unsigned -p PA-1\n  privacy-pools ragequit ETH --dry-run -p PA-1\n  privacy-pools ragequit ETH -p PA-1 --chain mainnet\n  privacy-pools ragequit --asset ETH -p PA-1\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
           jsonFields: "{ txHash, amount, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",

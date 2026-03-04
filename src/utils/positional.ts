@@ -1,9 +1,14 @@
 import { CLIError } from "./errors.js";
 
-const AMOUNT_LIKE = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
+const AMOUNT_LIKE = /^(?:\d+(?:\.\d+)?|\.\d+)%?$/;
 
 function isAmountLike(value: string): boolean {
   return AMOUNT_LIKE.test(value.trim());
+}
+
+/** Returns true when value looks like a percentage (e.g. "50%", "100%"). */
+export function isPercentageAmount(value: string): boolean {
+  return /^\d+(?:\.\d+)?%$/.test(value.trim());
 }
 
 export interface AmountAssetInput {

@@ -99,9 +99,12 @@ All responses include `{ "schemaVersion": "1.3.0", "success": true, ... }` envel
 
 ```bash
 pp pools --agent [--all-chains] [--search <query>] [--sort <mode>]
+pp pools ETH --agent                     # detail view for a specific pool
 ```
 
-Defaults to all mainnets when no `--chain` is specified.
+Defaults to all mainnets when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
+
+**Detail view** (`pp pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ mode: "pool-detail", chain, asset, pool, scope, ... }`. Does not support CSV.
 
 **Single chain** (with `--chain`):
 
@@ -318,9 +321,9 @@ pp capabilities --agent
   "agentWorkflow": [
     "1. privacy-pools init --json --yes --default-chain <chain>",
     "2. privacy-pools pools --json --chain <chain>",
-    "3. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
+    "3. privacy-pools deposit <amount> <symbol> --json --yes --chain <chain>",
     "4. privacy-pools accounts --json --chain <chain>  (wait for aspStatus: approved)",
-    "5. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
+    "5. privacy-pools withdraw <amount> <symbol> --to <address> --json --yes --chain <chain>"
   ],
   "agentNotes": {
     "polling": "After depositing, poll 'accounts --json' ...",
@@ -384,8 +387,8 @@ When importing an existing mnemonic or private key, neither `mnemonic` nor `mnem
 ### `deposit`
 
 ```bash
-pp deposit 0.1 --asset ETH --agent
-pp deposit ETH 0.1 --agent
+pp deposit 0.1 ETH --agent
+pp deposit ETH 0.1 --agent               # asset-first syntax also works
 ```
 
 > **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `pp pools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
@@ -434,10 +437,17 @@ pp deposit ETH 0.1 --agent
 ### `withdraw`
 
 ```bash
-pp withdraw 0.05 --asset ETH --to 0xRecipient --agent
-pp withdraw 0.05 --asset ETH --to 0xRecipient --from-pa PA-2 --agent
-pp withdraw 0.1 --asset ETH --direct --agent
+pp withdraw 0.05 ETH --to 0xRecipient --agent
+pp withdraw 0.05 ETH --to 0xRecipient --from-pa PA-2 --agent
+pp withdraw --all ETH --to 0xRecipient --agent
+pp withdraw 50% ETH --to 0xRecipient --agent
+pp withdraw 0.1 ETH --direct --agent
+pp withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
+
+**Amount shortcuts:** `--all` withdraws the entire PA balance. Percentages (`50%`, `100%`) withdraw a fraction. After PA selection, the CLI shows the selected PA's available balance.
+
+**Extra gas (ERC20 only):** `--extra-gas` (default: true for ERC20 tokens) requests gas tokens alongside the withdrawal. Use `--no-extra-gas` to opt out. Ignored for native ETH.
 
 **Success (relayed):**
 
@@ -457,11 +467,12 @@ pp withdraw 0.1 --asset ETH --direct --agent
   "poolAccountNumber": 1,
   "poolAccountId": "PA-1",
   "feeBPS": "50",
+  "extraGas": true,
   "nextStep": "Run 'privacy-pools accounts --chain mainnet' to verify updated balance."
 }
 ```
 
-**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, and `nextStep` includes a note that direct withdrawal links deposit and withdrawal onchain.
+**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, no `extraGas`, and `nextStep` includes a note that direct withdrawal links deposit and withdrawal onchain.
 
 **Dry-run:**
 
@@ -488,7 +499,7 @@ For direct dry-run: `mode: "direct"`, no `feeBPS` or `quoteExpiresAt`.
 **Withdrawal quote:**
 
 ```bash
-pp withdraw quote 0.1 --asset ETH --to 0xRecipient --agent
+pp withdraw quote 0.1 ETH --to 0xRecipient --agent
 ```
 
 ```json
@@ -510,8 +521,8 @@ pp withdraw quote 0.1 --asset ETH --to 0xRecipient --agent
 ### `ragequit` (alias: `exit`)
 
 ```bash
-pp ragequit --asset ETH --from-pa PA-1 --agent
-pp exit --asset ETH --from-pa PA-1 --agent
+pp ragequit ETH --from-pa PA-1 --agent
+pp exit ETH --from-pa PA-1 --agent
 ```
 
 **Success:**

@@ -57,7 +57,7 @@ export function createDepositCommand(): Command {
     .option("--dry-run", "Validate and preview the transaction without submitting")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools deposit 0.1 --asset ETH\n  privacy-pools deposit ETH 0.1\n  privacy-pools deposit 0.05 --asset ETH --json --yes\n  privacy-pools deposit ETH 0.05 --unsigned\n  privacy-pools deposit 0.1 --asset ETH --dry-run\n  privacy-pools deposit ETH 0.1 --chain mainnet\n"
+      "\nExamples:\n  privacy-pools deposit 0.1 ETH\n  privacy-pools deposit 0.05 ETH --json --yes\n  privacy-pools deposit 0.05 ETH --unsigned\n  privacy-pools deposit 0.1 ETH --dry-run\n  privacy-pools deposit 0.1 ETH --chain mainnet\n  privacy-pools deposit 0.1 --asset ETH\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ txHash, amount, committedValue, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",

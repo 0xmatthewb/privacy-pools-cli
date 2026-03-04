@@ -9,8 +9,9 @@ import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
-import { formatAmount, formatBPS, displayDecimals, parseUsd } from "../utils/format.js";
+import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue, formatAddress } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
+import type { PoolAccountRef } from "../utils/pool-accounts.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
   }
 
   if (ctx.mode.isCsv) {
-    printCsv(["Chain", "Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"], []);
+    printCsv(["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"], []);
     return;
   }
 
@@ -148,8 +149,8 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
 
   if (ctx.mode.isCsv) {
     const csvHeaders = allChains
-      ? ["Chain", "Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
-      : ["Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
+      ? ["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
+      : ["Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
     printCsv(
       csvHeaders,
       filteredPools.map(({ chain, pool }) => {
@@ -158,11 +159,11 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
           pool.symbol,
           formatDepositsCount(pool),
           formatStatAmount(
-            pool.acceptedDepositsValue ?? pool.totalInPoolValue,
+            pool.totalInPoolValue ?? pool.acceptedDepositsValue,
             pool.decimals,
             pool.symbol,
           ),
-          parseUsd(pool.acceptedDepositsValueUsd ?? pool.totalInPoolValueUsd),
+          parseUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
           formatStatAmount(pool.pendingDepositsValue, pool.decimals, pool.symbol),
           formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol, dd),
           formatBPS(pool.vettingFeeBPS),
@@ -199,8 +200,8 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   }
 
   const headers = allChains
-    ? ["Chain", "Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
-    : ["Asset", "Total Deposits", "Accepted Funds", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
+    ? ["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
+    : ["Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
 
   printTable(
     headers,
@@ -210,11 +211,11 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
         pool.symbol,
         formatDepositsCount(pool),
         formatStatAmount(
-          pool.acceptedDepositsValue ?? pool.totalInPoolValue,
+          pool.totalInPoolValue ?? pool.acceptedDepositsValue,
           pool.decimals,
           pool.symbol,
         ),
-        parseUsd(pool.acceptedDepositsValueUsd ?? pool.totalInPoolValueUsd),
+        parseUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
         formatStatAmount(
           pool.pendingDepositsValue,
           pool.decimals,
@@ -234,8 +235,139 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   process.stderr.write(
     chalk.dim(
       "\nVetting fees are deducted on deposit.\n" +
-      "Accepted Funds: deposits approved by the ASP (ready for private withdrawal).\n" +
+      "Pool Balance: current total value in the pool (accepted + pending deposits).\n" +
       "Pending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
     ),
   );
+}
+
+// ── Detail View ─────────────────────────────────────────────────────────────
+
+export interface PoolDetailActivityEvent {
+  type: string;
+  amount: string | null;
+  timeLabel: string;
+  status: string | null;
+}
+
+export interface PoolDetailRenderData {
+  chain: string;
+  pool: PoolStats;
+  tokenPrice: number | null;
+  myPoolAccounts: PoolAccountRef[] | null;
+  recentActivity: PoolDetailActivityEvent[] | null;
+}
+
+/**
+ * Render pool detail view: `pools <asset>`.
+ */
+export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData): void {
+  const { chain, pool, tokenPrice, myPoolAccounts, recentActivity } = data;
+  const dd = displayDecimals(pool.decimals);
+  const hasUsd = tokenPrice !== null;
+
+  if (ctx.mode.isCsv) {
+    info("CSV output is not supported for pool detail view. Use --json for structured output.", false);
+    return;
+  }
+
+  if (ctx.mode.isJson) {
+    const payload: Record<string, unknown> = {
+      chain,
+      ...poolToJson(pool),
+    };
+
+    if (myPoolAccounts !== null) {
+      const spendable = myPoolAccounts.filter((pa) => pa.status === "spendable");
+      const myTotal = spendable.reduce((sum, pa) => sum + pa.value, 0n);
+      payload.myFunds = {
+        balance: myTotal.toString(),
+        usdValue: hasUsd ? formatUsdValue(myTotal, pool.decimals, tokenPrice) : null,
+        poolAccounts: spendable.length,
+        pendingCount: spendable.filter((pa) => pa.aspStatus === "pending").length,
+        accounts: myPoolAccounts.map((pa) => ({
+          id: pa.paId,
+          status: pa.status,
+          aspStatus: pa.aspStatus,
+          value: pa.value.toString(),
+        })),
+      };
+    } else {
+      payload.myFunds = null;
+    }
+
+    if (recentActivity !== null) {
+      payload.recentActivity = recentActivity;
+    }
+
+    printJsonSuccess(payload, false);
+    return;
+  }
+
+  const silent = isSilent(ctx);
+  if (silent) return;
+
+  // ── Pool stats ──
+  process.stderr.write(`\n${accentBold(`${pool.symbol} Pool on ${chain}`)}\n`);
+  process.stderr.write(chalk.dim("─".repeat(44)) + "\n");
+
+  const poolBalance = pool.totalInPoolValue ?? pool.acceptedDepositsValue;
+  const poolBalanceUsd = pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd;
+  const pendingFunds = pool.pendingDepositsValue;
+  const pendingUsd = pool.pendingDepositsValueUsd;
+  const allTimeDeposits = pool.totalDepositsValue;
+  const allTimeUsd = pool.totalDepositsValueUsd;
+
+  const fmtVal = (v: bigint | undefined): string =>
+    v !== undefined ? formatAmount(v, pool.decimals, pool.symbol, dd) : "-";
+  const fmtUsd = (v: string | null | undefined): string =>
+    v ? `  (${parseUsd(v)})` : "";
+
+  process.stderr.write(`  Pool Balance:      ${fmtVal(poolBalance)}${fmtUsd(poolBalanceUsd)}\n`);
+  process.stderr.write(`  Pending Funds:     ${fmtVal(pendingFunds)}${fmtUsd(pendingUsd)}\n`);
+  process.stderr.write(`  All-Time Deposits: ${fmtVal(allTimeDeposits)}${fmtUsd(allTimeUsd)}\n`);
+  process.stderr.write(`  Total Deposit #:   ${formatDepositsCount(pool)}\n`);
+  process.stderr.write(`  Vetting Fee:       ${formatBPS(pool.vettingFeeBPS)}\n`);
+  process.stderr.write(`  Min Deposit:       ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol, dd)}\n`);
+
+  // ── My Funds section ──
+  process.stderr.write("\n");
+  if (myPoolAccounts !== null) {
+    const spendable = myPoolAccounts.filter((pa) => pa.status === "spendable");
+    const myTotal = spendable.reduce((sum, pa) => sum + pa.value, 0n);
+    const pendingCount = spendable.filter((pa) => pa.aspStatus === "pending").length;
+    const usdFmt = hasUsd ? `  (${formatUsdValue(myTotal, pool.decimals, tokenPrice)})` : "";
+    process.stderr.write(`  My Funds:          ${formatAmount(myTotal, pool.decimals, pool.symbol, dd)}${usdFmt}\n`);
+    process.stderr.write(`  My Pool Accounts:  ${spendable.length}${pendingCount > 0 ? ` (${pendingCount} pending)` : ""}\n`);
+
+    if (spendable.length > 0) {
+      process.stderr.write("\n");
+      for (const pa of spendable) {
+        const aspLabel = pa.aspStatus === "approved"
+          ? chalk.green("Approved")
+          : pa.aspStatus === "pending"
+            ? chalk.yellow("Pending")
+            : "";
+        const valFmt = formatAmount(pa.value, pool.decimals, pool.symbol, dd);
+        process.stderr.write(`  ${pa.paId}  ${valFmt}  Spendable (${aspLabel})\n`);
+      }
+    }
+  } else {
+    process.stderr.write(chalk.dim(`  Run 'privacy-pools init' to see your funds here.\n`));
+  }
+
+  // ── Recent Activity section ──
+  if (recentActivity !== null && recentActivity.length > 0) {
+    process.stderr.write(`\n${chalk.dim("Recent Activity:")}\n`);
+    for (const event of recentActivity) {
+      const typeFmt = event.type === "deposit" ? "Deposit " :
+        event.type === "withdrawal" ? "Withdraw" : event.type.padEnd(8);
+      const amt = event.amount ?? "-";
+      const time = event.timeLabel;
+      const status = event.status ?? "";
+      process.stderr.write(`  ${typeFmt}  ${amt.padEnd(18)}  ${time.padEnd(10)}  ${status}\n`);
+    }
+  }
+
+  process.stderr.write("\n");
 }

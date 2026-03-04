@@ -88,6 +88,7 @@ describe("barrel re-exports", () => {
     "renderStatus",
     "renderPoolsEmpty",
     "renderPools",
+    "renderPoolDetail",
     "poolToJson",
     "renderAccountsNoPools",
     "renderAccounts",

@@ -42,11 +42,14 @@ export {
 export {
   renderPoolsEmpty,
   renderPools,
+  renderPoolDetail,
   poolToJson,
   type PoolWithChain,
   type ChainSummary,
   type PoolWarning,
   type PoolsRenderData,
+  type PoolDetailRenderData,
+  type PoolDetailActivityEvent,
 } from "./pools.js";
 export {
   renderAccountsNoPools,

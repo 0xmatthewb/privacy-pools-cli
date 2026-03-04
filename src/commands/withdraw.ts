@@ -32,13 +32,13 @@ import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
-import { resolveAmountAndAssetInput } from "../utils/positional.js";
+import { resolveAmountAndAssetInput, isPercentageAmount } from "../utils/positional.js";
 import { printRawTransactions, stringifyBigInts, toSolidityProof } from "../utils/unsigned.js";
 import {
   buildUnsignedDirectWithdrawOutput,
   buildUnsignedRelayedWithdrawOutput,
 } from "../utils/unsigned-flows.js";
-import { explorerTxUrl } from "../config/chains.js";
+import { explorerTxUrl, NATIVE_ASSET_ADDRESS } from "../config/chains.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions, PoolStats } from "../types.js";
@@ -76,7 +76,7 @@ const poolCurrentRootAbi = [
 export function createWithdrawCommand(): Command {
   const command = new Command("withdraw")
     .description("Withdraw from a pool")
-    .argument("<amountOrAsset>", "Amount to withdraw (or asset symbol, see examples)")
+    .argument("[amountOrAsset]", "Amount to withdraw (or asset symbol, see examples)")
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
     .option("-p, --from-pa <PA-#|#>", "Withdraw from a specific Pool Account (e.g. PA-2)")
@@ -85,9 +85,12 @@ export function createWithdrawCommand(): Command {
     .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
     .option("--dry-run", "Generate and verify withdrawal artifacts without submitting")
     .option("-a, --asset <symbol|address>", "Asset to withdraw")
+    .option("--all", "Withdraw entire Pool Account balance")
+    .option("--extra-gas", "Request gas tokens with withdrawal (default: true for ERC20)")
+    .option("--no-extra-gas", "Disable extra gas request")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... -p PA-2\n  privacy-pools withdraw 0.05 --asset ETH --direct\n  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain mainnet\n"
+      "\nExamples:\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2\n  privacy-pools withdraw --all ETH --to 0xRecipient...\n  privacy-pools withdraw 50% ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --direct\n  privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
           jsonFields: "{ mode, txHash, amount, recipient, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
@@ -156,12 +159,54 @@ export function createWithdrawCommand(): Command {
           info("Using relayed withdrawal (recommended: stronger privacy via relayer routing).", silent);
         }
 
-        const { amount: amountStr, asset: positionalOrFlagAsset } = resolveAmountAndAssetInput(
-          "withdraw",
-          firstArg,
-          secondArg,
-          opts.asset
-        );
+        // Resolve amount + asset. With --all, first arg is the asset (no amount).
+        const isAllWithdrawal = opts.all ?? false;
+        let amountStr: string;
+        let positionalOrFlagAsset: string | undefined;
+
+        if (isAllWithdrawal) {
+          if (secondArg !== undefined) {
+            throw new CLIError(
+              "Cannot specify an amount with --all.",
+              "INPUT",
+              "Use 'withdraw <asset> --all --to <address>' to withdraw the entire Pool Account balance."
+            );
+          }
+          positionalOrFlagAsset = opts.asset ?? firstArg;
+          if (!positionalOrFlagAsset) {
+            throw new CLIError(
+              "--all requires an asset. Use 'withdraw <asset> --all' or '--all --asset <symbol>'.",
+              "INPUT"
+            );
+          }
+          amountStr = "";
+        } else {
+          if (!firstArg) {
+            throw new CLIError(
+              "Missing amount. Specify an amount or use --all.",
+              "INPUT",
+              "Example: privacy-pools withdraw ETH 0.05 --to 0x... or privacy-pools withdraw ETH --all --to 0x..."
+            );
+          }
+          const resolved = resolveAmountAndAssetInput("withdraw", firstArg, secondArg, opts.asset);
+          amountStr = resolved.amount;
+          positionalOrFlagAsset = resolved.asset;
+        }
+
+        // Detect percentage amounts (e.g. "50%")
+        const isDeferredPercent = !isAllWithdrawal && isPercentageAmount(amountStr);
+        let deferredPercent: number | null = null;
+        if (isDeferredPercent) {
+          deferredPercent = parseFloat(amountStr.replace("%", ""));
+          if (deferredPercent <= 0 || deferredPercent > 100) {
+            throw new CLIError(
+              `Invalid percentage: ${amountStr}.`,
+              "INPUT",
+              "Use a value between 1% and 100% (e.g., 50%, 100%)."
+            );
+          }
+        }
+        const isDeferredAmount = isAllWithdrawal || isDeferredPercent;
 
         // Private key is only needed for on-chain submission, not --unsigned or --dry-run
         let signerAddress: Address | null = null;
@@ -251,11 +296,32 @@ export function createWithdrawCommand(): Command {
           silent
         );
 
-        const withdrawalAmount = parseAmount(amountStr, pool.decimals);
-        validatePositive(withdrawalAmount, "Withdrawal amount");
-        verbose(`Requested withdrawal amount: ${withdrawalAmount.toString()}`, isVerbose, silent);
+        // Resolve --extra-gas: default true for ERC20, always false for native asset (ETH)
+        const isNativeAsset = pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
+        const effectiveExtraGas = isNativeAsset ? false : (opts.extraGas ?? true);
+        if (isNativeAsset && opts.extraGas === true) {
+          info("Extra gas is not applicable for ETH withdrawals (ETH is the gas token).", silent);
+        }
+        if (!isDirect && !isNativeAsset && effectiveExtraGas) {
+          verbose("Extra gas: requested (ERC20 withdrawal)", isVerbose, silent);
+        }
+
+        // Parse amount — deferred for --all and percentage modes.
+        let withdrawalAmount: bigint;
         const tokenPrice = deriveTokenPrice(pool);
-        const withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+        let withdrawalUsd: string;
+
+        if (!isDeferredAmount) {
+          withdrawalAmount = parseAmount(amountStr, pool.decimals);
+          validatePositive(withdrawalAmount, "Withdrawal amount");
+          verbose(`Requested withdrawal amount: ${withdrawalAmount.toString()}`, isVerbose, silent);
+          withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+        } else {
+          // Temporary: use 1n for selection eligibility (any PA with balance > 0).
+          // Actual amount resolved after PA selection.
+          withdrawalAmount = 1n;
+          withdrawalUsd = "";
+        }
 
         // Acquire process lock to prevent concurrent account mutations.
         const releaseLock = acquireProcessLock();
@@ -414,7 +480,7 @@ export function createWithdrawCommand(): Command {
             );
           }
 
-          if (requested.value < withdrawalAmount) {
+          if (!isDeferredAmount && requested.value < withdrawalAmount) {
             throw new CLIError(
               `${requested.paId} has insufficient balance for this withdrawal.`,
               "INPUT",
@@ -445,8 +511,40 @@ export function createWithdrawCommand(): Command {
           selectedPoolAccount = approvedEligiblePoolAccounts.find((pa) => pa.paNumber === selectedPA)!;
           spin.start();
         } else if (approvedEligiblePoolAccounts.length > 0) {
-          selectedPoolAccount = approvedEligiblePoolAccounts[0];
+          // For --all/percentage, pick largest PA; for fixed amounts, pick smallest eligible.
+          selectedPoolAccount = isDeferredAmount
+            ? approvedEligiblePoolAccounts[approvedEligiblePoolAccounts.length - 1]
+            : approvedEligiblePoolAccounts[0];
           verbose(`Auto-selected ${selectedPoolAccount.paId} (balance: ${selectedPoolAccount.value.toString()})`, isVerbose, silent);
+        }
+
+        // Show selected PA balance
+        info(
+          `Selected ${selectedPoolAccount.paId}: ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)} available`,
+          silent
+        );
+
+        // Resolve deferred amount (--all or percentage)
+        if (isDeferredAmount) {
+          if (isAllWithdrawal || deferredPercent === 100) {
+            withdrawalAmount = selectedPoolAccount.value;
+          } else {
+            // Compute percentage with 2 decimal places precision via bigint math
+            withdrawalAmount = (selectedPoolAccount.value * BigInt(Math.round(deferredPercent! * 100))) / 10000n;
+          }
+          validatePositive(withdrawalAmount, "Withdrawal amount");
+          withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+          if (isAllWithdrawal) {
+            info(
+              `Withdrawing 100% of ${selectedPoolAccount.paId}: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+              silent
+            );
+          } else {
+            info(
+              `Withdrawing ${deferredPercent}% of ${selectedPoolAccount.paId}: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+              silent
+            );
+          }
         }
 
         const commitment = selectedPoolAccount.commitment;
@@ -712,7 +810,7 @@ export function createWithdrawCommand(): Command {
           let quote = await requestQuote(chainConfig, {
             amount: withdrawalAmount,
             asset: pool.asset,
-            extraGas: false,
+            extraGas: effectiveExtraGas,
             recipient: recipientAddress,
           });
           verbose(
@@ -783,7 +881,7 @@ export function createWithdrawCommand(): Command {
             quote = await requestQuote(chainConfig, {
               amount: withdrawalAmount,
               asset: pool.asset,
-              extraGas: false,
+              extraGas: effectiveExtraGas,
               recipient: recipientAddress,
             });
             ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
@@ -997,6 +1095,7 @@ export function createWithdrawCommand(): Command {
               proofPublicSignals: proof.publicSignals.length,
               feeBPS: quote.feeBPS,
               quoteExpiresAt: new Date(expirationMs).toISOString(),
+              extraGas: effectiveExtraGas,
             });
             return;
           }
@@ -1077,6 +1176,7 @@ export function createWithdrawCommand(): Command {
             scope: pool.scope,
             explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
             feeBPS: quote.feeBPS,
+            extraGas: effectiveExtraGas,
           });
         }
 
@@ -1095,7 +1195,7 @@ export function createWithdrawCommand(): Command {
     .option("-t, --to <address>", "Recipient address (recommended for signed fee commitment)")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...\n  privacy-pools withdraw quote 100 --asset USDC --json --chain mainnet\n"
+      "\nExamples:\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw quote 100 USDC --json --chain mainnet\n"
         + commandHelpText({
           prerequisites: "init",
           jsonFields: "{ mode, chain, asset, amount, quoteFeeBPS, quoteExpiresAt, ... }",
@@ -1144,6 +1244,10 @@ export function createWithdrawCommand(): Command {
           silent
         );
 
+        // For quote, apply same extra-gas default as the main withdraw flow
+        const quoteIsNativeAsset = pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
+        const quoteExtraGas = quoteIsNativeAsset ? false : true;
+
         const amount = parseAmount(amountStr, pool.decimals);
         validatePositive(amount, "Quote amount");
 
@@ -1157,7 +1261,7 @@ export function createWithdrawCommand(): Command {
         const quote = await requestQuote(chainConfig, {
           amount,
           asset: pool.asset,
-          extraGas: false,
+          extraGas: quoteExtraGas,
           ...(recipient ? { recipient } : {}),
         });
         spin.succeed("Quote received.");

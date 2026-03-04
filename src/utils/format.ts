@@ -202,3 +202,34 @@ export function stageHeader(
   if (quiet) return;
   process.stderr.write(`\n${chalk.bold(`[Step ${step}/${total}]`)} ${label}\n`);
 }
+
+/** Format a millisecond timestamp as a relative "Xh ago" label. */
+export function formatTimeAgo(timestampMs: number | null): string {
+  if (timestampMs === null) return "-";
+  const delta = Math.max(0, Date.now() - timestampMs);
+  const seconds = Math.floor(delta / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+/**
+ * Approximate relative time from a block number, using average block time.
+ * @param currentBlock Latest block on chain
+ * @param eventBlock Block at which the event occurred
+ * @param avgBlockTimeSec Average seconds per block (default 12 for Ethereum)
+ */
+export function formatApproxBlockTimeAgo(
+  currentBlock: bigint,
+  eventBlock: bigint,
+  avgBlockTimeSec: number = 12,
+): string {
+  if (eventBlock > currentBlock) return "just now";
+  const blockDelta = Number(currentBlock - eventBlock);
+  const deltaMs = blockDelta * avgBlockTimeSec * 1000;
+  return formatTimeAgo(Date.now() - deltaMs);
+}

@@ -118,6 +118,40 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write(`\n${accentBold(`Pool Accounts (PA) on ${chain}:`)}\n\n`);
+
+  // Aggregate "My Pools" summary before the detailed PA tables.
+  if (!silent) {
+    const anyUsd = groups.some((g) =>
+      g.tokenPrice !== null && g.poolAccounts.some((pa) => pa.status === "spendable"),
+    );
+    const summaryRows: string[][] = [];
+    for (const group of groups) {
+      const spendablePAs = group.poolAccounts.filter((pa) => pa.status === "spendable");
+      if (spendablePAs.length === 0) continue;
+      const total = spendablePAs.reduce((sum, pa) => sum + pa.value, 0n);
+      const dd = displayDecimals(group.decimals);
+      const totalFmt = formatAmount(total, group.decimals, group.symbol, dd);
+      const pendingCount = spendablePAs.filter((pa) => pa.aspStatus === "pending").length;
+      const paLabel = `${spendablePAs.length} account${spendablePAs.length === 1 ? "" : "s"}` +
+        (pendingCount > 0 ? ` (${pendingCount} pending)` : "");
+      if (anyUsd) {
+        const usdFmt = group.tokenPrice !== null
+          ? formatUsdValue(total, group.decimals, group.tokenPrice)
+          : "";
+        summaryRows.push([`${group.symbol} Pool`, totalFmt, usdFmt, paLabel]);
+      } else {
+        summaryRows.push([`${group.symbol} Pool`, totalFmt, paLabel]);
+      }
+    }
+    if (summaryRows.length > 0) {
+      const summaryHeaders = anyUsd
+        ? ["Pool", "Balance", "USD", "Accounts"]
+        : ["Pool", "Balance", "Accounts"];
+      printTable(summaryHeaders, summaryRows);
+      process.stderr.write("\n");
+    }
+  }
+
   let renderedAny = false;
 
   for (const group of groups) {

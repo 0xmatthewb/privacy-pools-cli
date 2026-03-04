@@ -85,17 +85,21 @@ JSON output (--json):
 `;
 
 exports[`CLI --help snapshots pools --help snapshot 1`] = `
-"Usage: privacy-pools pools [options]
+"Usage: privacy-pools pools [options] [asset]
 List available pools and assets
+Arguments:
+  asset             Asset symbol for detail view (e.g. ETH, BOLD)
 Options:
   --all-chains      Include testnet chains (mainnets shown by default)
   --search <query>  Filter by chain/symbol/address/scope
   --sort <mode>     Sort mode (default, asset-asc, asset-desc, tvl-desc,
                     tvl-asc, deposits-desc, deposits-asc, chain-asset) (default:
-                    "default")
+                    "tvl-desc")
   -h, --help        display help for command
 Examples:
   privacy-pools pools
+  privacy-pools pools ETH
+  privacy-pools pools BOLD --chain mainnet
   privacy-pools pools --all-chains --sort tvl-desc
   privacy-pools pools --search usdc --sort asset-asc
   privacy-pools pools --json --chain mainnet
@@ -153,12 +157,12 @@ Options:
                                 submitting
   -h, --help                    display help for command
 Examples:
+  privacy-pools deposit 0.1 ETH
+  privacy-pools deposit 0.05 ETH --json --yes
+  privacy-pools deposit 0.05 ETH --unsigned
+  privacy-pools deposit 0.1 ETH --dry-run
+  privacy-pools deposit 0.1 ETH --chain mainnet
   privacy-pools deposit 0.1 --asset ETH
-  privacy-pools deposit ETH 0.1
-  privacy-pools deposit 0.05 --asset ETH --json --yes
-  privacy-pools deposit ETH 0.05 --unsigned
-  privacy-pools deposit 0.1 --asset ETH --dry-run
-  privacy-pools deposit ETH 0.1 --chain mainnet
 Prerequisites:
   Requires: init
 JSON output (--json):
@@ -166,7 +170,7 @@ JSON output (--json):
 `;
 
 exports[`CLI --help snapshots withdraw --help snapshot 1`] = `
-"Usage: privacy-pools withdraw [options] [command] <amountOrAsset> [amount]
+"Usage: privacy-pools withdraw [options] [command] [amountOrAsset] [amount]
 Withdraw from a pool
 Arguments:
   amountOrAsset                             Amount to withdraw (or asset symbol, see examples)
@@ -179,16 +183,21 @@ Options:
   --unsigned-format <format>                Unsigned output format (with --unsigned): envelope|tx
   --dry-run                                 Generate and verify withdrawal artifacts without submitting
   -a, --asset <symbol|address>              Asset to withdraw
+  --all                                     Withdraw entire Pool Account balance
+  --extra-gas                               Request gas tokens with withdrawal (default: true for ERC20)
+  --no-extra-gas                            Disable extra gas request
   -h, --help                                display help for command
 Commands:
   quote [options] <amountOrAsset> [amount]  Request relayer quote and limits without generating a proof
 Examples:
-  privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient...
-  privacy-pools withdraw ETH 0.05 --to 0xRecipient... -p PA-2
-  privacy-pools withdraw 0.05 --asset ETH --direct
-  privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient... --dry-run
-  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
-  privacy-pools withdraw ETH 0.05 --to 0xRecipient... --chain mainnet
+  privacy-pools withdraw 0.05 ETH --to 0xRecipient...
+  privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2
+  privacy-pools withdraw --all ETH --to 0xRecipient...
+  privacy-pools withdraw 50% ETH --to 0xRecipient...
+  privacy-pools withdraw 0.05 ETH --direct
+  privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run
+  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
+  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet
 Prerequisites:
   Requires: init (account state should be synced)
 JSON output (--json):
@@ -215,10 +224,11 @@ Options:
   address, even if not approved. No ASP approval is needed, but your
   deposit address is revealed onchain.
 Examples:
-  privacy-pools ragequit --asset ETH -p PA-1
+  privacy-pools ragequit ETH -p PA-1
   privacy-pools ragequit ETH --unsigned -p PA-1
-  privacy-pools ragequit --asset ETH --dry-run -p PA-1
+  privacy-pools ragequit ETH --dry-run -p PA-1
   privacy-pools ragequit ETH -p PA-1 --chain mainnet
+  privacy-pools ragequit --asset ETH -p PA-1
 Prerequisites:
   Requires: init (account state should be synced)
 JSON output (--json):
@@ -325,8 +335,8 @@ Options:
                                 commitment)
   -h, --help                    display help for command
 Examples:
-  privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
-  privacy-pools withdraw quote 100 --asset USDC --json --chain mainnet
+  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
+  privacy-pools withdraw quote 100 USDC --json --chain mainnet
 Prerequisites:
   Requires: init
 JSON output (--json):

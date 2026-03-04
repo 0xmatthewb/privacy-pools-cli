@@ -6,7 +6,7 @@ import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import { formatAmount, displayDecimals, spinner } from "../utils/format.js";
+import { formatAmount, displayDecimals, spinner, formatTimeAgo } from "../utils/format.js";
 import type { GlobalOptions, AspPublicEvent } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
@@ -49,19 +49,6 @@ function toMsTimestamp(value: unknown): number | null {
   const parsed = parseNumberish(value);
   if (parsed === null) return null;
   return parsed < 1e12 ? Math.floor(parsed * 1000) : Math.floor(parsed);
-}
-
-function formatTimeAgo(timestampMs: number | null): string {
-  if (timestampMs === null) return "-";
-  const delta = Math.max(0, Date.now() - timestampMs);
-  const seconds = Math.floor(delta / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
 }
 
 function normalizeActivityEvent(

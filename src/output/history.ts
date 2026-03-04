@@ -8,7 +8,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, info, isSilent } from "./common.js";
-import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
+import { formatAmount, formatTxHash, displayDecimals, formatApproxBlockTimeAgo } from "../utils/format.js";
 import { accentBold } from "../utils/theme.js";
 import type { HistoryEvent } from "../commands/history.js";
 
@@ -25,6 +25,8 @@ export interface HistoryRenderData {
   events: HistoryEvent[];
   poolByAddress: Map<string, HistoryPoolInfo>;
   explorerTxUrl: (chainId: number, txHash: string) => string | null;
+  /** Current block number for approximate relative timestamps. Null falls back to raw block numbers. */
+  currentBlock: bigint | null;
 }
 
 // ── Renderers ────────────────────────────────────────────────────────────────
@@ -48,7 +50,7 @@ export function renderHistoryNoPools(ctx: OutputContext, chain: string): void {
  * Render history event listing.
  */
 export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void {
-  const { chain, chainId, events, poolByAddress, explorerTxUrl } = data;
+  const { chain, chainId, events, poolByAddress, explorerTxUrl, currentBlock } = data;
 
   if (ctx.mode.isJson) {
     printJsonSuccess({
@@ -100,8 +102,9 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
   if (silent) return;
 
   process.stderr.write(`\n${accentBold(`History on ${chain} (last ${events.length} events):`)}\n\n`);
+  const useRelativeTime = currentBlock != null;
   printTable(
-    ["Type", "PA", "Amount", "Tx", "Block"],
+    ["Type", "PA", "Amount", "Tx", useRelativeTime ? "Time" : "Block"],
     events.map((e) => {
       const pool = poolByAddress.get(e.poolAddress);
       const typeLabel =
@@ -113,7 +116,9 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
         e.paId,
         formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
         formatTxHash(e.txHash),
-        e.blockNumber.toString(),
+        useRelativeTime
+          ? formatApproxBlockTimeAgo(currentBlock, e.blockNumber)
+          : e.blockNumber.toString(),
       ];
     }),
   );

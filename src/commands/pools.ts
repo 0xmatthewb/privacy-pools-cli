@@ -1,16 +1,31 @@
 import { Command } from "commander";
+import type { Address } from "viem";
 import { CHAINS, CHAIN_NAMES, getDefaultReadOnlyChains, getAllChainsWithOverrides } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
-import { listPools } from "../services/pools.js";
-import { spinner } from "../utils/format.js";
+import { listPools, resolvePool } from "../services/pools.js";
+import { loadMnemonic } from "../services/wallet.js";
+import { getDataService, getPublicClient } from "../services/sdk.js";
+import { initializeAccountService } from "../services/account.js";
+import { fetchPoolEvents } from "../services/asp.js";
+import {
+  spinner,
+  formatAmount,
+  formatBPS,
+  formatTimeAgo,
+  displayDecimals,
+  deriveTokenPrice,
+  formatUsdValue,
+} from "../utils/format.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import type { ChainConfig, GlobalOptions, PoolStats } from "../types.js";
+import { buildPoolAccountRefs } from "../utils/pool-accounts.js";
+import type { PoolAccountRef } from "../utils/pool-accounts.js";
+import type { ChainConfig, GlobalOptions, PoolStats, AspPublicEvent } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
-import { renderPoolsEmpty, renderPools } from "../output/pools.js";
-import type { PoolWithChain, PoolsRenderData } from "../output/pools.js";
+import { renderPoolsEmpty, renderPools, renderPoolDetail } from "../output/pools.js";
+import type { PoolWithChain, PoolsRenderData, PoolDetailRenderData } from "../output/pools.js";
 
 interface PoolsCommandOptions {
   allChains?: boolean;
@@ -50,7 +65,7 @@ function parseSortMode(raw: string | undefined): PoolsSortMode {
 }
 
 function poolFundsMetric(pool: PoolStats): bigint {
-  return pool.acceptedDepositsValue ?? pool.totalInPoolValue ?? 0n;
+  return pool.totalInPoolValue ?? pool.acceptedDepositsValue ?? 0n;
 }
 
 function poolDepositsMetric(pool: PoolStats): number {
@@ -149,26 +164,112 @@ function sortPools(
 export function createPoolsCommand(): Command {
   return new Command("pools")
     .description("List available pools and assets")
+    .argument("[asset]", "Asset symbol for detail view (e.g. ETH, BOLD)")
     .option("--all-chains", "Include testnet chains (mainnets shown by default)")
     .option("--search <query>", "Filter by chain/symbol/address/scope")
     .option(
       "--sort <mode>",
       `Sort mode (${SUPPORTED_SORT_MODES.join(", ")})`,
-      "default"
+      "tvl-desc"
     )
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools pools\n  privacy-pools pools --all-chains --sort tvl-desc\n  privacy-pools pools --search usdc --sort asset-asc\n  privacy-pools pools --json --chain mainnet\n"
+      "\nExamples:\n  privacy-pools pools\n  privacy-pools pools ETH\n  privacy-pools pools BOLD --chain mainnet\n  privacy-pools pools --all-chains --sort tvl-desc\n  privacy-pools pools --search usdc --sort asset-asc\n  privacy-pools pools --json --chain mainnet\n"
         + commandHelpText({
           jsonFields: "{ chain|allChains, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
         })
     )
-    .action(async (opts: PoolsCommandOptions, cmd) => {
+    .action(async (asset: string | undefined, opts: PoolsCommandOptions, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
       const ctx = createOutputContext(mode);
       const silent = isSilent(ctx);
 
+      // ── Detail view: `pools <asset>` ──────────────────────────────────
+      if (asset) {
+        try {
+          const config = loadConfig();
+          const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+
+          const spin = spinner(`Fetching ${asset} pool details on ${chainConfig.name}...`, silent);
+          spin.start();
+
+          const pool = await resolvePool(chainConfig, asset, globalOpts?.rpcUrl);
+          const tokenPrice = deriveTokenPrice(pool);
+
+          // Try to load wallet and accounts (non-fatal).
+          let myPoolAccounts: PoolAccountRef[] | null = null;
+          try {
+            const mnemonic = loadMnemonic();
+            const dataService = getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
+            const accountService = await initializeAccountService(
+              dataService,
+              mnemonic,
+              [{
+                chainId: chainConfig.id,
+                address: pool.pool as Address,
+                scope: pool.scope,
+                deploymentBlock: chainConfig.startBlock,
+              }],
+              chainConfig.id,
+              true,
+              true,
+              true
+            );
+            const spendable = accountService.getSpendableCommitments();
+            const poolCommitments = spendable.get(pool.scope) ?? [];
+            myPoolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
+          } catch { /* graceful skip — wallet not initialized */ }
+
+          // Try to fetch recent activity (non-fatal).
+          interface ActivityEventSummary {
+            type: string;
+            amount: string | null;
+            timeLabel: string;
+            status: string | null;
+          }
+          let recentActivity: ActivityEventSummary[] | null = null;
+          try {
+            const eventsPage = await fetchPoolEvents(chainConfig, pool.scope, 1, 5);
+            const events = Array.isArray(eventsPage.events) ? eventsPage.events : [];
+            recentActivity = events.map((e: AspPublicEvent) => {
+              const rawAmount = typeof e.amount === "string" ? e.amount
+                : typeof e.publicAmount === "string" ? e.publicAmount
+                : null;
+              let amountFmt = "-";
+              if (rawAmount && /^-?\d+$/.test(rawAmount)) {
+                try {
+                  amountFmt = formatAmount(BigInt(rawAmount), pool.decimals, pool.symbol, displayDecimals(pool.decimals));
+                } catch { amountFmt = rawAmount; }
+              }
+              const ts = typeof e.timestamp === "number"
+                ? (e.timestamp < 1e12 ? e.timestamp * 1000 : e.timestamp)
+                : null;
+              return {
+                type: typeof e.type === "string" ? e.type : "unknown",
+                amount: amountFmt,
+                timeLabel: formatTimeAgo(ts),
+                status: typeof e.reviewStatus === "string" ? e.reviewStatus : null,
+              };
+            });
+          } catch { /* graceful skip */ }
+
+          spin.stop();
+
+          renderPoolDetail(ctx, {
+            chain: chainConfig.name,
+            pool,
+            tokenPrice,
+            myPoolAccounts,
+            recentActivity,
+          });
+        } catch (error) {
+          printError(error, mode.isJson);
+        }
+        return;
+      }
+
+      // ── Listing view ──────────────────────────────────────────────────
       try {
         const explicitChain = globalOpts?.chain;
         const isMultiChain = opts.allChains || !explicitChain;

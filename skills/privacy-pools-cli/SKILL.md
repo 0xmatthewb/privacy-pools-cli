@@ -43,14 +43,16 @@ Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (a
 | Check status | `pp status --agent --check` | No wallet needed |
 | Discover capabilities | `pp capabilities --agent` | No wallet needed |
 | Initialize wallet | `pp init --agent --default-chain mainnet` | One-time setup |
-| Deposit ETH | `pp deposit 0.1 --asset ETH --agent` | Requires init |
-| Deposit (unsigned) | `pp deposit 0.1 --asset ETH --unsigned --agent` | No wallet key needed |
+| Deposit ETH | `pp deposit 0.1 ETH --agent` | Requires init |
+| Deposit (unsigned) | `pp deposit 0.1 ETH --unsigned --agent` | No wallet key needed |
 | Check accounts | `pp accounts --agent` | Poll for aspStatus; includes balances |
-| Withdraw (relayed) | `pp withdraw 0.05 --asset ETH --to 0x... --agent` | Requires init |
-| Withdraw (unsigned) | `pp withdraw 0.05 --asset ETH --to 0x... --unsigned --agent` | No wallet key needed |
-| Withdrawal quote | `pp withdraw quote 0.1 --asset ETH --to 0x... --agent` | Fee estimate |
-| Exit (ragequit) | `pp exit --asset ETH --from-pa PA-1 --agent` | Emergency exit |
-| Dry-run | `pp deposit 0.1 --asset ETH --dry-run --agent` | Validate without submitting |
+| Withdraw (relayed) | `pp withdraw 0.05 ETH --to 0x... --agent` | Requires init |
+| Withdraw all | `pp withdraw --all ETH --to 0x... --agent` | Full PA balance |
+| Withdraw (unsigned) | `pp withdraw 0.05 ETH --to 0x... --unsigned --agent` | No wallet key needed |
+| Withdrawal quote | `pp withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
+| Pool detail | `pp pools ETH --agent` | Combined stats + my funds |
+| Exit (ragequit) | `pp exit ETH --from-pa PA-1 --agent` | Emergency exit |
+| Dry-run | `pp deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
 | Event history | `pp history --agent` | Requires init |
 | Force sync | `pp sync --agent` | Rarely needed (auto-sync with 2min TTL) |
 
@@ -105,7 +107,7 @@ For custodial signers, multisigs, MPC wallets, or agents like Bankr that manage 
 ### Envelope format (default)
 
 ```bash
-pp deposit 0.1 --asset ETH --unsigned --agent
+pp deposit 0.1 ETH --unsigned --agent
 ```
 
 ```json
@@ -134,7 +136,7 @@ pp deposit 0.1 --asset ETH --unsigned --agent
 ### Raw tx format (signer-compatible)
 
 ```bash
-pp deposit 0.1 --asset ETH --unsigned --unsigned-format tx --agent
+pp deposit 0.1 ETH --unsigned --unsigned-format tx --agent
 ```
 
 ```json
@@ -197,9 +199,9 @@ pp accounts --agent  # poll until new Pool Account appears
 Validate inputs, check balances, and preview transaction details without submitting:
 
 ```bash
-pp deposit 0.1 --asset ETH --dry-run --agent
-pp withdraw 0.05 --asset ETH --to 0x... --dry-run --agent
-pp ragequit --asset ETH --from-pa PA-1 --dry-run --agent
+pp deposit 0.1 ETH --dry-run --agent
+pp withdraw 0.05 ETH --to 0x... --dry-run --agent
+pp ragequit ETH --from-pa PA-1 --dry-run --agent
 ```
 
 Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `exit` (ragequit).
@@ -243,9 +245,9 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 1. pp capabilities --agent                                    # Discover all commands
 2. pp pools --agent                                           # Browse available pools (check minimumDeposit)
 3. pp init --agent --default-chain mainnet   # Initialize (once)
-4. pp deposit 0.1 --asset ETH --agent                         # Deposit (must be >= minimumDeposit)
-5. pp accounts --agent                                        # Poll until aspStatus: "approved"
-6. pp withdraw 0.1 --asset ETH --to <addr> --agent            # Withdraw
+4. pp deposit 0.1 ETH --agent                                    # Deposit (must be >= minimumDeposit)
+5. pp accounts --agent                                           # Poll until aspStatus: "approved"
+6. pp withdraw 0.1 ETH --to <addr> --agent                       # Withdraw
 ```
 
 **Before depositing**, check the `minimumDeposit` field from `pp pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change — always query at runtime rather than hard-coding.

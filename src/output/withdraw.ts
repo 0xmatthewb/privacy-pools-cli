@@ -29,6 +29,8 @@ export interface WithdrawDryRunData {
   feeBPS?: string;
   /** Relayed-only: ISO timestamp of quote expiration. */
   quoteExpiresAt?: string;
+  /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
+  extraGas?: boolean;
 }
 
 /**
@@ -56,6 +58,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
     if (data.withdrawMode === "relayed") {
       payload.feeBPS = data.feeBPS;
       payload.quoteExpiresAt = data.quoteExpiresAt;
+      if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     }
     printJsonSuccess(payload, false);
     return;
@@ -70,6 +73,9 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   if (data.withdrawMode === "relayed" && data.feeBPS) {
     info(`Relay fee: ${formatBPS(data.feeBPS)}`, silent);
     if (data.quoteExpiresAt) info(`Quote expires: ${data.quoteExpiresAt}`, silent);
+  }
+  if (data.withdrawMode === "relayed" && data.extraGas) {
+    info("Extra gas: requested (receive gas tokens with withdrawal)", silent);
   }
   info(
     `Pool Account balance: ${formatAmount(data.selectedCommitmentValue, data.decimals, data.asset, displayDecimals(data.decimals))}`,
@@ -98,6 +104,8 @@ export interface WithdrawSuccessData {
   explorerUrl: string | null;
   /** Relayed-only: fee in basis points. */
   feeBPS?: string;
+  /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
+  extraGas?: boolean;
 }
 
 /**
@@ -130,6 +138,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         "' to verify updated balance. Note: direct withdrawal links deposit and withdrawal onchain.";
     } else {
       payload.feeBPS = data.feeBPS;
+      if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
       payload.nextStep =
         "Run 'privacy-pools accounts --chain " + data.chain + "' to verify updated balance.";
     }

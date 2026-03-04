@@ -56,13 +56,13 @@ pp init
 privacy-pools pools
 
 # 3. Deposit into a pool
-privacy-pools deposit 0.1 --asset ETH
+privacy-pools deposit 0.1 ETH
 
 # 4. Check your Pool Accounts (wait for ASP approval before withdrawing)
 privacy-pools accounts
 
 # 5. Withdraw to any address (relayed by default, enhanced privacy)
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-1
 ```
 
 Commands use your default chain (set during `init`). Add `--chain <name>` to override.
@@ -109,12 +109,13 @@ During interactive setup, `init` offers to write a recovery backup to `~/privacy
 
 ### `pools`
 
-List available Privacy Pools on a chain. When no `--chain` is specified, shows all mainnets (mainnet, arbitrum, optimism). Use `--all-chains` to include testnets.
+List available Privacy Pools on a chain. When no `--chain` is specified, shows all mainnets (mainnet, arbitrum, optimism). Use `--all-chains` to include testnets. Pools are sorted by pool balance (highest first) by default.
 
 ```bash
-privacy-pools pools                    # all mainnets
+privacy-pools pools                    # all mainnets, sorted by pool balance
 privacy-pools pools --chain mainnet    # specific chain
 privacy-pools pools --all-chains       # all chains including testnets
+privacy-pools pools ETH                # detail view: stats, your funds, recent activity
 ```
 
 ### `deposit`
@@ -122,9 +123,9 @@ privacy-pools pools --all-chains       # all chains including testnets
 Deposit assets (ETH or ERC20 tokens) into a pool, creating a private commitment that can later be used for private withdrawals or emergency exits.
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH
+privacy-pools deposit 0.1 ETH
 privacy-pools deposit ETH 0.1                          # asset-first syntax also works
-privacy-pools deposit 100 --asset USDC
+privacy-pools deposit 100 USDC
 ```
 
 | Flag | Description |
@@ -140,13 +141,19 @@ Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relaye
 
 ```bash
 # Relayed withdrawal (default, enhanced privacy)
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -p PA-1
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-1
+
+# Withdraw entire balance
+privacy-pools withdraw --all ETH --to 0xRecipient...
+
+# Withdraw a percentage
+privacy-pools withdraw 50% ETH --to 0xRecipient...
 
 # Direct withdrawal (no relayer fees, basic privacy)
-privacy-pools withdraw 0.05 --asset ETH --direct
+privacy-pools withdraw 0.05 ETH --direct
 
 # Get a fee quote without withdrawing
-privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
+privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 ```
 
 | Flag | Description |
@@ -154,6 +161,8 @@ privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
 | `-a, --asset <symbol\|address>` | Asset to withdraw |
 | `-t, --to <address>` | Recipient address (required for relayed withdrawals) |
 | `-p, --from-pa <PA-#\|#>` | Withdraw from a specific Pool Account (e.g., `PA-2` or `2`) |
+| `--all` | Withdraw entire Pool Account balance |
+| `--extra-gas / --no-extra-gas` | Request gas tokens with ERC20 withdrawal (default: true) |
 | `--direct` | Use direct withdrawal instead of relayed |
 | `--unsigned` | Build unsigned payload(s) without submitting |
 | `--unsigned-format <format>` | Output format: `envelope` (default) or `tx` |
@@ -206,7 +215,7 @@ privacy-pools sync --asset ETH     # sync a single pool
 A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Use when the deposit label is not approved by the ASP or its approval was revoked.
 
 ```bash
-privacy-pools ragequit --asset ETH -p PA-1
+privacy-pools ragequit ETH -p PA-1
 privacy-pools exit ETH -p PA-1                         # same thing
 ```
 
@@ -325,14 +334,14 @@ privacy-pools init -j -y --default-chain mainnet
 privacy-pools pools -j
 
 # 3. Deposit
-privacy-pools deposit 0.1 --asset ETH -j -y
+privacy-pools deposit 0.1 ETH -j -y
 
 # 4. Poll for ASP approval
 privacy-pools accounts -j
 # → wait until aspStatus is "approved"
 
 # 5. Withdraw
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... -j -y
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... -j -y
 ```
 
 **Output stream convention:**
@@ -373,14 +382,14 @@ Build transaction payloads offline without submitting. Useful for external signi
 
 ```bash
 # Envelope format (default): includes metadata and proof artifacts
-privacy-pools deposit 0.1 --asset ETH --unsigned -j
+privacy-pools deposit 0.1 ETH --unsigned -j
 
 # Raw tx format: just the transaction objects, ready to sign and broadcast
-privacy-pools deposit 0.1 --asset ETH --unsigned --unsigned-format tx -j
+privacy-pools deposit 0.1 ETH --unsigned --unsigned-format tx -j
 
 # Works with withdraw and exit too
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --unsigned -j
-privacy-pools ragequit --asset ETH -p PA-1 --unsigned -j
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... --unsigned -j
+privacy-pools ragequit ETH -p PA-1 --unsigned -j
 ```
 
 ## Dry Run
@@ -388,9 +397,9 @@ privacy-pools ragequit --asset ETH -p PA-1 --unsigned -j
 Validate inputs, check balances, and generate proofs without submitting anything onchain.
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --dry-run
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --dry-run
-privacy-pools ragequit --asset ETH -p PA-1 --dry-run
+privacy-pools deposit 0.1 ETH --dry-run
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... --dry-run
+privacy-pools ragequit ETH -p PA-1 --dry-run
 ```
 
 ## Configuration

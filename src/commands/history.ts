@@ -14,6 +14,7 @@ import {
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
+import { getPublicClient } from "../services/sdk.js";
 import { spinner, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
@@ -221,6 +222,13 @@ export function createHistoryCommand(): Command {
 
         const limited = events.slice(0, limit);
 
+        // Fetch current block for approximate relative timestamps (non-fatal).
+        let currentBlock: bigint | null = null;
+        try {
+          const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+          currentBlock = await publicClient.getBlockNumber();
+        } catch { /* non-fatal — fall back to block numbers */ }
+
         spin.stop();
 
         const poolByAddress = new Map(
@@ -233,6 +241,7 @@ export function createHistoryCommand(): Command {
           events: limited,
           poolByAddress,
           explorerTxUrl,
+          currentBlock,
         });
       } catch (error) {
         printError(error, mode.isJson);

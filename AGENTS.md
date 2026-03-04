@@ -18,9 +18,9 @@ privacy-pools pools --agent
 
 # Full workflow
 privacy-pools init --agent --default-chain mainnet
-privacy-pools deposit 0.1 --asset ETH --agent
+privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent   # poll until aspStatus = "approved"
-privacy-pools withdraw 0.1 --asset ETH --to 0xRecipient --agent
+privacy-pools withdraw 0.1 ETH --to 0xRecipient --agent
 ```
 
 ## Core Concepts
@@ -89,11 +89,16 @@ privacy-pools pools --agent
 privacy-pools pools --agent --all-chains
 privacy-pools pools --agent --search ETH
 privacy-pools pools --agent --sort tvl-desc
+privacy-pools pools ETH --agent             # detail view for a specific pool
 ```
 
 JSON payload (single chain): `{ chain, search, sort, pools: [{ symbol, asset, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }] }`
 
+Default sort is `tvl-desc` (highest pool balance first). Override with `--sort`.
+
 With `--all-chains`, each pool includes a `chain` field and the root includes `allChains: true`, `chains: [{ chain, pools, error }]`, and optional `warnings`.
+
+**Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON payload: `{ mode: "pool-detail", chain, asset, pool, scope, ... }`. Supports `--json` and `--chain`. Does not support `--format csv`.
 
 #### `activity`
 
@@ -187,8 +192,8 @@ Circuit artifacts are downloaded automatically on first proof generation (~60s o
 Deposit ETH or ERC-20 tokens into a Privacy Pool.
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --agent
-privacy-pools deposit ETH 0.1 --agent
+privacy-pools deposit 0.1 ETH --agent
+privacy-pools deposit ETH 0.1 --agent       # asset-first syntax also works
 ```
 
 JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextStep }`
@@ -202,21 +207,31 @@ All numeric values are strings (wei). `committedValue` and `label` may be `null`
 Withdraw from a Privacy Pool. Relayed by default (recommended for privacy).
 
 ```bash
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient --agent
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient --from-pa PA-2 --agent
-privacy-pools withdraw 0.1 --asset ETH --direct --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-2 --agent
+privacy-pools withdraw --all ETH --to 0xRecipient --agent
+privacy-pools withdraw 50% ETH --to 0xRecipient --agent
+privacy-pools withdraw 0.1 ETH --direct --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
-JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, nextStep }`
+JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, nextStep }`
 
 JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`. `nextStep` includes a note about direct withdrawals linking deposit and withdrawal onchain.
 
 > **Note**: Direct withdrawals (`--direct`) are not privacy-preserving. Use relayed mode (default) for private withdrawals.
 
+**Amount shortcuts:**
+- `--all`: Withdraw the entire Pool Account balance
+- Percentages (`50%`, `100%`): Withdraw a percentage of the PA balance
+- After PA selection, the CLI shows the selected PA's available balance
+
+**Extra gas (ERC20 only):** For ERC20 token withdrawals, `--extra-gas` (default: true) requests gas tokens alongside the withdrawal. Use `--no-extra-gas` to opt out. Ignored for native ETH withdrawals.
+
 **Withdrawal quote:**
 
 ```bash
-privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient --agent
+privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 ```
 
 JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, maxRelayFeeBPS, quoteFeeBPS, feeCommitmentPresent, quoteExpiresAt }`
@@ -228,8 +243,8 @@ Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof gen
 Emergency exit without ASP approval. Reveals the deposit address onchain — no privacy is gained.
 
 ```bash
-privacy-pools exit --asset ETH --from-pa PA-1 --agent
-privacy-pools ragequit --asset ETH --from-pa PA-1 --agent   # same thing
+privacy-pools exit ETH --from-pa PA-1 --agent
+privacy-pools ragequit ETH --from-pa PA-1 --agent   # same thing
 ```
 
 JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextStep }`
@@ -311,7 +326,7 @@ For agents that manage their own signing (e.g., custodial wallets, multisigs, MP
 ### Envelope format (default)
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --unsigned --agent
+privacy-pools deposit 0.1 ETH --unsigned --agent
 ```
 
 ```json
@@ -340,7 +355,7 @@ privacy-pools deposit 0.1 --asset ETH --unsigned --agent
 ### Raw tx format
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --unsigned --unsigned-format tx --agent
+privacy-pools deposit 0.1 ETH --unsigned --unsigned-format tx --agent
 ```
 
 ```json
@@ -374,7 +389,7 @@ privacy-pools deposit 0.1 --asset ETH --unsigned --unsigned-format tx --agent
 ### Integration with external signers
 
 ```
-1. Agent calls: privacy-pools deposit 0.1 --asset ETH --unsigned --agent
+1. Agent calls: privacy-pools deposit 0.1 ETH --unsigned --agent
 2. Agent receives transactions[] array
 3. Agent signs each transaction with its own key
 4. Agent submits signed transactions to the network
@@ -386,9 +401,9 @@ privacy-pools deposit 0.1 --asset ETH --unsigned --unsigned-format tx --agent
 Validate inputs, check balances, and preview transaction details without submitting:
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --dry-run --agent
-privacy-pools withdraw 0.05 --asset ETH --to 0x... --dry-run --agent
-privacy-pools ragequit --asset ETH --from-pa PA-1 --dry-run --agent
+privacy-pools deposit 0.1 ETH --dry-run --agent
+privacy-pools withdraw 0.05 ETH --to 0x... --dry-run --agent
+privacy-pools ragequit ETH --from-pa PA-1 --dry-run --agent
 ```
 
 Dry-run responses include `"dryRun": true` and all validation results.
