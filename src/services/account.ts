@@ -334,7 +334,11 @@ export async function syncAccountEvents(
     guardCriticalSection();
     try {
       saveAccount(chainId, accountService.account);
-      saveSyncMeta(chainId);
+      // Only stamp sync freshness when all pools synced successfully.
+      // Partial failures should trigger a re-sync on next command.
+      if (syncFailures === 0) {
+        saveSyncMeta(chainId);
+      }
     } finally {
       releaseCriticalSection();
     }

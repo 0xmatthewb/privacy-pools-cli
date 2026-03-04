@@ -152,6 +152,7 @@ export function createHistoryCommand(): Command {
           ),
           mode.isJson,
         );
+        return;
       }
       const limit = parsedLimit;
 

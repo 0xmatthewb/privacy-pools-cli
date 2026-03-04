@@ -72,9 +72,9 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   if (!silent) {
     process.stderr.write("\n");
     process.stderr.write(`  ${chalk.dim("1.")} Browse pools          ${accent("privacy-pools pools")}\n`);
-    process.stderr.write(`  ${chalk.dim("2.")} Make a deposit         ${accent("privacy-pools deposit 0.1 --asset ETH")}\n`);
+    process.stderr.write(`  ${chalk.dim("2.")} Make a deposit         ${accent("privacy-pools deposit 0.1 ETH")}\n`);
     process.stderr.write(`  ${chalk.dim("3.")} Check your accounts    ${accent("privacy-pools accounts")}\n`);
-    process.stderr.write(`  ${chalk.dim("4.")} Withdraw funds         ${accent("privacy-pools withdraw 0.05 --asset ETH --to 0x...")}\n`);
+    process.stderr.write(`  ${chalk.dim("4.")} Withdraw funds         ${accent("privacy-pools withdraw 0.05 ETH --to 0x...")}\n`);
     process.stderr.write("\n");
     info(`Full guide: ${accent("privacy-pools guide")}`, silent);
   }

@@ -511,12 +511,16 @@ pp withdraw quote 0.1 ETH --to 0xRecipient --agent
   "recipient": "0x...",
   "minWithdrawAmount": "10000000000000000",
   "minWithdrawAmountFormatted": "0.01 ETH",
-  "maxRelayFeeBPS": "50",
   "quoteFeeBPS": "50",
+  "feeAmount": "5000000000000000",
+  "netAmount": "95000000000000000",
   "feeCommitmentPresent": true,
-  "quoteExpiresAt": "2025-01-15T12:30:00Z"
+  "quoteExpiresAt": "2025-01-15T12:30:00Z",
+  "extraGas": true
 }
 ```
+
+`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH.
 
 ### `ragequit` (alias: `exit`)
 

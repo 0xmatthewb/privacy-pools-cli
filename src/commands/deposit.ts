@@ -328,7 +328,26 @@ export function createDepositCommand(): Command {
               pool.asset,
               amount
             );
-            await approveTx.wait();
+            let approvalReceipt;
+            try {
+              approvalReceipt = await publicClient.waitForTransactionReceipt({
+                hash: approveTx.hash as `0x${string}`,
+                timeout: getConfirmationTimeoutMs(),
+              });
+            } catch {
+              throw new CLIError(
+                "Timed out waiting for approval confirmation.",
+                "RPC",
+                `Tx ${approveTx.hash} may still confirm. Retry the deposit to check allowance.`
+              );
+            }
+            if (approvalReceipt.status !== "success") {
+              throw new CLIError(
+                `Approval transaction reverted: ${approveTx.hash}`,
+                "CONTRACT",
+                "Check the transaction on a block explorer for details."
+              );
+            }
             spin.succeed("Token approved.");
           } catch (error) {
             spin.fail("Approval failed.");

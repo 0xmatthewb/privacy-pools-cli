@@ -1269,9 +1269,14 @@ export function createWithdrawCommand(): Command {
           silent
         );
 
-        // For quote, apply same extra-gas default as the main withdraw flow
+        // Resolve --extra-gas: read from parent withdraw opts (same pattern as --asset/--to).
+        // Default true for ERC20, always false for native asset (ETH).
         const quoteIsNativeAsset = pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
-        const quoteExtraGas = quoteIsNativeAsset ? false : true;
+        const parentExtraGas = withdrawOpts?.extraGas as boolean | undefined;
+        const quoteExtraGas = quoteIsNativeAsset ? false : (parentExtraGas ?? true);
+        if (quoteIsNativeAsset && parentExtraGas === true) {
+          info("Extra gas is not applicable for ETH withdrawals (ETH is the gas token).", silent);
+        }
 
         const amount = parseAmount(amountStr, pool.decimals);
         validatePositive(amount, "Quote amount");
@@ -1310,6 +1315,7 @@ export function createWithdrawCommand(): Command {
           feeCommitmentPresent: !!quote.feeCommitment,
           quoteExpiresAt: expirationMs ? new Date(expirationMs).toISOString() : null,
           tokenPrice: quoteTokenPrice,
+          extraGas: quoteExtraGas,
         });
       } catch (error) {
         printError(error, isJson);

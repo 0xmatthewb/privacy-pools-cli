@@ -162,7 +162,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | `-t, --to <address>` | Recipient address (required for relayed withdrawals) |
 | `-p, --from-pa <PA-#\|#>` | Withdraw from a specific Pool Account (e.g., `PA-2` or `2`) |
 | `--all` | Withdraw entire Pool Account balance |
-| `--extra-gas / --no-extra-gas` | Request gas tokens with ERC20 withdrawal (default: true) |
+| `--extra-gas / --no-extra-gas` | Request gas tokens with ERC20 withdrawal (default: true). Ignored for native ETH |
 | `--direct` | Use direct withdrawal instead of relayed |
 | `--unsigned` | Build unsigned payload(s) without submitting |
 | `--unsigned-format <format>` | Output format: `envelope` (default) or `tx` |

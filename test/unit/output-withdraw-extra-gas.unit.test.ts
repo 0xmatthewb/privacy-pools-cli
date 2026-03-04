@@ -7,8 +7,10 @@ import { createOutputContext } from "../../src/output/common.ts";
 import {
   renderWithdrawDryRun,
   renderWithdrawSuccess,
+  renderWithdrawQuote,
   type WithdrawDryRunData,
   type WithdrawSuccessData,
+  type WithdrawQuoteData,
 } from "../../src/output/withdraw.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
 
@@ -28,6 +30,19 @@ const BASE_DRY_RUN: WithdrawDryRunData = {
   proofPublicSignals: 10,
   feeBPS: "50",
   quoteExpiresAt: "2025-06-15T13:00:00.000Z",
+};
+
+const BASE_QUOTE: WithdrawQuoteData = {
+  chain: "sepolia",
+  asset: "USDC",
+  amount: 100000000n, // 100 USDC (6 decimals)
+  decimals: 6,
+  recipient: "0x1111111111111111111111111111111111111111",
+  minWithdrawAmount: "10000000",
+  quoteFeeBPS: "50",
+  feeCommitmentPresent: true,
+  quoteExpiresAt: "2025-06-15T13:00:00.000Z",
+  tokenPrice: null,
 };
 
 const BASE_SUCCESS: WithdrawSuccessData = {
@@ -142,5 +157,63 @@ describe("renderWithdrawSuccess extra-gas", () => {
 
     const json = JSON.parse(stdout.trim());
     expect(json.extraGas).toBeUndefined();
+  });
+});
+
+// ── Quote: extra-gas ────────────────────────────────────────────────────────────
+
+describe("renderWithdrawQuote extra-gas", () => {
+  test("JSON: includes extraGas when true", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: true };
+    const { stdout } = captureOutput(() => renderWithdrawQuote(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.extraGas).toBe(true);
+  });
+
+  test("JSON: includes extraGas when false", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: false };
+    const { stdout } = captureOutput(() => renderWithdrawQuote(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.extraGas).toBe(false);
+  });
+
+  test("JSON: omits extraGas when undefined", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: WithdrawQuoteData = { ...BASE_QUOTE };
+    const { stdout } = captureOutput(() => renderWithdrawQuote(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.extraGas).toBeUndefined();
+  });
+
+  test("JSON: includes feeAmount and netAmount", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: true };
+    const { stdout } = captureOutput(() => renderWithdrawQuote(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    // 100 USDC at 50 BPS = 0.5 USDC fee
+    expect(json.feeAmount).toBe("500000");
+    expect(json.netAmount).toBe("99500000");
+  });
+
+  test("human mode: shows gas token drop when extraGas=true", () => {
+    const ctx = createOutputContext(makeMode());
+    const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: true };
+    const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
+
+    expect(stderr).toContain("Gas token drop: enabled");
+  });
+
+  test("human mode: no gas token drop when extraGas is falsy", () => {
+    const ctx = createOutputContext(makeMode());
+    const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: false };
+    const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
+
+    expect(stderr).not.toContain("Gas token drop");
   });
 });

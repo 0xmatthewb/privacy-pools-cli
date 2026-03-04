@@ -53,6 +53,20 @@ describe("transaction receipt safety conformance", () => {
     });
   }
 
+  test("deposit command checks ERC20 approval receipt status", () => {
+    const source = readFileSync(`${CLI_ROOT}/src/commands/deposit.ts`, "utf8");
+
+    // ERC20 approval must verify receipt status, not just wait()
+    expect(source).toContain("Approval transaction reverted");
+    expect(source).toContain("approvalReceipt.status");
+
+    // Approval must use waitForTransactionReceipt with timeout, not bare .wait()
+    expect(source).toContain("getConfirmationTimeoutMs()");
+    // The approval path should reference its own receipt variable
+    const approvalReceiptPos = source.indexOf("approvalReceipt");
+    expect(approvalReceiptPos).toBeGreaterThan(-1);
+  });
+
   test("withdraw command checks receipt status for both direct and relayed paths", () => {
     const source = readFileSync(
       `${CLI_ROOT}/src/commands/withdraw.ts`,

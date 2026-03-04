@@ -198,6 +198,8 @@ export interface WithdrawQuoteData {
   feeCommitmentPresent: boolean;
   quoteExpiresAt: string | null;
   tokenPrice: number | null;
+  /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
+  extraGas?: boolean;
 }
 
 /**
@@ -224,21 +226,23 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   };
 
   if (ctx.mode.isJson) {
+    const payload: Record<string, unknown> = {
+      mode: "relayed-quote",
+      chain: data.chain,
+      asset: data.asset,
+      amount: data.amount.toString(),
+      recipient: data.recipient ?? null,
+      minWithdrawAmount: data.minWithdrawAmount,
+      minWithdrawAmountFormatted: minWithdrawFormatted,
+      quoteFeeBPS: data.quoteFeeBPS,
+      feeAmount: feeAmount.toString(),
+      netAmount: netAmount.toString(),
+      feeCommitmentPresent: data.feeCommitmentPresent,
+      quoteExpiresAt: data.quoteExpiresAt,
+    };
+    if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     printJsonSuccess(
-      {
-        mode: "relayed-quote",
-        chain: data.chain,
-        asset: data.asset,
-        amount: data.amount.toString(),
-        recipient: data.recipient ?? null,
-        minWithdrawAmount: data.minWithdrawAmount,
-        minWithdrawAmountFormatted: minWithdrawFormatted,
-        quoteFeeBPS: data.quoteFeeBPS,
-        feeAmount: feeAmount.toString(),
-        netAmount: netAmount.toString(),
-        feeCommitmentPresent: data.feeCommitmentPresent,
-        quoteExpiresAt: data.quoteExpiresAt,
-      },
+      payload,
       false,
     );
     return;
@@ -261,5 +265,8 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       ? `${Math.ceil(expiresIn / 1000)}s remaining`
       : "expired";
     info(`Quote expires: ${data.quoteExpiresAt} (${expiresLabel})`, silent);
+  }
+  if (data.extraGas) {
+    info("Gas token drop: enabled (receive ETH for gas)", silent);
   }
 }
