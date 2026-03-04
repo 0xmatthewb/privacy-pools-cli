@@ -9,7 +9,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, success, info, warn, isSilent, guardCsvUnsupported } from "./common.js";
-import { formatAmount, formatAddress, formatTxHash, formatBPS, displayDecimals } from "../utils/format.js";
+import { formatAmount, formatAddress, formatTxHash, formatBPS, formatUsdValue, displayDecimals } from "../utils/format.js";
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────
 
@@ -71,11 +71,11 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   info(`Recipient: ${formatAddress(data.recipient)}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
   if (data.withdrawMode === "relayed" && data.feeBPS) {
-    info(`Relay fee: ${formatBPS(data.feeBPS)}`, silent);
+    info(`Relayer fee: ${formatBPS(data.feeBPS)}`, silent);
     if (data.quoteExpiresAt) info(`Quote expires: ${data.quoteExpiresAt}`, silent);
   }
   if (data.withdrawMode === "relayed" && data.extraGas) {
-    info("Extra gas: requested (receive gas tokens with withdrawal)", silent);
+    info("Gas token drop: enabled (receive ETH for gas)", silent);
   }
   info(
     `Pool Account balance: ${formatAmount(data.selectedCommitmentValue, data.decimals, data.asset, displayDecimals(data.decimals))}`,
@@ -106,6 +106,10 @@ export interface WithdrawSuccessData {
   feeBPS?: string;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
+  /** Remaining balance in the Pool Account after withdrawal. */
+  remainingBalance: bigint;
+  /** Token price in USD, if available. */
+  tokenPrice?: number | null;
 }
 
 /**
@@ -129,6 +133,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       chain: data.chain,
       poolAccountNumber: data.poolAccountNumber,
       poolAccountId: data.poolAccountId,
+      remainingBalance: data.remainingBalance.toString(),
     };
     if (data.withdrawMode === "direct") {
       payload.fee = null;
@@ -149,6 +154,10 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   const dd = displayDecimals(data.decimals);
+  const usd = (amount: bigint): string => {
+    const val = formatUsdValue(amount, data.decimals, data.tokenPrice ?? null);
+    return val === "-" ? "" : ` (${val})`;
+  };
   success(
     `Withdrew ${formatAmount(data.amount, data.decimals, data.asset, dd)} from ${data.poolAccountId} to ${formatAddress(data.recipient)}.`,
     silent,
@@ -160,7 +169,15 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   if (data.withdrawMode === "relayed" && data.feeBPS) {
     const feeBpsNum = Number(data.feeBPS);
     const netAmount = data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n;
-    info(`Relay fee: ${formatBPS(data.feeBPS)}. Net received: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}`, silent);
+    info(`Relayer fee: ${formatBPS(data.feeBPS)}. Net received: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`, silent);
+  }
+  if (data.withdrawMode === "relayed" && data.extraGas) {
+    info("Gas token drop: enabled (ETH included with withdrawal)", silent);
+  }
+  if (data.remainingBalance === 0n) {
+    info(`${data.poolAccountId} fully withdrawn`, silent);
+  } else {
+    info(`Remaining in ${data.poolAccountId}: ${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`, silent);
   }
   if (data.withdrawMode === "direct") {
     warn("Note: Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
@@ -177,10 +194,10 @@ export interface WithdrawQuoteData {
   decimals: number;
   recipient: string | null;
   minWithdrawAmount: string;
-  maxRelayFeeBPS: bigint;
   quoteFeeBPS: string;
   feeCommitmentPresent: boolean;
   quoteExpiresAt: string | null;
+  tokenPrice: number | null;
 }
 
 /**
@@ -197,6 +214,15 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     dd,
   );
 
+  const feeBPS = BigInt(data.quoteFeeBPS);
+  const feeAmount = (data.amount * feeBPS) / 10000n;
+  const netAmount = data.amount - feeAmount;
+
+  const usd = (amount: bigint): string => {
+    const val = formatUsdValue(amount, data.decimals, data.tokenPrice);
+    return val === "-" ? "" : ` (${val})`;
+  };
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
       {
@@ -207,8 +233,9 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
         recipient: data.recipient ?? null,
         minWithdrawAmount: data.minWithdrawAmount,
         minWithdrawAmountFormatted: minWithdrawFormatted,
-        maxRelayFeeBPS: data.maxRelayFeeBPS.toString(),
         quoteFeeBPS: data.quoteFeeBPS,
+        feeAmount: feeAmount.toString(),
+        netAmount: netAmount.toString(),
         feeCommitmentPresent: data.feeCommitmentPresent,
         quoteExpiresAt: data.quoteExpiresAt,
       },
@@ -219,12 +246,12 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  info("Withdrawal quote (review before proceeding):", silent);
+  info("Withdrawal quote:", silent);
   info(`Asset: ${data.asset}`, silent);
-  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, dd)}`, silent);
+  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`, silent);
+  info(`Relayer fee: ${formatBPS(data.quoteFeeBPS)} (${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)})`, silent);
+  info(`You receive: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`, silent);
   info(`Min withdraw: ${minWithdrawFormatted}`, silent);
-  info(`Quoted fee: ${formatBPS(data.quoteFeeBPS)}`, silent);
-  info(`Onchain max fee: ${formatBPS(data.maxRelayFeeBPS)}`, silent);
   if (data.recipient) {
     info(`Recipient: ${formatAddress(data.recipient)}`, silent);
   }

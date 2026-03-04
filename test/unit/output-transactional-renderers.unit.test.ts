@@ -481,6 +481,7 @@ const STUB_WITHDRAW_SUCCESS_DIRECT: WithdrawSuccessData = {
   poolAddress: "0x1111111111111111111111111111111111111111",
   scope: 42n,
   explorerUrl: "https://sepolia.etherscan.io/tx/0xaabb",
+  remainingBalance: 500000000000000000n,
 };
 
 const STUB_WITHDRAW_SUCCESS_RELAYED: WithdrawSuccessData = {
@@ -498,6 +499,7 @@ const STUB_WITHDRAW_SUCCESS_RELAYED: WithdrawSuccessData = {
   scope: 42n,
   explorerUrl: "https://sepolia.etherscan.io/tx/0x1122",
   feeBPS: "50",
+  remainingBalance: 500000000000000000n,
 };
 
 describe("renderWithdrawSuccess parity", () => {
@@ -525,12 +527,13 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.poolAccountNumber).toBe(1);
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
+    expect(json.remainingBalance).toBe("500000000000000000");
     expect(json.nextStep).toContain("privacy-pools accounts");
     expect(json.nextStep).toContain("direct withdrawal links");
     expect(stderr).toBe("");
   });
 
-  test("JSON mode (relayed): includes feeBPS, no fee=null", () => {
+  test("JSON mode (relayed): includes feeBPS and remainingBalance, no fee=null", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_RELAYED),
@@ -540,6 +543,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.mode).toBe("relayed");
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
+    expect(json.remainingBalance).toBe("500000000000000000");
     expect(json.nextStep).toContain("privacy-pools accounts");
     expect(json.nextStep).not.toContain("direct withdrawal links");
     expect(stderr).toBe("");
@@ -557,11 +561,11 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).not.toContain("Relay fee:");
+    expect(stderr).not.toContain("Relayer fee:");
     expect(stderr).toContain("privacy-pools accounts");
   });
 
-  test("human mode (relayed): includes relay fee", () => {
+  test("human mode (relayed): includes relayer fee", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
       renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_RELAYED),
@@ -569,8 +573,80 @@ describe("renderWithdrawSuccess parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrew");
-    expect(stderr).toContain("Relay fee: 0.50%");
+    expect(stderr).toContain("Relayer fee: 0.50%");
     expect(stderr).toContain("privacy-pools accounts");
+  });
+
+  test("human mode (direct): shows remaining balance", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_DIRECT),
+    );
+
+    expect(stderr).toContain("Remaining in PA-1:");
+    expect(stderr).toContain("ETH");
+  });
+
+  test("human mode (relayed): shows remaining balance", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_RELAYED),
+    );
+
+    expect(stderr).toContain("Remaining in PA-2:");
+    expect(stderr).toContain("ETH");
+  });
+
+  test("human mode: shows 'fully withdrawn' when remainingBalance is 0", () => {
+    const ctx = createOutputContext(makeMode());
+    const data = { ...STUB_WITHDRAW_SUCCESS_DIRECT, remainingBalance: 0n };
+    const { stderr } = captureOutput(() => renderWithdrawSuccess(ctx, data));
+
+    expect(stderr).toContain("PA-1 fully withdrawn");
+    expect(stderr).not.toContain("Remaining in PA-1:");
+  });
+
+  test("human mode (relayed): shows gas token drop when extraGas is true", () => {
+    const ctx = createOutputContext(makeMode());
+    const data = { ...STUB_WITHDRAW_SUCCESS_RELAYED, extraGas: true };
+    const { stderr } = captureOutput(() => renderWithdrawSuccess(ctx, data));
+
+    expect(stderr).toContain("Gas token drop: enabled");
+  });
+
+  test("human mode (relayed): omits gas token drop when extraGas is falsy", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_RELAYED),
+    );
+
+    expect(stderr).not.toContain("Gas token drop");
+  });
+
+  test("human mode: shows USD values when tokenPrice is provided", () => {
+    const ctx = createOutputContext(makeMode());
+    const data = { ...STUB_WITHDRAW_SUCCESS_RELAYED, tokenPrice: 2000 };
+    const { stderr } = captureOutput(() => renderWithdrawSuccess(ctx, data));
+
+    // Should show USD for net received and remaining balance
+    expect(stderr).toContain("$");
+    expect(stderr).toContain("Relayer fee:");
+    expect(stderr).toContain("Remaining in PA-2:");
+  });
+
+  test("human mode: omits USD values when tokenPrice is null", () => {
+    const ctx = createOutputContext(makeMode());
+    const data = { ...STUB_WITHDRAW_SUCCESS_RELAYED, tokenPrice: null };
+    const { stderr } = captureOutput(() => renderWithdrawSuccess(ctx, data));
+
+    // The line should still appear, but without a $ value
+    expect(stderr).toContain("Relayer fee:");
+    expect(stderr).toContain("Remaining in PA-2:");
+    // Net received and remaining balance lines should NOT have "$"
+    const lines = stderr.split("\n");
+    const remainingLine = lines.find((l: string) => l.includes("Remaining in PA-2:"));
+    expect(remainingLine).toBeDefined();
+    expect(remainingLine).not.toContain("$");
   });
 
   test("human mode: omits Explorer when explorerUrl is null", () => {
@@ -601,10 +677,10 @@ const STUB_WITHDRAW_QUOTE: WithdrawQuoteData = {
   decimals: 18,
   recipient: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
   minWithdrawAmount: "100000000000000000",
-  maxRelayFeeBPS: 100n,
   quoteFeeBPS: "50",
   feeCommitmentPresent: true,
   quoteExpiresAt: "2025-06-01T00:00:00.000Z",
+  tokenPrice: null,
 };
 
 describe("renderWithdrawQuote parity", () => {
@@ -624,8 +700,9 @@ describe("renderWithdrawQuote parity", () => {
     expect(json.recipient).toBe("0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB");
     expect(json.minWithdrawAmount).toBe("100000000000000000");
     expect(typeof json.minWithdrawAmountFormatted).toBe("string");
-    expect(json.maxRelayFeeBPS).toBe("100");
     expect(json.quoteFeeBPS).toBe("50");
+    expect(json.feeAmount).toBe("2500000000000000");
+    expect(json.netAmount).toBe("497500000000000000");
     expect(json.feeCommitmentPresent).toBe(true);
     expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
     expect(stderr).toBe("");
@@ -650,8 +727,8 @@ describe("renderWithdrawQuote parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrawal quote");
     expect(stderr).toContain("Asset: ETH");
-    expect(stderr).toContain("Quoted fee: 0.50%");
-    expect(stderr).toContain("Onchain max fee: 1.00%");
+    expect(stderr).toContain("Relayer fee: 0.50%");
+    expect(stderr).toContain("You receive:");
     expect(stderr).toContain("Recipient:");
     expect(stderr).toContain("Quote expires:");
   });
@@ -663,6 +740,27 @@ describe("renderWithdrawQuote parity", () => {
 
     expect(stderr).not.toContain("Recipient:");
     expect(stderr).not.toContain("Quote expires:");
+  });
+
+  test("human mode: shows USD values when tokenPrice is provided", () => {
+    const ctx = createOutputContext(makeMode());
+    const data = { ...STUB_WITHDRAW_QUOTE, tokenPrice: 2000 };
+    const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
+
+    expect(stderr).toContain("$");
+    expect(stderr).toContain("Relayer fee:");
+    expect(stderr).toContain("You receive:");
+  });
+
+  test("human mode: omits USD when tokenPrice is null", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawQuote(ctx, STUB_WITHDRAW_QUOTE),
+    );
+
+    expect(stderr).not.toContain("$");
+    expect(stderr).toContain("Relayer fee:");
+    expect(stderr).toContain("You receive:");
   });
 
   test("quiet mode: emits nothing", () => {

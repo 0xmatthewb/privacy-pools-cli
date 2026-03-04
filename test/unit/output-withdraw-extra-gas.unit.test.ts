@@ -45,6 +45,7 @@ const BASE_SUCCESS: WithdrawSuccessData = {
   scope: 42n,
   explorerUrl: null,
   feeBPS: "50",
+  remainingBalance: 50000000000000000n,
 };
 
 // ── Dry-run: extra-gas ─────────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ describe("renderWithdrawDryRun extra-gas", () => {
     const data = { ...BASE_DRY_RUN, extraGas: true };
     const { stderr } = captureOutput(() => renderWithdrawDryRun(ctx, data));
 
-    expect(stderr).toContain("Extra gas: requested");
+    expect(stderr).toContain("Gas token drop: enabled");
   });
 
   test("human mode: no extra gas line when extraGas=false", () => {
@@ -104,7 +105,7 @@ describe("renderWithdrawDryRun extra-gas", () => {
     const data = { ...BASE_DRY_RUN, extraGas: false };
     const { stderr } = captureOutput(() => renderWithdrawDryRun(ctx, data));
 
-    expect(stderr).not.toContain("Extra gas");
+    expect(stderr).not.toContain("Gas token drop");
   });
 });
 

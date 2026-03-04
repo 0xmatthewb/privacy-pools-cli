@@ -178,7 +178,6 @@ Arguments:
 Options:
   -t, --to <address>                        Recipient address (required for relayed)
   -p, --from-pa <PA-#|#>                    Withdraw from a specific Pool Account (e.g. PA-2)
-  --direct                                  Use direct withdrawal (not privacy-preserving; use relayed mode for private withdrawals)
   --unsigned                                Build unsigned payload(s); do not submit
   --unsigned-format <format>                Unsigned output format (with --unsigned): envelope|tx
   --dry-run                                 Generate and verify withdrawal artifacts without submitting
@@ -194,7 +193,6 @@ Examples:
   privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2
   privacy-pools withdraw --all ETH --to 0xRecipient...
   privacy-pools withdraw 50% ETH --to 0xRecipient...
-  privacy-pools withdraw 0.05 ETH --direct
   privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run
   privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
   privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet

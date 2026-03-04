@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { confirm, input, select } from "@inquirer/prompts";
 import {
   generateMerkleProof,
@@ -25,8 +25,10 @@ import {
   formatAmount,
   formatAddress,
   formatBPS,
+  formatUsdValue,
   deriveTokenPrice,
   usdSuffix,
+  displayDecimals,
 } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -80,7 +82,7 @@ export function createWithdrawCommand(): Command {
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
     .option("-p, --from-pa <PA-#|#>", "Withdraw from a specific Pool Account (e.g. PA-2)")
-    .option("--direct", "Use direct withdrawal (not privacy-preserving; use relayed mode for private withdrawals)")
+    .addOption(new Option("--direct", "Use direct withdrawal (not privacy-preserving)").hideHelp())
     .option("--unsigned", "Build unsigned payload(s); do not submit")
     .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
     .option("--dry-run", "Generate and verify withdrawal artifacts without submitting")
@@ -90,7 +92,7 @@ export function createWithdrawCommand(): Command {
     .option("--no-extra-gas", "Disable extra gas request")
     .addHelpText(
       "after",
-      "\nExamples:\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2\n  privacy-pools withdraw --all ETH --to 0xRecipient...\n  privacy-pools withdraw 50% ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --direct\n  privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet\n"
+      "\nExamples:\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2\n  privacy-pools withdraw --all ETH --to 0xRecipient...\n  privacy-pools withdraw 50% ETH --to 0xRecipient...\n  privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet\n"
         + commandHelpText({
           prerequisites: "init (account state should be synced)",
           jsonFields: "{ mode, txHash, amount, recipient, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
@@ -785,6 +787,8 @@ export function createWithdrawCommand(): Command {
             poolAddress: pool.pool,
             scope: pool.scope,
             explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+            remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+            tokenPrice,
           });
         } else {
           // --- Relayed Withdrawal ---
@@ -898,10 +902,14 @@ export function createWithdrawCommand(): Command {
             isVerbose,
             silent
           );
-          info(`Relayer fee: ${quote.feeBPS} BPS (${formatBPS(BigInt(quote.feeBPS))})`, silent);
 
           // Keep human flow quote-aware before proving, matching frontend review semantics.
           if (!skipPrompts) {
+            const dd = displayDecimals(pool.decimals);
+            const usd = (amount: bigint): string => {
+              const val = formatUsdValue(amount, pool.decimals, tokenPrice);
+              return val === "-" ? "" : ` (${val})`;
+            };
             while (true) {
               const secondsLeft = Math.max(0, Math.floor((expirationMs - Date.now()) / 1000));
               if (secondsLeft <= 0) {
@@ -910,14 +918,29 @@ export function createWithdrawCommand(): Command {
               }
 
               spin.stop();
+
+              // Compute fee, net, and remaining for the review block
+              const feeAmount = (withdrawalAmount * quoteFeeBPS) / 10000n;
+              const netAmount = withdrawalAmount - feeAmount;
+              const remainingBalance = selectedPoolAccount.value - withdrawalAmount;
+
               process.stderr.write("\n");
-              info(`Quote fee: ${quote.feeBPS} BPS`, silent);
-              info(
-                `Quote valid for ~${secondsLeft}s (expires ${new Date(expirationMs).toISOString()})`,
-                silent
-              );
+              process.stderr.write("  ── Withdrawal Review ──────────────────────────\n");
+              process.stderr.write(`  From:            ${selectedPoolAccount.paId} (balance: ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol, dd)})\n`);
+              process.stderr.write(`  To:              ${formatAddress(recipientAddress)}\n`);
+              process.stderr.write(`  Chain:           ${chainConfig.name}\n`);
+              process.stderr.write(`  Amount:          ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol, dd)}${usd(withdrawalAmount)}\n`);
+              process.stderr.write(`  Relayer fee:     ${formatBPS(quoteFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)})\n`);
+              process.stderr.write(`  You receive:     ~${formatAmount(netAmount, pool.decimals, pool.symbol, dd)}${usd(netAmount)}\n`);
+              process.stderr.write(`  Remaining:       ${remainingBalance === 0n ? `${selectedPoolAccount.paId} fully withdrawn` : `${formatAmount(remainingBalance, pool.decimals, pool.symbol, dd)}${usd(remainingBalance)}`}\n`);
+              if (effectiveExtraGas) {
+                process.stderr.write("  Gas token drop:  enabled (receive ETH for gas)\n");
+              }
+              process.stderr.write(`  Quote expires:   in ${secondsLeft}s\n`);
+              process.stderr.write("  ────────────────────────────────────────────────\n");
+
               const ok = await confirm({
-                message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}${withdrawalUsd} from ${selectedPoolAccount.paId} via relayer to ${formatAddress(recipientAddress)} on ${chainConfig.name}?`,
+                message: "Confirm withdrawal?",
                 default: false,
               });
               if (!ok) {
@@ -1177,6 +1200,8 @@ export function createWithdrawCommand(): Command {
             explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
             feeBPS: quote.feeBPS,
             extraGas: effectiveExtraGas,
+            remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+            tokenPrice,
           });
         }
 
@@ -1273,6 +1298,7 @@ export function createWithdrawCommand(): Command {
           : null;
 
         const ctx = createOutputContext(mode);
+        const quoteTokenPrice = deriveTokenPrice(pool);
         renderWithdrawQuote(ctx, {
           chain: chainConfig.name,
           asset: pool.symbol,
@@ -1280,10 +1306,10 @@ export function createWithdrawCommand(): Command {
           decimals: pool.decimals,
           recipient: recipient ?? null,
           minWithdrawAmount: details.minWithdrawAmount,
-          maxRelayFeeBPS: pool.maxRelayFeeBPS,
           quoteFeeBPS: quote.feeBPS,
           feeCommitmentPresent: !!quote.feeCommitment,
           quoteExpiresAt: expirationMs ? new Date(expirationMs).toISOString() : null,
+          tokenPrice: quoteTokenPrice,
         });
       } catch (error) {
         printError(error, isJson);
