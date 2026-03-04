@@ -17,7 +17,7 @@ import {
 import {
   generateMnemonic,
   validateMnemonic,
-  extractMnemonicFromFile,
+  extractMnemonicFromFileDetailed,
 } from "../services/wallet.js";
 
 import { CHAIN_NAMES, CHAINS, MAINNET_CHAIN_NAMES, TESTNET_CHAIN_NAMES } from "../config/chains.js";
@@ -110,15 +110,22 @@ export function createInitCommand(): Command {
           }
           // Extract mnemonic from raw or structured backup files
           // (CLI backup, website recovery downloads, or plain mnemonic)
-          const extracted = extractMnemonicFromFile(fileContent);
-          if (!extracted) {
+          const extracted = extractMnemonicFromFileDetailed(fileContent);
+          if (!extracted.mnemonic) {
+            if (extracted.failure === "multiple_found") {
+              throw new CLIError(
+                "Multiple valid recovery phrases found in file.",
+                "INPUT",
+                "Keep exactly one valid BIP-39 recovery phrase (12 or 24 words) in the file."
+              );
+            }
             throw new CLIError(
               "No valid recovery phrase found in file.",
               "INPUT",
               "The file should contain a valid BIP-39 recovery phrase (12 or 24 words), either as raw text or inside a Privacy Pools backup file."
             );
           }
-          mnemonicSource = extracted;
+          mnemonicSource = extracted.mnemonic;
         } else if (opts.mnemonic) {
           mnemonicSource = opts.mnemonic;
         }

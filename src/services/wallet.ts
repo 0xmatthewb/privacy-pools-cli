@@ -18,6 +18,13 @@ export function validateMnemonic(mnemonic: string): boolean {
   return bip39ValidateMnemonic(mnemonic.trim(), bip39EnglishWordlist);
 }
 
+export type MnemonicExtractionFailure = "none_found" | "multiple_found";
+
+export interface MnemonicExtractionResult {
+  mnemonic: string | null;
+  failure: MnemonicExtractionFailure | null;
+}
+
 /**
  * Extract a BIP-39 mnemonic from file content that may contain headers,
  * labels, and warnings (e.g. CLI backup files or website recovery downloads).
@@ -25,14 +32,16 @@ export function validateMnemonic(mnemonic: string): boolean {
  * Strategy:
  *   1. Try the entire trimmed content as a mnemonic (handles raw-only files).
  *   2. Scan line-by-line for exactly one valid mnemonic line.
- *   3. Return null if zero or multiple mnemonic lines are found.
+ *   3. Return a precise failure reason when zero or multiple lines are found.
  */
-export function extractMnemonicFromFile(content: string): string | null {
+export function extractMnemonicFromFileDetailed(
+  content: string
+): MnemonicExtractionResult {
   const trimmed = content.trim();
 
   // Fast path: entire content is a raw mnemonic
   if (validateMnemonic(trimmed)) {
-    return trimmed;
+    return { mnemonic: trimmed, failure: null };
   }
 
   // Slow path: scan each line for a valid mnemonic
@@ -46,12 +55,19 @@ export function extractMnemonicFromFile(content: string): string | null {
     if (!line || line.split(/\s+/).length < 12) continue;
     if (validateMnemonic(line)) {
       // If we already found one, the file is ambiguous — fail safely
-      if (found !== null) return null;
+      if (found !== null) return { mnemonic: null, failure: "multiple_found" };
       found = line;
     }
   }
 
-  return found;
+  if (!found) {
+    return { mnemonic: null, failure: "none_found" };
+  }
+  return { mnemonic: found, failure: null };
+}
+
+export function extractMnemonicFromFile(content: string): string | null {
+  return extractMnemonicFromFileDetailed(content).mnemonic;
 }
 
 export function getMasterKeys(mnemonic: string) {

@@ -5,7 +5,11 @@
  * website CreateHistoryFile) plus edge cases and adversarial inputs.
  */
 import { describe, expect, test } from "bun:test";
-import { extractMnemonicFromFile, validateMnemonic } from "../../src/services/wallet.ts";
+import {
+  extractMnemonicFromFile,
+  extractMnemonicFromFileDetailed,
+  validateMnemonic,
+} from "../../src/services/wallet.ts";
 
 const VALID_12 = "test test test test test test test test test test test junk";
 const VALID_24 = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
@@ -213,5 +217,21 @@ describe("security invariants", () => {
     ].join("\n");
     const result = extractMnemonicFromFile(fakeContent);
     expect(result).toBe(VALID_12);
+  });
+});
+
+describe("detailed extraction result", () => {
+  test("returns failure=none_found when no mnemonic exists", () => {
+    const result = extractMnemonicFromFileDetailed("definitely not a mnemonic file");
+    expect(result.mnemonic).toBeNull();
+    expect(result.failure).toBe("none_found");
+  });
+
+  test("returns failure=multiple_found when file is ambiguous", () => {
+    const result = extractMnemonicFromFileDetailed(
+      `${VALID_12}\nabandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about`
+    );
+    expect(result.mnemonic).toBeNull();
+    expect(result.failure).toBe("multiple_found");
   });
 });

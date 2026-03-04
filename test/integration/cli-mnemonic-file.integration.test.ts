@@ -153,6 +153,26 @@ describe("init --mnemonic-file with structured backup files", () => {
     expect((json as any).success).toBe(false);
   });
 
+  // ── Failure: ambiguous file (multiple valid mnemonics) ──────────────────
+
+  test("fails safely for file containing multiple valid mnemonics", () => {
+    const home = createTempHome();
+    const ambiguous = [
+      TEST_MNEMONIC,
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    ].join("\n");
+    const filePath = writeTempFile(home, "ambiguous.txt", ambiguous);
+
+    const result = runCli(
+      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
+      { home, timeoutMs: 60_000 }
+    );
+    expect(result.status).not.toBe(0);
+    const json = parseJsonOutput(result.stdout);
+    expect((json as any).success).toBe(false);
+    expect((json as any).errorMessage).toContain("Multiple valid recovery phrases found");
+  });
+
   // ── Mnemonic is not leaked in JSON output ─────────────────────────────
 
   test("mnemonic from structured file is not leaked in JSON output", () => {
