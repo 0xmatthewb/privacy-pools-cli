@@ -107,12 +107,38 @@ export async function requestQuote(
       typeof fc.asset === "string" &&
       /^0x[0-9a-fA-F]{40}$/.test(fc.asset) &&
       typeof fc.amount === "string" &&
+      /^\d+$/.test(fc.amount) &&
       typeof fc.extraGas === "boolean" &&
       isHexString(fc.signedRelayerCommitment);
 
     if (!valid) {
       throw new CLIError(
         "Relayer returned an invalid fee commitment.",
+        "RELAYER",
+        "Run the withdraw command again to request a fresh quote."
+      );
+    }
+
+    // Quote bindings should match what we requested.
+    if (fc.asset.toLowerCase() !== params.asset.toLowerCase()) {
+      throw new CLIError(
+        "Relayer returned a fee commitment for a different asset.",
+        "RELAYER",
+        "Run the withdraw command again to request a fresh quote."
+      );
+    }
+
+    if (BigInt(fc.amount) !== params.amount) {
+      throw new CLIError(
+        "Relayer returned a fee commitment for a different withdrawal amount.",
+        "RELAYER",
+        "Run the withdraw command again to request a fresh quote."
+      );
+    }
+
+    if (fc.extraGas !== params.extraGas) {
+      throw new CLIError(
+        "Relayer returned a fee commitment with mismatched extra-gas setting.",
         "RELAYER",
         "Run the withdraw command again to request a fresh quote."
       );
