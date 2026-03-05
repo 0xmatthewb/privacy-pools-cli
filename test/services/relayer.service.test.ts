@@ -152,6 +152,110 @@ describe("relayer service", () => {
       message: expect.stringContaining("invalid fee commitment"),
     });
   });
+  test("requestQuote rejects feeCommitment with mismatched asset", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            baseFeeBPS: "10",
+            feeBPS: "12",
+            gasPrice: "100",
+            detail: { relayTxCost: { gas: "1", eth: "1" } },
+            feeCommitment: {
+              expiration: Date.now() + 60_000,
+              withdrawalData: "0x1234",
+              asset: "0x0000000000000000000000000000000000000001",
+              amount: "1000",
+              extraGas: false,
+              signedRelayerCommitment: "0x5678",
+            },
+          }),
+          { status: 200 }
+        )
+      )
+    ) as typeof fetch;
+
+    await expect(
+      requestQuote(chain, {
+        amount: 1000n,
+        asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        extraGas: false,
+      })
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("different asset"),
+    });
+  });
+
+  test("requestQuote rejects feeCommitment with mismatched amount", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            baseFeeBPS: "10",
+            feeBPS: "12",
+            gasPrice: "100",
+            detail: { relayTxCost: { gas: "1", eth: "1" } },
+            feeCommitment: {
+              expiration: Date.now() + 60_000,
+              withdrawalData: "0x1234",
+              asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+              amount: "999",
+              extraGas: false,
+              signedRelayerCommitment: "0x5678",
+            },
+          }),
+          { status: 200 }
+        )
+      )
+    ) as typeof fetch;
+
+    await expect(
+      requestQuote(chain, {
+        amount: 1000n,
+        asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        extraGas: false,
+      })
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("different withdrawal amount"),
+    });
+  });
+
+  test("requestQuote rejects feeCommitment with mismatched extraGas", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            baseFeeBPS: "10",
+            feeBPS: "12",
+            gasPrice: "100",
+            detail: { relayTxCost: { gas: "1", eth: "1" } },
+            feeCommitment: {
+              expiration: Date.now() + 60_000,
+              withdrawalData: "0x1234",
+              asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+              amount: "1000",
+              extraGas: true,
+              signedRelayerCommitment: "0x5678",
+            },
+          }),
+          { status: 200 }
+        )
+      )
+    ) as typeof fetch;
+
+    await expect(
+      requestQuote(chain, {
+        amount: 1000n,
+        asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        extraGas: false,
+      })
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("mismatched extra-gas"),
+    });
+  });
 
   test("submitRelayRequest rejects non-success payloads", async () => {
     globalThis.fetch = mock(() =>
@@ -268,3 +372,4 @@ describe("relayer service", () => {
     expect(result.txHash).toBe(validTxHash);
   });
 });
+

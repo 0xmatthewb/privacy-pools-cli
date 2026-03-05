@@ -4,3 +4,9 @@ dist/
 .env
 .env.*
 .claude/
+
+# Privacy Pools local secrets/state (if user points PRIVACY_POOLS_HOME into repo)
+.privacy-pools/
+privacy-pools-recovery.txt
+.mnemonic
+.signer

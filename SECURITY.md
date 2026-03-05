@@ -2,122 +2,85 @@
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability in this CLI, please report it
-responsibly:
+If you discover a security vulnerability in this CLI, report it privately:
 
 - **Email**: security@0xbow.io
 - **Subject**: `[privacy-pools-cli] <brief description>`
 
 Please include:
 
-1. Steps to reproduce
+1. Reproduction steps
 2. Expected vs actual behavior
-3. Impact assessment (what an attacker could achieve)
-4. Your suggested fix, if any
+3. Impact assessment
+4. Suggested remediation (if available)
 
-We aim to acknowledge reports within 48 hours and provide a fix or
-mitigation within 7 days for critical issues. Please do not open a public
-issue for security vulnerabilities.
+Please do **not** open a public issue for unpatched vulnerabilities.
 
-## Threat Model
+## Security Scope
 
-The CLI protects three categories of assets:
+This CLI protects three primary asset classes:
 
-| Asset | Threats | Mitigations |
-|---|---|---|
-| **Secrets** (mnemonic, signer key) | Disk theft, process snooping, env injection | File permissions, CWD-safe dotenv, env-var precedence |
-| **State integrity** (account DB, config) | Corruption from crashes, concurrent access | Atomic writes, advisory process locks |
-| **Transaction safety** | Interrupted confirmations, insufficient funds, malicious relayer/RPC | Critical sections, preflight balance checks, signal deferral |
+| Asset | Threats | Primary controls |
+| --- | --- | --- |
+| **Secrets** (mnemonic, signer key) | Key exfiltration, malicious local `.env`, accidental logging | Home-scoped dotenv, strict file modes (best effort), non-interactive machine mode, signer-optional unsigned flows |
+| **Local state integrity** (config + account DB) | Crash/power loss corruption, concurrent writes | Atomic write-then-rename persistence, advisory process lock, critical sections |
+| **Transaction integrity** | Stale roots, quote expiry/drift, receipt ambiguity, endpoint failures | Root parity checks, quote lifecycle checks, receipt status checks, fail-closed machine sync |
 
-## Security Mechanisms
+## Security Controls
 
-### File Permissions
+### 1. Secret Handling
 
-Sensitive files are created with strict POSIX permissions:
+- The CLI reads `.env` from `~/.privacy-pools/.env` (or configured home), **not** from the current working directory.
+- Signer key precedence is environment variable first (`PRIVACY_POOLS_PRIVATE_KEY`), then on-disk `.signer`.
+- Unsigned and dry-run transaction flows avoid loading signer keys unless required by the mode.
 
-- **Config directory** (`~/.privacy-pools/`): mode `0o700` (owner only)
-- **Secret files** (`.mnemonic`, `.signer`): mode `0o600` (owner read/write)
-- Permissions are enforced via `chmodSync` with best-effort fallback for
-  filesystems that do not support POSIX modes (e.g. FAT32, some Windows mounts).
+### 2. File Permissions and Atomic Persistence
 
-### Atomic Writes
+- Config and accounts directories are created with mode `0700` (best effort on non-POSIX filesystems).
+- Secret/state files are written with mode `0600` (best effort on non-POSIX filesystems).
+- Config/account writes use a temp-file + atomic rename pattern to avoid partial-write corruption.
 
-All config and account state files use a write-then-rename pattern:
+### 3. Process Locking and Critical Sections
 
-1. Write to a `.tmp` sibling file
-2. `renameSync()` to the final path (atomic on POSIX)
+- An advisory PID lock (`~/.privacy-pools/.lock`) prevents concurrent state mutation.
+- Stale locks are auto-cleaned when the owner PID is no longer alive.
+- Deposit/withdraw/ragequit use critical sections to defer `SIGINT`/`SIGTERM` during the onchain-confirmed-but-not-yet-persisted window.
 
-This prevents corruption if the process is killed or the system crashes
-mid-write.
+### 4. Machine-Mode Sync Fail-Closed
 
-### Process Locks
+- Query sync paths (`accounts`, `history`, `sync`) fail closed in JSON/machine mode when pool sync is partial.
+- Sync freshness metadata is only stamped when all pools sync successfully.
 
-An advisory PID-based lock file (`~/.privacy-pools/.lock`) prevents
-concurrent CLI instances from corrupting shared state:
+### 5. Transaction Integrity Checks
 
-- Created atomically with `O_EXCL` (no TOCTOU race)
-- Contains the owning PID; stale locks are auto-cleaned when the PID no
-  longer exists
-- Released on normal exit and on `SIGINT`/`SIGTERM`
+- Transactional commands wait for receipts and require `receipt.status === "success"` before reporting success.
+- Withdraw verifies ASP and onchain root parity before proving and again before submission.
+- Withdraw checks pool state root parity (`currentRoot`) against proof inputs.
+- Relayed withdraw enforces onchain `maxRelayFeeBPS`, quote expiry handling, and fee-drift invalidation.
+- Relayer quote fee commitments are validated for structure **and** request binding (`asset`, `amount`, `extraGas`).
+- Ragequit pre-checks original depositor (when available) to avoid wasting proof generation for invalid signers.
 
-### Critical Sections
+### 6. ASP-Offline Fallback Safety
 
-Transaction commands (deposit, withdraw, exit/ragequit) guard the window
-between on-chain confirmation and local state persistence:
+- Symbol fallback (`KNOWN_POOLS`) is used only when ASP lookup fails.
+- Fallback addresses are verified onchain via entrypoint/pool reads before use.
 
-- `SIGINT` and `SIGTERM` are deferred while a critical section is active
-- Supports nested guards via a depth counter
-- Pending signals are re-emitted once the critical section completes
+### 7. Preflight Checks
 
-This ensures that a Ctrl-C during confirmation does not leave local state
-out of sync with on-chain reality.
+- Deposit: native/ERC20 balance checks plus gas availability checks (as applicable).
+- Direct withdraw and ragequit: gas availability check before submission.
+- Relayed withdraw does not require local gas balance for relay submission path.
 
-### CWD-Safe Dotenv
+## Operational Safety Guidance
 
-The CLI loads `.env` exclusively from `~/.privacy-pools/.env`, **not**
-from the current working directory. This prevents a malicious `.env` in a
-cloned repository from silently redirecting RPC, ASP, or relayer endpoints
-or swapping the signer key.
-
-### ASP-Offline Pool Resolution
-
-When the ASP is unreachable, the CLI falls back to a built-in pool
-registry (`KNOWN_POOLS` in `src/config/chains.ts`) for symbol-to-address
-resolution. This ensures emergency commands like `ragequit` work even
-when the ASP is offline. The hardcoded addresses are always **verified
-on-chain** via the entrypoint contract before use — if pool addresses
-change, the on-chain check catches the mismatch and returns a clear
-error.
-
-### RPC Health Probing
-
-Before each SDK operation, the CLI probes candidate RPC URLs with a
-lightweight `eth_blockNumber` call (capped at 3 seconds) and uses the
-first healthy one. When only one URL is configured, the probe is skipped
-entirely. If all probes fail, the first URL is used so downstream
-operations produce the natural error.
-
-### Preflight Checks
-
-Before submitting any transaction, the CLI runs preflight gates:
-
-- Native balance check (with a 20% gas buffer)
-- ERC-20 balance check (for token deposits)
-- Lightweight gas-availability gate
-
-These fail fast before expensive proof generation or on-chain submission.
+- Treat the mnemonic as the highest-value secret. Loss means permanent loss of access.
+- In agent mode, only use `--show-mnemonic` when immediately capturing to secure storage.
+- After any crash or timeout during transactional operations, run `privacy-pools sync --agent` before retrying deposits.
 
 ## Known Limitations
 
-- **Node.js memory**: Proof generation can consume significant memory.
-  On constrained environments, the process may be OOM-killed.
-- **Advisory locks**: The PID-based lock is advisory only. A process that
-  ignores the lock or operates on the config directory directly can still
-  cause state corruption.
-- **File permissions on Windows**: `chmod` calls are best-effort on
-  Windows. Secrets are still written to the user's home directory, which
-  is typically ACL-protected, but the CLI cannot enforce POSIX-style
-  owner-only permissions on all platforms.
-- **Network trust**: The CLI trusts the configured RPC, ASP, and relayer
-  endpoints. Ensure these are pointed at trusted infrastructure. Use
-  `privacy-pools status` to verify connectivity.
+- **Endpoint trust**: The CLI trusts configured RPC/ASP/relayer infrastructure.
+- **Advisory lock model**: External processes ignoring the lock can still race state.
+- **Windows permission semantics**: POSIX mode enforcement is best effort.
+- **Resource usage**: Proof generation can be CPU/memory intensive in constrained environments.
+- **Fallback registry freshness**: `KNOWN_POOLS` must be kept up to date as protocol assets evolve.
