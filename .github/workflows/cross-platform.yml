@@ -1,0 +1,71 @@
+# Cross Platform — non-blocking smoke tests on all three OSes.
+#
+# WHEN does this run?
+#   - Every pull request (any branch)
+#   - Manually via the "Run workflow" button on GitHub
+#
+# WHAT does it do?
+#   Runs the packaged smoke tests on Ubuntu, Windows, and macOS
+#   in parallel. This catches OS-specific bugs (e.g., path separators,
+#   line endings, missing system libraries).
+#
+# WHY "non-blocking"?
+#   These tests are informational. They won't block you from merging
+#   a PR — only the main CI workflow gates merges. This keeps your
+#   day-to-day workflow fast while still surfacing cross-platform
+#   issues you can fix before a release.
+
+name: Cross Platform (non-blocking)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancel older runs for the same PR / branch.
+concurrency:
+  group: cross-platform-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-matrix:
+    # The job name shows which OS is running, e.g. "smoke-ubuntu-latest".
+    name: smoke-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      # Don't cancel the other OSes if one fails — you want to see
+      # the full picture of which platforms pass and which don't.
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Run packaged smoke tests
+        run: npm run test:smoke

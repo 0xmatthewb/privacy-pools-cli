@@ -1,0 +1,182 @@
+# Release Artifact — builds and publishes a GitHub Release.
+#
+# WHEN does this run?
+#   - When you push a git tag that starts with "v" (e.g. v1.2.3)
+#   - Manually via the "Run workflow" button (you type an existing tag)
+#
+# WHAT does it do?  (three sequential stages)
+#   1. validate  — runs the full CI checks (typecheck, build, tests,
+#                  smoke tests) to make sure the tagged code is healthy.
+#   2. package   — creates an npm tarball (.tgz) of the CLI.
+#   3. release   — attaches the tarball to a GitHub Release page so
+#                  users can download it.
+#
+# HOW to create a release:
+#   In your terminal:
+#     git tag v1.2.3          # create the tag locally
+#     git push origin v1.2.3  # push the tag to GitHub → triggers this workflow
+#
+#   Or use the "Run workflow" button on GitHub and type the tag name.
+#
+# SAFETY NOTE:
+#   cancel-in-progress is FALSE here — once a release starts, a second
+#   push won't cancel it mid-flight. This prevents half-published releases.
+
+name: Release Artifact
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing git tag to release (example: v1.2.3)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # -----------------------------------------------------------
+  # Stage 1: Run the full test suite to make sure the tag is safe
+  # -----------------------------------------------------------
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test core suite
+        run: npm test
+
+      - name: Run packaged smoke tests
+        run: npm run test:smoke
+
+  # -----------------------------------------------------------
+  # Stage 2: Create the distributable npm package
+  # This only runs after "validate" passes.
+  # -----------------------------------------------------------
+  package:
+    name: package
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      tarball: ${{ steps.pack.outputs.tarball }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: npm run build
+
+      # Figure out which tag we're releasing. If triggered by a
+      # tag push, use that tag. If triggered manually, use the
+      # tag the user typed in.
+      - name: Resolve tag
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="${{ inputs.tag }}"
+          fi
+
+          if [[ -z "${TAG}" ]]; then
+            echo "Tag is required."
+            exit 1
+          fi
+
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+
+      # If someone typed a tag manually, make sure it actually
+      # exists on GitHub. This prevents releasing phantom tags.
+      - name: Verify manual tag exists on origin
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          if ! git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} does not exist on origin. Create and push the tag first."
+            exit 1
+          fi
+
+      # "npm pack" creates a .tgz file — the same format npm uses
+      # when you run "npm install <package>".
+      - name: Pack npm tarball
+        id: pack
+        shell: bash
+        run: |
+          FILE="$(npm pack --silent)"
+          echo "tarball=${FILE}" >> "${GITHUB_OUTPUT}"
+
+      # Save the tarball so the next job can download it.
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-${{ steps.meta.outputs.tag }}
+          path: ${{ steps.pack.outputs.tarball }}
+          if-no-files-found: error
+
+  # -----------------------------------------------------------
+  # Stage 3: Create or update the GitHub Release page
+  # This only runs after "package" succeeds.
+  # -----------------------------------------------------------
+  release:
+    name: github-release
+    needs: package
+    runs-on: ubuntu-latest
+    # This job needs write access to create the Release page.
+    permissions:
+      contents: write
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package-${{ needs.package.outputs.tag }}
+
+      - name: Attach tarball to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.package.outputs.tag }}
+          files: ${{ needs.package.outputs.tarball }}
+          generate_release_notes: true
+          overwrite_files: true
