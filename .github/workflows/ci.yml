@@ -1,0 +1,95 @@
+# CI — the main quality gate.
+#
+# WHEN does this run?
+#   - Every pull request targeting "main"
+#   - Every push (merge) to "main"
+#
+# WHAT does it do?
+#   Two independent jobs run in parallel:
+#     1. linux-core  — typechecks, builds, and runs the core test suite
+#     2. packaged-smoke — builds the npm package and runs smoke tests
+#        against the packaged output (catches packaging mistakes)
+#
+# If either job fails the PR gets a red X, telling you something is broken.
+
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+# Only allow reading the repo — no write access needed here.
+permissions:
+  contents: read
+
+# If you push again while CI is still running, cancel the old run
+# so you don't waste GitHub Actions minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -----------------------------------------------------------
+  # Job 1: typecheck + build + unit/integration tests on Linux
+  # -----------------------------------------------------------
+  linux-core:
+    name: linux-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      # --frozen-lockfile ensures CI uses the exact same dependency
+      # versions you committed, instead of quietly upgrading anything.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test core suite
+        run: npm test
+
+  # -----------------------------------------------------------
+  # Job 2: package the CLI and run smoke tests against it
+  # -----------------------------------------------------------
+  packaged-smoke:
+    name: packaged-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build package
+        run: npm run build
+
+      - name: Run packaged smoke tests
+        run: npm run test:smoke
