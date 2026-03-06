@@ -384,7 +384,7 @@ export async function resolvePool(
   const publicClient = getPublicClient(chainConfig, rpcOverride);
 
   // If it looks like an address, validate on-chain directly
-  if (assetInput.startsWith("0x") && assetInput.length === 42) {
+  if (/^0x[0-9a-fA-F]{40}$/.test(assetInput)) {
     const assetAddress = assetInput as Address;
     try {
       const assetConfig = await getAssetConfigReadOnly(

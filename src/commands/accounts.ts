@@ -93,7 +93,7 @@ export function createAccountsCommand(): Command {
 
         spin.text = "Syncing onchain events...";
         await syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-          skip: opts.noSync === true,
+          skip: opts.sync === false,
           force: false,
           silent,
           isJson: mode.isJson,
