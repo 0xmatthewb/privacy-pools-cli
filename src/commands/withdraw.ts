@@ -326,8 +326,8 @@ export function createWithdrawCommand(): Command {
           verbose(`Requested withdrawal amount: ${withdrawalAmount.toString()}`, isVerbose, silent);
           withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
         } else {
-          // Temporary: use 1n for selection eligibility (any PA with balance > 0).
-          // Actual amount resolved after PA selection.
+          // Use a minimal positive threshold to select any PA with spendable balance.
+          // The real withdrawal amount is resolved after PA selection.
           withdrawalAmount = 1n;
           withdrawalUsd = "";
         }
