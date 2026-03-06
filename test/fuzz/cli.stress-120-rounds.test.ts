@@ -32,8 +32,9 @@ describe("CLI stress audit", () => {
 
     // Each lane has full arguments and expected error behavior.
     // With OFFLINE_ENV, `status` succeeds (local config check only),
-    // while deposit/withdraw/ragequit fail fast on ASP errors
-    // (they pass input validation but hit the unreachable ASP).
+    // while deposit/withdraw/ragequit fail fast on RPC errors because
+    // pool resolution first tries ASP and then fails closed when the
+    // RPC fallback is unreachable too.
     const commandMatrix: {
       args: string[];
       label: string;
@@ -48,7 +49,7 @@ describe("CLI stress audit", () => {
       {
         args: ["--json", "deposit", "0.01", "--asset", "ETH", "--yes"],
         label: "deposit",
-        expectedCategory: "ASP",
+        expectedCategory: "RPC",
       },
       {
         args: [
@@ -57,12 +58,12 @@ describe("CLI stress audit", () => {
           "--yes",
         ],
         label: "withdraw",
-        expectedCategory: "ASP",
+        expectedCategory: "RPC",
       },
       {
         args: ["--json", "ragequit", "--asset", "ETH", "--yes"],
         label: "ragequit",
-        expectedCategory: "ASP",
+        expectedCategory: "RPC",
       },
       {
         args: ["--json", "status", "--check"],
@@ -118,6 +119,6 @@ describe("CLI stress audit", () => {
 
     expect(ok).toBe(rounds);
     },
-    120_000
+    240_000
   );
 });

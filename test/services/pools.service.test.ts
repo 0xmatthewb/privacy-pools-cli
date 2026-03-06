@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { CHAINS } from "../../src/config/chains.ts";
-import { listPools } from "../../src/services/pools.ts";
+import { listPools, resolvePool } from "../../src/services/pools.ts";
 
 interface MockServer {
   url: string;
@@ -257,5 +257,90 @@ describe("pools service", () => {
 
     const pools = await listPools(chainConfig, server.url);
     expect(pools.length).toBe(0);
+  });
+
+  test("resolvePool falls back to a known pool when ASP is reachable but omits that asset", async () => {
+    const chainId = 11155111;
+    const ethPool = "0x00000000000000000000000000000000000000a1" as Address;
+    const scope = 123456789n;
+    const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+      const url = req.url ?? "";
+
+      if (req.method === "GET" && url === `/${chainId}/public/pools-stats`) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({
+          pools: [
+            {
+              tokenAddress: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+            },
+          ],
+        }));
+        return;
+      }
+
+      if (req.method === "POST") {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += String(chunk);
+        });
+        req.on("end", () => {
+          const json = JSON.parse(body);
+          const call = json?.params?.[0] ?? {};
+          const to = String(call.to ?? "").toLowerCase();
+          const data = String(call.data ?? "").toLowerCase();
+
+          let result = "0x";
+          if (
+            to === CHAINS.sepolia.entrypoint.toLowerCase() &&
+            data.startsWith("0xd6dbaf58")
+          ) {
+            result = encodeAbiParameters(
+              [
+                { type: "address" },
+                { type: "uint256" },
+                { type: "uint256" },
+                { type: "uint256" },
+              ],
+              [ethPool, 1000000000000000n, 50n, 250n]
+            );
+          } else if (to === ethPool.toLowerCase()) {
+            result = encodeAbiParameters([{ type: "uint256" }], [scope]);
+          }
+
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: json.id,
+              result,
+            })
+          );
+        });
+        return;
+      }
+
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const addr = server.address();
+    if (!addr || typeof addr === "string") throw new Error("bind failed");
+    const url = `http://127.0.0.1:${addr.port}`;
+    toClose.push({
+      url,
+      close: () => new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve())),
+    });
+
+    const chainConfig = {
+      ...CHAINS.sepolia,
+      aspHost: url,
+    };
+
+    const pool = await resolvePool(chainConfig, "ETH", url);
+    expect(pool.symbol).toBe("ETH");
+    expect(pool.asset.toLowerCase()).toBe("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+    expect(pool.pool.toLowerCase()).toBe(ethPool.toLowerCase());
+    expect(pool.scope).toBe(scope);
   });
 });

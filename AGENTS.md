@@ -187,7 +187,7 @@ When `--show-mnemonic` is passed (and mnemonic was generated), `mnemonic` contai
 
 > **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
 
-Circuit artifacts are downloaded automatically on first proof generation (~60s one-time).
+Proof commands provision circuit artifacts automatically on first use (~60s one-time), caching them under `~/.privacy-pools/circuits/v<sdk-version>` by default and verifying them against the shipped checksum manifest before use. Set `PRIVACY_POOLS_CIRCUITS_DIR` to use a pre-provisioned directory.
 
 #### `deposit`
 
@@ -242,7 +242,7 @@ Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof gen
 
 #### `ragequit` (alias: `exit`)
 
-Emergency exit without ASP approval. Reveals the deposit address onchain — no privacy is gained. Works even when the ASP is offline — the CLI falls back to a built-in pool registry verified on-chain.
+Emergency exit without ASP approval. Reveals the deposit address onchain — no privacy is gained. Asset resolution still works when public pool discovery is offline or incomplete because the CLI falls back to a built-in pool registry verified on-chain.
 
 ```bash
 privacy-pools exit ETH --from-pa PA-1 --agent

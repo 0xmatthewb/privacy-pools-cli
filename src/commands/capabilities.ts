@@ -159,7 +159,7 @@ const CAPABILITIES: CapabilitiesPayload = {
   agentNotes: {
     polling: "After depositing, poll 'accounts --json' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
     withdrawQuote: "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
-    firstRun: "First proof generation downloads circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
+    firstRun: "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     unsignedMode: "--unsigned builds transaction payloads without signing or submitting. Requires init (mnemonic) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     metaFlag: "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
     statusCheck: "Run 'status --json' before transacting. Check readyForDeposit/readyForWithdraw/readyForUnsigned fields.",

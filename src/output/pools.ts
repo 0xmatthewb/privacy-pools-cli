@@ -9,7 +9,7 @@ import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
-import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue, formatAddress } from "../utils/format.js";
+import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 

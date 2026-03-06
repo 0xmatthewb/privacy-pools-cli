@@ -22,7 +22,7 @@ import {
 
 import { CHAIN_NAMES, CHAINS, MAINNET_CHAIN_NAMES, TESTNET_CHAIN_NAMES } from "../config/chains.js";
 import { Separator } from "@inquirer/select";
-import { success, warn, spinner, info } from "../utils/format.js";
+import { success, warn, info } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import type { GlobalOptions } from "../types.js";
@@ -44,7 +44,7 @@ export function createInitCommand(): Command {
     .option("--default-chain <chain>", "Set default chain")
     .option("--rpc-url <url>", "Set RPC URL for the default chain")
     .option("--force", "Overwrite existing configuration without prompting")
-    .addOption(new Option("--skip-circuits", "No-op (circuits are downloaded on first use)").hideHelp())
+    .addOption(new Option("--skip-circuits", "No-op (proof commands provision circuits automatically on first use)").hideHelp())
     .addHelpText(
       "after",
       "\nPrivacy Pools uses two keys:"

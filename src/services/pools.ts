@@ -334,6 +334,48 @@ export async function listPools(
   return pools;
 }
 
+async function resolveKnownPool(
+  publicClient: PublicClient,
+  chainConfig: ChainConfig,
+  normalizedSymbol: string,
+  assetInput: string
+): Promise<PoolStats | null> {
+  const knownAddress = KNOWN_POOLS[chainConfig.id]?.[normalizedSymbol];
+  if (!knownAddress) return null;
+
+  try {
+    const assetConfig = await getAssetConfigReadOnly(
+      publicClient,
+      chainConfig.entrypoint,
+      knownAddress
+    );
+    const scope = await getScopeReadOnly(publicClient, assetConfig.pool);
+    const { symbol, decimals } = await resolveTokenMetadata(
+      publicClient,
+      knownAddress
+    );
+
+    return {
+      asset: knownAddress,
+      pool: assetConfig.pool,
+      scope,
+      symbol,
+      decimals,
+      minimumDepositAmount: assetConfig.minimumDepositAmount,
+      vettingFeeBPS: assetConfig.vettingFeeBPS,
+      maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
+    };
+  } catch {
+    throw new CLIError(
+      `Built-in pool fallback also failed for "${assetInput}" on ${chainConfig.name}.`,
+      "RPC",
+      "Check your RPC URL and network connectivity, then retry.",
+      "RPC_POOL_RESOLUTION_FAILED",
+      true
+    );
+  }
+}
+
 export async function resolvePool(
   chainConfig: ChainConfig,
   assetInput: string,
@@ -389,71 +431,45 @@ export async function resolvePool(
 
   // Try to resolve by symbol name via ASP first.
   const normalized = assetInput.toUpperCase();
+  let availableAssetsHint: string | null = null;
+  let aspLookupFailed = false;
 
   try {
     const pools = await listPools(chainConfig, rpcOverride);
     const match = pools.find((p) => p.symbol.toUpperCase() === normalized);
 
     if (match) return match;
-
-    // ASP reachable but symbol not found — no fallback needed.
-    const available = pools.map((p) => p.symbol).join(", ");
-    throw new CLIError(
-      `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
-      "INPUT",
-      available
-        ? `Available assets: ${available}`
-        : "No pools found. Try using --asset with a contract address."
-    );
+    availableAssetsHint = pools.map((p) => p.symbol).join(", ");
   } catch (error) {
     // Re-throw non-ASP errors (e.g. INPUT errors from the block above).
     if (error instanceof CLIError && error.category !== "ASP") {
       throw error;
     }
-    // ASP unreachable — fall through to hardcoded fallback.
+    // ASP unavailable — fall through to hardcoded fallback.
+    aspLookupFailed = true;
   }
 
   // Fallback: resolve symbol via hardcoded known-pool registry and
-  // verify on-chain.  This allows emergency commands (e.g. ragequit)
-  // to work when the ASP is offline.
-  const knownAssets = KNOWN_POOLS[chainConfig.id];
-  const knownAddress = knownAssets?.[normalized];
+  // verify on-chain. This keeps asset-specific commands working when
+  // public pool discovery is incomplete or temporarily unavailable.
+  const knownPool = await resolveKnownPool(
+    publicClient,
+    chainConfig,
+    normalized,
+    assetInput
+  );
+  if (knownPool) {
+    return knownPool;
+  }
 
-  if (knownAddress) {
-    try {
-      const assetConfig = await getAssetConfigReadOnly(
-        publicClient,
-        chainConfig.entrypoint,
-        knownAddress
-      );
-      const scope = await getScopeReadOnly(publicClient, assetConfig.pool);
-      const { symbol, decimals } = await resolveTokenMetadata(
-        publicClient,
-        knownAddress
-      );
-
-      return {
-        asset: knownAddress,
-        pool: assetConfig.pool,
-        scope,
-        symbol,
-        decimals,
-        minimumDepositAmount: assetConfig.minimumDepositAmount,
-        vettingFeeBPS: assetConfig.vettingFeeBPS,
-        maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
-      };
-    } catch (rpcError) {
-      // In the KNOWN_POOLS fallback path the ASP is already confirmed
-      // unreachable, so any error from the on-chain verification call is
-      // an RPC failure regardless of the specific error message format.
-      throw new CLIError(
-        `ASP is offline and RPC fallback also failed for "${assetInput}" on ${chainConfig.name}.`,
-        "RPC",
-        "Check your RPC URL and network connectivity, then retry.",
-        "RPC_POOL_RESOLUTION_FAILED",
-        true
-      );
-    }
+  if (!aspLookupFailed) {
+    throw new CLIError(
+      `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
+      "INPUT",
+      availableAssetsHint
+        ? `Available assets: ${availableAssetsHint}`
+        : "No pools found. Try using --asset with a contract address."
+    );
   }
 
   throw new CLIError(

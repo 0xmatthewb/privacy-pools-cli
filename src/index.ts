@@ -48,7 +48,7 @@ if (argv.includes("--no-color")) {
 }
 
 // Fire-and-forget update check — caches result for 24h, never blocks.
-checkForUpdateInBackground(pkg.version);
+checkForUpdateInBackground();
 
 function hasShortFlag(args: string[], flag: string): boolean {
   for (const token of args) {
@@ -78,12 +78,10 @@ const formatFlagValue = (() => {
 const isJson = argv.includes("--json") || hasShortFlag(argv, "j") || formatFlagValue === "json";
 const isCsvMode = formatFlagValue === "csv";
 const isAgent = argv.includes("--agent");
-const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
 const isUnsigned = argv.includes("--unsigned");
 const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
 const isHelpLike = argv.includes("--help") || hasShortFlag(argv, "h") || firstCommandToken === "help";
 const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
-const isCompletionLike = firstCommandToken === "completion";
 const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
 const isWelcome = argv.length === 0 && !isMachineMode;
 let machineCapturedOut = "";

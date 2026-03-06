@@ -105,7 +105,7 @@ privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key
 | `--force` | Overwrite existing config without prompting |
 | `--show-mnemonic` | Include mnemonic in JSON output (unsafe) |
 
-During interactive setup, `init` offers to write a recovery backup to `~/privacy-pools-recovery.txt`. It also asks you to confirm that you've securely backed up your recovery phrase before proceeding. Circuit artifacts are downloaded automatically on first use.
+During interactive setup, `init` offers to write a recovery backup to `~/privacy-pools-recovery.txt`. It also asks you to confirm that you've securely backed up your recovery phrase before proceeding. Proof commands automatically provision circuit artifacts on first use when needed, caching them under `~/.privacy-pools/circuits/v<sdk-version>` by default and verifying them against the shipped checksum manifest before use.
 
 ### `pools`
 
@@ -212,7 +212,7 @@ privacy-pools sync --asset ETH     # sync a single pool
 
 ### `ragequit` (alias: `exit`)
 
-A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Use when the deposit label is not approved by the ASP or its approval was revoked. Works even when the ASP is offline — the CLI falls back to a built-in pool registry verified on-chain.
+A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Use when the deposit label is not approved by the ASP or its approval was revoked. Asset resolution still works when public pool discovery is offline or incomplete because the CLI falls back to a built-in pool registry verified on-chain.
 
 ```bash
 privacy-pools ragequit ETH -p PA-1
@@ -422,6 +422,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with the `PR
 | `PRIVACY_POOLS_PRIVATE_KEY` | Signer private key (takes precedence over `.signer` file) |
 | `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
+| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
@@ -462,6 +463,7 @@ bun run dev -- status
 
 # Build and link for local testing
 bun run build
+npm run circuits:provision
 npm link
 privacy-pools --help
 
@@ -474,11 +476,15 @@ npm unlink -g privacy-pools-cli
 ```bash
 bun test                  # full test suite
 bun run typecheck         # TypeScript type check (no emit)
+npm run circuits:provision # prefetch proof artifacts into the CLI home
+PP_ANVIL_E2E=1 npm run test:e2e:anvil # opt-in Sepolia-fork E2E (deposit, relayed/direct withdraw, ragequit)
 bun run test:fuzz         # fuzz tests (longer timeout)
 bun run test:stress       # stress test (120 rounds)
 bun run test:coverage     # test suite with coverage
 bun run test:conformance  # conformance tests (extended timeout)
 ```
+
+The Anvil E2E harness starts local ASP and relayer shims against a forked Sepolia state snapshot. Set `PP_ANVIL_FORK_URL` to override the fork RPC URL and `PP_ANVIL_BIN` if `anvil` is not discoverable on your `PATH`.
 
 ## License
 

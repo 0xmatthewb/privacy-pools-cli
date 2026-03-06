@@ -1,21 +1,22 @@
 import { Command } from "commander";
 import type { Address } from "viem";
-import { CHAINS, CHAIN_NAMES, getDefaultReadOnlyChains, getAllChainsWithOverrides } from "../config/chains.js";
+import { getDefaultReadOnlyChains, getAllChainsWithOverrides } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { loadMnemonic } from "../services/wallet.js";
-import { getDataService, getPublicClient } from "../services/sdk.js";
-import { initializeAccountService } from "../services/account.js";
+import { getDataService } from "../services/sdk.js";
+import {
+  initializeAccountService,
+  withSuppressedSdkStdoutSync,
+} from "../services/account.js";
 import { fetchPoolEvents } from "../services/asp.js";
 import {
   spinner,
   formatAmount,
-  formatBPS,
   formatTimeAgo,
   displayDecimals,
   deriveTokenPrice,
-  formatUsdValue,
 } from "../utils/format.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
@@ -25,7 +26,7 @@ import type { ChainConfig, GlobalOptions, PoolStats, AspPublicEvent } from "../t
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderPoolsEmpty, renderPools, renderPoolDetail } from "../output/pools.js";
-import type { PoolWithChain, PoolsRenderData, PoolDetailRenderData } from "../output/pools.js";
+import type { PoolWithChain, PoolsRenderData } from "../output/pools.js";
 
 interface PoolsCommandOptions {
   allChains?: boolean;
@@ -216,7 +217,9 @@ export function createPoolsCommand(): Command {
               true,
               true
             );
-            const spendable = accountService.getSpendableCommitments();
+            const spendable = withSuppressedSdkStdoutSync(() =>
+              accountService.getSpendableCommitments()
+            );
             const poolCommitments = spendable.get(pool.scope) ?? [];
             myPoolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
           } catch { /* graceful skip — wallet not initialized */ }

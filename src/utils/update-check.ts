@@ -107,7 +107,7 @@ export function getUpdateNotice(currentVersion: string): string | null {
  * Fire-and-forget background fetch of the latest version from npm.
  * Updates the cache file on success.  All errors are silently swallowed.
  */
-export function checkForUpdateInBackground(currentVersion: string): void {
+export function checkForUpdateInBackground(): void {
   if (process.env.PP_NO_UPDATE_CHECK === "1") return;
 
   // Skip if cache is still fresh.

@@ -119,11 +119,11 @@ export const NATIVE_ASSET_ADDRESS =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as const;
 
 /**
- * Hardcoded symbol → asset-address map for ASP-offline fallback.
+ * Hardcoded symbol → asset-address map for on-chain-verified fallback.
  * Sourced from the Privacy Pools website `chainData.ts`.
- * When the ASP is unreachable, `resolvePool()` uses this to convert
- * a symbol into an asset address, then verifies on-chain via the
- * entrypoint contract.
+ * When public pool discovery is unavailable or incomplete, `resolvePool()`
+ * uses this to convert a symbol into an asset address, then verifies the
+ * pool on-chain via the entrypoint contract.
  *
  * Update this map when new pools are added to the protocol.
  */
