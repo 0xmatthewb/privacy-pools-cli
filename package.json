@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
+    "circuits:provision": "node scripts/provision-circuits.mjs",
     "prepare": "tsc --project tsconfig.json",
     "cli": "bun src/index.ts",
     "dev": "bun src/index.ts",
@@ -38,8 +39,9 @@
     "chalk": "5.6.2",
     "cli-table3": "0.6.5",
     "commander": "13.1.0",
-    "dotenv": "16.6.1",
+    "dotenv": "^16.6.1",
     "ora": "8.2.0",
+    "snarkjs": "0.7.5",
     "viem": "2.46.3"
   },
   "devDependencies": {

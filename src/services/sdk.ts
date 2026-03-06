@@ -1,50 +1,9 @@
-import {
-  PrivacyPoolSDK,
-  DataService,
-} from "@0xbow/privacy-pools-core-sdk";
+import { DataService } from "@0xbow/privacy-pools-core-sdk";
 import { createPublicClient, fallback, http } from "viem";
 import type { PublicClient, Address } from "viem";
 import type { ChainConfig } from "../types.js";
 import { getRpcUrls } from "./config.js";
-import { loadPrivateKey } from "./wallet.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
-
-// Use dynamic import for Circuits since it may need async init
-let _circuits: any = null;
-let _sdk: PrivacyPoolSDK | null = null;
-
-async function getCircuits() {
-  if (_circuits) return _circuits;
-
-  const { Circuits } = await import("@0xbow/privacy-pools-core-sdk");
-  _circuits = new Circuits({ browser: false });
-  return _circuits;
-}
-
-export async function getSDK(): Promise<PrivacyPoolSDK> {
-  if (_sdk) return _sdk;
-
-  const circuits = await getCircuits();
-  _sdk = new PrivacyPoolSDK(circuits);
-  return _sdk;
-}
-
-export async function getContracts(
-  chainConfig: ChainConfig,
-  rpcOverride?: string,
-  privateKeyOverride?: string
-) {
-  const sdk = await getSDK();
-  const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
-  const privateKey = privateKeyOverride ?? loadPrivateKey();
-
-  return sdk.createContractInstance(
-    rpcUrl,
-    chainConfig.chain as any,
-    chainConfig.entrypoint,
-    privateKey as `0x${string}`
-  );
-}
 
 export function getPublicClient(
   chainConfig: ChainConfig,
@@ -120,4 +79,3 @@ export async function getDataService(
     },
   ]);
 }
-

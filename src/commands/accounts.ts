@@ -6,6 +6,7 @@ import { getDataService } from "../services/sdk.js";
 import {
   initializeAccountService,
   syncAccountEvents,
+  withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { fetchApprovedLabels } from "../services/asp.js";
@@ -100,7 +101,9 @@ export function createAccountsCommand(): Command {
           errorLabel: "Account",
         });
 
-        const spendable = accountService.getSpendableCommitments();
+        const spendable = withSuppressedSdkStdoutSync(() =>
+          accountService.getSpendableCommitments()
+        );
         const scopeSet = new Set<string>();
         for (const scope of spendable.keys()) {
           scopeSet.add(scope.toString());

@@ -4,7 +4,11 @@ import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
-import { initializeAccountService, syncAccountEvents } from "../services/account.js";
+import {
+  initializeAccountService,
+  syncAccountEvents,
+  withSuppressedSdkStdoutSync,
+} from "../services/account.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
 import { spinner, verbose } from "../utils/format.js";
@@ -80,7 +84,9 @@ export function createSyncCommand(): Command {
           silent,
           false
         );
-        const preSyncSpendable = preSyncService.getSpendableCommitments();
+        const preSyncSpendable = withSuppressedSdkStdoutSync(() =>
+          preSyncService.getSpendableCommitments()
+        );
         const previousSpendableCount = Array.from(preSyncSpendable.values()).reduce(
           (acc, list) => acc + list.length,
           0
@@ -96,7 +102,9 @@ export function createSyncCommand(): Command {
           errorLabel: "Sync",
         });
 
-        const spendable = preSyncService.getSpendableCommitments();
+        const spendable = withSuppressedSdkStdoutSync(() =>
+          preSyncService.getSpendableCommitments()
+        );
         const spendableCount = Array.from(spendable.values()).reduce(
           (acc, list) => acc + list.length,
           0

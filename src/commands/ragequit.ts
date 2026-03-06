@@ -6,8 +6,15 @@ import { type Hash as SDKHash } from "@0xbow/privacy-pools-core-sdk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
-import { getSDK, getContracts, getPublicClient, getDataService } from "../services/sdk.js";
-import { initializeAccountService, saveAccount, saveSyncMeta } from "../services/account.js";
+import { getPublicClient, getDataService } from "../services/sdk.js";
+import { proveCommitment } from "../services/proofs.js";
+import { ragequit as submitRagequit } from "../services/contracts.js";
+import {
+  initializeAccountService,
+  saveAccount,
+  saveSyncMeta,
+  withSuppressedSdkStdoutSync,
+} from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
 import {
@@ -185,8 +192,6 @@ export function createRagequitCommand(): Command {
         }
         // In unsigned/dry-run modes, do NOT touch the key file at all — the signer is optional
 
-        const sdk = await getSDK();
-
         const dataService = await getDataService(
           chainConfig,
           pool.pool,
@@ -215,7 +220,9 @@ export function createRagequitCommand(): Command {
         );
 
         // Get spendable commitments for this pool
-        const spendable = accountService.getSpendableCommitments();
+        const spendable = withSuppressedSdkStdoutSync(() =>
+          accountService.getSpendableCommitments()
+        );
         const poolCommitments =
           spendable.get(pool.scope) ?? [];
         verbose(`Spendable commitments for scope: ${poolCommitments.length}`, isVerbose, silent);
@@ -393,7 +400,7 @@ export function createRagequitCommand(): Command {
         const proof = await withProofProgress(
           spin,
           "Generating commitment proof",
-          () => sdk.proveCommitment(
+          () => proveCommitment(
             commitment.value,
             BigInt(commitment.label.toString()),
             commitment.nullifier,
@@ -449,9 +456,14 @@ export function createRagequitCommand(): Command {
 
         // Submit ragequit
         stageHeader(3, 3, "Submitting exit", silent);
-        const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
+        const solidityProof = toSolidityProof(proof as any);
         spin.text = "Submitting exit transaction...";
-        const tx = await contracts.ragequit(proof, pool.pool);
+        const tx = await submitRagequit(
+          chainConfig,
+          pool.pool,
+          solidityProof,
+          globalOpts?.rpcUrl
+        );
 
         spin.text = "Waiting for confirmation...";
         const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
@@ -480,16 +492,18 @@ export function createRagequitCommand(): Command {
         try {
           // Mark the account as ragequit so it's excluded from getSpendableCommitments()
           try {
-            accountService.addRagequitToAccount(
-              commitment.label as unknown as SDKHash,
-              {
-                ragequitter: signerAddress,
-                commitment: commitment.hash,
-                label: commitment.label,
-                value: commitment.value,
-                blockNumber: receipt.blockNumber,
-                transactionHash: tx.hash as Hex,
-              } as any
+            withSuppressedSdkStdoutSync(() =>
+              accountService.addRagequitToAccount(
+                commitment.label as unknown as SDKHash,
+                {
+                  ragequitter: signerAddress,
+                  commitment: commitment.hash,
+                  label: commitment.label,
+                  value: commitment.value,
+                  blockNumber: receipt.blockNumber,
+                  transactionHash: tx.hash as Hex,
+                } as any
+              )
             );
           } catch (err) {
             // Non-fatal: next sync will discover the ragequit event on-chain

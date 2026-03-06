@@ -8,9 +8,14 @@ import { decodeEventLog, parseAbi } from "viem";
 import { resolveChain, parseAmount, validatePositive } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
-import { getContracts, getPublicClient, getDataService } from "../services/sdk.js";
+import { getPublicClient, getDataService } from "../services/sdk.js";
 import { resolvePool, listPools } from "../services/pools.js";
-import { initializeAccountService, saveAccount, saveSyncMeta } from "../services/account.js";
+import {
+  initializeAccountService,
+  saveAccount,
+  saveSyncMeta,
+  withSuppressedSdkStdoutSync,
+} from "../services/account.js";
 import { NATIVE_ASSET_ADDRESS, explorerTxUrl } from "../config/chains.js";
 import {
   spinner,
@@ -37,6 +42,11 @@ import { privateKeyToAccount } from "viem/accounts";
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
+import {
+  approveERC20,
+  depositERC20,
+  depositETH,
+} from "../services/contracts.js";
 import {
   getNextPoolAccountNumber,
   poolAccountId,
@@ -223,7 +233,9 @@ export function createDepositCommand(): Command {
 
         // Generate deposit secrets (SDK returns precommitment directly)
         const secrets =
-          accountService.createDepositSecrets(pool.scope as unknown as SDKHash);
+          withSuppressedSdkStdoutSync(() =>
+            accountService.createDepositSecrets(pool.scope as unknown as SDKHash)
+          );
         const precommitment = secrets.precommitment;
         verbose(`Generated precommitment (truncated): ${precommitment.toString().slice(0, 8)}...`, isVerbose, silent);
 
@@ -313,7 +325,6 @@ export function createDepositCommand(): Command {
           return;
         }
 
-        const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
         const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
 
         // ERC20 approval
@@ -323,10 +334,12 @@ export function createDepositCommand(): Command {
           const spin = spinner("Approving token spend...", silent);
           spin.start();
           try {
-            const approveTx = await contracts.approveERC20(
-              chainConfig.entrypoint,
+            const approveTx = await approveERC20(
+              chainConfig,
               pool.asset,
-              amount
+              chainConfig.entrypoint,
+              amount,
+              globalOpts?.rpcUrl
             );
             let approvalReceipt;
             try {
@@ -362,9 +375,20 @@ export function createDepositCommand(): Command {
 
         let tx;
         if (isNative) {
-          tx = await contracts.depositETH(amount, precommitment as unknown as bigint);
+          tx = await depositETH(
+            chainConfig,
+            amount,
+            precommitment as unknown as bigint,
+            globalOpts?.rpcUrl
+          );
         } else {
-          tx = await contracts.depositERC20(pool.asset, amount, precommitment as unknown as bigint);
+          tx = await depositERC20(
+            chainConfig,
+            pool.asset,
+            amount,
+            precommitment as unknown as bigint,
+            globalOpts?.rpcUrl
+          );
         }
 
         spin.text = "Waiting for confirmation...";
@@ -418,14 +442,18 @@ export function createDepositCommand(): Command {
           } else {
             // Persist the new commitment (7 individual args)
             try {
-              accountService.addPoolAccount(
-                pool.scope as unknown as SDKHash,
-                committedValue,
-                secrets.nullifier,
-                secrets.secret,
-                label as unknown as SDKHash,
-                receipt.blockNumber,
-                tx.hash as Hex
+              const persistedValue = committedValue;
+              const persistedLabel = label as unknown as SDKHash;
+              withSuppressedSdkStdoutSync(() =>
+                accountService.addPoolAccount(
+                  pool.scope as unknown as SDKHash,
+                  persistedValue,
+                  secrets.nullifier,
+                  secrets.secret,
+                  persistedLabel,
+                  receipt.blockNumber,
+                  tx.hash as Hex
+                )
               );
               saveAccount(chainConfig.id, accountService.account);
               saveSyncMeta(chainConfig.id);

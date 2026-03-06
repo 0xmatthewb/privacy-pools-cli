@@ -97,6 +97,19 @@ export async function withSuppressedSdkStdout<T>(
   }
 }
 
+export function withSuppressedSdkStdoutSync<T>(fn: () => T): T {
+  const originalLog = console.log;
+  const originalDebug = console.debug;
+  console.log = () => {};
+  console.debug = () => {};
+  try {
+    return fn();
+  } finally {
+    console.log = originalLog;
+    console.debug = originalDebug;
+  }
+}
+
 export async function initializeAccountService(
   dataService: DataService,
   mnemonic: string,

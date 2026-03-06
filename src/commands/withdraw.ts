@@ -11,8 +11,15 @@ import { privateKeyToAccount } from "viem/accounts";
 import { resolveChain, parseAmount, validateAddress, validatePositive } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
-import { getSDK, getContracts, getPublicClient, getDataService } from "../services/sdk.js";
-import { initializeAccountService, saveAccount, saveSyncMeta } from "../services/account.js";
+import { getPublicClient, getDataService } from "../services/sdk.js";
+import { proveWithdrawal } from "../services/proofs.js";
+import { withdrawDirect } from "../services/contracts.js";
+import {
+  initializeAccountService,
+  saveAccount,
+  saveSyncMeta,
+  withSuppressedSdkStdoutSync,
+} from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
 import { fetchMerkleRoots, fetchMerkleLeaves, fetchDepositsLargerThan } from "../services/asp.js";
 import { getRelayerDetails, requestQuote, submitRelayRequest } from "../services/relayer.js";
@@ -332,7 +339,6 @@ export function createWithdrawCommand(): Command {
         // Load account & sync
         const mnemonic = loadMnemonic();
         const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-        const sdk = await getSDK();
 
         const dataService = await getDataService(
           chainConfig,
@@ -363,7 +369,9 @@ export function createWithdrawCommand(): Command {
         );
 
         // Find spendable Pool Accounts for this scope.
-        const spendable = accountService.getSpendableCommitments();
+        const spendable = withSuppressedSdkStdoutSync(() =>
+          accountService.getSpendableCommitments()
+        );
         const poolCommitments =
           spendable.get(pool.scope) ?? [];
 
@@ -578,7 +586,9 @@ export function createWithdrawCommand(): Command {
 
         // Generate withdrawal secrets
         const { nullifier: newNullifier, secret: newSecret } =
-          accountService.createWithdrawalSecrets(commitment);
+          withSuppressedSdkStdoutSync(() =>
+            accountService.createWithdrawalSecrets(commitment)
+          );
 
         const stateRoot = (await publicClient.readContract({
           address: pool.pool,
@@ -594,6 +604,21 @@ export function createWithdrawCommand(): Command {
             "Run 'privacy-pools sync' and try the withdrawal again."
           );
         }
+
+        const assertLatestRootUnchanged = async (
+          message: string,
+          hint: string
+        ): Promise<void> => {
+          const latestRoot = await publicClient.readContract({
+            address: chainConfig.entrypoint,
+            abi: entrypointLatestRootAbi,
+            functionName: "latestRoot",
+          });
+
+          if (BigInt(roots.onchainMtRoot) !== BigInt(latestRoot as bigint)) {
+            throw new CLIError(message, "ASP", hint);
+          }
+        };
 
         if (isDirect) {
           // --- Direct Withdrawal ---
@@ -615,23 +640,15 @@ export function createWithdrawCommand(): Command {
 
           // Re-verify parity right before proving
           stageHeader(3, withdrawSteps, "Generating ZK proof", silent);
-          const latestRootCheck = await publicClient.readContract({
-            address: chainConfig.entrypoint,
-            abi: entrypointLatestRootAbi,
-            functionName: "latestRoot",
-          });
-          if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck as bigint)) {
-            throw new CLIError(
-              "Pool state changed while preparing your proof.",
-              "ASP",
-              "Re-run the withdrawal command to generate a fresh proof."
-            );
-          }
+          await assertLatestRootUnchanged(
+            "Pool state changed while preparing your proof.",
+            "Re-run the withdrawal command to generate a fresh proof."
+          );
 
           const proof = await withProofProgress(
             spin,
             "Generating ZK proof",
-            () => sdk.proveWithdrawal(commitment, {
+            () => proveWithdrawal(commitment, {
               context,
               withdrawalAmount,
               stateMerkleProof,
@@ -645,9 +662,13 @@ export function createWithdrawCommand(): Command {
             })
           );
           verbose(`Proof generated: publicSignals=${proof.publicSignals.length}`, isVerbose, silent);
+          const solidityProof = toSolidityProof(proof as any);
+          await assertLatestRootUnchanged(
+            "Pool state changed after proof generation. Re-run withdrawal to generate a fresh proof.",
+            "Run 'privacy-pools sync' then retry the withdrawal."
+          );
 
           if (isUnsigned) {
-            const solidityProof = toSolidityProof(proof as any);
             const payload = buildUnsignedDirectWithdrawOutput({
               chainId: chainConfig.id,
               chainName: chainConfig.name,
@@ -714,13 +735,19 @@ export function createWithdrawCommand(): Command {
             spin.start();
           }
 
+          await assertLatestRootUnchanged(
+            "Pool state changed before submission. Re-run withdrawal to generate a fresh proof.",
+            "Run 'privacy-pools sync' then retry the withdrawal."
+          );
+
           stageHeader(4, withdrawSteps, "Submitting withdrawal", silent);
           spin.text = "Submitting withdrawal transaction...";
-          const contracts = await getContracts(chainConfig, globalOpts?.rpcUrl);
-          const tx = await contracts.withdraw(
+          const tx = await withdrawDirect(
+            chainConfig,
+            pool.pool,
             withdrawal,
-            proof,
-            pool.scope as unknown as SDKHash
+            solidityProof,
+            globalOpts?.rpcUrl
           );
 
           spin.text = "Waiting for confirmation...";
@@ -749,13 +776,15 @@ export function createWithdrawCommand(): Command {
           try {
             // Record the withdrawal in account state
             try {
-              accountService.addWithdrawalCommitment(
-                commitment,
-                commitment.value - withdrawalAmount,
-                newNullifier,
-                newSecret,
-                receipt.blockNumber,
-                tx.hash as Hex
+              withSuppressedSdkStdoutSync(() =>
+                accountService.addWithdrawalCommitment(
+                  commitment,
+                  commitment.value - withdrawalAmount,
+                  newNullifier,
+                  newSecret,
+                  receipt.blockNumber,
+                  tx.hash as Hex
+                )
               );
               saveAccount(chainConfig.id, accountService.account);
               saveSyncMeta(chainConfig.id);
@@ -792,7 +821,6 @@ export function createWithdrawCommand(): Command {
           });
         } else {
           // --- Relayed Withdrawal ---
-          // Preload circuits (already done via sdk.proveWithdrawal init)
           // Get relayer details + quote
           stageHeader(3, withdrawSteps, "Requesting relayer quote", silent);
           spin.text = "Requesting relayer quote...";
@@ -994,23 +1022,15 @@ export function createWithdrawCommand(): Command {
 
           // Re-verify parity right before proving
           stageHeader(4, withdrawSteps, "Generating ZK proof", silent);
-          const latestRootCheck = await publicClient.readContract({
-            address: chainConfig.entrypoint,
-            abi: entrypointLatestRootAbi,
-            functionName: "latestRoot",
-          });
-          if (BigInt(roots.onchainMtRoot) !== BigInt(latestRootCheck as bigint)) {
-            throw new CLIError(
-              "Pool state changed while preparing your proof.",
-              "ASP",
-              "Re-run the withdrawal command to generate a fresh proof."
-            );
-          }
+          await assertLatestRootUnchanged(
+            "Pool state changed while preparing your proof.",
+            "Re-run the withdrawal command to generate a fresh proof."
+          );
 
           const proof = await withProofProgress(
             spin,
             "Generating ZK proof",
-            () => sdk.proveWithdrawal(commitment, {
+            () => proveWithdrawal(commitment, {
               context,
               withdrawalAmount,
               stateMerkleProof,
@@ -1026,18 +1046,10 @@ export function createWithdrawCommand(): Command {
           verbose(`Proof generated: publicSignals=${proof.publicSignals.length}`, isVerbose, silent);
 
           // Re-check parity before submit (in case of delay from user prompt)
-          const finalRootCheck = await publicClient.readContract({
-            address: chainConfig.entrypoint,
-            abi: entrypointLatestRootAbi,
-            functionName: "latestRoot",
-          });
-          if (BigInt(roots.onchainMtRoot) !== BigInt(finalRootCheck as bigint)) {
-            throw new CLIError(
-              "Pool state changed before submission. Re-run withdrawal to generate a fresh proof.",
-              "ASP",
-              "Run 'privacy-pools sync' then retry the withdrawal."
-            );
-          }
+          await assertLatestRootUnchanged(
+            "Pool state changed before submission. Re-run withdrawal to generate a fresh proof.",
+            "Run 'privacy-pools sync' then retry the withdrawal."
+          );
 
           // Auto-refresh quote if it expired during proof generation.
           // The proof context is bound to the fee BPS, so a refreshed quote
@@ -1160,13 +1172,15 @@ export function createWithdrawCommand(): Command {
           try {
             // Record the withdrawal in account state
             try {
-              accountService.addWithdrawalCommitment(
-                commitment,
-                commitment.value - withdrawalAmount,
-                newNullifier,
-                newSecret,
-                receipt.blockNumber,
-                result.txHash as Hex
+              withSuppressedSdkStdoutSync(() =>
+                accountService.addWithdrawalCommitment(
+                  commitment,
+                  commitment.value - withdrawalAmount,
+                  newNullifier,
+                  newSecret,
+                  receipt.blockNumber,
+                  result.txHash as Hex
+                )
               );
               saveAccount(chainConfig.id, accountService.account);
               saveSyncMeta(chainConfig.id);

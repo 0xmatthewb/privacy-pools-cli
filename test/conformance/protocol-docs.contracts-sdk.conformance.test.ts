@@ -45,6 +45,9 @@ const cliAsp = readFileSync(resolve(CLI_ROOT, "src/services/asp.ts"), "utf8");
 const cliRelayer = readFileSync(resolve(CLI_ROOT, "src/services/relayer.ts"), "utf8");
 const cliPools = readFileSync(resolve(CLI_ROOT, "src/services/pools.ts"), "utf8");
 const cliSdk = readFileSync(resolve(CLI_ROOT, "src/services/sdk.ts"), "utf8");
+const cliCircuits = readFileSync(resolve(CLI_ROOT, "src/services/circuits.ts"), "utf8");
+const cliContracts = readFileSync(resolve(CLI_ROOT, "src/services/contracts.ts"), "utf8");
+const cliProofs = readFileSync(resolve(CLI_ROOT, "src/services/proofs.ts"), "utf8");
 const cliWallet = readFileSync(resolve(CLI_ROOT, "src/services/wallet.ts"), "utf8");
 const cliAccount = readFileSync(resolve(CLI_ROOT, "src/services/account.ts"), "utf8");
 const cliUnsignedFlows = readFileSync(resolve(CLI_ROOT, "src/utils/unsigned-flows.ts"), "utf8");
@@ -125,9 +128,9 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   //    the actual source code for functions not in the docs.
   // ---------------------------------------------------------------
 
-  for (const method of ["PrivacyPoolSDK", "proveWithdrawal", "proveCommitment"]) {
-    run(`CLI SDK call "${method}" exists in upstream SDK reference`, () => {
-      const cliAll = cliWithdraw + cliRagequit + cliSdk;
+  for (const method of ["proveWithdrawal", "proveCommitment"]) {
+    run(`CLI proof helper "${method}" exists in upstream SDK reference`, () => {
+      const cliAll = cliWithdraw + cliRagequit + cliProofs;
       expect(cliAll).toContain(method);
       expect(upstreamSdkRef).toContain(method);
     });
@@ -200,7 +203,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // 7. SDK class exports: upstream barrel → CLI imports
   // ---------------------------------------------------------------
 
-  for (const name of ["PrivacyPoolSDK", "AccountService", "DataService"]) {
+  for (const name of ["AccountService", "DataService"]) {
     run(`SDK class "${name}" exported by upstream and imported by CLI`, () => {
       const cliAll = cliSdk + cliAccount;
       expect(cliAll).toContain(name);
@@ -362,27 +365,33 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(upstreamSdkIndex).toContain("DataService");
   });
 
-  run("CLI Circuits class exists in upstream SDK", () => {
-    expect(cliSdk).toContain("Circuits");
-    expect(cliSdk).toContain("browser: false");
-    // Upstream exports Circuits via external.ts (re-exported from barrel)
-    expect(upstreamSdkIndex).toContain("external");
+  run("CLI-managed circuit artifacts match upstream circuit names and files", () => {
+    for (const circuit of ["commitment", "withdraw"]) {
+      expect(cliCircuits).toContain(`${circuit}.wasm`);
+      expect(cliCircuits).toContain(`${circuit}.zkey`);
+      expect(cliCircuits).toContain(`${circuit}.vkey`);
+      expect(upstreamCopyScript).toContain(circuit);
+    }
   });
 
   // ---------------------------------------------------------------
   // 15. Contract interaction: SDK methods → CLI usage
   // ---------------------------------------------------------------
 
-  run("CLI createContractInstance from upstream PrivacyPoolSDK", () => {
-    expect(cliSdk).toContain("createContractInstance");
-    expect(upstreamSdkIndex).toContain("PrivacyPoolSDK");
+  run("CLI local contract writes match upstream deposit, withdraw, and ragequit functions", () => {
+    expect(cliContracts).toContain('functionName: "deposit"');
+    expect(cliContracts).toContain('functionName: "withdraw"');
+    expect(cliContracts).toContain('functionName: "ragequit"');
+    expect(upstreamIEntrypoint).toContain("function deposit(");
+    expect(upstreamIPrivacyPool).toContain("function withdraw(");
+    expect(upstreamIPrivacyPool).toContain("function ragequit(");
   });
 
   // ---------------------------------------------------------------
-  // 16. proveWithdrawal input shape: CLI → upstream SDK
+  // 16. Withdrawal proof input shape: CLI → circuit input
   // ---------------------------------------------------------------
 
-  run("CLI proveWithdrawal input fields match upstream SDK", () => {
+  run("CLI withdrawal proof input fields match upstream circuit inputs", () => {
     for (const field of [
       "context", "withdrawalAmount",
       "stateMerkleProof", "aspMerkleProof",
@@ -391,17 +400,23 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     ]) {
       expect(cliWithdraw).toContain(field);
     }
-    expect(upstreamSdkRef).toContain("proveWithdrawal");
+    expect(cliProofs).toContain("prepareWithdrawalInputSignals");
+    expect(cliProofs).toContain("stateSiblings");
+    expect(cliProofs).toContain("ASPSiblings");
+    expect(cliProofs).toContain("snarkjs.groth16.fullProve");
+    expect(upstreamWithdrawInput).toHaveProperty("stateSiblings");
+    expect(upstreamWithdrawInput).toHaveProperty("ASPSiblings");
   });
 
   // ---------------------------------------------------------------
-  // 17. Ragequit flow: SDK proveCommitment → contract ragequit
+  // 17. Ragequit flow: local proveCommitment → contract ragequit
   // ---------------------------------------------------------------
 
-  run("CLI ragequit calls proveCommitment then contracts.ragequit", () => {
+  run("CLI ragequit calls local proveCommitment then submits ragequit onchain", () => {
     expect(cliRagequit).toContain("proveCommitment");
-    expect(cliRagequit).toContain("contracts.ragequit");
-    expect(upstreamSdkRef).toContain("proveCommitment");
+    expect(cliRagequit).toContain("submitRagequit");
+    expect(cliContracts).toContain('functionName: "ragequit"');
+    expect(cliProofs).toContain("proveCommitment");
     expect(upstreamIPrivacyPool).toContain("ragequit");
   });
 
@@ -409,10 +424,11 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // 18. Deposit flow: SDK secrets → contract call
   // ---------------------------------------------------------------
 
-  run("CLI deposit generates secrets via SDK and calls contract deposit methods", () => {
+  run("CLI deposit generates secrets via SDK and submits deposit transactions locally", () => {
     expect(cliDeposit).toContain("createDepositSecrets");
-    expect(cliDeposit).toContain("contracts.depositETH");
-    expect(cliDeposit).toContain("contracts.depositERC20");
+    expect(cliDeposit).toContain("depositETH(");
+    expect(cliDeposit).toContain("depositERC20(");
+    expect(cliContracts).toContain('functionName: "deposit"');
     expect(upstreamAccountService).toContain("createDepositSecrets");
     expect(upstreamIEntrypoint).toContain("function deposit(");
   });

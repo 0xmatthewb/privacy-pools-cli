@@ -17,4 +17,9 @@ describe("withdraw root source conformance", () => {
     expect(withdrawSource).toContain('functionName: "latestRoot"');
     expect(withdrawSource).toContain("Pool data is out of date.");
   });
+
+  test("direct and relayed paths both fail closed when latestRoot changes after proof work begins", () => {
+    expect(withdrawSource).toContain("Pool state changed after proof generation.");
+    expect(withdrawSource).toContain("Pool state changed before submission.");
+  });
 });
