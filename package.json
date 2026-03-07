@@ -1,6 +1,6 @@
 {
   "name": "privacy-pools-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI for interacting with Privacy Pools v1",
   "type": "module",
   "bin": {
