@@ -98,6 +98,19 @@ async function route(
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
 
   if (req.method === "GET" && url.pathname === "/relayer/details") {
+    const requestedChainId = url.searchParams.get("chainId");
+    const requestedAssetAddress = url.searchParams.get("assetAddress");
+    if (
+      requestedChainId !== String(config.chainId)
+      || requestedAssetAddress?.toLowerCase() !== config.assetAddress.toLowerCase()
+    ) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        message: `Expected chainId=${config.chainId} and assetAddress=${config.assetAddress}`,
+      }));
+      return;
+    }
+
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({
       chainId: config.chainId,
@@ -124,6 +137,17 @@ async function route(
   const body = bodyText ? JSON.parse(bodyText) as Record<string, unknown> : {};
 
   if (url.pathname === "/relayer/quote") {
+    if (
+      String(body.chainId) !== String(config.chainId)
+      || String(body.asset).toLowerCase() !== config.assetAddress.toLowerCase()
+    ) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        message: `Expected quote body chainId=${config.chainId} and asset=${config.assetAddress}`,
+      }));
+      return;
+    }
+
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(buildQuoteBody(config, {
       amount: String(body.amount),
@@ -134,6 +158,14 @@ async function route(
   }
 
   if (url.pathname === "/relayer/request") {
+    if (String(body.chainId) !== String(config.chainId)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        message: `Expected relay request chainId=${config.chainId}`,
+      }));
+      return;
+    }
+
     const account = privateKeyToAccount(config.relayerPrivateKey);
     const publicClient = createPublicClient({
       transport: http(config.rpcUrl),

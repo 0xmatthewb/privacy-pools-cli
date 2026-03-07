@@ -1,6 +1,6 @@
 # Privacy Pools CLI
 
-Command-line interface for [Privacy Pools v1](https://www.privacypools.com). Deposit assets publicly and withdraw them privately, with regulatory compliance through Association Set Provider (ASP) approval.
+Command-line interface for [Privacy Pools v1](https://www.privacypools.com), a compliant way to transact anonymously on Ethereum. Deposit, withdraw privately, manage pool accounts, and more. Built for AI agent integration with structured JSON output, categorized errors, and unsigned transaction mode.
 
 > **Warning:** This CLI is experimental. Use at your own risk. For large transactions, use [privacypools.com](https://privacypools.com).
 
@@ -17,7 +17,7 @@ The protocol is **non-custodial**: users maintain control of their funds through
 - **Pool Account (PA-1, PA-2, ...)**: Each deposit creates a numbered Pool Account. This is how you refer to your funds throughout the CLI.
 - **ASP (Association Set Provider)**: The compliance layer that controls which deposits can be privately withdrawn. Maintains approved labels and supplies cryptographic proof data for withdrawals.
 - **Relayed withdrawal**: The withdrawal is processed through a relayer for enhanced privacy. The relayer pays gas and takes a configurable fee. No onchain link between your wallet and the recipient.
-- **Direct withdrawal**: The user directly interacts with the pool contract. Simpler flow and no relayer fees, but provides basic privacy because the user's wallet appears onchain.
+- **Direct withdrawal**: The user directly interacts with the pool contract. Simpler flow and no relayer fees, but not privacy-preserving because the user's wallet appears onchain.
 - **Ragequit / Exit**: A safety mechanism that allows the original depositor to publicly withdraw funds without needing ASP approval. Ensures the ability to recover funds when the deposit label is not approved by the ASP or its approval was revoked.
 
 ## Installation
@@ -137,7 +137,7 @@ privacy-pools deposit 100 USDC
 
 ### `withdraw`
 
-Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relayer pays gas and takes a fee). Add `--direct` to interact with the pool contract directly (no relayer fees, basic privacy).
+Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relayer pays gas and takes a fee). Add `--direct` to interact with the pool contract directly (no relayer fees, but not privacy-preserving).
 
 ```bash
 # Relayed withdrawal (default, enhanced privacy)
@@ -149,7 +149,7 @@ privacy-pools withdraw --all ETH --to 0xRecipient...
 # Withdraw a percentage
 privacy-pools withdraw 50% ETH --to 0xRecipient...
 
-# Direct withdrawal (no relayer fees, basic privacy)
+# Direct withdrawal (no relayer fees, not privacy-preserving)
 privacy-pools withdraw 0.05 ETH --direct
 
 # Get a fee quote without withdrawing
@@ -463,7 +463,7 @@ bun run dev -- status
 
 # Build and link for local testing
 bun run build
-npm run circuits:provision
+bun run circuits:provision
 npm link
 privacy-pools --help
 
@@ -474,15 +474,18 @@ npm unlink -g privacy-pools-cli
 ### Scripts
 
 ```bash
-bun test                  # full test suite
+bun run test              # fast default suite (unit/integration/fuzz/services)
+bun run test:ci           # full suite + conformance
 bun run typecheck         # TypeScript type check (no emit)
-npm run circuits:provision # prefetch proof artifacts into the CLI home
-PP_ANVIL_E2E=1 npm run test:e2e:anvil # opt-in Sepolia-fork E2E (deposit, relayed/direct withdraw, ragequit)
+bun run circuits:provision # prefetch proof artifacts into the CLI home
+PP_ANVIL_E2E=1 bun run test:e2e:anvil # opt-in Sepolia-fork E2E (deposit, relayed/direct withdraw, ragequit)
 bun run test:fuzz         # fuzz tests (longer timeout)
 bun run test:stress       # stress test (120 rounds)
 bun run test:coverage     # test suite with coverage
 bun run test:conformance  # conformance tests (extended timeout)
 ```
+
+Use `bun run test` / `bun run test:ci` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts. Bare `bun test` invokes Bun's test runner directly with auto-discovery and default timeout behavior, which is not the contract this repo documents. The `npm` equivalents still work because they call the same package scripts.
 
 The Anvil E2E harness starts local ASP and relayer shims against a forked Sepolia state snapshot. Set `PP_ANVIL_FORK_URL` to override the fork RPC URL and `PP_ANVIL_BIN` if `anvil` is not discoverable on your `PATH`.
 

@@ -9,6 +9,8 @@ This document is for AI agents, bots, and programmatic consumers of the Privacy 
 ```bash
 # Install
 npm i -g github:0xmatthewb/privacy-pools-cli
+# or
+bun add -g github:0xmatthewb/privacy-pools-cli
 
 # Discover capabilities (no wallet needed)
 privacy-pools capabilities --agent

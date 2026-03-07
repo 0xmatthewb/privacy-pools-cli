@@ -46,6 +46,12 @@ function readAnvilAspState(path: string): AnvilAspState {
   return JSON.parse(readFileSync(path, "utf8")) as AnvilAspState;
 }
 
+function firstHeaderValue(
+  value: string | string[] | undefined
+): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function allStateTreeLeaves(state: AnvilAspState): string[] {
   return [...state.baseStateTreeLeaves, ...state.insertedStateTreeLeaves];
 }
@@ -104,11 +110,27 @@ async function route(
       },
     ];
   } else if (path === `/${state.chainId}/public/mt-leaves`) {
+    const scopeHeader = firstHeaderValue(req.headers["x-pool-scope"]);
+    if (scopeHeader !== state.scope) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        message: `Expected X-Pool-Scope=${state.scope}, received ${scopeHeader ?? "<missing>"}`,
+      }));
+      return;
+    }
     body = {
       aspLeaves: state.approvedLabels,
       stateTreeLeaves: allStateTreeLeaves(state),
     };
   } else if (path === `/${state.chainId}/public/mt-roots`) {
+    const scopeHeader = firstHeaderValue(req.headers["x-pool-scope"]);
+    if (scopeHeader !== state.scope) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        message: `Expected X-Pool-Scope=${state.scope}, received ${scopeHeader ?? "<missing>"}`,
+      }));
+      return;
+    }
     const onchainMtRoot = await latestRoot(state);
     body = {
       mtRoot: state.approvedLabels.length > 0
