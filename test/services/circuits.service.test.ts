@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -13,6 +14,7 @@ const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_CIRCUITS_DIR = process.env.PRIVACY_POOLS_CIRCUITS_DIR;
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_CONFIG_DIR = process.env.PRIVACY_POOLS_CONFIG_DIR;
+const require = createRequire(import.meta.url);
 
 const ALL_FILES = [
   "commitment.wasm",
@@ -27,9 +29,19 @@ const TEMP_DIRS: string[] = [];
 const TEST_BYTES = new Uint8Array([1, 2, 3]);
 const TEST_HASH = "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81";
 
+function installedSdkTag(): string {
+  const sdkPackageJsonPath = require.resolve(
+    "@0xbow/privacy-pools-core-sdk/package.json"
+  );
+  const sdkPkg = JSON.parse(
+    require("node:fs").readFileSync(sdkPackageJsonPath, "utf8")
+  ) as { version: string };
+  return `v${sdkPkg.version}`;
+}
+
 function installTestChecksums(): void {
   overrideCircuitChecksumsForTests({
-    "v1.1.0": Object.fromEntries(
+    [installedSdkTag()]: Object.fromEntries(
       ALL_FILES.map((filename) => [filename, TEST_HASH])
     ),
   });
