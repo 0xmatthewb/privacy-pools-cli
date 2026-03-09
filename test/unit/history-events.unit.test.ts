@@ -158,6 +158,26 @@ describe("history event extraction", () => {
     expect(withdrawals[1].value).toBe(40n);
   });
 
+  test("zero-value withdrawal remains a zero-value history event", () => {
+    const deposit = makeDeposit({ value: 100n, blockNumber: 10n });
+    const child = makeDeposit({
+      hash: 22n,
+      value: 100n,
+      blockNumber: 20n,
+      txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+    });
+
+    const account = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(deposit, [child]),
+    ]);
+
+    const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
+    const withdrawals = events.filter((e) => e.type === "withdrawal");
+
+    expect(withdrawals).toHaveLength(1);
+    expect(withdrawals[0].value).toBe(0n);
+  });
+
   test("ragequit without prior withdrawals uses full deposit value", () => {
     const deposit = makeDeposit({ value: 250n });
 
@@ -189,4 +209,3 @@ describe("history event extraction", () => {
     expect(events[0].txHash).toBe("0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890");
   });
 });
-

@@ -86,7 +86,7 @@ export function buildHistoryEventsFromAccount(
             poolAddress: pool.pool,
             paNumber,
             paId,
-            value: withdrawnAmount > 0n ? withdrawnAmount : child.value,
+            value: withdrawnAmount < 0n ? child.value : withdrawnAmount,
             blockNumber: child.blockNumber,
             txHash: child.txHash,
           });
