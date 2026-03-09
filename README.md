@@ -4,6 +4,8 @@ Command-line interface for [Privacy Pools v1](https://www.privacypools.com), a c
 
 > **Warning:** This CLI is experimental. Use at your own risk. For large transactions, use [privacypools.com](https://privacypools.com).
 
+Release history: [CHANGELOG.md](CHANGELOG.md)
+
 ## What is Privacy Pools?
 
 On public blockchains like Ethereum, every transaction is visible to everyone. While this transparency is a core feature, it creates significant privacy challenges for users. Every transaction reveals the full balances and transaction history of both parties.
