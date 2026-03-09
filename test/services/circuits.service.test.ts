@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -28,6 +28,10 @@ const ALL_FILES = [
 const TEMP_DIRS: string[] = [];
 const TEST_BYTES = new Uint8Array([1, 2, 3]);
 const TEST_HASH = "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81";
+const SHARED_CHECKSUM_MANIFEST = resolve(
+  import.meta.dir,
+  "../../src/services/circuit-checksums.json"
+);
 
 function installedSdkTag(): string {
   const sdkPackageJsonPath = require.resolve(
@@ -148,5 +152,14 @@ describe("circuits service", () => {
       category: "PROOF",
       code: "PROOF_GENERATION_FAILED",
     });
+  });
+
+  test("shared checksum manifest includes the installed SDK tag", () => {
+    const manifest = JSON.parse(
+      readFileSync(SHARED_CHECKSUM_MANIFEST, "utf8")
+    ) as Record<string, Record<string, string>>;
+
+    expect(manifest[installedSdkTag()]).toBeDefined();
+    expect(Object.keys(manifest[installedSdkTag()])).toEqual([...ALL_FILES]);
   });
 });
