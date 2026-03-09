@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { access, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { homedir } from "node:os";
+import checksumsByTag from "../src/services/circuit-checksums.js";
 
 const require = createRequire(import.meta.url);
 
@@ -51,12 +52,6 @@ async function writeFileAtomic(path, bytes) {
 }
 
 async function main() {
-  const checksumsByTag = JSON.parse(
-    await readFile(
-      new URL("../src/services/circuit-checksums.json", import.meta.url),
-      "utf8"
-    )
-  );
   const sdkEntry = require.resolve("@0xbow/privacy-pools-core-sdk");
   const sdkRoot = resolve(dirname(sdkEntry), "..", "..");
   const sdkPkg = JSON.parse(

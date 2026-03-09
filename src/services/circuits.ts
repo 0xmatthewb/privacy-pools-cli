@@ -5,7 +5,7 @@ import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { getConfigDir } from "./config.js";
 import { CLIError } from "../utils/errors.js";
-import defaultArtifactChecksums from "./circuit-checksums.json";
+import defaultArtifactChecksums from "./circuit-checksums.js";
 
 const require = createRequire(import.meta.url);
 
