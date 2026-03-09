@@ -78,35 +78,51 @@ export function toPoolInfo(pool: {
 }
 
 /**
- * The SDK emits logs via console.log (Logger.info) and console.debug
- * (Logger.debug in DataService). Suppress both so machine-mode JSON
- * output on stdout remains parseable.
+ * The SDK emits diagnostic logs directly through console methods.
+ * Suppress them while we call into the SDK so retries and debug chatter
+ * cannot leak into CLI output, especially in JSON/agent mode.
  */
+function silenceSdkConsole(): () => void {
+  const original = {
+    log: console.log,
+    info: console.info,
+    debug: console.debug,
+    warn: console.warn,
+    error: console.error,
+  };
+
+  console.log = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+  console.warn = () => {};
+  console.error = () => {};
+
+  return () => {
+    console.log = original.log;
+    console.info = original.info;
+    console.debug = original.debug;
+    console.warn = original.warn;
+    console.error = original.error;
+  };
+}
+
 export async function withSuppressedSdkStdout<T>(
   fn: () => Promise<T>
 ): Promise<T> {
-  const originalLog = console.log;
-  const originalDebug = console.debug;
-  console.log = () => {};
-  console.debug = () => {};
+  const restore = silenceSdkConsole();
   try {
     return await fn();
   } finally {
-    console.log = originalLog;
-    console.debug = originalDebug;
+    restore();
   }
 }
 
 export function withSuppressedSdkStdoutSync<T>(fn: () => T): T {
-  const originalLog = console.log;
-  const originalDebug = console.debug;
-  console.log = () => {};
-  console.debug = () => {};
+  const restore = silenceSdkConsole();
   try {
     return fn();
   } finally {
-    console.log = originalLog;
-    console.debug = originalDebug;
+    restore();
   }
 }
 

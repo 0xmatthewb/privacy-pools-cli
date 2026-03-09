@@ -35,17 +35,40 @@ describe("sdk service", () => {
   /* ---------------------------------------------------------------- */
 
   describe("getDataService", () => {
-    test("returns a DataService instance with correct config", () => {
+    test("returns a DataService instance with correct config", async () => {
       const poolAddress = "0x0000000000000000000000000000000000000001" as Address;
-      const ds = getDataService(CHAINS.mainnet, poolAddress, "https://rpc.example.com");
+      const ds = await getDataService(
+        CHAINS.mainnet,
+        poolAddress,
+        "https://rpc.example.com"
+      );
       expect(ds).toBeDefined();
+      expect((ds as any).chainConfigs[0].startBlock).toBe(CHAINS.mainnet.startBlock);
     });
 
-    test("uses chain startBlock from config", () => {
+    test("uses chain startBlock from config", async () => {
       const poolAddress = "0x0000000000000000000000000000000000000001" as Address;
-      // Just verify it doesn't throw — the DataService is constructed with startBlock internally
-      const ds = getDataService(CHAINS.sepolia, poolAddress);
+      const ds = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "https://rpc.example.com"
+      );
       expect(ds).toBeDefined();
+      expect((ds as any).chainConfigs[0].startBlock).toBe(CHAINS.sepolia.startBlock);
+    });
+
+    test("uses local compatibility data service for localhost RPCs", async () => {
+      const poolAddress = "0x0000000000000000000000000000000000000001" as Address;
+      const ds = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "http://127.0.0.1:8545"
+      );
+
+      expect(typeof (ds as any).getDeposits).toBe("function");
+      expect(typeof (ds as any).getWithdrawals).toBe("function");
+      expect(typeof (ds as any).getRagequits).toBe("function");
+      expect((ds as any).logFetchConfigs).toBeUndefined();
     });
   });
 });

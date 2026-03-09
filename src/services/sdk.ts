@@ -1,9 +1,23 @@
-import { DataService } from "@0xbow/privacy-pools-core-sdk";
-import { createPublicClient, fallback, http } from "viem";
-import type { PublicClient, Address } from "viem";
+import {
+  DataService,
+  type ChainLogFetchConfig,
+  type PoolInfo,
+} from "@0xbow/privacy-pools-core-sdk";
+import { createPublicClient, fallback, http, parseAbiItem } from "viem";
+import type { PublicClient, Address, Hex } from "viem";
 import type { ChainConfig } from "../types.js";
 import { getRpcUrls } from "./config.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
+
+const LOCAL_DEPOSIT_EVENT = parseAbiItem(
+  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)"
+);
+const LOCAL_WITHDRAWAL_EVENT = parseAbiItem(
+  "event Withdrawn(address indexed _processooor, uint256 _value, uint256 _spentNullifier, uint256 _newCommitment)"
+);
+const LOCAL_RAGEQUIT_EVENT = parseAbiItem(
+  "event Ragequit(address indexed _ragequitter, uint256 _commitment, uint256 _label, uint256 _value)"
+);
 
 export function getPublicClient(
   chainConfig: ChainConfig,
@@ -64,18 +78,163 @@ export async function getHealthyRpcUrl(
   return urls[0];
 }
 
+function isLocalRpcUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "::1" ||
+      parsed.hostname === "0.0.0.0" ||
+      parsed.hostname === "host.docker.internal"
+    );
+  } catch {
+    return false;
+  }
+}
+
+class LocalCompatDataService {
+  constructor(
+    private readonly client: PublicClient,
+    private readonly chainConfig: ChainConfig
+  ) {}
+
+  async getDeposits(pool: PoolInfo) {
+    const logs = await this.client.getLogs({
+      address: pool.address,
+      event: LOCAL_DEPOSIT_EVENT,
+      fromBlock: pool.deploymentBlock ?? this.chainConfig.startBlock,
+    });
+
+    return logs.map((log) => {
+      const args = log.args as {
+        _depositor?: string;
+        _commitment?: bigint;
+        _label?: bigint;
+        _value?: bigint;
+        _merkleRoot?: bigint;
+      };
+
+      if (
+        !args?._depositor ||
+        !args._commitment ||
+        !args._label ||
+        !log.blockNumber ||
+        !log.transactionHash ||
+        args._merkleRoot === undefined ||
+        args._merkleRoot === null
+      ) {
+        throw new Error("Malformed deposit log");
+      }
+
+      return {
+        depositor: args._depositor,
+        commitment: args._commitment,
+        label: args._label,
+        value: args._value ?? 0n,
+        precommitment: args._merkleRoot,
+        blockNumber: BigInt(log.blockNumber),
+        transactionHash: log.transactionHash as Hex,
+      };
+    });
+  }
+
+  async getWithdrawals(pool: PoolInfo, fromBlock?: bigint) {
+    const logs = await this.client.getLogs({
+      address: pool.address,
+      event: LOCAL_WITHDRAWAL_EVENT,
+      fromBlock: fromBlock ?? pool.deploymentBlock ?? this.chainConfig.startBlock,
+    });
+
+    return logs.map((log) => {
+      const args = log.args as {
+        _value?: bigint;
+        _spentNullifier?: bigint;
+        _newCommitment?: bigint;
+      };
+
+      if (
+        args?._value === undefined ||
+        args?._value === null ||
+        !args._spentNullifier ||
+        !args._newCommitment ||
+        !log.blockNumber ||
+        !log.transactionHash
+      ) {
+        throw new Error("Malformed withdrawal log");
+      }
+
+      return {
+        withdrawn: args._value,
+        spentNullifier: args._spentNullifier,
+        newCommitment: args._newCommitment,
+        blockNumber: BigInt(log.blockNumber),
+        transactionHash: log.transactionHash as Hex,
+      };
+    });
+  }
+
+  async getRagequits(pool: PoolInfo, fromBlock?: bigint) {
+    const logs = await this.client.getLogs({
+      address: pool.address,
+      event: LOCAL_RAGEQUIT_EVENT,
+      fromBlock: fromBlock ?? pool.deploymentBlock ?? this.chainConfig.startBlock,
+    });
+
+    return logs.map((log) => {
+      const args = log.args as {
+        _ragequitter?: string;
+        _commitment?: bigint;
+        _label?: bigint;
+        _value?: bigint;
+      };
+
+      if (
+        !args?._ragequitter ||
+        !args._commitment ||
+        !args._label ||
+        !log.blockNumber ||
+        !log.transactionHash
+      ) {
+        throw new Error("Malformed ragequit log");
+      }
+
+      return {
+        ragequitter: args._ragequitter,
+        commitment: args._commitment,
+        label: args._label,
+        value: args._value ?? 0n,
+        blockNumber: BigInt(log.blockNumber),
+        transactionHash: log.transactionHash as Hex,
+      };
+    });
+  }
+}
+
 export async function getDataService(
   chainConfig: ChainConfig,
   poolAddress: Address,
   rpcOverride?: string
 ): Promise<DataService> {
   const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
-  return new DataService([
-    {
-      chainId: chainConfig.id,
-      rpcUrl,
-      privacyPoolAddress: poolAddress,
-      startBlock: chainConfig.startBlock,
-    },
-  ]);
+  if (isLocalRpcUrl(rpcUrl)) {
+    return new LocalCompatDataService(
+      getPublicClient(chainConfig, rpcUrl),
+      chainConfig
+    ) as unknown as DataService;
+  }
+
+  const logFetchConfig: ChainLogFetchConfig = new Map();
+
+  return new DataService(
+    [
+      {
+        chainId: chainConfig.id,
+        rpcUrl,
+        privacyPoolAddress: poolAddress,
+        startBlock: chainConfig.startBlock,
+      },
+    ],
+    logFetchConfig
+  );
 }

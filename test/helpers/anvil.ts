@@ -1,6 +1,8 @@
 import { createServer } from "node:net";
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 export interface AnvilInstance {
   proc: ChildProcess;
@@ -18,9 +20,13 @@ function resolveAnvilBinary(): string {
   const envOverride = process.env.PP_ANVIL_BIN?.trim();
   if (envOverride) return envOverride;
 
-  const windowsDefault = "C:\\Users\\studi\\.foundry\\bin\\anvil.exe";
-  if (process.platform === "win32" && existsSync(windowsDefault)) {
-    return windowsDefault;
+  const foundryBinDir = join(homedir(), ".foundry", "bin");
+  const foundryDefault = join(
+    foundryBinDir,
+    process.platform === "win32" ? "anvil.exe" : "anvil"
+  );
+  if (existsSync(foundryDefault)) {
+    return foundryDefault;
   }
 
   return "anvil";
@@ -103,6 +109,7 @@ export async function launchAnvil(
 ): Promise<AnvilInstance> {
   const port = await getFreePort();
   const url = `http://127.0.0.1:${port}`;
+  const binary = resolveAnvilBinary();
 
   const args = [
     "--host", "127.0.0.1",
@@ -116,14 +123,44 @@ export async function launchAnvil(
     args.push("--fork-block-number", options.forkBlockNumber.toString());
   }
 
-  const proc = spawn(resolveAnvilBinary(), args, {
+  let recentStderr = "";
+  let earlyExit: { code: number | null; signal: NodeJS.Signals | null } | null = null;
+
+  const proc = spawn(binary, args, {
     stdio: ["ignore", "ignore", "pipe"],
+  });
+  const spawnFailure = new Promise<never>((_, reject) => {
+    proc.once("error", reject);
+  });
+
+  proc.stderr?.setEncoding("utf8");
+  proc.stderr?.on("data", (chunk: string) => {
+    recentStderr = (recentStderr + chunk).slice(-2_000);
+  });
+  proc.once("exit", (code, signal) => {
+    earlyExit = { code, signal };
   });
 
   try {
-    await waitForRpc(url);
+    await Promise.race([waitForRpc(url), spawnFailure]);
   } catch (error) {
     proc.kill();
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      throw new Error(
+        `Failed to launch Anvil from '${binary}': command not found. `
+        + "Install Foundry from https://www.getfoundry.sh/anvil or set PP_ANVIL_BIN."
+      );
+    }
+    if (earlyExit) {
+      const exitSummary = earlyExit.code !== null
+        ? `exit code ${earlyExit.code}`
+        : `signal ${earlyExit.signal ?? "unknown"}`;
+      const stderrSummary = recentStderr.trim();
+      throw new Error(
+        `Anvil exited before its RPC became ready (${exitSummary}).`
+        + (stderrSummary ? ` stderr: ${stderrSummary}` : "")
+      );
+    }
     throw error;
   }
 
