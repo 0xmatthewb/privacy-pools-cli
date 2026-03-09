@@ -1,6 +1,5 @@
 import {
   DataService,
-  type ChainLogFetchConfig,
   type PoolInfo,
 } from "@0xbow/privacy-pools-core-sdk";
 import { createPublicClient, fallback, http, parseAbiItem } from "viem";
@@ -128,7 +127,7 @@ class LocalCompatDataService {
       }
 
       return {
-        depositor: args._depositor,
+        depositor: args._depositor.toLowerCase(),
         commitment: args._commitment,
         label: args._label,
         value: args._value ?? 0n,
@@ -200,7 +199,7 @@ class LocalCompatDataService {
       }
 
       return {
-        ragequitter: args._ragequitter,
+        ragequitter: args._ragequitter.toLowerCase(),
         commitment: args._commitment,
         label: args._label,
         value: args._value ?? 0n,
@@ -224,8 +223,6 @@ export async function getDataService(
     ) as unknown as DataService;
   }
 
-  const logFetchConfig: ChainLogFetchConfig = new Map();
-
   return new DataService(
     [
       {
@@ -234,7 +231,6 @@ export async function getDataService(
         privacyPoolAddress: poolAddress,
         startBlock: chainConfig.startBlock,
       },
-    ],
-    logFetchConfig
+    ]
   );
 }
