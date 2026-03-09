@@ -487,7 +487,9 @@ bun run test:conformance  # conformance tests (extended timeout)
 
 Use `bun run test` / `bun run test:ci` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts. Bare `bun test` invokes Bun's test runner directly with auto-discovery and default timeout behavior, which is not the contract this repo documents. The `npm` equivalents still work because they call the same package scripts.
 
-The Anvil E2E harness starts local ASP and relayer shims against a forked Sepolia state snapshot. Set `PP_ANVIL_FORK_URL` to override the fork RPC URL and `PP_ANVIL_BIN` if `anvil` is not discoverable on your `PATH`.
+The Anvil E2E harness starts local ASP and relayer shims against a forked Sepolia state snapshot. Install Anvil via Foundry (`https://www.getfoundry.sh/anvil`) or set `PP_ANVIL_BIN` if `anvil` is not discoverable on your `PATH`.
+
+By default the harness uses Tenderly's public Sepolia gateway (`https://sepolia.gateway.tenderly.co`) because forked E2E requires deep `eth_getLogs` history. Free-tier RPCs such as `https://sepolia.drpc.org` and `https://ethereum-sepolia-rpc.publicnode.com` are fine for some read-only usage but are too range-limited for the full Anvil fork tests. Set `PP_ANVIL_FORK_URL` to override the fork RPC URL when you have another Sepolia endpoint with comparable historical log support.
 
 ## License
 

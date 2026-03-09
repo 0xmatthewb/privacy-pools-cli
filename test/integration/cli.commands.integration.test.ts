@@ -688,6 +688,36 @@ describe("CLI command integration", () => {
     expect(json.error.message).toContain("Invalid --from-pa");
   });
 
+  test("direct withdraw rejects --to that does not match signer before network calls", () => {
+    const home = createTempHome();
+    mustInitSeededHome(home, "sepolia");
+
+    const result = runCli(
+      [
+        "--json",
+        "withdraw",
+        "0.1",
+        "--asset",
+        "ETH",
+        "--direct",
+        "--to",
+        "0x0000000000000000000000000000000000000001",
+        "--chain",
+        "sepolia",
+      ],
+      { home, timeoutMs: 10_000 }
+    );
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string; message: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("must match your signer address");
+  });
+
   test("ragequit rejects malformed --from-pa before network calls", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
