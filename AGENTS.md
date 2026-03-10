@@ -16,6 +16,7 @@ bun add -g github:0xmatthewb/privacy-pools-cli
 
 # Discover capabilities (no wallet needed)
 privacy-pools capabilities --agent
+privacy-pools describe withdraw quote --agent
 
 # Browse pools (no wallet needed)
 privacy-pools pools --agent
@@ -171,9 +172,20 @@ Machine-readable discovery manifest.
 privacy-pools capabilities --agent
 ```
 
-JSON payload: `{ commands[], globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }`
+JSON payload: `{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }`
 
 `schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance.
+
+#### `describe`
+
+Describe one command for runtime agent introspection.
+
+```bash
+privacy-pools describe withdraw quote --agent
+privacy-pools describe stats global --agent
+```
+
+JSON payload: `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
 
 ### Wallet Required
 
@@ -186,7 +198,9 @@ Initialize wallet and configuration.
 ```bash
 privacy-pools init --agent --default-chain mainnet
 privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
+cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
 privacy-pools init --agent --private-key 0x... --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 ..." --private-key-stdin --default-chain mainnet
 ```
 
 JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }`
@@ -196,6 +210,8 @@ When `--show-mnemonic` is passed (and a new recovery phrase was generated), `rec
 > **CRITICAL**: When generating a new recovery phrase, always pass `--show-mnemonic` to capture it in JSON output. Without this flag, the recovery phrase is stored on disk but not returned — you cannot retrieve it later via the CLI. Losing the recovery phrase means losing access to all deposited funds.
 
 > **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
+
+Use only one secret stdin source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
 
 Proof commands provision circuit artifacts automatically on first use (~60s one-time), caching them under `~/.privacy-pools/circuits/v<sdk-version>` by default and verifying them against the shipped checksum manifest before use. Set `PRIVACY_POOLS_CIRCUITS_DIR` to use a pre-provisioned directory.
 
@@ -269,12 +285,18 @@ List Pool Accounts with their approval status and per-pool balance totals.
 
 ```bash
 privacy-pools accounts --agent
+privacy-pools accounts --agent --summary
+privacy-pools accounts --agent --pending-only
 privacy-pools accounts --agent --all --details
 ```
 
 JSON payload: `{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }`
 
 `balances` contains per-pool totals for spendable accounts. `balance` is total spendable amount in wei (string). `usdValue` is a formatted USD string (or null if price data is unavailable).
+
+`--summary` JSON payload: `{ chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }`
+
+`--pending-only` JSON payload: `{ chain, accounts, pendingCount, nextActions? }`
 
 **Poll `aspStatus`**: After depositing, poll `accounts --agent` until `aspStatus` changes from `"pending"` to `"approved"`. Only approved accounts can be withdrawn via the relayed path. `nextActions` may include both a `withdraw` action (when spendable funds are available) and an `accounts` poll action (when deposits are still pending) in the same response.
 
@@ -484,4 +506,4 @@ Specify with `--chain <name>` or set a default via `init --default-chain <name>`
 
 ## Runtime Discovery
 
-For fully dynamic integration, call `capabilities --agent` at startup to receive a machine-readable manifest of all commands, flags, workflow steps, supported chains, and the JSON output contract. This is useful if you cannot read this file at integration time.
+For fully dynamic integration, call `capabilities --agent` at startup to receive a machine-readable manifest of all commands, command details, flags, workflow steps, supported chains, and the JSON output contract. Use `describe <command...> --agent` when you need the detailed runtime contract for one command path. This is useful if you cannot read this file at integration time.

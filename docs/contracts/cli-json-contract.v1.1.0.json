@@ -320,6 +320,22 @@
         "pendingCount": "number",
         "nextActions": "NextAction[]? (structured follow-up commands for agents)"
       },
+      "summaryVariant": {
+        "chain": "string",
+        "pendingCount": "number",
+        "approvedCount": "number",
+        "spendableCount": "number",
+        "spentCount": "number",
+        "exitedCount": "number",
+        "balances": "Balance[]",
+        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+      },
+      "pendingOnlyVariant": {
+        "chain": "string",
+        "accounts": "Account[] (filtered to aspStatus = \"pending\")",
+        "pendingCount": "number",
+        "nextActions": "NextAction[]? (poll-oriented only; no withdraw suggestions)"
+      },
       "accountFields": {
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
@@ -429,6 +445,7 @@
     "capabilities": {
       "successFields": {
         "commands": "Command[]",
+        "commandDetails": "Record<string, DetailedCommandDescriptor>",
         "globalFlags": "Flag[]",
         "agentWorkflow": "string[]",
         "jsonOutputContract": "string (descriptive contract summary)",
@@ -436,6 +453,27 @@
         "schemas": "object (includes nextActions metadata)",
         "supportedChains": "Chain[]",
         "safeReadOnlyCommands": "string[]"
+      }
+    },
+    "describe": {
+      "successFields": {
+        "command": "string (canonical command path)",
+        "description": "string",
+        "aliases": "string[]",
+        "usage": "string",
+        "flags": "string[]",
+        "globalFlags": "string[]",
+        "requiresInit": "boolean",
+        "expectedLatencyClass": "\"fast\"|\"medium\"|\"slow\"",
+        "safeReadOnly": "boolean",
+        "prerequisites": "string[]",
+        "examples": "string[]",
+        "jsonFields": "string|null",
+        "jsonVariants": "string[]",
+        "safetyNotes": "string[]",
+        "supportsUnsigned": "boolean",
+        "supportsDryRun": "boolean",
+        "agentWorkflowNotes": "string[]"
       }
     },
     "sync": {

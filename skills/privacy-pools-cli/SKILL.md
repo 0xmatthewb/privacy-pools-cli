@@ -42,10 +42,13 @@ Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (a
 | Activity feed | `pp activity --agent` | No wallet needed |
 | Check status | `pp status --agent --check` | No wallet needed |
 | Discover capabilities | `pp capabilities --agent` | No wallet needed |
+| Describe one command | `pp describe withdraw quote --agent` | No wallet needed |
 | Initialize wallet | `pp init --agent --default-chain mainnet` | One-time setup |
 | Deposit ETH | `pp deposit 0.1 ETH --agent` | Requires init |
 | Deposit (unsigned) | `pp deposit 0.1 ETH --unsigned --agent` | No signer key needed |
 | Check accounts | `pp accounts --agent` | Poll for aspStatus; includes balances |
+| Compact account poll | `pp accounts --agent --summary` | Counts + balances only |
+| Pending-only poll | `pp accounts --agent --pending-only` | Pending approvals only |
 | Withdraw (relayed) | `pp withdraw 0.05 ETH --to 0x... --agent` | Requires init |
 | Withdraw all | `pp withdraw --all ETH --to 0x... --agent` | Full PA balance |
 | Withdraw (unsigned) | `pp withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
@@ -246,11 +249,12 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 
 ```
 1. pp capabilities --agent                                    # Discover all commands
-2. pp pools --agent                                           # Browse available pools (check minimumDeposit)
-3. pp init --agent --default-chain mainnet   # Initialize (once)
-4. pp deposit 0.1 ETH --agent                                    # Deposit (must be >= minimumDeposit)
-5. pp accounts --agent                                           # Poll until aspStatus: "approved"
-6. pp withdraw 0.1 ETH --to <addr> --agent                       # Withdraw
+2. pp describe deposit --agent                                # Inspect one command if needed
+3. pp pools --agent                                           # Browse available pools (check minimumDeposit)
+4. pp init --agent --default-chain mainnet                     # Initialize (once)
+5. pp deposit 0.1 ETH --agent                                 # Deposit (must be >= minimumDeposit)
+6. pp accounts --agent --pending-only                         # Poll until aspStatus: "approved"
+7. pp withdraw 0.1 ETH --to <addr> --agent                    # Withdraw
 ```
 
 **Before depositing**, check the `minimumDeposit` field from `pp pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change — always query at runtime rather than hard-coding.
@@ -276,6 +280,7 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 - When using `--show-mnemonic` during `init`, capture the recovery phrase output programmatically and write it to a secure store. Do not log or display it to end users.
 - The config directory (`~/.privacy-pools`) contains key material. Restrict filesystem permissions (`chmod 700`).
 - Avoid setting `PRIVACY_POOLS_PRIVATE_KEY` in shared or CI environments where env vars may be logged. Prefer `--private-key-file` with a restricted-access file.
+- For non-interactive secret import, prefer `--mnemonic-stdin` or `--private-key-stdin` over process-list-visible flags. Use only one stdin secret source per invocation.
 - Agents that call `init --agent --show-mnemonic` should pipe the `recoveryPhrase` field from the JSON response directly to a secrets manager, then discard it from memory.
 
 ---
@@ -302,4 +307,4 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 
 For the full command reference with JSON payload shapes, see [reference.md](reference.md).
 
-For runtime discovery, call `pp capabilities --agent` to receive a machine-readable manifest.
+For runtime discovery, call `pp capabilities --agent` to receive a machine-readable manifest, then `pp describe <command...> --agent` when you need the detailed runtime contract for one command path.

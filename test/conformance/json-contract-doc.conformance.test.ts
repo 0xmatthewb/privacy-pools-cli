@@ -87,11 +87,20 @@ describe("external JSON contract doc conformance", () => {
 
     const accounts = commands.accounts as { accountFields?: Record<string, string> };
     expect(accounts.accountFields?.aspStatus).toContain("\"unknown\"");
+    expect((accounts as { summaryVariant?: Record<string, string> }).summaryVariant?.approvedCount).toBe("number");
+    expect((accounts as { pendingOnlyVariant?: Record<string, string> }).pendingOnlyVariant?.accounts).toContain("\"pending\"");
 
     const stats = commands.stats as { timeBasedStatisticsFields?: Record<string, string> };
     expect(stats.timeBasedStatisticsFields?.totalDepositsValue).toBe("decimal-string-wei|null");
     expect(stats.timeBasedStatisticsFields?.totalDepositsValueUsd).toBe("string|null");
     expect(stats.timeBasedStatisticsFields?.totalWithdrawalsValue).toBe("decimal-string-wei|null");
     expect(stats.timeBasedStatisticsFields?.totalWithdrawalsValueUsd).toBe("string|null");
+
+    const capabilities = commands.capabilities as { successFields?: Record<string, string> };
+    expect(capabilities.successFields?.commandDetails).toBe("Record<string, DetailedCommandDescriptor>");
+
+    const describe = commands.describe as { successFields?: Record<string, string> };
+    expect(describe.successFields?.command).toContain("canonical command path");
+    expect(describe.successFields?.globalFlags).toBe("string[]");
   });
 });

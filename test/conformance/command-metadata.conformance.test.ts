@@ -93,6 +93,16 @@ describe("command metadata conformance", () => {
       expect(command.description).toBe(metadata.description);
       expect(command.aliases ?? []).toEqual(metadata.aliases ?? []);
     }
+
+    expect(payload.commands.map((command) => command.name)).toContain("stats global");
+    expect(payload.commands.map((command) => command.name)).toContain("stats pool");
+    expect(payload.commands.map((command) => command.name)).toContain("describe");
+    expect(payload.commandDetails["withdraw quote"]?.command).toBe("withdraw quote");
+    expect(payload.commandDetails["describe"]?.globalFlags).toContain("--agent");
+    expect(payload.commandDetails["guide"]?.safeReadOnly).toBe(true);
+    expect(payload.commandDetails["completion"]?.safeReadOnly).toBe(true);
+    expect(payload.safeReadOnlyCommands).toContain("guide");
+    expect(payload.safeReadOnlyCommands).toContain("completion");
   });
 
   test("root global flags match capabilities metadata", () => {

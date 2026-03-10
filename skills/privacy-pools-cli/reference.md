@@ -326,6 +326,12 @@ Representative payload (abridged):
       "requiresInit": true
     }
   ],
+  "commandDetails": {
+    "accounts": {
+      "command": "accounts",
+      "flags": ["--no-sync", "--all", "--details", "--summary", "--pending-only"]
+    }
+  },
   "globalFlags": [
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
   ],
@@ -353,7 +359,7 @@ Representative payload (abridged):
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output."
     }
   },
-  "safeReadOnlyCommands": ["pools", "activity", "stats", "status", "capabilities"],
+  "safeReadOnlyCommands": ["pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "completion"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
     { "name": "arbitrum", "chainId": 42161, "testnet": false },
@@ -365,13 +371,44 @@ Representative payload (abridged):
 }
 ```
 
+### `describe`
+
+```bash
+pp describe withdraw quote --agent
+pp describe stats global --agent
+```
+
+```json
+{
+  "command": "withdraw quote",
+  "description": "Request relayer quote and limits without generating a proof",
+  "aliases": [],
+  "usage": "withdraw quote <amount> --asset <symbol|address>",
+  "flags": ["--asset <symbol|address>", "--to <address>"],
+  "globalFlags": ["--agent", "-j, --json", "-y, --yes"],
+  "requiresInit": true,
+  "expectedLatencyClass": "medium",
+  "safeReadOnly": false,
+  "prerequisites": ["init"],
+  "examples": ["privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."],
+  "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions? }",
+  "jsonVariants": [],
+  "safetyNotes": [],
+  "supportsUnsigned": false,
+  "supportsDryRun": false,
+  "agentWorkflowNotes": ["Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable."]
+}
+```
+
 ### `init`
 
 ```bash
 pp init --agent --default-chain mainnet
 pp init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
+cat phrase.txt | pp init --agent --mnemonic-stdin --default-chain mainnet
 pp init --agent --private-key 0x... --default-chain mainnet
 pp init --agent --private-key-file ./key.txt --default-chain mainnet
+printf '%s\n' 0x... | pp init --agent --mnemonic "word1 word2 ..." --private-key-stdin --default-chain mainnet
 ```
 
 ```json
@@ -405,6 +442,8 @@ pp init --agent --private-key-file ./key.txt --default-chain mainnet
 | `nextActions` | array | Optional structured follow-up commands for agents |
 
 When importing an existing recovery phrase or private key, neither `recoveryPhrase` nor `recoveryPhraseRedacted` is present.
+
+Use only one stdin secret source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
 
 ### `deposit`
 
@@ -637,6 +676,8 @@ pp exit ETH --from-pa PA-1 --agent
 
 ```bash
 pp accounts --agent [--all] [--details]
+pp accounts --agent --summary
+pp accounts --agent --pending-only
 ```
 
 ```json
@@ -681,6 +722,10 @@ pp accounts --agent [--all] [--details]
 `status` values: `"spendable"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`, `"unknown"` (`"unknown"` for spent or exited accounts). `pendingCount` is the number of accounts with `aspStatus: "pending"`.
 
 `balances` contains per-pool totals for spendable accounts. `balance` is the total spendable amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
+
+`--summary` returns `{ chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }` and omits `accounts`.
+
+`--pending-only` returns `{ chain, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
 Poll `aspStatus` after depositing and wait for `"approved"` before withdrawing via the relayed path.
 
