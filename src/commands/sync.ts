@@ -111,8 +111,8 @@ export function createSyncCommand(): Command {
           chain: chainConfig.name,
           syncedPools: pools.length,
           syncedSymbols: pools.map((p) => p.symbol),
-          spendableCommitments: spendableCount,
-          previousSpendableCommitments: previousSpendableCount,
+          availablePoolAccounts: spendableCount,
+          previousAvailablePoolAccounts: previousSpendableCount,
         });
       } catch (error) {
         printError(error, mode.isJson);

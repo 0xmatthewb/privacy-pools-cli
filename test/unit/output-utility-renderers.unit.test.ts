@@ -176,7 +176,7 @@ describe("renderSyncEmpty parity", () => {
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.syncedPools).toBe(0);
-    expect(json.spendableCommitments).toBe(0);
+    expect(json.availablePoolAccounts).toBe(0);
     expect(stderr).toBe("");
   });
 
@@ -201,7 +201,7 @@ describe("renderSyncComplete parity", () => {
         chain: "mainnet",
         syncedPools: 2,
         syncedSymbols: ["ETH", "DAI"],
-        spendableCommitments: 5,
+        availablePoolAccounts: 5,
       }),
     );
 
@@ -211,7 +211,7 @@ describe("renderSyncComplete parity", () => {
     expect(json.chain).toBe("mainnet");
     expect(json.syncedPools).toBe(2);
     expect(json.syncedSymbols).toEqual(["ETH", "DAI"]);
-    expect(json.spendableCommitments).toBe(5);
+    expect(json.availablePoolAccounts).toBe(5);
     expect(stderr).toBe("");
   });
 
@@ -221,7 +221,7 @@ describe("renderSyncComplete parity", () => {
       renderSyncComplete(ctx, {
         chain: "mainnet",
         syncedPools: 2,
-        spendableCommitments: 5,
+        availablePoolAccounts: 5,
       }),
     );
 
@@ -236,7 +236,7 @@ describe("renderSyncComplete parity", () => {
       renderSyncComplete(ctx, {
         chain: "mainnet",
         syncedPools: 1,
-        spendableCommitments: 0,
+        availablePoolAccounts: 0,
       }),
     );
 

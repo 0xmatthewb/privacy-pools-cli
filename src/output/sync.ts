@@ -12,8 +12,8 @@ export interface SyncResult {
   chain: string;
   syncedPools: number;
   syncedSymbols?: string[];
-  spendableCommitments: number;
-  previousSpendableCommitments?: number;
+  availablePoolAccounts: number;
+  previousAvailablePoolAccounts?: number;
 }
 
 /**
@@ -24,7 +24,7 @@ export function renderSyncEmpty(ctx: OutputContext, chain: string): void {
     printJsonSuccess({
       chain,
       syncedPools: 0,
-      spendableCommitments: 0,
+      availablePoolAccounts: 0,
     });
     return;
   }
@@ -44,8 +44,8 @@ export function renderSyncComplete(
       chain: result.chain,
       syncedPools: result.syncedPools,
       syncedSymbols: result.syncedSymbols,
-      spendableCommitments: result.spendableCommitments,
-      previousSpendableCommitments: result.previousSpendableCommitments,
+      availablePoolAccounts: result.availablePoolAccounts,
+      previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
     });
     return;
   }
@@ -56,10 +56,10 @@ export function renderSyncComplete(
     silent,
   );
 
-  const delta = result.spendableCommitments - (result.previousSpendableCommitments ?? result.spendableCommitments);
+  const delta = result.availablePoolAccounts - (result.previousAvailablePoolAccounts ?? result.availablePoolAccounts);
   if (delta > 0) {
     success(`Found ${delta} new Pool Account(s).`, silent);
   }
 
-  info(`Available Pool Accounts: ${result.spendableCommitments}`, silent);
+  info(`Available Pool Accounts: ${result.availablePoolAccounts}`, silent);
 }
