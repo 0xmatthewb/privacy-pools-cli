@@ -229,7 +229,7 @@ privacy-pools withdraw 0.1 ETH --direct --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
-JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, nextActions?: [{ command, reason, when, args?, options? }] }`
+JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options? }] }`
 
 JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`. Human output includes a privacy note about direct withdrawals linking deposit and withdrawal onchain, and `nextActions` points to `accounts` for verification.
 

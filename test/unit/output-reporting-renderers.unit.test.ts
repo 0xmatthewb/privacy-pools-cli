@@ -280,6 +280,9 @@ describe("renderAccounts parity", () => {
     expect(stderr).toContain("Pool Accounts on sepolia");
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Approved");
+    expect(stderr).toContain("ETH Pool:");
+    expect(stderr).not.toContain(STUB_GROUP.poolAddress);
+    expect(stderr).not.toContain("Tx");
     expect(stderr).toContain("PA = Pool Account.");
   });
 
@@ -469,6 +472,7 @@ describe("renderHistory parity", () => {
         events: STUB_EVENTS,
         poolByAddress: STUB_POOL_MAP,
         explorerTxUrl: mockExplorerUrl,
+        currentBlock: 300n,
       }),
     );
 
@@ -477,6 +481,24 @@ describe("renderHistory parity", () => {
     expect(stderr).toContain("Deposit");
     expect(stderr).toContain("Withdraw");
     expect(stderr).toContain("PA-1");
+    expect(stderr).toContain("Time");
+  });
+
+  test("human mode: shows '-' for time when current block is unavailable", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderHistory(ctx, {
+        chain: "sepolia",
+        chainId: 11155111,
+        events: [STUB_EVENTS[0]!],
+        poolByAddress: STUB_POOL_MAP,
+        explorerTxUrl: mockExplorerUrl,
+        currentBlock: null,
+      }),
+    );
+
+    expect(stderr).toContain("Time");
+    expect(stderr).toMatch(/│\s-\s+│/);
   });
 
   test("human mode: shows empty-state for no events", () => {
@@ -488,6 +510,7 @@ describe("renderHistory parity", () => {
         events: [],
         poolByAddress: STUB_POOL_MAP,
         explorerTxUrl: mockExplorerUrl,
+        currentBlock: 300n,
       }),
     );
 
