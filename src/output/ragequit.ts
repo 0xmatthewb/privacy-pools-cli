@@ -7,7 +7,15 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  printJsonSuccess,
+  success,
+  info,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface RagequitDryRunData {
@@ -81,7 +89,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
 
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      {
+      appendNextActions({
         operation: "ragequit",
         txHash: data.txHash,
         amount: data.amount.toString(),
@@ -97,7 +105,19 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
           "Funds returned to deposit address. Run 'privacy-pools accounts --chain " +
           data.chain +
           "' to verify the Pool Account is exited.",
-      },
+      }, [
+        createNextAction(
+          "accounts",
+          "Verify that the Pool Account is now marked as exited.",
+          "after_ragequit",
+          {
+            options: {
+              agent: true,
+              chain: data.chain,
+            },
+          },
+        ),
+      ]),
       false,
     );
     return;

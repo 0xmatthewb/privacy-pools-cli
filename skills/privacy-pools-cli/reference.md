@@ -95,6 +95,8 @@ The envelope format includes additional context fields depending on the operatio
 
 All responses include `{ "schemaVersion": "1.3.0", "success": true, ... }` envelope.
 
+Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options? }`. This is additive: legacy `nextStep`, `nextSteps`, and `handoffChecklist` fields remain supported.
+
 ### `pools`
 
 ```bash
@@ -168,7 +170,7 @@ Defaults to all mainnets when no `--chain` is specified.
 ```json
 {
   "mode": "global-activity",
-  "chain": "mainnet",
+  "chain": "all-mainnets",
   "chains": ["mainnet", "arbitrum", "optimism"],
   "page": 1,
   "perPage": 12,
@@ -189,7 +191,7 @@ Defaults to all mainnets when no `--chain` is specified.
 }
 ```
 
-`chains` is present when querying multiple chains (no `--chain` specified). With a specific `--chain` but no `--asset`, events are filtered client-side: `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
+When querying multiple chains (no `--chain` specified), `chain` is `"all-mainnets"` and `chains` lists the queried chain names. With a specific `--chain` but no `--asset`, events are filtered client-side: `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
 **Per-pool** (`--asset`): `mode` is `"pool-activity"` and root includes `asset`, `pool`, and `scope`. Pagination totals are accurate (server-side filtering).
 
@@ -292,6 +294,8 @@ Health checks run by default when a chain is selected. Pass `--no-check` to supp
 
 `handoffChecklist` is an array of `{ key, met, remedy }` objects for agent orchestrators: each entry names a prerequisite (`config`, `mnemonic`, `signerKey`), whether it is met, and a remediation command if not.
 
+When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators.
+
 | Field | Type | When present |
 |-------|------|-------------|
 | `aspLive` | boolean | Default when chain selected; `--check` or `--check-asp` |
@@ -304,40 +308,44 @@ Health checks run by default when a chain is selected. Pass `--no-check` to supp
 pp capabilities --agent
 ```
 
+Representative payload (abridged):
+
 ```json
 {
   "commands": [
     {
       "name": "deposit",
-      "description": "Deposit ETH or ERC-20 tokens into a Privacy Pool",
+      "description": "Deposit into a pool",
       "flags": ["--asset <symbol|address>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
       "agentFlags": "--json --yes",
       "requiresInit": true
     }
   ],
   "globalFlags": [
-    { "flag": "--agent", "description": "Alias for --json --yes --quiet" }
+    { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
   ],
   "agentWorkflow": [
     "1. privacy-pools init --json --yes --default-chain <chain>",
     "2. privacy-pools pools --json --chain <chain>",
-    "3. privacy-pools deposit <amount> <symbol> --json --yes --chain <chain>",
-    "4. privacy-pools accounts --json --chain <chain>  (wait for aspStatus: approved)",
-    "5. privacy-pools withdraw <amount> <symbol> --to <address> --json --yes --chain <chain>"
+    "3. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
+    "4. privacy-pools accounts --json --chain <chain>  (poll until aspStatus: approved)",
+    "5. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, poll 'accounts --json' ...",
-    "withdrawQuote": "Use 'withdraw quote' to check fees ...",
-    "firstRun": "First proof downloads circuits (~60s) ...",
-    "unsignedMode": "--unsigned builds tx payloads without signing ...",
-    "metaFlag": "--agent is equivalent to --json --yes --quiet ...",
-    "statusCheck": "Run 'status --json' before transacting. Check readyForDeposit/readyForWithdraw/readyForUnsigned."
+    "polling": "After depositing, poll 'accounts --json' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
+    "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
+    "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
+    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Requires init (mnemonic) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
+    "statusCheck": "Run 'status --json' before transacting. Check readyForDeposit/readyForWithdraw/readyForUnsigned fields."
   },
   "schemas": {
     "aspApprovalStatus": { "values": ["approved", "pending", "unknown"] },
     "poolAccountStatus": { "values": ["spendable", "spent", "exited"] },
-    "errorCategories": { "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"] }
+    "errorCategories": { "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"] },
+    "nextActions": { "shape": "{ command, reason, when, args?, options? }" }
   },
+  "safeReadOnlyCommands": ["pools", "activity", "stats", "status", "capabilities"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
     { "name": "arbitrum", "chainId": 42161, "testnet": false },
@@ -345,7 +353,7 @@ pp capabilities --agent
     { "name": "sepolia", "chainId": 11155111, "testnet": true },
     { "name": "op-sepolia", "chainId": 11155420, "testnet": true }
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage }."
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned-format tx emits a raw transaction array without the envelope."
 }
 ```
 
@@ -363,6 +371,20 @@ pp init --agent --private-key-file ./key.txt --default-chain mainnet
   "defaultChain": "mainnet",
   "signerKeySet": true,
   "mnemonicRedacted": true,
+  "nextActions": [
+    {
+      "command": "status",
+      "reason": "Verify wallet readiness and chain health before transacting.",
+      "when": "after_init",
+      "options": { "agent": true, "chain": "mainnet" }
+    },
+    {
+      "command": "pools",
+      "reason": "Browse pools on the configured default chain before depositing.",
+      "when": "after_init",
+      "options": { "agent": true, "chain": "mainnet" }
+    }
+  ],
   "nextSteps": {
     "requiresMnemonicCapture": true,
     "requiresSignerKey": false,
@@ -380,6 +402,7 @@ pp init --agent --private-key-file ./key.txt --default-chain mainnet
 | `signerKeySet` | boolean | Whether a signer key was configured |
 | `mnemonic` | string | Only when `--show-mnemonic` and mnemonic was generated (not imported) |
 | `mnemonicRedacted` | boolean | `true` when mnemonic was generated but `--show-mnemonic` was not passed |
+| `nextActions` | array | Optional structured follow-up commands for agents |
 | `nextSteps` | object | Agent handoff guidance: `requiresMnemonicCapture` (bool), `requiresSignerKey` (bool), `suggestedCommands` (string[]) |
 
 When importing an existing mnemonic or private key, neither `mnemonic` nor `mnemonicRedacted` is present.
@@ -410,11 +433,19 @@ pp deposit ETH 0.1 --agent               # asset-first syntax also works
   "label": "456...",
   "blockNumber": "22153800",
   "explorerUrl": "https://etherscan.io/tx/0x...",
-  "nextStep": "Poll 'privacy-pools accounts --agent' until aspStatus = approved (most deposits approve within 1 hour)"
+  "nextStep": "Poll 'privacy-pools accounts --agent' until aspStatus = approved (most deposits approve within 1 hour)",
+  "nextActions": [
+    {
+      "command": "accounts",
+      "reason": "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+      "when": "after_deposit",
+      "options": { "agent": true, "chain": "mainnet" }
+    }
+  ]
 }
 ```
 
-`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextStep` provides agent guidance. All token amounts and block numbers are strings.
+`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextStep` provides agent guidance and `nextActions` carries the same workflow as structured data. All token amounts and block numbers are strings.
 
 **Dry-run** (`--dry-run`):
 
@@ -468,11 +499,20 @@ pp withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
   "poolAccountId": "PA-1",
   "feeBPS": "50",
   "extraGas": true,
-  "nextStep": "Run 'privacy-pools accounts --chain mainnet' to verify updated balance."
+  "remainingBalance": "50000000000000000",
+  "nextStep": "Run 'privacy-pools accounts --chain mainnet' to verify updated balance.",
+  "nextActions": [
+    {
+      "command": "accounts",
+      "reason": "Verify the updated balance after the withdrawal settles.",
+      "when": "after_withdrawal",
+      "options": { "agent": true, "chain": "mainnet" }
+    }
+  ]
 }
 ```
 
-**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, no `extraGas`, and `nextStep` includes a note that direct withdrawal links deposit and withdrawal onchain.
+**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, no `extraGas`, and `nextStep` includes a note that direct withdrawal links deposit and withdrawal onchain. `nextActions` still points to `accounts` for post-withdraw verification.
 
 **Dry-run:**
 
@@ -516,11 +556,25 @@ pp withdraw quote 0.1 ETH --to 0xRecipient --agent
   "netAmount": "95000000000000000",
   "feeCommitmentPresent": true,
   "quoteExpiresAt": "2025-01-15T12:30:00Z",
-  "extraGas": true
+  "extraGas": true,
+  "nextActions": [
+    {
+      "command": "withdraw",
+      "reason": "Submit the withdrawal promptly if the quoted fee is acceptable.",
+      "when": "after_quote",
+      "args": ["0.1", "ETH"],
+      "options": {
+        "agent": true,
+        "chain": "mainnet",
+        "to": "0x...",
+        "extraGas": true
+      }
+    }
+  ]
 }
 ```
 
-`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH.
+`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH. `nextActions` provides a ready-to-run `withdraw` follow-up with the quoted parameters.
 
 ### `ragequit` (alias: `exit`)
 
@@ -544,7 +598,15 @@ pp exit ETH --from-pa PA-1 --agent
   "scope": "123...",
   "blockNumber": "22154000",
   "explorerUrl": "https://etherscan.io/tx/0x...",
-  "nextStep": "Funds returned to deposit address. Run 'privacy-pools accounts --chain mainnet' to verify the Pool Account is exited."
+  "nextStep": "Funds returned to deposit address. Run 'privacy-pools accounts --chain mainnet' to verify the Pool Account is exited.",
+  "nextActions": [
+    {
+      "command": "accounts",
+      "reason": "Verify that the Pool Account is now marked as exited.",
+      "when": "after_ragequit",
+      "options": { "agent": true, "chain": "mainnet" }
+    }
+  ]
 }
 ```
 
@@ -601,7 +663,7 @@ pp accounts --agent [--all] [--details]
 }
 ```
 
-`status` values: `"spendable"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`. `pendingCount` is the number of accounts with `aspStatus: "pending"`.
+`status` values: `"spendable"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`, `"unknown"` (`"unknown"` for spent or exited accounts). `pendingCount` is the number of accounts with `aspStatus: "pending"`.
 
 `balances` contains per-pool totals for spendable accounts. `balance` is the total spendable amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
 

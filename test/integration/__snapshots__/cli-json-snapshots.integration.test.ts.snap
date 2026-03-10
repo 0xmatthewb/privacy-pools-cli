@@ -10,6 +10,7 @@ exports[`JSON envelope structure snapshots status --json success envelope shape 
   "entrypoint": "null",
   "handoffChecklist": "array(3)",
   "mnemonicSet": "boolean",
+  "nextActions": "array(1)",
   "readyForDeposit": "boolean",
   "readyForUnsigned": "boolean",
   "readyForWithdraw": "boolean",
@@ -75,6 +76,8 @@ exports[`JSON envelope structure snapshots capabilities --json success envelope 
   "schemas.errorCategories.exitCodes.RPC": "number",
   "schemas.errorCategories.exitCodes.UNKNOWN": "number",
   "schemas.errorCategories.values": "array(7)",
+  "schemas.nextActions.description": "string",
+  "schemas.nextActions.shape": "string",
   "schemas.poolAccountStatus.description": "string",
   "schemas.poolAccountStatus.values": "array(3)",
   "schemas.unsignedOutput.envelopeFormat": "string",
@@ -172,6 +175,7 @@ exports[`JSON envelope structure snapshots history --json envelope shape (initia
 exports[`JSON envelope structure snapshots init --json success envelope shape 1`] = `
 {
   "defaultChain": "string",
+  "nextActions": "array(2)",
   "nextSteps.requiresMnemonicCapture": "boolean",
   "nextSteps.requiresSignerKey": "boolean",
   "nextSteps.suggestedCommands": "array(2)",

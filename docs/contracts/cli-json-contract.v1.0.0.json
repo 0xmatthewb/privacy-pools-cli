@@ -33,6 +33,13 @@
     "7": "CONTRACT_ERROR"
   },
   "shared": {
+    "nextAction": {
+      "command": "string (CLI command name)",
+      "reason": "string (why the follow-up is relevant)",
+      "when": "string (machine-readable timing label)",
+      "args": "string[]? (positional arguments to pass)",
+      "options": "Record<string, string|number|boolean|null>? (named options without leading dashes)"
+    },
     "rawUnsignedTransaction": {
       "to": "0x-prefixed-address",
       "data": "0x-prefixed-hex-calldata",
@@ -57,7 +64,9 @@
         "signerKeySet": "boolean",
         "mnemonicRedacted": "boolean? (true when a new mnemonic was generated but not printed)",
         "mnemonic": "string? (present only when newly generated and --show-mnemonic is provided)",
-        "warning": "string? (security guidance for agents)"
+        "warning": "string? (security guidance for agents)",
+        "nextActions": "NextAction[]? (structured follow-up commands for agents)",
+        "nextSteps": "{ requiresMnemonicCapture: boolean, requiresSignerKey: boolean, suggestedCommands: string[] }"
       }
     },
     "status": {
@@ -80,7 +89,9 @@
         "rpcBlockNumber": "string|undefined (present when rpc check succeeds)",
         "readyForDeposit": "boolean (configExists && mnemonicSet && signerKeyValid)",
         "readyForWithdraw": "boolean (configExists && mnemonicSet && signerKeyValid)",
-        "readyForUnsigned": "boolean (configExists && mnemonicSet)"
+        "readyForUnsigned": "boolean (configExists && mnemonicSet)",
+        "handoffChecklist": "[{ key: string, met: boolean, remedy: string }]",
+        "nextActions": "NextAction[]? (present when setup is incomplete)"
       }
     },
     "pools": {
@@ -133,7 +144,8 @@
         "label": "decimal-string|null",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextStep": "string (agent guidance)"
+        "nextStep": "string (agent guidance)",
+        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
       },
       "variants": {
         "dryRun": {
@@ -177,8 +189,11 @@
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
         "feeBPS": "string? (relayed mode only)",
+        "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
         "fee": "null? (direct mode only)",
-        "nextStep": "string (agent guidance)"
+        "remainingBalance": "decimal-string-wei",
+        "nextStep": "string (agent guidance)",
+        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
       },
       "variants": {
         "dryRun": {
@@ -240,10 +255,13 @@
           "recipient": "0x-prefixed-address|null",
           "minWithdrawAmount": "decimal-string-wei",
           "minWithdrawAmountFormatted": "string (human-readable e.g. 0.01 ETH)",
-          "maxRelayFeeBPS": "string",
           "quoteFeeBPS": "string",
+          "feeAmount": "decimal-string-wei",
+          "netAmount": "decimal-string-wei",
           "feeCommitmentPresent": "boolean",
-          "quoteExpiresAt": "iso8601-string|null"
+          "quoteExpiresAt": "iso8601-string|null",
+          "extraGas": "boolean? (ERC20 withdrawals only)",
+          "nextActions": "NextAction[]? (structured follow-up commands for agents)"
         }
       }
     },
@@ -263,7 +281,8 @@
         "scope": "decimal-string",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextStep": "string (agent guidance)"
+        "nextStep": "string (agent guidance)",
+        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
       },
       "variants": {
         "dryRun": {
@@ -306,7 +325,7 @@
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
         "status": "\"spendable\"|\"spent\"|\"exited\"",
-        "aspStatus": "\"pending\"|\"approved\"",
+        "aspStatus": "\"pending\"|\"approved\"|\"unknown\"",
         "asset": "string",
         "scope": "decimal-string",
         "value": "decimal-string-wei",
@@ -342,12 +361,14 @@
     "activity": {
       "successFields": {
         "mode": "\"pool-activity\"|\"global-activity\"",
-        "chain": "string",
+        "chain": "string (\"all-mainnets\" for cross-chain global activity, selected chain name otherwise)",
         "chains": "string[]? (global-activity with multiple chains)",
         "page": "number",
         "perPage": "number",
         "total": "number|null",
         "totalPages": "number|null",
+        "chainFiltered": "boolean? (true when chain filtering happens client-side)",
+        "note": "string? (explains pagination limitations when chainFiltered is true)",
         "events": "ActivityEvent[]"
       },
       "poolActivityExtraFields": {
@@ -390,7 +411,11 @@
         "tvlUsd": "string|null",
         "avgDepositSizeUsd": "string|null",
         "totalDepositsCount": "number|null",
-        "totalWithdrawalsCount": "number|null"
+        "totalDepositsValue": "decimal-string-wei|null",
+        "totalDepositsValueUsd": "string|null",
+        "totalWithdrawalsCount": "number|null",
+        "totalWithdrawalsValue": "decimal-string-wei|null",
+        "totalWithdrawalsValueUsd": "string|null"
       },
       "chainStatsEntryFields": {
         "chain": "string",
@@ -404,10 +429,11 @@
         "commands": "Command[]",
         "globalFlags": "Flag[]",
         "agentWorkflow": "string[]",
-        "jsonOutputContract": "string (semver)",
-        "agentNotes": "string[]",
-        "schemas": "object",
-        "supportedChains": "Chain[]"
+        "jsonOutputContract": "string (descriptive contract summary)",
+        "agentNotes": "Record<string, string>",
+        "schemas": "object (includes nextActions shape metadata)",
+        "supportedChains": "Chain[]",
+        "safeReadOnlyCommands": "string[]"
       }
     },
     "sync": {

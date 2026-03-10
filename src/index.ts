@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Command, Option } from "commander";
+import { Command } from "commander";
 import { config as loadEnv } from "dotenv";
 import chalk from "chalk";
 import { readFileSync } from "fs";
@@ -10,25 +10,12 @@ import { homedir } from "os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8"));
-import { createInitCommand } from "./commands/init.js";
-import { createStatusCommand } from "./commands/status.js";
-import { createPoolsCommand } from "./commands/pools.js";
-import { createActivityCommand } from "./commands/activity.js";
-import { createStatsCommand } from "./commands/stats.js";
-import { createDepositCommand } from "./commands/deposit.js";
-import { createWithdrawCommand } from "./commands/withdraw.js";
-import { createRagequitCommand } from "./commands/ragequit.js";
-import { createAccountsCommand } from "./commands/accounts.js";
-import { createSyncCommand } from "./commands/sync.js";
-import { createGuideCommand } from "./commands/guide.js";
-import { createHistoryCommand } from "./commands/history.js";
-import { createCapabilitiesCommand } from "./commands/capabilities.js";
-import { createCompletionCommand } from "./commands/completion.js";
 import { printBanner } from "./utils/banner.js";
-import { rootHelpFooter, styleCommanderHelp, welcomeScreen } from "./utils/help.js";
+import { styleCommanderHelp, welcomeScreen } from "./utils/help.js";
 import { checkForUpdateInBackground, getUpdateNotice } from "./utils/update-check.js";
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
+import { createRootProgram } from "./program.js";
 
 // Load .env from the config directory (~/.privacy-pools/.env), not CWD.
 // Loading from CWD would let a malicious .env in a cloned repo silently
@@ -86,43 +73,7 @@ const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
 const isWelcome = argv.length === 0 && !isMachineMode;
 let machineCapturedOut = "";
 
-const program = new Command();
-
-program
-  .name("privacy-pools")
-  .description(
-    "Privacy Pools: a compliant way to transact privately on Ethereum"
-  )
-  .version(pkg.version)
-  .option("-c, --chain <name>", "Target chain (mainnet, arbitrum, optimism, ...)")
-  .option("-j, --json", "Machine-readable JSON output")
-  .option("--format <format>", "Output format: table (default), csv, json")
-  .option("-y, --yes", "Skip confirmation prompts");
-
-// Advanced options
-program.addOption(new Option("-r, --rpc-url <url>", "Override RPC URL").hideHelp());
-program.addOption(
-  new Option(
-    "--agent",
-    "Machine-friendly mode (alias for --json --yes --quiet)"
-  )
-);
-program.addOption(
-  new Option("-q, --quiet", "Suppress non-essential output (agent-friendly)")
-    .hideHelp()
-);
-program.addOption(new Option("--no-banner", "Disable ASCII banner output").hideHelp());
-program.addOption(new Option("-v, --verbose", "Enable verbose output").hideHelp());
-program.addOption(new Option("--timeout <seconds>", "RPC/API request timeout in seconds (default: 30)"));
-program.addOption(new Option("--no-color", "Disable colored output (also respects NO_COLOR env var)").hideHelp());
-
-// Show only command names in root help (no argument signatures)
-program.configureHelp({
-  subcommandTerm(cmd) {
-    const aliases = cmd.aliases();
-    return aliases.length > 0 ? `${cmd.name()}|${aliases[0]}` : cmd.name();
-  },
-});
+const program = createRootProgram(pkg.version);
 
 if (!isMachineMode) {
   program.showSuggestionAfterError(true);
@@ -152,25 +103,6 @@ program.configureOutput({
     }
   },
 });
-program.addHelpText("after", rootHelpFooter());
-program.exitOverride();
-
-// Commands ordered by typical workflow
-program.addCommand(createInitCommand());
-program.addCommand(createPoolsCommand());
-program.addCommand(createDepositCommand());
-program.addCommand(createAccountsCommand());
-program.addCommand(createWithdrawCommand());
-program.addCommand(createRagequitCommand());
-program.addCommand(createHistoryCommand());
-program.addCommand(createSyncCommand());
-program.addCommand(createStatusCommand());
-program.addCommand(createActivityCommand());
-program.addCommand(createStatsCommand());
-program.addCommand(createGuideCommand());
-program.addCommand(createCapabilitiesCommand());
-program.addCommand(createCompletionCommand(), { hidden: true });
-
 if (isMachineMode) {
   const applyMachineMode = (cmd: Command): void => {
     cmd.showSuggestionAfterError(false);

@@ -14,6 +14,8 @@ import {
   renderCompletionScript as outputCompletionScript,
   renderCompletionQuery,
 } from "../output/completion.js";
+import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 
 interface CompletionCommandOptions {
   shell?: string;
@@ -46,8 +48,9 @@ function parseCword(raw?: string): number | undefined {
 }
 
 export function createCompletionCommand(): Command {
+  const metadata = getCommandMetadata("completion");
   return new Command("completion")
-    .description("Generate shell completion script")
+    .description(metadata.description)
     .addOption(
       new Option("-s, --shell <shell>", "Target shell")
         .choices([...SUPPORTED_COMPLETION_SHELLS])
@@ -56,16 +59,7 @@ export function createCompletionCommand(): Command {
     .addOption(new Option("--cword <index>", "Internal: current word index").hideHelp())
     .argument("[shell]", "Target shell (bash|zsh|fish)")
     .allowExcessArguments(true)
-    .addHelpText(
-      "after",
-      [
-        "",
-        "Examples:",
-        "  privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
-        "  privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
-        "  privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
-      ].join("\n")
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action((shellArg: string | undefined, opts: CompletionCommandOptions, cmd: Command) => {
       const root = cmd.parent;
       if (!root) {
@@ -114,7 +108,7 @@ export function createCompletionCommand(): Command {
         shellName = detectCompletionShell();
       }
 
-      const script = generateCompletionScript(shellName, root.name() || "privacy-pools");
+      const script = generateCompletionScript(shellName);
       outputCompletionScript(ctx, shellName, script);
     });
 }

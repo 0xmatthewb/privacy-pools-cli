@@ -340,25 +340,69 @@ export function guideText(): string {
   ].join("\n");
 }
 
-interface CommandHelpConfig {
+export interface CommandHelpConfig {
+  overview?: string[];
+  examples?: string[];
   prerequisites?: string;
   jsonFields?: string;
   jsonVariants?: string[];
   supportsUnsigned?: boolean;
   supportsDryRun?: boolean;
+  safetyNotes?: string[];
+  agentWorkflowNotes?: string[];
 }
 
 export function commandHelpText(config: CommandHelpConfig): string {
   const lines: string[] = [];
+
+  if (config.overview && config.overview.length > 0) {
+    lines.push("", ...config.overview);
+  }
+
+  if (config.examples && config.examples.length > 0) {
+    lines.push("", "Examples:");
+    for (const example of config.examples) {
+      lines.push(`  ${example}`);
+    }
+  }
 
   if (config.prerequisites) {
     lines.push("", "Prerequisites:");
     lines.push(`  Requires: ${config.prerequisites}`);
   }
 
-  if (config.jsonFields) {
+  if (config.safetyNotes && config.safetyNotes.length > 0) {
+    lines.push("", "Safety notes:");
+    for (const note of config.safetyNotes) {
+      lines.push(`  ${note}`);
+    }
+  }
+
+  if (config.agentWorkflowNotes && config.agentWorkflowNotes.length > 0) {
+    lines.push("", "Agent workflow:");
+    for (const note of config.agentWorkflowNotes) {
+      lines.push(`  ${note}`);
+    }
+  }
+
+  if (config.jsonFields || (config.jsonVariants && config.jsonVariants.length > 0)) {
     lines.push("", "JSON output (--json):");
-    lines.push(`  ${config.jsonFields}`);
+    if (config.jsonFields) {
+      lines.push(`  ${config.jsonFields}`);
+    }
+    for (const variant of config.jsonVariants ?? []) {
+      lines.push(`  ${variant}`);
+    }
+  }
+
+  if (config.supportsUnsigned || config.supportsDryRun) {
+    lines.push("", "Additional modes:");
+    if (config.supportsUnsigned) {
+      lines.push("  --unsigned builds transaction payloads without submitting.");
+    }
+    if (config.supportsDryRun) {
+      lines.push("  --dry-run validates the operation without submitting it.");
+    }
   }
 
   return lines.join("\n");

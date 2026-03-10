@@ -7,7 +7,15 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  printJsonSuccess,
+  success,
+  info,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface DepositDryRunData {
@@ -87,7 +95,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
 
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      {
+      appendNextActions({
         operation: "deposit",
         txHash: data.txHash,
         amount: data.amount.toString(),
@@ -102,7 +110,19 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
         nextStep: "Poll 'privacy-pools accounts --agent' until aspStatus = approved (most deposits approve within 1 hour)",
-      },
+      }, [
+        createNextAction(
+          "accounts",
+          "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+          "after_deposit",
+          {
+            options: {
+              agent: true,
+              chain: data.chain,
+            },
+          },
+        ),
+      ]),
       false,
     );
     return;

@@ -42,6 +42,8 @@ privacy-pools withdraw 0.1 ETH --to 0xRecipient --agent
 
 Parse `success` first. On failure, read `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
 
+Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, args?, options? }`. This is additive: existing `nextStep`, `nextSteps`, and `handoffChecklist` fields remain supported.
+
 ## Preflight Check
 
 Before running wallet-dependent commands, verify setup:
@@ -115,7 +117,7 @@ privacy-pools activity --agent --asset ETH --limit 20
 
 JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }`
 
-When querying all mainnets (no `--chain`), `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
+When querying all mainnets (no `--chain`), `chain` is `"all-mainnets"` and `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
 
 When filtering by `--chain` without `--asset`, events are filtered client-side. In this case `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
@@ -155,9 +157,9 @@ privacy-pools status --agent
 privacy-pools status --agent --check
 ```
 
-JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, mnemonicSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, handoffChecklist: [{ key, met, remedy }] }`
+JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, mnemonicSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, handoffChecklist: [{ key, met, remedy }], nextActions?: [{ command, reason, when, args?, options? }] }`
 
-`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are convenience booleans agents can check before transacting. `handoffChecklist` is an array of `{ key, met, remedy }` objects for agent orchestrators: each entry names a prerequisite (`config`, `mnemonic`, `signerKey`), whether it is met, and a remediation command if not. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
+`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are convenience booleans agents can check before transacting. `handoffChecklist` is an array of `{ key, met, remedy }` objects for agent orchestrators: each entry names a prerequisite (`config`, `mnemonic`, `signerKey`), whether it is met, and a remediation command if not. When setup is incomplete, `nextActions` provides a canonical CLI follow-up to run next. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
 
 #### `capabilities`
 
@@ -167,7 +169,9 @@ Machine-readable discovery manifest.
 privacy-pools capabilities --agent
 ```
 
-JSON payload: `{ commands[], globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], jsonOutputContract }`
+JSON payload: `{ commands[], globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }`
+
+`schemas.nextActions` documents the shared shape used by commands that emit machine follow-up guidance.
 
 ### Wallet Required
 
@@ -183,7 +187,7 @@ privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
 privacy-pools init --agent --private-key 0x... --default-chain mainnet
 ```
 
-JSON payload: `{ defaultChain, signerKeySet, mnemonicRedacted? | mnemonic?, warning?, nextSteps: { requiresMnemonicCapture, requiresSignerKey, suggestedCommands[] } }`
+JSON payload: `{ defaultChain, signerKeySet, mnemonicRedacted? | mnemonic?, warning?, nextSteps: { requiresMnemonicCapture, requiresSignerKey, suggestedCommands[] }, nextActions?: [{ command, reason, when, args?, options? }] }`
 
 When `--show-mnemonic` is passed (and mnemonic was generated), `mnemonic` contains the phrase. Otherwise `mnemonicRedacted: true` and a `warning` field is included indicating the mnemonic must be captured. When importing an existing mnemonic, neither field is present.
 
@@ -202,11 +206,11 @@ privacy-pools deposit 0.1 ETH --agent
 privacy-pools deposit ETH 0.1 --agent       # asset-first syntax also works
 ```
 
-JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextStep }`
+JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }`
 
 All numeric values are strings (wei). `committedValue` and `label` may be `null`.
 
-`nextStep` provides guidance: poll `accounts --agent` until `aspStatus = approved` (most deposits approve within 1 hour).
+`nextStep` provides guidance: poll `accounts --agent` until `aspStatus = approved` (most deposits approve within 1 hour). `nextActions` mirrors that guidance in structured form for agents.
 
 #### `withdraw`
 
@@ -221,9 +225,9 @@ privacy-pools withdraw 0.1 ETH --direct --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
-JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, nextStep }`
+JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }`
 
-JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`. `nextStep` includes a note about direct withdrawals linking deposit and withdrawal onchain.
+JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`. `nextStep` includes a note about direct withdrawals linking deposit and withdrawal onchain, and `nextActions` points to `accounts` for verification.
 
 > **Note**: Direct withdrawals (`--direct`) are not privacy-preserving. Use relayed mode (default) for private withdrawals.
 
@@ -240,9 +244,9 @@ JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`. `nex
 privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 ```
 
-JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas? }`
+JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }`
 
-Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof generation takes longer, the CLI will auto-refresh the quote if the fee hasn't changed. If the fee changes, re-run the command to generate a fresh proof.
+Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof generation takes longer, the CLI will auto-refresh the quote if the fee hasn't changed. If the fee changes, re-run the command to generate a fresh proof. `nextActions` provides a ready-to-run `withdraw` follow-up when the quoted fee is acceptable.
 
 #### `ragequit` (alias: `exit`)
 
@@ -253,7 +257,7 @@ privacy-pools exit ETH --from-pa PA-1 --agent
 privacy-pools ragequit ETH --from-pa PA-1 --agent   # same thing
 ```
 
-JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextStep }`
+JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }`
 
 #### `accounts`
 

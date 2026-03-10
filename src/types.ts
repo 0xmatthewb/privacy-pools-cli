@@ -29,6 +29,16 @@ export interface GlobalOptions {
   format?: string;
 }
 
+export type NextActionOptionValue = string | number | boolean | null;
+
+export interface NextAction {
+  command: string;
+  reason: string;
+  when: string;
+  args?: string[];
+  options?: Record<string, NextActionOptionValue>;
+}
+
 export interface PoolStats {
   asset: Address;
   pool: Address;

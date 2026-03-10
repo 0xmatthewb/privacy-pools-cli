@@ -77,4 +77,23 @@ describe("external JSON contract doc conformance", () => {
     expect(meta.helpEnvelope).toBeTruthy();
     expect(meta.versionEnvelope).toBeTruthy();
   });
+
+  test("doc reflects current activity/accounts/stats machine fields", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const commands = doc.commands as Record<string, unknown>;
+
+    const activity = commands.activity as { successFields?: Record<string, string> };
+    expect(activity.successFields?.chain).toContain("\"all-mainnets\"");
+    expect(activity.successFields?.chainFiltered).toContain("boolean?");
+    expect(activity.successFields?.note).toContain("string?");
+
+    const accounts = commands.accounts as { accountFields?: Record<string, string> };
+    expect(accounts.accountFields?.aspStatus).toContain("\"unknown\"");
+
+    const stats = commands.stats as { timeBasedStatisticsFields?: Record<string, string> };
+    expect(stats.timeBasedStatisticsFields?.totalDepositsValue).toBe("decimal-string-wei|null");
+    expect(stats.timeBasedStatisticsFields?.totalDepositsValueUsd).toBe("string|null");
+    expect(stats.timeBasedStatisticsFields?.totalWithdrawalsValue).toBe("decimal-string-wei|null");
+    expect(stats.timeBasedStatisticsFields?.totalWithdrawalsValueUsd).toBe("string|null");
+  });
 });
