@@ -40,7 +40,7 @@ export interface AccountsRenderData {
  */
 export function renderAccountsNoPools(ctx: OutputContext, chain: string): void {
   if (ctx.mode.isJson) {
-    printJsonSuccess({ chain, accounts: [] });
+    printJsonSuccess({ chain, accounts: [], balances: [], pendingCount: 0 });
     return;
   }
   if (ctx.mode.isCsv) {

@@ -893,11 +893,13 @@ describe("CLI command integration", () => {
     const json = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      guide: string;
+      mode: string;
+      help: string;
     }>(result.stdout);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
-    expect(json.guide).toContain("without --json");
+    expect(json.mode).toBe("help");
+    expect(typeof json.help).toBe("string");
   });
 
   test("--agent init with generated mnemonic is stdout-json only", () => {
