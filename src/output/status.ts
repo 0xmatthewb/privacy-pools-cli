@@ -178,8 +178,8 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     process.stderr.write("\n");
     if (result.accountFiles.length > 0) {
       info("Account files:", silent);
-      for (const [name, _chainId] of result.accountFiles) {
-        process.stderr.write(`  ${highlight("●")} ${name} (chain ${_chainId})\n`);
+      for (const [name, chainId] of result.accountFiles) {
+        process.stderr.write(`  ${highlight("●")} ${name} (chain ${chainId})\n`);
       }
     } else {
       info("No account files found.", silent);
