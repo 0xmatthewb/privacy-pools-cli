@@ -4,6 +4,27 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.1.0] - 2026-03-10
+
+### Changed
+
+- Hardened CLI UX for both humans and agents across setup, discovery, deposit, accounts, withdraw, ragequit, and completion flows.
+- Centralized command metadata so help, capabilities, and agent-facing docs stay aligned.
+- Cleaned up the machine-readable `1.1.0` JSON contract around workflow guidance, recovery phrase naming, timestamps, and pool asset fields.
+
+### Fixed
+
+- Cleaned `dist` before build and package steps and blocked stale compiled artifacts from shipping.
+- Fixed shell completion for both `privacy-pools` and `pp`.
+- Tightened renderer, contract-doc, and drift coverage to catch output and packaging regressions earlier.
+
+### Verification
+
+- `npm run typecheck`
+- `PP_NO_UPDATE_CHECK=1 npm run -s build`
+- `PP_NO_UPDATE_CHECK=1 npm run test:ci`
+- `PP_NO_UPDATE_CHECK=1 PP_ANVIL_E2E=1 npm run test:e2e:anvil`
+
 ## [1.0.2] - 2026-03-09
 
 ### Changed
@@ -59,6 +80,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Enabled GitHub Actions CI/CD workflows for the repository.
 - Completed the initial packaging and release flow.
 
+[1.1.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/0xmatthewb/privacy-pools-cli/releases/tag/v1.0.0
