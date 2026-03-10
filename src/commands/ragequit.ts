@@ -502,12 +502,14 @@ export function createRagequitCommand(): Command {
             saveAccount(chainConfig.id, accountService.account);
             saveSyncMeta(chainConfig.id);
           } catch (err) {
-            process.stderr.write(
-              `Warning: ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`
-            );
-            process.stderr.write(
-              "⚠ Run 'privacy-pools sync' to update your local account state.\n"
-            );
+            if (!silent) {
+              process.stderr.write(
+                `Warning: ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`
+              );
+              process.stderr.write(
+                "⚠ Run 'privacy-pools sync' to update your local account state.\n"
+              );
+            }
           }
         } finally {
           releaseCriticalSection();

@@ -84,11 +84,13 @@ describe("packaged CLI smoke", () => {
       const json = parseJsonOutput<{
         schemaVersion: string;
         success: boolean;
-        guide: string;
+        mode: string;
+        help: string;
       }>(result.stdout);
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(typeof json.guide).toBe("string");
+      expect(json.mode).toBe("help");
+      expect(typeof json.help).toBe("string");
     });
 
     test("capabilities --agent: JSON success on stdout, stderr empty", () => {

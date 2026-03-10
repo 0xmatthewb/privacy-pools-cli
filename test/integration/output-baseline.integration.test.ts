@@ -124,11 +124,13 @@ describe("JSON-mode envelope completeness", () => {
     const json = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      guide: string;
+      mode: string;
+      help: string;
     }>(result.stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(typeof json.guide).toBe("string");
+    expect(json.mode).toBe("help");
+    expect(typeof json.help).toBe("string");
     expect(result.stderr.trim()).toBe("");
   });
 

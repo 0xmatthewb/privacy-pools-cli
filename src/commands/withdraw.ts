@@ -780,12 +780,14 @@ export function createWithdrawCommand(): Command {
               saveAccount(chainConfig.id, accountService.account);
               saveSyncMeta(chainConfig.id);
             } catch (saveErr) {
-              process.stderr.write(
-                `\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
-              );
-              process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to update your local account state.\n"
-              );
+              if (!silent) {
+                process.stderr.write(
+                  `\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
+                );
+                process.stderr.write(
+                  "⚠ Run 'privacy-pools sync' to update your local account state.\n"
+                );
+              }
             }
           } finally {
             releaseCriticalSection();
@@ -1178,12 +1180,14 @@ export function createWithdrawCommand(): Command {
               saveAccount(chainConfig.id, accountService.account);
               saveSyncMeta(chainConfig.id);
             } catch (saveErr) {
-              process.stderr.write(
-                `\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
-              );
-              process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to update your local account state.\n"
-              );
+              if (!silent) {
+                process.stderr.write(
+                  `\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
+                );
+                process.stderr.write(
+                  "⚠ Run 'privacy-pools sync' to update your local account state.\n"
+                );
+              }
             }
           } finally {
             releaseCriticalSection();

@@ -5,10 +5,14 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess } from "./common.js";
+import { printJsonSuccess, guardCsvUnsupported } from "./common.js";
 
 /**
  * Render completion script output.
+ *
+ * Note: completion scripts must go to stdout (not stderr) so they can be
+ * sourced by the shell. This is the only non-JSON command that writes to
+ * stdout in human mode.
  */
 export function renderCompletionScript(
   ctx: OutputContext,
@@ -24,6 +28,7 @@ export function renderCompletionScript(
     return;
   }
 
+  guardCsvUnsupported(ctx, "completion");
   process.stdout.write(script.endsWith("\n") ? script : `${script}\n`);
 }
 
@@ -46,6 +51,7 @@ export function renderCompletionQuery(
     return;
   }
 
+  guardCsvUnsupported(ctx, "completion");
   if (candidates.length > 0) {
     process.stdout.write(`${candidates.join("\n")}\n`);
   }
