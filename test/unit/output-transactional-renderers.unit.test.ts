@@ -9,12 +9,13 @@ import { renderDepositDryRun, renderDepositSuccess, type DepositDryRunData, type
 import { renderRagequitDryRun, renderRagequitSuccess, type RagequitDryRunData, type RagequitSuccessData } from "../../src/output/ragequit.ts";
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote, type WithdrawDryRunData, type WithdrawSuccessData, type WithdrawQuoteData } from "../../src/output/withdraw.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
 
 // ── renderInitResult parity ─────────────────────────────────────────────────
 
 describe("renderInitResult parity", () => {
-  test("JSON mode: emits init envelope with generated mnemonic redacted", () => {
+  test("JSON mode: emits init envelope with generated recovery phrase redacted", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderInitResult(ctx, {
@@ -31,12 +32,26 @@ describe("renderInitResult parity", () => {
     expect(json.success).toBe(true);
     expect(json.defaultChain).toBe("sepolia");
     expect(json.signerKeySet).toBe(true);
-    expect(json.mnemonicRedacted).toBe(true);
-    expect(json.mnemonic).toBeUndefined();
+    expect(json.recoveryPhraseRedacted).toBe(true);
+    expect(json.recoveryPhrase).toBeUndefined();
+    expect(json.nextActions).toEqual([
+      {
+        command: "status",
+        reason: "Verify wallet readiness and chain health before transacting.",
+        when: "after_init",
+        options: { agent: true, chain: "sepolia" },
+      },
+      {
+        command: "pools",
+        reason: "Browse pools on the configured default chain before depositing.",
+        when: "after_init",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
-  test("JSON mode: includes mnemonic when showMnemonic is true", () => {
+  test("JSON mode: includes recovery phrase when showMnemonic is true", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const mnemonic = "test word one two three four five six seven eight nine ten eleven twelve";
     const { stdout } = captureOutput(() =>
@@ -50,11 +65,11 @@ describe("renderInitResult parity", () => {
     );
 
     const json = JSON.parse(stdout.trim());
-    expect(json.mnemonic).toBe(mnemonic);
-    expect(json.mnemonicRedacted).toBeUndefined();
+    expect(json.recoveryPhrase).toBe(mnemonic);
+    expect(json.recoveryPhraseRedacted).toBeUndefined();
   });
 
-  test("JSON mode: omits mnemonic fields when imported", () => {
+  test("JSON mode: omits recovery phrase fields when imported", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
       renderInitResult(ctx, {
@@ -66,8 +81,8 @@ describe("renderInitResult parity", () => {
     );
 
     const json = JSON.parse(stdout.trim());
-    expect(json.mnemonic).toBeUndefined();
-    expect(json.mnemonicRedacted).toBeUndefined();
+    expect(json.recoveryPhrase).toBeUndefined();
+    expect(json.recoveryPhraseRedacted).toBeUndefined();
     expect(json.defaultChain).toBe("mainnet");
   });
 
@@ -206,6 +221,14 @@ describe("renderDepositSuccess parity", () => {
     expect(json.label).toBe("789");
     expect(json.blockNumber).toBe("12345");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+        when: "after_deposit",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -233,7 +256,8 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("after vetting fee");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).toContain("pending approval");
+    expect(stderr).toContain("Pending ASP approval");
+    expect(stderr).toContain("Check Pool Accounts");
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
 
@@ -342,7 +366,14 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.scope).toBe("42");
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
-    expect(json.nextStep).toContain("privacy-pools accounts");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Verify that the Pool Account is now marked as exited.",
+        when: "after_ragequit",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -353,7 +384,7 @@ describe("renderRagequitSuccess parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Exit (ragequit) PA-2");
+    expect(stderr).toContain("Ragequit PA-2");
     expect(stderr).toContain("withdrew");
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
@@ -452,6 +483,29 @@ describe("renderWithdrawDryRun parity", () => {
     expect(stderr).toBe("");
   });
 
+  test("JSON mode: includes anonymitySet when available", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawDryRun(ctx, {
+        ...STUB_WITHDRAW_DRY_RUN_RELAYED,
+        anonymitySet: { eligible: 42, total: 128, percentage: 32.81 },
+      }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
+  });
+
+  test("JSON mode: omits anonymitySet when not provided", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawDryRun(ctx, STUB_WITHDRAW_DRY_RUN_DIRECT),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.anonymitySet).toBeUndefined();
+  });
+
   test("human mode: emits dry-run messages to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
@@ -528,8 +582,14 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextStep).toContain("privacy-pools accounts");
-    expect(json.nextStep).toContain("direct withdrawal links");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Verify the updated balance after a direct withdrawal.",
+        when: "after_direct_withdrawal",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -544,9 +604,38 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextStep).toContain("privacy-pools accounts");
-    expect(json.nextStep).not.toContain("direct withdrawal links");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Verify the updated balance after the withdrawal settles.",
+        when: "after_withdrawal",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
+  });
+
+  test("JSON mode: includes anonymitySet when available", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, {
+        ...STUB_WITHDRAW_SUCCESS_RELAYED,
+        anonymitySet: { eligible: 42, total: 128, percentage: 32.81 },
+      }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
+  });
+
+  test("JSON mode: omits anonymitySet when not provided", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_DIRECT),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.anonymitySet).toBeUndefined();
   });
 
   test("human mode (direct): emits withdrawal messages to stderr", () => {
@@ -705,6 +794,20 @@ describe("renderWithdrawQuote parity", () => {
     expect(json.netAmount).toBe("497500000000000000");
     expect(json.feeCommitmentPresent).toBe(true);
     expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
+    expect(json.nextActions).toEqual([
+      {
+        command: "withdraw",
+        reason: "Submit the withdrawal promptly if the quoted fee is acceptable.",
+        when: "after_quote",
+        args: ["0.5", "ETH"],
+        options: {
+          agent: true,
+          chain: "sepolia",
+          to: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+          extraGas: null,
+        },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -771,5 +874,39 @@ describe("renderWithdrawQuote parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
+  });
+});
+
+// ── CSV guard: transactional renderers throw on --format csv ────────────────
+
+describe("CSV guard: transactional renderers", () => {
+  const csvCtx = createOutputContext(makeMode({ isCsv: true }));
+
+  test("renderDepositDryRun throws CLIError for CSV", () => {
+    expect(() => renderDepositDryRun(csvCtx, STUB_DEPOSIT_DRY_RUN)).toThrow(CLIError);
+  });
+
+  test("renderDepositSuccess throws CLIError for CSV", () => {
+    expect(() => renderDepositSuccess(csvCtx, STUB_DEPOSIT_SUCCESS)).toThrow(CLIError);
+  });
+
+  test("renderRagequitDryRun throws CLIError for CSV", () => {
+    expect(() => renderRagequitDryRun(csvCtx, STUB_RAGEQUIT_DRY_RUN)).toThrow(CLIError);
+  });
+
+  test("renderRagequitSuccess throws CLIError for CSV", () => {
+    expect(() => renderRagequitSuccess(csvCtx, STUB_RAGEQUIT_SUCCESS)).toThrow(CLIError);
+  });
+
+  test("renderWithdrawDryRun throws CLIError for CSV", () => {
+    expect(() => renderWithdrawDryRun(csvCtx, STUB_WITHDRAW_DRY_RUN_DIRECT)).toThrow(CLIError);
+  });
+
+  test("renderWithdrawSuccess throws CLIError for CSV", () => {
+    expect(() => renderWithdrawSuccess(csvCtx, STUB_WITHDRAW_SUCCESS_DIRECT)).toThrow(CLIError);
+  });
+
+  test("renderWithdrawQuote throws CLIError for CSV", () => {
+    expect(() => renderWithdrawQuote(csvCtx, STUB_WITHDRAW_QUOTE)).toThrow(CLIError);
   });
 });

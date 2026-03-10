@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { CLIError } from "../utils/errors.js";
+import { CLIError, printError } from "../utils/errors.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
@@ -14,6 +14,8 @@ import {
   renderCompletionScript as outputCompletionScript,
   renderCompletionQuery,
 } from "../output/completion.js";
+import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 
 interface CompletionCommandOptions {
   shell?: string;
@@ -46,8 +48,9 @@ function parseCword(raw?: string): number | undefined {
 }
 
 export function createCompletionCommand(): Command {
+  const metadata = getCommandMetadata("completion");
   return new Command("completion")
-    .description("Generate shell completion script")
+    .description(metadata.description)
     .addOption(
       new Option("-s, --shell <shell>", "Target shell")
         .choices([...SUPPORTED_COMPLETION_SHELLS])
@@ -56,16 +59,7 @@ export function createCompletionCommand(): Command {
     .addOption(new Option("--cword <index>", "Internal: current word index").hideHelp())
     .argument("[shell]", "Target shell (bash|zsh|fish)")
     .allowExcessArguments(true)
-    .addHelpText(
-      "after",
-      [
-        "",
-        "Examples:",
-        "  privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
-        "  privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
-        "  privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
-      ].join("\n")
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action((shellArg: string | undefined, opts: CompletionCommandOptions, cmd: Command) => {
       const root = cmd.parent;
       if (!root) {
@@ -78,43 +72,48 @@ export function createCompletionCommand(): Command {
 
       const globalOpts = root.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
+      const isJson = mode.isJson;
       const ctx = createOutputContext(mode);
       const words = cmd.args as string[];
 
-      if (opts.query) {
-        const shellName = opts.shell ? parseShell(opts.shell) : detectCompletionShell();
-        const cword = parseCword(opts.cword);
-        const candidates = queryCompletionCandidates(root, words, cword);
-        renderCompletionQuery(ctx, shellName, cword, candidates);
-        return;
-      }
+      try {
+        if (opts.query) {
+          const shellName = opts.shell ? parseShell(opts.shell) : detectCompletionShell();
+          const cword = parseCword(opts.cword);
+          const candidates = queryCompletionCandidates(root, words, cword);
+          renderCompletionQuery(ctx, shellName, cword, candidates);
+          return;
+        }
 
-      if (words.length > 1) {
-        throw new CLIError(
-          "Too many arguments for completion command.",
-          "INPUT",
-          "Use: privacy-pools completion [shell]"
-        );
-      }
+        if (words.length > 1) {
+          throw new CLIError(
+            "Too many arguments for completion command.",
+            "INPUT",
+            "Use: privacy-pools completion [shell]"
+          );
+        }
 
-      if (opts.shell && words.length === 1 && opts.shell !== words[0]) {
-        throw new CLIError(
-          "Conflicting shell values from --shell and positional argument.",
-          "INPUT",
-          "Specify shell either as positional argument or via --shell, but not both."
-        );
-      }
+        if (opts.shell && words.length === 1 && opts.shell !== words[0]) {
+          throw new CLIError(
+            "Conflicting shell values from --shell and positional argument.",
+            "INPUT",
+            "Specify shell either as positional argument or via --shell, but not both."
+          );
+        }
 
-      let shellName: ReturnType<typeof detectCompletionShell>;
-      if (opts.shell) {
-        shellName = parseShell(opts.shell);
-      } else if (shellArg) {
-        shellName = parseShell(shellArg);
-      } else {
-        shellName = detectCompletionShell();
-      }
+        let shellName: ReturnType<typeof detectCompletionShell>;
+        if (opts.shell) {
+          shellName = parseShell(opts.shell);
+        } else if (shellArg) {
+          shellName = parseShell(shellArg);
+        } else {
+          shellName = detectCompletionShell();
+        }
 
-      const script = generateCompletionScript(shellName, root.name() || "privacy-pools");
-      outputCompletionScript(ctx, shellName, script);
+        const script = generateCompletionScript(shellName);
+        outputCompletionScript(ctx, shellName, script);
+      } catch (error) {
+        printError(error, isJson);
+      }
     });
 }

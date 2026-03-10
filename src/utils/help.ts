@@ -172,7 +172,7 @@ export function welcomeScreen(): string {
     `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}`,
     "",
     chalk.bold("  Transact (run init first)"),
-    `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("exit")}  ${highlight("accounts")}  ${highlight("history")}  ${highlight("sync")}`,
+    `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("history")}  ${highlight("sync")}`,
     "",
     `  Get started:      ${accent("privacy-pools init")}  ${chalk.dim("(or")} ${accent("pp init")}${chalk.dim(")")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
@@ -244,8 +244,8 @@ export function guideText(): string {
     chalk.bold("Two-Key Model"),
     `  Privacy Pools uses two keys:`,
     `  ${chalk.yellow("Recovery phrase")}  keeps your deposits private (generated during init)`,
-    `  ${chalk.yellow("Wallet key")}       pays gas and sends transactions (can be set later)`,
-    `  These are independent. You can set the wallet key later via env var.`,
+    `  ${chalk.yellow("Signer key")}       pays gas and sends transactions (can be set later)`,
+    `  These are independent. You can set the signer key later via env var.`,
     `  Note: ${chalk.yellow("PRIVACY_POOLS_PRIVATE_KEY")} env var takes precedence over a saved key file.`,
     "",
     chalk.bold("Workflow"),
@@ -257,7 +257,7 @@ export function guideText(): string {
     `  6. ${highlight("history")}        View transaction history`,
     `  *  ${highlight("status")}         Check setup and connection health (checks run by default)`,
     `  *  ${highlight("activity")}       Public onchain feed ${chalk.dim("(for your history, use 'history')")}`,
-    `  *  ${highlight("exit")}           Public withdrawal. Returns funds to deposit address (alias: ragequit)`,
+    `  *  ${highlight("ragequit")}       Public withdrawal. Returns funds to deposit address (alias: exit)`,
     `  *  ${highlight("withdraw quote")} Check relayer fees before withdrawing`,
     "",
     chalk.bold("Global Options"),
@@ -270,7 +270,8 @@ export function guideText(): string {
     `  ${chalk.yellow("-q, --quiet")}           Suppress spinners and non-essential output`,
     `  ${chalk.yellow("-v, --verbose")}         Enable verbose/debug output`,
     `  ${chalk.yellow("--agent")}               Alias for --json --yes --quiet (agent/automation mode)`,
-    `  ${chalk.yellow("--no-banner")}            Disable ASCII banner`,
+    `  ${chalk.yellow("--timeout <seconds>")}  Network/transaction timeout (default: 30)`,
+    `  ${chalk.yellow("--no-banner")}           Disable ASCII banner`,
     "",
     chalk.bold("Environment Variables"),
     `  ${chalk.yellow("PRIVACY_POOLS_PRIVATE_KEY")}   Signer key (takes precedence over saved signer key file)`,
@@ -289,7 +290,7 @@ export function guideText(): string {
     "",
     chalk.bold("Advanced Modes"),
     `  ${chalk.yellow("--unsigned")}   Build transaction payloads without signing or submitting.`,
-    "             Requires init (mnemonic) for deposit secret generation.",
+    "             Requires init (recovery phrase) for deposit secret generation.",
     "             Does NOT require a signer key. The signing party provides their own.",
     `             Output includes ${chalk.dim("from: null")}. The signer fills in their address.`,
     `  ${chalk.yellow("--unsigned-format envelope")}  (default) Wrapped in JSON envelope: { schemaVersion, success, ... }`,
@@ -325,12 +326,12 @@ export function guideText(): string {
     "",
     chalk.bold("Terminology"),
     `  ${chalk.yellow("Recovery phrase")}          12/24-word mnemonic that controls private account state.`,
-    `  ${chalk.yellow("Signer key (wallet key)")}  Private key that pays gas and sends transactions.`,
+    `  ${chalk.yellow("Signer key")}               Private key that pays gas and sends transactions.`,
     `  ${chalk.yellow("Pool Account (PA)")}        Individual deposit lineage tracked for withdrawal/exit.`,
     `  ${chalk.yellow("ASP status")}               Approval state: ${highlight("approved")} (ready) or ${chalk.yellow("pending")} (waiting).`,
     `  ${chalk.yellow("Relayed withdrawal")}       Privacy-preserving withdrawal via a relayer (recommended).`,
     `  ${chalk.yellow("Direct withdrawal")}        Non-private withdrawal; links deposit and withdrawal onchain.`,
-    `  ${chalk.yellow("Exit (ragequit)")}          Public, irreversible withdrawal to original deposit address.`,
+    `  ${chalk.yellow("Ragequit (exit alias)")}    Public, irreversible withdrawal to original deposit address.`,
     "",
     chalk.bold("Agent Integration"),
     `  For programmatic/agent use, run ${accent("privacy-pools capabilities --json")} to discover`,
@@ -340,25 +341,69 @@ export function guideText(): string {
   ].join("\n");
 }
 
-interface CommandHelpConfig {
+export interface CommandHelpConfig {
+  overview?: string[];
+  examples?: string[];
   prerequisites?: string;
   jsonFields?: string;
   jsonVariants?: string[];
   supportsUnsigned?: boolean;
   supportsDryRun?: boolean;
+  safetyNotes?: string[];
+  agentWorkflowNotes?: string[];
 }
 
 export function commandHelpText(config: CommandHelpConfig): string {
   const lines: string[] = [];
+
+  if (config.overview && config.overview.length > 0) {
+    lines.push("", ...config.overview);
+  }
+
+  if (config.examples && config.examples.length > 0) {
+    lines.push("", "Examples:");
+    for (const example of config.examples) {
+      lines.push(`  ${example}`);
+    }
+  }
 
   if (config.prerequisites) {
     lines.push("", "Prerequisites:");
     lines.push(`  Requires: ${config.prerequisites}`);
   }
 
-  if (config.jsonFields) {
+  if (config.safetyNotes && config.safetyNotes.length > 0) {
+    lines.push("", "Safety notes:");
+    for (const note of config.safetyNotes) {
+      lines.push(`  ${note}`);
+    }
+  }
+
+  if (config.agentWorkflowNotes && config.agentWorkflowNotes.length > 0) {
+    lines.push("", "Agent workflow:");
+    for (const note of config.agentWorkflowNotes) {
+      lines.push(`  ${note}`);
+    }
+  }
+
+  if (config.jsonFields || (config.jsonVariants && config.jsonVariants.length > 0)) {
     lines.push("", "JSON output (--json):");
-    lines.push(`  ${config.jsonFields}`);
+    if (config.jsonFields) {
+      lines.push(`  ${config.jsonFields}`);
+    }
+    for (const variant of config.jsonVariants ?? []) {
+      lines.push(`  ${variant}`);
+    }
+  }
+
+  if (config.supportsUnsigned || config.supportsDryRun) {
+    lines.push("", "Additional modes:");
+    if (config.supportsUnsigned) {
+      lines.push("  --unsigned builds transaction payloads without submitting.");
+    }
+    if (config.supportsDryRun) {
+      lines.push("  --dry-run validates the operation without submitting it.");
+    }
   }
 
   return lines.join("\n");

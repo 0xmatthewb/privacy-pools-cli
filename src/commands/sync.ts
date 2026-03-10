@@ -13,23 +13,18 @@ import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
 import { spinner, verbose } from "../utils/format.js";
 import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
 
 export function createSyncCommand(): Command {
+  const metadata = getCommandMetadata("sync");
   return new Command("sync")
-    .description("Force-sync local account state from onchain events")
+    .description(metadata.description)
     .option("-a, --asset <symbol|address>", "Sync only a single pool asset")
-    .addHelpText(
-      "after",
-      "\nExamples:\n  privacy-pools sync\n  privacy-pools sync --asset ETH --json\n  privacy-pools sync --chain mainnet\n"
-        + commandHelpText({
-          prerequisites: "init",
-          jsonFields: "{ chain, syncedPools, syncedSymbols, spendableCommitments, previousSpendableCommitments }",
-        })
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
@@ -116,8 +111,8 @@ export function createSyncCommand(): Command {
           chain: chainConfig.name,
           syncedPools: pools.length,
           syncedSymbols: pools.map((p) => p.symbol),
-          spendableCommitments: spendableCount,
-          previousSpendableCommitments: previousSpendableCount,
+          availablePoolAccounts: spendableCount,
+          previousAvailablePoolAccounts: previousSpendableCount,
         });
       } catch (error) {
         printError(error, mode.isJson);

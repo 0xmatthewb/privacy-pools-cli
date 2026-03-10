@@ -4,11 +4,8 @@ import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { EXIT_CODES } from "../../src/utils/errors.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
-// NB: The filename "v1.0.0" denotes the JSON-contract *format* version, not
-// the document content version (currently 1.3.0).  Do not rename the file
-// without updating all external tooling references.
 const CONTRACT_DOC_PATH =
-  `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.0.0.json`;
+  `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.1.0.json`;
 
 interface ContractDoc {
   version: string;
@@ -24,7 +21,7 @@ interface ContractDoc {
 describe("external JSON contract doc conformance", () => {
   test("doc version is explicit and aligned with runtime schema version", () => {
     const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
-    expect(doc.version).toBe("1.3.0");
+    expect(doc.version).toBe("1.1.0");
     expect(doc.schemaVersion).toBe(JSON_SCHEMA_VERSION);
   });
 
@@ -67,14 +64,34 @@ describe("external JSON contract doc conformance", () => {
     const init = commands.init as { successFields?: Record<string, string> };
     expect(init.successFields?.defaultChain).toBe("string");
     expect(init.successFields?.signerKeySet).toBe("boolean");
-    expect(init.successFields?.mnemonicRedacted).toContain("boolean?");
-    expect(init.successFields?.mnemonic).toContain("--show-mnemonic");
+    expect(init.successFields?.recoveryPhraseRedacted).toContain("boolean?");
+    expect(init.successFields?.recoveryPhrase).toContain("--show-mnemonic");
 
     const status = commands.status as { successFields?: Record<string, string> };
     expect(status.successFields?.selectedChain).toBe("string|null");
+    expect(status.successFields?.recoveryPhraseSet).toBe("boolean");
 
     const meta = commands.meta as Record<string, unknown>;
     expect(meta.helpEnvelope).toBeTruthy();
     expect(meta.versionEnvelope).toBeTruthy();
+  });
+
+  test("doc reflects current activity/accounts/stats machine fields", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const commands = doc.commands as Record<string, unknown>;
+
+    const activity = commands.activity as { successFields?: Record<string, string> };
+    expect(activity.successFields?.chain).toContain("\"all-mainnets\"");
+    expect(activity.successFields?.chainFiltered).toContain("boolean?");
+    expect(activity.successFields?.note).toContain("string?");
+
+    const accounts = commands.accounts as { accountFields?: Record<string, string> };
+    expect(accounts.accountFields?.aspStatus).toContain("\"unknown\"");
+
+    const stats = commands.stats as { timeBasedStatisticsFields?: Record<string, string> };
+    expect(stats.timeBasedStatisticsFields?.totalDepositsValue).toBe("decimal-string-wei|null");
+    expect(stats.timeBasedStatisticsFields?.totalDepositsValueUsd).toBe("string|null");
+    expect(stats.timeBasedStatisticsFields?.totalWithdrawalsValue).toBe("decimal-string-wei|null");
+    expect(stats.timeBasedStatisticsFields?.totalWithdrawalsValueUsd).toBe("string|null");
   });
 });

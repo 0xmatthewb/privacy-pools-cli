@@ -8,8 +8,18 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, warn, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  printJsonSuccess,
+  success,
+  info,
+  warn,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 import { formatAmount, formatAddress, formatTxHash, formatBPS, formatUsdValue, displayDecimals } from "../utils/format.js";
+import { formatUnits } from "viem";
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────
 
@@ -31,6 +41,8 @@ export interface WithdrawDryRunData {
   quoteExpiresAt?: string;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
+  /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
+  anonymitySet?: { eligible: number; total: number; percentage: number };
 }
 
 /**
@@ -60,6 +72,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       payload.quoteExpiresAt = data.quoteExpiresAt;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     }
+    if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
     printJsonSuccess(payload, false);
     return;
   }
@@ -110,6 +123,8 @@ export interface WithdrawSuccessData {
   remainingBalance: bigint;
   /** Token price in USD, if available. */
   tokenPrice?: number | null;
+  /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
+  anonymitySet?: { eligible: number; total: number; percentage: number };
 }
 
 /**
@@ -119,7 +134,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   guardCsvUnsupported(ctx, "withdraw");
 
   if (ctx.mode.isJson) {
-    const payload: Record<string, unknown> = {
+    const payload: Record<string, unknown> = appendNextActions({
       operation: "withdraw",
       mode: data.withdrawMode,
       txHash: data.txHash,
@@ -134,19 +149,28 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       poolAccountNumber: data.poolAccountNumber,
       poolAccountId: data.poolAccountId,
       remainingBalance: data.remainingBalance.toString(),
-    };
+    }, [
+      createNextAction(
+        "accounts",
+        data.withdrawMode === "direct"
+          ? "Verify the updated balance after a direct withdrawal."
+          : "Verify the updated balance after the withdrawal settles.",
+        data.withdrawMode === "direct" ? "after_direct_withdrawal" : "after_withdrawal",
+        {
+          options: {
+            agent: true,
+            chain: data.chain,
+          },
+        },
+      ),
+    ]) as Record<string, unknown>;
     if (data.withdrawMode === "direct") {
       payload.fee = null;
-      payload.nextStep =
-        "Run 'privacy-pools accounts --chain " +
-        data.chain +
-        "' to verify updated balance. Note: direct withdrawal links deposit and withdrawal onchain.";
     } else {
       payload.feeBPS = data.feeBPS;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
-      payload.nextStep =
-        "Run 'privacy-pools accounts --chain " + data.chain + "' to verify updated balance.";
     }
+    if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
     printJsonSuccess(payload, false);
     return;
   }
@@ -162,6 +186,12 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     `Withdrew ${formatAmount(data.amount, data.decimals, data.asset, dd)} from ${data.poolAccountId} to ${formatAddress(data.recipient)}.`,
     silent,
   );
+  if (data.withdrawMode === "direct") {
+    warn(
+      "Privacy note: direct withdrawals are not private and link the deposit and withdrawal onchain.",
+      silent,
+    );
+  }
   info(`Tx: ${formatTxHash(data.txHash)}`, silent);
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
@@ -178,9 +208,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     info(`${data.poolAccountId} fully withdrawn`, silent);
   } else {
     info(`Remaining in ${data.poolAccountId}: ${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`, silent);
-  }
-  if (data.withdrawMode === "direct") {
-    warn("Note: Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
   }
   info(`Check updated balance: privacy-pools accounts --chain ${data.chain}`, silent);
 }
@@ -226,7 +253,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   };
 
   if (ctx.mode.isJson) {
-    const payload: Record<string, unknown> = {
+    const payload: Record<string, unknown> = appendNextActions({
       mode: "relayed-quote",
       chain: data.chain,
       asset: data.asset,
@@ -239,7 +266,22 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       netAmount: netAmount.toString(),
       feeCommitmentPresent: data.feeCommitmentPresent,
       quoteExpiresAt: data.quoteExpiresAt,
-    };
+    }, [
+      createNextAction(
+        "withdraw",
+        "Submit the withdrawal promptly if the quoted fee is acceptable.",
+        "after_quote",
+        {
+          args: [formatUnits(data.amount, data.decimals), data.asset],
+          options: {
+            agent: true,
+            chain: data.chain,
+            to: data.recipient,
+            extraGas: data.extraGas ?? null,
+          },
+        },
+      ),
+    ]) as Record<string, unknown>;
     if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     printJsonSuccess(
       payload,

@@ -7,7 +7,16 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  printJsonSuccess,
+  success,
+  info,
+  warn,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface DepositDryRunData {
@@ -87,7 +96,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
 
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      {
+      appendNextActions({
         operation: "deposit",
         txHash: data.txHash,
         amount: data.amount.toString(),
@@ -101,8 +110,19 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         label: data.label?.toString() ?? null,
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
-        nextStep: "Poll 'privacy-pools accounts --agent' until aspStatus = approved (most deposits approve within 1 hour)",
-      },
+      }, [
+        createNextAction(
+          "accounts",
+          "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+          "after_deposit",
+          {
+            options: {
+              agent: true,
+              chain: data.chain,
+            },
+          },
+        ),
+      ]),
       false,
     );
     return;
@@ -112,6 +132,10 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   if (!silent) process.stderr.write("\n");
   const dd = displayDecimals(data.decimals);
   success(`Deposit submitted: ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
+  warn(
+    "Pending ASP approval: most deposits are approved within ~1 hour, but some may take up to 7 days before private withdrawal.",
+    silent,
+  );
   info(`Pool Account: ${data.poolAccountId}`, silent);
   if (data.committedValue !== undefined) {
     info(
@@ -123,6 +147,5 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
-  info("Your deposit is pending approval (most deposits are approved within 1 hour, some may take up to 7 days).", silent);
-  info("Check status: privacy-pools accounts --chain " + data.chain, silent);
+  info("Check Pool Accounts: privacy-pools accounts --chain " + data.chain, silent);
 }

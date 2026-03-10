@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
+import { readdirSync } from "node:fs";
 import {
   CLI_CWD,
   createTempHome,
@@ -7,6 +8,22 @@ import {
   runBuiltCli,
 } from "../helpers/cli.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+
+function packedBaseNames(paths: Set<string>, prefix: string): string[] {
+  return Array.from(new Set(
+    Array.from(paths)
+      .filter((path): path is string => typeof path === "string" && path.startsWith(prefix))
+      .filter((path) => path.endsWith(".js") || path.endsWith(".d.ts"))
+      .map((path) => path.slice(prefix.length).replace(/(\.d)?\.ts$|\.js$/g, "")),
+  )).sort();
+}
+
+function sourceBaseNames(dir: string): string[] {
+  return readdirSync(`${CLI_CWD}/${dir}`)
+    .filter((name) => name.endsWith(".ts"))
+    .map((name) => name.replace(/\.ts$/g, ""))
+    .sort();
+}
 
 describe("packaged CLI smoke", () => {
   let home: string;
@@ -67,11 +84,13 @@ describe("packaged CLI smoke", () => {
       const json = parseJsonOutput<{
         schemaVersion: string;
         success: boolean;
-        guide: string;
+        mode: string;
+        help: string;
       }>(result.stdout);
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(typeof json.guide).toBe("string");
+      expect(json.mode).toBe("help");
+      expect(typeof json.help).toBe("string");
     });
 
     test("capabilities --agent: JSON success on stdout, stderr empty", () => {
@@ -240,7 +259,7 @@ describe("packaged CLI smoke", () => {
 
   // ── Packaged artifact ──────────────────────────────────────────────────────
 
-  test("npm pack includes dist entry point and package.json", () => {
+  test("npm pack includes dist entry point and package.json without orphaned command/output artifacts", () => {
     const pack = spawnSync(
       "npm",
       ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
@@ -257,7 +276,12 @@ describe("packaged CLI smoke", () => {
       files?: Array<{ path?: string }>;
     }>;
     const filePaths = new Set((manifest[0]?.files ?? []).map((entry) => entry.path));
+    const packedCommandNames = packedBaseNames(filePaths, "dist/commands/");
+    const packedOutputNames = packedBaseNames(filePaths, "dist/output/");
+
     expect(filePaths.has("dist/index.js")).toBe(true);
     expect(filePaths.has("package.json")).toBe(true);
+    expect(packedCommandNames).toEqual(sourceBaseNames("src/commands"));
+    expect(packedOutputNames).toEqual(sourceBaseNames("src/output"));
   }, 30_000);
 }, 180_000);

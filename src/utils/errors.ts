@@ -126,17 +126,26 @@ export function classifyError(error: unknown): CLIError {
       return new CLIError(
         "Proof generation failed.",
         "PROOF",
-        "Run 'privacy-pools sync' and retry. If it persists, verify you are using the correct signer key or recovery phrase.",
+        "Run 'privacy-pools sync' and retry. If it persists, verify you are using the correct recovery phrase.",
         "PROOF_GENERATION_FAILED"
       );
     }
   }
 
   // Network/RPC errors
+  if (message.includes("timeout")) {
+    return new CLIError(
+      `Network error: ${message}`,
+      "RPC",
+      "Check your RPC URL and network connectivity. If the request is timing out, try --timeout <seconds>.",
+      "RPC_NETWORK_ERROR",
+      true
+    );
+  }
+
   if (
     message.includes("fetch") ||
-    message.includes("ECONNREFUSED") ||
-    message.includes("timeout")
+    message.includes("ECONNREFUSED")
   ) {
     return new CLIError(
       `Network error: ${message}`,

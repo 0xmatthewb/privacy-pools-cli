@@ -10,6 +10,7 @@ import { renderCompletionScript, renderCompletionQuery } from "../../src/output/
 import { renderSyncEmpty, renderSyncComplete } from "../../src/output/sync.ts";
 import { renderStatus, type StatusCheckResult } from "../../src/output/status.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
 
 // ── renderGuide parity ──────────────────────────────────────────────────────
@@ -22,7 +23,8 @@ describe("renderGuide parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(typeof json.guide).toBe("string");
+    expect(json.mode).toBe("help");
+    expect(typeof json.help).toBe("string");
     expect(stderr).toBe("");
   });
 
@@ -176,7 +178,7 @@ describe("renderSyncEmpty parity", () => {
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.syncedPools).toBe(0);
-    expect(json.spendableCommitments).toBe(0);
+    expect(json.availablePoolAccounts).toBe(0);
     expect(stderr).toBe("");
   });
 
@@ -201,7 +203,7 @@ describe("renderSyncComplete parity", () => {
         chain: "mainnet",
         syncedPools: 2,
         syncedSymbols: ["ETH", "DAI"],
-        spendableCommitments: 5,
+        availablePoolAccounts: 5,
       }),
     );
 
@@ -211,7 +213,7 @@ describe("renderSyncComplete parity", () => {
     expect(json.chain).toBe("mainnet");
     expect(json.syncedPools).toBe(2);
     expect(json.syncedSymbols).toEqual(["ETH", "DAI"]);
-    expect(json.spendableCommitments).toBe(5);
+    expect(json.availablePoolAccounts).toBe(5);
     expect(stderr).toBe("");
   });
 
@@ -221,7 +223,7 @@ describe("renderSyncComplete parity", () => {
       renderSyncComplete(ctx, {
         chain: "mainnet",
         syncedPools: 2,
-        spendableCommitments: 5,
+        availablePoolAccounts: 5,
       }),
     );
 
@@ -236,7 +238,7 @@ describe("renderSyncComplete parity", () => {
       renderSyncComplete(ctx, {
         chain: "mainnet",
         syncedPools: 1,
-        spendableCommitments: 0,
+        availablePoolAccounts: 0,
       }),
     );
 
@@ -254,7 +256,7 @@ const STUB_STATUS: StatusCheckResult = {
   selectedChain: "sepolia",
   rpcUrl: "https://rpc.sepolia.example",
   rpcIsCustom: false,
-  mnemonicSet: true,
+  recoveryPhraseSet: true,
   signerKeySet: true,
   signerKeyValid: true,
   signerAddress: "0x1234567890abcdef1234567890abcdef12345678",
@@ -274,9 +276,17 @@ describe("renderStatus parity", () => {
     expect(json.configExists).toBe(true);
     expect(json.defaultChain).toBe("sepolia");
     expect(json.selectedChain).toBe("sepolia");
-    expect(json.mnemonicSet).toBe(true);
+    expect(json.recoveryPhraseSet).toBe(true);
     expect(json.signerKeySet).toBe(true);
     expect(json.signerAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
+    expect(json.nextActions).toEqual([
+      {
+        command: "pools",
+        reason: "Browse pools now that the CLI is ready.",
+        when: "status_ready",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -290,6 +300,31 @@ describe("renderStatus parity", () => {
     expect(json.rpcLive).toBe(false);
   });
 
+  test("JSON mode: emits init remediation in nextActions when setup is incomplete", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const result = {
+      ...STUB_STATUS,
+      configExists: false,
+      configDir: null,
+      recoveryPhraseSet: false,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+      accountFiles: [],
+    };
+    const { stdout } = captureOutput(() => renderStatus(ctx, result));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toEqual([
+      {
+        command: "init",
+        reason: "Complete CLI setup before transacting.",
+        when: "status_not_ready",
+        options: { agent: true, showMnemonic: true },
+      },
+    ]);
+  });
+
   test("human mode: emits status text to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
@@ -298,6 +333,7 @@ describe("renderStatus parity", () => {
     expect(stderr).toContain("Privacy Pools CLI Status");
     expect(stderr).toContain("Config:");
     expect(stderr).toContain("Recovery phrase: set");
+    expect(stderr).toContain("Signer key:");
     expect(stderr).toContain("Default chain: sepolia");
     expect(stderr).toContain("Account files:");
   });
@@ -313,7 +349,7 @@ describe("renderStatus parity", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
 
-    expect(stderr).toContain("Ready: deposit, withdraw, exit, unsigned");
+    expect(stderr).toContain("Ready: deposit, withdraw, ragequit, unsigned");
   });
 
   test("human mode: shows unsigned-only readiness when no signer key", () => {
@@ -326,10 +362,63 @@ describe("renderStatus parity", () => {
 
   test("human mode: shows not-ready when no config", () => {
     const ctx = createOutputContext(makeMode());
-    const result = { ...STUB_STATUS, configExists: false, configDir: null, mnemonicSet: false, signerKeySet: false, signerKeyValid: false, signerAddress: null };
+    const result = { ...STUB_STATUS, configExists: false, configDir: null, recoveryPhraseSet: false, signerKeySet: false, signerKeyValid: false, signerAddress: null };
     const { stderr } = captureOutput(() => renderStatus(ctx, result));
 
     expect(stderr).toContain("Not ready");
     expect(stderr).toContain("privacy-pools init");
+  });
+});
+
+// ── CSV guard: utility renderers throw on --format csv ──────────────────────
+
+describe("CSV guard: utility renderers", () => {
+  const csvCtx = createOutputContext(makeMode({ isCsv: true }));
+
+  test("renderSyncEmpty throws CLIError for CSV", () => {
+    expect(() => renderSyncEmpty(csvCtx, "sepolia")).toThrow(CLIError);
+  });
+
+  test("renderSyncComplete throws CLIError for CSV", () => {
+    expect(() =>
+      renderSyncComplete(csvCtx, {
+        chain: "mainnet",
+        syncedPools: 1,
+        availablePoolAccounts: 0,
+      }),
+    ).toThrow(CLIError);
+  });
+
+  test("renderStatus throws CLIError for CSV", () => {
+    expect(() => renderStatus(csvCtx, STUB_STATUS)).toThrow(CLIError);
+  });
+
+  test("renderGuide throws CLIError for CSV", () => {
+    expect(() => renderGuide(csvCtx)).toThrow(CLIError);
+  });
+
+  test("renderCapabilities throws CLIError for CSV", () => {
+    expect(() =>
+      renderCapabilities(csvCtx, {
+        binaryName: "privacy-pools",
+        version: "1.0.0",
+        schemaVersion: JSON_SCHEMA_VERSION,
+        commands: [],
+        globalFlags: [],
+        agentWorkflow: [],
+      }),
+    ).toThrow(CLIError);
+  });
+});
+
+// ── Quiet mode: sync renderers ──────────────────────────────────────────────
+
+describe("renderSyncEmpty quiet mode", () => {
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const { stdout, stderr } = captureOutput(() => renderSyncEmpty(ctx, "sepolia"));
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
   });
 });

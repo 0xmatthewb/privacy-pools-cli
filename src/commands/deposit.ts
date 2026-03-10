@@ -31,6 +31,7 @@ import {
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
 import { createOutputContext } from "../output/common.js";
@@ -57,29 +58,16 @@ const depositedEventAbi = parseAbi([
 ]);
 
 export function createDepositCommand(): Command {
+  const metadata = getCommandMetadata("deposit");
   return new Command("deposit")
-    .description("Deposit into a pool")
+    .description(metadata.description)
     .argument("<amountOrAsset>", "Amount to deposit (or asset symbol, see examples)")
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-a, --asset <symbol|address>", "Asset to deposit (symbol like ETH, USDC, or contract address)")
     .option("--unsigned", "Build unsigned transaction payload(s); do not submit")
     .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
     .option("--dry-run", "Validate and preview the transaction without submitting")
-    .addHelpText(
-      "after",
-      "\nExamples:\n  privacy-pools deposit 0.1 ETH\n  privacy-pools deposit 0.05 ETH --json --yes\n  privacy-pools deposit 0.05 ETH --unsigned\n  privacy-pools deposit 0.1 ETH --dry-run\n  privacy-pools deposit 0.1 ETH --chain mainnet\n  privacy-pools deposit 0.1 --asset ETH\n"
-        + commandHelpText({
-          prerequisites: "init",
-          jsonFields: "{ txHash, amount, committedValue, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
-          jsonVariants: [
-            "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
-            "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
-            "--dry-run: { dryRun, operation, chain, asset, amount, precommitment, balanceSufficient }",
-          ],
-          supportsUnsigned: true,
-          supportsDryRun: true,
-        })
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (firstArg, secondArg, opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
@@ -458,12 +446,14 @@ export function createDepositCommand(): Command {
               saveAccount(chainConfig.id, accountService.account);
               saveSyncMeta(chainConfig.id);
             } catch (saveErr) {
-              process.stderr.write(
-                `\nWarning: deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
-              );
-              process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to update your local account state.\n"
-              );
+              if (!silent) {
+                process.stderr.write(
+                  `\nWarning: deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
+                );
+                process.stderr.write(
+                  "⚠ Run 'privacy-pools sync' to update your local account state.\n"
+                );
+              }
             }
           }
         } finally {

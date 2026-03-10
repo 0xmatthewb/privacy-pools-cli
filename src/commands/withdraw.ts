@@ -40,6 +40,7 @@ import {
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
 import { resolveAmountAndAssetInput, isPercentageAmount } from "../utils/positional.js";
 import { printRawTransactions, stringifyBigInts, toSolidityProof } from "../utils/unsigned.js";
@@ -83,8 +84,10 @@ const poolCurrentRootAbi = [
 ] as const;
 
 export function createWithdrawCommand(): Command {
+  const metadata = getCommandMetadata("withdraw");
+  const quoteMetadata = getCommandMetadata("withdraw quote");
   const command = new Command("withdraw")
-    .description("Withdraw from a pool")
+    .description(metadata.description)
     .argument("[amountOrAsset]", "Amount to withdraw (or asset symbol, see examples)")
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
@@ -97,22 +100,7 @@ export function createWithdrawCommand(): Command {
     .option("--all", "Withdraw entire Pool Account balance")
     .option("--extra-gas", "Request gas tokens with withdrawal (default: true for ERC20)")
     .option("--no-extra-gas", "Disable extra gas request")
-    .addHelpText(
-      "after",
-      "\nExamples:\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2\n  privacy-pools withdraw --all ETH --to 0xRecipient...\n  privacy-pools withdraw 50% ETH --to 0xRecipient...\n  privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet\n"
-        + commandHelpText({
-          prerequisites: "init (account state should be synced)",
-          jsonFields: "{ mode, txHash, amount, recipient, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
-          jsonVariants: [
-            "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
-            "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
-            "--dry-run: { mode, dryRun, amount, proofPublicSignals, ... }",
-            "quote: { mode, chain, asset, amount, quoteFeeBPS, ... }",
-          ],
-          supportsUnsigned: true,
-          supportsDryRun: true,
-        })
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (firstArg, secondArg, opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
@@ -566,8 +554,10 @@ export function createWithdrawCommand(): Command {
         );
 
         // Anonymity set info (non-fatal)
+        let anonymitySet: { eligible: number; total: number; percentage: number } | undefined;
         try {
           const anonSet = await fetchDepositsLargerThan(chainConfig, pool.scope, withdrawalAmount);
+          anonymitySet = { eligible: anonSet.eligibleDeposits, total: anonSet.totalDeposits, percentage: Number(anonSet.percentage.toFixed(1)) };
           if (!silent) {
             info(`Anonymity set: ${anonSet.eligibleDeposits} of ${anonSet.totalDeposits} deposits (${anonSet.percentage.toFixed(1)}%)`, silent);
           }
@@ -713,6 +703,7 @@ export function createWithdrawCommand(): Command {
               selectedCommitmentLabel: commitmentLabel,
               selectedCommitmentValue: commitment.value,
               proofPublicSignals: proof.publicSignals.length,
+              anonymitySet,
             });
             return;
           }
@@ -789,12 +780,14 @@ export function createWithdrawCommand(): Command {
               saveAccount(chainConfig.id, accountService.account);
               saveSyncMeta(chainConfig.id);
             } catch (saveErr) {
-              process.stderr.write(
-                `\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
-              );
-              process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to update your local account state.\n"
-              );
+              if (!silent) {
+                process.stderr.write(
+                  `\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
+                );
+                process.stderr.write(
+                  "⚠ Run 'privacy-pools sync' to update your local account state.\n"
+                );
+              }
             }
           } finally {
             releaseCriticalSection();
@@ -818,6 +811,7 @@ export function createWithdrawCommand(): Command {
             explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
             remainingBalance: selectedPoolAccount.value - withdrawalAmount,
             tokenPrice,
+            anonymitySet,
           });
         } else {
           // --- Relayed Withdrawal ---
@@ -1131,6 +1125,7 @@ export function createWithdrawCommand(): Command {
               feeBPS: quote.feeBPS,
               quoteExpiresAt: new Date(expirationMs).toISOString(),
               extraGas: effectiveExtraGas,
+              anonymitySet,
             });
             return;
           }
@@ -1185,12 +1180,14 @@ export function createWithdrawCommand(): Command {
               saveAccount(chainConfig.id, accountService.account);
               saveSyncMeta(chainConfig.id);
             } catch (saveErr) {
-              process.stderr.write(
-                `\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
-              );
-              process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to update your local account state.\n"
-              );
+              if (!silent) {
+                process.stderr.write(
+                  `\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`
+                );
+                process.stderr.write(
+                  "⚠ Run 'privacy-pools sync' to update your local account state.\n"
+                );
+              }
             }
           } finally {
             releaseCriticalSection();
@@ -1216,6 +1213,7 @@ export function createWithdrawCommand(): Command {
             extraGas: effectiveExtraGas,
             remainingBalance: selectedPoolAccount.value - withdrawalAmount,
             tokenPrice,
+            anonymitySet,
           });
         }
 
@@ -1227,19 +1225,12 @@ export function createWithdrawCommand(): Command {
 
   command
     .command("quote")
-    .description("Request relayer quote and limits without generating a proof")
+    .description(quoteMetadata.description)
     .argument("<amountOrAsset>", "Amount to withdraw (or asset symbol, see examples)")
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-a, --asset <symbol|address>", "Asset to quote")
     .option("-t, --to <address>", "Recipient address (recommended for signed fee commitment)")
-    .addHelpText(
-      "after",
-      "\nExamples:\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw quote 100 USDC --json --chain mainnet\n"
-        + commandHelpText({
-          prerequisites: "init",
-          jsonFields: "{ mode, chain, asset, amount, quoteFeeBPS, quoteExpiresAt, ... }",
-        })
-    )
+    .addHelpText("after", commandHelpText(quoteMetadata.help ?? {}))
     .action(async (firstArg, secondArg, opts, subCmd) => {
       const globalOpts = subCmd.parent?.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
