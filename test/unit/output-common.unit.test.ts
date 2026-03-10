@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+  appendNextActions,
   createOutputContext,
   isSilent,
 } from "../../src/output/common.ts";
@@ -58,6 +59,41 @@ describe("isSilent", () => {
       makeMode({ isAgent: true, isJson: true, isQuiet: true }),
     );
     expect(isSilent(ctx)).toBe(true);
+  });
+});
+
+// ── appendNextActions ────────────────────────────────────────────────────────
+
+describe("appendNextActions", () => {
+  test("returns a new payload with nextActions when provided", () => {
+    const payload = { operation: "deposit" };
+    const nextActions = [
+      {
+        command: "accounts",
+        reason: "Poll for approval.",
+        when: "after_deposit",
+        options: { agent: true },
+      },
+    ] as const;
+
+    const result = appendNextActions(payload, [...nextActions]);
+
+    expect(result).toEqual({
+      operation: "deposit",
+      nextActions,
+    });
+    expect(result).not.toBe(payload);
+    expect(payload).toEqual({ operation: "deposit" });
+  });
+
+  test("returns a copied payload without mutating when nextActions are absent", () => {
+    const payload = { operation: "status" };
+
+    const result = appendNextActions(payload, undefined);
+
+    expect(result).toEqual({ operation: "status" });
+    expect(result).not.toBe(payload);
+    expect(payload).toEqual({ operation: "status" });
   });
 });
 

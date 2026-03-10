@@ -116,9 +116,7 @@ export function appendNextActions<T extends Record<string, unknown>>(
   payload: T,
   nextActions: NextAction[] | undefined,
 ): T & { nextActions?: NextAction[] } {
-  const mutablePayload = payload as T & { nextActions?: NextAction[] };
-  if (nextActions && nextActions.length > 0) {
-    mutablePayload.nextActions = nextActions;
-  }
-  return mutablePayload;
+  return nextActions && nextActions.length > 0
+    ? { ...payload, nextActions }
+    : { ...payload };
 }

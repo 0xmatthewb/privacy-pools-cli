@@ -111,6 +111,21 @@ describe("command metadata conformance", () => {
     expect(completion?.flags ?? []).not.toContain("--cword <index>");
   });
 
+  test("metadata preserves key UX contract details for pools, withdraw, and history", () => {
+    const payload = buildCapabilitiesPayload();
+    const withdraw = payload.commands.find((command) => command.name === "withdraw");
+    const history = payload.commands.find((command) => command.name === "history");
+    const poolsJsonFields = getCommandMetadata("pools").help?.jsonFields;
+
+    expect(withdraw?.flags ?? []).toContain("--all");
+    expect(withdraw?.flags ?? []).toContain("--extra-gas");
+    expect(withdraw?.flags ?? []).toContain("--no-extra-gas");
+    expect(history?.expectedLatencyClass).toBe("slow");
+    expect(poolsJsonFields).toContain("chain?");
+    expect(poolsJsonFields).toContain("allChains?");
+    expect(poolsJsonFields).toContain("chains?");
+  });
+
   test("AGENTS command catalog markers stay aligned with documented command metadata", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
 

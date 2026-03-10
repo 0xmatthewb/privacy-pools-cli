@@ -106,7 +106,7 @@ Examples:
   privacy-pools pools --search usdc --sort asset-asc
   privacy-pools pools --json --chain mainnet
 JSON output (--json):
-  { chain|allChains, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }"
+  { chain?, allChains?, chains?, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }"
 `;
 
 exports[`CLI --help snapshots activity --help snapshot 1`] = `

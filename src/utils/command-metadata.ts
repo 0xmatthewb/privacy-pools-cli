@@ -95,7 +95,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools pools --json --chain mainnet",
       ],
       jsonFields:
-        "{ chain|allChains, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
+        "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
     },
     capabilities: {
       flags: ["--all-chains", "--search <query>", "--sort <mode>"],
@@ -298,7 +298,10 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--asset <symbol|address>",
         "--to <address>",
         "--from-pa <PA-#>",
+        "--all",
         "--direct",
+        "--extra-gas",
+        "--no-extra-gas",
         "--unsigned",
         "--unsigned-format <envelope|tx>",
         "--dry-run",
@@ -421,7 +424,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       flags: ["--no-sync", "--limit <n>"],
       agentFlags: "--json",
       requiresInit: true,
-      expectedLatencyClass: "medium",
+      expectedLatencyClass: "slow",
     },
     documentedInAgents: true,
     agentsDocMarker: "#### `history`",
