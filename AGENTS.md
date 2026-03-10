@@ -276,7 +276,7 @@ JSON payload: `{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, a
 
 `balances` contains per-pool totals for spendable accounts. `balance` is total spendable amount in wei (string). `usdValue` is a formatted USD string (or null if price data is unavailable).
 
-**Poll `aspStatus`**: After depositing, poll `accounts --agent` until `aspStatus` changes from `"pending"` to `"approved"`. Only approved accounts can be withdrawn via the relayed path. `nextActions` points back to `accounts` when deposits are still pending and to `withdraw` when spendable funds are available.
+**Poll `aspStatus`**: After depositing, poll `accounts --agent` until `aspStatus` changes from `"pending"` to `"approved"`. Only approved accounts can be withdrawn via the relayed path. `nextActions` may include both a `withdraw` action (when spendable funds are available) and an `accounts` poll action (when deposits are still pending) in the same response.
 
 #### `history`
 

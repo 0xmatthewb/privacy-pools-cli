@@ -135,8 +135,8 @@ Defaults to all mainnets when no `--chain` is specified. Default sort is `tvl-de
       "totalDepositsCount": 42,
       "acceptedDepositsCount": 40,
       "pendingDepositsCount": 2,
-      "growth24h": "5.2",
-      "pendingGrowth24h": "1.1"
+      "growth24h": 5.2,
+      "pendingGrowth24h": 1.1
     }
   ]
 }
@@ -670,7 +670,7 @@ pp accounts --agent [--all] [--details]
   "nextActions": [
     {
       "command": "withdraw",
-      "reason": "Withdraw approved spendable funds.",
+      "reason": "Withdraw approved funds from a Pool Account.",
       "when": "has_spendable",
       "options": { "agent": true, "chain": "mainnet" }
     }
@@ -745,6 +745,7 @@ pp sync --agent [--asset <symbol>]
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
+| `PRIVACY_POOLS_CIRCUITS_DIR` | Override circuit artifact cache directory (default: `~/.privacy-pools/circuits/v<sdk-version>`) |
 
 The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not from the current working directory. All flags take precedence over environment variables.
 
