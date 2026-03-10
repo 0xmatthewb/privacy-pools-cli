@@ -83,8 +83,9 @@ describe("CLI stress audit", () => {
         env: OFFLINE_ENV,
       });
 
-      // Every round must complete without timeout and return JSON on stdout.
+      // Every round must complete without timeout and keep machine-mode stderr silent.
       expect(result.timedOut).toBe(false);
+      expect(result.stderr.trim()).toBe("");
       const json = parseJsonOutput<{
         success?: boolean;
         schemaVersion?: string;
@@ -97,7 +98,10 @@ describe("CLI stress audit", () => {
       expect(result.status).not.toBeNull();
 
       if (lane.expectedSuccess) {
+        expect(result.status).toBe(0);
         expect(json.success).toBe(true);
+      } else {
+        expect(result.status).not.toBe(0);
       }
 
       if (json.success === false) {
