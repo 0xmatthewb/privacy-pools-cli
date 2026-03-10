@@ -18,7 +18,7 @@ Privacy Pools: a compliant way to transact privately on Ethereum
   accounts             List your Pool Accounts (individual deposit lineages)
                        with balances
   history              Show chronological event history (deposits, withdrawals,
-                       exits)
+                       ragequits)
   sync                 Force-sync local account state from onchain events
 Options:
   -V, --version        output the version number
@@ -53,8 +53,8 @@ Options:
   -h, --help                 display help for command
 Privacy Pools uses two keys:
   Recovery phrase: keeps your deposits private (generated during init)
-  Wallet key:     pays gas and sends transactions (can be set later)
-  These are independent. Set the wallet key via PRIVACY_POOLS_PRIVATE_KEY env var.
+  Signer key:     pays gas and sends transactions (can be set later)
+  These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.
 Examples:
   privacy-pools init
   privacy-pools init --yes --default-chain mainnet
@@ -64,7 +64,7 @@ Examples:
 Agent workflow:
   When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.
 JSON output (--json):
-  { defaultChain, signerKeySet, mnemonicRedacted? | mnemonic?, warning?, nextSteps: { requiresMnemonicCapture, requiresSignerKey, suggestedCommands[] }, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }"
 `;
 
 exports[`CLI --help snapshots status --help snapshot 1`] = `
@@ -83,7 +83,7 @@ Examples:
   privacy-pools status --json --check-rpc
   privacy-pools status --chain mainnet --rpc-url https://...
 JSON output (--json):
-  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, mnemonicSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, handoffChecklist: [{ key, met, remedy }], nextActions?: [{ command, reason, when, args?, options? }], aspLive?, rpcLive?, rpcBlockNumber? }"
+  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options? }], aspLive?, rpcLive?, rpcBlockNumber? }"
 `;
 
 exports[`CLI --help snapshots pools --help snapshot 1`] = `
@@ -105,8 +105,10 @@ Examples:
   privacy-pools pools --all-chains --sort tvl-desc
   privacy-pools pools --search usdc --sort asset-asc
   privacy-pools pools --json --chain mainnet
+Agent workflow:
+  In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.
 JSON output (--json):
-  { chain?, allChains?, chains?, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }"
+  { chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings?, nextActions?: [{ command, reason, when, args?, options? }] }"
 `;
 
 exports[`CLI --help snapshots activity --help snapshot 1`] = `
@@ -123,7 +125,7 @@ Examples:
   privacy-pools activity --asset ETH
   privacy-pools activity --asset USDC --json --chain mainnet
 JSON output (--json):
-  { mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }"
+  { mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }] }"
 `;
 
 exports[`CLI --help snapshots stats --help snapshot 1`] = `
@@ -167,10 +169,14 @@ Examples:
   privacy-pools deposit 0.1 --asset ETH
 Prerequisites:
   Requires: init
+Safety notes:
+  Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.
+  A vetting fee is deducted from the deposit amount by the pool's ASP.
+  Only approved deposits can be withdrawn privately.
 Agent workflow:
   Poll accounts until aspStatus is approved before attempting a private withdrawal.
 JSON output (--json):
-  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }
+  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }
   --unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, precommitment, balanceSufficient }
@@ -211,8 +217,8 @@ Prerequisites:
 Safety notes:
   Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.
 JSON output (--json):
-  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }
-  direct: same fields but mode: "direct", fee: null instead of feeBPS, no extraGas, and nextStep explains the onchain link between deposit and withdrawal.
+  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, nextActions?: [{ command, reason, when, args?, options? }] }
+  direct: same fields but mode: "direct", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.
   quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }
   --unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]
@@ -240,7 +246,7 @@ Options:
 Use 'withdraw' to withdraw privately once your deposit is ASP-approved.
 Use 'ragequit' at any time to recover funds publicly to your deposit
 address, even if not approved. No ASP approval is needed, but your
-deposit address is revealed onchain.
+deposit address is revealed onchain. 'exit' is an alias.
 Examples:
   privacy-pools ragequit ETH -p PA-1
   privacy-pools ragequit ETH --unsigned -p PA-1
@@ -252,7 +258,7 @@ Prerequisites:
 Safety notes:
   Exit is public and irreversible and reveals the original deposit address onchain.
 JSON output (--json):
-  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }
+  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, chain, asset, amount, transactions[] }
   --unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, selectedCommitmentLabel, proofPublicSignals }
@@ -278,12 +284,12 @@ Examples:
 Prerequisites:
   Requires: init
 JSON output (--json):
-  { chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount }"
+  { chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }"
 `;
 
 exports[`CLI --help snapshots history --help snapshot 1`] = `
 "Usage: privacy-pools history [options]
-Show chronological event history (deposits, withdrawals, exits)
+Show chronological event history (deposits, withdrawals, ragequits)
 Options:
   --no-sync        Use cached data (faster, but may be stale)
   -n, --limit <n>  Show last N events (default: "50")

@@ -36,7 +36,7 @@ describe("CLI command integration", () => {
       schemaVersion: string;
       configExists: boolean;
       defaultChain: string;
-      mnemonicSet: boolean;
+      recoveryPhraseSet: boolean;
       signerKeySet: boolean;
       signerAddress: string;
     }>(statusResult.stdout);
@@ -44,7 +44,7 @@ describe("CLI command integration", () => {
     expect(statusJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(statusJson.configExists).toBe(true);
     expect(statusJson.defaultChain).toBe("sepolia");
-    expect(statusJson.mnemonicSet).toBe(true);
+    expect(statusJson.recoveryPhraseSet).toBe(true);
     expect(statusJson.signerKeySet).toBe(true);
     expect(statusJson.signerAddress).toBe("0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A");
   });
@@ -513,15 +513,15 @@ describe("CLI command integration", () => {
       schemaVersion: string;
       success: boolean;
       defaultChain: string;
-      mnemonic?: string;
-      mnemonicRedacted?: boolean;
+      recoveryPhrase?: string;
+      recoveryPhraseRedacted?: boolean;
     }>(result.stdout);
 
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.defaultChain).toBe("mainnet");
-    expect(json.mnemonic).toBeUndefined();
-    expect(json.mnemonicRedacted).toBe(true);
+    expect(json.recoveryPhrase).toBeUndefined();
+    expect(json.recoveryPhraseRedacted).toBe(true);
   });
 
   test("--json init refuses to overwrite existing state without --force", () => {
@@ -559,15 +559,15 @@ describe("CLI command integration", () => {
       success: boolean;
       defaultChain: string;
       signerKeySet: boolean;
-      mnemonic?: string;
-      mnemonicRedacted?: boolean;
+      recoveryPhrase?: string;
+      recoveryPhraseRedacted?: boolean;
     }>(result.stdout);
 
     expect(json.success).toBe(true);
     expect(json.defaultChain).toBe("sepolia");
     expect(json.signerKeySet).toBe(true);
-    expect(json.mnemonic).toBeUndefined();
-    expect(json.mnemonicRedacted).toBe(true);
+    expect(json.recoveryPhrase).toBeUndefined();
+    expect(json.recoveryPhraseRedacted).toBe(true);
   });
 
   test("--json init --show-mnemonic includes generated mnemonic", () => {
@@ -579,14 +579,14 @@ describe("CLI command integration", () => {
     expect(result.status).toBe(0);
     const json = parseJsonOutput<{
       success: boolean;
-      mnemonic?: string;
-      mnemonicRedacted?: boolean;
+      recoveryPhrase?: string;
+      recoveryPhraseRedacted?: boolean;
     }>(result.stdout);
 
     expect(json.success).toBe(true);
-    expect(typeof json.mnemonic).toBe("string");
-    expect(json.mnemonic?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
-    expect(json.mnemonicRedacted).toBeUndefined();
+    expect(typeof json.recoveryPhrase).toBe("string");
+    expect(json.recoveryPhrase?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+    expect(json.recoveryPhraseRedacted).toBeUndefined();
   });
 
   test("--json deposit is non-interactive and fails fast without --asset", () => {
@@ -911,13 +911,13 @@ describe("CLI command integration", () => {
     const json = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      mnemonic?: string;
-      mnemonicRedacted?: boolean;
+      recoveryPhrase?: string;
+      recoveryPhraseRedacted?: boolean;
     }>(result.stdout);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
-    expect(json.mnemonic).toBeUndefined();
-    expect(json.mnemonicRedacted).toBe(true);
+    expect(json.recoveryPhrase).toBeUndefined();
+    expect(json.recoveryPhraseRedacted).toBe(true);
   });
 
   test("--agent init --show-mnemonic includes generated mnemonic", () => {
@@ -930,13 +930,13 @@ describe("CLI command integration", () => {
 
     const json = parseJsonOutput<{
       success: boolean;
-      mnemonic?: string;
-      mnemonicRedacted?: boolean;
+      recoveryPhrase?: string;
+      recoveryPhraseRedacted?: boolean;
     }>(result.stdout);
     expect(json.success).toBe(true);
-    expect(typeof json.mnemonic).toBe("string");
-    expect(json.mnemonic?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
-    expect(json.mnemonicRedacted).toBeUndefined();
+    expect(typeof json.recoveryPhrase).toBe("string");
+    expect(json.recoveryPhrase?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+    expect(json.recoveryPhraseRedacted).toBeUndefined();
   });
 
   test("--agent version returns JSON envelope", () => {

@@ -50,8 +50,8 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Privacy Pools uses two keys:",
         "  Recovery phrase: keeps your deposits private (generated during init)",
-        "  Wallet key:     pays gas and sends transactions (can be set later)",
-        "  These are independent. Set the wallet key via PRIVACY_POOLS_PRIVATE_KEY env var.",
+        "  Signer key:     pays gas and sends transactions (can be set later)",
+        "  These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.",
       ],
       examples: [
         "privacy-pools init",
@@ -61,7 +61,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools init --mnemonic \"word ...\" --private-key 0x...",
       ],
       jsonFields:
-        "{ defaultChain, signerKeySet, mnemonicRedacted? | mnemonic?, warning?, nextSteps: { requiresMnemonicCapture, requiresSignerKey, suggestedCommands[] }, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }",
       agentWorkflowNotes: [
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
       ],
@@ -95,7 +95,10 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools pools --json --chain mainnet",
       ],
       jsonFields:
-        "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
+        "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings?, nextActions?: [{ command, reason, when, args?, options? }] }",
+      agentWorkflowNotes: [
+        "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
+      ],
     },
     capabilities: {
       flags: ["--all-chains", "--search <query>", "--sort <mode>"],
@@ -117,7 +120,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools activity --asset USDC --json --chain mainnet",
       ],
       jsonFields:
-        "{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }",
+        "{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }] }",
     },
     capabilities: {
       flags: ["--asset <symbol|address>", "--page <n>", "--limit <n>"],
@@ -183,7 +186,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools status --chain mainnet --rpc-url https://...",
       ],
       jsonFields:
-        "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, mnemonicSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, handoffChecklist: [{ key, met, remedy }], nextActions?: [{ command, reason, when, args?, options? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+        "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options? }], aspLive?, rpcLive?, rpcBlockNumber? }",
     },
     capabilities: {
       flags: ["--check", "--no-check", "--check-rpc", "--check-asp"],
@@ -237,11 +240,16 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
         "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, precommitment, balanceSufficient }",
+      ],
+      safetyNotes: [
+        "Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.",
+        "A vetting fee is deducted from the deposit amount by the pool's ASP.",
+        "Only approved deposits can be withdrawn privately.",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -281,9 +289,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.",
       ],
       jsonFields:
-        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, nextActions?: [{ command, reason, when, args?, options? }] }",
       jsonVariants: [
-        "direct: same fields but mode: \"direct\", fee: null instead of feeBPS, no extraGas, and nextStep explains the onchain link between deposit and withdrawal.",
+        "direct: same fields but mode: \"direct\", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
         "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
@@ -345,7 +353,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Use 'withdraw' to withdraw privately once your deposit is ASP-approved.",
         "Use 'ragequit' at any time to recover funds publicly to your deposit",
         "address, even if not approved. No ASP approval is needed, but your",
-        "deposit address is revealed onchain.",
+        "deposit address is revealed onchain. 'exit' is an alias.",
       ],
       examples: [
         "privacy-pools ragequit ETH -p PA-1",
@@ -359,7 +367,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Exit is public and irreversible and reveals the original deposit address onchain.",
       ],
       jsonFields:
-        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextStep, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
         "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
@@ -396,7 +404,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount }",
+        "{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }",
     },
     capabilities: {
       flags: ["--no-sync", "--all", "--details"],
@@ -408,7 +416,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `accounts`",
   },
   history: {
-    description: "Show chronological event history (deposits, withdrawals, exits)",
+    description: "Show chronological event history (deposits, withdrawals, ragequits)",
     help: {
       examples: [
         "privacy-pools history",
@@ -522,7 +530,7 @@ const AGENT_NOTES: Record<string, string> = {
   firstRun:
     "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
   unsignedMode:
-    "--unsigned builds transaction payloads without signing or submitting. Requires init (mnemonic) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    "--unsigned builds transaction payloads without signing or submitting. Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
@@ -558,7 +566,7 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
     shape:
       "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null> }",
     description:
-      "Optional additive workflow guidance for agents. Existing nextStep/nextSteps/handoffChecklist fields remain supported for compatibility.",
+      "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output.",
   },
 };
 

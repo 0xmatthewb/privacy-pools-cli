@@ -254,7 +254,7 @@ const STUB_STATUS: StatusCheckResult = {
   selectedChain: "sepolia",
   rpcUrl: "https://rpc.sepolia.example",
   rpcIsCustom: false,
-  mnemonicSet: true,
+  recoveryPhraseSet: true,
   signerKeySet: true,
   signerKeyValid: true,
   signerAddress: "0x1234567890abcdef1234567890abcdef12345678",
@@ -274,10 +274,17 @@ describe("renderStatus parity", () => {
     expect(json.configExists).toBe(true);
     expect(json.defaultChain).toBe("sepolia");
     expect(json.selectedChain).toBe("sepolia");
-    expect(json.mnemonicSet).toBe(true);
+    expect(json.recoveryPhraseSet).toBe(true);
     expect(json.signerKeySet).toBe(true);
     expect(json.signerAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toEqual([
+      {
+        command: "pools",
+        reason: "Browse pools now that the CLI is ready.",
+        when: "status_ready",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -297,7 +304,7 @@ describe("renderStatus parity", () => {
       ...STUB_STATUS,
       configExists: false,
       configDir: null,
-      mnemonicSet: false,
+      recoveryPhraseSet: false,
       signerKeySet: false,
       signerKeyValid: false,
       signerAddress: null,
@@ -324,6 +331,7 @@ describe("renderStatus parity", () => {
     expect(stderr).toContain("Privacy Pools CLI Status");
     expect(stderr).toContain("Config:");
     expect(stderr).toContain("Recovery phrase: set");
+    expect(stderr).toContain("Signer key:");
     expect(stderr).toContain("Default chain: sepolia");
     expect(stderr).toContain("Account files:");
   });
@@ -339,7 +347,7 @@ describe("renderStatus parity", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
 
-    expect(stderr).toContain("Ready: deposit, withdraw, exit, unsigned");
+    expect(stderr).toContain("Ready: deposit, withdraw, ragequit, unsigned");
   });
 
   test("human mode: shows unsigned-only readiness when no signer key", () => {
@@ -352,7 +360,7 @@ describe("renderStatus parity", () => {
 
   test("human mode: shows not-ready when no config", () => {
     const ctx = createOutputContext(makeMode());
-    const result = { ...STUB_STATUS, configExists: false, configDir: null, mnemonicSet: false, signerKeySet: false, signerKeyValid: false, signerAddress: null };
+    const result = { ...STUB_STATUS, configExists: false, configDir: null, recoveryPhraseSet: false, signerKeySet: false, signerKeyValid: false, signerAddress: null };
     const { stderr } = captureOutput(() => renderStatus(ctx, result));
 
     expect(stderr).toContain("Not ready");

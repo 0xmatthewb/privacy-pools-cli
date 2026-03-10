@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
+import { appendNextActions, createNextAction, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
@@ -66,8 +66,8 @@ export function poolToJson(
   chain?: string,
 ): Record<string, string | number | null> {
   const payload: Record<string, string | number | null> = {
-    symbol: pool.symbol,
-    asset: pool.asset,
+    asset: pool.symbol,
+    tokenAddress: pool.asset,
     pool: pool.pool,
     scope: pool.scope.toString(),
     decimals: pool.decimals,
@@ -127,22 +127,39 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
 
   if (ctx.mode.isJson) {
+    const nextActions = filteredPools.length > 0
+      ? [
+          createNextAction(
+            "deposit",
+            allChains
+              ? "Choose a pool from the results, then deposit into it."
+              : "Deposit into a pool after reviewing its terms.",
+            "after_browse",
+            {
+              options: {
+                agent: true,
+                ...(!allChains ? { chain: chainName } : {}),
+              },
+            },
+          ),
+        ]
+      : undefined;
     if (allChains) {
-      printJsonSuccess({
+      printJsonSuccess(appendNextActions({
         allChains: true,
         search,
         sort,
         chains: chainSummaries,
         pools: filteredPools.map((entry) => poolToJson(entry.pool, entry.chain)),
         warnings: warnings.length > 0 ? warnings : undefined,
-      });
+      }, nextActions));
     } else {
-      printJsonSuccess({
+      printJsonSuccess(appendNextActions({
         chain: chainName,
         search,
         sort,
         pools: filteredPools.map((entry) => poolToJson(entry.pool)),
-      });
+      }, nextActions));
     }
     return;
   }
@@ -266,16 +283,26 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
   const dd = displayDecimals(pool.decimals);
   const hasUsd = tokenPrice !== null;
 
-  if (ctx.mode.isCsv) {
-    info("CSV output is not supported for pool detail view. Use --json for structured output.", false);
-    return;
-  }
+  guardCsvUnsupported(ctx, "pools <asset>");
 
   if (ctx.mode.isJson) {
-    const payload: Record<string, unknown> = {
+    const payload: Record<string, unknown> = appendNextActions({
       chain,
       ...poolToJson(pool),
-    };
+    }, [
+      createNextAction(
+        "deposit",
+        "Deposit into this pool if its terms work for you.",
+        "after_pool_detail",
+        {
+          options: {
+            agent: true,
+            chain,
+            asset: pool.symbol,
+          },
+        },
+      ),
+    ]) as Record<string, unknown>;
 
     if (myPoolAccounts !== null) {
       const spendable = myPoolAccounts.filter((pa) => pa.status === "spendable");

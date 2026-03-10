@@ -84,6 +84,7 @@ describe("classifyError - network error variants", () => {
     const err = classifyError(new Error("request timeout after 30000ms"));
     expect(err.category).toBe("RPC");
     expect(err.retryable).toBe(true);
+    expect(err.hint).toContain("--timeout");
   });
 
   test("non-Error objects with message string → classified", () => {

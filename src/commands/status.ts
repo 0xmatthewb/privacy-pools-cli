@@ -78,7 +78,7 @@ export function createStatusCommand(): Command {
             ? getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)
             : null,
           rpcIsCustom,
-          mnemonicSet: hasMnemonic,
+          recoveryPhraseSet: hasMnemonic,
           signerKeySet: !!signerKey,
           signerKeyValid,
           signerAddress,

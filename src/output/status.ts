@@ -26,7 +26,7 @@ export interface StatusCheckResult {
   selectedChain: string | null;
   rpcUrl: string | null;
   rpcIsCustom: boolean;
-  mnemonicSet: boolean;
+  recoveryPhraseSet: boolean;
   signerKeySet: boolean;
   signerKeyValid: boolean;
   signerAddress: string | null;
@@ -49,9 +49,10 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   guardCsvUnsupported(ctx, "status");
 
   if (ctx.mode.isJson) {
-    const readyForDeposit = result.configExists && result.mnemonicSet && result.signerKeyValid;
-    const readyForUnsigned = result.configExists && result.mnemonicSet;
-    const nextActions = !result.configExists || !result.mnemonicSet
+    const readyForDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
+    const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
+    const workflowChain = result.selectedChain ?? result.defaultChain;
+    const nextActions = !result.configExists || !result.recoveryPhraseSet
       ? [
           createNextAction(
             "init",
@@ -65,7 +66,19 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
             },
           ),
         ]
-      : undefined;
+      : [
+          createNextAction(
+            "pools",
+            "Browse pools now that the CLI is ready.",
+            "status_ready",
+            {
+              options: {
+                agent: true,
+                ...(workflowChain ? { chain: workflowChain } : {}),
+              },
+            },
+          ),
+        ];
 
     const status: Record<string, unknown> = appendNextActions({
       configExists: result.configExists,
@@ -74,7 +87,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       selectedChain: result.selectedChain,
       rpcUrl: result.rpcUrl,
       rpcIsCustom: result.rpcIsCustom,
-      mnemonicSet: result.mnemonicSet,
+      recoveryPhraseSet: result.recoveryPhraseSet,
       signerKeySet: result.signerKeySet,
       signerKeyValid: result.signerKeyValid,
       signerAddress: result.signerAddress,
@@ -85,16 +98,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
-    // Convenience fields for agents: can I transact right now?
     status.readyForDeposit = readyForDeposit;
     status.readyForWithdraw = readyForDeposit;
     status.readyForUnsigned = readyForUnsigned;
-    // Machine-readable handoff checklist for agent orchestrators.
-    status.handoffChecklist = [
-      { key: "config", met: result.configExists, remedy: "privacy-pools init --agent --show-mnemonic" },
-      { key: "mnemonic", met: result.mnemonicSet, remedy: "Capture mnemonic from init output" },
-      { key: "signerKey", met: result.signerKeyValid, remedy: "export PRIVACY_POOLS_PRIVATE_KEY=0x..." },
-    ];
     printJsonSuccess(status);
     return;
   }
@@ -111,7 +117,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   }
 
   // Mnemonic
-  if (result.mnemonicSet) {
+  if (result.recoveryPhraseSet) {
     success("Recovery phrase: set", silent);
   } else {
     warn("Recovery phrase: not set", silent);
@@ -119,11 +125,11 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   // Signer
   if (result.signerAddress && result.signerKeyValid) {
-    success(`Signer: ${result.signerAddress}`, silent);
+    success(`Signer key: ${result.signerAddress}`, silent);
   } else if (result.signerKeySet && !result.signerKeyValid) {
     warn("Signer key is set but invalid. Re-run 'privacy-pools init' to reconfigure.", silent);
   } else {
-    warn("Signer: not set", silent);
+    warn("Signer key: not set", silent);
   }
 
   // Default chain
@@ -179,10 +185,10 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       info("No account files found.", silent);
     }
     // Readiness summary
-    const canDeposit = result.configExists && result.mnemonicSet && result.signerKeyValid;
-    const canUnsigned = result.configExists && result.mnemonicSet;
+    const canDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
+    const canUnsigned = result.configExists && result.recoveryPhraseSet;
     if (canDeposit) {
-      success("Ready: deposit, withdraw, exit, unsigned", silent);
+      success("Ready: deposit, withdraw, ragequit, unsigned", silent);
     } else if (canUnsigned) {
       info("Ready: unsigned mode only (no signer key)", silent);
     } else {

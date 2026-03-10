@@ -1,4 +1,4 @@
-export const JSON_SCHEMA_VERSION = "1.3.0";
+export const JSON_SCHEMA_VERSION = "1.1.0";
 
 export function printJsonSuccess(
   payload: object,

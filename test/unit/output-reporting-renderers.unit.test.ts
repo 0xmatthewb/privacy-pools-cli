@@ -98,7 +98,16 @@ describe("renderPools parity", () => {
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.pools.length).toBe(1);
-    expect(json.pools[0].symbol).toBe("ETH");
+    expect(json.pools[0].asset).toBe("ETH");
+    expect(json.pools[0].tokenAddress).toBe("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
+    expect(json.nextActions).toEqual([
+      {
+        command: "deposit",
+        reason: "Deposit into a pool after reviewing its terms.",
+        when: "after_browse",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -153,7 +162,8 @@ describe("renderPools parity", () => {
 describe("poolToJson", () => {
   test("serializes pool stats to JSON-friendly record", () => {
     const json = poolToJson(STUB_POOL);
-    expect(json.symbol).toBe("ETH");
+    expect(json.asset).toBe("ETH");
+    expect(json.tokenAddress).toBe("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
     expect(json.scope).toBe("42");
     expect(json.minimumDeposit).toBe("100000000000000");
     expect(json.chain).toBeUndefined();
@@ -229,6 +239,7 @@ describe("renderAccounts parity", () => {
     const { stdout, stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
+        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
@@ -241,6 +252,15 @@ describe("renderAccounts parity", () => {
     expect(json.accounts.length).toBe(1);
     expect(json.accounts[0].poolAccountId).toBe("PA-1");
     expect(json.accounts[0].aspStatus).toBe("approved");
+    expect(json.accounts[0].explorerUrl).toContain("etherscan.io");
+    expect(json.nextActions).toEqual([
+      {
+        command: "withdraw",
+        reason: "Withdraw approved funds from a Pool Account.",
+        when: "has_spendable",
+        options: { agent: true, chain: "sepolia", asset: "ETH" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -249,6 +269,7 @@ describe("renderAccounts parity", () => {
     const { stdout, stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
+        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
@@ -256,16 +277,18 @@ describe("renderAccounts parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Pool Accounts (PA) on sepolia");
+    expect(stderr).toContain("Pool Accounts on sepolia");
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Approved");
+    expect(stderr).toContain("PA = Pool Account.");
   });
 
-  test("human mode (detail): emits detail table with commitment columns", () => {
+  test("human mode (detail): hides troubleshooting columns by default", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
+        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: true,
         showAll: false,
@@ -273,6 +296,24 @@ describe("renderAccounts parity", () => {
     );
 
     expect(stdout).toBe("");
+    expect(stderr).not.toContain("Commitment");
+    expect(stderr).not.toContain("Label");
+    expect(stderr).not.toContain("Block");
+    expect(stderr).toContain("Use --verbose with --details");
+  });
+
+  test("human mode (detail + verbose): shows troubleshooting columns", () => {
+    const ctx = createOutputContext(makeMode(), true);
+    const { stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        chainId: 11155111,
+        groups: [STUB_GROUP],
+        showDetails: true,
+        showAll: false,
+      }),
+    );
+
     expect(stderr).toContain("Commitment");
     expect(stderr).toContain("Label");
     expect(stderr).toContain("Block");
@@ -284,6 +325,7 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
+        chainId: 11155111,
         groups: [emptyGroup],
         showDetails: false,
         showAll: false,
@@ -298,6 +340,7 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
+        chainId: 11155111,
         groups: [STUB_GROUP_WITH_USD],
         showDetails: false,
         showAll: false,
@@ -313,6 +356,7 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
+        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
@@ -327,6 +371,7 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
+        chainId: 11155111,
         groups: [STUB_GROUP_WITH_USD],
         showDetails: true,
         showAll: false,

@@ -14,7 +14,7 @@ import { makeMode, captureOutput } from "../helpers/output.ts";
 // ── renderInitResult parity ─────────────────────────────────────────────────
 
 describe("renderInitResult parity", () => {
-  test("JSON mode: emits init envelope with generated mnemonic redacted", () => {
+  test("JSON mode: emits init envelope with generated recovery phrase redacted", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderInitResult(ctx, {
@@ -31,8 +31,8 @@ describe("renderInitResult parity", () => {
     expect(json.success).toBe(true);
     expect(json.defaultChain).toBe("sepolia");
     expect(json.signerKeySet).toBe(true);
-    expect(json.mnemonicRedacted).toBe(true);
-    expect(json.mnemonic).toBeUndefined();
+    expect(json.recoveryPhraseRedacted).toBe(true);
+    expect(json.recoveryPhrase).toBeUndefined();
     expect(json.nextActions).toEqual([
       {
         command: "status",
@@ -50,7 +50,7 @@ describe("renderInitResult parity", () => {
     expect(stderr).toBe("");
   });
 
-  test("JSON mode: includes mnemonic when showMnemonic is true", () => {
+  test("JSON mode: includes recovery phrase when showMnemonic is true", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const mnemonic = "test word one two three four five six seven eight nine ten eleven twelve";
     const { stdout } = captureOutput(() =>
@@ -64,11 +64,11 @@ describe("renderInitResult parity", () => {
     );
 
     const json = JSON.parse(stdout.trim());
-    expect(json.mnemonic).toBe(mnemonic);
-    expect(json.mnemonicRedacted).toBeUndefined();
+    expect(json.recoveryPhrase).toBe(mnemonic);
+    expect(json.recoveryPhraseRedacted).toBeUndefined();
   });
 
-  test("JSON mode: omits mnemonic fields when imported", () => {
+  test("JSON mode: omits recovery phrase fields when imported", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
       renderInitResult(ctx, {
@@ -80,8 +80,8 @@ describe("renderInitResult parity", () => {
     );
 
     const json = JSON.parse(stdout.trim());
-    expect(json.mnemonic).toBeUndefined();
-    expect(json.mnemonicRedacted).toBeUndefined();
+    expect(json.recoveryPhrase).toBeUndefined();
+    expect(json.recoveryPhraseRedacted).toBeUndefined();
     expect(json.defaultChain).toBe("mainnet");
   });
 
@@ -255,7 +255,8 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("after vetting fee");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).toContain("pending approval");
+    expect(stderr).toContain("Pending ASP approval");
+    expect(stderr).toContain("Check Pool Accounts");
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
 
@@ -364,7 +365,6 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.scope).toBe("42");
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
-    expect(json.nextStep).toContain("privacy-pools accounts");
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
@@ -383,7 +383,7 @@ describe("renderRagequitSuccess parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Exit (ragequit) PA-2");
+    expect(stderr).toContain("Ragequit PA-2");
     expect(stderr).toContain("withdrew");
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
@@ -558,8 +558,6 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextStep).toContain("privacy-pools accounts");
-    expect(json.nextStep).toContain("direct withdrawal links");
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
@@ -582,8 +580,6 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextStep).toContain("privacy-pools accounts");
-    expect(json.nextStep).not.toContain("direct withdrawal links");
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
