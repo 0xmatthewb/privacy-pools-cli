@@ -441,8 +441,8 @@
         "chain": "string",
         "syncedPools": "number",
         "syncedSymbols": "string[]? (present on successful sync)",
-        "spendableCommitments": "number",
-        "previousSpendableCommitments": "number? (count before sync)"
+        "availablePoolAccounts": "number",
+        "previousAvailablePoolAccounts": "number? (count before sync)"
       }
     },
     "guide": {

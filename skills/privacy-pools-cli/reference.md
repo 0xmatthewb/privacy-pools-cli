@@ -714,12 +714,12 @@ pp sync --agent [--asset <symbol>]
   "chain": "mainnet",
   "syncedPools": 2,
   "syncedSymbols": ["ETH", "USDC"],
-  "spendableCommitments": 5,
-  "previousSpendableCommitments": 3
+  "availablePoolAccounts": 5,
+  "previousAvailablePoolAccounts": 3
 }
 ```
 
-`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousSpendableCommitments` shows the count before sync — compare with `spendableCommitments` to detect newly discovered accounts.
+`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousAvailablePoolAccounts` shows the count before sync — compare with `availablePoolAccounts` to detect newly discovered accounts.
 
 ---
 
