@@ -106,7 +106,7 @@ pp pools ETH --agent                     # detail view for a specific pool
 
 Defaults to all mainnets when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
 
-**Detail view** (`pp pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ mode: "pool-detail", chain, asset, tokenAddress, pool, scope, ... }`. Does not support CSV.
+**Detail view** (`pp pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity?, nextActions? }`. Does not support CSV.
 
 **Single chain** (with `--chain`):
 
@@ -348,9 +348,9 @@ Representative payload (abridged):
     "aspApprovalStatus": { "values": ["approved", "pending", "unknown"] },
     "poolAccountStatus": { "values": ["spendable", "spent", "exited"] },
     "errorCategories": { "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"] },
-    "nextActions": { "shape": "{ command, reason, when, args?, options? }" },
     "nextActions": {
-      "shape": "{ command, reason, when, args?, options? }"
+      "shape": "{ command, reason, when, args?, options? }",
+      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output."
     }
   },
   "safeReadOnlyCommands": ["pools", "activity", "stats", "status", "capabilities"],
@@ -392,7 +392,7 @@ pp init --agent --private-key-file ./key.txt --default-chain mainnet
       "when": "after_init",
       "options": { "agent": true, "chain": "mainnet" }
     }
-  ],
+  ]
 }
 ```
 

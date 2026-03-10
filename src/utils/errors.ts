@@ -126,7 +126,7 @@ export function classifyError(error: unknown): CLIError {
       return new CLIError(
         "Proof generation failed.",
         "PROOF",
-        "Run 'privacy-pools sync' and retry. If it persists, verify you are using the correct signer key or recovery phrase.",
+        "Run 'privacy-pools sync' and retry. If it persists, verify you are using the correct recovery phrase.",
         "PROOF_GENERATION_FAILED"
       );
     }

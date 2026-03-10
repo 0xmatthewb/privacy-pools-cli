@@ -6,7 +6,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, info, success, isSilent } from "./common.js";
+import { printJsonSuccess, info, success, isSilent, guardCsvUnsupported } from "./common.js";
 
 export interface SyncResult {
   chain: string;
@@ -20,6 +20,8 @@ export interface SyncResult {
  * Render "no pools found" output.
  */
 export function renderSyncEmpty(ctx: OutputContext, chain: string): void {
+  guardCsvUnsupported(ctx, "sync");
+
   if (ctx.mode.isJson) {
     printJsonSuccess({
       chain,
@@ -39,6 +41,8 @@ export function renderSyncComplete(
   ctx: OutputContext,
   result: SyncResult,
 ): void {
+  guardCsvUnsupported(ctx, "sync");
+
   if (ctx.mode.isJson) {
     printJsonSuccess({
       chain: result.chain,
