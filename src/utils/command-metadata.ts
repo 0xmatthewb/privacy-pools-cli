@@ -371,7 +371,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
         "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
-        "--dry-run: { dryRun, operation, chain, asset, amount, selectedCommitmentLabel, proofPublicSignals }",
+        "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,

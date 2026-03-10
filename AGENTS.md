@@ -106,7 +106,7 @@ In pools JSON, `asset` is the symbol to use in follow-up CLI commands and `token
 
 With `--all-chains`, each pool includes a `chain` field and the root includes `allChains: true`, `chains: [{ chain, pools, error }]`, and optional `warnings`.
 
-**Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON payload: `{ mode: "pool-detail", chain, asset, pool, scope, ... }`. Supports `--json` and `--chain`. Does not support `--format csv`.
+**Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON payload: `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity?, nextActions? }`. Supports `--json` and `--chain`. Does not support `--format csv`.
 
 #### `activity`
 

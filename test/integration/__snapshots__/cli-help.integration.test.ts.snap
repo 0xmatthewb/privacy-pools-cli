@@ -261,7 +261,7 @@ JSON output (--json):
   { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, chain, asset, amount, transactions[] }
   --unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]
-  --dry-run: { dryRun, operation, chain, asset, amount, selectedCommitmentLabel, proofPublicSignals }
+  --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }
 Additional modes:
   --unsigned builds transaction payloads without submitting.
   --dry-run validates the operation without submitting it."
