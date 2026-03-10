@@ -179,7 +179,7 @@ JSON output (--json):
   { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }
   --unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]
-  --dry-run: { dryRun, operation, chain, asset, amount, precommitment, balanceSufficient }
+  --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }
 Additional modes:
   --unsigned builds transaction payloads without submitting.
   --dry-run validates the operation without submitting it."
@@ -256,7 +256,7 @@ Examples:
 Prerequisites:
   Requires: init (account state should be synced)
 Safety notes:
-  Exit is public and irreversible and reveals the original deposit address onchain.
+  Ragequit is public and irreversible and reveals the original deposit address onchain.
 JSON output (--json):
   { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, chain, asset, amount, transactions[] }
@@ -318,7 +318,7 @@ Examples:
 Prerequisites:
   Requires: init
 JSON output (--json):
-  { chain, syncedPools, spendableCommitments, syncedSymbols?, previousSpendableCommitments? }"
+  { chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts? }"
 `;
 
 exports[`CLI --help snapshots guide --help snapshot 1`] = `

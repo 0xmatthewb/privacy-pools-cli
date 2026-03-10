@@ -244,7 +244,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
         "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
-        "--dry-run: { dryRun, operation, chain, asset, amount, precommitment, balanceSufficient }",
+        "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }",
       ],
       safetyNotes: [
         "Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.",
@@ -364,7 +364,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
-        "Exit is public and irreversible and reveals the original deposit address onchain.",
+        "Ragequit is public and irreversible and reveals the original deposit address onchain.",
       ],
       jsonFields:
         "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
@@ -447,7 +447,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, syncedPools, spendableCommitments, syncedSymbols?, previousSpendableCommitments? }",
+        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts? }",
     },
     capabilities: {
       flags: ["-a, --asset <symbol|address>"],
