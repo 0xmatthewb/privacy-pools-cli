@@ -358,10 +358,10 @@ Every command emits a JSON object on stdout when `--json` is set:
 
 ```json
 // Success
-{ "schemaVersion": "1.3.0", "success": true, ...payload }
+{ "schemaVersion": "1.1.0", "success": true, ...payload }
 
 // Error
-{ "schemaVersion": "1.3.0", "success": false, "errorCode": "RPC_ERROR", "errorMessage": "...", "error": { "code": "RPC_ERROR", "category": "RPC", "message": "...", "hint": "...", "retryable": true } }
+{ "schemaVersion": "1.1.0", "success": false, "errorCode": "RPC_ERROR", "errorMessage": "...", "error": { "code": "RPC_ERROR", "category": "RPC", "message": "...", "hint": "...", "retryable": true } }
 ```
 
 **Exit codes:**

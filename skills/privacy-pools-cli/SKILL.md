@@ -44,14 +44,14 @@ Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (a
 | Discover capabilities | `pp capabilities --agent` | No wallet needed |
 | Initialize wallet | `pp init --agent --default-chain mainnet` | One-time setup |
 | Deposit ETH | `pp deposit 0.1 ETH --agent` | Requires init |
-| Deposit (unsigned) | `pp deposit 0.1 ETH --unsigned --agent` | No wallet key needed |
+| Deposit (unsigned) | `pp deposit 0.1 ETH --unsigned --agent` | No signer key needed |
 | Check accounts | `pp accounts --agent` | Poll for aspStatus; includes balances |
 | Withdraw (relayed) | `pp withdraw 0.05 ETH --to 0x... --agent` | Requires init |
 | Withdraw all | `pp withdraw --all ETH --to 0x... --agent` | Full PA balance |
-| Withdraw (unsigned) | `pp withdraw 0.05 ETH --to 0x... --unsigned --agent` | No wallet key needed |
+| Withdraw (unsigned) | `pp withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
 | Withdrawal quote | `pp withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
 | Pool detail | `pp pools ETH --agent` | Combined stats + my funds |
-| Exit (ragequit) | `pp exit ETH --from-pa PA-1 --agent` | Emergency exit |
+| Ragequit (exit alias) | `pp ragequit ETH --from-pa PA-1 --agent` | Emergency public exit |
 | Dry-run | `pp deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
 | Event history | `pp history --agent` | Requires init |
 | Force sync | `pp sync --agent` | Rarely needed (auto-sync with 2min TTL) |
@@ -70,19 +70,19 @@ All commands also accept `--json`, `--yes`, and `--quiet` individually.
 
 ---
 
-## 2. JSON output contract (v1.3.0)
+## 2. JSON output contract (v1.1.0)
 
 Every response when `--json` or `--agent` is set:
 
 ```json
-{ "schemaVersion": "1.3.0", "success": true, ...payload }
+{ "schemaVersion": "1.1.0", "success": true, ...payload }
 ```
 
 Errors:
 
 ```json
 {
-  "schemaVersion": "1.3.0",
+  "schemaVersion": "1.1.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -98,7 +98,7 @@ Errors:
 
 Parse `success` first. On failure, use `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
 
-Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, args?, options? }`. Treat these as additive guidance; legacy `nextStep`, `nextSteps`, and `handoffChecklist` fields remain valid.
+Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, args?, options? }`. Treat `nextActions` as the canonical machine follow-up field.
 
 ---
 
@@ -114,7 +114,7 @@ pp deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "1.3.0",
+  "schemaVersion": "1.1.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -166,7 +166,7 @@ pp deposit 0.1 ETH --unsigned --unsigned-format tx --agent
 | `from` | string\|null | envelope only | Signer address if known, otherwise `null` |
 | `description` | string | yes | Human-readable step description |
 
-Supported on: `deposit`, `withdraw`, `exit` (ragequit).
+Supported on: `deposit`, `withdraw`, `ragequit` (alias: `exit`).
 
 ERC-20 deposits produce two transactions (approve + deposit). Submit them in order.
 
@@ -175,7 +175,7 @@ ERC-20 deposits produce two transactions (approve + deposit). Submit them in ord
 - **Deposit**: `operation: "deposit"`, `precommitment`
 - **Withdraw (direct)**: `operation: "withdraw"`, `withdrawMode: "direct"`, `recipient`, `selectedCommitmentLabel`, `selectedCommitmentValue`
 - **Withdraw (relayed)**: `operation: "withdraw"`, `withdrawMode: "relayed"`, `recipient`, `selectedCommitmentLabel`, `selectedCommitmentValue`, `feeBPS`, `quoteExpiresAt`, `relayerRequest`
-- **Exit (ragequit)**: `operation: "ragequit"`, `selectedCommitmentLabel`, `selectedCommitmentValue`
+- **Ragequit (exit alias)**: `operation: "ragequit"`, `selectedCommitmentLabel`, `selectedCommitmentValue`
 
 ---
 
@@ -206,7 +206,7 @@ pp withdraw 0.05 ETH --to 0x... --dry-run --agent
 pp ragequit ETH --from-pa PA-1 --dry-run --agent
 ```
 
-Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `exit` (ragequit).
+Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `ragequit` (alias: `exit`).
 
 ---
 
@@ -271,11 +271,11 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 
 ## 10. Security
 
-- The **mnemonic** is the master secret. Anyone with it can spend all deposited funds. Store it in an encrypted file or secrets manager — never in plain text, logs, or source control.
-- When using `--show-mnemonic` during `init`, capture the output programmatically and write it to a secure store. Do not log or display it to end users.
+- The **recovery phrase** is the master secret. Anyone with it can spend all deposited funds. Store it in an encrypted file or secrets manager — never in plain text, logs, or source control.
+- When using `--show-mnemonic` during `init`, capture the recovery phrase output programmatically and write it to a secure store. Do not log or display it to end users.
 - The config directory (`~/.privacy-pools`) contains key material. Restrict filesystem permissions (`chmod 700`).
 - Avoid setting `PRIVACY_POOLS_PRIVATE_KEY` in shared or CI environments where env vars may be logged. Prefer `--private-key-file` with a restricted-access file.
-- Agents that call `init --agent --show-mnemonic` should pipe the `mnemonic` field from the JSON response directly to a secrets manager, then discard it from memory.
+- Agents that call `init --agent --show-mnemonic` should pipe the `recoveryPhrase` field from the JSON response directly to a secrets manager, then discard it from memory.
 
 ---
 

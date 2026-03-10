@@ -27,9 +27,9 @@ export interface InitRenderResult {
   mnemonicImported: boolean;
   /** True when --show-mnemonic was passed. */
   showMnemonic: boolean;
-  /** The mnemonic phrase (included only when showMnemonic && !mnemonicImported). */
+  /** The recovery phrase (included only when showMnemonic && !mnemonicImported). */
   mnemonic?: string;
-  /** Warning message to include in JSON output (e.g. for agent mnemonic capture). */
+  /** Warning message to include in JSON output (e.g. for agent recovery phrase capture). */
   warning?: string;
 }
 
@@ -69,23 +69,14 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     ]) as Record<string, unknown>;
     if (!result.mnemonicImported) {
       if (result.showMnemonic) {
-        jsonOutput.mnemonic = result.mnemonic;
+        jsonOutput.recoveryPhrase = result.mnemonic;
       } else {
-        jsonOutput.mnemonicRedacted = true;
+        jsonOutput.recoveryPhraseRedacted = true;
       }
     }
     if (result.warning) {
       jsonOutput.warning = result.warning;
     }
-    jsonOutput.nextSteps = {
-      requiresMnemonicCapture: !result.mnemonicImported,
-      requiresSignerKey: !result.signerKeySet,
-      suggestedCommands: [
-        ...(result.signerKeySet ? [] : ["export PRIVACY_POOLS_PRIVATE_KEY=0x..."]),
-        "privacy-pools status --agent",
-        "privacy-pools pools --agent",
-      ],
-    };
     printJsonSuccess(jsonOutput, false);
     return;
   }

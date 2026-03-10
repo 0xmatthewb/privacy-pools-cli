@@ -171,6 +171,7 @@ export function createAccountsCommand(): Command {
 
         renderAccounts(ctx, {
           chain: chainConfig.name,
+          chainId: chainConfig.id,
           groups,
           showDetails: !!opts.details,
           showAll: !!opts.all,

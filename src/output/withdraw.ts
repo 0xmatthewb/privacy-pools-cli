@@ -161,15 +161,9 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     ]) as Record<string, unknown>;
     if (data.withdrawMode === "direct") {
       payload.fee = null;
-      payload.nextStep =
-        "Run 'privacy-pools accounts --chain " +
-        data.chain +
-        "' to verify updated balance. Note: direct withdrawal links deposit and withdrawal onchain.";
     } else {
       payload.feeBPS = data.feeBPS;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
-      payload.nextStep =
-        "Run 'privacy-pools accounts --chain " + data.chain + "' to verify updated balance.";
     }
     printJsonSuccess(payload, false);
     return;
@@ -186,6 +180,12 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     `Withdrew ${formatAmount(data.amount, data.decimals, data.asset, dd)} from ${data.poolAccountId} to ${formatAddress(data.recipient)}.`,
     silent,
   );
+  if (data.withdrawMode === "direct") {
+    warn(
+      "Privacy note: direct withdrawals are not private and link the deposit and withdrawal onchain.",
+      silent,
+    );
+  }
   info(`Tx: ${formatTxHash(data.txHash)}`, silent);
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
@@ -202,9 +202,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     info(`${data.poolAccountId} fully withdrawn`, silent);
   } else {
     info(`Remaining in ${data.poolAccountId}: ${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`, silent);
-  }
-  if (data.withdrawMode === "direct") {
-    warn("Note: Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
   }
   info(`Check updated balance: privacy-pools accounts --chain ${data.chain}`, silent);
 }

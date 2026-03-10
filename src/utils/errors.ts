@@ -133,10 +133,19 @@ export function classifyError(error: unknown): CLIError {
   }
 
   // Network/RPC errors
+  if (message.includes("timeout")) {
+    return new CLIError(
+      `Network error: ${message}`,
+      "RPC",
+      "Check your RPC URL and network connectivity. If the request is timing out, try --timeout <seconds>.",
+      "RPC_NETWORK_ERROR",
+      true
+    );
+  }
+
   if (
     message.includes("fetch") ||
-    message.includes("ECONNREFUSED") ||
-    message.includes("timeout")
+    message.includes("ECONNREFUSED")
   ) {
     return new CLIError(
       `Network error: ${message}`,

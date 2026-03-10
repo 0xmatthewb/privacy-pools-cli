@@ -167,6 +167,7 @@ describe("accounts CSV", () => {
     const { stdout, stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
+        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
