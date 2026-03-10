@@ -9,6 +9,7 @@ import { renderDepositDryRun, renderDepositSuccess, type DepositDryRunData, type
 import { renderRagequitDryRun, renderRagequitSuccess, type RagequitDryRunData, type RagequitSuccessData } from "../../src/output/ragequit.ts";
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote, type WithdrawDryRunData, type WithdrawSuccessData, type WithdrawQuoteData } from "../../src/output/withdraw.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
 
 // ── renderInitResult parity ─────────────────────────────────────────────────
@@ -495,6 +496,16 @@ describe("renderWithdrawDryRun parity", () => {
     expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
   });
 
+  test("JSON mode: omits anonymitySet when not provided", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawDryRun(ctx, STUB_WITHDRAW_DRY_RUN_DIRECT),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.anonymitySet).toBeUndefined();
+  });
+
   test("human mode: emits dry-run messages to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
@@ -615,6 +626,16 @@ describe("renderWithdrawSuccess parity", () => {
 
     const json = JSON.parse(stdout.trim());
     expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
+  });
+
+  test("JSON mode: omits anonymitySet when not provided", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_DIRECT),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.anonymitySet).toBeUndefined();
   });
 
   test("human mode (direct): emits withdrawal messages to stderr", () => {
@@ -853,5 +874,39 @@ describe("renderWithdrawQuote parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
+  });
+});
+
+// ── CSV guard: transactional renderers throw on --format csv ────────────────
+
+describe("CSV guard: transactional renderers", () => {
+  const csvCtx = createOutputContext(makeMode({ isCsv: true }));
+
+  test("renderDepositDryRun throws CLIError for CSV", () => {
+    expect(() => renderDepositDryRun(csvCtx, STUB_DEPOSIT_DRY_RUN)).toThrow(CLIError);
+  });
+
+  test("renderDepositSuccess throws CLIError for CSV", () => {
+    expect(() => renderDepositSuccess(csvCtx, STUB_DEPOSIT_SUCCESS)).toThrow(CLIError);
+  });
+
+  test("renderRagequitDryRun throws CLIError for CSV", () => {
+    expect(() => renderRagequitDryRun(csvCtx, STUB_RAGEQUIT_DRY_RUN)).toThrow(CLIError);
+  });
+
+  test("renderRagequitSuccess throws CLIError for CSV", () => {
+    expect(() => renderRagequitSuccess(csvCtx, STUB_RAGEQUIT_SUCCESS)).toThrow(CLIError);
+  });
+
+  test("renderWithdrawDryRun throws CLIError for CSV", () => {
+    expect(() => renderWithdrawDryRun(csvCtx, STUB_WITHDRAW_DRY_RUN_DIRECT)).toThrow(CLIError);
+  });
+
+  test("renderWithdrawSuccess throws CLIError for CSV", () => {
+    expect(() => renderWithdrawSuccess(csvCtx, STUB_WITHDRAW_SUCCESS_DIRECT)).toThrow(CLIError);
+  });
+
+  test("renderWithdrawQuote throws CLIError for CSV", () => {
+    expect(() => renderWithdrawQuote(csvCtx, STUB_WITHDRAW_QUOTE)).toThrow(CLIError);
   });
 });

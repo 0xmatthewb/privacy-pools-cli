@@ -1,12 +1,13 @@
 /**
- * Unit tests for reporting output renderers: pools, accounts, history.
+ * Unit tests for reporting output renderers: pools, accounts, history, pool detail.
  */
 
 import { describe, expect, test } from "bun:test";
 import { createOutputContext } from "../../src/output/common.ts";
-import { renderPoolsEmpty, renderPools, poolToJson, type PoolsRenderData } from "../../src/output/pools.ts";
+import { renderPoolsEmpty, renderPools, renderPoolDetail, poolToJson, type PoolsRenderData, type PoolDetailRenderData, type PoolDetailActivityEvent } from "../../src/output/pools.ts";
 import { renderAccountsNoPools, renderAccounts, type AccountPoolGroup } from "../../src/output/accounts.ts";
 import { renderHistoryNoPools, renderHistory } from "../../src/output/history.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
 
 // ── Stub data ────────────────────────────────────────────────────────────────
@@ -85,6 +86,22 @@ describe("renderPoolsEmpty parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("No pools found on sepolia");
   });
+
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const data: PoolsRenderData = {
+      allChains: false,
+      chainName: "sepolia",
+      search: null,
+      sort: "default",
+      filteredPools: [],
+      warnings: [],
+    };
+    const { stdout, stderr } = captureOutput(() => renderPoolsEmpty(ctx, data));
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  });
 });
 
 // ── renderPools parity ──────────────────────────────────────────────────────
@@ -155,6 +172,14 @@ describe("renderPools parity", () => {
 
     expect(stderr).toContain("$20,000");
   });
+
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const { stdout, stderr } = captureOutput(() => renderPools(ctx, STUB_POOLS_DATA));
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  });
 });
 
 // ── poolToJson parity ───────────────────────────────────────────────────────
@@ -194,6 +219,14 @@ describe("renderAccountsNoPools parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("No pools found on sepolia");
+  });
+
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, "sepolia"));
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
   });
 });
 
@@ -384,6 +417,22 @@ describe("renderAccounts parity", () => {
     expect(stderr).toContain("USD");
     expect(stderr).toContain("$2,000");
   });
+
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const { stdout, stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        chainId: 11155111,
+        groups: [STUB_GROUP],
+        showDetails: false,
+        showAll: false,
+      }),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  });
 });
 
 // ── renderHistoryNoPools parity ─────────────────────────────────────────────
@@ -405,6 +454,14 @@ describe("renderHistoryNoPools parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("No pools found on sepolia");
+  });
+
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const { stdout, stderr } = captureOutput(() => renderHistoryNoPools(ctx, "sepolia"));
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
   });
 });
 
@@ -515,5 +572,167 @@ describe("renderHistory parity", () => {
     );
 
     expect(stderr).toContain("No events found on sepolia");
+  });
+
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const { stdout, stderr } = captureOutput(() =>
+      renderHistory(ctx, {
+        chain: "sepolia",
+        chainId: 11155111,
+        events: STUB_EVENTS,
+        poolByAddress: STUB_POOL_MAP,
+        explorerTxUrl: mockExplorerUrl,
+        currentBlock: 300n,
+      }),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  });
+});
+
+// ── renderPoolDetail parity ─────────────────────────────────────────────────
+
+const STUB_POOL_DETAIL_POOL = {
+  ...STUB_POOL,
+  totalDepositsValue: 10000000000000000000n,
+  totalDepositsValueUsd: "20000",
+  acceptedDepositsValue: 8000000000000000000n,
+  acceptedDepositsValueUsd: "16000",
+  pendingDepositsValue: 2000000000000000000n,
+  pendingDepositsValueUsd: "4000",
+  totalDepositsCount: 42,
+  acceptedDepositsCount: 40,
+  pendingDepositsCount: 2,
+  growth24h: 5.2,
+  pendingGrowth24h: 1.1,
+  totalInPoolValue: 8000000000000000000n,
+  totalInPoolValueUsd: "16000",
+};
+
+const STUB_POOL_ACCOUNT_REF = {
+  paNumber: 1,
+  paId: "PA-1",
+  status: "spendable" as const,
+  aspStatus: "approved" as const,
+  commitment: {
+    hash: 123n,
+    label: 456n,
+    value: 1000000000000000000n,
+    blockNumber: 100n,
+    txHash: "0xaabbccddee1234567890aabbccddee1234567890aabbccddee1234567890aabb",
+  },
+  label: 456n,
+  value: 1000000000000000000n,
+  blockNumber: 100n,
+  txHash: "0xaabbccddee1234567890aabbccddee1234567890aabbccddee1234567890aabb",
+};
+
+const STUB_ACTIVITY: PoolDetailActivityEvent[] = [
+  { type: "deposit", amount: "1.0 ETH", timeLabel: "2h ago", status: "Approved" },
+  { type: "withdrawal", amount: "0.5 ETH", timeLabel: "1d ago", status: null },
+];
+
+const STUB_POOL_DETAIL_DATA: PoolDetailRenderData = {
+  chain: "sepolia",
+  pool: STUB_POOL_DETAIL_POOL,
+  tokenPrice: 2000,
+  myPoolAccounts: [STUB_POOL_ACCOUNT_REF],
+  recentActivity: STUB_ACTIVITY,
+};
+
+describe("renderPoolDetail parity", () => {
+  test("JSON mode: emits pool detail envelope with myFunds and recentActivity", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout, stderr } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.success).toBe(true);
+    expect(json.chain).toBe("sepolia");
+    expect(json.asset).toBe("ETH");
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions[0].command).toBe("deposit");
+    expect(json.nextActions[0].when).toBe("after_pool_detail");
+
+    // myFunds shape
+    expect(json.myFunds).toBeDefined();
+    expect(json.myFunds.balance).toBe("1000000000000000000");
+    expect(json.myFunds.poolAccounts).toBe(1);
+    expect(json.myFunds.pendingCount).toBe(0);
+    expect(json.myFunds.accounts.length).toBe(1);
+    expect(json.myFunds.accounts[0].id).toBe("PA-1");
+    expect(json.myFunds.accounts[0].status).toBe("spendable");
+    expect(json.myFunds.accounts[0].aspStatus).toBe("approved");
+
+    // recentActivity
+    expect(json.recentActivity).toEqual(STUB_ACTIVITY);
+
+    expect(stderr).toBe("");
+  });
+
+  test("JSON mode: myFunds is null when myPoolAccounts is null", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: PoolDetailRenderData = { ...STUB_POOL_DETAIL_DATA, myPoolAccounts: null };
+    const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.myFunds).toBeNull();
+  });
+
+  test("JSON mode: omits recentActivity when null", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: PoolDetailRenderData = { ...STUB_POOL_DETAIL_DATA, recentActivity: null };
+    const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.recentActivity).toBeUndefined();
+  });
+
+  test("human mode: emits pool stats and my funds to stderr", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stdout, stderr } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA));
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("ETH Pool on sepolia");
+    expect(stderr).toContain("Pool Balance:");
+    expect(stderr).toContain("Pending Funds:");
+    expect(stderr).toContain("All-Time Deposits:");
+    expect(stderr).toContain("Vetting Fee:");
+    expect(stderr).toContain("Min Deposit:");
+    expect(stderr).toContain("My Funds:");
+    expect(stderr).toContain("PA-1");
+    expect(stderr).toContain("Approved");
+  });
+
+  test("human mode: shows init prompt when myPoolAccounts is null", () => {
+    const ctx = createOutputContext(makeMode());
+    const data: PoolDetailRenderData = { ...STUB_POOL_DETAIL_DATA, myPoolAccounts: null };
+    const { stderr } = captureOutput(() => renderPoolDetail(ctx, data));
+
+    expect(stderr).toContain("privacy-pools init");
+  });
+
+  test("human mode: shows recent activity", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA));
+
+    expect(stderr).toContain("Recent Activity:");
+    expect(stderr).toContain("Deposit");
+    expect(stderr).toContain("1.0 ETH");
+    expect(stderr).toContain("2h ago");
+  });
+
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const { stdout, stderr } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA));
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  });
+
+  test("CSV mode: throws CLIError", () => {
+    const ctx = createOutputContext(makeMode({ isCsv: true }));
+    expect(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA)).toThrow(CLIError);
   });
 });

@@ -10,6 +10,7 @@ import { renderCompletionScript, renderCompletionQuery } from "../../src/output/
 import { renderSyncEmpty, renderSyncComplete } from "../../src/output/sync.ts";
 import { renderStatus, type StatusCheckResult } from "../../src/output/status.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
 
 // ── renderGuide parity ──────────────────────────────────────────────────────
@@ -366,5 +367,58 @@ describe("renderStatus parity", () => {
 
     expect(stderr).toContain("Not ready");
     expect(stderr).toContain("privacy-pools init");
+  });
+});
+
+// ── CSV guard: utility renderers throw on --format csv ──────────────────────
+
+describe("CSV guard: utility renderers", () => {
+  const csvCtx = createOutputContext(makeMode({ isCsv: true }));
+
+  test("renderSyncEmpty throws CLIError for CSV", () => {
+    expect(() => renderSyncEmpty(csvCtx, "sepolia")).toThrow(CLIError);
+  });
+
+  test("renderSyncComplete throws CLIError for CSV", () => {
+    expect(() =>
+      renderSyncComplete(csvCtx, {
+        chain: "mainnet",
+        syncedPools: 1,
+        availablePoolAccounts: 0,
+      }),
+    ).toThrow(CLIError);
+  });
+
+  test("renderStatus throws CLIError for CSV", () => {
+    expect(() => renderStatus(csvCtx, STUB_STATUS)).toThrow(CLIError);
+  });
+
+  test("renderGuide throws CLIError for CSV", () => {
+    expect(() => renderGuide(csvCtx)).toThrow(CLIError);
+  });
+
+  test("renderCapabilities throws CLIError for CSV", () => {
+    expect(() =>
+      renderCapabilities(csvCtx, {
+        binaryName: "privacy-pools",
+        version: "1.0.0",
+        schemaVersion: JSON_SCHEMA_VERSION,
+        commands: [],
+        globalFlags: [],
+        agentWorkflow: [],
+      }),
+    ).toThrow(CLIError);
+  });
+});
+
+// ── Quiet mode: sync renderers ──────────────────────────────────────────────
+
+describe("renderSyncEmpty quiet mode", () => {
+  test("quiet mode: emits nothing", () => {
+    const ctx = createOutputContext(makeMode({ isQuiet: true }));
+    const { stdout, stderr } = captureOutput(() => renderSyncEmpty(ctx, "sepolia"));
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
   });
 });
