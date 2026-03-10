@@ -5,8 +5,9 @@ import { formatUnits } from "viem";
 import { highlight, accent, spinnerColor } from "./theme.js";
 
 /**
- * Pick a sensible number of display decimals based on the token's native
- * decimal count.  6-decimal stablecoins get 2; everything else gets 4.
+ * Number of fractional digits to show when formatting token amounts.
+ * Currently fixed at 2 for all tokens; accepts the token's native decimal
+ * count so we can branch later (e.g. show more digits for 18-decimal tokens).
  */
 export function displayDecimals(_tokenDecimals: number): number {
   return 2;
