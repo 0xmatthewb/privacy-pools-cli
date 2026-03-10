@@ -25,14 +25,16 @@ import { Separator } from "@inquirer/select";
 import { success, warn, info } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderInitResult } from "../output/init.js";
 
 export function createInitCommand(): Command {
+  const metadata = getCommandMetadata("init");
   return new Command("init")
-    .description("Initialize wallet and configuration")
+    .description(metadata.description)
     .option("--mnemonic <phrase>", "Import an existing recovery phrase (unsafe: visible in process list)")
     .option("--mnemonic-file <path>", "Import recovery phrase from a file (raw phrase or Privacy Pools backup file)")
     .option(
@@ -45,18 +47,7 @@ export function createInitCommand(): Command {
     .option("--rpc-url <url>", "Set RPC URL for the default chain")
     .option("--force", "Overwrite existing configuration without prompting")
     .addOption(new Option("--skip-circuits", "No-op (proof commands provision circuits automatically on first use)").hideHelp())
-    .addHelpText(
-      "after",
-      "\nPrivacy Pools uses two keys:"
-        + "\n  Recovery phrase: keeps your deposits private (generated during init)"
-        + "\n  Wallet key:     pays gas and sends transactions (can be set later)"
-        + "\n  These are independent. Set the wallet key via PRIVACY_POOLS_PRIVATE_KEY env var."
-        + "\n\nExamples:\n  privacy-pools init\n  privacy-pools init --yes --default-chain mainnet\n  privacy-pools init --force --yes --default-chain mainnet\n  privacy-pools init --json --show-mnemonic\n  privacy-pools init --mnemonic \"word ...\" --private-key 0x...\n"
-        + commandHelpText({
-          jsonFields:
-            "{ defaultChain, signerKeySet, mnemonicRedacted?, mnemonic? (only with --show-mnemonic) }",
-        })
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);

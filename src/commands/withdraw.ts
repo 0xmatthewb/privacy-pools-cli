@@ -40,6 +40,7 @@ import {
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
 import { resolveAmountAndAssetInput, isPercentageAmount } from "../utils/positional.js";
 import { printRawTransactions, stringifyBigInts, toSolidityProof } from "../utils/unsigned.js";
@@ -83,8 +84,10 @@ const poolCurrentRootAbi = [
 ] as const;
 
 export function createWithdrawCommand(): Command {
+  const metadata = getCommandMetadata("withdraw");
+  const quoteMetadata = getCommandMetadata("withdraw quote");
   const command = new Command("withdraw")
-    .description("Withdraw from a pool")
+    .description(metadata.description)
     .argument("[amountOrAsset]", "Amount to withdraw (or asset symbol, see examples)")
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
@@ -97,22 +100,7 @@ export function createWithdrawCommand(): Command {
     .option("--all", "Withdraw entire Pool Account balance")
     .option("--extra-gas", "Request gas tokens with withdrawal (default: true for ERC20)")
     .option("--no-extra-gas", "Disable extra gas request")
-    .addHelpText(
-      "after",
-      "\nExamples:\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2\n  privacy-pools withdraw --all ETH --to 0xRecipient...\n  privacy-pools withdraw 50% ETH --to 0xRecipient...\n  privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet\n"
-        + commandHelpText({
-          prerequisites: "init (account state should be synced)",
-          jsonFields: "{ mode, txHash, amount, recipient, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
-          jsonVariants: [
-            "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
-            "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
-            "--dry-run: { mode, dryRun, amount, proofPublicSignals, ... }",
-            "quote: { mode, chain, asset, amount, quoteFeeBPS, ... }",
-          ],
-          supportsUnsigned: true,
-          supportsDryRun: true,
-        })
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (firstArg, secondArg, opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
@@ -1227,19 +1215,12 @@ export function createWithdrawCommand(): Command {
 
   command
     .command("quote")
-    .description("Request relayer quote and limits without generating a proof")
+    .description(quoteMetadata.description)
     .argument("<amountOrAsset>", "Amount to withdraw (or asset symbol, see examples)")
     .argument("[amount]", "Amount (when asset is the first argument)")
     .option("-a, --asset <symbol|address>", "Asset to quote")
     .option("-t, --to <address>", "Recipient address (recommended for signed fee commitment)")
-    .addHelpText(
-      "after",
-      "\nExamples:\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw quote 100 USDC --json --chain mainnet\n"
-        + commandHelpText({
-          prerequisites: "init",
-          jsonFields: "{ mode, chain, asset, amount, quoteFeeBPS, quoteExpiresAt, ... }",
-        })
-    )
+    .addHelpText("after", commandHelpText(quoteMetadata.help ?? {}))
     .action(async (firstArg, secondArg, opts, subCmd) => {
       const globalOpts = subCmd.parent?.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);

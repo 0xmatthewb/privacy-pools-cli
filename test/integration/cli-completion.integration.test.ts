@@ -9,14 +9,15 @@ describe("completion command", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("_privacy_pools_completion");
     expect(result.stdout).toContain("complete -o default -F _privacy_pools_completion privacy-pools");
+    expect(result.stdout).toContain("complete -o default -F _privacy_pools_completion pp");
     expect(result.stderr).not.toContain(BANNER_SENTINEL);
   });
 
   test("completion zsh emits a zsh completion script", () => {
     const result = runCli(["completion", "zsh"], { home: createTempHome() });
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("#compdef privacy-pools");
-    expect(result.stdout).toContain("compdef _privacy_pools_completion privacy-pools");
+    expect(result.stdout).toContain("#compdef privacy-pools pp");
+    expect(result.stdout).toContain("compdef _privacy_pools_completion privacy-pools pp");
     expect(result.stderr).not.toContain(BANNER_SENTINEL);
   });
 
@@ -25,6 +26,7 @@ describe("completion command", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("function __fish_privacy_pools_complete");
     expect(result.stdout).toContain("complete -c privacy-pools -f -a \"(__fish_privacy_pools_complete)\"");
+    expect(result.stdout).toContain("complete -c pp -f -a \"(__fish_privacy_pools_complete)\"");
     expect(result.stderr).not.toContain(BANNER_SENTINEL);
   });
 
@@ -52,7 +54,7 @@ describe("completion command", () => {
     expect(parsed.success).toBe(true);
     expect(parsed.mode).toBe("completion-script");
     expect(parsed.shell).toBe("zsh");
-    expect(parsed.completionScript).toContain("compdef _privacy_pools_completion privacy-pools");
+    expect(parsed.completionScript).toContain("compdef _privacy_pools_completion privacy-pools pp");
   });
 
   test("query mode returns top-level command candidates", () => {
@@ -85,6 +87,31 @@ describe("completion command", () => {
     expect(lines).toContain("--verbose");
     expect(lines).toContain("--no-banner");
     expect(lines).toContain("--rpc-url");
+  });
+
+  test("query mode works when the shell invokes the pp alias", () => {
+    const result = runCli(
+      [
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "1",
+        "--",
+        "pp",
+      ],
+      { home: createTempHome() }
+    );
+
+    expect(result.status).toBe(0);
+    const lines = result.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(lines).toContain("init");
+    expect(lines).toContain("completion");
+    expect(lines).toContain("--agent");
   });
 
   test("query mode suggests chain values after --chain", () => {

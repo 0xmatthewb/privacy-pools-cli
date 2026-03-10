@@ -33,6 +33,20 @@ describe("renderInitResult parity", () => {
     expect(json.signerKeySet).toBe(true);
     expect(json.mnemonicRedacted).toBe(true);
     expect(json.mnemonic).toBeUndefined();
+    expect(json.nextActions).toEqual([
+      {
+        command: "status",
+        reason: "Verify wallet readiness and chain health before transacting.",
+        when: "after_init",
+        options: { agent: true, chain: "sepolia" },
+      },
+      {
+        command: "pools",
+        reason: "Browse pools on the configured default chain before depositing.",
+        when: "after_init",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -206,6 +220,14 @@ describe("renderDepositSuccess parity", () => {
     expect(json.label).toBe("789");
     expect(json.blockNumber).toBe("12345");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+        when: "after_deposit",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -343,6 +365,14 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
     expect(json.nextStep).toContain("privacy-pools accounts");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Verify that the Pool Account is now marked as exited.",
+        when: "after_ragequit",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -530,6 +560,14 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.remainingBalance).toBe("500000000000000000");
     expect(json.nextStep).toContain("privacy-pools accounts");
     expect(json.nextStep).toContain("direct withdrawal links");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Verify the updated balance after a direct withdrawal.",
+        when: "after_direct_withdrawal",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -546,6 +584,14 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.remainingBalance).toBe("500000000000000000");
     expect(json.nextStep).toContain("privacy-pools accounts");
     expect(json.nextStep).not.toContain("direct withdrawal links");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Verify the updated balance after the withdrawal settles.",
+        when: "after_withdrawal",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -705,6 +751,20 @@ describe("renderWithdrawQuote parity", () => {
     expect(json.netAmount).toBe("497500000000000000");
     expect(json.feeCommitmentPresent).toBe(true);
     expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
+    expect(json.nextActions).toEqual([
+      {
+        command: "withdraw",
+        reason: "Submit the withdrawal promptly if the quoted fee is acceptable.",
+        when: "after_quote",
+        args: ["0.5", "ETH"],
+        options: {
+          agent: true,
+          chain: "sepolia",
+          to: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+          extraGas: null,
+        },
+      },
+    ]);
     expect(stderr).toBe("");
   });
 

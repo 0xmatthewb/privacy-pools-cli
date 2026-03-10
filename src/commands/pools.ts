@@ -20,6 +20,7 @@ import {
 } from "../utils/format.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 import { buildPoolAccountRefs } from "../utils/pool-accounts.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import type { ChainConfig, GlobalOptions, PoolStats, AspPublicEvent } from "../types.js";
@@ -163,8 +164,9 @@ function sortPools(
 }
 
 export function createPoolsCommand(): Command {
+  const metadata = getCommandMetadata("pools");
   return new Command("pools")
-    .description("List available pools and assets")
+    .description(metadata.description)
     .argument("[asset]", "Asset symbol for detail view (e.g. ETH, BOLD)")
     .option("--all-chains", "Include testnet chains (mainnets shown by default)")
     .option("--search <query>", "Filter by chain/symbol/address/scope")
@@ -173,13 +175,7 @@ export function createPoolsCommand(): Command {
       `Sort mode (${SUPPORTED_SORT_MODES.join(", ")})`,
       "tvl-desc"
     )
-    .addHelpText(
-      "after",
-      "\nExamples:\n  privacy-pools pools\n  privacy-pools pools ETH\n  privacy-pools pools BOLD --chain mainnet\n  privacy-pools pools --all-chains --sort tvl-desc\n  privacy-pools pools --search usdc --sort asset-asc\n  privacy-pools pools --json --chain mainnet\n"
-        + commandHelpText({
-          jsonFields: "{ chain|allChains, search, sort, pools: [{ chain?, symbol, asset, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
-        })
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (asset: string | undefined, opts: PoolsCommandOptions, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);

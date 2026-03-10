@@ -7,7 +7,16 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, warn, info, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  printJsonSuccess,
+  success,
+  warn,
+  info,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 import { highlight, accentBold } from "../utils/theme.js";
 
 export interface StatusCheckResult {
@@ -40,7 +49,25 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   guardCsvUnsupported(ctx, "status");
 
   if (ctx.mode.isJson) {
-    const status: Record<string, unknown> = {
+    const readyForDeposit = result.configExists && result.mnemonicSet && result.signerKeyValid;
+    const readyForUnsigned = result.configExists && result.mnemonicSet;
+    const nextActions = !result.configExists || !result.mnemonicSet
+      ? [
+          createNextAction(
+            "init",
+            "Complete CLI setup before transacting.",
+            "status_not_ready",
+            {
+              options: {
+                agent: true,
+                showMnemonic: true,
+              },
+            },
+          ),
+        ]
+      : undefined;
+
+    const status: Record<string, unknown> = appendNextActions({
       configExists: result.configExists,
       configDir: result.configDir,
       defaultChain: result.defaultChain,
@@ -54,14 +81,14 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       entrypoint: result.entrypoint,
       aspHost: result.aspHost,
       accountFiles: result.accountFiles.map(([name, chainId]) => ({ chain: name, chainId })),
-    };
+    }, nextActions) as Record<string, unknown>;
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
     // Convenience fields for agents: can I transact right now?
-    status.readyForDeposit = result.configExists && result.mnemonicSet && result.signerKeyValid;
-    status.readyForWithdraw = result.configExists && result.mnemonicSet && result.signerKeyValid;
-    status.readyForUnsigned = result.configExists && result.mnemonicSet;
+    status.readyForDeposit = readyForDeposit;
+    status.readyForWithdraw = readyForDeposit;
+    status.readyForUnsigned = readyForUnsigned;
     // Machine-readable handoff checklist for agent orchestrators.
     status.handoffChecklist = [
       { key: "config", met: result.configExists, remedy: "privacy-pools init --agent --show-mnemonic" },

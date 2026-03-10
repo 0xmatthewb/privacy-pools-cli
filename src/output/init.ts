@@ -8,7 +8,16 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, warn, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  printJsonSuccess,
+  success,
+  info,
+  warn,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 import { accent } from "../utils/theme.js";
 
 export interface InitRenderResult {
@@ -31,10 +40,33 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   guardCsvUnsupported(ctx, "init");
 
   if (ctx.mode.isJson) {
-    const jsonOutput: Record<string, unknown> = {
+    const jsonOutput: Record<string, unknown> = appendNextActions({
       defaultChain: result.defaultChain,
       signerKeySet: result.signerKeySet,
-    };
+    }, [
+      createNextAction(
+        "status",
+        "Verify wallet readiness and chain health before transacting.",
+        "after_init",
+        {
+          options: {
+            agent: true,
+            chain: result.defaultChain,
+          },
+        },
+      ),
+      createNextAction(
+        "pools",
+        "Browse pools on the configured default chain before depositing.",
+        "after_init",
+        {
+          options: {
+            agent: true,
+            chain: result.defaultChain,
+          },
+        },
+      ),
+    ]) as Record<string, unknown>;
     if (!result.mnemonicImported) {
       if (result.showMnemonic) {
         jsonOutput.mnemonic = result.mnemonic;

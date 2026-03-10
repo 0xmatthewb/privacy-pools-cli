@@ -31,6 +31,7 @@ import {
 import { printError, CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { commandHelpText } from "../utils/help.js";
+import { getCommandMetadata } from "../utils/command-metadata.js";
 import { resolveOptionalAssetInput } from "../utils/positional.js";
 import { createOutputContext } from "../output/common.js";
 import { renderRagequitDryRun, renderRagequitSuccess } from "../output/ragequit.js";
@@ -50,9 +51,10 @@ import {
 } from "../utils/pool-accounts.js";
 
 export function createRagequitCommand(): Command {
+  const metadata = getCommandMetadata("ragequit");
   return new Command("ragequit")
     .alias("exit")
-    .description("Publicly withdraw funds to your deposit address")
+    .description(metadata.description)
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
     .option("-a, --asset <symbol|address>", "Asset pool to exit from")
     .option("-p, --from-pa <PA-#|#>", "Ragequit a specific Pool Account (e.g. PA-2)")
@@ -63,25 +65,7 @@ export function createRagequitCommand(): Command {
     .option("--unsigned", "Build unsigned transaction payload; do not submit")
     .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
     .option("--dry-run", "Generate proof and validate without submitting")
-    .addHelpText(
-      "after",
-      "\n  Use 'withdraw' to withdraw privately once your deposit is ASP-approved."
-        + "\n  Use 'ragequit' at any time to recover funds publicly to your deposit"
-        + "\n  address, even if not approved. No ASP approval is needed, but your"
-        + "\n  deposit address is revealed onchain."
-        + "\n\nExamples:\n  privacy-pools ragequit ETH -p PA-1\n  privacy-pools ragequit ETH --unsigned -p PA-1\n  privacy-pools ragequit ETH --dry-run -p PA-1\n  privacy-pools ragequit ETH -p PA-1 --chain mainnet\n  privacy-pools ragequit --asset ETH -p PA-1\n"
-        + commandHelpText({
-          prerequisites: "init (account state should be synced)",
-          jsonFields: "{ txHash, amount, asset, chain, poolAccountId, blockNumber, explorerUrl, ... }",
-          jsonVariants: [
-            "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
-            "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
-            "--dry-run: { dryRun, operation, chain, asset, amount, selectedCommitmentLabel, proofPublicSignals }",
-          ],
-          supportsUnsigned: true,
-          supportsDryRun: true,
-        })
-    )
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (assetArg, opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);

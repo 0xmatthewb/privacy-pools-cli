@@ -8,8 +8,18 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, success, info, warn, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  printJsonSuccess,
+  success,
+  info,
+  warn,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 import { formatAmount, formatAddress, formatTxHash, formatBPS, formatUsdValue, displayDecimals } from "../utils/format.js";
+import { formatUnits } from "viem";
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────
 
@@ -119,7 +129,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   guardCsvUnsupported(ctx, "withdraw");
 
   if (ctx.mode.isJson) {
-    const payload: Record<string, unknown> = {
+    const payload: Record<string, unknown> = appendNextActions({
       operation: "withdraw",
       mode: data.withdrawMode,
       txHash: data.txHash,
@@ -134,7 +144,21 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       poolAccountNumber: data.poolAccountNumber,
       poolAccountId: data.poolAccountId,
       remainingBalance: data.remainingBalance.toString(),
-    };
+    }, [
+      createNextAction(
+        "accounts",
+        data.withdrawMode === "direct"
+          ? "Verify the updated balance after a direct withdrawal."
+          : "Verify the updated balance after the withdrawal settles.",
+        data.withdrawMode === "direct" ? "after_direct_withdrawal" : "after_withdrawal",
+        {
+          options: {
+            agent: true,
+            chain: data.chain,
+          },
+        },
+      ),
+    ]) as Record<string, unknown>;
     if (data.withdrawMode === "direct") {
       payload.fee = null;
       payload.nextStep =
@@ -226,7 +250,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   };
 
   if (ctx.mode.isJson) {
-    const payload: Record<string, unknown> = {
+    const payload: Record<string, unknown> = appendNextActions({
       mode: "relayed-quote",
       chain: data.chain,
       asset: data.asset,
@@ -239,7 +263,22 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       netAmount: netAmount.toString(),
       feeCommitmentPresent: data.feeCommitmentPresent,
       quoteExpiresAt: data.quoteExpiresAt,
-    };
+    }, [
+      createNextAction(
+        "withdraw",
+        "Submit the withdrawal promptly if the quoted fee is acceptable.",
+        "after_quote",
+        {
+          args: [formatUnits(data.amount, data.decimals), data.asset],
+          options: {
+            agent: true,
+            chain: data.chain,
+            to: data.recipient,
+            extraGas: data.extraGas ?? null,
+          },
+        },
+      ),
+    ]) as Record<string, unknown>;
     if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     printJsonSuccess(
       payload,

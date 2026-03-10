@@ -277,6 +277,7 @@ describe("renderStatus parity", () => {
     expect(json.mnemonicSet).toBe(true);
     expect(json.signerKeySet).toBe(true);
     expect(json.signerAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 
@@ -288,6 +289,31 @@ describe("renderStatus parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.aspLive).toBe(true);
     expect(json.rpcLive).toBe(false);
+  });
+
+  test("JSON mode: emits init remediation in nextActions when setup is incomplete", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const result = {
+      ...STUB_STATUS,
+      configExists: false,
+      configDir: null,
+      mnemonicSet: false,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+      accountFiles: [],
+    };
+    const { stdout } = captureOutput(() => renderStatus(ctx, result));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toEqual([
+      {
+        command: "init",
+        reason: "Complete CLI setup before transacting.",
+        when: "status_not_ready",
+        options: { agent: true, showMnemonic: true },
+      },
+    ]);
   });
 
   test("human mode: emits status text to stderr", () => {

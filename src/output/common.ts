@@ -9,6 +9,7 @@
 import type { ResolvedGlobalMode } from "../utils/mode.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { printCsv } from "./csv.js";
+import type { NextAction, NextActionOptionValue } from "../types.js";
 import {
   info,
   success,
@@ -82,4 +83,42 @@ export function guardCsvUnsupported(ctx: OutputContext, commandName: string): vo
     "INPUT",
     `CSV output is available for: ${CSV_SUPPORTED_COMMANDS.join(", ")}.`,
   );
+}
+
+export function createNextAction(
+  command: string,
+  reason: string,
+  when: string,
+  config: {
+    args?: string[];
+    options?: Record<string, NextActionOptionValue>;
+  } = {},
+): NextAction {
+  const action: NextAction = { command, reason, when };
+
+  if (config.args && config.args.length > 0) {
+    action.args = config.args;
+  }
+
+  if (config.options) {
+    const options = Object.fromEntries(
+      Object.entries(config.options).filter(([, value]) => value !== undefined),
+    ) as Record<string, NextActionOptionValue>;
+    if (Object.keys(options).length > 0) {
+      action.options = options;
+    }
+  }
+
+  return action;
+}
+
+export function appendNextActions<T extends Record<string, unknown>>(
+  payload: T,
+  nextActions: NextAction[] | undefined,
+): T & { nextActions?: NextAction[] } {
+  const mutablePayload = payload as T & { nextActions?: NextAction[] };
+  if (nextActions && nextActions.length > 0) {
+    mutablePayload.nextActions = nextActions;
+  }
+  return mutablePayload;
 }

@@ -98,6 +98,8 @@ Errors:
 
 Parse `success` first. On failure, use `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
 
+Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, args?, options? }`. Treat these as additive guidance; legacy `nextStep`, `nextSteps`, and `handoffChecklist` fields remain valid.
+
 ---
 
 ## 3. Unsigned transaction mode
