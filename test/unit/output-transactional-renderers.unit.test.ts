@@ -482,6 +482,19 @@ describe("renderWithdrawDryRun parity", () => {
     expect(stderr).toBe("");
   });
 
+  test("JSON mode: includes anonymitySet when available", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawDryRun(ctx, {
+        ...STUB_WITHDRAW_DRY_RUN_RELAYED,
+        anonymitySet: { eligible: 42, total: 128, percentage: 32.81 },
+      }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
+  });
+
   test("human mode: emits dry-run messages to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
@@ -589,6 +602,19 @@ describe("renderWithdrawSuccess parity", () => {
       },
     ]);
     expect(stderr).toBe("");
+  });
+
+  test("JSON mode: includes anonymitySet when available", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, {
+        ...STUB_WITHDRAW_SUCCESS_RELAYED,
+        anonymitySet: { eligible: 42, total: 128, percentage: 32.81 },
+      }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
   });
 
   test("human mode (direct): emits withdrawal messages to stderr", () => {

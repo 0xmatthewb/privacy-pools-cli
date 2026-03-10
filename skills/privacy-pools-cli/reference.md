@@ -498,6 +498,11 @@ pp withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
   "feeBPS": "50",
   "extraGas": true,
   "remainingBalance": "50000000000000000",
+  "anonymitySet": {
+    "eligible": 42,
+    "total": 128,
+    "percentage": 32.81
+  },
   "nextActions": [
     {
       "command": "accounts",
@@ -527,7 +532,12 @@ pp withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
   "selectedCommitmentValue": "100000000000000000",
   "proofPublicSignals": 8,
   "feeBPS": "50",
-  "quoteExpiresAt": "2025-01-15T12:30:00Z"
+  "quoteExpiresAt": "2025-01-15T12:30:00Z",
+  "anonymitySet": {
+    "eligible": 42,
+    "total": 128,
+    "percentage": 32.81
+  }
 }
 ```
 

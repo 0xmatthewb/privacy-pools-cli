@@ -190,6 +190,7 @@
         "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
         "fee": "null? (direct mode only)",
         "remainingBalance": "decimal-string-wei",
+        "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
         "nextActions": "NextAction[]? (structured follow-up commands for agents)"
       },
       "variants": {
@@ -206,7 +207,8 @@
           "selectedCommitmentValue": "decimal-string-wei",
           "proofPublicSignals": "number",
           "feeBPS": "string? (relayed only)",
-          "quoteExpiresAt": "iso8601-string? (relayed only)"
+          "quoteExpiresAt": "iso8601-string? (relayed only)",
+          "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)"
         },
         "unsignedDirect": {
           "mode": "unsigned",
