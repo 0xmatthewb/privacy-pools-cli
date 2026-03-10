@@ -36,7 +36,7 @@ export interface CliRunResult {
 }
 
 const trackedTempHomes = new Set<string>();
-let cleanupHookRegistered = false;
+const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
 
 function cleanupTrackedTempHomes(): void {
   for (const dir of trackedTempHomes) {
@@ -55,19 +55,16 @@ function cleanupTrackedTempHomes(): void {
   trackedTempHomes.clear();
 }
 
-function ensureCleanupHook(): void {
-  if (cleanupHookRegistered) return;
-  cleanupHookRegistered = true;
-  // Bun test runner lifecycle (reliable within test workers).
-  afterAll(cleanupTrackedTempHomes);
-  // Fallback for non-test invocations of this helper.
-  process.once("beforeExit", cleanupTrackedTempHomes);
-  process.once("exit", cleanupTrackedTempHomes);
-}
-ensureCleanupHook();
+// Register cleanup during module evaluation so Bun sees the suite hook
+// before tests begin executing. Lazy registration inside helpers is too late
+// for ad hoc `bun test <file>` runs and can leak temp homes.
+afterAll(cleanupTrackedTempHomes);
+process.once("beforeExit", cleanupTrackedTempHomes);
+process.once("exit", cleanupTrackedTempHomes);
 
 export function createTempHome(prefix: string = "pp-cli-test-"): string {
-  const home = mkdtempSync(join(tmpdir(), prefix));
+  const effectivePrefix = TEST_RUN_ID ? `${prefix}${TEST_RUN_ID}-` : prefix;
+  const home = mkdtempSync(join(tmpdir(), effectivePrefix));
   trackedTempHomes.add(home);
   return home;
 }
