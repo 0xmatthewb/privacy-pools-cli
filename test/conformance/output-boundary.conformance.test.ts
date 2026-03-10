@@ -32,6 +32,7 @@ const MIGRATED_COMMANDS = [
   "src/commands/pools.ts",
   "src/commands/guide.ts",
   "src/commands/capabilities.ts",
+  "src/commands/describe.ts",
   "src/commands/completion.ts",
 ] as const;
 

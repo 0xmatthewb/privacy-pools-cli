@@ -96,6 +96,11 @@ const POOL_STATISTICS = {
 
 const LIVENESS = { status: "ok" };
 
+const MT_LEAVES = {
+  aspLeaves: ["1"],
+  stateTreeLeaves: [],
+};
+
 // ── Routing ──────────────────────────────────────────────────────────────────
 
 function route(req: IncomingMessage, res: ServerResponse): void {
@@ -114,6 +119,8 @@ function route(req: IncomingMessage, res: ServerResponse): void {
     body = GLOBAL_STATISTICS;
   } else if (path.match(/\/\d+\/public\/pool-statistics$/)) {
     body = POOL_STATISTICS;
+  } else if (path.match(/\/\d+\/public\/mt-leaves$/)) {
+    body = MT_LEAVES;
   } else if (path.match(/\/\d+\/health\/liveness$/)) {
     body = LIVENESS;
   }

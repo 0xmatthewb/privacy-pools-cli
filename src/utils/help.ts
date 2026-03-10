@@ -7,7 +7,7 @@ const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
 
 /* ── Root-level command groups (order determines display order) ── */
 
-const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities"];
+const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities", "describe"];
 const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "history", "sync"];
 const EXPLORE_SET = new Set(EXPLORE_ORDER);
 const TRANSACT_SET = new Set(TRANSACT_ORDER);
@@ -169,7 +169,7 @@ export function styleCommanderHelp(raw: string): string {
 export function welcomeScreen(): string {
   const lines = [
     chalk.bold("  Explore (no wallet needed)"),
-    `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}`,
+    `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}  ${highlight("describe")}`,
     "",
     chalk.bold("  Transact (run init first)"),
     `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("history")}  ${highlight("sync")}`,
@@ -336,6 +336,7 @@ export function guideText(): string {
     chalk.bold("Agent Integration"),
     `  For programmatic/agent use, run ${accent("privacy-pools capabilities --json")} to discover`,
     "  commands, schemas, supported chains, error codes, and the recommended workflow.",
+    `  Use ${accent("privacy-pools describe <command...> --json")} to inspect one command at runtime.`,
     "",
     chalk.dim("  Run privacy-pools <command> --help for command-specific details."),
   ].join("\n");

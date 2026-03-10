@@ -39,6 +39,51 @@ export interface NextAction {
   options?: Record<string, NextActionOptionValue>;
 }
 
+export type CommandLatencyClass = "fast" | "medium" | "slow";
+
+export interface CapabilityCommandSummary {
+  name: string;
+  description: string;
+  aliases?: string[];
+  flags?: string[];
+  usage?: string;
+  agentFlags?: string;
+  requiresInit: boolean;
+  expectedLatencyClass?: CommandLatencyClass;
+}
+
+export interface DetailedCommandDescriptor {
+  command: string;
+  description: string;
+  aliases: string[];
+  usage: string;
+  flags: string[];
+  globalFlags: string[];
+  requiresInit: boolean;
+  expectedLatencyClass: CommandLatencyClass;
+  safeReadOnly: boolean;
+  prerequisites: string[];
+  examples: string[];
+  jsonFields: string | null;
+  jsonVariants: string[];
+  safetyNotes: string[];
+  supportsUnsigned: boolean;
+  supportsDryRun: boolean;
+  agentWorkflowNotes: string[];
+}
+
+export interface CapabilitiesPayload {
+  commands: CapabilityCommandSummary[];
+  commandDetails: Record<string, DetailedCommandDescriptor>;
+  globalFlags: Array<{ flag: string; description: string }>;
+  agentWorkflow: string[];
+  agentNotes?: Record<string, string>;
+  schemas?: Record<string, Record<string, unknown>>;
+  supportedChains?: Array<{ name: string; chainId: number; testnet: boolean }>;
+  jsonOutputContract: string;
+  safeReadOnlyCommands?: string[];
+}
+
 export interface PoolStats {
   asset: Address;
   pool: Address;

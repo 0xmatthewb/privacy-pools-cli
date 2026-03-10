@@ -213,6 +213,19 @@ describe("renderAccountsNoPools parity", () => {
     expect(stderr).toBe("");
   });
 
+  test("JSON mode with --summary shape: emits zero-count summary envelope", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderAccountsNoPools(ctx, "sepolia", { summary: true }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.pendingCount).toBe(0);
+    expect(json.approvedCount).toBe(0);
+    expect(json.balances).toEqual([]);
+    expect(json.accounts).toBeUndefined();
+  });
+
   test("human mode: emits no-pools message", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, "sepolia"));
@@ -267,6 +280,16 @@ describe("renderAccounts parity", () => {
     tokenPrice: 2000,
   };
 
+  const STUB_PENDING_GROUP: AccountPoolGroup = {
+    ...STUB_GROUP,
+    poolAccounts: [
+      {
+        ...STUB_GROUP.poolAccounts[0]!,
+        aspStatus: "pending",
+      },
+    ],
+  };
+
   test("JSON mode: emits accounts envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
@@ -276,6 +299,8 @@ describe("renderAccounts parity", () => {
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 
@@ -306,6 +331,8 @@ describe("renderAccounts parity", () => {
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 
@@ -319,6 +346,72 @@ describe("renderAccounts parity", () => {
     expect(stderr).toContain("PA = Pool Account.");
   });
 
+  test("JSON mode with --summary: emits counts and balances without accounts", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        chainId: 11155111,
+        groups: [STUB_PENDING_GROUP],
+        showDetails: false,
+        showAll: false,
+        showSummary: true,
+        showPendingOnly: false,
+      }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.accounts).toBeUndefined();
+    expect(json.pendingCount).toBe(1);
+    expect(json.approvedCount).toBe(0);
+    expect(json.spendableCount).toBe(1);
+    expect(json.balances).toEqual([
+      {
+        asset: "ETH",
+        balance: "1000000000000000000",
+        usdValue: null,
+        poolAccounts: 1,
+      },
+    ]);
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Poll again until pending deposits are approved for private withdrawal.",
+        when: "has_pending",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
+  });
+
+  test("JSON mode with --pending-only: filters accounts and omits balances", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        chainId: 11155111,
+        groups: [STUB_GROUP, STUB_PENDING_GROUP],
+        showDetails: false,
+        showAll: false,
+        showSummary: false,
+        showPendingOnly: true,
+      }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.pendingCount).toBe(1);
+    expect(json.accounts).toHaveLength(1);
+    expect(json.accounts[0].aspStatus).toBe("pending");
+    expect(json.balances).toBeUndefined();
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Poll again until pending deposits are approved for private withdrawal.",
+        when: "has_pending",
+        options: { agent: true, chain: "sepolia", pendingOnly: true },
+      },
+    ]);
+  });
+
   test("human mode (detail): hides troubleshooting columns by default", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
@@ -328,6 +421,8 @@ describe("renderAccounts parity", () => {
         groups: [STUB_GROUP],
         showDetails: true,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 
@@ -347,6 +442,8 @@ describe("renderAccounts parity", () => {
         groups: [STUB_GROUP],
         showDetails: true,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 
@@ -365,6 +462,8 @@ describe("renderAccounts parity", () => {
         groups: [emptyGroup],
         showDetails: false,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 
@@ -380,6 +479,8 @@ describe("renderAccounts parity", () => {
         groups: [STUB_GROUP_WITH_USD],
         showDetails: false,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 
@@ -396,6 +497,8 @@ describe("renderAccounts parity", () => {
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 
@@ -411,6 +514,8 @@ describe("renderAccounts parity", () => {
         groups: [STUB_GROUP_WITH_USD],
         showDetails: true,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 
@@ -427,6 +532,8 @@ describe("renderAccounts parity", () => {
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
 

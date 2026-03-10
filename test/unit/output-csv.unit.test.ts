@@ -171,6 +171,8 @@ describe("accounts CSV", () => {
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
+        showSummary: false,
+        showPendingOnly: false,
       }),
     );
     const lines = stdout.trim().split("\n");

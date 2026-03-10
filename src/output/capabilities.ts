@@ -6,30 +6,9 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, guardCsvUnsupported } from "./common.js";
+import type { CapabilitiesPayload } from "../types.js";
 
-/**
- * The static capabilities payload.
- * Renderer owns the data shape; command handler just calls render.
- */
-export interface CapabilitiesPayload {
-  commands: Array<{
-    name: string;
-    description: string;
-    aliases?: string[];
-    flags?: string[];
-    usage?: string;
-    agentFlags?: string;
-    requiresInit: boolean;
-    expectedLatencyClass?: "fast" | "medium" | "slow";
-  }>;
-  globalFlags: Array<{ flag: string; description: string }>;
-  agentWorkflow: string[];
-  agentNotes?: Record<string, string>;
-  schemas?: Record<string, Record<string, unknown>>;
-  supportedChains?: Array<{ name: string; chainId: number; testnet: boolean }>;
-  jsonOutputContract: string;
-  safeReadOnlyCommands?: string[];
-}
+export type { CapabilitiesPayload } from "../types.js";
 
 /**
  * Render capabilities output.

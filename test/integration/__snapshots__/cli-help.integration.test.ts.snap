@@ -10,6 +10,7 @@ Privacy Pools: a compliant way to transact privately on Ethereum
   status               Show configuration and check connection health
   guide                Show usage guide, workflow, and reference
   capabilities         Describe CLI capabilities for agent discovery
+  describe             Describe one command for runtime agent introspection
   Transact (run init first)
   init                 Initialize wallet and configuration
   deposit              Deposit into a pool
@@ -42,11 +43,14 @@ Options:
                              in process list)
   --mnemonic-file <path>     Import recovery phrase from a file (raw phrase or
                              Privacy Pools backup file)
+  --mnemonic-stdin           Import recovery phrase from stdin (raw phrase or
+                             Privacy Pools backup text)
   --show-mnemonic            Include generated mnemonic in JSON output (unsafe:
                              may be logged or piped)
   --private-key <key>        Set the signer private key (unsafe: visible in
                              process list)
   --private-key-file <path>  Set the signer private key from a file
+  --private-key-stdin        Set the signer private key from stdin
   --default-chain <chain>    Set default chain
   --rpc-url <url>            Set RPC URL for the default chain
   --force                    Overwrite existing configuration without prompting
@@ -61,6 +65,7 @@ Examples:
   privacy-pools init --force --yes --default-chain mainnet
   privacy-pools init --json --show-mnemonic
   privacy-pools init --mnemonic "word ..." --private-key 0x...
+  cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet
 Agent workflow:
   When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.
 JSON output (--json):
@@ -271,20 +276,28 @@ exports[`CLI --help snapshots accounts --help snapshot 1`] = `
 "Usage: privacy-pools accounts [options]
 List your Pool Accounts (individual deposit lineages) with balances
 Options:
-  --no-sync   Use cached data (faster, but may be stale)
-  --all       Include exited and fully spent Pool Accounts
-  --details   Show additional details per Pool Account
-  -h, --help  display help for command
+  --no-sync       Use cached data (faster, but may be stale)
+  --all           Include exited and fully spent Pool Accounts
+  --details       Show additional details per Pool Account
+  --summary       Show counts and balances only
+  --pending-only  Show only pending ASP approvals
+  -h, --help      display help for command
 Examples:
   privacy-pools accounts
   privacy-pools accounts --all
   privacy-pools accounts --details
+  privacy-pools accounts --summary
+  privacy-pools accounts --pending-only
   privacy-pools accounts --json
   privacy-pools accounts --no-sync --chain mainnet
 Prerequisites:
   Requires: init
+Agent workflow:
+  Use --summary or --pending-only to reduce JSON size for polling loops.
 JSON output (--json):
-  { chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }
+  --summary: { chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }
+  --pending-only: { chain, accounts, pendingCount, nextActions? }"
 `;
 
 exports[`CLI --help snapshots history --help snapshot 1`] = `
@@ -337,7 +350,23 @@ Examples:
   privacy-pools capabilities
   privacy-pools capabilities --json
 JSON output (--json):
-  { commands[], globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }"
+  { commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }"
+`;
+
+exports[`CLI --help snapshots describe --help snapshot 1`] = `
+"Usage: privacy-pools describe [options] <command...>
+Describe one command for runtime agent introspection
+Arguments:
+  command     Command path to describe
+Options:
+  -h, --help  display help for command
+Accepts spaced command paths like 'withdraw quote' and 'stats global'.
+Examples:
+  privacy-pools describe withdraw
+  privacy-pools describe withdraw quote --json
+  privacy-pools describe stats global --json
+JSON output (--json):
+  { command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }"
 `;
 
 exports[`CLI --help snapshots completion --help snapshot 1`] = `
