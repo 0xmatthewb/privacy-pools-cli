@@ -16,10 +16,10 @@
     "node": ">=18"
   },
   "scripts": {
-    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "npm run -s clean && tsc --project tsconfig.json",
+    "clean": "node scripts/clean-dist.mjs",
+    "build": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
     "circuits:provision": "node scripts/provision-circuits.mjs",
-    "prepare": "npm run -s build",
+    "prepare": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
     "cli": "bun src/index.ts",
     "dev": "bun src/index.ts",
     "start": "node dist/index.js",
