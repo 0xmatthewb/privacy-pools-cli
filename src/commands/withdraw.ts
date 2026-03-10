@@ -554,8 +554,10 @@ export function createWithdrawCommand(): Command {
         );
 
         // Anonymity set info (non-fatal)
+        let anonymitySet: { eligible: number; total: number; percentage: number } | undefined;
         try {
           const anonSet = await fetchDepositsLargerThan(chainConfig, pool.scope, withdrawalAmount);
+          anonymitySet = { eligible: anonSet.eligibleDeposits, total: anonSet.totalDeposits, percentage: Number(anonSet.percentage.toFixed(1)) };
           if (!silent) {
             info(`Anonymity set: ${anonSet.eligibleDeposits} of ${anonSet.totalDeposits} deposits (${anonSet.percentage.toFixed(1)}%)`, silent);
           }
@@ -701,6 +703,7 @@ export function createWithdrawCommand(): Command {
               selectedCommitmentLabel: commitmentLabel,
               selectedCommitmentValue: commitment.value,
               proofPublicSignals: proof.publicSignals.length,
+              anonymitySet,
             });
             return;
           }
@@ -806,6 +809,7 @@ export function createWithdrawCommand(): Command {
             explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
             remainingBalance: selectedPoolAccount.value - withdrawalAmount,
             tokenPrice,
+            anonymitySet,
           });
         } else {
           // --- Relayed Withdrawal ---
@@ -1119,6 +1123,7 @@ export function createWithdrawCommand(): Command {
               feeBPS: quote.feeBPS,
               quoteExpiresAt: new Date(expirationMs).toISOString(),
               extraGas: effectiveExtraGas,
+              anonymitySet,
             });
             return;
           }
@@ -1204,6 +1209,7 @@ export function createWithdrawCommand(): Command {
             extraGas: effectiveExtraGas,
             remainingBalance: selectedPoolAccount.value - withdrawalAmount,
             tokenPrice,
+            anonymitySet,
           });
         }
 

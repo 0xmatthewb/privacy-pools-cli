@@ -47,6 +47,7 @@ export function renderAccountsNoPools(ctx: OutputContext, chain: string): void {
     printCsv(["PA", "Status", "ASP", "Asset", "Value", "Tx"], []);
     return;
   }
+
   info(`No pools found on ${chain}.`, isSilent(ctx));
 }
 
@@ -57,7 +58,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
   const { chain, chainId, groups, showDetails, showAll } = data;
 
   if (ctx.mode.isCsv) {
-    const csvHeaders = ["PA", "Status", "ASP", "Asset", "Value", "Block", "Tx"];
+    const csvHeaders = ["PA", "Status", "ASP", "Asset", "Value", "Tx"];
     const csvRows: string[][] = [];
     for (const group of groups) {
       const dd = displayDecimals(group.decimals);
@@ -68,7 +69,6 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
           pa.aspStatus ?? "",
           group.symbol,
           formatAmount(pa.value, group.decimals, group.symbol, dd),
-          pa.blockNumber.toString(),
           pa.txHash,
         ]);
       }
@@ -209,7 +209,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     if (group.poolAccounts.length === 0) continue;
     renderedAny = true;
 
-    if (!silent) process.stderr.write(`  ${group.symbol} pool (${formatAddress(group.poolAddress)}):\n`);
+    if (!silent) process.stderr.write(`  ${group.symbol} Pool:\n`);
 
     if (silent) continue;
 
@@ -250,8 +250,8 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       );
     } else {
       const summaryHeaders = hasUsd
-        ? ["PA", "Balance", "USD", "Status", "Tx"]
-        : ["PA", "Balance", "Status", "Tx"];
+        ? ["PA", "Balance", "USD", "Status"]
+        : ["PA", "Balance", "Status"];
       printTable(
         summaryHeaders,
         group.poolAccounts.map((pa) => {
@@ -267,10 +267,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             formatAmount(pa.value, group.decimals, group.symbol, dd),
           ];
           if (hasUsd) row.push(formatUsdValue(pa.value, group.decimals, group.tokenPrice));
-          row.push(
-            `${statusLabel}${aspSuffix}`,
-            formatTxHash(pa.txHash),
-          );
+          row.push(`${statusLabel}${aspSuffix}`);
           return row;
         }),
       );
@@ -297,8 +294,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     }
     if (!silent) process.stderr.write("\n");
   } else if (!silent) {
-    info("PA = Pool Account.", silent);
-    info("Use -p PA-1 with withdraw or ragequit to target a specific Pool Account.", silent);
+    info("PA = Pool Account. Use -p PA-1 with withdraw or ragequit to target one.", silent);
+    if (!showDetails) {
+      info("Use --details to show transaction hashes and ASP status breakdown.", silent);
+    }
     if (!showAll) {
       info("Exited or spent accounts are hidden. Use --all to show them.", silent);
     }

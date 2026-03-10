@@ -41,6 +41,8 @@ export interface WithdrawDryRunData {
   quoteExpiresAt?: string;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
+  /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
+  anonymitySet?: { eligible: number; total: number; percentage: number };
 }
 
 /**
@@ -70,6 +72,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       payload.quoteExpiresAt = data.quoteExpiresAt;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     }
+    if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
     printJsonSuccess(payload, false);
     return;
   }
@@ -120,6 +123,8 @@ export interface WithdrawSuccessData {
   remainingBalance: bigint;
   /** Token price in USD, if available. */
   tokenPrice?: number | null;
+  /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
+  anonymitySet?: { eligible: number; total: number; percentage: number };
 }
 
 /**
@@ -165,6 +170,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       payload.feeBPS = data.feeBPS;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     }
+    if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
     printJsonSuccess(payload, false);
     return;
   }
