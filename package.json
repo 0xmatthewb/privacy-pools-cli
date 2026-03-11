@@ -9,6 +9,8 @@
   "files": [
     "dist",
     "AGENTS.md",
+    "CHANGELOG.md",
+    "docs/reference.md",
     "skills"
   ],
   "engines": {
