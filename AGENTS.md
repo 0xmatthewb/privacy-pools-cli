@@ -231,6 +231,8 @@ All numeric values are strings (wei). `committedValue` and `label` may be `null`
 
 Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days. A vetting fee is deducted from the deposit amount by the ASP, and only approved deposits can be withdrawn privately.
 
+**Privacy guard**: In machine modes (`--json`, `--agent`, `--yes`, `--dry-run`, `--unsigned`), non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts. Pass `--ignore-unique-amount` only when you intentionally want to bypass that protection.
+
 #### `withdraw`
 
 Withdraw from a Privacy Pool. Relayed by default (recommended for privacy).

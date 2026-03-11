@@ -1,12 +1,33 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   createTempHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
+import {
+  killFixtureServer,
+  launchFixtureServer,
+  type FixtureServer,
+} from "../helpers/fixture-server.ts";
 
 const TEST_MNEMONIC = "test test test test test test test test test test test junk";
 const TEST_PRIVATE_KEY = "1111111111111111111111111111111111111111111111111111111111111111";
+let fixture: FixtureServer;
+
+beforeAll(async () => {
+  fixture = await launchFixtureServer();
+});
+
+afterAll(() => {
+  killFixtureServer(fixture);
+});
+
+function fixtureEnv() {
+  return {
+    PRIVACY_POOLS_ASP_HOST: fixture.url,
+    PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture.url,
+  };
+}
 
 describe("agent-focused improvements", () => {
   test("describe --json returns a detailed descriptor for spaced subcommands", () => {
@@ -237,5 +258,51 @@ describe("agent-focused improvements", () => {
     );
     expect(pendingAndAll.status).toBe(2);
     expect(pendingAndAll.stdout).toContain("do not support --all");
+  });
+
+  test("deposit --agent rejects non-round amounts before wallet checks", () => {
+    const result = runCli(
+      ["--agent", "deposit", "1.276848", "ETH", "--chain", "sepolia"],
+      {
+        home: createTempHome(),
+        env: fixtureEnv(),
+        timeoutMs: 15_000,
+      },
+    );
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string; message: string; hint: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("Non-round amount 1.276848 ETH may reduce privacy");
+    expect(json.error.hint).toContain("--ignore-unique-amount");
+    expect(json.error.hint).not.toContain("privacy-pools init");
+    expect(result.stderr.trim()).toBe("");
+  });
+
+  test("deposit --agent --ignore-unique-amount advances past privacy guard", () => {
+    const result = runCli(
+      ["--agent", "deposit", "1.276848", "ETH", "--ignore-unique-amount", "--chain", "sepolia"],
+      {
+        home: createTempHome(),
+        env: fixtureEnv(),
+        timeoutMs: 15_000,
+      },
+    );
+    expect(result.status).toBe(2);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      error: { category: string; message: string; hint: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("No recovery phrase found");
+    expect(json.error.message).not.toContain("Non-round amount");
+    expect(json.error.hint).toContain("privacy-pools init");
+    expect(result.stderr.trim()).toBe("");
   });
 });

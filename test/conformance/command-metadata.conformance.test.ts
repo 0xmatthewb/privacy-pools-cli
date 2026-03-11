@@ -217,4 +217,40 @@ describe("command metadata conformance", () => {
     expect(normalizeWhitespace(referenceSection)).toContain("\"chain\": \"all-mainnets\"");
     expect(normalizeWhitespace(referenceSection)).toContain("\"all-mainnets\"");
   });
+
+  test("human reference documents init stdin flags, compact accounts modes, and describe", () => {
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const normalizedReference = normalizeWhitespace(reference);
+
+    expect(normalizedReference).toContain("--mnemonic-stdin");
+    expect(normalizedReference).toContain("--private-key-stdin");
+    expect(normalizedReference).toContain("--summary");
+    expect(normalizedReference).toContain("--pending-only");
+    expect(reference).toContain("### `describe`");
+  });
+
+  test("AGENTS deposit section documents the non-round deposit privacy guard", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const section = extractDocumentSection(agents, "#### `deposit`", getDocumentedAgentMarkers());
+    const normalizedSection = normalizeWhitespace(section);
+
+    expect(normalizedSection).toContain("non-round");
+    expect(normalizedSection).toContain("--ignore-unique-amount");
+    expect(normalizedSection).toContain("machine modes");
+  });
+
+  test("published docs do not contain malformed privacy-pools command examples", () => {
+    const docsToCheck = [
+      `${CLI_ROOT}/AGENTS.md`,
+      `${CLI_ROOT}/docs/reference.md`,
+      `${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`,
+      `${CLI_ROOT}/skills/privacy-pools-cli/reference.md`,
+    ];
+
+    for (const docPath of docsToCheck) {
+      const document = readFileSync(docPath, "utf8");
+      const malformed = document.match(/\bprivacy-pools[a-z]/g) ?? [];
+      expect(malformed, docPath).toEqual([]);
+    }
+  });
 });

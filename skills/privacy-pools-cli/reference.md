@@ -100,13 +100,13 @@ Some success payloads also include optional `nextActions[]` guidance with the sh
 ### `pools`
 
 ```bash
-privacy-poolspools --agent [--all-chains] [--search <query>] [--sort <mode>]
-privacy-poolspools ETH --agent                     # detail view for a specific pool
+privacy-pools pools --agent [--all-chains] [--search <query>] [--sort <mode>]
+privacy-pools pools ETH --agent                    # detail view for a specific pool
 ```
 
 Defaults to all mainnets when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
 
-**Detail view** (`privacy-poolspools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity?, nextActions? }`. Does not support CSV.
+**Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity?, nextActions? }`. Does not support CSV.
 
 **Single chain** (with `--chain`):
 
@@ -162,7 +162,7 @@ All numeric token amounts are in wei (strings). USD values, counts, and growth r
 ### `activity`
 
 ```bash
-privacy-poolsactivity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
+privacy-pools activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
 ```
 
 Defaults to all mainnets when no `--chain` is specified.
@@ -204,7 +204,7 @@ When querying multiple chains (no `--chain` specified), `chain` is `"all-mainnet
 ### `stats global`
 
 ```bash
-privacy-poolsstats global --agent
+privacy-pools stats global --agent
 ```
 
 Always returns aggregate cross-chain statistics. The `--chain` flag is **not** supported; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
@@ -243,7 +243,7 @@ Always returns aggregate cross-chain statistics. The `--chain` flag is **not** s
 ### `stats pool`
 
 ```bash
-privacy-poolsstats pool --asset ETH --agent
+privacy-pools stats pool --asset ETH --agent
 ```
 
 ```json
@@ -262,7 +262,7 @@ privacy-poolsstats pool --asset ETH --agent
 ### `status`
 
 ```bash
-privacy-poolsstatus --agent [--check] [--check-rpc] [--check-asp]
+privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
 ```
 
 ```json
@@ -310,7 +310,7 @@ When setup is incomplete, `nextActions` includes a canonical `init` follow-up fo
 ### `capabilities`
 
 ```bash
-privacy-poolscapabilities --agent
+privacy-pools capabilities --agent
 ```
 
 Representative payload (abridged):
@@ -374,8 +374,8 @@ Representative payload (abridged):
 ### `describe`
 
 ```bash
-privacy-poolsdescribe withdraw quote --agent
-privacy-poolsdescribe stats global --agent
+privacy-pools describe withdraw quote --agent
+privacy-pools describe stats global --agent
 ```
 
 ```json
@@ -403,12 +403,12 @@ privacy-poolsdescribe stats global --agent
 ### `init`
 
 ```bash
-privacy-poolsinit --agent --default-chain mainnet
-privacy-poolsinit --agent --mnemonic "word1 word2 ..." --default-chain mainnet
-cat phrase.txt | privacy-poolsinit --agent --mnemonic-stdin --default-chain mainnet
-privacy-poolsinit --agent --private-key 0x... --default-chain mainnet
-privacy-poolsinit --agent --private-key-file ./key.txt --default-chain mainnet
-printf '%s\n' 0x... | privacy-poolsinit --agent --mnemonic "word1 word2 ..." --private-key-stdin --default-chain mainnet
+privacy-pools init --agent --default-chain mainnet
+privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
+cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
+privacy-pools init --agent --private-key 0x... --default-chain mainnet
+privacy-pools init --agent --private-key-file ./key.txt --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 word2 ..." --private-key-stdin --default-chain mainnet
 ```
 
 ```json
@@ -452,7 +452,9 @@ privacy-pools deposit 0.1 ETH --agent
 privacy-pools deposit 0.1 --asset ETH --agent
 ```
 
-> **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `privacy-poolspools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
+> **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `privacy-pools pools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
+
+> **Privacy guard:** In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when you explicitly want to bypass that protection.
 
 **Success:**
 
@@ -505,12 +507,12 @@ privacy-pools deposit 0.1 --asset ETH --agent
 ### `withdraw`
 
 ```bash
-privacy-poolswithdraw 0.05 ETH --to 0xRecipient --agent
-privacy-poolswithdraw 0.05 ETH --to 0xRecipient --from-pa PA-2 --agent
-privacy-poolswithdraw --all ETH --to 0xRecipient --agent
-privacy-poolswithdraw 50% ETH --to 0xRecipient --agent
-privacy-poolswithdraw 0.1 ETH --direct --agent
-privacy-poolswithdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-2 --agent
+privacy-pools withdraw --all ETH --to 0xRecipient --agent
+privacy-pools withdraw 50% ETH --to 0xRecipient --agent
+privacy-pools withdraw 0.1 ETH --direct --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
 **Amount shortcuts:** `--all` withdraws the entire PA balance. Percentages (`50%`, `100%`) withdraw a fraction. After PA selection, the CLI shows the selected PA's available balance.
@@ -585,7 +587,7 @@ For direct dry-run: `mode: "direct"`, no `feeBPS` or `quoteExpiresAt`.
 **Withdrawal quote:**
 
 ```bash
-privacy-poolswithdraw quote 0.1 ETH --to 0xRecipient --agent
+privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 ```
 
 ```json
@@ -625,8 +627,8 @@ privacy-poolswithdraw quote 0.1 ETH --to 0xRecipient --agent
 ### `ragequit` (alias: `exit`)
 
 ```bash
-privacy-poolsragequit ETH --from-pa PA-1 --agent
-privacy-poolsexit ETH --from-pa PA-1 --agent
+privacy-pools ragequit ETH --from-pa PA-1 --agent
+privacy-pools exit ETH --from-pa PA-1 --agent
 ```
 
 **Success:**
@@ -675,9 +677,9 @@ privacy-poolsexit ETH --from-pa PA-1 --agent
 ### `accounts`
 
 ```bash
-privacy-poolsaccounts --agent [--all] [--details]
-privacy-poolsaccounts --agent --summary
-privacy-poolsaccounts --agent --pending-only
+privacy-pools accounts --agent [--all] [--details]
+privacy-pools accounts --agent --summary
+privacy-pools accounts --agent --pending-only
 ```
 
 ```json
@@ -732,7 +734,7 @@ Poll `aspStatus` after depositing and wait for `"approved"` before withdrawing v
 ### `history`
 
 ```bash
-privacy-poolshistory --agent [--limit <n>]
+privacy-pools history --agent [--limit <n>]
 ```
 
 ```json
@@ -761,7 +763,7 @@ privacy-poolshistory --agent [--limit <n>]
 Force-sync local account state. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
 
 ```bash
-privacy-poolssync --agent [--asset <symbol>]
+privacy-pools sync --agent [--asset <symbol>]
 ```
 
 ```json
@@ -856,7 +858,7 @@ All errors in JSON mode:
 
 When `retryable: true`:
 1. `RPC_NETWORK_ERROR` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
-2. `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-poolssync --agent`, then retry
+2. `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent`, then retry
 3. `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
 
 ---

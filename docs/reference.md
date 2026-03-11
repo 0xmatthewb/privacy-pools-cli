@@ -12,6 +12,8 @@ Initialize wallet and configuration. Generates a BIP-39 mnemonic (used to derive
 privacy-pools init
 privacy-pools init --default-chain mainnet
 privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key.txt
+cat phrase.txt | privacy-pools init --mnemonic-stdin --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --mnemonic "word1 ..." --private-key-stdin --default-chain mainnet
 ```
 
 | Flag | Description |
@@ -19,12 +21,15 @@ privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key
 | `--default-chain <chain>` | Set default chain |
 | `--mnemonic <phrase>` | Import existing BIP-39 phrase (unsafe: visible in process list) |
 | `--mnemonic-file <path>` | Import BIP-39 phrase from a file (raw phrase or Privacy Pools backup file) |
+| `--mnemonic-stdin` | Import BIP-39 phrase or backup text from stdin |
 | `--private-key <key>` | Set signer private key (unsafe: visible in process list) |
 | `--private-key-file <path>` | Set signer private key from a file |
+| `--private-key-stdin` | Set signer private key from stdin |
+| `--rpc-url <url>` | Save an RPC override for the selected default chain |
 | `--force` | Overwrite existing config without prompting |
 | `--show-mnemonic` | Include mnemonic in JSON output (unsafe) |
 
-During interactive setup, `init` offers to write a recovery backup to `~/privacy-pools-recovery.txt`. Proof commands automatically provision circuit artifacts on first use when needed, caching them under `~/.privacy-pools/circuits/v<sdk-version>` by default.
+During interactive setup, `init` offers to write a recovery backup to `~/privacy-pools-recovery.txt`. Use only one stdin secret source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`. Proof commands automatically provision circuit artifacts on first use when needed, caching them under `~/.privacy-pools/circuits/v<sdk-version>` by default.
 
 ### `pools`
 
@@ -98,6 +103,8 @@ List your Pool Accounts with balances, ASP approval status, and account lifecycl
 privacy-pools accounts
 privacy-pools accounts --all                  # include spent and exited accounts
 privacy-pools accounts --details              # show commitment hashes, labels, and tx info
+privacy-pools accounts --summary              # counts + balances only
+privacy-pools accounts --pending-only         # pending approvals only
 ```
 
 | Flag | Description |
@@ -105,9 +112,13 @@ privacy-pools accounts --details              # show commitment hashes, labels, 
 | `--no-sync` | Skip syncing account state before displaying |
 | `--all` | Include exited and fully spent Pool Accounts |
 | `--details` | Show low-level commitment details (hash, label, block, tx) |
+| `--summary` | Show counts and balances without listing every Pool Account |
+| `--pending-only` | Show only Pool Accounts with `aspStatus: pending` |
 
 **Pool Account statuses:** `spendable` (can withdraw), `spent` (fully withdrawn), `exited` (exit/ragequit).
 **ASP statuses:** `approved` (can withdraw privately), `pending` (waiting for ASP), `unknown`.
+
+Compact modes are intended for polling loops. `--summary` and `--pending-only` do not support `--details`, and `--pending-only` also omits balances.
 
 ### `history`
 
@@ -174,6 +185,17 @@ Describe all CLI commands, flags, and workflows in a structured format. Useful f
 
 ```bash
 privacy-pools capabilities --json
+```
+
+The JSON payload includes `commands[]`, `commandDetails{}`, global flags, workflow guidance, supported chains, and the machine-readable output contract.
+
+### `describe`
+
+Describe one command in a structured format. Useful when a human or agent wants the runtime contract for one command path without parsing long-form docs.
+
+```bash
+privacy-pools describe withdraw quote --json
+privacy-pools describe stats global --json
 ```
 
 ### `activity`
