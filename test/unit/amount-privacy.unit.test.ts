@@ -187,6 +187,73 @@ describe("suggestRoundAmounts — invariants", () => {
   });
 });
 
+describe("isRoundAmount — zero-decimal tokens (decimals=0)", () => {
+  test("any amount is round when decimals=0", () => {
+    expect(isRoundAmount(1n, 0, "UNKNOWN")).toBe(true);
+    expect(isRoundAmount(100n, 0, "UNKNOWN")).toBe(true);
+    expect(isRoundAmount(0n, 0, "UNKNOWN")).toBe(true);
+  });
+});
+
+describe("isRoundAmount — low-decimal tokens (decimals=2)", () => {
+  test("whole numbers are round", () => {
+    expect(isRoundAmount(100n, 2, "TOK")).toBe(true); // 1.00
+    expect(isRoundAmount(500n, 2, "TOK")).toBe(true); // 5.00
+  });
+
+  test("amounts with 1-2 decimal places are round for volatile assets", () => {
+    expect(isRoundAmount(125n, 2, "TOK")).toBe(true); // 1.25
+    expect(isRoundAmount(10n, 2, "TOK")).toBe(true);  // 0.10
+  });
+});
+
+describe("isRoundAmount — amount=0n", () => {
+  test("zero is round for any token", () => {
+    expect(isRoundAmount(0n, 18, "ETH")).toBe(true);
+    expect(isRoundAmount(0n, 6, "USDC")).toBe(true);
+    expect(isRoundAmount(0n, 0, "TOK")).toBe(true);
+  });
+});
+
+describe("suggestRoundAmounts — edge cases", () => {
+  test("returns empty for amount=0n", () => {
+    expect(suggestRoundAmounts(0n, 18, "ETH")).toEqual([]);
+    expect(suggestRoundAmounts(0n, 6, "USDC")).toEqual([]);
+  });
+
+  test("returns empty for zero-decimal tokens (always round)", () => {
+    expect(suggestRoundAmounts(42n, 0, "TOK")).toEqual([]);
+  });
+
+  test("handles low-decimal token (decimals=2) volatile asset", () => {
+    // 1.23 with decimals=2 → non-round (3 is beyond 2dp but decimals=2 means max=2dp so 1.23 IS 2dp → round)
+    // Actually with decimals=2, dp2 = 10^0 = 1, so floor to 2dp is identity. 1.23 has 2 decimal places → round.
+    expect(isRoundAmount(123n, 2, "TOK")).toBe(true); // 1.23 with decimals=2 is exactly 2dp
+    expect(suggestRoundAmounts(123n, 2, "TOK")).toEqual([]); // already round
+  });
+
+  test("handles low-decimal stablecoin (decimals=2)", () => {
+    // 1.50 = 150 raw units, not whole number → non-round for stablecoin
+    expect(isRoundAmount(150n, 2, "USDC")).toBe(false);
+    const suggestions = suggestRoundAmounts(150n, 2, "USDC");
+    expect(suggestions.length).toBeGreaterThan(0);
+    // Should suggest 100 (= 1 whole unit)
+    expect(suggestions).toContain(100n);
+  });
+});
+
+describe("formatAmountDecimal — edge cases", () => {
+  test("formats zero-decimal token", () => {
+    expect(formatAmountDecimal(42n, 0)).toBe("42");
+    expect(formatAmountDecimal(0n, 0)).toBe("0");
+  });
+
+  test("formats zero amount with decimals", () => {
+    expect(formatAmountDecimal(0n, 18)).toBe("0");
+    expect(formatAmountDecimal(0n, 6)).toBe("0");
+  });
+});
+
 describe("formatAmountDecimal", () => {
   test("formats whole numbers without trailing zeros", () => {
     expect(formatAmountDecimal(parseAmount("100", USDC_DECIMALS), USDC_DECIMALS)).toBe("100");

@@ -71,6 +71,8 @@ bun run dev -- pools
 | `activity` | Public activity feed | |
 | `stats` | Protocol statistics (global or per-pool) | |
 | `status` | Configuration and connectivity health | |
+| `describe` | Describe one command (for agents or quick reference) | |
+| `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
 | `init` | Set up wallet and config (run once) | |
 | `deposit` | Deposit into a pool | Yes |

@@ -47,9 +47,9 @@ privacy-pools pools ETH                # detail view: stats, your funds, recent 
 Deposit assets (ETH or ERC20 tokens) into a pool, creating a private commitment.
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH
-privacy-pools deposit 100 --asset USDC
 privacy-pools deposit 0.1 ETH
+privacy-pools deposit 100 USDC
+privacy-pools deposit 0.1 --asset ETH
 ```
 
 | Flag | Description |

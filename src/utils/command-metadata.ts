@@ -58,7 +58,6 @@ export interface CommandMetadata {
   help?: CommandHelpConfig;
   capabilities?: CommandCapabilityMetadata;
   safeReadOnly?: boolean;
-  documentedInAgents?: boolean;
   agentsDocMarker?: string;
 }
 
@@ -110,7 +109,6 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
-    documentedInAgents: true,
     agentsDocMarker: "#### `init`",
   },
   pools: {
@@ -137,7 +135,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "medium",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `pools`",
   },
   activity: {
@@ -159,7 +157,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "medium",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `activity`",
   },
   stats: {
@@ -198,7 +196,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "medium",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `stats global`",
   },
   "stats pool": {
@@ -218,7 +216,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "medium",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `stats pool`",
   },
   status: {
@@ -241,7 +239,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `status`",
   },
   capabilities: {
@@ -261,7 +259,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `capabilities`",
   },
   describe: {
@@ -286,7 +284,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `describe`",
   },
   guide: {
@@ -341,7 +339,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `deposit`",
   },
   withdraw: {
@@ -389,7 +387,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `withdraw`",
   },
   "withdraw quote": {
@@ -413,7 +411,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "medium",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "**Withdrawal quote:**",
   },
   ragequit: {
@@ -458,7 +456,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `ragequit`",
   },
   accounts: {
@@ -490,7 +488,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `accounts`",
   },
   history: {
@@ -512,7 +510,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `history`",
   },
   sync: {
@@ -533,7 +531,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `sync`",
   },
   completion: {
@@ -726,10 +724,6 @@ export function listCommandPaths(): CommandPath[] {
 
 export function getCommandMetadata(path: CommandPath): CommandMetadata {
   return COMMAND_METADATA[path];
-}
-
-export function getCommandDescription(path: CommandPath): string {
-  return getCommandMetadata(path).description;
 }
 
 export function getDocumentedAgentMarkers(): string[] {
