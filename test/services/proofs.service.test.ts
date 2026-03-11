@@ -17,6 +17,7 @@ let mockFullProveResult = {
 };
 let fullProveShouldThrow: Error | null = null;
 let artifactsShouldThrow: Error | null = null;
+let proofTestsActive = false;
 
 let capturedFullProveInputs: Record<string, unknown> | null = null;
 let capturedFullProveWasm: string | null = null;
@@ -41,15 +42,30 @@ mock.module("snarkjs", () => ({
   },
 }));
 
-// Mock circuits service
+// Capture the real function references BEFORE mock.module replaces the
+// module namespace.  Module namespace bindings are live, so reading them
+// after the mock is installed would return the mocked versions.
+const {
+  getCircuitArtifactPaths: realGetCircuitArtifactPaths,
+  ensureCircuitArtifacts: realEnsureCircuitArtifacts,
+  resetCircuitArtifactsCacheForTests: realResetCache,
+  overrideCircuitChecksumsForTests: realOverrideChecksums,
+} = await import("../../src/services/circuits.ts");
+
 mock.module("../../src/services/circuits.ts", () => ({
+  ensureCircuitArtifacts: realEnsureCircuitArtifacts,
+  resetCircuitArtifactsCacheForTests: realResetCache,
+  overrideCircuitChecksumsForTests: realOverrideChecksums,
   getCircuitArtifactPaths: mock(async (name: string) => {
     if (artifactsShouldThrow) throw artifactsShouldThrow;
-    return {
-      wasm: `/mock/artifacts/${name}.wasm`,
-      zkey: `/mock/artifacts/${name}.zkey`,
-      vkey: `/mock/artifacts/${name}.vkey`,
-    };
+    if (proofTestsActive) {
+      return {
+        wasm: `/mock/artifacts/${name}.wasm`,
+        zkey: `/mock/artifacts/${name}.zkey`,
+        vkey: `/mock/artifacts/${name}.vkey`,
+      };
+    }
+    return realGetCircuitArtifactPaths(name);
   }),
 }));
 
@@ -60,6 +76,7 @@ const { proveCommitment, proveWithdrawal } = await import(
 
 describe("proofs service", () => {
   beforeEach(() => {
+    proofTestsActive = true;
     capturedFullProveInputs = null;
     capturedFullProveWasm = null;
     capturedFullProveZkey = null;
@@ -76,7 +93,9 @@ describe("proofs service", () => {
   });
 
   afterEach(() => {
-    mock.restore();
+    proofTestsActive = false;
+    artifactsShouldThrow = null;
+    fullProveShouldThrow = null;
   });
 
   describe("proveCommitment", () => {
