@@ -46,3 +46,39 @@ export async function withProofProgress<T>(
     throw error;
   }
 }
+
+/**
+ * Generic elapsed-time wrapper for any slow async operation.
+ *
+ * Unlike `withProofProgress`, this has no proof-specific first-run logic.
+ * Use for sync, circuit verification, relayer calls, or other operations
+ * where a frozen spinner would confuse the user.
+ */
+export async function withSpinnerProgress<T>(
+  spin: Ora,
+  label: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const start = Date.now();
+  spin.text = `${label}...`;
+
+  const interval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    if (elapsed < 10) {
+      spin.text = `${label}... (${elapsed}s)`;
+    } else if (elapsed < 30) {
+      spin.text = `${label}... (${elapsed}s) - this may take a moment`;
+    } else {
+      spin.text = `${label}... (${elapsed}s) - still working`;
+    }
+  }, 1000);
+
+  try {
+    const result = await fn();
+    clearInterval(interval);
+    return result;
+  } catch (error) {
+    clearInterval(interval);
+    throw error;
+  }
+}

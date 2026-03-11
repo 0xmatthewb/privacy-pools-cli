@@ -11,6 +11,7 @@ import {
 import { listPools } from "../services/pools.js";
 import { fetchApprovedLabels } from "../services/asp.js";
 import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
+import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
@@ -155,15 +156,18 @@ export function createAccountsCommand(): Command {
           true
         );
 
-        spin.text = "Syncing onchain events...";
-        await syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-          skip: opts.sync === false,
-          force: false,
-          silent,
-          isJson: mode.isJson,
-          isVerbose,
-          errorLabel: "Account",
-        });
+        await withSpinnerProgress(
+          spin,
+          "Syncing onchain events",
+          () => syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
+            skip: opts.sync === false,
+            force: false,
+            silent,
+            isJson: mode.isJson,
+            isVerbose,
+            errorLabel: "Account",
+          }),
+        );
 
         const spendable = withSuppressedSdkStdoutSync(() =>
           accountService.getSpendableCommitments()
