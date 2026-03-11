@@ -15,6 +15,10 @@ import { renderDepositSuccess, type DepositSuccessData } from "../../src/output/
 import { renderWithdrawSuccess, type WithdrawSuccessData } from "../../src/output/withdraw.ts";
 import { renderRagequitSuccess, type RagequitSuccessData } from "../../src/output/ragequit.ts";
 import { renderWithdrawQuote, type WithdrawQuoteData } from "../../src/output/withdraw.ts";
+import { renderStatus, type StatusCheckResult } from "../../src/output/status.ts";
+import { renderAccounts, type AccountsRenderData } from "../../src/output/accounts.ts";
+import { renderPoolDetail, type PoolDetailRenderData } from "../../src/output/pools.ts";
+import { renderSyncComplete, type SyncResult } from "../../src/output/sync.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
 
@@ -200,6 +204,78 @@ describe("next-step parity across renderers", () => {
     explorerUrl: null,
   };
 
+  const STUB_STATUS: StatusCheckResult = {
+    configExists: true,
+    configDir: "/tmp/.privacy-pools",
+    defaultChain: "sepolia",
+    selectedChain: "sepolia",
+    rpcUrl: "https://rpc.sepolia.example",
+    rpcIsCustom: false,
+    recoveryPhraseSet: true,
+    signerKeySet: true,
+    signerKeyValid: true,
+    signerAddress: "0x" + "aa".repeat(20),
+    entrypoint: "0x" + "bb".repeat(20),
+    aspHost: "https://asp.example",
+    accountFiles: [["sepolia", 11155111]],
+  };
+
+  const STUB_ACCOUNTS: AccountsRenderData = {
+    chain: "sepolia",
+    chainId: 11155111,
+    groups: [
+      {
+        symbol: "ETH",
+        poolAddress: "0x" + "11".repeat(20),
+        decimals: 18,
+        scope: 1n,
+        tokenPrice: null,
+        poolAccounts: [
+          {
+            paNumber: 1,
+            paId: "PA-1",
+            status: "spendable",
+            aspStatus: "approved",
+            value: 100000000000000000n,
+            commitment: { hash: 1n, label: 2n },
+            label: 2n,
+            blockNumber: 100n,
+            txHash: "0x" + "ab".repeat(32),
+          } as any,
+        ],
+      },
+    ],
+    showDetails: false,
+    showAll: false,
+    showSummary: false,
+    showPendingOnly: false,
+  };
+
+  const STUB_POOL_DETAIL: PoolDetailRenderData = {
+    chain: "sepolia",
+    pool: {
+      symbol: "ETH",
+      asset: "0x" + "00".repeat(20),
+      pool: "0x" + "11".repeat(20),
+      scope: 1n,
+      decimals: 18,
+      minimumDepositAmount: 10000000000000000n,
+      vettingFeeBPS: 50n,
+      maxRelayFeeBPS: 100n,
+    } as any,
+    tokenPrice: null,
+    myPoolAccounts: null,
+    recentActivity: null,
+  };
+
+  const STUB_SYNC: SyncResult = {
+    chain: "sepolia",
+    syncedPools: 2,
+    syncedSymbols: ["ETH", "WETH"],
+    availablePoolAccounts: 3,
+    previousAvailablePoolAccounts: 1,
+  };
+
   const STUB_QUOTE: WithdrawQuoteData = {
     chain: "sepolia",
     asset: "ETH",
@@ -256,6 +332,34 @@ describe("next-step parity across renderers", () => {
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
         return captureOutput(() => renderWithdrawQuote(ctx, STUB_QUOTE));
+      },
+    },
+    {
+      name: "renderStatus",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderStatus(ctx, STUB_STATUS));
+      },
+    },
+    {
+      name: "renderAccounts",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
+      },
+    },
+    {
+      name: "renderPoolDetail",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL));
+      },
+    },
+    {
+      name: "renderSyncComplete",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderSyncComplete(ctx, STUB_SYNC));
       },
     },
   ];

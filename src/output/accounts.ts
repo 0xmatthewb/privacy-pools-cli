@@ -11,6 +11,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   info,
   isSilent,
   printCsv,
@@ -491,6 +492,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       info("No available Pool Accounts found.", silent);
       if (!silent) process.stderr.write("\n");
     }
+    renderNextSteps(ctx, buildDefaultNextActions(chain, summary.approvedAssets, summary.pendingCount));
     return;
   }
 
@@ -621,6 +623,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
         );
       }
     }
-    process.stderr.write("\n");
   }
+
+  const nextActions = showPendingOnly
+    ? buildPendingOnlyNextActions(chain, summary.pendingCount)
+    : buildDefaultNextActions(chain, summary.approvedAssets, summary.pendingCount);
+  renderNextSteps(ctx, nextActions);
 }

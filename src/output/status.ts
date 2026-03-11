@@ -10,6 +10,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   warn,
@@ -48,38 +49,38 @@ export interface StatusCheckResult {
 export function renderStatus(ctx: OutputContext, result: StatusCheckResult): void {
   guardCsvUnsupported(ctx, "status");
 
-  if (ctx.mode.isJson) {
-    const readyForDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
-    const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
-    const workflowChain = result.selectedChain ?? result.defaultChain;
-    const nextActions = !result.configExists || !result.recoveryPhraseSet
-      ? [
-          createNextAction(
-            "init",
-            "Complete CLI setup before transacting.",
-            "status_not_ready",
-            {
-              options: {
-                agent: true,
-                showMnemonic: true,
-              },
+  const readyForDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
+  const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
+  const workflowChain = result.selectedChain ?? result.defaultChain;
+  const nextActions = !result.configExists || !result.recoveryPhraseSet
+    ? [
+        createNextAction(
+          "init",
+          "Complete CLI setup before transacting.",
+          "status_not_ready",
+          {
+            options: {
+              agent: true,
+              showMnemonic: true,
             },
-          ),
-        ]
-      : [
-          createNextAction(
-            "pools",
-            "Browse pools now that the CLI is ready.",
-            "status_ready",
-            {
-              options: {
-                agent: true,
-                ...(workflowChain ? { chain: workflowChain } : {}),
-              },
+          },
+        ),
+      ]
+    : [
+        createNextAction(
+          "pools",
+          "Browse pools now that the CLI is ready.",
+          "status_ready",
+          {
+            options: {
+              agent: true,
+              ...(workflowChain ? { chain: workflowChain } : {}),
             },
-          ),
-        ];
+          },
+        ),
+      ];
 
+  if (ctx.mode.isJson) {
     const status: Record<string, unknown> = appendNextActions({
       configExists: result.configExists,
       configDir: result.configDir,
@@ -194,6 +195,6 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     } else {
       warn("Not ready: run 'privacy-pools init' to get started", silent);
     }
-    process.stderr.write("\n");
   }
+  renderNextSteps(ctx, nextActions);
 }

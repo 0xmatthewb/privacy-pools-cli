@@ -6,7 +6,16 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, info, success, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  renderNextSteps,
+  printJsonSuccess,
+  info,
+  success,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 
 export interface SyncResult {
   chain: string;
@@ -43,14 +52,47 @@ export function renderSyncComplete(
 ): void {
   guardCsvUnsupported(ctx, "sync");
 
+  const nextActions = result.availablePoolAccounts > 0
+    ? [
+        createNextAction(
+          "accounts",
+          "View your synced Pool Accounts and balances.",
+          "after_sync",
+          {
+            options: {
+              agent: true,
+              chain: result.chain,
+            },
+          },
+        ),
+      ]
+    : [
+        createNextAction(
+          "pools",
+          "Browse available pools to deposit into.",
+          "after_sync_empty",
+          {
+            options: {
+              agent: true,
+              chain: result.chain,
+            },
+          },
+        ),
+      ];
+
   if (ctx.mode.isJson) {
-    printJsonSuccess({
-      chain: result.chain,
-      syncedPools: result.syncedPools,
-      syncedSymbols: result.syncedSymbols,
-      availablePoolAccounts: result.availablePoolAccounts,
-      previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
-    });
+    printJsonSuccess(
+      appendNextActions(
+        {
+          chain: result.chain,
+          syncedPools: result.syncedPools,
+          syncedSymbols: result.syncedSymbols,
+          availablePoolAccounts: result.availablePoolAccounts,
+          previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
+        },
+        nextActions,
+      ),
+    );
     return;
   }
 
@@ -66,4 +108,5 @@ export function renderSyncComplete(
   }
 
   info(`Available Pool Accounts: ${result.availablePoolAccounts}`, silent);
+  renderNextSteps(ctx, nextActions);
 }

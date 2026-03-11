@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { appendNextActions, createNextAction, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
+import { appendNextActions, createNextAction, renderNextSteps, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
@@ -285,24 +285,26 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
 
   guardCsvUnsupported(ctx, "pools <asset>");
 
+  const nextActions = [
+    createNextAction(
+      "deposit",
+      "Deposit into this pool if its terms work for you.",
+      "after_pool_detail",
+      {
+        options: {
+          agent: true,
+          chain,
+          asset: pool.symbol,
+        },
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = appendNextActions({
       chain,
       ...poolToJson(pool),
-    }, [
-      createNextAction(
-        "deposit",
-        "Deposit into this pool if its terms work for you.",
-        "after_pool_detail",
-        {
-          options: {
-            agent: true,
-            chain,
-            asset: pool.symbol,
-          },
-        },
-      ),
-    ]) as Record<string, unknown>;
+    }, nextActions) as Record<string, unknown>;
 
     if (myPoolAccounts !== null) {
       const spendable = myPoolAccounts.filter((pa) => pa.status === "spendable");
@@ -396,5 +398,5 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     }
   }
 
-  process.stderr.write("\n");
+  renderNextSteps(ctx, nextActions);
 }

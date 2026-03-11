@@ -32,7 +32,8 @@ Options:
   -h, --help           display help for command
   Get started:      privacy-pools init
   Full guide:       privacy-pools guide
-  Command help:     privacy-pools <command> --help"
+  Command help:     privacy-pools <command> --help
+  Agent discovery:  privacy-pools capabilities"
 `;
 
 exports[`CLI --help snapshots init --help snapshot 1`] = `
