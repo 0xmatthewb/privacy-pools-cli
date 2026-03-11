@@ -198,7 +198,8 @@
           "selectedCommitmentValue": "decimal-string-wei",
           "proofPublicSignals": "number",
           "feeBPS": "string? (relayed only)",
-          "quoteExpiresAt": "iso8601-string? (relayed only)"
+          "quoteExpiresAt": "iso8601-string? (relayed only)",
+          "extraGas": "boolean? (relayed mode, ERC20 only)"
         },
         "unsignedDirect": {
           "mode": "unsigned",
@@ -248,7 +249,8 @@
           "feeAmount": "decimal-string-wei",
           "netAmount": "decimal-string-wei",
           "feeCommitmentPresent": "boolean",
-          "quoteExpiresAt": "iso8601-string|null"
+          "quoteExpiresAt": "iso8601-string|null",
+          "extraGas": "boolean? (ERC20 only, present when extra gas requested)"
         }
       }
     },
@@ -414,7 +416,8 @@
         "jsonOutputContract": "string (semver)",
         "agentNotes": "object (Record<string, string>)",
         "schemas": "object",
-        "supportedChains": "Chain[]"
+        "supportedChains": "Chain[]",
+        "safeReadOnlyCommands": "string[]? (commands safe to run without side effects)"
       }
     },
     "sync": {
