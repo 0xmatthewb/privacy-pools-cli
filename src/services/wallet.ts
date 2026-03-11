@@ -8,6 +8,7 @@ import { validateMnemonic as bip39ValidateMnemonic } from "@scure/bip39";
 import { wordlist as bip39EnglishWordlist } from "@scure/bip39/wordlists/english";
 import { loadMnemonicFromFile, loadSignerKey } from "./config.js";
 import { CLIError } from "../utils/errors.js";
+import { withSuppressedSdkStdoutSync } from "./account.js";
 import type { Address } from "viem";
 
 export function generateMnemonic(): string {
@@ -71,7 +72,7 @@ export function extractMnemonicFromFile(content: string): string | null {
 }
 
 export function getMasterKeys(mnemonic: string) {
-  return generateMasterKeys(mnemonic);
+  return withSuppressedSdkStdoutSync(() => generateMasterKeys(mnemonic));
 }
 
 export function getSignerAddress(privateKey: `0x${string}`): Address {

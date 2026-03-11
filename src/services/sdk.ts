@@ -7,6 +7,7 @@ import type { PublicClient, Address, Hex } from "viem";
 import type { ChainConfig } from "../types.js";
 import { getRpcUrls } from "./config.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
+import { withSuppressedSdkStdout } from "./account.js";
 
 const LOCAL_DEPOSIT_EVENT = parseAbiItem(
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)"
@@ -223,14 +224,16 @@ export async function getDataService(
     ) as unknown as DataService;
   }
 
-  return new DataService(
-    [
-      {
-        chainId: chainConfig.id,
-        rpcUrl,
-        privacyPoolAddress: poolAddress,
-        startBlock: chainConfig.startBlock,
-      },
-    ]
+  return withSuppressedSdkStdout(async () =>
+    new DataService(
+      [
+        {
+          chainId: chainConfig.id,
+          rpcUrl,
+          privacyPoolAddress: poolAddress,
+          startBlock: chainConfig.startBlock,
+        },
+      ]
+    )
   );
 }
