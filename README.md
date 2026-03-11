@@ -1,15 +1,15 @@
 # Privacy Pools CLI
 
-Private transactions on Ethereum, from your terminal. Deposit into a pool, wait for compliance approval, withdraw to any address — no onchain link between deposit and withdrawal. Your keys, your funds, the protocol handles the rest.
+Private transactions on Ethereum, from your terminal. Deposit into a pool, wait for approval, and withdraw to any address with no onchain link between the two. 0xbow's Association Set Provider (ASP) validates deposits to keep pools safe from potentially illicit funds.
 
 > [!CAUTION]
 > Experimental software. Start small. For larger amounts, use [privacypools.com](https://privacypools.com).
 
-- **Private withdrawals** — zero-knowledge proofs break the onchain link between your deposit and withdrawal
-- **Non-custodial** — your funds, your keys, your recovery phrase
-- **Multi-chain** — Ethereum, Arbitrum, Optimism (+ testnets)
-- **Privacy guardrails** — warns when deposit amounts could fingerprint you, suggests rounder alternatives
-- **Agent-ready** — structured JSON output, unsigned transaction mode, categorized errors ([AGENTS.md](AGENTS.md))
+- **Private withdrawals:** zero-knowledge proofs break the onchain link between your deposit and withdrawal
+- **Non-custodial:** your funds, your keys, your recovery phrase
+- **Multi-chain:** Ethereum, Arbitrum, Optimism (+ testnets)
+- **Privacy guardrails:** warns when deposit amounts could fingerprint you, suggests rounder alternatives
+- **Agent-ready:** structured JSON output, unsigned transaction mode, categorized errors ([AGENTS.md](AGENTS.md))
 
 ## Getting Started
 
@@ -28,7 +28,6 @@ privacy-pools pools
 │ ETH   │ 2,875          │ 823.92 ETH      │ $1,667,647 │ 0.01 ETH    │ 0.50%       │
 │ USDC  │ 351            │ 310,722 USDC    │ $310,693   │ 25 USDC     │ 0.50%       │
 │ USDT  │ 78             │ 105,544 USDT    │ $105,540   │ 25 USDT     │ 0.00%       │
-│ DAI   │ 5              │ 780 DAI         │ $780       │ 250 DAI     │ 0.00%       │
 │ ...   │                │                 │            │             │             │
 └───────┴────────────────┴─────────────────┴────────────┴─────────────┴─────────────┘
 ```
@@ -37,16 +36,16 @@ privacy-pools pools
 # 3. Deposit into a pool
 privacy-pools deposit 0.1 ETH
 
-# 4. Wait for compliance approval (most < 1 hour, up to 7 days)
+# 4. Wait for ASP approval (most < 1 hour, up to 7 days)
 privacy-pools accounts            # poll until aspStatus: "approved"
 
 # 5. Withdraw privately to any address
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 ```
 
-Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP (Association Set Provider) reviews for compliance. Once approved, you can withdraw privately through a relayer — no onchain connection to your deposit.
+Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP (Association Set Provider) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit.
 
-Need to recover funds without ASP approval? `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
+You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 
 ## Install
 
@@ -108,9 +107,9 @@ For unsigned transaction payloads, error taxonomy, and the full integration guid
 
 ## Further Reading
 
-- [docs/reference.md](docs/reference.md) — flags, configuration, environment variables, project structure
-- [AGENTS.md](AGENTS.md) — agent integration guide, JSON payloads, unsigned mode
-- [CHANGELOG.md](CHANGELOG.md) — release history and migration notes
+- [docs/reference.md](docs/reference.md): flags, configuration, environment variables, project structure
+- [AGENTS.md](AGENTS.md): agent integration guide, JSON payloads, unsigned mode
+- [CHANGELOG.md](CHANGELOG.md): release history and migration notes
 
 Supported chains: Ethereum mainnet, Arbitrum, Optimism, Sepolia, OP Sepolia.
 
