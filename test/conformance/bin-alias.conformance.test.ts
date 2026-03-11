@@ -9,6 +9,6 @@ describe("cli binary aliases", () => {
     ) as { bin?: Record<string, string> };
 
     expect(pkg.bin?.["privacy-pools"]).toBe("./dist/index.js");
-    expect(pkg.bin?.pp).toBe("./dist/index.js");
+    expect(pkg.bin?.pp).toBeUndefined();
   });
 });

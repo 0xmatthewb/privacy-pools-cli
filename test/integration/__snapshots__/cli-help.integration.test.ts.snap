@@ -30,7 +30,7 @@ Options:
   --agent              Machine-friendly mode (alias for --json --yes --quiet)
   --timeout <seconds>  Network/transaction timeout in seconds (default: 30)
   -h, --help           display help for command
-  Get started:      privacy-pools init  (or pp init)
+  Get started:      privacy-pools init
   Full guide:       privacy-pools guide
   Command help:     privacy-pools <command> --help"
 `;
@@ -151,29 +151,27 @@ Examples:
 `;
 
 exports[`CLI --help snapshots deposit --help snapshot 1`] = `
-"Usage: privacy-pools deposit [options] <amountOrAsset> [amount]
+"Usage: privacy-pools deposit [options] <amount> [asset]
 Deposit into a pool
 Arguments:
-  amountOrAsset                 Amount to deposit (or asset symbol, see
-                                examples)
-  amount                        Amount (when asset is the first argument)
+  amount                        Amount to deposit (e.g. 0.1)
+  asset                         Asset symbol (e.g. ETH, USDC)
 Options:
   -a, --asset <symbol|address>  Asset to deposit (symbol like ETH, USDC, or
                                 contract address)
-  --unsigned                    Build unsigned transaction payload(s); do not
-                                submit
-  --unsigned-format <format>    Unsigned output format (with --unsigned):
-                                envelope|tx
+  --unsigned [format]           Build unsigned payload; format: envelope
+                                (default) or tx
   --dry-run                     Validate and preview the transaction without
                                 submitting
+  --ignore-unique-amount        Bypass the non-round amount privacy check
   -h, --help                    display help for command
 Examples:
   privacy-pools deposit 0.1 ETH
+  privacy-pools deposit 100 USDC
   privacy-pools deposit 0.05 ETH --json --yes
-  privacy-pools deposit 0.05 ETH --unsigned
+  privacy-pools deposit 0.1 ETH --unsigned
   privacy-pools deposit 0.1 ETH --dry-run
-  privacy-pools deposit 0.1 ETH --chain mainnet
-  privacy-pools deposit 0.1 --asset ETH
+  privacy-pools deposit 0.1 --asset ETH --chain mainnet
 Prerequisites:
   Requires: init
 Safety notes:
@@ -185,7 +183,7 @@ Agent workflow:
 JSON output (--json):
   { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }
-  --unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]
+  --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }
 Additional modes:
   --unsigned builds transaction payloads without submitting.
@@ -193,16 +191,15 @@ Additional modes:
 `;
 
 exports[`CLI --help snapshots withdraw --help snapshot 1`] = `
-"Usage: privacy-pools withdraw [options] [command] [amountOrAsset] [amount]
+"Usage: privacy-pools withdraw [options] [command] [amount] [asset]
 Withdraw from a pool
 Arguments:
-  amountOrAsset                             Amount to withdraw (or asset symbol, see examples)
-  amount                                    Amount (when asset is the first argument)
+  amount                                    Amount to withdraw (e.g. 0.05, 50%)
+  asset                                     Asset symbol (e.g. ETH, USDC)
 Options:
   -t, --to <address>                        Recipient address (required for relayed)
   -p, --from-pa <PA-#|#>                    Withdraw from a specific Pool Account (e.g. PA-2)
-  --unsigned                                Build unsigned payload(s); do not submit
-  --unsigned-format <format>                Unsigned output format (with --unsigned): envelope|tx
+  --unsigned [format]                       Build unsigned payload; format: envelope (default) or tx
   --dry-run                                 Generate and verify withdrawal artifacts without submitting
   -a, --asset <symbol|address>              Asset to withdraw
   --all                                     Withdraw entire Pool Account balance
@@ -213,7 +210,7 @@ Commands:
   quote [options] <amountOrAsset> [amount]  Request relayer quote and limits without generating a proof
 Examples:
   privacy-pools withdraw 0.05 ETH --to 0xRecipient...
-  privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2
+  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2
   privacy-pools withdraw --all ETH --to 0xRecipient...
   privacy-pools withdraw 50% ETH --to 0xRecipient...
   privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run
@@ -228,7 +225,7 @@ JSON output (--json):
   direct: same fields but mode: "direct", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.
   quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }
-  --unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]
+  --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }
 Additional modes:
   --unsigned builds transaction payloads without submitting.
@@ -244,10 +241,8 @@ Arguments:
 Options:
   -a, --asset <symbol|address>  Asset pool to exit from
   -p, --from-pa <PA-#|#>        Ragequit a specific Pool Account (e.g. PA-2)
-  --unsigned                    Build unsigned transaction payload; do not
-                                submit
-  --unsigned-format <format>    Unsigned output format (with --unsigned):
-                                envelope|tx
+  --unsigned [format]           Build unsigned payload; format: envelope
+                                (default) or tx
   --dry-run                     Generate proof and validate without submitting
   -h, --help                    display help for command
 Use 'withdraw' to withdraw privately once your deposit is ASP-approved.
@@ -255,11 +250,10 @@ Use 'ragequit' at any time to recover funds publicly to your deposit
 address, even if not approved. No ASP approval is needed, but your
 deposit address is revealed onchain. 'exit' is an alias.
 Examples:
-  privacy-pools ragequit ETH -p PA-1
-  privacy-pools ragequit ETH --unsigned -p PA-1
-  privacy-pools ragequit ETH --dry-run -p PA-1
-  privacy-pools ragequit ETH -p PA-1 --chain mainnet
-  privacy-pools ragequit --asset ETH -p PA-1
+  privacy-pools ragequit ETH --from-pa PA-1
+  privacy-pools ragequit ETH --unsigned --from-pa PA-1
+  privacy-pools ragequit ETH --dry-run --from-pa PA-1
+  privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet
 Prerequisites:
   Requires: init (account state should be synced)
 Safety notes:
@@ -267,7 +261,7 @@ Safety notes:
 JSON output (--json):
   { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, chain, asset, amount, transactions[] }
-  --unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]
+  --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }
 Additional modes:
   --unsigned builds transaction payloads without submitting.
@@ -379,7 +373,7 @@ Arguments:
 Options:
   -s, --shell <shell>  Target shell (choices: "bash", "zsh", "fish")
   -h, --help           display help for command
-Generated scripts register both privacy-pools and pp.
+Generated scripts register the privacy-pools command.
 Examples:
   privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools
   privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools

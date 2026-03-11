@@ -43,6 +43,11 @@ import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
 import { resolveAmountAndAssetInput, isPercentageAmount } from "../utils/positional.js";
+import {
+  isRoundAmount,
+  suggestRoundAmounts,
+  formatAmountDecimal,
+} from "../utils/amount-privacy.js";
 import { printRawTransactions, stringifyBigInts, toSolidityProof } from "../utils/unsigned.js";
 import {
   buildUnsignedDirectWithdrawOutput,
@@ -88,13 +93,13 @@ export function createWithdrawCommand(): Command {
   const quoteMetadata = getCommandMetadata("withdraw quote");
   const command = new Command("withdraw")
     .description(metadata.description)
-    .argument("[amountOrAsset]", "Amount to withdraw (or asset symbol, see examples)")
-    .argument("[amount]", "Amount (when asset is the first argument)")
+    .argument("[amount]", "Amount to withdraw (e.g. 0.05, 50%)")
+    .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
     .option("-p, --from-pa <PA-#|#>", "Withdraw from a specific Pool Account (e.g. PA-2)")
     .addOption(new Option("--direct", "Use direct withdrawal (not privacy-preserving)").hideHelp())
-    .option("--unsigned", "Build unsigned payload(s); do not submit")
-    .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
+    .option("--unsigned [format]", "Build unsigned payload; format: envelope (default) or tx")
+    .addOption(new Option("--unsigned-format <format>", "Deprecated: use --unsigned [format]").hideHelp())
     .option("--dry-run", "Generate and verify withdrawal artifacts without submitting")
     .option("-a, --asset <symbol|address>", "Asset to withdraw")
     .option("--all", "Withdraw entire Pool Account balance")
@@ -106,8 +111,9 @@ export function createWithdrawCommand(): Command {
       const mode = resolveGlobalMode(globalOpts);
       const isJson = mode.isJson;
       const isQuiet = mode.isQuiet;
-      const isUnsigned = opts.unsigned ?? false;
-      const unsignedFormat = (opts.unsignedFormat as string | undefined)?.toLowerCase();
+      const unsignedRaw = opts.unsigned;
+      const isUnsigned = unsignedRaw === true || typeof unsignedRaw === "string";
+      const unsignedFormat = typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
       const wantsTxFormat = unsignedFormat === "tx";
       const isDryRun = opts.dryRun ?? false;
       const silent = isQuiet || isJson || isUnsigned || isDryRun;
@@ -127,19 +133,19 @@ export function createWithdrawCommand(): Command {
           );
         }
 
-        if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
+        if (opts.unsignedFormat !== undefined) {
           throw new CLIError(
-            `Unsupported unsigned format: ${opts.unsignedFormat}.`,
+            "--unsigned-format has been replaced by --unsigned [format].",
             "INPUT",
-            "Use --unsigned-format envelope or --unsigned-format tx."
+            `Use: privacy-pools withdraw ... --unsigned ${opts.unsignedFormat ?? "envelope"}`
           );
         }
 
-        if (unsignedFormat && !isUnsigned) {
+        if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
           throw new CLIError(
-            "--unsigned-format requires --unsigned.",
+            `Unsupported unsigned format: "${unsignedFormat}".`,
             "INPUT",
-            "Use: privacy-pools withdraw ... --unsigned --unsigned-format " + (unsignedFormat || "envelope")
+            "Use --unsigned envelope or --unsigned tx."
           );
         }
 
@@ -172,8 +178,9 @@ export function createWithdrawCommand(): Command {
           positionalOrFlagAsset = opts.asset ?? firstArg;
           if (!positionalOrFlagAsset) {
             throw new CLIError(
-              "--all requires an asset. Use 'withdraw <asset> --all' or '--all --asset <symbol>'.",
-              "INPUT"
+              "--all requires an asset. Use 'withdraw --all ETH --to <address>' or '--all --asset <symbol>'.",
+              "INPUT",
+              "Run 'privacy-pools pools' to see available assets."
             );
           }
           amountStr = "";
@@ -182,7 +189,7 @@ export function createWithdrawCommand(): Command {
             throw new CLIError(
               "Missing amount. Specify an amount or use --all.",
               "INPUT",
-              "Example: privacy-pools withdraw ETH 0.05 --to 0x... or privacy-pools withdraw ETH --all --to 0x..."
+              "Example: privacy-pools withdraw 0.05 ETH --to 0x... or privacy-pools withdraw --all --asset ETH --to 0x..."
             );
           }
           const resolved = resolveAmountAndAssetInput("withdraw", firstArg, secondArg, opts.asset);
@@ -452,7 +459,7 @@ export function createWithdrawCommand(): Command {
           throw new CLIError(
             `No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
             "INPUT",
-            `No available Pool Accounts found for ${pool.symbol}.`
+            `No approved Pool Accounts found for ${pool.symbol}. Check 'privacy-pools accounts' for pending approvals or deposit first.`
           );
         }
 
@@ -552,6 +559,26 @@ export function createWithdrawCommand(): Command {
           isVerbose,
           silent
         );
+
+        // Privacy hint: warn about non-round withdrawal amounts (non-blocking)
+        if (!isRoundAmount(withdrawalAmount, pool.decimals, pool.symbol)) {
+          const humanAmount = formatAmountDecimal(withdrawalAmount, pool.decimals);
+          const isFullBalance = withdrawalAmount === selectedPoolAccount.value;
+
+          if (isFullBalance) {
+            // Withdrawing full non-round balance links deposit to withdrawal
+            process.stderr.write(
+              `Tip: withdrawing the full ${humanAmount} ${pool.symbol} links this withdrawal to your deposit. Consider round partial withdrawals (e.g., ${suggestRoundAmounts(withdrawalAmount, pool.decimals, pool.symbol).slice(0, 2).map((s) => `${formatAmountDecimal(s, pool.decimals)} ${pool.symbol}`).join(" + ") || "smaller round amounts"}) for better privacy.\n`
+            );
+          } else {
+            const suggestions = suggestRoundAmounts(withdrawalAmount, pool.decimals, pool.symbol);
+            if (suggestions.length > 0) {
+              process.stderr.write(
+                `Tip: ${humanAmount} ${pool.symbol} may be identifiable. Consider ${suggestions.map((s) => `${formatAmountDecimal(s, pool.decimals)}`).join(" or ")} ${pool.symbol} for better privacy.\n`
+              );
+            }
+          }
+        }
 
         // Anonymity set info (non-fatal)
         let anonymitySet: { eligible: number; total: number; percentage: number } | undefined;

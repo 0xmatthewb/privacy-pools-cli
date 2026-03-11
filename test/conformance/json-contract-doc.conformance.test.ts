@@ -5,7 +5,7 @@ import { EXIT_CODES } from "../../src/utils/errors.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 const CONTRACT_DOC_PATH =
-  `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.1.0.json`;
+  `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.2.0.json`;
 
 interface ContractDoc {
   version: string;
@@ -21,7 +21,7 @@ interface ContractDoc {
 describe("external JSON contract doc conformance", () => {
   test("doc version is explicit and aligned with runtime schema version", () => {
     const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
-    expect(doc.version).toBe("1.1.0");
+    expect(doc.version).toBe("1.2.0");
     expect(doc.schemaVersion).toBe(JSON_SCHEMA_VERSION);
   });
 

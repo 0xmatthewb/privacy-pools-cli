@@ -193,7 +193,7 @@ describe("command metadata conformance", () => {
     expect(normalizedSection).toContain("category");
     expect(normalizedSection).toContain("hint");
     expect(normalizedSection).toContain("retryable");
-    expect(normalizedSection).toContain("Exception: --unsigned-format tx emits a raw transaction array without the envelope.");
+    expect(normalizedSection).toContain("Exception: --unsigned tx emits a raw transaction array without the envelope.");
   });
 
   test("skill reference accounts section documents unknown ASP status", () => {

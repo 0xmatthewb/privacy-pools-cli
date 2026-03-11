@@ -1,4 +1,4 @@
-export const JSON_SCHEMA_VERSION = "1.1.0";
+export const JSON_SCHEMA_VERSION = "1.2.0";
 
 /** Safety-net replacer: converts any BigInt to string so JSON.stringify never throws. */
 function bigintReplacer(_key: string, value: unknown): unknown {

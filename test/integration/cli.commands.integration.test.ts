@@ -829,7 +829,7 @@ describe("CLI command integration", () => {
     expect(json.errorMessage.toLowerCase()).toContain("unknown command");
   });
 
-  test("--unsigned-format tx requires --unsigned (agent mode)", () => {
+  test("--unsigned-format returns migration INPUT error (agent mode)", () => {
     const result = runCli(
       ["--agent", "deposit", "0.1", "--asset", "ETH", "--unsigned-format", "tx"],
       { home: createTempHome() }
@@ -846,7 +846,7 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.category).toBe("INPUT");
-    expect(json.errorMessage).toContain("--unsigned-format requires --unsigned");
+    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
   });
 
   test("machine-mode help subcommand returns JSON envelope", () => {

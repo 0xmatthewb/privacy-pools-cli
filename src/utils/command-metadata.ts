@@ -304,18 +304,18 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools deposit 0.1 ETH",
+        "privacy-pools deposit 100 USDC",
         "privacy-pools deposit 0.05 ETH --json --yes",
-        "privacy-pools deposit 0.05 ETH --unsigned",
+        "privacy-pools deposit 0.1 ETH --unsigned",
         "privacy-pools deposit 0.1 ETH --dry-run",
-        "privacy-pools deposit 0.1 ETH --chain mainnet",
-        "privacy-pools deposit 0.1 --asset ETH",
+        "privacy-pools deposit 0.1 --asset ETH --chain mainnet",
       ],
       prerequisites: "init",
       jsonFields:
         "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
-        "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }",
       ],
       safetyNotes: [
@@ -333,9 +333,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       usage: "deposit <amount> --asset <symbol|address>",
       flags: [
         "--asset <symbol|address>",
-        "--unsigned",
-        "--unsigned-format <envelope|tx>",
+        "--unsigned [envelope|tx]",
         "--dry-run",
+        "--ignore-unique-amount",
       ],
       agentFlags: "--json --yes",
       requiresInit: true,
@@ -349,7 +349,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2",
+        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2",
         "privacy-pools withdraw --all ETH --to 0xRecipient...",
         "privacy-pools withdraw 50% ETH --to 0xRecipient...",
         "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
@@ -366,7 +366,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "direct: same fields but mode: \"direct\", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
-        "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
         "--dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
       ],
       supportsUnsigned: true,
@@ -382,8 +382,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--direct",
         "--extra-gas",
         "--no-extra-gas",
-        "--unsigned",
-        "--unsigned-format <envelope|tx>",
+        "--unsigned [envelope|tx]",
         "--dry-run",
       ],
       agentFlags: "--json --yes",
@@ -428,11 +427,10 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "deposit address is revealed onchain. 'exit' is an alias.",
       ],
       examples: [
-        "privacy-pools ragequit ETH -p PA-1",
-        "privacy-pools ragequit ETH --unsigned -p PA-1",
-        "privacy-pools ragequit ETH --dry-run -p PA-1",
-        "privacy-pools ragequit ETH -p PA-1 --chain mainnet",
-        "privacy-pools ragequit --asset ETH -p PA-1",
+        "privacy-pools ragequit ETH --from-pa PA-1",
+        "privacy-pools ragequit ETH --unsigned --from-pa PA-1",
+        "privacy-pools ragequit ETH --dry-run --from-pa PA-1",
+        "privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet",
       ],
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
@@ -442,7 +440,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
-        "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }",
       ],
       supportsUnsigned: true,
@@ -453,8 +451,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       flags: [
         "--asset <symbol|address>",
         "--from-pa <PA-#>",
-        "--unsigned",
-        "--unsigned-format <envelope|tx>",
+        "--unsigned [envelope|tx]",
         "--dry-run",
       ],
       agentFlags: "--json --yes",
@@ -543,7 +540,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     description: "Generate shell completion script",
     help: {
       overview: [
-        "Generated scripts register both privacy-pools and pp.",
+        "Generated scripts register the privacy-pools command.",
       ],
       examples: [
         "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
@@ -615,7 +612,7 @@ const AGENT_NOTES: Record<string, string> = {
   firstRun:
     "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
   unsignedMode:
-    "--unsigned builds transaction payloads without signing or submitting. Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
@@ -645,7 +642,7 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
     txFormat:
       "[{ to, data, value, valueHex, chainId }]: raw array, no envelope wrapper. Intended for direct piping to signing tools.",
     note:
-      "Default --unsigned emits the envelope format. Use --unsigned-format tx for raw transaction array only.",
+      "Default --unsigned emits the envelope format. Use --unsigned tx for raw transaction array only.",
   },
   nextActions: {
     shape:
@@ -773,6 +770,6 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       .filter((path) => COMMAND_METADATA[path].safeReadOnly)
       .map((path) => path),
     jsonOutputContract:
-      "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned-format tx emits a raw transaction array without the envelope.",
+      "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   };
 }

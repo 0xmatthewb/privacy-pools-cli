@@ -444,7 +444,7 @@ describe("--unsigned error envelopes", () => {
     expect(json.error.category).toBe("INPUT");
   });
 
-  test("--unsigned-format without --unsigned: INPUT error", () => {
+  test("--unsigned-format returns migration INPUT error", () => {
     const home = seededHome();
     const result = runCli(
       ["--json", "deposit", "0.1", "--asset", "ETH", "--unsigned-format", "tx"],
@@ -457,7 +457,7 @@ describe("--unsigned error envelopes", () => {
       errorMessage: string;
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.errorMessage).toContain("--unsigned-format requires --unsigned");
+    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
   });
 });
 

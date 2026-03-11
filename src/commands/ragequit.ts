@@ -62,8 +62,8 @@ export function createRagequitCommand(): Command {
       new Option("-i, --commitment <index>", "Deprecated: 0-based spendable commitment index (use --from-pa)")
         .hideHelp()
     )
-    .option("--unsigned", "Build unsigned transaction payload; do not submit")
-    .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
+    .option("--unsigned [format]", "Build unsigned payload; format: envelope (default) or tx")
+    .addOption(new Option("--unsigned-format <format>", "Deprecated: use --unsigned [format]").hideHelp())
     .option("--dry-run", "Generate proof and validate without submitting")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (assetArg, opts, cmd) => {
@@ -71,8 +71,9 @@ export function createRagequitCommand(): Command {
       const mode = resolveGlobalMode(globalOpts);
       const isJson = mode.isJson;
       const isQuiet = mode.isQuiet;
-      const isUnsigned = opts.unsigned ?? false;
-      const unsignedFormat = (opts.unsignedFormat as string | undefined)?.toLowerCase();
+      const unsignedRaw = opts.unsigned;
+      const isUnsigned = unsignedRaw === true || typeof unsignedRaw === "string";
+      const unsignedFormat = typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
       const wantsTxFormat = unsignedFormat === "tx";
       const isDryRun = opts.dryRun ?? false;
       const silent = isQuiet || isJson || isUnsigned || isDryRun;
@@ -99,19 +100,19 @@ export function createRagequitCommand(): Command {
           );
         }
 
-        if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
+        if (opts.unsignedFormat !== undefined) {
           throw new CLIError(
-            `Unsupported unsigned format: ${opts.unsignedFormat}.`,
+            "--unsigned-format has been replaced by --unsigned [format].",
             "INPUT",
-            "Use --unsigned-format envelope or --unsigned-format tx."
+            `Use: privacy-pools ragequit ... --unsigned ${opts.unsignedFormat ?? "envelope"}`
           );
         }
 
-        if (unsignedFormat && !isUnsigned) {
+        if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
           throw new CLIError(
-            "--unsigned-format requires --unsigned.",
+            `Unsupported unsigned format: "${unsignedFormat}".`,
             "INPUT",
-            "Use: privacy-pools ragequit ... --unsigned --unsigned-format " + (unsignedFormat || "envelope")
+            "Use --unsigned envelope or --unsigned tx."
           );
         }
 

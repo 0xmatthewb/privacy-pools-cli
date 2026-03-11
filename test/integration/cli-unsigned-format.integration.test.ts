@@ -6,25 +6,26 @@ const OFFLINE_POOL_ENV = {
   PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
 };
 
-describe("--unsigned-format tx output normalization", () => {
-  test("deposit --unsigned-format tx is accepted and fails at pool resolution (ASP+RPC offline)", () => {
+describe("--unsigned-format migration error", () => {
+  test("deposit --unsigned-format returns INPUT migration error", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    // With KNOWN_POOLS fallback, CLI tries ASP → KNOWN_POOLS → RPC (both offline)
-    expect(result.status).toBe(3);
+    expect(result.status).toBe(2);
     const json = parseJsonOutput<{
       success: boolean;
+      errorMessage: string;
       error?: { category: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("RPC");
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
   });
 
-  test("withdraw --unsigned-format tx is accepted and fails at pool resolution (ASP+RPC offline)", () => {
+  test("withdraw --unsigned-format returns INPUT migration error", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
@@ -45,22 +46,45 @@ describe("--unsigned-format tx output normalization", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(3);
+    expect(result.status).toBe(2);
     const json = parseJsonOutput<{
       success: boolean;
+      errorMessage: string;
       error?: { category: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("RPC");
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
   });
 
-  test("ragequit --unsigned-format tx is accepted and fails at pool resolution (ASP+RPC offline)", () => {
+  test("ragequit --unsigned-format returns INPUT migration error", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
+    expect(result.status).toBe(2);
+    const json = parseJsonOutput<{
+      success: boolean;
+      errorMessage: string;
+      error?: { category: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
+  });
+});
+
+describe("--unsigned tx format", () => {
+  test("deposit --unsigned tx fails at pool resolution (not at flag parsing)", () => {
+    const home = createTempHome();
+    mustInitSeededHome(home, "sepolia");
+    const result = runCli(
+      ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "tx", "--chain", "sepolia"],
+      { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
+    );
+    // With KNOWN_POOLS fallback, CLI tries ASP → KNOWN_POOLS → RPC (both offline)
     expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
@@ -81,7 +105,7 @@ describe("--json output includes operation field", () => {
     );
     expect(result.stdout.trim()).not.toBe("");
     const parsed = parseJsonOutput<{ schemaVersion?: string; success?: boolean }>(result.stdout);
-    expect(parsed.schemaVersion).toBe("1.1.0");
+    expect(parsed.schemaVersion).toBe("1.2.0");
     expect(typeof parsed.success).toBe("boolean");
   });
 });
