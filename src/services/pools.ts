@@ -316,8 +316,16 @@ export async function listPools(
       })
     );
 
+    // Deduplicate by pool address to avoid wasting RPC calls on duplicates
+    const seenPools = new Set<string>();
     for (const result of results) {
-      if (result !== null) pools.push(result);
+      if (result !== null) {
+        const key = result.pool.toLowerCase();
+        if (!seenPools.has(key)) {
+          seenPools.add(key);
+          pools.push(result);
+        }
+      }
     }
 
     if (pools.length === 0 && rpcReadFailures > 0) {
