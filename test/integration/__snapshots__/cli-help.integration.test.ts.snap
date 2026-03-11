@@ -165,6 +165,9 @@ Options:
                                 submitting
   --ignore-unique-amount        Bypass the non-round amount privacy check
   -h, --help                    display help for command
+Deposits funds into a Privacy Pool. A ZK proof is generated locally
+and the transaction is submitted onchain. The first run may download
+circuit files (~30s). Subsequent runs typically complete in 10-30s.
 Examples:
   privacy-pools deposit 0.1 ETH
   privacy-pools deposit 100 USDC
@@ -208,6 +211,9 @@ Options:
   -h, --help                                display help for command
 Commands:
   quote [options] <amountOrAsset> [amount]  Request relayer quote and limits without generating a proof
+Withdraws funds from a Privacy Pool. Generates a ZK proof locally and
+submits via relayer (default, private) or directly onchain (--direct).
+Proof generation may take 10-30s. Use 'withdraw quote' to check fees first.
 Examples:
   privacy-pools withdraw 0.05 ETH --to 0xRecipient...
   privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2
