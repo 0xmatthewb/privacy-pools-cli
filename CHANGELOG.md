@@ -4,6 +4,32 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.2.0] - 2026-03-10
+
+### Breaking
+
+- Removed `pp` binary alias. Use `privacy-pools` (power users can `alias pp=privacy-pools`).
+- Replaced `--unsigned-format <format>` with `--unsigned [format]`. Legacy `--unsigned-format` now returns a targeted INPUT migration error explaining the new syntax.
+
+### Added
+
+- **Privacy guard:** Non-round deposit amounts now warn (interactive) or error (agent mode) by default. Pass `--ignore-unique-amount` to bypass. Stablecoins require whole numbers; volatile assets allow up to 2 decimal places.
+- **Withdraw hints:** Non-round withdrawal amounts emit a non-blocking privacy tip on stderr suggesting nearby round alternatives.
+- Docs now standardize on `privacy-pools` with long flags and amount-first positional syntax.
+
+### Changed
+
+- `--unsigned` now accepts an optional format argument: `--unsigned` (envelope, default) or `--unsigned tx` (raw transaction array).
+- Command argument descriptions updated to reflect canonical `<amount> <asset>` ordering.
+- Deposit, withdraw, and ragequit examples across all surfaces updated to use canonical forms.
+
+### Migration
+
+- `pp` → `privacy-pools` (or add `alias pp=privacy-pools` to your shell profile)
+- `--unsigned --unsigned-format tx` → `--unsigned tx`
+- `--unsigned --unsigned-format envelope` → `--unsigned` (envelope is the default)
+- Agent integrations: non-round deposit amounts now require `--ignore-unique-amount` flag
+
 ## [1.1.0] - 2026-03-10
 
 ### Changed
@@ -15,7 +41,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 ### Fixed
 
 - Cleaned `dist` before build and package steps and blocked stale compiled artifacts from shipping.
-- Fixed shell completion for both `privacy-pools` and `pp`.
+- Fixed shell completion for `privacy-pools`.
 - Tightened renderer, contract-doc, and drift coverage to catch output and packaging regressions earlier.
 
 ### Verification

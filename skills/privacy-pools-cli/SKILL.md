@@ -14,7 +14,7 @@ permissions:
   - shell:exec
 triggers:
   - command: /privacy-pools
-  - command: /pp
+  - command: /privacy-pools
   - pattern: privacy pools
   - pattern: privacy pool deposit
   - pattern: privacy pool withdraw
@@ -30,34 +30,34 @@ triggers:
 
 SDK-powered CLI for [Privacy Pools v1](https://privacypools.com) — compliant, private transactions on Ethereum, Arbitrum, and Optimism.
 
-Package: `privacy-pools-cli` on npm. Binaries: `privacy-pools` (full) or `pp` (alias).
+Package: `privacy-pools-cli` on npm. Binary: `privacy-pools`.
 
 ## Quick reference
 
 | Action | CLI (agent-friendly) | Notes |
 |--------|---------------------|-------|
-| Browse pools | `pp pools --agent` | No wallet needed |
-| Global stats | `pp stats global --agent` | No wallet needed; `--chain` not supported |
-| Pool stats | `pp stats pool --asset ETH --agent` | No wallet needed |
-| Activity feed | `pp activity --agent` | No wallet needed |
-| Check status | `pp status --agent --check` | No wallet needed |
-| Discover capabilities | `pp capabilities --agent` | No wallet needed |
-| Describe one command | `pp describe withdraw quote --agent` | No wallet needed |
-| Initialize wallet | `pp init --agent --default-chain mainnet` | One-time setup |
-| Deposit ETH | `pp deposit 0.1 ETH --agent` | Requires init |
-| Deposit (unsigned) | `pp deposit 0.1 ETH --unsigned --agent` | No signer key needed |
-| Check accounts | `pp accounts --agent` | Poll for aspStatus; includes balances |
-| Compact account poll | `pp accounts --agent --summary` | Counts + balances only |
-| Pending-only poll | `pp accounts --agent --pending-only` | Pending approvals only |
-| Withdraw (relayed) | `pp withdraw 0.05 ETH --to 0x... --agent` | Requires init |
-| Withdraw all | `pp withdraw --all ETH --to 0x... --agent` | Full PA balance |
-| Withdraw (unsigned) | `pp withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
-| Withdrawal quote | `pp withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
-| Pool detail | `pp pools ETH --agent` | Combined stats + my funds |
-| Ragequit (exit alias) | `pp ragequit ETH --from-pa PA-1 --agent` | Emergency public exit |
-| Dry-run | `pp deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
-| Event history | `pp history --agent` | Requires init |
-| Force sync | `pp sync --agent` | Rarely needed (auto-sync with 2min TTL) |
+| Browse pools | `privacy-poolspools --agent` | No wallet needed |
+| Global stats | `privacy-poolsstats global --agent` | No wallet needed; `--chain` not supported |
+| Pool stats | `privacy-poolsstats pool --asset ETH --agent` | No wallet needed |
+| Activity feed | `privacy-poolsactivity --agent` | No wallet needed |
+| Check status | `privacy-poolsstatus --agent --check` | No wallet needed |
+| Discover capabilities | `privacy-poolscapabilities --agent` | No wallet needed |
+| Describe one command | `privacy-poolsdescribe withdraw quote --agent` | No wallet needed |
+| Initialize wallet | `privacy-poolsinit --agent --default-chain mainnet` | One-time setup |
+| Deposit ETH | `privacy-poolsdeposit 0.1 ETH --agent` | Requires init |
+| Deposit (unsigned) | `privacy-poolsdeposit 0.1 ETH --unsigned --agent` | No signer key needed |
+| Check accounts | `privacy-poolsaccounts --agent` | Poll for aspStatus; includes balances |
+| Compact account poll | `privacy-poolsaccounts --agent --summary` | Counts + balances only |
+| Pending-only poll | `privacy-poolsaccounts --agent --pending-only` | Pending approvals only |
+| Withdraw (relayed) | `privacy-poolswithdraw 0.05 ETH --to 0x... --agent` | Requires init |
+| Withdraw all | `privacy-poolswithdraw --all ETH --to 0x... --agent` | Full PA balance |
+| Withdraw (unsigned) | `privacy-poolswithdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
+| Withdrawal quote | `privacy-poolswithdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
+| Pool detail | `privacy-poolspools ETH --agent` | Combined stats + my funds |
+| Ragequit (exit alias) | `privacy-poolsragequit ETH --from-pa PA-1 --agent` | Emergency public exit |
+| Dry-run | `privacy-poolsdeposit 0.1 ETH --dry-run --agent` | Validate without submitting |
+| Event history | `privacy-poolshistory --agent` | Requires init |
+| Force sync | `privacy-poolssync --agent` | Rarely needed (auto-sync with 2min TTL) |
 
 ---
 
@@ -78,14 +78,14 @@ All commands also accept `--json`, `--yes`, and `--quiet` individually.
 Every response when `--json` or `--agent` is set:
 
 ```json
-{ "schemaVersion": "1.1.0", "success": true, ...payload }
+{ "schemaVersion": "1.2.0", "success": true, ...payload }
 ```
 
 Errors:
 
 ```json
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -112,12 +112,12 @@ For custodial signers, multisigs, MPC wallets, or agents like Bankr that manage 
 ### Envelope format (default)
 
 ```bash
-pp deposit 0.1 ETH --unsigned --agent
+privacy-poolsdeposit 0.1 ETH --unsigned --agent
 ```
 
 ```json
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -141,7 +141,7 @@ pp deposit 0.1 ETH --unsigned --agent
 ### Raw tx format (signer-compatible)
 
 ```bash
-pp deposit 0.1 ETH --unsigned --unsigned-format tx --agent
+privacy-pools deposit 0.1 ETH --unsigned tx --agent
 ```
 
 ```json
@@ -194,7 +194,7 @@ The CLI builds transaction payloads but does **not** sign or submit in `--unsign
 After submission, verify the deposit landed:
 
 ```bash
-pp accounts --agent  # poll until new Pool Account appears
+privacy-poolsaccounts --agent  # poll until new Pool Account appears
 ```
 
 ---
@@ -204,9 +204,9 @@ pp accounts --agent  # poll until new Pool Account appears
 Validate inputs, check balances, and preview transaction details without submitting:
 
 ```bash
-pp deposit 0.1 ETH --dry-run --agent
-pp withdraw 0.05 ETH --to 0x... --dry-run --agent
-pp ragequit ETH --from-pa PA-1 --dry-run --agent
+privacy-poolsdeposit 0.1 ETH --dry-run --agent
+privacy-poolswithdraw 0.05 ETH --to 0x... --dry-run --agent
+privacy-poolsragequit ETH --from-pa PA-1 --dry-run --agent
 ```
 
 Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `ragequit` (alias: `exit`).
@@ -248,16 +248,16 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 ## 8. Agent workflow
 
 ```
-1. pp capabilities --agent                                    # Discover all commands
-2. pp describe deposit --agent                                # Inspect one command if needed
-3. pp pools --agent                                           # Browse available pools (check minimumDeposit)
-4. pp init --agent --default-chain mainnet                     # Initialize (once)
-5. pp deposit 0.1 ETH --agent                                 # Deposit (must be >= minimumDeposit)
-6. pp accounts --agent --pending-only                         # Poll until aspStatus: "approved"
-7. pp withdraw 0.1 ETH --to <addr> --agent                    # Withdraw
+1. privacy-poolscapabilities --agent                                    # Discover all commands
+2. privacy-poolsdescribe deposit --agent                                # Inspect one command if needed
+3. privacy-poolspools --agent                                           # Browse available pools (check minimumDeposit)
+4. privacy-poolsinit --agent --default-chain mainnet                     # Initialize (once)
+5. privacy-poolsdeposit 0.1 ETH --agent                                 # Deposit (must be >= minimumDeposit)
+6. privacy-poolsaccounts --agent --pending-only                         # Poll until aspStatus: "approved"
+7. privacy-poolswithdraw 0.1 ETH --to <addr> --agent                    # Withdraw
 ```
 
-**Before depositing**, check the `minimumDeposit` field from `pp pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change — always query at runtime rather than hard-coding.
+**Before depositing**, check the `minimumDeposit` field from `privacy-poolspools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change — always query at runtime rather than hard-coding.
 
 ---
 
@@ -269,7 +269,7 @@ Exit codes: 0 (success), 1 (unknown), 2 (input), 3 (RPC), 4 (ASP), 5 (relayer), 
 
 Retryable errors include `retryable: true`. Recommended retry strategy:
 - `RPC_NETWORK_ERROR` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
-- `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `pp sync --agent` first, then retry
+- `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-poolssync --agent` first, then retry
 - `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
 
 ---
@@ -307,4 +307,4 @@ Retryable errors include `retryable: true`. Recommended retry strategy:
 
 For the full command reference with JSON payload shapes, see [reference.md](reference.md).
 
-For runtime discovery, call `pp capabilities --agent` to receive a machine-readable manifest, then `pp describe <command...> --agent` when you need the detailed runtime contract for one command path.
+For runtime discovery, call `privacy-poolscapabilities --agent` to receive a machine-readable manifest, then `privacy-poolsdescribe <command...> --agent` when you need the detailed runtime contract for one command path.

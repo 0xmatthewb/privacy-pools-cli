@@ -37,8 +37,8 @@ privacy-pools withdraw 0.1 ETH --to 0xRecipient --agent
 **JSON envelope**: Every response follows the schema:
 
 ```
-{ "schemaVersion": "1.1.0", "success": true, ...payload }
-{ "schemaVersion": "1.1.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
+{ "schemaVersion": "1.2.0", "success": true, ...payload }
+{ "schemaVersion": "1.2.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
 Parse `success` first. On failure, read `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
@@ -221,7 +221,6 @@ Deposit ETH or ERC-20 tokens into a Privacy Pool.
 
 ```bash
 privacy-pools deposit 0.1 ETH --agent
-privacy-pools deposit ETH 0.1 --agent       # asset-first syntax also works
 ```
 
 JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }`
@@ -367,7 +366,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -391,7 +390,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 ### Raw tx format
 
 ```bash
-privacy-pools deposit 0.1 ETH --unsigned --unsigned-format tx --agent
+privacy-pools deposit 0.1 ETH --unsigned tx --agent
 ```
 
 ```json

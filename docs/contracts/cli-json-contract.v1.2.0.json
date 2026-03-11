@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "1.1.0",
-  "schemaVersion": "1.1.0",
+  "version": "1.2.0",
+  "schemaVersion": "1.2.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {
@@ -167,7 +167,7 @@
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction[]"
+          "--unsigned tx": "RawUnsignedTransaction[]"
         }
       }
     },
@@ -242,7 +242,7 @@
           "relayerRequest": "object"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction[]"
+          "--unsigned tx": "RawUnsignedTransaction[]"
         }
       },
       "subcommands": {
@@ -308,7 +308,7 @@
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction[]"
+          "--unsigned tx": "RawUnsignedTransaction[]"
         }
       }
     },
