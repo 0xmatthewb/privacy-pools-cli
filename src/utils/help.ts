@@ -338,6 +338,11 @@ export function guideText(): string {
     "  commands, schemas, supported chains, error codes, and the recommended workflow.",
     `  Use ${accent("privacy-pools describe <command...> --json")} to inspect one command at runtime.`,
     "",
+    chalk.bold("Further Reading"),
+    `  ${accent("docs/reference.md")}   Flags, configuration, environment variables, project structure`,
+    `  ${accent("AGENTS.md")}           Agent integration guide, JSON payloads, unsigned mode`,
+    `  ${accent("CHANGELOG.md")}        Release history and migration notes`,
+    "",
     chalk.dim("  Run privacy-pools <command> --help for command-specific details."),
   ].join("\n");
 }

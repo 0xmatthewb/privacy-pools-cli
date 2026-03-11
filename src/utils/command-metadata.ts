@@ -771,5 +771,10 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       .map((path) => path),
     jsonOutputContract:
       "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+    documentation: {
+      reference: "docs/reference.md",
+      agentGuide: "AGENTS.md",
+      changelog: "CHANGELOG.md",
+    },
   };
 }

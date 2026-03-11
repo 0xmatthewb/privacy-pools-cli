@@ -1,8 +1,8 @@
 # Agent Integration Guide
 
-This document is for AI agents, bots, and programmatic consumers of the Privacy Pools CLI. For human users, see `privacy-pools guide`.
+This document is for AI agents, bots, and programmatic consumers of the Privacy Pools CLI. For human users, see [`README.md`](README.md) or run `privacy-pools guide`.
 
-For release history and user-facing changes between versions, see [`CHANGELOG.md`](CHANGELOG.md).
+For flags, configuration, and environment variables, see [`docs/reference.md`](docs/reference.md). For release history, see [`CHANGELOG.md`](CHANGELOG.md).
 
 > **Skill files**: For Bankr, Claude Code, and other skill-aware agents, see [`skills/privacy-pools-cli/SKILL.md`](skills/privacy-pools-cli/SKILL.md) and [`skills/privacy-pools-cli/reference.md`](skills/privacy-pools-cli/reference.md).
 

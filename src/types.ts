@@ -82,6 +82,11 @@ export interface CapabilitiesPayload {
   supportedChains?: Array<{ name: string; chainId: number; testnet: boolean }>;
   jsonOutputContract: string;
   safeReadOnlyCommands?: string[];
+  documentation?: {
+    reference: string;
+    agentGuide: string;
+    changelog: string;
+  };
 }
 
 export interface PoolStats {
