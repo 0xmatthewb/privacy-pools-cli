@@ -1,6 +1,6 @@
 # Privacy Pools CLI
 
-Private transactions on Ethereum, from your terminal. Deposit into a pool, wait for compliance approval, withdraw to any address — no onchain link between deposit and withdrawal.
+Private transactions on Ethereum, from your terminal. Deposit into a pool, wait for compliance approval, withdraw to any address — no onchain link between deposit and withdrawal. Your keys, your funds, the protocol handles the rest.
 
 > [!CAUTION]
 > Experimental software. Start small. For larger amounts, use [privacypools.com](https://privacypools.com).
