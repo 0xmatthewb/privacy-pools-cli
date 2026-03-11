@@ -4,9 +4,11 @@ import {
   checkLiveness,
   fetchApprovedLabels,
   fetchDepositsLargerThan,
+  fetchGlobalStatistics,
   fetchMerkleLeaves,
   fetchMerkleRoots,
   fetchPoolsStats,
+  overrideAspRetryWaitForTests,
 } from "../../src/services/asp.ts";
 
 const chain = CHAINS.mainnet;
@@ -14,11 +16,12 @@ const originalFetch = globalThis.fetch;
 
 describe("asp service", () => {
   beforeEach(() => {
-    // no-op
+    overrideAspRetryWaitForTests(async () => {});
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    overrideAspRetryWaitForTests();
     mock.restore();
   });
 
@@ -124,14 +127,17 @@ describe("asp service", () => {
   });
 
   test("maps 400 errors to ASP category with version/sync hint", async () => {
-    globalThis.fetch = mock(() =>
-      Promise.resolve(new Response("{}", { status: 400, statusText: "Bad Request" }))
-    ) as typeof fetch;
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount += 1;
+      return Promise.resolve(new Response("{}", { status: 400, statusText: "Bad Request" }));
+    }) as typeof fetch;
 
     await expect(fetchMerkleRoots(chain, 1n)).rejects.toMatchObject({
       category: "ASP",
       hint: expect.stringContaining("out of date"),
     });
+    expect(callCount).toBe(1);
   });
 
   test("maps 404 errors to ASP category", async () => {
@@ -146,18 +152,121 @@ describe("asp service", () => {
   });
 
   test("maps 429 errors to ASP category with retry hint", async () => {
-    globalThis.fetch = mock(() =>
-      Promise.resolve(new Response("{}", { status: 429, statusText: "Too Many Requests" }))
-    ) as typeof fetch;
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount += 1;
+      return Promise.resolve(new Response("{}", { status: 429, statusText: "Too Many Requests" }));
+    }) as typeof fetch;
 
     await expect(fetchMerkleLeaves(chain, 1n)).rejects.toMatchObject({
       category: "ASP",
       hint: expect.stringContaining("Wait a moment"),
     });
+    expect(callCount).toBe(1);
   });
 
   test("checkLiveness returns false on fetch failure", async () => {
     globalThis.fetch = mock(() => Promise.reject(new Error("network down"))) as typeof fetch;
     await expect(checkLiveness(chain)).resolves.toBe(false);
+  });
+
+  test("retries on 5xx errors and eventually succeeds", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount += 1;
+      if (callCount < 3) {
+        return Promise.resolve(new Response("{}", { status: 500 }));
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            mtRoot: "1",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            onchainMtRoot: "1",
+            aspLeaves: [],
+            stateTreeLeaves: [],
+          }),
+          { status: 200 }
+        )
+      );
+    }) as typeof fetch;
+
+    const result = await fetchMerkleRoots(chain, 1n);
+    expect(result).toHaveProperty("mtRoot");
+    expect(callCount).toBe(3);
+  });
+
+  test("retries on network errors and eventually succeeds", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount += 1;
+      if (callCount < 2) {
+        return Promise.reject(new Error("fetch failed: ECONNREFUSED"));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ pools: [] }), { status: 200 })
+      );
+    }) as typeof fetch;
+
+    const result = await fetchPoolsStats(chain);
+    expect(result).toEqual({ pools: [] });
+    expect(callCount).toBe(2);
+  });
+
+  test("does not retry on 403 rate limits", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount += 1;
+      return Promise.resolve(new Response("{}", { status: 403 }));
+    }) as typeof fetch;
+
+    await expect(fetchGlobalStatistics(chain)).rejects.toMatchObject({
+      category: "ASP",
+      hint: expect.stringContaining("Wait a moment"),
+    });
+    expect(callCount).toBe(1);
+  });
+
+  test("throws after exhausting all retries on persistent 5xx", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount += 1;
+      return Promise.resolve(new Response("{}", { status: 500 }));
+    }) as typeof fetch;
+
+    await expect(fetchMerkleRoots(chain, 1n)).rejects.toMatchObject({
+      category: "ASP",
+      message: expect.stringContaining("Could not reach"),
+      retryable: true,
+    });
+    expect(callCount).toBe(4);
+  });
+
+  test("retries global ASP endpoints on 5xx errors", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount += 1;
+      if (callCount < 3) {
+        return Promise.resolve(new Response("{}", { status: 502 }));
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            allTime: null,
+            last24h: null,
+            cacheTimestamp: null,
+          }),
+          { status: 200 }
+        )
+      );
+    }) as typeof fetch;
+
+    const result = await fetchGlobalStatistics(chain);
+    expect(result).toEqual({
+      allTime: null,
+      last24h: null,
+      cacheTimestamp: null,
+    });
+    expect(callCount).toBe(3);
   });
 });

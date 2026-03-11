@@ -11,7 +11,7 @@
  * Note: classifyError tests live in test/unit/errors-extended.unit.test.ts
  * and test/fuzz/error-classification.fuzz.test.ts.
  */
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
   checkLiveness,
@@ -23,6 +23,7 @@ import {
   fetchPoolEvents,
   fetchPoolsStats,
   fetchPoolStatistics,
+  overrideAspRetryWaitForTests,
 } from "../../src/services/asp.ts";
 import {
   getRelayerDetails,
@@ -33,6 +34,14 @@ import { CLIError } from "../../src/utils/errors.ts";
 
 const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
+
+beforeEach(() => {
+  overrideAspRetryWaitForTests(async () => {});
+});
+
+afterEach(() => {
+  overrideAspRetryWaitForTests();
+});
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -220,6 +229,7 @@ describe("resilience: ASP uncommon HTTP status codes", () => {
     await expect(fetchMerkleRoots(chain, 1n)).rejects.toMatchObject({
       category: "ASP",
       hint: expect.stringContaining("network connection"),
+      retryable: true,
     });
   });
 
@@ -228,6 +238,7 @@ describe("resilience: ASP uncommon HTTP status codes", () => {
     await expect(fetchPoolsStats(chain)).rejects.toMatchObject({
       category: "ASP",
       hint: expect.stringContaining("network connection"),
+      retryable: true,
     });
   });
 
@@ -243,6 +254,7 @@ describe("resilience: ASP uncommon HTTP status codes", () => {
     globalThis.fetch = mockResponse({}, 500);
     await expect(fetchGlobalStatistics(chain)).rejects.toMatchObject({
       category: "ASP",
+      retryable: true,
     });
   });
 });
@@ -498,4 +510,3 @@ describe("resilience: Relayer HTTP error statuses", () => {
     });
   });
 });
-
