@@ -410,7 +410,9 @@
         "last24h": "TimeBasedStatistics|null"
       },
       "timeBasedStatisticsFields": {
+        "tvl": "decimal-string-wei|null",
         "tvlUsd": "string|null",
+        "avgDepositSize": "decimal-string-wei|null",
         "avgDepositSizeUsd": "string|null",
         "totalDepositsCount": "number|null",
         "totalDepositsValue": "decimal-string-wei|null",
@@ -432,7 +434,7 @@
         "globalFlags": "Flag[]",
         "agentWorkflow": "string[]",
         "jsonOutputContract": "string (descriptive contract summary)",
-        "agentNotes": "Record<string, string>",
+        "agentNotes": "object",
         "schemas": "object (includes nextActions metadata)",
         "supportedChains": "Chain[]",
         "safeReadOnlyCommands": "string[]"
