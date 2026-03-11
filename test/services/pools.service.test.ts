@@ -259,6 +259,35 @@ describe("pools service", () => {
     expect(pools.length).toBe(0);
   });
 
+  test("listPools deduplicates entries with the same pool address", async () => {
+    const chainId = 31343;
+    // Return two entries pointing to the same asset (and thus the same pool)
+    const server = await startMockServer(chainId, {
+      pools: [
+        {
+          tokenAddress: "0x00000000000000000000000000000000000000b1",
+          totalDepositsCount: 10,
+        },
+        {
+          tokenAddress: "0x00000000000000000000000000000000000000b1",
+          totalDepositsCount: 20,
+        },
+      ],
+    });
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      aspHost: server.url,
+    };
+
+    const pools = await listPools(chainConfig, server.url);
+    // Should deduplicate: only 1 pool despite 2 entries
+    expect(pools.length).toBe(1);
+  });
+
   test("resolvePool falls back to a known pool when ASP is reachable but omits that asset", async () => {
     const chainId = 11155111;
     const ethPool = "0x00000000000000000000000000000000000000a1" as Address;

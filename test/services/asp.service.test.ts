@@ -160,4 +160,75 @@ describe("asp service", () => {
     globalThis.fetch = mock(() => Promise.reject(new Error("network down"))) as typeof fetch;
     await expect(checkLiveness(chain)).resolves.toBe(false);
   });
+
+  test("retries on 5xx errors and eventually succeeds", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount++;
+      if (callCount < 3) {
+        return Promise.resolve(new Response("{}", { status: 500 }));
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            mtRoot: "1",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            onchainMtRoot: "1",
+            aspLeaves: [],
+            stateTreeLeaves: [],
+          }),
+          { status: 200 }
+        )
+      );
+    }) as typeof fetch;
+
+    const result = await fetchMerkleRoots(chain, 1n);
+    expect(result).toHaveProperty("mtRoot");
+    expect(callCount).toBe(3);
+  });
+
+  test("retries on network errors and eventually succeeds", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount++;
+      if (callCount < 2) {
+        return Promise.reject(new Error("fetch failed: ECONNREFUSED"));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ pools: [] }), { status: 200 })
+      );
+    }) as typeof fetch;
+
+    const result = await fetchPoolsStats(chain);
+    expect(result).toEqual({ pools: [] });
+    expect(callCount).toBe(2);
+  });
+
+  test("does not retry on 4xx errors", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount++;
+      return Promise.resolve(new Response("{}", { status: 400 }));
+    }) as typeof fetch;
+
+    await expect(fetchMerkleRoots(chain, 1n)).rejects.toMatchObject({
+      category: "ASP",
+    });
+    expect(callCount).toBe(1);
+  });
+
+  test("throws after exhausting all retries on persistent 5xx", async () => {
+    let callCount = 0;
+    globalThis.fetch = mock(() => {
+      callCount++;
+      return Promise.resolve(new Response("{}", { status: 500 }));
+    }) as typeof fetch;
+
+    await expect(fetchMerkleRoots(chain, 1n)).rejects.toMatchObject({
+      category: "ASP",
+      message: expect.stringContaining("Could not reach"),
+    });
+    // 1 initial + 3 retries = 4 total
+    expect(callCount).toBe(4);
+  });
 });
