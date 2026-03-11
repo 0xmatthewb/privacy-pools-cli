@@ -1052,7 +1052,7 @@ export function createWithdrawCommand(): Command {
             verbose("Quote expired after proof generation. Auto-refreshing...", isVerbose, silent);
             const previousFeeBPS = quote.feeBPS;
             await fetchFreshQuote("Quote expired after proof. Refreshing...");
-            if (quote.feeBPS !== previousFeeBPS) {
+            if (Number(quote.feeBPS) !== Number(previousFeeBPS)) {
               throw new CLIError(
                 `Relayer fee changed during proof generation (${previousFeeBPS} → ${quote.feeBPS} BPS). Re-run the withdrawal.`,
                 "RELAYER",
