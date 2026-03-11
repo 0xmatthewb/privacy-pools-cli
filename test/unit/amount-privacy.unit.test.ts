@@ -4,6 +4,8 @@ import {
   isStablecoin,
   suggestRoundAmounts,
   formatAmountDecimal,
+  buildWithdrawalPrivacyTip,
+  writeWithdrawalPrivacyTip,
 } from "../../src/utils/amount-privacy.js";
 
 // Helpers — parse human-readable amount to bigint using token decimals
@@ -195,5 +197,77 @@ describe("formatAmountDecimal", () => {
     expect(formatAmountDecimal(parseAmount("1.25", ETH_DECIMALS), ETH_DECIMALS)).toBe("1.25");
     expect(formatAmountDecimal(parseAmount("0.1", ETH_DECIMALS), ETH_DECIMALS)).toBe("0.1");
     expect(formatAmountDecimal(parseAmount("490.19294", USDC_DECIMALS), USDC_DECIMALS)).toBe("490.19294");
+  });
+});
+
+describe("withdrawal privacy tips", () => {
+  test("builds no tip for round withdrawals", () => {
+    expect(buildWithdrawalPrivacyTip({
+      amount: parseAmount("1.25", ETH_DECIMALS),
+      balance: parseAmount("2", ETH_DECIMALS),
+      decimals: ETH_DECIMALS,
+      symbol: "ETH",
+    })).toBeNull();
+  });
+
+  test("builds a partial-withdrawal tip for non-round amounts", () => {
+    const tip = buildWithdrawalPrivacyTip({
+      amount: parseAmount("0.123", ETH_DECIMALS),
+      balance: parseAmount("1", ETH_DECIMALS),
+      decimals: ETH_DECIMALS,
+      symbol: "ETH",
+    });
+
+    expect(tip).toContain("0.123 ETH may be identifiable");
+    expect(tip).toContain("0.12 or 0.1 ETH");
+  });
+
+  test("builds a full-balance tip for non-round withdrawals", () => {
+    const tip = buildWithdrawalPrivacyTip({
+      amount: parseAmount("0.123", ETH_DECIMALS),
+      balance: parseAmount("0.123", ETH_DECIMALS),
+      decimals: ETH_DECIMALS,
+      symbol: "ETH",
+    });
+
+    expect(tip).toContain("withdrawing the full 0.123 ETH links this withdrawal to your deposit");
+    expect(tip).toContain("0.12 ETH");
+  });
+
+  test("writeWithdrawalPrivacyTip is silent in machine mode", () => {
+    const writes: string[] = [];
+    writeWithdrawalPrivacyTip(
+      {
+        amount: parseAmount("0.123", ETH_DECIMALS),
+        balance: parseAmount("1", ETH_DECIMALS),
+        decimals: ETH_DECIMALS,
+        symbol: "ETH",
+      },
+      {
+        silent: true,
+        write: (message) => writes.push(message),
+      },
+    );
+
+    expect(writes).toEqual([]);
+  });
+
+  test("writeWithdrawalPrivacyTip writes one newline-terminated message when visible", () => {
+    const writes: string[] = [];
+    writeWithdrawalPrivacyTip(
+      {
+        amount: parseAmount("0.123", ETH_DECIMALS),
+        balance: parseAmount("1", ETH_DECIMALS),
+        decimals: ETH_DECIMALS,
+        symbol: "ETH",
+      },
+      {
+        write: (message) => writes.push(message),
+      },
+    );
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain("0.123 ETH may be identifiable");
+    expect(writes[0]?.endsWith("\n")).toBe(true);
   });
 });

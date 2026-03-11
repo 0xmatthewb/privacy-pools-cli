@@ -33,6 +33,38 @@ interface AccountsCommandOptions {
   pendingOnly?: boolean;
 }
 
+interface AccountScopeSource {
+  poolAccounts?: Map<bigint, unknown[]>;
+}
+
+export function collectAccountScopeStrings(
+  spendable: ReadonlyMap<bigint, readonly unknown[]>,
+  account: AccountScopeSource | null | undefined,
+  includeHistorical: boolean,
+): string[] {
+  const scopeSet = new Set<string>();
+  for (const scope of spendable.keys()) {
+    scopeSet.add(scope.toString());
+  }
+
+  if (includeHistorical) {
+    const map = account?.poolAccounts;
+    if (map instanceof Map) {
+      for (const scope of map.keys()) {
+        scopeSet.add(scope.toString());
+      }
+    }
+  }
+
+  return Array.from(scopeSet).sort((a, b) => {
+    const aa = BigInt(a);
+    const bb = BigInt(b);
+    if (aa < bb) return -1;
+    if (aa > bb) return 1;
+    return 0;
+  });
+}
+
 export function createAccountsCommand(): Command {
   const metadata = getCommandMetadata("accounts");
   return new Command("accounts")
@@ -136,25 +168,11 @@ export function createAccountsCommand(): Command {
         const spendable = withSuppressedSdkStdoutSync(() =>
           accountService.getSpendableCommitments()
         );
-        const scopeSet = new Set<string>();
-        for (const scope of spendable.keys()) {
-          scopeSet.add(scope.toString());
-        }
-        if (opts.all) {
-          const map = accountService.account?.poolAccounts;
-          if (map instanceof Map) {
-            for (const scope of map.keys()) {
-              scopeSet.add(scope.toString());
-            }
-          }
-        }
-        const sortedScopeStrings = Array.from(scopeSet).sort((a, b) => {
-          const aa = BigInt(a);
-          const bb = BigInt(b);
-          if (aa < bb) return -1;
-          if (aa > bb) return 1;
-          return 0;
-        });
+        const sortedScopeStrings = collectAccountScopeStrings(
+          spendable,
+          accountService.account,
+          !!opts.all || !!opts.summary,
+        );
 
         // Fetch ASP approval status in parallel (non-fatal if unavailable)
         spin.text = "Checking ASP approval status...";

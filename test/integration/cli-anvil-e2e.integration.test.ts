@@ -617,6 +617,7 @@ describe("Anvil E2E", () => {
       { home, timeoutMs: 300_000, env: cliEnv() }
     );
     expectSuccessStatus(withdrawResult, "direct withdraw");
+    expect(withdrawResult.stderr.trim()).toBe("");
 
     const withdrawJson = parseJsonOutput<{
       success: boolean;
@@ -706,6 +707,7 @@ describe("Anvil E2E", () => {
       { home, timeoutMs: 300_000, env: cliEnv() }
     );
     expectSuccessStatus(withdrawResult, "relayed withdraw");
+    expect(withdrawResult.stderr.trim()).toBe("");
 
     const withdrawJson = parseJsonOutput<{
       success: boolean;
@@ -883,6 +885,7 @@ describe("Anvil E2E", () => {
       { home, timeoutMs: 300_000, env: cliEnv() }
     );
     expectSuccessStatus(unsignedResult, "withdraw unsigned");
+    expect(unsignedResult.stderr.trim()).toBe("");
     const unsignedJson = parseJsonOutput<{
       success: boolean;
       mode: string;
@@ -918,6 +921,7 @@ describe("Anvil E2E", () => {
       { home, timeoutMs: 300_000, env: cliEnv() }
     );
     expectSuccessStatus(dryRunResult, "withdraw dry-run");
+    expect(dryRunResult.stderr.trim()).toBe("");
     const dryRunJson = parseJsonOutput<{
       success: boolean;
       mode: string;

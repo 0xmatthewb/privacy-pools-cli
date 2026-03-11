@@ -169,3 +169,61 @@ export function formatAmountDecimal(amount: bigint, decimals: number): string {
   const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
   return `${whole}.${fracStr}`;
 }
+
+interface WithdrawalPrivacyTipInput {
+  amount: bigint;
+  balance: bigint;
+  decimals: number;
+  symbol: string;
+}
+
+export function buildWithdrawalPrivacyTip({
+  amount,
+  balance,
+  decimals,
+  symbol,
+}: WithdrawalPrivacyTipInput): string | null {
+  if (isRoundAmount(amount, decimals, symbol)) {
+    return null;
+  }
+
+  const humanAmount = formatAmountDecimal(amount, decimals);
+  const isFullBalance = amount === balance;
+
+  if (isFullBalance) {
+    const roundSuggestions = suggestRoundAmounts(amount, decimals, symbol)
+      .slice(0, 2)
+      .map((suggestion) => `${formatAmountDecimal(suggestion, decimals)} ${symbol}`)
+      .join(" + ");
+    const alternatives = roundSuggestions || "smaller round amounts";
+    return `Tip: withdrawing the full ${humanAmount} ${symbol} links this withdrawal to your deposit. Consider round partial withdrawals (e.g., ${alternatives}) for better privacy.`;
+  }
+
+  const suggestions = suggestRoundAmounts(amount, decimals, symbol);
+  if (suggestions.length === 0) {
+    return null;
+  }
+
+  return `Tip: ${humanAmount} ${symbol} may be identifiable. Consider ${suggestions.map((suggestion) => formatAmountDecimal(suggestion, decimals)).join(" or ")} ${symbol} for better privacy.`;
+}
+
+export function writeWithdrawalPrivacyTip(
+  input: WithdrawalPrivacyTipInput,
+  options: {
+    silent?: boolean;
+    write?: (message: string) => void;
+  } = {},
+): void {
+  if (options.silent) {
+    return;
+  }
+
+  const tip = buildWithdrawalPrivacyTip(input);
+  if (!tip) {
+    return;
+  }
+
+  (options.write ?? ((message: string) => {
+    process.stderr.write(message);
+  }))(`${tip}\n`);
+}

@@ -44,9 +44,7 @@ import { getCommandMetadata } from "../utils/command-metadata.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
 import { resolveAmountAndAssetInput, isPercentageAmount } from "../utils/positional.js";
 import {
-  isRoundAmount,
-  suggestRoundAmounts,
-  formatAmountDecimal,
+  writeWithdrawalPrivacyTip,
 } from "../utils/amount-privacy.js";
 import { printRawTransactions, stringifyBigInts, toSolidityProof } from "../utils/unsigned.js";
 import {
@@ -560,25 +558,15 @@ export function createWithdrawCommand(): Command {
           silent
         );
 
-        // Privacy hint: warn about non-round withdrawal amounts (non-blocking)
-        if (!isRoundAmount(withdrawalAmount, pool.decimals, pool.symbol)) {
-          const humanAmount = formatAmountDecimal(withdrawalAmount, pool.decimals);
-          const isFullBalance = withdrawalAmount === selectedPoolAccount.value;
-
-          if (isFullBalance) {
-            // Withdrawing full non-round balance links deposit to withdrawal
-            process.stderr.write(
-              `Tip: withdrawing the full ${humanAmount} ${pool.symbol} links this withdrawal to your deposit. Consider round partial withdrawals (e.g., ${suggestRoundAmounts(withdrawalAmount, pool.decimals, pool.symbol).slice(0, 2).map((s) => `${formatAmountDecimal(s, pool.decimals)} ${pool.symbol}`).join(" + ") || "smaller round amounts"}) for better privacy.\n`
-            );
-          } else {
-            const suggestions = suggestRoundAmounts(withdrawalAmount, pool.decimals, pool.symbol);
-            if (suggestions.length > 0) {
-              process.stderr.write(
-                `Tip: ${humanAmount} ${pool.symbol} may be identifiable. Consider ${suggestions.map((s) => `${formatAmountDecimal(s, pool.decimals)}`).join(" or ")} ${pool.symbol} for better privacy.\n`
-              );
-            }
-          }
-        }
+        writeWithdrawalPrivacyTip(
+          {
+            amount: withdrawalAmount,
+            balance: selectedPoolAccount.value,
+            decimals: pool.decimals,
+            symbol: pool.symbol,
+          },
+          { silent }
+        );
 
         // Anonymity set info (non-fatal)
         let anonymitySet: { eligible: number; total: number; percentage: number } | undefined;
