@@ -85,24 +85,15 @@ export function toPoolInfo(pool: {
 function silenceSdkConsole(): () => void {
   const original = {
     log: console.log,
-    info: console.info,
     debug: console.debug,
-    warn: console.warn,
-    error: console.error,
   };
 
   console.log = () => {};
-  console.info = () => {};
   console.debug = () => {};
-  console.warn = () => {};
-  console.error = () => {};
 
   return () => {
     console.log = original.log;
-    console.info = original.info;
     console.debug = original.debug;
-    console.warn = original.warn;
-    console.error = original.error;
   };
 }
 
