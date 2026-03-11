@@ -45,8 +45,8 @@ Options:
                              Privacy Pools backup file)
   --mnemonic-stdin           Import recovery phrase from stdin (raw phrase or
                              Privacy Pools backup text)
-  --show-mnemonic            Include generated mnemonic in JSON output (unsafe:
-                             may be logged or piped)
+  --show-mnemonic            Include generated recovery phrase in JSON output
+                             (unsafe: may be logged or piped)
   --private-key <key>        Set the signer private key (unsafe: visible in
                              process list)
   --private-key-file <path>  Set the signer private key from a file
@@ -66,6 +66,8 @@ Examples:
   privacy-pools init --json --show-mnemonic
   privacy-pools init --mnemonic "word ..." --private-key 0x...
   cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet
+Safety notes:
+  The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
 Agent workflow:
   When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.
 JSON output (--json):

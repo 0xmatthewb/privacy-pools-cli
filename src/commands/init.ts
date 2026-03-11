@@ -40,7 +40,7 @@ export function createInitCommand(): Command {
     .option("--mnemonic-stdin", "Import recovery phrase from stdin (raw phrase or Privacy Pools backup text)")
     .option(
       "--show-mnemonic",
-      "Include generated mnemonic in JSON output (unsafe: may be logged or piped)"
+      "Include generated recovery phrase in JSON output (unsafe: may be logged or piped)"
     )
     .option("--private-key <key>", "Set the signer private key (unsafe: visible in process list)")
     .option("--private-key-file <path>", "Set the signer private key from a file")

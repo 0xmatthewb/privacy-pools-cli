@@ -208,7 +208,7 @@ exports[`JSON envelope structure snapshots capabilities --json success envelope 
   "commandDetails.init.prerequisites": "array(0)",
   "commandDetails.init.requiresInit": "boolean",
   "commandDetails.init.safeReadOnly": "boolean",
-  "commandDetails.init.safetyNotes": "array(0)",
+  "commandDetails.init.safetyNotes": "array(1)",
   "commandDetails.init.supportsDryRun": "boolean",
   "commandDetails.init.supportsUnsigned": "boolean",
   "commandDetails.init.usage": "string",

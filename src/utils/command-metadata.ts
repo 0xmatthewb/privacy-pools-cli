@@ -87,6 +87,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       jsonFields:
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }",
+      safetyNotes: [
+        "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
+      ],
       agentWorkflowNotes: [
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
       ],
