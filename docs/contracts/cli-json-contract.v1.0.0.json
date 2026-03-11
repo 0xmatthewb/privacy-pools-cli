@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "1.1.0",
-  "schemaVersion": "1.1.0",
+  "version": "1.3.0",
+  "schemaVersion": "1.3.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {
@@ -33,13 +33,6 @@
     "7": "CONTRACT_ERROR"
   },
   "shared": {
-    "nextAction": {
-      "command": "string (CLI command name)",
-      "reason": "string (why the follow-up is relevant)",
-      "when": "string (machine-readable timing label)",
-      "args": "string[]? (positional arguments to pass)",
-      "options": "Record<string, string|number|boolean|null>? (named options without leading dashes)"
-    },
     "rawUnsignedTransaction": {
       "to": "0x-prefixed-address",
       "data": "0x-prefixed-hex-calldata",
@@ -62,10 +55,10 @@
       "successFields": {
         "defaultChain": "string",
         "signerKeySet": "boolean",
-        "recoveryPhraseRedacted": "boolean? (true when a new recovery phrase was generated but not printed)",
-        "recoveryPhrase": "string? (present only when newly generated and --show-mnemonic is provided)",
+        "mnemonicRedacted": "boolean? (true when a new mnemonic was generated but not printed)",
+        "mnemonic": "string? (present only when newly generated and --show-mnemonic is provided)",
         "warning": "string? (security guidance for agents)",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "nextSteps": "object? ({ requiresMnemonicCapture: boolean, requiresSignerKey: boolean, suggestedCommands: string[] })"
       }
     },
     "status": {
@@ -76,7 +69,7 @@
         "selectedChain": "string|null",
         "rpcUrl": "string|null",
         "rpcIsCustom": "boolean",
-        "recoveryPhraseSet": "boolean",
+        "mnemonicSet": "boolean",
         "signerKeySet": "boolean",
         "signerKeyValid": "boolean",
         "signerAddress": "0x-prefixed-address|null",
@@ -86,10 +79,10 @@
         "aspLive": "boolean|undefined (present when health checks run)",
         "rpcLive": "boolean|undefined (present when health checks run)",
         "rpcBlockNumber": "string|undefined (present when rpc check succeeds)",
-        "readyForDeposit": "boolean (configExists && recoveryPhraseSet && signerKeyValid)",
-        "readyForWithdraw": "boolean (configExists && recoveryPhraseSet && signerKeyValid)",
-        "readyForUnsigned": "boolean (configExists && recoveryPhraseSet)",
-        "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
+        "readyForDeposit": "boolean (configExists && mnemonicSet && signerKeyValid)",
+        "readyForWithdraw": "boolean (configExists && mnemonicSet && signerKeyValid)",
+        "readyForUnsigned": "boolean (configExists && mnemonicSet)",
+        "handoffChecklist": "[{ key: string, met: boolean, remedy: string }]"
       }
     },
     "pools": {
@@ -100,12 +93,11 @@
         "sort": "string",
         "chains": "ChainSummary[]? (multi-chain mode: { chain, pools, error })",
         "pools": "Pool[]",
-        "warnings": "PoolWarning[]? (multi-chain mode)",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "warnings": "PoolWarning[]? (multi-chain mode)"
       },
       "poolFields": {
-        "asset": "string",
-        "tokenAddress": "0x-prefixed-address",
+        "symbol": "string",
+        "asset": "0x-prefixed-address",
         "pool": "0x-prefixed-address",
         "scope": "decimal-string",
         "decimals": "number",
@@ -143,7 +135,7 @@
         "label": "decimal-string|null",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "nextStep": "string (agent guidance)"
       },
       "variants": {
         "dryRun": {
@@ -186,12 +178,11 @@
         "chain": "string",
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
-        "feeBPS": "string? (relayed mode only)",
-        "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
-        "fee": "null? (direct mode only)",
         "remainingBalance": "decimal-string-wei",
-        "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "feeBPS": "string? (relayed mode only)",
+        "extraGas": "boolean? (relayed mode, ERC20 only)",
+        "fee": "null? (direct mode only)",
+        "nextStep": "string (agent guidance)"
       },
       "variants": {
         "dryRun": {
@@ -207,8 +198,7 @@
           "selectedCommitmentValue": "decimal-string-wei",
           "proofPublicSignals": "number",
           "feeBPS": "string? (relayed only)",
-          "quoteExpiresAt": "iso8601-string? (relayed only)",
-          "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)"
+          "quoteExpiresAt": "iso8601-string? (relayed only)"
         },
         "unsignedDirect": {
           "mode": "unsigned",
@@ -258,9 +248,7 @@
           "feeAmount": "decimal-string-wei",
           "netAmount": "decimal-string-wei",
           "feeCommitmentPresent": "boolean",
-          "quoteExpiresAt": "iso8601-string|null",
-          "extraGas": "boolean? (ERC20 withdrawals only)",
-          "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+          "quoteExpiresAt": "iso8601-string|null"
         }
       }
     },
@@ -280,7 +268,7 @@
         "scope": "decimal-string",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "nextStep": "string (agent guidance)"
       },
       "variants": {
         "dryRun": {
@@ -317,8 +305,7 @@
         "chain": "string",
         "accounts": "Account[]",
         "balances": "Balance[]",
-        "pendingCount": "number",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "pendingCount": "number"
       },
       "accountFields": {
         "poolAccountNumber": "number",
@@ -331,8 +318,7 @@
         "hash": "decimal-string",
         "label": "decimal-string",
         "blockNumber": "decimal-string",
-        "txHash": "0x-prefixed-hash",
-        "explorerUrl": "string|null"
+        "txHash": "0x-prefixed-hash"
       },
       "balanceFields": {
         "asset": "string",
@@ -361,15 +347,15 @@
     "activity": {
       "successFields": {
         "mode": "\"pool-activity\"|\"global-activity\"",
-        "chain": "string (\"all-mainnets\" for cross-chain global activity, selected chain name otherwise)",
+        "chain": "string",
         "chains": "string[]? (global-activity with multiple chains)",
         "page": "number",
         "perPage": "number",
         "total": "number|null",
         "totalPages": "number|null",
-        "chainFiltered": "boolean? (true when chain filtering happens client-side)",
-        "note": "string? (explains pagination limitations when chainFiltered is true)",
-        "events": "ActivityEvent[]"
+        "events": "ActivityEvent[]",
+        "chainFiltered": "boolean? (true when events were filtered client-side by chain)",
+        "note": "string? (present when chainFiltered is true)"
       },
       "poolActivityExtraFields": {
         "asset": "string",
@@ -379,14 +365,12 @@
       "eventFields": {
         "type": "string",
         "txHash": "0x-prefixed-hash|null",
-        "explorerUrl": "string|null",
         "reviewStatus": "string|null",
         "amountRaw": "decimal-string-wei|null",
-        "amountFormatted": "string|null",
         "poolSymbol": "string|null",
         "poolAddress": "0x-prefixed-address|null",
         "chainId": "number|null",
-        "timestamp": "iso8601-string|null"
+        "timestamp": "number|null (milliseconds)"
       }
     },
     "stats": {
@@ -410,16 +394,10 @@
         "last24h": "TimeBasedStatistics|null"
       },
       "timeBasedStatisticsFields": {
-        "tvl": "decimal-string-wei|null",
         "tvlUsd": "string|null",
-        "avgDepositSize": "decimal-string-wei|null",
         "avgDepositSizeUsd": "string|null",
         "totalDepositsCount": "number|null",
-        "totalDepositsValue": "decimal-string-wei|null",
-        "totalDepositsValueUsd": "string|null",
-        "totalWithdrawalsCount": "number|null",
-        "totalWithdrawalsValue": "decimal-string-wei|null",
-        "totalWithdrawalsValueUsd": "string|null"
+        "totalWithdrawalsCount": "number|null"
       },
       "chainStatsEntryFields": {
         "chain": "string",
@@ -433,11 +411,10 @@
         "commands": "Command[]",
         "globalFlags": "Flag[]",
         "agentWorkflow": "string[]",
-        "jsonOutputContract": "string (descriptive contract summary)",
-        "agentNotes": "object",
-        "schemas": "object (includes nextActions metadata)",
-        "supportedChains": "Chain[]",
-        "safeReadOnlyCommands": "string[]"
+        "jsonOutputContract": "string (semver)",
+        "agentNotes": "object (Record<string, string>)",
+        "schemas": "object",
+        "supportedChains": "Chain[]"
       }
     },
     "sync": {
@@ -445,8 +422,8 @@
         "chain": "string",
         "syncedPools": "number",
         "syncedSymbols": "string[]? (present on successful sync)",
-        "availablePoolAccounts": "number",
-        "previousAvailablePoolAccounts": "number? (count before sync)"
+        "spendableCommitments": "number",
+        "previousSpendableCommitments": "number? (count before sync)"
       }
     },
     "guide": {

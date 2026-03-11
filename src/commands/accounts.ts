@@ -13,7 +13,6 @@ import { fetchApprovedLabels } from "../services/asp.js";
 import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
 import { printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import type { Address } from "viem";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -26,13 +25,19 @@ import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup } from "../output/accounts.js";
 
 export function createAccountsCommand(): Command {
-  const metadata = getCommandMetadata("accounts");
   return new Command("accounts")
-    .description(metadata.description)
+    .description("List your Pool Accounts (individual deposit lineages) with balances")
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option("--all", "Include exited and fully spent Pool Accounts")
     .option("--details", "Show additional details per Pool Account")
-    .addHelpText("after", commandHelpText(metadata.help ?? {}))
+    .addHelpText(
+      "after",
+      "\nExamples:\n  privacy-pools accounts\n  privacy-pools accounts --all\n  privacy-pools accounts --details\n  privacy-pools accounts --json\n  privacy-pools accounts --no-sync --chain mainnet\n"
+        + commandHelpText({
+          prerequisites: "init",
+          jsonFields: "{ chain, accounts: [{ poolAccountId, status, asset, scope, value, hash, label, ... }] }",
+        })
+    )
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
@@ -171,7 +176,6 @@ export function createAccountsCommand(): Command {
 
         renderAccounts(ctx, {
           chain: chainConfig.name,
-          chainId: chainConfig.id,
           groups,
           showDetails: !!opts.details,
           showAll: !!opts.all,

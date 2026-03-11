@@ -10,7 +10,6 @@ import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, isSilent } from "./common.js";
 import { formatAddress } from "../utils/format.js";
 import { accentBold } from "../utils/theme.js";
-import { explorerTxUrl } from "../config/chains.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,10 +55,6 @@ function eventPoolLabel(event: NormalizedActivityEvent): string {
   return "-";
 }
 
-function toIsoTimestamp(timestampMs: number | null): string | null {
-  return timestampMs === null ? null : new Date(timestampMs).toISOString();
-}
-
 // ── Renderers ────────────────────────────────────────────────────────────────
 
 export function renderActivity(ctx: OutputContext, data: ActivityRenderData): void {
@@ -75,14 +70,12 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       events: data.events.map((e) => ({
         type: e.type,
         txHash: e.txHash,
-        explorerUrl: e.txHash && e.chainId !== null ? explorerTxUrl(e.chainId, e.txHash) : null,
         reviewStatus: e.reviewStatus,
         amountRaw: e.amountRaw,
-        amountFormatted: e.amountFormatted,
         poolSymbol: e.poolSymbol,
         poolAddress: e.poolAddress,
         chainId: e.chainId,
-        timestamp: toIsoTimestamp(e.timestampMs),
+        timestamp: e.timestampMs,
       })),
     };
     if (data.mode === "pool-activity") {

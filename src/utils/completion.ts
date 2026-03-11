@@ -9,8 +9,6 @@ export const SUPPORTED_COMPLETION_SHELLS = [
 
 export type CompletionShell = (typeof SUPPORTED_COMPLETION_SHELLS)[number];
 
-const PUBLISHED_BINARY_NAMES = ["privacy-pools", "pp"] as const;
-
 interface CompletionOptionSpec {
   names: string[];
   takesValue: boolean;
@@ -132,17 +130,13 @@ function findOption(
   );
 }
 
-function normalizeWords(
-  words: string[],
-  commandName: string,
-  acceptedCommandNames: readonly string[],
-): string[] {
+function normalizeWords(words: string[], commandName: string): string[] {
   if (words.length === 0) {
     return [commandName];
   }
 
-  if (acceptedCommandNames.includes(words[0] as (typeof acceptedCommandNames)[number])) {
-    return [commandName, ...words.slice(1)];
+  if (words[0] === commandName) {
+    return [...words];
   }
 
   return [commandName, ...words];
@@ -208,9 +202,7 @@ export function queryCompletionCandidates(
   cwordInput?: number
 ): string[] {
   const tree = buildTree(rootCommand);
-  const commandName = tree.name || "privacy-pools";
-  const acceptedCommandNames = uniqueSorted([commandName, ...PUBLISHED_BINARY_NAMES]);
-  const words = normalizeWords(wordsInput, commandName, acceptedCommandNames);
+  const words = normalizeWords(wordsInput, tree.name || "privacy-pools");
   const cword = normalizeCword(cwordInput, words.length);
   const currentToken = cword < words.length ? words[cword] ?? "" : "";
 
@@ -240,83 +232,67 @@ export function queryCompletionCandidates(
   return filterByPrefix(baseCandidates, currentToken);
 }
 
-function renderBashCompletion(commandNames: string[]): string {
-  const registrations = commandNames
-    .map((commandName) => `complete -o default -F _privacy_pools_completion ${commandName}`)
-    .join("\n");
-
-  return `# ${commandNames.join(", ")} bash completion
+function renderBashCompletion(commandName: string): string {
+  return `# ${commandName} bash completion
 _privacy_pools_completion() {
   local -a words candidates
-  local cword line command_name
+  local cword line
   words=("\${COMP_WORDS[@]}")
   cword=\${COMP_CWORD}
-  command_name="\${COMP_WORDS[0]:-privacy-pools}"
 
   while IFS= read -r line; do
     [[ -n "\${line}" ]] && candidates+=("\${line}")
-  done < <(command "\${command_name}" completion --query --shell bash --cword "\${cword}" -- "\${words[@]}" 2>/dev/null)
+  done < <(command ${commandName} completion --query --shell bash --cword "\${cword}" -- "\${words[@]}" 2>/dev/null)
 
   COMPREPLY=("\${candidates[@]}")
 }
 
-${registrations}
+complete -o default -F _privacy_pools_completion ${commandName}
 `;
 }
 
-function renderZshCompletion(commandNames: string[]): string {
-  const zshNames = commandNames.join(" ");
-  return `#compdef ${zshNames}
+function renderZshCompletion(commandName: string): string {
+  return `#compdef ${commandName}
 _privacy_pools_completion() {
   local -a suggestions tokens
-  local cword command_name
+  local cword
   tokens=("\${words[@]}")
   cword=$((CURRENT - 1))
-  command_name="\${words[1]:-privacy-pools}"
-  suggestions=("\${(@f)\$(command "\${command_name}" completion --query --shell zsh --cword "\${cword}" -- "\${tokens[@]}" 2>/dev/null)}")
+  suggestions=("\${(@f)\$(command ${commandName} completion --query --shell zsh --cword "\${cword}" -- "\${tokens[@]}" 2>/dev/null)}")
 
   if (( \${#suggestions[@]} > 0 )); then
     compadd -- "\${suggestions[@]}"
   fi
 }
 
-compdef _privacy_pools_completion ${zshNames}
+compdef _privacy_pools_completion ${commandName}
 `;
 }
 
-function renderFishCompletion(commandNames: string[]): string {
-  const registrations = commandNames
-    .map((commandName) => `complete -c ${commandName} -f -a "(__fish_privacy_pools_complete)"`)
-    .join("\n");
-
-  return `# ${commandNames.join(", ")} fish completion
+function renderFishCompletion(commandName: string): string {
+  return `# ${commandName} fish completion
 function __fish_privacy_pools_complete
     set -l tokens (commandline -cx)
     set -l current (commandline -ct)
     set -l cword (math (count $tokens) - 1)
-    set -l command_name privacy-pools
 
     if test -z "$current"
         set cword (count $tokens)
         set tokens $tokens ""
     end
 
-    if test (count $tokens) -gt 0
-        set command_name $tokens[1]
-    end
-
-    command $command_name completion --query --shell fish --cword $cword -- $tokens 2>/dev/null
+    command ${commandName} completion --query --shell fish --cword $cword -- $tokens 2>/dev/null
 end
 
-${registrations}
+complete -c ${commandName} -f -a "(__fish_privacy_pools_complete)"
 `;
 }
 
 export function renderCompletionScript(
   shell: CompletionShell,
-  commandNames: string[] = [...PUBLISHED_BINARY_NAMES]
+  commandName: string = "privacy-pools"
 ): string {
-  if (shell === "bash") return renderBashCompletion(commandNames);
-  if (shell === "zsh") return renderZshCompletion(commandNames);
-  return renderFishCompletion(commandNames);
+  if (shell === "bash") return renderBashCompletion(commandName);
+  if (shell === "zsh") return renderZshCompletion(commandName);
+  return renderFishCompletion(commandName);
 }

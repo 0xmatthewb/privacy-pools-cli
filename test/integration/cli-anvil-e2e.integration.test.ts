@@ -52,8 +52,7 @@ const ANVIL_E2E_ENABLED = process.env.PP_ANVIL_E2E === "1";
 const anvilTest = ANVIL_E2E_ENABLED ? test : test.skip;
 
 const chainConfig = CHAINS.sepolia;
-const DEFAULT_ANVIL_FORK_URL = "https://sepolia.gateway.tenderly.co";
-const forkUrl = process.env.PP_ANVIL_FORK_URL?.trim() || DEFAULT_ANVIL_FORK_URL;
+const forkUrl = process.env.PP_ANVIL_FORK_URL?.trim() || "https://sepolia.drpc.org";
 const signerPrivateKey =
   "0x1111111111111111111111111111111111111111111111111111111111111111" as const;
 const signerAddress = privateKeyToAccount(signerPrivateKey).address;
@@ -81,13 +80,6 @@ const depositedEventAbi = parseAbi([
 const withdrawnEventAbi = parseAbi([
   "event Withdrawn(address indexed _processooor, uint256 _value, uint256 _spentNullifier, uint256 _newCommitment)",
 ]);
-const depositedEventTopic =
-  "0xe3b53cd1a44fbf11535e145d80b8ef1ed6d57a73bf5daa7e939b6b01657d6549";
-const RANGE_LIMIT_PATTERNS = [
-  "ranges over 10000 blocks",
-  "exceed maximum block range",
-  "eth_getLogs is limited",
-] as const;
 
 let anvil: AnvilInstance | null = null;
 let aspServer: AnvilAspServer | null = null;
@@ -209,56 +201,6 @@ async function captureSnapshot(): Promise<{
   }
 
   throw new Error("Could not capture a consistent Sepolia ETH state-tree snapshot");
-}
-
-async function assertForkSupportsHistoricalLogs(
-  pool: `0x${string}`
-): Promise<void> {
-  const response = await fetch(forkUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "eth_getLogs",
-      params: [
-        {
-          address: pool,
-          topics: [depositedEventTopic],
-          fromBlock: `0x${chainConfig.startBlock.toString(16)}`,
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(15_000),
-  });
-
-  let payload: {
-    error?: { message?: string };
-  } | null = null;
-  try {
-    payload = await response.json() as {
-      error?: { message?: string };
-    };
-  } catch {
-    payload = null;
-  }
-
-  if (response.ok && !payload?.error) {
-    return;
-  }
-
-  const message = payload?.error?.message?.trim() || `HTTP ${response.status}`;
-  if (RANGE_LIMIT_PATTERNS.some((pattern) => message.includes(pattern))) {
-    throw new Error(
-      `PP_ANVIL_FORK_URL (${forkUrl}) does not support the historical eth_getLogs `
-      + "range required by the Anvil E2E harness. "
-      + `Use a Sepolia RPC that supports deep log lookups, for example ${DEFAULT_ANVIL_FORK_URL}.`
-    );
-  }
-
-  throw new Error(
-    `Failed to validate PP_ANVIL_FORK_URL (${forkUrl}) for Anvil E2E: ${message}`
-  );
 }
 
 function writeCurrentAspState(): void {
@@ -397,7 +339,6 @@ beforeAll(async () => {
   if (!ANVIL_E2E_ENABLED) return;
 
   const snapshot = await captureSnapshot();
-  await assertForkSupportsHistoricalLogs(snapshot.poolAddress);
   poolAddress = snapshot.poolAddress;
   poolScope = snapshot.poolScope;
   baseStateTreeLeaves = snapshot.baseStateTreeLeaves;

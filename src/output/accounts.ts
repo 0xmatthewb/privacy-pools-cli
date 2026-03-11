@@ -8,11 +8,10 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { appendNextActions, createNextAction, printJsonSuccess, printCsv, printTable, info, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatAddress, formatTxHash, displayDecimals, formatUsdValue } from "../utils/format.js";
 import { highlight, accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
-import { explorerTxUrl } from "../config/chains.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,7 +26,6 @@ export interface AccountPoolGroup {
 
 export interface AccountsRenderData {
   chain: string;
-  chainId: number;
   groups: AccountPoolGroup[];
   showDetails: boolean;
   showAll: boolean;
@@ -40,14 +38,13 @@ export interface AccountsRenderData {
  */
 export function renderAccountsNoPools(ctx: OutputContext, chain: string): void {
   if (ctx.mode.isJson) {
-    printJsonSuccess({ chain, accounts: [], balances: [], pendingCount: 0 });
+    printJsonSuccess({ chain, accounts: [] });
     return;
   }
   if (ctx.mode.isCsv) {
     printCsv(["PA", "Status", "ASP", "Asset", "Value", "Tx"], []);
     return;
   }
-
   info(`No pools found on ${chain}.`, isSilent(ctx));
 }
 
@@ -55,10 +52,10 @@ export function renderAccountsNoPools(ctx: OutputContext, chain: string): void {
  * Render populated accounts listing.
  */
 export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): void {
-  const { chain, chainId, groups, showDetails, showAll } = data;
+  const { chain, groups, showDetails, showAll } = data;
 
   if (ctx.mode.isCsv) {
-    const csvHeaders = ["PA", "Status", "ASP", "Asset", "Value", "Tx"];
+    const csvHeaders = ["PA", "Status", "ASP", "Asset", "Value", "Block", "Tx"];
     const csvRows: string[][] = [];
     for (const group of groups) {
       const dd = displayDecimals(group.decimals);
@@ -69,6 +66,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
           pa.aspStatus ?? "",
           group.symbol,
           formatAmount(pa.value, group.decimals, group.symbol, dd),
+          pa.blockNumber.toString(),
           pa.txHash,
         ]);
       }
@@ -81,7 +79,6 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     const jsonData: Record<string, unknown>[] = [];
     const balances: Record<string, unknown>[] = [];
     let pendingCount = 0;
-    const approvedAssets = new Set<string>();
     for (const group of groups) {
       let groupTotal = 0n;
       let spendableCount = 0;
@@ -90,9 +87,6 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
         if (pa.status === "spendable") {
           groupTotal += pa.value;
           spendableCount++;
-        }
-        if (pa.status === "spendable" && pa.aspStatus === "approved") {
-          approvedAssets.add(group.symbol);
         }
         const c = pa.commitment;
         jsonData.push({
@@ -107,7 +101,6 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
           label: c.label.toString(),
           blockNumber: pa.blockNumber.toString(),
           txHash: pa.txHash,
-          explorerUrl: explorerTxUrl(chainId, pa.txHash),
         });
       }
       if (spendableCount > 0) {
@@ -119,56 +112,12 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
         });
       }
     }
-    const nextActions = [
-      ...(approvedAssets.size > 0
-        ? [
-            createNextAction(
-              "withdraw",
-              "Withdraw approved funds from a Pool Account.",
-              "has_spendable",
-              {
-                options: {
-                  agent: true,
-                  chain,
-                  ...(approvedAssets.size === 1 ? { asset: Array.from(approvedAssets)[0]! } : {}),
-                },
-              },
-            ),
-          ]
-        : []),
-      ...(pendingCount > 0
-        ? [
-            createNextAction(
-              "accounts",
-              "Poll again until pending deposits are approved for private withdrawal.",
-              "has_pending",
-              {
-                options: {
-                  agent: true,
-                  chain,
-                },
-              },
-            ),
-          ]
-        : []),
-    ];
-    printJsonSuccess(appendNextActions({ chain, accounts: jsonData, balances, pendingCount }, nextActions));
+    printJsonSuccess({ chain, accounts: jsonData, balances, pendingCount });
     return;
   }
 
   const silent = isSilent(ctx);
-  const hasPendingApprovals = groups.some((group) =>
-    group.poolAccounts.some((pa) => pa.aspStatus === "pending")
-  );
-
-  if (!silent) process.stderr.write(`\n${accentBold(`Pool Accounts on ${chain}:`)}\n\n`);
-  if (!silent && hasPendingApprovals) {
-    info(
-      "Pending ASP approval: recent deposits usually approve within ~1 hour, but some may take up to 7 days before private withdrawal.",
-      silent,
-    );
-    process.stderr.write("\n");
-  }
+  if (!silent) process.stderr.write(`\n${accentBold(`Pool Accounts (PA) on ${chain}:`)}\n\n`);
 
   // Aggregate "My Pools" summary before the detailed PA tables.
   if (!silent) {
@@ -183,7 +132,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       const dd = displayDecimals(group.decimals);
       const totalFmt = formatAmount(total, group.decimals, group.symbol, dd);
       const pendingCount = spendablePAs.filter((pa) => pa.aspStatus === "pending").length;
-      const paLabel = `${spendablePAs.length} Pool Account${spendablePAs.length === 1 ? "" : "s"}` +
+      const paLabel = `${spendablePAs.length} account${spendablePAs.length === 1 ? "" : "s"}` +
         (pendingCount > 0 ? ` (${pendingCount} pending)` : "");
       if (anyUsd) {
         const usdFmt = group.tokenPrice !== null
@@ -209,20 +158,16 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     if (group.poolAccounts.length === 0) continue;
     renderedAny = true;
 
-    if (!silent) process.stderr.write(`  ${group.symbol} Pool:\n`);
+    if (!silent) process.stderr.write(`  ${group.symbol} pool (${formatAddress(group.poolAddress)}):\n`);
 
     if (silent) continue;
 
     const dd = displayDecimals(group.decimals);
     const hasUsd = group.tokenPrice !== null;
     if (showDetails) {
-      const detailHeaders = ctx.isVerbose
-        ? hasUsd
-          ? ["PA", "Status", "ASP", "Value", "USD", "Commitment", "Label", "Block", "Tx"]
-          : ["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"]
-        : hasUsd
-          ? ["PA", "Status", "ASP", "Value", "USD", "Tx"]
-          : ["PA", "Status", "ASP", "Value", "Tx"];
+      const detailHeaders = hasUsd
+        ? ["PA", "Status", "ASP", "Value", "USD", "Commitment", "Label", "Block", "Tx"]
+        : ["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"];
       printTable(
         detailHeaders,
         group.poolAccounts.map((pa) => {
@@ -237,21 +182,19 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             formatAmount(pa.value, group.decimals, group.symbol, dd),
           ];
           if (hasUsd) base.push(formatUsdValue(pa.value, group.decimals, group.tokenPrice));
-          if (ctx.isVerbose) {
-            base.push(
-              formatAddress(`0x${pa.commitment.hash.toString(16).padStart(64, "0")}`, 8),
-              formatAddress(`0x${pa.label.toString(16).padStart(64, "0")}`, 8),
-              pa.blockNumber.toString(),
-            );
-          }
-          base.push(formatTxHash(pa.txHash));
+          base.push(
+            formatAddress(`0x${pa.commitment.hash.toString(16).padStart(64, "0")}`, 8),
+            formatAddress(`0x${pa.label.toString(16).padStart(64, "0")}`, 8),
+            pa.blockNumber.toString(),
+            formatTxHash(pa.txHash),
+          );
           return base;
         }),
       );
     } else {
       const summaryHeaders = hasUsd
-        ? ["PA", "Balance", "USD", "Status"]
-        : ["PA", "Balance", "Status"];
+        ? ["PA", "Balance", "USD", "Status", "Tx"]
+        : ["PA", "Balance", "Status", "Tx"];
       printTable(
         summaryHeaders,
         group.poolAccounts.map((pa) => {
@@ -267,7 +210,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             formatAmount(pa.value, group.decimals, group.symbol, dd),
           ];
           if (hasUsd) row.push(formatUsdValue(pa.value, group.decimals, group.tokenPrice));
-          row.push(`${statusLabel}${aspSuffix}`);
+          row.push(
+            `${statusLabel}${aspSuffix}`,
+            formatTxHash(pa.txHash),
+          );
           return row;
         }),
       );
@@ -294,16 +240,14 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     }
     if (!silent) process.stderr.write("\n");
   } else if (!silent) {
-    info("PA = Pool Account. Use -p PA-1 with withdraw or ragequit to target one.", silent);
-    if (!showDetails) {
-      info("Use --details to show transaction hashes and ASP status breakdown.", silent);
-    }
+    info("Use -p PA-1 with withdraw or exit to target a specific Pool Account.", silent);
     if (!showAll) {
       info("Exited or spent accounts are hidden. Use --all to show them.", silent);
     }
-    if (showDetails && !ctx.isVerbose) {
-      info("Use --verbose with --details to show commitment, label, and block metadata for troubleshooting.", silent);
-    }
+    info(
+      "Note: only approved deposits are shown. Recent deposits may be pending ASP approval (most approve within ~1 hour, up to 7 days).",
+      silent,
+    );
     process.stderr.write("\n");
   }
 }

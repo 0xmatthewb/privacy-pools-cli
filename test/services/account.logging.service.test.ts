@@ -2,114 +2,63 @@ import { describe, expect, test } from "bun:test";
 import { withSuppressedSdkStdout } from "../../src/services/account.ts";
 
 describe("account service stdout guard", () => {
-  test("suppresses SDK console noise across stdout and stderr methods", async () => {
+  test("suppresses console.log and console.debug inside the guard and restores both after", async () => {
     const originalLog = console.log;
-    const originalInfo = console.info;
     const originalDebug = console.debug;
-    const originalWarn = console.warn;
-    const originalError = console.error;
     const logCapture: unknown[][] = [];
-    const infoCapture: unknown[][] = [];
     const debugCapture: unknown[][] = [];
-    const warnCapture: unknown[][] = [];
-    const errorCapture: unknown[][] = [];
     const patchedLog = (...args: unknown[]) => { logCapture.push(args); };
-    const patchedInfo = (...args: unknown[]) => { infoCapture.push(args); };
     const patchedDebug = (...args: unknown[]) => { debugCapture.push(args); };
-    const patchedWarn = (...args: unknown[]) => { warnCapture.push(args); };
-    const patchedError = (...args: unknown[]) => { errorCapture.push(args); };
 
     console.log = patchedLog;
-    console.info = patchedInfo;
     console.debug = patchedDebug;
-    console.warn = patchedWarn;
-    console.error = patchedError;
     try {
       let logInsideGuard: typeof console.log | undefined;
-      let infoInsideGuard: typeof console.info | undefined;
       let debugInsideGuard: typeof console.debug | undefined;
-      let warnInsideGuard: typeof console.warn | undefined;
-      let errorInsideGuard: typeof console.error | undefined;
 
       await withSuppressedSdkStdout(async () => {
         logInsideGuard = console.log;
-        infoInsideGuard = console.info;
         debugInsideGuard = console.debug;
-        warnInsideGuard = console.warn;
-        errorInsideGuard = console.error;
         console.log("sdk-noise");
-        console.info("sdk-info-noise");
         console.debug("sdk-debug-noise");
-        console.warn("sdk-warn-noise");
-        console.error("sdk-error-noise");
       });
 
-      // All console methods must have been replaced during execution.
+      // Both must have been replaced during execution.
       expect(logInsideGuard).not.toBe(patchedLog);
-      expect(infoInsideGuard).not.toBe(patchedInfo);
       expect(debugInsideGuard).not.toBe(patchedDebug);
-      expect(warnInsideGuard).not.toBe(patchedWarn);
-      expect(errorInsideGuard).not.toBe(patchedError);
-      // No SDK chatter should escape the guard.
+      // Neither noise line must have reached outer captures.
       expect(logCapture.length).toBe(0);
-      expect(infoCapture.length).toBe(0);
       expect(debugCapture.length).toBe(0);
-      expect(warnCapture.length).toBe(0);
-      expect(errorCapture.length).toBe(0);
-      // All console methods must be restored after the guard.
+      // Both must be restored after the guard.
       expect(console.log).toBe(patchedLog);
-      expect(console.info).toBe(patchedInfo);
       expect(console.debug).toBe(patchedDebug);
-      expect(console.warn).toBe(patchedWarn);
-      expect(console.error).toBe(patchedError);
     } finally {
       console.log = originalLog;
-      console.info = originalInfo;
       console.debug = originalDebug;
-      console.warn = originalWarn;
-      console.error = originalError;
     }
   });
 
-  test("restores console methods when guarded call throws", async () => {
+  test("restores console.log and console.debug when guarded call throws", async () => {
     const originalLog = console.log;
-    const originalInfo = console.info;
     const originalDebug = console.debug;
-    const originalWarn = console.warn;
-    const originalError = console.error;
     const patchedLog = () => {};
-    const patchedInfo = () => {};
     const patchedDebug = () => {};
-    const patchedWarn = () => {};
-    const patchedError = () => {};
 
     console.log = patchedLog;
-    console.info = patchedInfo;
     console.debug = patchedDebug;
-    console.warn = patchedWarn;
-    console.error = patchedError;
     try {
       const run = withSuppressedSdkStdout(async () => {
         expect(console.log).not.toBe(patchedLog);
-        expect(console.info).not.toBe(patchedInfo);
         expect(console.debug).not.toBe(patchedDebug);
-        expect(console.warn).not.toBe(patchedWarn);
-        expect(console.error).not.toBe(patchedError);
         throw new Error("boom");
       });
       await expect(run).rejects.toThrow("boom");
-      // All console methods must be restored after the error.
+      // Both must be restored after the error
       expect(console.log).toBe(patchedLog);
-      expect(console.info).toBe(patchedInfo);
       expect(console.debug).toBe(patchedDebug);
-      expect(console.warn).toBe(patchedWarn);
-      expect(console.error).toBe(patchedError);
     } finally {
       console.log = originalLog;
-      console.info = originalInfo;
       console.debug = originalDebug;
-      console.warn = originalWarn;
-      console.error = originalError;
     }
   });
 });

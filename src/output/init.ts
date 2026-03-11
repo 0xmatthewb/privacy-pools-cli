@@ -8,16 +8,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import {
-  appendNextActions,
-  createNextAction,
-  printJsonSuccess,
-  success,
-  info,
-  warn,
-  isSilent,
-  guardCsvUnsupported,
-} from "./common.js";
+import { printJsonSuccess, success, info, warn, isSilent, guardCsvUnsupported } from "./common.js";
 import { accent } from "../utils/theme.js";
 
 export interface InitRenderResult {
@@ -27,9 +18,9 @@ export interface InitRenderResult {
   mnemonicImported: boolean;
   /** True when --show-mnemonic was passed. */
   showMnemonic: boolean;
-  /** The recovery phrase (included only when showMnemonic && !mnemonicImported). */
+  /** The mnemonic phrase (included only when showMnemonic && !mnemonicImported). */
   mnemonic?: string;
-  /** Warning message to include in JSON output (e.g. for agent recovery phrase capture). */
+  /** Warning message to include in JSON output (e.g. for agent mnemonic capture). */
   warning?: string;
 }
 
@@ -40,43 +31,29 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   guardCsvUnsupported(ctx, "init");
 
   if (ctx.mode.isJson) {
-    const jsonOutput: Record<string, unknown> = appendNextActions({
+    const jsonOutput: Record<string, unknown> = {
       defaultChain: result.defaultChain,
       signerKeySet: result.signerKeySet,
-    }, [
-      createNextAction(
-        "status",
-        "Verify wallet readiness and chain health before transacting.",
-        "after_init",
-        {
-          options: {
-            agent: true,
-            chain: result.defaultChain,
-          },
-        },
-      ),
-      createNextAction(
-        "pools",
-        "Browse pools on the configured default chain before depositing.",
-        "after_init",
-        {
-          options: {
-            agent: true,
-            chain: result.defaultChain,
-          },
-        },
-      ),
-    ]) as Record<string, unknown>;
+    };
     if (!result.mnemonicImported) {
       if (result.showMnemonic) {
-        jsonOutput.recoveryPhrase = result.mnemonic;
+        jsonOutput.mnemonic = result.mnemonic;
       } else {
-        jsonOutput.recoveryPhraseRedacted = true;
+        jsonOutput.mnemonicRedacted = true;
       }
     }
     if (result.warning) {
       jsonOutput.warning = result.warning;
     }
+    jsonOutput.nextSteps = {
+      requiresMnemonicCapture: !result.mnemonicImported,
+      requiresSignerKey: !result.signerKeySet,
+      suggestedCommands: [
+        ...(result.signerKeySet ? [] : ["export PRIVACY_POOLS_PRIVATE_KEY=0x..."]),
+        "privacy-pools status --agent",
+        "privacy-pools pools --agent",
+      ],
+    };
     printJsonSuccess(jsonOutput, false);
     return;
   }

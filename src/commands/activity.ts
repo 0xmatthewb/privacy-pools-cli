@@ -6,7 +6,6 @@ import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import { getCommandMetadata } from "../utils/command-metadata.js";
 import { formatAmount, displayDecimals, spinner, formatTimeAgo } from "../utils/format.js";
 import type { GlobalOptions, AspPublicEvent } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -99,13 +98,18 @@ function normalizeActivityEvent(
 }
 
 export function createActivityCommand(): Command {
-  const metadata = getCommandMetadata("activity");
   return new Command("activity")
-    .description(metadata.description)
+    .description("Show public activity feed")
     .option("-a, --asset <symbol|address>", "Filter to one pool asset on the selected chain")
     .option("--page <n>", "Page number", "1")
     .option("--limit <n>", "Items per page", "12")
-    .addHelpText("after", commandHelpText(metadata.help ?? {}))
+    .addHelpText(
+      "after",
+      "\nExamples:\n  privacy-pools activity\n  privacy-pools activity --page 2 --limit 20\n  privacy-pools activity --asset ETH\n  privacy-pools activity --asset USDC --json --chain mainnet\n"
+        + commandHelpText({
+          jsonFields: "{ mode, chain, page, perPage, total?, totalPages?, events: [{ type, txHash, reviewStatus, amountRaw, poolSymbol, poolAddress, chainId, timestamp }] }",
+        })
+    )
     .action(async (opts: ActivityCommandOptions, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);

@@ -15,7 +15,6 @@ import { getPublicClient } from "../services/sdk.js";
 import { accountExists } from "../services/account.js";
 import { printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -24,14 +23,19 @@ import { renderStatus } from "../output/status.js";
 import type { StatusCheckResult } from "../output/status.js";
 
 export function createStatusCommand(): Command {
-  const metadata = getCommandMetadata("status");
   return new Command("status")
-    .description(metadata.description)
+    .description("Show configuration and check connection health")
     .option("--check", "Run both RPC and ASP health checks")
     .option("--no-check", "Suppress default health checks")
     .option("--check-rpc", "Actively test RPC connectivity")
     .option("--check-asp", "Actively test ASP liveness")
-    .addHelpText("after", commandHelpText(metadata.help ?? {}))
+    .addHelpText(
+      "after",
+      "\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --json --check-rpc\n  privacy-pools status --chain mainnet --rpc-url https://...\n"
+        + commandHelpText({
+          jsonFields: "{ configExists, defaultChain, selectedChain, rpcUrl, mnemonicSet, signerKeySet, signerAddress, aspLive?, rpcLive? }",
+        })
+    )
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
@@ -78,7 +82,7 @@ export function createStatusCommand(): Command {
             ? getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)
             : null,
           rpcIsCustom,
-          recoveryPhraseSet: hasMnemonic,
+          mnemonicSet: hasMnemonic,
           signerKeySet: !!signerKey,
           signerKeyValid,
           signerAddress,

@@ -7,15 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import {
-  appendNextActions,
-  createNextAction,
-  printJsonSuccess,
-  success,
-  info,
-  isSilent,
-  guardCsvUnsupported,
-} from "./common.js";
+import { printJsonSuccess, success, info, isSilent, guardCsvUnsupported } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface RagequitDryRunData {
@@ -78,7 +70,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
   info(`Asset: ${data.asset}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}`, silent);
-  info("Privacy note: ragequit is a public, non-private withdrawal that returns funds to your deposit address.", silent);
+  info("Privacy note: Exit (ragequit) is a public, non-private withdrawal that returns funds to your deposit address.", silent);
 }
 
 /**
@@ -89,7 +81,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
 
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      appendNextActions({
+      {
         operation: "ragequit",
         txHash: data.txHash,
         amount: data.amount.toString(),
@@ -101,19 +93,11 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         scope: data.scope.toString(),
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
-      }, [
-        createNextAction(
-          "accounts",
-          "Verify that the Pool Account is now marked as exited.",
-          "after_ragequit",
-          {
-            options: {
-              agent: true,
-              chain: data.chain,
-            },
-          },
-        ),
-      ]),
+        nextStep:
+          "Funds returned to deposit address. Run 'privacy-pools accounts --chain " +
+          data.chain +
+          "' to verify the Pool Account is exited.",
+      },
       false,
     );
     return;
@@ -122,7 +106,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success(
-    `Ragequit ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to deposit address.`,
+    `Exit (ragequit) ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to deposit address.`,
     silent,
   );
   info(`Tx: ${formatTxHash(data.txHash)}`, silent);

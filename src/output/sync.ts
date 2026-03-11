@@ -6,27 +6,25 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, info, success, isSilent, guardCsvUnsupported } from "./common.js";
+import { printJsonSuccess, info, success, isSilent } from "./common.js";
 
 export interface SyncResult {
   chain: string;
   syncedPools: number;
   syncedSymbols?: string[];
-  availablePoolAccounts: number;
-  previousAvailablePoolAccounts?: number;
+  spendableCommitments: number;
+  previousSpendableCommitments?: number;
 }
 
 /**
  * Render "no pools found" output.
  */
 export function renderSyncEmpty(ctx: OutputContext, chain: string): void {
-  guardCsvUnsupported(ctx, "sync");
-
   if (ctx.mode.isJson) {
     printJsonSuccess({
       chain,
       syncedPools: 0,
-      availablePoolAccounts: 0,
+      spendableCommitments: 0,
     });
     return;
   }
@@ -41,15 +39,13 @@ export function renderSyncComplete(
   ctx: OutputContext,
   result: SyncResult,
 ): void {
-  guardCsvUnsupported(ctx, "sync");
-
   if (ctx.mode.isJson) {
     printJsonSuccess({
       chain: result.chain,
       syncedPools: result.syncedPools,
       syncedSymbols: result.syncedSymbols,
-      availablePoolAccounts: result.availablePoolAccounts,
-      previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
+      spendableCommitments: result.spendableCommitments,
+      previousSpendableCommitments: result.previousSpendableCommitments,
     });
     return;
   }
@@ -60,10 +56,10 @@ export function renderSyncComplete(
     silent,
   );
 
-  const delta = result.availablePoolAccounts - (result.previousAvailablePoolAccounts ?? result.availablePoolAccounts);
+  const delta = result.spendableCommitments - (result.previousSpendableCommitments ?? result.spendableCommitments);
   if (delta > 0) {
     success(`Found ${delta} new Pool Account(s).`, silent);
   }
 
-  info(`Available Pool Accounts: ${result.availablePoolAccounts}`, silent);
+  info(`Available Pool Accounts: ${result.spendableCommitments}`, silent);
 }

@@ -1,10 +1,9 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll } from "bun:test";
 
 const trackedTempDirs = new Set<string>();
-const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
+let cleanupRegistered = false;
 
 export function cleanupTrackedTempDirs(): void {
   for (const dir of trackedTempDirs) {
@@ -23,13 +22,16 @@ export function cleanupTrackedTempDirs(): void {
   trackedTempDirs.clear();
 }
 
-afterAll(cleanupTrackedTempDirs);
-process.once("beforeExit", cleanupTrackedTempDirs);
-process.once("exit", cleanupTrackedTempDirs);
+function ensureCleanupRegistered(): void {
+  if (cleanupRegistered) return;
+  cleanupRegistered = true;
+  process.once("beforeExit", cleanupTrackedTempDirs);
+  process.once("exit", cleanupTrackedTempDirs);
+}
 
 export function createTrackedTempDir(prefix: string = "pp-test-"): string {
-  const effectivePrefix = TEST_RUN_ID ? `${prefix}${TEST_RUN_ID}-` : prefix;
-  const dir = mkdtempSync(join(tmpdir(), effectivePrefix));
+  ensureCleanupRegistered();
+  const dir = mkdtempSync(join(tmpdir(), prefix));
   trackedTempDirs.add(dir);
   return dir;
 }

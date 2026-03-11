@@ -18,7 +18,6 @@ import { getPublicClient } from "../services/sdk.js";
 import { spinner, verbose } from "../utils/format.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
@@ -87,7 +86,7 @@ export function buildHistoryEventsFromAccount(
             poolAddress: pool.pool,
             paNumber,
             paId,
-            value: withdrawnAmount < 0n ? child.value : withdrawnAmount,
+            value: withdrawnAmount > 0n ? withdrawnAmount : child.value,
             blockNumber: child.blockNumber,
             txHash: child.txHash,
           });
@@ -125,12 +124,18 @@ export function buildHistoryEventsFromAccount(
 }
 
 export function createHistoryCommand(): Command {
-  const metadata = getCommandMetadata("history");
   return new Command("history")
-    .description(metadata.description)
+    .description("Show chronological event history (deposits, withdrawals, exits)")
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option("-n, --limit <n>", "Show last N events", "50")
-    .addHelpText("after", commandHelpText(metadata.help ?? {}))
+    .addHelpText(
+      "after",
+      "\nExamples:\n  privacy-pools history\n  privacy-pools history --limit 10\n  privacy-pools history --json\n  privacy-pools history --no-sync --chain mainnet\n"
+        + commandHelpText({
+          prerequisites: "init",
+          jsonFields: "{ chain, events: [{ type, asset, poolAddress, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",
+        })
+    )
     .action(async (opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);

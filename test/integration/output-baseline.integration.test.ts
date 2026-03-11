@@ -85,7 +85,7 @@ describe("human-mode output contracts", () => {
     expect(result.status).toBe(0);
     expect(result.stderr).toContain("Privacy Pools CLI Status");
     expect(result.stderr).toContain("Recovery phrase: set");
-    expect(result.stderr).toContain("Signer key:");
+    expect(result.stderr).toContain("Signer:");
     expect(result.stdout.trim()).toBe("");
   });
 
@@ -124,13 +124,11 @@ describe("JSON-mode envelope completeness", () => {
     const json = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      mode: string;
-      help: string;
+      guide: string;
     }>(result.stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
-    expect(typeof json.help).toBe("string");
+    expect(typeof json.guide).toBe("string");
     expect(result.stderr.trim()).toBe("");
   });
 
@@ -163,14 +161,14 @@ describe("JSON-mode envelope completeness", () => {
       schemaVersion: string;
       success: boolean;
       configExists: boolean;
-      recoveryPhraseSet: boolean;
+      mnemonicSet: boolean;
       signerKeySet: boolean;
       signerAddress: string | null;
     }>(result.stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.configExists).toBe(false);
-    expect(json.recoveryPhraseSet).toBe(false);
+    expect(json.mnemonicSet).toBe(false);
     expect(json.signerKeySet).toBe(false);
     expect(json.signerAddress).toBeNull();
     expect(result.stderr.trim()).toBe("");
@@ -185,7 +183,7 @@ describe("JSON-mode envelope completeness", () => {
       success: boolean;
       configExists: boolean;
       defaultChain: string;
-      recoveryPhraseSet: boolean;
+      mnemonicSet: boolean;
       signerKeySet: boolean;
       signerKeyValid: boolean;
       signerAddress: string | null;
@@ -193,7 +191,7 @@ describe("JSON-mode envelope completeness", () => {
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.configExists).toBe(true);
-    expect(json.recoveryPhraseSet).toBe(true);
+    expect(json.mnemonicSet).toBe(true);
     expect(json.signerKeySet).toBe(true);
     expect(json.signerKeyValid).toBe(true);
     expect(typeof json.signerAddress).toBe("string");

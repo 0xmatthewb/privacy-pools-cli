@@ -1,9 +1,4 @@
-export const JSON_SCHEMA_VERSION = "1.1.0";
-
-/** Safety-net replacer: converts any BigInt to string so JSON.stringify never throws. */
-function bigintReplacer(_key: string, value: unknown): unknown {
-  return typeof value === "bigint" ? value.toString() : value;
-}
+export const JSON_SCHEMA_VERSION = "1.3.0";
 
 export function printJsonSuccess(
   payload: object,
@@ -14,7 +9,7 @@ export function printJsonSuccess(
     success: true,
     ...payload,
   };
-  process.stdout.write(`${JSON.stringify(output, bigintReplacer, pretty ? 2 : 0)}\n`);
+  process.stdout.write(`${JSON.stringify(output, null, pretty ? 2 : 0)}\n`);
 }
 
 export function printJsonError(
@@ -34,5 +29,5 @@ export function printJsonError(
     errorMessage: payload.message,
     error: payload,
   };
-  process.stdout.write(`${JSON.stringify(output, bigintReplacer, pretty ? 2 : 0)}\n`);
+  process.stdout.write(`${JSON.stringify(output, null, pretty ? 2 : 0)}\n`);
 }

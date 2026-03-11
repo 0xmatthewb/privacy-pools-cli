@@ -1,6 +1,6 @@
 {
   "name": "privacy-pools-cli",
-  "version": "1.1.0",
+  "version": "1.0.1",
   "description": "CLI for interacting with Privacy Pools v1",
   "type": "module",
   "bin": {
@@ -16,26 +16,25 @@
     "node": ">=18"
   },
   "scripts": {
-    "clean": "node scripts/clean-dist.mjs",
-    "build": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
+    "build": "tsc --project tsconfig.json",
     "circuits:provision": "node scripts/provision-circuits.mjs",
-    "prepare": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
+    "prepare": "tsc --project tsconfig.json",
     "cli": "bun src/index.ts",
     "dev": "bun src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/run-bun-tests.mjs ./test/unit ./test/integration ./test/fuzz ./test/services",
-    "test:ci": "node scripts/run-bun-tests.mjs ./test/unit ./test/integration ./test/fuzz ./test/services && node scripts/run-bun-tests.mjs ./test/conformance --timeout 120000",
-    "test:all": "node scripts/run-bun-tests.mjs ./test/unit ./test/integration ./test/fuzz ./test/services && node scripts/run-bun-tests.mjs ./test/conformance --timeout 120000",
-    "test:conformance": "node scripts/run-bun-tests.mjs ./test/conformance --timeout 120000",
-    "test:fuzz": "node scripts/run-bun-tests.mjs ./test/fuzz --timeout 120000",
+    "test": "bun test ./test/unit ./test/integration ./test/fuzz ./test/services",
+    "test:ci": "bun test ./test/unit ./test/integration ./test/fuzz ./test/services && bun test ./test/conformance --timeout 120000",
+    "test:all": "bun test ./test/unit ./test/integration ./test/fuzz ./test/services && bun test ./test/conformance --timeout 120000",
+    "test:conformance": "bun test ./test/conformance --timeout 120000",
+    "test:fuzz": "bun test ./test/fuzz --timeout 120000",
     "test:stress": "node scripts/run-stress.mjs",
-    "test:coverage": "node scripts/run-bun-tests.mjs --coverage",
-    "test:smoke": "node scripts/run-bun-tests.mjs ./test/integration/cli.packaged-smoke.integration.test.ts --timeout 180000",
-    "test:e2e:anvil": "node scripts/run-bun-tests.mjs ./test/integration/cli-anvil-e2e.integration.test.ts --timeout 600000"
+    "test:coverage": "bun test --coverage",
+    "test:smoke": "bun test ./test/integration/cli.packaged-smoke.integration.test.ts --timeout 180000",
+    "test:e2e:anvil": "bun test ./test/integration/cli-anvil-e2e.integration.test.ts --timeout 600000"
   },
   "dependencies": {
-    "@0xbow/privacy-pools-core-sdk": "1.1.1",
+    "@0xbow/privacy-pools-core-sdk": "1.1.0",
     "@inquirer/prompts": "7.10.1",
     "@scure/bip39": "1.6.0",
     "chalk": "5.6.2",

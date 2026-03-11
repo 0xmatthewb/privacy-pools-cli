@@ -5,7 +5,6 @@ import { resolvePool } from "../services/pools.js";
 import { fetchGlobalStatistics, fetchPoolStatistics } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
-import { getCommandMetadata } from "../utils/command-metadata.js";
 import { spinner } from "../utils/format.js";
 import type {
   GlobalOptions,
@@ -25,17 +24,23 @@ interface PoolStatsCommandOptions {
 export { parseUsd, parseCount } from "../output/stats.js";
 
 export function createStatsCommand(): Command {
-  const metadata = getCommandMetadata("stats");
-  const globalMetadata = getCommandMetadata("stats global");
-  const poolMetadata = getCommandMetadata("stats pool");
   const command = new Command("stats")
-    .description(metadata.description)
-    .addHelpText("after", commandHelpText(metadata.help ?? {}));
+    .description("Show public statistics")
+    .addHelpText(
+      "after",
+      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain mainnet\n"
+    );
 
   command
     .command("global", { isDefault: true })
-    .description(globalMetadata.description)
-    .addHelpText("after", commandHelpText(globalMetadata.help ?? {}))
+    .description("Show global Privacy Pools statistics (all-time and last 24h)")
+    .addHelpText(
+      "after",
+      "\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --json\n"
+        + commandHelpText({
+          jsonFields: "{ mode, chain, cacheTimestamp?, allTime?, last24h? }",
+        })
+    )
     .action(async (_opts, subCmd) => {
       const globalOpts = subCmd.parent?.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
@@ -82,9 +87,15 @@ export function createStatsCommand(): Command {
 
   command
     .command("pool")
-    .description(poolMetadata.description)
+    .description("Show statistics for a specific pool (all-time and last 24h)")
     .option("-a, --asset <symbol|address>", "Pool asset (symbol like ETH, USDC, or token address)")
-    .addHelpText("after", commandHelpText(poolMetadata.help ?? {}))
+    .addHelpText(
+      "after",
+      "\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --json --chain mainnet\n"
+        + commandHelpText({
+          jsonFields: "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+        })
+    )
     .action(async (opts: PoolStatsCommandOptions, subCmd) => {
       const globalOpts = subCmd.parent?.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
