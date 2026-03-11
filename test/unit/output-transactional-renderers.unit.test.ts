@@ -98,10 +98,11 @@ describe("renderInitResult parity", () => {
     );
 
     expect(stdout).toBe("");
-    // Init completion outputs next-step commands to stderr
+    // Init completion outputs next-step commands to stderr via shared renderer
+    expect(stderr).toContain("Setup complete!");
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).toContain("privacy-pools status");
     expect(stderr).toContain("privacy-pools pools");
-    expect(stderr).toContain("privacy-pools deposit");
-    expect(stderr).toContain("privacy-pools guide");
   });
 
   test("quiet mode: emits nothing", () => {
@@ -257,7 +258,7 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Pending ASP approval");
-    expect(stderr).toContain("Check Pool Accounts");
+    expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
 

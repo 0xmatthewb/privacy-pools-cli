@@ -6,6 +6,7 @@
  * truth in `utils/json.ts` and formatting helpers in `utils/format.ts`.
  */
 
+import chalk from "chalk";
 import type { ResolvedGlobalMode } from "../utils/mode.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { printCsv } from "./csv.js";
@@ -17,6 +18,7 @@ import {
   printTable,
 } from "../utils/format.js";
 import { CLIError } from "../utils/errors.js";
+import { accent } from "../utils/theme.js";
 
 // ── Re-exports so renderers only need one import ─────────────────────────────
 
@@ -119,4 +121,60 @@ export function appendNextActions<T extends Record<string, unknown>>(
   return nextActions && nextActions.length > 0
     ? { ...payload, nextActions }
     : { ...payload };
+}
+
+// ── Shared human next-step renderer ─────────────────────────────────────────
+
+/**
+ * Build a human-readable CLI invocation string from a NextAction.
+ *
+ * Includes positional args and a small subset of options that help the user
+ * understand the suggested command.  Machine-only options (e.g. `agent: true`)
+ * are excluded because they are not useful in a human-mode hint.
+ */
+export function formatNextActionCommand(action: NextAction): string {
+  const parts = ["privacy-pools", action.command];
+
+  if (action.args) {
+    parts.push(...action.args);
+  }
+
+  if (action.options) {
+    for (const [key, value] of Object.entries(action.options)) {
+      // Skip machine-only flags that would confuse humans
+      if (key === "agent") continue;
+      if (value === null || value === undefined) continue;
+      if (typeof value === "boolean") {
+        if (value) parts.push(`--${key}`);
+      } else {
+        parts.push(`--${key}`, String(value));
+      }
+    }
+  }
+
+  return parts.join(" ");
+}
+
+/**
+ * Render human-visible next-step guidance derived from the same NextAction
+ * array used for JSON `nextActions`.
+ *
+ * Single source of truth: JSON renderers call `appendNextActions(payload, actions)`,
+ * human renderers call `renderNextSteps(ctx, actions)` with the same array.
+ *
+ * Output goes to stderr, suppressed by --quiet / --agent / --json / --csv.
+ */
+export function renderNextSteps(
+  ctx: OutputContext,
+  nextActions: NextAction[] | undefined,
+): void {
+  if (!nextActions || nextActions.length === 0) return;
+  if (isSilent(ctx)) return;
+
+  process.stderr.write(chalk.dim("\nNext steps:\n"));
+  for (const action of nextActions) {
+    const cmd = formatNextActionCommand(action);
+    process.stderr.write(`  ${accent(cmd)}\n`);
+    process.stderr.write(`  ${chalk.dim(action.reason)}\n`);
+  }
 }

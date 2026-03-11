@@ -10,6 +10,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -94,6 +95,20 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
 export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessData): void {
   guardCsvUnsupported(ctx, "deposit");
 
+  const nextActions = [
+    createNextAction(
+      "accounts",
+      "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+      "after_deposit",
+      {
+        options: {
+          agent: true,
+          chain: data.chain,
+        },
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
       appendNextActions({
@@ -110,19 +125,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         label: data.label?.toString() ?? null,
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
-      }, [
-        createNextAction(
-          "accounts",
-          "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
-          "after_deposit",
-          {
-            options: {
-              agent: true,
-              chain: data.chain,
-            },
-          },
-        ),
-      ]),
+      }, nextActions),
       false,
     );
     return;
@@ -147,5 +150,5 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
-  info("Check Pool Accounts: privacy-pools accounts --chain " + data.chain, silent);
+  renderNextSteps(ctx, nextActions);
 }

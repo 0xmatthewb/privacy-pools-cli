@@ -113,6 +113,8 @@ describe("barrel re-exports", () => {
     "success",
     "warn",
     "printTable",
+    "renderNextSteps",
+    "formatNextActionCommand",
     // Core command renderers
     "renderGuide",
     "renderCapabilities",

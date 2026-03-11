@@ -6,11 +6,11 @@
  * remain in the command handler.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -18,7 +18,6 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
-import { accent } from "../utils/theme.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -39,34 +38,36 @@ export interface InitRenderResult {
 export function renderInitResult(ctx: OutputContext, result: InitRenderResult): void {
   guardCsvUnsupported(ctx, "init");
 
+  const nextActions = [
+    createNextAction(
+      "status",
+      "Verify wallet readiness and chain health before transacting.",
+      "after_init",
+      {
+        options: {
+          agent: true,
+          chain: result.defaultChain,
+        },
+      },
+    ),
+    createNextAction(
+      "pools",
+      "Browse pools on the configured default chain before depositing.",
+      "after_init",
+      {
+        options: {
+          agent: true,
+          chain: result.defaultChain,
+        },
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     const jsonOutput: Record<string, unknown> = appendNextActions({
       defaultChain: result.defaultChain,
       signerKeySet: result.signerKeySet,
-    }, [
-      createNextAction(
-        "status",
-        "Verify wallet readiness and chain health before transacting.",
-        "after_init",
-        {
-          options: {
-            agent: true,
-            chain: result.defaultChain,
-          },
-        },
-      ),
-      createNextAction(
-        "pools",
-        "Browse pools on the configured default chain before depositing.",
-        "after_init",
-        {
-          options: {
-            agent: true,
-            chain: result.defaultChain,
-          },
-        },
-      ),
-    ]) as Record<string, unknown>;
+    }, nextActions) as Record<string, unknown>;
     if (!result.mnemonicImported) {
       if (result.showMnemonic) {
         jsonOutput.recoveryPhrase = result.mnemonic;
@@ -91,14 +92,6 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   if (!result.mnemonicImported && ctx.mode.skipPrompts) {
     warn("You skipped backup confirmation (--yes mode). Ensure your recovery phrase is securely stored.", silent);
   }
-  success("Setup complete! Here's what to do next:", silent);
-  if (!silent) {
-    process.stderr.write("\n");
-    process.stderr.write(`  ${chalk.dim("1.")} Browse pools          ${accent("privacy-pools pools")}\n`);
-    process.stderr.write(`  ${chalk.dim("2.")} Make a deposit         ${accent("privacy-pools deposit 0.1 ETH")}\n`);
-    process.stderr.write(`  ${chalk.dim("3.")} Check your accounts    ${accent("privacy-pools accounts")}\n`);
-    process.stderr.write(`  ${chalk.dim("4.")} Withdraw funds         ${accent("privacy-pools withdraw 0.05 ETH --to 0x...")}\n`);
-    process.stderr.write("\n");
-    info(`Full guide: ${accent("privacy-pools guide")}`, silent);
-  }
+  success("Setup complete!", silent);
+  renderNextSteps(ctx, nextActions);
 }

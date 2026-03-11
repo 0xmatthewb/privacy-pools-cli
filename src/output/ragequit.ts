@@ -10,6 +10,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -87,6 +88,20 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
 export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessData): void {
   guardCsvUnsupported(ctx, "ragequit");
 
+  const nextActions = [
+    createNextAction(
+      "accounts",
+      "Verify that the Pool Account is now marked as exited.",
+      "after_ragequit",
+      {
+        options: {
+          agent: true,
+          chain: data.chain,
+        },
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
       appendNextActions({
@@ -101,19 +116,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         scope: data.scope.toString(),
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
-      }, [
-        createNextAction(
-          "accounts",
-          "Verify that the Pool Account is now marked as exited.",
-          "after_ragequit",
-          {
-            options: {
-              agent: true,
-              chain: data.chain,
-            },
-          },
-        ),
-      ]),
+      }, nextActions),
       false,
     );
     return;
@@ -129,5 +132,5 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
-  info(`Verify account closed: privacy-pools accounts --chain ${data.chain}`, silent);
+  renderNextSteps(ctx, nextActions);
 }

@@ -11,6 +11,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -133,6 +134,22 @@ export interface WithdrawSuccessData {
 export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessData): void {
   guardCsvUnsupported(ctx, "withdraw");
 
+  const nextActions = [
+    createNextAction(
+      "accounts",
+      data.withdrawMode === "direct"
+        ? "Verify the updated balance after a direct withdrawal."
+        : "Verify the updated balance after the withdrawal settles.",
+      data.withdrawMode === "direct" ? "after_direct_withdrawal" : "after_withdrawal",
+      {
+        options: {
+          agent: true,
+          chain: data.chain,
+        },
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = appendNextActions({
       operation: "withdraw",
@@ -149,21 +166,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       poolAccountNumber: data.poolAccountNumber,
       poolAccountId: data.poolAccountId,
       remainingBalance: data.remainingBalance.toString(),
-    }, [
-      createNextAction(
-        "accounts",
-        data.withdrawMode === "direct"
-          ? "Verify the updated balance after a direct withdrawal."
-          : "Verify the updated balance after the withdrawal settles.",
-        data.withdrawMode === "direct" ? "after_direct_withdrawal" : "after_withdrawal",
-        {
-          options: {
-            agent: true,
-            chain: data.chain,
-          },
-        },
-      ),
-    ]) as Record<string, unknown>;
+    }, nextActions) as Record<string, unknown>;
     if (data.withdrawMode === "direct") {
       payload.fee = null;
     } else {
@@ -209,7 +212,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   } else {
     info(`Remaining in ${data.poolAccountId}: ${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`, silent);
   }
-  info(`Check updated balance: privacy-pools accounts --chain ${data.chain}`, silent);
+  renderNextSteps(ctx, nextActions);
 }
 
 // ── Quote ────────────────────────────────────────────────────────────────────
@@ -252,6 +255,23 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     return val === "-" ? "" : ` (${val})`;
   };
 
+  const nextActions = [
+    createNextAction(
+      "withdraw",
+      "Submit the withdrawal promptly if the quoted fee is acceptable.",
+      "after_quote",
+      {
+        args: [formatUnits(data.amount, data.decimals), data.asset],
+        options: {
+          agent: true,
+          chain: data.chain,
+          to: data.recipient,
+          extraGas: data.extraGas ?? null,
+        },
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = appendNextActions({
       mode: "relayed-quote",
@@ -266,22 +286,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       netAmount: netAmount.toString(),
       feeCommitmentPresent: data.feeCommitmentPresent,
       quoteExpiresAt: data.quoteExpiresAt,
-    }, [
-      createNextAction(
-        "withdraw",
-        "Submit the withdrawal promptly if the quoted fee is acceptable.",
-        "after_quote",
-        {
-          args: [formatUnits(data.amount, data.decimals), data.asset],
-          options: {
-            agent: true,
-            chain: data.chain,
-            to: data.recipient,
-            extraGas: data.extraGas ?? null,
-          },
-        },
-      ),
-    ]) as Record<string, unknown>;
+    }, nextActions) as Record<string, unknown>;
     if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     printJsonSuccess(
       payload,
@@ -311,4 +316,5 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   if (data.extraGas) {
     info("Gas token drop: enabled (receive ETH for gas)", silent);
   }
+  renderNextSteps(ctx, nextActions);
 }
