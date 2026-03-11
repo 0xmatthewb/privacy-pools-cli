@@ -300,6 +300,11 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   deposit: {
     description: "Deposit into a pool",
     help: {
+      overview: [
+        "Deposits funds into a Privacy Pool. A ZK proof is generated locally",
+        "and the transaction is submitted onchain. The first run may download",
+        "circuit files (~30s). Subsequent runs typically complete in 10-30s.",
+      ],
       examples: [
         "privacy-pools deposit 0.1 ETH",
         "privacy-pools deposit 100 USDC",
@@ -345,6 +350,11 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   withdraw: {
     description: "Withdraw from a pool",
     help: {
+      overview: [
+        "Withdraws funds from a Privacy Pool. Generates a ZK proof locally and",
+        "submits via relayer (default, private) or directly onchain (--direct).",
+        "Proof generation may take 10-30s. Use 'withdraw quote' to check fees first.",
+      ],
       examples: [
         "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
         "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2",

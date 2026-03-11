@@ -80,6 +80,26 @@ describe("classifyError - network error variants", () => {
     expect(err.retryable).toBe(true);
   });
 
+  test("ENOTFOUND → RPC", () => {
+    const err = classifyError(new Error("getaddrinfo ENOTFOUND rpc.example.com"));
+    expect(err.category).toBe("RPC");
+    expect(err.code).toBe("RPC_NETWORK_ERROR");
+    expect(err.retryable).toBe(true);
+    expect(err.hint).toContain("--rpc-url");
+  });
+
+  test("ENETUNREACH → RPC", () => {
+    const err = classifyError(new Error("connect ENETUNREACH"));
+    expect(err.category).toBe("RPC");
+    expect(err.retryable).toBe(true);
+  });
+
+  test("EAI_AGAIN (DNS) → RPC", () => {
+    const err = classifyError(new Error("getaddrinfo EAI_AGAIN rpc.example.com"));
+    expect(err.category).toBe("RPC");
+    expect(err.retryable).toBe(true);
+  });
+
   test("timeout → RPC", () => {
     const err = classifyError(new Error("request timeout after 30000ms"));
     expect(err.category).toBe("RPC");
@@ -87,9 +107,53 @@ describe("classifyError - network error variants", () => {
     expect(err.hint).toContain("--timeout");
   });
 
+  test("429 rate limit → RPC_RATE_LIMITED", () => {
+    const err = classifyError(new Error("HTTP 429: Too Many Requests"));
+    expect(err.category).toBe("RPC");
+    expect(err.code).toBe("RPC_RATE_LIMITED");
+    expect(err.retryable).toBe(true);
+    expect(err.hint).toContain("--rpc-url");
+  });
+
+  test("rate limit text → RPC_RATE_LIMITED", () => {
+    const err = classifyError(new Error("rate limit exceeded for this endpoint"));
+    expect(err.category).toBe("RPC");
+    expect(err.code).toBe("RPC_RATE_LIMITED");
+    expect(err.retryable).toBe(true);
+  });
+
   test("non-Error objects with message string → classified", () => {
     const err = classifyError("fetch failed: network error");
     expect(err.category).toBe("RPC");
+  });
+});
+
+describe("classifyError - transaction error variants", () => {
+  test("insufficient funds → CONTRACT_INSUFFICIENT_FUNDS", () => {
+    const err = classifyError(new Error("insufficient funds for gas * price + value"));
+    expect(err.category).toBe("CONTRACT");
+    expect(err.code).toBe("CONTRACT_INSUFFICIENT_FUNDS");
+    expect(err.hint).toContain("ETH");
+  });
+
+  test("exceeds the balance → CONTRACT_INSUFFICIENT_FUNDS", () => {
+    const err = classifyError(new Error("transaction value exceeds the balance of the account"));
+    expect(err.category).toBe("CONTRACT");
+    expect(err.code).toBe("CONTRACT_INSUFFICIENT_FUNDS");
+  });
+
+  test("nonce too low → CONTRACT_NONCE_ERROR", () => {
+    const err = classifyError(new Error("nonce too low: next nonce 5, tx nonce 3"));
+    expect(err.category).toBe("CONTRACT");
+    expect(err.code).toBe("CONTRACT_NONCE_ERROR");
+    expect(err.retryable).toBe(true);
+  });
+
+  test("nonce already known → CONTRACT_NONCE_ERROR", () => {
+    const err = classifyError(new Error("nonce already known for this sender"));
+    expect(err.category).toBe("CONTRACT");
+    expect(err.code).toBe("CONTRACT_NONCE_ERROR");
+    expect(err.retryable).toBe(true);
   });
 });
 

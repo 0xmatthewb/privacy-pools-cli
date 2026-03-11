@@ -454,6 +454,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `INPUT_ERROR`                        | INPUT    | No        | Bad arguments, missing flags               |
 | `RPC_ERROR`                          | RPC      | No        | RPC call failure                            |
 | `RPC_NETWORK_ERROR`                  | RPC      | Yes       | Network connectivity issue                  |
+| `RPC_RATE_LIMITED`                   | RPC      | Yes       | RPC provider rate limit (429); use --rpc-url|
 | `RPC_POOL_RESOLUTION_FAILED`         | RPC      | Yes       | Pool resolution failed (ASP + RPC both down)|
 | `ASP_ERROR`                          | ASP      | No        | ASP service failure                         |
 | `RELAYER_ERROR`                      | RELAYER  | No        | Relayer request failure                     |
@@ -468,6 +469,8 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED`| CONTRACT | No        | Duplicate precommitment, retry deposit      |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`   | CONTRACT | No        | Wrong signer for exit                       |
 | `CONTRACT_NO_ROOTS_AVAILABLE`        | CONTRACT | Yes       | Pool not ready, wait and retry              |
+| `CONTRACT_INSUFFICIENT_FUNDS`        | CONTRACT | No        | Wallet lacks ETH for amount + gas           |
+| `CONTRACT_NONCE_ERROR`               | CONTRACT | Yes       | Nonce conflict; pending tx may be stuck     |
 | `ACCOUNT_NOT_APPROVED`               | ASP      | No        | Deposit pending ASP approval, cannot withdraw yet |
 | `UNKNOWN_ERROR`                      | UNKNOWN  | No        | Unexpected error                            |
 
@@ -488,9 +491,9 @@ Dry-run responses include `"dryRun": true` and all validation results.
 
 When `retryable: true` is present in the error response:
 
-1. For `RPC_NETWORK_ERROR` or `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
+1. For `RPC_NETWORK_ERROR`, `RPC_RATE_LIMITED`, or `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
 2. For `CONTRACT_INCORRECT_ASP_ROOT` or `PROOF_MERKLE_ERROR`: run `sync --agent` first, then retry the original command
-3. For `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
+3. For `CONTRACT_NO_ROOTS_AVAILABLE` or `CONTRACT_NONCE_ERROR`: wait 30-60s and retry
 
 When `retryable: false` (non-retryable):
 
