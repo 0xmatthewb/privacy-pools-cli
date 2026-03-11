@@ -19,6 +19,8 @@ import {
 } from "node:http";
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
+import { encodeAbiParameters } from "viem";
+import type { Address } from "viem";
 
 // ── Canned response data ─────────────────────────────────────────────────────
 
@@ -96,6 +98,16 @@ const POOL_STATISTICS = {
 
 const LIVENESS = { status: "ok" };
 
+const MT_LEAVES = {
+  aspLeaves: ["1"],
+  stateTreeLeaves: [],
+};
+
+const SEPOLIA_ENTRYPOINT =
+  "0x34a2068192b1297f2a7f85d7d8cde66f8f0921cb" as Address;
+const FIXTURE_POOL =
+  "0x1234567890abcdef1234567890abcdef12345678" as Address;
+
 // ── Routing ──────────────────────────────────────────────────────────────────
 
 function route(req: IncomingMessage, res: ServerResponse): void {
@@ -114,6 +126,8 @@ function route(req: IncomingMessage, res: ServerResponse): void {
     body = GLOBAL_STATISTICS;
   } else if (path.match(/\/\d+\/public\/pool-statistics$/)) {
     body = POOL_STATISTICS;
+  } else if (path.match(/\/\d+\/public\/mt-leaves$/)) {
+    body = MT_LEAVES;
   } else if (path.match(/\/\d+\/health\/liveness$/)) {
     body = LIVENESS;
   }
@@ -121,6 +135,64 @@ function route(req: IncomingMessage, res: ServerResponse): void {
   if (body !== undefined) {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(body));
+  } else if (req.method === "POST") {
+    let requestBody = "";
+    req.on("data", (chunk) => {
+      requestBody += chunk.toString();
+    });
+    req.on("end", () => {
+      const json = JSON.parse(requestBody || "{}");
+      const method = String(json.method ?? "");
+      const id = json.id ?? 1;
+
+      if (method === "eth_chainId") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: "0xaa36a7",
+        }));
+        return;
+      }
+
+      if (method === "eth_call") {
+        const call = json?.params?.[0] ?? {};
+        const to = String(call.to ?? "").toLowerCase();
+        const data = String(call.data ?? "").toLowerCase();
+        let result = "0x";
+
+        // assetConfig(address)
+        if (to === SEPOLIA_ENTRYPOINT.toLowerCase() && data.startsWith("0xd6dbaf58")) {
+          result = encodeAbiParameters(
+            [
+              { type: "address" },
+              { type: "uint256" },
+              { type: "uint256" },
+              { type: "uint256" },
+            ],
+            [FIXTURE_POOL, 1000000000000000n, 50n, 250n],
+          );
+        // SCOPE()
+        } else if (to === FIXTURE_POOL.toLowerCase()) {
+          result = encodeAbiParameters([{ type: "uint256" }], [12345n]);
+        }
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result,
+        }));
+        return;
+      }
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32601, message: "Method not found" },
+      }));
+    });
   } else {
     res.writeHead(404);
     res.end("Not Found");

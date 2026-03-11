@@ -25,6 +25,25 @@ function sourceBaseNames(dir: string): string[] {
     .sort();
 }
 
+function packedFilePaths(): Set<string> {
+  const pack = spawnSync(
+    "npm",
+    ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
+    { cwd: CLI_CWD, encoding: "utf8", timeout: 30_000 },
+  );
+  expect(pack.status).toBe(0);
+  const output = `${pack.stdout}\n${pack.stderr}`.trim();
+  const jsonStart = output.indexOf("[");
+  const jsonEnd = output.lastIndexOf("]");
+  expect(jsonStart).toBeGreaterThanOrEqual(0);
+  expect(jsonEnd).toBeGreaterThan(jsonStart);
+
+  const manifest = JSON.parse(output.slice(jsonStart, jsonEnd + 1)) as Array<{
+    files?: Array<{ path?: string }>;
+  }>;
+  return new Set((manifest[0]?.files ?? []).map((entry) => entry.path));
+}
+
 describe("packaged CLI smoke", () => {
   let home: string;
 
@@ -260,22 +279,7 @@ describe("packaged CLI smoke", () => {
   // ── Packaged artifact ──────────────────────────────────────────────────────
 
   test("npm pack includes dist entry point and package.json without orphaned command/output artifacts", () => {
-    const pack = spawnSync(
-      "npm",
-      ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
-      { cwd: CLI_CWD, encoding: "utf8", timeout: 30_000 },
-    );
-    expect(pack.status).toBe(0);
-    const output = `${pack.stdout}\n${pack.stderr}`.trim();
-    const jsonStart = output.indexOf("[");
-    const jsonEnd = output.lastIndexOf("]");
-    expect(jsonStart).toBeGreaterThanOrEqual(0);
-    expect(jsonEnd).toBeGreaterThan(jsonStart);
-
-    const manifest = JSON.parse(output.slice(jsonStart, jsonEnd + 1)) as Array<{
-      files?: Array<{ path?: string }>;
-    }>;
-    const filePaths = new Set((manifest[0]?.files ?? []).map((entry) => entry.path));
+    const filePaths = packedFilePaths();
     const packedCommandNames = packedBaseNames(filePaths, "dist/commands/");
     const packedOutputNames = packedBaseNames(filePaths, "dist/output/");
 
@@ -283,5 +287,29 @@ describe("packaged CLI smoke", () => {
     expect(filePaths.has("package.json")).toBe(true);
     expect(packedCommandNames).toEqual(sourceBaseNames("src/commands"));
     expect(packedOutputNames).toEqual(sourceBaseNames("src/output"));
+  }, 30_000);
+
+  test("npm pack includes docs referenced by shipped docs and capabilities", () => {
+    const filePaths = packedFilePaths();
+
+    expect(filePaths.has("AGENTS.md")).toBe(true);
+    expect(filePaths.has("CHANGELOG.md")).toBe(true);
+    expect(filePaths.has("docs/reference.md")).toBe(true);
+    expect(filePaths.has("skills/privacy-pools-cli/SKILL.md")).toBe(true);
+    expect(filePaths.has("skills/privacy-pools-cli/reference.md")).toBe(true);
+
+    const capabilities = runBuiltCli(["--agent", "capabilities"], { home });
+    expect(capabilities.status).toBe(0);
+    const json = parseJsonOutput<{
+      documentation?: {
+        reference?: string;
+        agentGuide?: string;
+        changelog?: string;
+      };
+    }>(capabilities.stdout);
+
+    expect(filePaths.has(json.documentation?.reference ?? "")).toBe(true);
+    expect(filePaths.has(json.documentation?.agentGuide ?? "")).toBe(true);
+    expect(filePaths.has(json.documentation?.changelog ?? "")).toBe(true);
   }, 30_000);
 }, 180_000);

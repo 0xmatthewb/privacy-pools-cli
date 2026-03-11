@@ -9,7 +9,7 @@ export const SUPPORTED_COMPLETION_SHELLS = [
 
 export type CompletionShell = (typeof SUPPORTED_COMPLETION_SHELLS)[number];
 
-const PUBLISHED_BINARY_NAMES = ["privacy-pools", "pp"] as const;
+const PUBLISHED_BINARY_NAMES = ["privacy-pools"] as const;
 
 interface CompletionOptionSpec {
   names: string[];

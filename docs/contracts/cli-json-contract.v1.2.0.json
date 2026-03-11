@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "1.1.0",
-  "schemaVersion": "1.1.0",
+  "version": "1.2.0",
+  "schemaVersion": "1.2.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {
@@ -167,7 +167,7 @@
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction[]"
+          "--unsigned tx": "RawUnsignedTransaction[]"
         }
       }
     },
@@ -242,7 +242,7 @@
           "relayerRequest": "object"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction[]"
+          "--unsigned tx": "RawUnsignedTransaction[]"
         }
       },
       "subcommands": {
@@ -308,7 +308,7 @@
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedTx": {
-          "--unsigned-format tx": "RawUnsignedTransaction[]"
+          "--unsigned tx": "RawUnsignedTransaction[]"
         }
       }
     },
@@ -319,6 +319,22 @@
         "balances": "Balance[]",
         "pendingCount": "number",
         "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+      },
+      "summaryVariant": {
+        "chain": "string",
+        "pendingCount": "number",
+        "approvedCount": "number",
+        "spendableCount": "number",
+        "spentCount": "number",
+        "exitedCount": "number",
+        "balances": "Balance[]",
+        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+      },
+      "pendingOnlyVariant": {
+        "chain": "string",
+        "accounts": "Account[] (filtered to aspStatus = \"pending\")",
+        "pendingCount": "number",
+        "nextActions": "NextAction[]? (poll-oriented only; no withdraw suggestions)"
       },
       "accountFields": {
         "poolAccountNumber": "number",
@@ -429,6 +445,7 @@
     "capabilities": {
       "successFields": {
         "commands": "Command[]",
+        "commandDetails": "Record<string, DetailedCommandDescriptor>",
         "globalFlags": "Flag[]",
         "agentWorkflow": "string[]",
         "jsonOutputContract": "string (descriptive contract summary)",
@@ -436,6 +453,27 @@
         "schemas": "object (includes nextActions metadata)",
         "supportedChains": "Chain[]",
         "safeReadOnlyCommands": "string[]"
+      }
+    },
+    "describe": {
+      "successFields": {
+        "command": "string (canonical command path)",
+        "description": "string",
+        "aliases": "string[]",
+        "usage": "string",
+        "flags": "string[]",
+        "globalFlags": "string[]",
+        "requiresInit": "boolean",
+        "expectedLatencyClass": "\"fast\"|\"medium\"|\"slow\"",
+        "safeReadOnly": "boolean",
+        "prerequisites": "string[]",
+        "examples": "string[]",
+        "jsonFields": "string|null",
+        "jsonVariants": "string[]",
+        "safetyNotes": "string[]",
+        "supportsUnsigned": "boolean",
+        "supportsDryRun": "boolean",
+        "agentWorkflowNotes": "string[]"
       }
     },
     "sync": {

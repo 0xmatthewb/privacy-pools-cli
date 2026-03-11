@@ -23,6 +23,7 @@ export interface CliRunOptions {
   home?: string;
   timeoutMs?: number;
   env?: Record<string, string | undefined>;
+  input?: string;
 }
 
 export interface CliRunResult {
@@ -82,6 +83,7 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
       ...options.env,
     },
     encoding: "utf8",
+    input: options.input,
     timeout: timeoutMs,
     maxBuffer: 10 * 1024 * 1024,
   });
@@ -120,6 +122,7 @@ export function runBuiltCli(
       ...options.env,
     },
     encoding: "utf8",
+    input: options.input,
     timeout: timeoutMs,
     maxBuffer: 10 * 1024 * 1024,
   });

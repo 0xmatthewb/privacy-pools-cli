@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { confirm, select } from "@inquirer/prompts";
 import {
   type Hash as SDKHash,
@@ -21,6 +21,7 @@ import {
   spinner,
   stageHeader,
   info,
+  warn,
   verbose,
   formatAmount,
   formatAddress,
@@ -34,6 +35,11 @@ import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
+import {
+  isRoundAmount,
+  suggestRoundAmounts,
+  formatAmountDecimal,
+} from "../utils/amount-privacy.js";
 import { createOutputContext } from "../output/common.js";
 import { renderDepositDryRun, renderDepositSuccess } from "../output/deposit.js";
 import { buildUnsignedDepositOutput } from "../utils/unsigned-flows.js";
@@ -61,20 +67,22 @@ export function createDepositCommand(): Command {
   const metadata = getCommandMetadata("deposit");
   return new Command("deposit")
     .description(metadata.description)
-    .argument("<amountOrAsset>", "Amount to deposit (or asset symbol, see examples)")
-    .argument("[amount]", "Amount (when asset is the first argument)")
+    .argument("<amount>", "Amount to deposit (e.g. 0.1)")
+    .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
     .option("-a, --asset <symbol|address>", "Asset to deposit (symbol like ETH, USDC, or contract address)")
-    .option("--unsigned", "Build unsigned transaction payload(s); do not submit")
-    .option("--unsigned-format <format>", "Unsigned output format (with --unsigned): envelope|tx")
+    .option("--unsigned [format]", "Build unsigned payload; format: envelope (default) or tx")
+    .addOption(new Option("--unsigned-format <format>", "Deprecated: use --unsigned [format]").hideHelp())
     .option("--dry-run", "Validate and preview the transaction without submitting")
+    .option("--ignore-unique-amount", "Bypass the non-round amount privacy check")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (firstArg, secondArg, opts, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
       const isJson = mode.isJson;
       const isQuiet = mode.isQuiet;
-      const isUnsigned = opts.unsigned ?? false;
-      const unsignedFormat = (opts.unsignedFormat as string | undefined)?.toLowerCase();
+      const unsignedRaw = opts.unsigned;
+      const isUnsigned = unsignedRaw === true || typeof unsignedRaw === "string";
+      const unsignedFormat = typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
       const wantsTxFormat = unsignedFormat === "tx";
       const isDryRun = opts.dryRun ?? false;
       const silent = isQuiet || isJson || isUnsigned || isDryRun;
@@ -82,19 +90,19 @@ export function createDepositCommand(): Command {
       const isVerbose = globalOpts?.verbose ?? false;
 
       try {
-        if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
+        if (opts.unsignedFormat !== undefined) {
           throw new CLIError(
-            `Unsupported unsigned format: ${opts.unsignedFormat}.`,
+            "--unsigned-format has been replaced by --unsigned [format].",
             "INPUT",
-            "Use --unsigned-format envelope or --unsigned-format tx."
+            `Use: privacy-pools deposit ... --unsigned ${opts.unsignedFormat ?? "envelope"}`
           );
         }
 
-        if (unsignedFormat && !isUnsigned) {
+        if (unsignedFormat && unsignedFormat !== "envelope" && unsignedFormat !== "tx") {
           throw new CLIError(
-            "--unsigned-format requires --unsigned.",
+            `Unsupported unsigned format: "${unsignedFormat}".`,
             "INPUT",
-            "Use: privacy-pools deposit ... --unsigned --unsigned-format " + (unsignedFormat || "envelope")
+            "Use --unsigned envelope or --unsigned tx."
           );
         }
 
@@ -158,6 +166,39 @@ export function createDepositCommand(): Command {
             "INPUT",
             `Increase the amount to at least ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)}.`
           );
+        }
+
+        // Privacy guard: non-round amounts can fingerprint deposits
+        if (!opts.ignoreUniqueAmount && !isRoundAmount(amount, pool.decimals, pool.symbol)) {
+          const humanAmount = formatAmountDecimal(amount, pool.decimals);
+          const suggestions = suggestRoundAmounts(amount, pool.decimals, pool.symbol);
+          const suggestionStr = suggestions.length > 0
+            ? ` Consider: ${suggestions.map((s) => `${formatAmountDecimal(s, pool.decimals)} ${pool.symbol}`).join(", ")}.`
+            : "";
+
+          if (skipPrompts) {
+            // Agent / non-interactive mode: hard error
+            throw new CLIError(
+              `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy.`,
+              "INPUT",
+              `Unique amounts can be linked between deposits and withdrawals.${suggestionStr} Pass --ignore-unique-amount to proceed anyway.`
+            );
+          } else {
+            // Interactive mode: warning + confirmation
+            process.stderr.write("\n");
+            warn(
+              `${humanAmount} ${pool.symbol} is a non-round amount that may reduce your privacy in the anonymity set.${suggestionStr}`,
+              false
+            );
+            const proceed = await confirm({
+              message: "Proceed with this amount anyway?",
+              default: false,
+            });
+            if (!proceed) {
+              info("Deposit cancelled.", silent);
+              return;
+            }
+          }
         }
 
         // Show fee preview and confirm

@@ -11,7 +11,7 @@ import {
 import { listPools } from "../services/pools.js";
 import { fetchApprovedLabels } from "../services/asp.js";
 import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
-import { printError } from "../utils/errors.js";
+import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
@@ -25,6 +25,46 @@ import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup } from "../output/accounts.js";
 
+interface AccountsCommandOptions {
+  sync?: boolean;
+  all?: boolean;
+  details?: boolean;
+  summary?: boolean;
+  pendingOnly?: boolean;
+}
+
+interface AccountScopeSource {
+  poolAccounts?: Map<bigint, unknown[]>;
+}
+
+export function collectAccountScopeStrings(
+  spendable: ReadonlyMap<bigint, readonly unknown[]>,
+  account: AccountScopeSource | null | undefined,
+  includeHistorical: boolean,
+): string[] {
+  const scopeSet = new Set<string>();
+  for (const scope of spendable.keys()) {
+    scopeSet.add(scope.toString());
+  }
+
+  if (includeHistorical) {
+    const map = account?.poolAccounts;
+    if (map instanceof Map) {
+      for (const scope of map.keys()) {
+        scopeSet.add(scope.toString());
+      }
+    }
+  }
+
+  return Array.from(scopeSet).sort((a, b) => {
+    const aa = BigInt(a);
+    const bb = BigInt(b);
+    if (aa < bb) return -1;
+    if (aa > bb) return 1;
+    return 0;
+  });
+}
+
 export function createAccountsCommand(): Command {
   const metadata = getCommandMetadata("accounts");
   return new Command("accounts")
@@ -32,8 +72,10 @@ export function createAccountsCommand(): Command {
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option("--all", "Include exited and fully spent Pool Accounts")
     .option("--details", "Show additional details per Pool Account")
+    .option("--summary", "Show counts and balances only")
+    .option("--pending-only", "Show only pending ASP approvals")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
-    .action(async (opts, cmd) => {
+    .action(async (opts: AccountsCommandOptions, cmd) => {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
       const isVerbose = globalOpts?.verbose ?? false;
@@ -41,6 +83,30 @@ export function createAccountsCommand(): Command {
       const silent = isSilent(ctx);
 
       try {
+        if (opts.summary && opts.pendingOnly) {
+          throw new CLIError(
+            "Cannot specify both --summary and --pending-only.",
+            "INPUT",
+            "Use one compact polling mode at a time."
+          );
+        }
+
+        if ((opts.summary || opts.pendingOnly) && opts.details) {
+          throw new CLIError(
+            "Compact account modes do not support --details.",
+            "INPUT",
+            "Remove --details when using --summary or --pending-only."
+          );
+        }
+
+        if ((opts.summary || opts.pendingOnly) && opts.all) {
+          throw new CLIError(
+            "Compact account modes do not support --all.",
+            "INPUT",
+            "Remove --all when using --summary or --pending-only."
+          );
+        }
+
         const config = loadConfig();
         const chainConfig = resolveChain(
           globalOpts?.chain,
@@ -58,7 +124,10 @@ export function createAccountsCommand(): Command {
 
         if (pools.length === 0) {
           spin.stop();
-          renderAccountsNoPools(ctx, chainConfig.name);
+          renderAccountsNoPools(ctx, chainConfig.name, {
+            summary: !!opts.summary,
+            pendingOnly: !!opts.pendingOnly,
+          });
           return;
         }
 
@@ -99,25 +168,11 @@ export function createAccountsCommand(): Command {
         const spendable = withSuppressedSdkStdoutSync(() =>
           accountService.getSpendableCommitments()
         );
-        const scopeSet = new Set<string>();
-        for (const scope of spendable.keys()) {
-          scopeSet.add(scope.toString());
-        }
-        if (opts.all) {
-          const map = accountService.account?.poolAccounts;
-          if (map instanceof Map) {
-            for (const scope of map.keys()) {
-              scopeSet.add(scope.toString());
-            }
-          }
-        }
-        const sortedScopeStrings = Array.from(scopeSet).sort((a, b) => {
-          const aa = BigInt(a);
-          const bb = BigInt(b);
-          if (aa < bb) return -1;
-          if (aa > bb) return 1;
-          return 0;
-        });
+        const sortedScopeStrings = collectAccountScopeStrings(
+          spendable,
+          accountService.account,
+          !!opts.all || !!opts.summary,
+        );
 
         // Fetch ASP approval status in parallel (non-fatal if unavailable)
         spin.text = "Checking ASP approval status...";
@@ -144,7 +199,7 @@ export function createAccountsCommand(): Command {
           if (!pool) continue;
 
           const approvedLabels = approvedLabelsByScope.get(scopeStr);
-          const poolAccounts = opts.all
+          const poolAccounts = (opts.all || opts.summary)
             ? buildAllPoolAccountRefs(
               accountService.account,
               pool.scope,
@@ -175,6 +230,8 @@ export function createAccountsCommand(): Command {
           groups,
           showDetails: !!opts.details,
           showAll: !!opts.all,
+          showSummary: !!opts.summary,
+          showPendingOnly: !!opts.pendingOnly,
         });
       } catch (error) {
         printError(error, mode.isJson);

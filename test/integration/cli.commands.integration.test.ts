@@ -829,7 +829,7 @@ describe("CLI command integration", () => {
     expect(json.errorMessage.toLowerCase()).toContain("unknown command");
   });
 
-  test("--unsigned-format tx requires --unsigned (agent mode)", () => {
+  test("--unsigned-format returns migration INPUT error (agent mode)", () => {
     const result = runCli(
       ["--agent", "deposit", "0.1", "--asset", "ETH", "--unsigned-format", "tx"],
       { home: createTempHome() }
@@ -846,7 +846,7 @@ describe("CLI command integration", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.category).toBe("INPUT");
-    expect(json.errorMessage).toContain("--unsigned-format requires --unsigned");
+    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
   });
 
   test("machine-mode help subcommand returns JSON envelope", () => {
@@ -1000,6 +1000,7 @@ describe("CLI command integration", () => {
       schemaVersion: string;
       success: boolean;
       commands: Array<{ name: string }>;
+      commandDetails: Record<string, { command: string }>;
       globalFlags: Array<{ flag: string }>;
     }>(result.stdout);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
@@ -1007,8 +1008,13 @@ describe("CLI command integration", () => {
     expect(json.commands.map((c) => c.name)).toContain("history");
     expect(json.commands.map((c) => c.name)).toContain("completion");
     expect(json.commands.map((c) => c.name)).toContain("capabilities");
+    expect(json.commands.map((c) => c.name)).toContain("describe");
     expect(json.commands.map((c) => c.name)).toContain("activity");
     expect(json.commands.map((c) => c.name)).toContain("stats");
+    expect(json.commands.map((c) => c.name)).toContain("stats global");
+    expect(json.commands.map((c) => c.name)).toContain("stats pool");
+    expect(json.commandDetails["withdraw quote"]?.command).toBe("withdraw quote");
+    expect(json.commandDetails["describe"]?.command).toBe("describe");
 
     const globalFlagStrings = json.globalFlags.map((f) => f.flag);
     expect(globalFlagStrings).toContain("-j, --json");

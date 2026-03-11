@@ -27,6 +27,10 @@ export {
   type CapabilitiesPayload,
 } from "./capabilities.js";
 export {
+  renderCommandDescription,
+  type DetailedCommandDescriptor,
+} from "./describe.js";
+export {
   renderCompletionScript,
   renderCompletionQuery,
 } from "./completion.js";
@@ -55,6 +59,7 @@ export {
   renderAccountsNoPools,
   renderAccounts,
   type AccountPoolGroup,
+  type AccountsEmptyRenderOptions,
   type AccountsRenderData,
 } from "./accounts.js";
 export {

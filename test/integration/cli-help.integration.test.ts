@@ -31,6 +31,7 @@ describe("CLI help and discovery", () => {
     // sync is visible; completion is hidden; capabilities is visible
     expect(result.stdout).toContain("sync");
     expect(result.stdout).toContain("capabilities");
+    expect(result.stdout).toContain("describe");
     expect(result.stdout).not.toContain("completion");
   });
 
@@ -56,6 +57,7 @@ describe("CLI help and discovery", () => {
     ["history", "Show chronological event history"],
     ["sync", "Force-sync local account state from onchain events"],
     ["capabilities", "Describe CLI capabilities for agent discovery"],
+    ["describe", "Describe one command for runtime agent introspection"],
     ["completion", "Generate shell completion script"],
   ] as const;
 
@@ -225,6 +227,8 @@ describe("CLI help and discovery", () => {
     expect(combined).toContain("--all");
     expect(combined).toContain("--details");
     expect(combined).toContain("--no-sync");
+    expect(combined).toContain("--summary");
+    expect(combined).toContain("--pending-only");
     expect(combined).not.toContain("--sync");
   });
 
@@ -254,6 +258,13 @@ describe("CLI help and discovery", () => {
     const result = runCli(["capabilities", "--help"], { home: createTempHome() });
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("Describe CLI capabilities for agent discovery");
+  });
+
+  test("describe --help renders command description", () => {
+    const result = runCli(["describe", "--help"], { home: createTempHome() });
+    const combined = result.stdout + result.stderr;
+    expect(combined).toContain("Describe one command for runtime agent introspection");
+    expect(combined).toContain("<command...>");
   });
 });
 
@@ -286,6 +297,7 @@ const SNAPSHOT_COMMANDS = [
   "sync",
   "guide",
   "capabilities",
+  "describe",
   "completion",
 ] as const;
 

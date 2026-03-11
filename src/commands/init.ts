@@ -37,12 +37,14 @@ export function createInitCommand(): Command {
     .description(metadata.description)
     .option("--mnemonic <phrase>", "Import an existing recovery phrase (unsafe: visible in process list)")
     .option("--mnemonic-file <path>", "Import recovery phrase from a file (raw phrase or Privacy Pools backup file)")
+    .option("--mnemonic-stdin", "Import recovery phrase from stdin (raw phrase or Privacy Pools backup text)")
     .option(
       "--show-mnemonic",
-      "Include generated mnemonic in JSON output (unsafe: may be logged or piped)"
+      "Include generated recovery phrase in JSON output (unsafe: may be logged or piped)"
     )
     .option("--private-key <key>", "Set the signer private key (unsafe: visible in process list)")
     .option("--private-key-file <path>", "Set the signer private key from a file")
+    .option("--private-key-stdin", "Set the signer private key from stdin")
     .option("--default-chain <chain>", "Set default chain")
     .option("--rpc-url <url>", "Set RPC URL for the default chain")
     .option("--force", "Overwrite existing configuration without prompting")
@@ -59,21 +61,33 @@ export function createInitCommand(): Command {
       try {
         // ── Phase 1: Eager validation (before any disk writes) ──────────
 
-        // Validate --mnemonic / --mnemonic-file mutual exclusion
-        if (opts.mnemonic && opts.mnemonicFile) {
+        const mnemonicSourceCount = Number(Boolean(opts.mnemonic)) +
+          Number(Boolean(opts.mnemonicFile)) +
+          Number(Boolean(opts.mnemonicStdin));
+        if (mnemonicSourceCount > 1) {
           throw new CLIError(
-            "Cannot specify both --mnemonic and --mnemonic-file.",
+            "Cannot specify more than one recovery phrase source.",
             "INPUT",
-            "Use one or the other, not both."
+            "Use only one of: --mnemonic, --mnemonic-file, --mnemonic-stdin."
           );
         }
 
-        // Validate --private-key / --private-key-file mutual exclusion
-        if (opts.privateKey && opts.privateKeyFile) {
+        const signerKeySourceCount = Number(Boolean(opts.privateKey)) +
+          Number(Boolean(opts.privateKeyFile)) +
+          Number(Boolean(opts.privateKeyStdin));
+        if (signerKeySourceCount > 1) {
           throw new CLIError(
-            "Cannot specify both --private-key and --private-key-file.",
+            "Cannot specify more than one signer key source.",
             "INPUT",
-            "Use one or the other, not both."
+            "Use only one of: --private-key, --private-key-file, --private-key-stdin."
+          );
+        }
+
+        if (opts.mnemonicStdin && opts.privateKeyStdin) {
+          throw new CLIError(
+            "Cannot read both recovery phrase and signer key from stdin in one invocation.",
+            "INPUT",
+            "Use one stdin secret source per run."
           );
         }
 
@@ -88,6 +102,38 @@ export function createInitCommand(): Command {
 
         // Read and validate mnemonic source if provided via flag
         let mnemonicSource: string | undefined;
+        let stdinContent: string | undefined;
+        const readStdinUtf8 = (): string => {
+          if (stdinContent !== undefined) return stdinContent;
+          try {
+            stdinContent = readFileSync(0, "utf-8");
+          } catch (err) {
+            throw new CLIError(
+              "Could not read recovery material from stdin.",
+              "INPUT",
+              err instanceof Error ? err.message : undefined
+            );
+          }
+          return stdinContent;
+        };
+        const extractMnemonicOrThrow = (content: string, sourceLabel: string): string => {
+          const extracted = extractMnemonicFromFileDetailed(content);
+          if (!extracted.mnemonic) {
+            if (extracted.failure === "multiple_found") {
+              throw new CLIError(
+                `Multiple valid recovery phrases found in ${sourceLabel}.`,
+                "INPUT",
+                "Keep exactly one valid BIP-39 recovery phrase (12 or 24 words) in the provided input."
+              );
+            }
+            throw new CLIError(
+              `No valid recovery phrase found in ${sourceLabel}.`,
+              "INPUT",
+              "Provide exactly one valid BIP-39 recovery phrase (12 or 24 words), either as raw text or inside a Privacy Pools backup."
+            );
+          }
+          return extracted.mnemonic;
+        };
         if (opts.mnemonicFile) {
           let fileContent: string;
           try {
@@ -99,24 +145,9 @@ export function createInitCommand(): Command {
               err instanceof Error ? err.message : undefined
             );
           }
-          // Extract mnemonic from raw or structured backup files
-          // (CLI backup, website recovery downloads, or plain mnemonic)
-          const extracted = extractMnemonicFromFileDetailed(fileContent);
-          if (!extracted.mnemonic) {
-            if (extracted.failure === "multiple_found") {
-              throw new CLIError(
-                "Multiple valid recovery phrases found in file.",
-                "INPUT",
-                "Keep exactly one valid BIP-39 recovery phrase (12 or 24 words) in the file."
-              );
-            }
-            throw new CLIError(
-              "No valid recovery phrase found in file.",
-              "INPUT",
-              "The file should contain a valid BIP-39 recovery phrase (12 or 24 words), either as raw text or inside a Privacy Pools backup file."
-            );
-          }
-          mnemonicSource = extracted.mnemonic;
+          mnemonicSource = extractMnemonicOrThrow(fileContent, "file");
+        } else if (opts.mnemonicStdin) {
+          mnemonicSource = extractMnemonicOrThrow(readStdinUtf8(), "stdin");
         } else if (opts.mnemonic) {
           mnemonicSource = opts.mnemonic;
         }
@@ -141,6 +172,8 @@ export function createInitCommand(): Command {
               err instanceof Error ? err.message : undefined
             );
           }
+        } else if (opts.privateKeyStdin) {
+          signerKeySource = readStdinUtf8().trim();
         } else if (opts.privateKey) {
           signerKeySource = opts.privateKey;
         }
@@ -156,6 +189,12 @@ export function createInitCommand(): Command {
               "Private key must be 64 hex characters (with or without 0x prefix)."
             );
           }
+        } else if (opts.privateKeyStdin) {
+          throw new CLIError(
+            "No private key received on stdin.",
+            "INPUT",
+            "Pipe exactly one 64-character hex private key into --private-key-stdin."
+          );
         }
 
         // ── Phase 2: Interactive prompts and gathering ──────────────────
@@ -193,7 +232,7 @@ export function createInitCommand(): Command {
         if (mnemonicSource) {
           if (opts.mnemonic && !silent) {
             process.stderr.write(
-              chalk.yellow("Warning: --mnemonic is visible in process list and shell history. Prefer --mnemonic-file or stdin.\n")
+              chalk.yellow("Warning: --mnemonic is visible in process list and shell history. Prefer --mnemonic-file or --mnemonic-stdin.\n")
             );
           }
           mnemonic = mnemonicSource;
@@ -300,7 +339,7 @@ export function createInitCommand(): Command {
 
         if (signerKeySource && opts.privateKey && !silent) {
           process.stderr.write(
-            chalk.yellow("Warning: --private-key is visible in process list and shell history. Prefer --private-key-file or PRIVACY_POOLS_PRIVATE_KEY env var.\n")
+            chalk.yellow("Warning: --private-key is visible in process list and shell history. Prefer --private-key-file, --private-key-stdin, or PRIVACY_POOLS_PRIVATE_KEY env var.\n")
           );
         }
 

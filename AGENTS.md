@@ -1,8 +1,8 @@
 # Agent Integration Guide
 
-This document is for AI agents, bots, and programmatic consumers of the Privacy Pools CLI. For human users, see `privacy-pools guide`.
+This document is for AI agents, bots, and programmatic consumers of the Privacy Pools CLI. For human users, see [`README.md`](README.md) or run `privacy-pools guide`.
 
-For release history and user-facing changes between versions, see [`CHANGELOG.md`](CHANGELOG.md).
+For flags, configuration, and environment variables, see [`docs/reference.md`](docs/reference.md). For release history, see [`CHANGELOG.md`](CHANGELOG.md).
 
 > **Skill files**: For Bankr, Claude Code, and other skill-aware agents, see [`skills/privacy-pools-cli/SKILL.md`](skills/privacy-pools-cli/SKILL.md) and [`skills/privacy-pools-cli/reference.md`](skills/privacy-pools-cli/reference.md).
 
@@ -16,6 +16,7 @@ bun add -g github:0xmatthewb/privacy-pools-cli
 
 # Discover capabilities (no wallet needed)
 privacy-pools capabilities --agent
+privacy-pools describe withdraw quote --agent
 
 # Browse pools (no wallet needed)
 privacy-pools pools --agent
@@ -36,8 +37,8 @@ privacy-pools withdraw 0.1 ETH --to 0xRecipient --agent
 **JSON envelope**: Every response follows the schema:
 
 ```
-{ "schemaVersion": "1.1.0", "success": true, ...payload }
-{ "schemaVersion": "1.1.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
+{ "schemaVersion": "1.2.0", "success": true, ...payload }
+{ "schemaVersion": "1.2.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
 Parse `success` first. On failure, read `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
@@ -171,9 +172,20 @@ Machine-readable discovery manifest.
 privacy-pools capabilities --agent
 ```
 
-JSON payload: `{ commands[], globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }`
+JSON payload: `{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }`
 
 `schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance.
+
+#### `describe`
+
+Describe one command for runtime agent introspection.
+
+```bash
+privacy-pools describe withdraw quote --agent
+privacy-pools describe stats global --agent
+```
+
+JSON payload: `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
 
 ### Wallet Required
 
@@ -186,7 +198,9 @@ Initialize wallet and configuration.
 ```bash
 privacy-pools init --agent --default-chain mainnet
 privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
+cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
 privacy-pools init --agent --private-key 0x... --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 ..." --private-key-stdin --default-chain mainnet
 ```
 
 JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }`
@@ -197,6 +211,8 @@ When `--show-mnemonic` is passed (and a new recovery phrase was generated), `rec
 
 > **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
 
+Use only one secret stdin source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
+
 Proof commands provision circuit artifacts automatically on first use (~60s one-time), caching them under `~/.privacy-pools/circuits/v<sdk-version>` by default and verifying them against the shipped checksum manifest before use. Set `PRIVACY_POOLS_CIRCUITS_DIR` to use a pre-provisioned directory.
 
 #### `deposit`
@@ -205,7 +221,6 @@ Deposit ETH or ERC-20 tokens into a Privacy Pool.
 
 ```bash
 privacy-pools deposit 0.1 ETH --agent
-privacy-pools deposit ETH 0.1 --agent       # asset-first syntax also works
 ```
 
 JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }`
@@ -215,6 +230,8 @@ All numeric values are strings (wei). `committedValue` and `label` may be `null`
 `nextActions` provides the canonical structured guidance: poll `accounts --agent` until `aspStatus = approved` (most deposits approve within 1 hour).
 
 Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days. A vetting fee is deducted from the deposit amount by the ASP, and only approved deposits can be withdrawn privately.
+
+**Privacy guard**: In machine modes (`--json`, `--agent`, `--yes`, `--dry-run`, `--unsigned`), non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts. Pass `--ignore-unique-amount` only when you intentionally want to bypass that protection.
 
 #### `withdraw`
 
@@ -269,12 +286,18 @@ List Pool Accounts with their approval status and per-pool balance totals.
 
 ```bash
 privacy-pools accounts --agent
+privacy-pools accounts --agent --summary
+privacy-pools accounts --agent --pending-only
 privacy-pools accounts --agent --all --details
 ```
 
 JSON payload: `{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }`
 
 `balances` contains per-pool totals for spendable accounts. `balance` is total spendable amount in wei (string). `usdValue` is a formatted USD string (or null if price data is unavailable).
+
+`--summary` JSON payload: `{ chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }`
+
+`--pending-only` JSON payload: `{ chain, accounts, pendingCount, nextActions? }`
 
 **Poll `aspStatus`**: After depositing, poll `accounts --agent` until `aspStatus` changes from `"pending"` to `"approved"`. Only approved accounts can be withdrawn via the relayed path. `nextActions` may include both a `withdraw` action (when spendable funds are available) and an `accounts` poll action (when deposits are still pending) in the same response.
 
@@ -345,7 +368,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -369,7 +392,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 ### Raw tx format
 
 ```bash
-privacy-pools deposit 0.1 ETH --unsigned --unsigned-format tx --agent
+privacy-pools deposit 0.1 ETH --unsigned tx --agent
 ```
 
 ```json
@@ -489,4 +512,4 @@ Specify with `--chain <name>` or set a default via `init --default-chain <name>`
 
 ## Runtime Discovery
 
-For fully dynamic integration, call `capabilities --agent` at startup to receive a machine-readable manifest of all commands, flags, workflow steps, supported chains, and the JSON output contract. This is useful if you cannot read this file at integration time.
+For fully dynamic integration, call `capabilities --agent` at startup to receive a machine-readable manifest of all commands, command details, flags, workflow steps, supported chains, and the JSON output contract. Use `describe <command...> --agent` when you need the detailed runtime contract for one command path. This is useful if you cannot read this file at integration time.

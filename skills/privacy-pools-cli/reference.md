@@ -10,7 +10,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: `main
 
 ```json
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -33,7 +33,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: `main
 
 ### Payload shape (raw tx format)
 
-With `--unsigned-format tx`, output is a bare array of transaction objects:
+With `--unsigned tx`, output is a bare array of transaction objects:
 
 ```json
 [
@@ -93,20 +93,20 @@ The envelope format includes additional context fields depending on the operatio
 
 ## JSON output shapes by command
 
-All responses include `{ "schemaVersion": "1.1.0", "success": true, ... }` envelope.
+All responses include `{ "schemaVersion": "1.2.0", "success": true, ... }` envelope.
 
 Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options? }`. Treat `nextActions` as the canonical machine follow-up field.
 
 ### `pools`
 
 ```bash
-pp pools --agent [--all-chains] [--search <query>] [--sort <mode>]
-pp pools ETH --agent                     # detail view for a specific pool
+privacy-pools pools --agent [--all-chains] [--search <query>] [--sort <mode>]
+privacy-pools pools ETH --agent                    # detail view for a specific pool
 ```
 
 Defaults to all mainnets when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
 
-**Detail view** (`pp pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity?, nextActions? }`. Does not support CSV.
+**Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity?, nextActions? }`. Does not support CSV.
 
 **Single chain** (with `--chain`):
 
@@ -162,7 +162,7 @@ All numeric token amounts are in wei (strings). USD values, counts, and growth r
 ### `activity`
 
 ```bash
-pp activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
+privacy-pools activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
 ```
 
 Defaults to all mainnets when no `--chain` is specified.
@@ -204,7 +204,7 @@ When querying multiple chains (no `--chain` specified), `chain` is `"all-mainnet
 ### `stats global`
 
 ```bash
-pp stats global --agent
+privacy-pools stats global --agent
 ```
 
 Always returns aggregate cross-chain statistics. The `--chain` flag is **not** supported; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
@@ -243,7 +243,7 @@ Always returns aggregate cross-chain statistics. The `--chain` flag is **not** s
 ### `stats pool`
 
 ```bash
-pp stats pool --asset ETH --agent
+privacy-pools stats pool --asset ETH --agent
 ```
 
 ```json
@@ -262,7 +262,7 @@ pp stats pool --asset ETH --agent
 ### `status`
 
 ```bash
-pp status --agent [--check] [--check-rpc] [--check-asp]
+privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
 ```
 
 ```json
@@ -310,7 +310,7 @@ When setup is incomplete, `nextActions` includes a canonical `init` follow-up fo
 ### `capabilities`
 
 ```bash
-pp capabilities --agent
+privacy-pools capabilities --agent
 ```
 
 Representative payload (abridged):
@@ -321,11 +321,17 @@ Representative payload (abridged):
     {
       "name": "deposit",
       "description": "Deposit into a pool",
-      "flags": ["--asset <symbol|address>", "--unsigned", "--unsigned-format <envelope|tx>", "--dry-run"],
+      "flags": ["--asset <symbol|address>", "--unsigned [envelope|tx]", "--dry-run"],
       "agentFlags": "--json --yes",
       "requiresInit": true
     }
   ],
+  "commandDetails": {
+    "accounts": {
+      "command": "accounts",
+      "flags": ["--no-sync", "--all", "--details", "--summary", "--pending-only"]
+    }
+  },
   "globalFlags": [
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
   ],
@@ -340,7 +346,7 @@ Representative payload (abridged):
     "polling": "After depositing, poll 'accounts --json' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
-    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
     "statusCheck": "Run 'status --json' before transacting. Check readyForDeposit/readyForWithdraw/readyForUnsigned fields."
   },
@@ -353,7 +359,7 @@ Representative payload (abridged):
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output."
     }
   },
-  "safeReadOnlyCommands": ["pools", "activity", "stats", "status", "capabilities"],
+  "safeReadOnlyCommands": ["pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "completion"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
     { "name": "arbitrum", "chainId": 42161, "testnet": false },
@@ -361,17 +367,48 @@ Representative payload (abridged):
     { "name": "sepolia", "chainId": 11155111, "testnet": true },
     { "name": "op-sepolia", "chainId": 11155420, "testnet": true }
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned-format tx emits a raw transaction array without the envelope."
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned tx emits a raw transaction array without the envelope."
+}
+```
+
+### `describe`
+
+```bash
+privacy-pools describe withdraw quote --agent
+privacy-pools describe stats global --agent
+```
+
+```json
+{
+  "command": "withdraw quote",
+  "description": "Request relayer quote and limits without generating a proof",
+  "aliases": [],
+  "usage": "withdraw quote <amount> --asset <symbol|address>",
+  "flags": ["--asset <symbol|address>", "--to <address>"],
+  "globalFlags": ["--agent", "-j, --json", "-y, --yes"],
+  "requiresInit": true,
+  "expectedLatencyClass": "medium",
+  "safeReadOnly": false,
+  "prerequisites": ["init"],
+  "examples": ["privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."],
+  "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions? }",
+  "jsonVariants": [],
+  "safetyNotes": [],
+  "supportsUnsigned": false,
+  "supportsDryRun": false,
+  "agentWorkflowNotes": ["Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable."]
 }
 ```
 
 ### `init`
 
 ```bash
-pp init --agent --default-chain mainnet
-pp init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
-pp init --agent --private-key 0x... --default-chain mainnet
-pp init --agent --private-key-file ./key.txt --default-chain mainnet
+privacy-pools init --agent --default-chain mainnet
+privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
+cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
+privacy-pools init --agent --private-key 0x... --default-chain mainnet
+privacy-pools init --agent --private-key-file ./key.txt --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 word2 ..." --private-key-stdin --default-chain mainnet
 ```
 
 ```json
@@ -406,14 +443,18 @@ pp init --agent --private-key-file ./key.txt --default-chain mainnet
 
 When importing an existing recovery phrase or private key, neither `recoveryPhrase` nor `recoveryPhraseRedacted` is present.
 
+Use only one stdin secret source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
+
 ### `deposit`
 
 ```bash
-pp deposit 0.1 ETH --agent
-pp deposit ETH 0.1 --agent               # asset-first syntax also works
+privacy-pools deposit 0.1 ETH --agent
+privacy-pools deposit 0.1 --asset ETH --agent
 ```
 
-> **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `pp pools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
+> **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `privacy-pools pools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
+
+> **Privacy guard:** In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when you explicitly want to bypass that protection.
 
 **Success:**
 
@@ -466,12 +507,12 @@ pp deposit ETH 0.1 --agent               # asset-first syntax also works
 ### `withdraw`
 
 ```bash
-pp withdraw 0.05 ETH --to 0xRecipient --agent
-pp withdraw 0.05 ETH --to 0xRecipient --from-pa PA-2 --agent
-pp withdraw --all ETH --to 0xRecipient --agent
-pp withdraw 50% ETH --to 0xRecipient --agent
-pp withdraw 0.1 ETH --direct --agent
-pp withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-2 --agent
+privacy-pools withdraw --all ETH --to 0xRecipient --agent
+privacy-pools withdraw 50% ETH --to 0xRecipient --agent
+privacy-pools withdraw 0.1 ETH --direct --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
 **Amount shortcuts:** `--all` withdraws the entire PA balance. Percentages (`50%`, `100%`) withdraw a fraction. After PA selection, the CLI shows the selected PA's available balance.
@@ -546,7 +587,7 @@ For direct dry-run: `mode: "direct"`, no `feeBPS` or `quoteExpiresAt`.
 **Withdrawal quote:**
 
 ```bash
-pp withdraw quote 0.1 ETH --to 0xRecipient --agent
+privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 ```
 
 ```json
@@ -586,8 +627,8 @@ pp withdraw quote 0.1 ETH --to 0xRecipient --agent
 ### `ragequit` (alias: `exit`)
 
 ```bash
-pp ragequit ETH --from-pa PA-1 --agent
-pp exit ETH --from-pa PA-1 --agent
+privacy-pools ragequit ETH --from-pa PA-1 --agent
+privacy-pools exit ETH --from-pa PA-1 --agent
 ```
 
 **Success:**
@@ -636,7 +677,9 @@ pp exit ETH --from-pa PA-1 --agent
 ### `accounts`
 
 ```bash
-pp accounts --agent [--all] [--details]
+privacy-pools accounts --agent [--all] [--details]
+privacy-pools accounts --agent --summary
+privacy-pools accounts --agent --pending-only
 ```
 
 ```json
@@ -682,12 +725,16 @@ pp accounts --agent [--all] [--details]
 
 `balances` contains per-pool totals for spendable accounts. `balance` is the total spendable amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
 
+`--summary` returns `{ chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }` and omits `accounts`.
+
+`--pending-only` returns `{ chain, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
+
 Poll `aspStatus` after depositing and wait for `"approved"` before withdrawing via the relayed path.
 
 ### `history`
 
 ```bash
-pp history --agent [--limit <n>]
+privacy-pools history --agent [--limit <n>]
 ```
 
 ```json
@@ -716,7 +763,7 @@ pp history --agent [--limit <n>]
 Force-sync local account state. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
 
 ```bash
-pp sync --agent [--asset <symbol>]
+privacy-pools sync --agent [--asset <symbol>]
 ```
 
 ```json
@@ -757,7 +804,7 @@ All errors in JSON mode:
 
 ```json
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -811,7 +858,7 @@ All errors in JSON mode:
 
 When `retryable: true`:
 1. `RPC_NETWORK_ERROR` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
-2. `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `pp sync --agent`, then retry
+2. `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent`, then retry
 3. `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
 
 ---

@@ -12,6 +12,7 @@ import { createSyncCommand } from "./commands/sync.js";
 import { createGuideCommand } from "./commands/guide.js";
 import { createHistoryCommand } from "./commands/history.js";
 import { createCapabilitiesCommand } from "./commands/capabilities.js";
+import { createDescribeCommand } from "./commands/describe.js";
 import { createCompletionCommand } from "./commands/completion.js";
 import { rootHelpFooter } from "./utils/help.js";
 import { GLOBAL_FLAG_METADATA } from "./utils/command-metadata.js";
@@ -83,6 +84,7 @@ export function createRootProgram(version: string): Command {
   program.addCommand(createStatsCommand());
   program.addCommand(createGuideCommand());
   program.addCommand(createCapabilitiesCommand());
+  program.addCommand(createDescribeCommand());
   program.addCommand(createCompletionCommand(), { hidden: true });
 
   return program;

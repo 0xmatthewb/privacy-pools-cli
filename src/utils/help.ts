@@ -7,7 +7,7 @@ const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
 
 /* ── Root-level command groups (order determines display order) ── */
 
-const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities"];
+const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities", "describe"];
 const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "history", "sync"];
 const EXPLORE_SET = new Set(EXPLORE_ORDER);
 const TRANSACT_SET = new Set(TRANSACT_ORDER);
@@ -169,12 +169,12 @@ export function styleCommanderHelp(raw: string): string {
 export function welcomeScreen(): string {
   const lines = [
     chalk.bold("  Explore (no wallet needed)"),
-    `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}`,
+    `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}  ${highlight("describe")}`,
     "",
     chalk.bold("  Transact (run init first)"),
     `    ${highlight("init")}  ${highlight("deposit")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("accounts")}  ${highlight("history")}  ${highlight("sync")}`,
     "",
-    `  Get started:      ${accent("privacy-pools init")}  ${chalk.dim("(or")} ${accent("pp init")}${chalk.dim(")")}`,
+    `  Get started:      ${accent("privacy-pools init")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
     `  All commands:     ${accent("privacy-pools --help")}`,
   ];
@@ -206,7 +206,7 @@ export function welcomeScreen(): string {
 export function rootHelpFooter(): string {
   return [
     "",
-    `  Get started:      ${accent("privacy-pools init")}  ${chalk.dim("(or")} ${accent("pp init")}${chalk.dim(")")}`,
+    `  Get started:      ${accent("privacy-pools init")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
     `  Command help:     ${accent("privacy-pools <command> --help")}`,
   ].join("\n");
@@ -224,7 +224,7 @@ export function guideText(): string {
     chalk.bold("Install & Run"),
     `  ${accent("npm i -g github:0xmatthewb/privacy-pools-cli")}`,
     `  ${accent("bun add -g github:0xmatthewb/privacy-pools-cli")}`,
-    `  ${accent("pp status")}                                  ${chalk.dim("(short alias for privacy-pools)")}`,
+    `  ${accent("privacy-pools status")}`,
     `  ${accent("bun run dev -- status")}                        ${chalk.dim("(from source, no global install)")}`,
     `  ${accent("privacy-pools completion zsh")}                   ${chalk.dim("(shell autocomplete)")}`,
     "",
@@ -233,7 +233,7 @@ export function guideText(): string {
     `  ${accent("privacy-pools pools")}                                          ${chalk.dim("(browse available pools)")}`,
     `  ${accent("privacy-pools deposit 0.1 ETH")}`,
     `  ${accent("privacy-pools accounts")}                                       ${chalk.dim("(wait for Approved status)")}`,
-    `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient -p PA-1")}`,
+    `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-1")}`,
     chalk.dim("  Commands use your default chain (set during init). Add --chain <name> to override."),
     "",
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
@@ -293,8 +293,8 @@ export function guideText(): string {
     "             Requires init (recovery phrase) for deposit secret generation.",
     "             Does NOT require a signer key. The signing party provides their own.",
     `             Output includes ${chalk.dim("from: null")}. The signer fills in their address.`,
-    `  ${chalk.yellow("--unsigned-format envelope")}  (default) Wrapped in JSON envelope: { schemaVersion, success, ... }`,
-    `  ${chalk.yellow("--unsigned-format tx")}        Raw transaction array: [{ to, data, value, chainId }]`,
+    `  ${chalk.yellow("--unsigned")}           (default) Wrapped in JSON envelope: { schemaVersion, success, ... }`,
+    `  ${chalk.yellow("--unsigned tx")}        Raw transaction array: [{ to, data, value, chainId }]`,
     "             Raw format skips the envelope. Intended for direct piping to signing tools.",
     `  ${chalk.yellow("--dry-run")}    Validate and generate proofs without submitting.`,
     "",
@@ -336,6 +336,12 @@ export function guideText(): string {
     chalk.bold("Agent Integration"),
     `  For programmatic/agent use, run ${accent("privacy-pools capabilities --json")} to discover`,
     "  commands, schemas, supported chains, error codes, and the recommended workflow.",
+    `  Use ${accent("privacy-pools describe <command...> --json")} to inspect one command at runtime.`,
+    "",
+    chalk.bold("Further Reading"),
+    `  ${accent("docs/reference.md")}   Flags, configuration, environment variables, project structure`,
+    `  ${accent("AGENTS.md")}           Agent integration guide, JSON payloads, unsigned mode`,
+    `  ${accent("CHANGELOG.md")}        Release history and migration notes`,
     "",
     chalk.dim("  Run privacy-pools <command> --help for command-specific details."),
   ].join("\n");

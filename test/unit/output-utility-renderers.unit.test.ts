@@ -6,6 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { createOutputContext } from "../../src/output/common.ts";
 import { renderGuide } from "../../src/output/guide.ts";
 import { renderCapabilities, type CapabilitiesPayload } from "../../src/output/capabilities.ts";
+import { renderCommandDescription, type DetailedCommandDescriptor } from "../../src/output/describe.ts";
 import { renderCompletionScript, renderCompletionQuery } from "../../src/output/completion.ts";
 import { renderSyncEmpty, renderSyncComplete } from "../../src/output/sync.ts";
 import { renderStatus, type StatusCheckResult } from "../../src/output/status.ts";
@@ -53,10 +54,34 @@ const STUB_CAPABILITIES: CapabilitiesPayload = {
   commands: [
     { name: "test-cmd", description: "Test command", requiresInit: false },
   ],
+  commandDetails: {
+    "test-cmd": {
+      command: "test-cmd",
+      description: "Test command",
+      aliases: [],
+      usage: "test-cmd",
+      flags: ["--flag"],
+      globalFlags: ["-j, --json"],
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+      safeReadOnly: true,
+      prerequisites: [],
+      examples: ["privacy-pools test-cmd --flag"],
+      jsonFields: "{ ok }",
+      jsonVariants: [],
+      safetyNotes: [],
+      supportsUnsigned: false,
+      supportsDryRun: false,
+      agentWorkflowNotes: [],
+    },
+  },
   globalFlags: [{ flag: "-j, --json", description: "JSON output" }],
   agentWorkflow: ["1. do something"],
   jsonOutputContract: "test contract",
 };
+
+const STUB_DESCRIPTOR: DetailedCommandDescriptor =
+  STUB_CAPABILITIES.commandDetails["test-cmd"]!;
 
 describe("renderCapabilities parity", () => {
   test("JSON mode: emits capabilities envelope to stdout", () => {
@@ -161,6 +186,35 @@ describe("renderCompletionQuery parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
+  });
+});
+
+// ── renderCommandDescription parity ─────────────────────────────────────────
+
+describe("renderCommandDescription parity", () => {
+  test("JSON mode: emits descriptor envelope to stdout", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout, stderr } = captureOutput(() =>
+      renderCommandDescription(ctx, STUB_DESCRIPTOR),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.command).toBe("test-cmd");
+    expect(json.flags).toEqual(["--flag"]);
+    expect(stderr).toBe("");
+  });
+
+  test("human mode: emits descriptor summary to stderr", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stdout, stderr } = captureOutput(() =>
+      renderCommandDescription(ctx, STUB_DESCRIPTOR),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Command: test-cmd");
+    expect(stderr).toContain("Usage: privacy-pools test-cmd");
+    expect(stderr).toContain("Flags:");
+    expect(stderr).toContain("--flag");
   });
 });
 

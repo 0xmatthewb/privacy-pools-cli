@@ -116,6 +116,7 @@ describe("barrel re-exports", () => {
     // Core command renderers
     "renderGuide",
     "renderCapabilities",
+    "renderCommandDescription",
     "renderCompletionScript",
     "renderCompletionQuery",
     "renderSyncEmpty",

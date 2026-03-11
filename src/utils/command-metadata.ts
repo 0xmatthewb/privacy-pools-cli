@@ -1,5 +1,9 @@
 import { CHAINS, CHAIN_NAMES } from "../config/chains.js";
-import type { CapabilitiesPayload } from "../output/capabilities.js";
+import type {
+  CapabilitiesPayload,
+  CommandLatencyClass,
+  DetailedCommandDescriptor,
+} from "../types.js";
 import type { CommandHelpConfig } from "./help.js";
 
 export type CommandPath =
@@ -11,6 +15,7 @@ export type CommandPath =
   | "stats pool"
   | "status"
   | "capabilities"
+  | "describe"
   | "guide"
   | "deposit"
   | "withdraw"
@@ -28,13 +33,31 @@ interface CommandCapabilityMetadata
   name?: string;
 }
 
+interface CommandDescriptorSeed {
+  description: string;
+  aliases: string[];
+  usage: string;
+  flags: string[];
+  globalFlags: string[];
+  requiresInit: boolean;
+  expectedLatencyClass: CommandLatencyClass;
+  safeReadOnly: boolean;
+  prerequisites: string[];
+  examples: string[];
+  jsonFields: string | null;
+  jsonVariants: string[];
+  safetyNotes: string[];
+  supportsUnsigned: boolean;
+  supportsDryRun: boolean;
+  agentWorkflowNotes: string[];
+}
+
 export interface CommandMetadata {
   description: string;
   aliases?: string[];
   help?: CommandHelpConfig;
   capabilities?: CommandCapabilityMetadata;
   safeReadOnly?: boolean;
-  documentedInAgents?: boolean;
   agentsDocMarker?: string;
 }
 
@@ -59,9 +82,13 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools init --force --yes --default-chain mainnet",
         "privacy-pools init --json --show-mnemonic",
         "privacy-pools init --mnemonic \"word ...\" --private-key 0x...",
+        "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet",
       ],
       jsonFields:
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }",
+      safetyNotes: [
+        "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
+      ],
       agentWorkflowNotes: [
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
       ],
@@ -70,8 +97,10 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       flags: [
         "--mnemonic <phrase>",
         "--mnemonic-file <path>",
+        "--mnemonic-stdin",
         "--private-key <key>",
         "--private-key-file <path>",
+        "--private-key-stdin",
         "--default-chain <chain>",
         "--force",
         "--show-mnemonic",
@@ -80,7 +109,6 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
-    documentedInAgents: true,
     agentsDocMarker: "#### `init`",
   },
   pools: {
@@ -107,7 +135,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "medium",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `pools`",
   },
   activity: {
@@ -129,7 +157,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "medium",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `activity`",
   },
   stats: {
@@ -160,7 +188,15 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       jsonFields:
         "{ mode, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
     },
-    documentedInAgents: true,
+    capabilities: {
+      usage: "stats global",
+      flags: [],
+      agentFlags: "--json",
+      requiresInit: false,
+      expectedLatencyClass: "medium",
+    },
+    safeReadOnly: true,
+
     agentsDocMarker: "#### `stats global`",
   },
   "stats pool": {
@@ -172,7 +208,15 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       jsonFields: "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
     },
-    documentedInAgents: true,
+    capabilities: {
+      usage: "stats pool --asset <symbol|address>",
+      flags: ["--asset <symbol|address>"],
+      agentFlags: "--json --asset <symbol>",
+      requiresInit: false,
+      expectedLatencyClass: "medium",
+    },
+    safeReadOnly: true,
+
     agentsDocMarker: "#### `stats pool`",
   },
   status: {
@@ -195,7 +239,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `status`",
   },
   capabilities: {
@@ -206,7 +250,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools capabilities --json",
       ],
       jsonFields:
-        "{ commands[], globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }",
+        "{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }",
     },
     capabilities: {
       flags: [],
@@ -215,8 +259,33 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `capabilities`",
+  },
+  describe: {
+    description: "Describe one command for runtime agent introspection",
+    help: {
+      overview: [
+        "Accepts spaced command paths like 'withdraw quote' and 'stats global'.",
+      ],
+      examples: [
+        "privacy-pools describe withdraw",
+        "privacy-pools describe withdraw quote --json",
+        "privacy-pools describe stats global --json",
+      ],
+      jsonFields:
+        "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+    },
+    capabilities: {
+      usage: "describe <command...>",
+      flags: ["<command...>"],
+      agentFlags: "--json <command...>",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+
+    agentsDocMarker: "#### `describe`",
   },
   guide: {
     description: "Show usage guide, workflow, and reference",
@@ -226,24 +295,25 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
+    safeReadOnly: true,
   },
   deposit: {
     description: "Deposit into a pool",
     help: {
       examples: [
         "privacy-pools deposit 0.1 ETH",
+        "privacy-pools deposit 100 USDC",
         "privacy-pools deposit 0.05 ETH --json --yes",
-        "privacy-pools deposit 0.05 ETH --unsigned",
+        "privacy-pools deposit 0.1 ETH --unsigned",
         "privacy-pools deposit 0.1 ETH --dry-run",
-        "privacy-pools deposit 0.1 ETH --chain mainnet",
-        "privacy-pools deposit 0.1 --asset ETH",
+        "privacy-pools deposit 0.1 --asset ETH --chain mainnet",
       ],
       prerequisites: "init",
       jsonFields:
         "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
-        "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }",
       ],
       safetyNotes: [
@@ -261,15 +331,15 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       usage: "deposit <amount> --asset <symbol|address>",
       flags: [
         "--asset <symbol|address>",
-        "--unsigned",
-        "--unsigned-format <envelope|tx>",
+        "--unsigned [envelope|tx]",
         "--dry-run",
+        "--ignore-unique-amount",
       ],
       agentFlags: "--json --yes",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `deposit`",
   },
   withdraw: {
@@ -277,7 +347,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... -p PA-2",
+        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2",
         "privacy-pools withdraw --all ETH --to 0xRecipient...",
         "privacy-pools withdraw 50% ETH --to 0xRecipient...",
         "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
@@ -294,7 +364,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "direct: same fields but mode: \"direct\", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
-        "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
         "--dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
       ],
       supportsUnsigned: true,
@@ -310,15 +380,14 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--direct",
         "--extra-gas",
         "--no-extra-gas",
-        "--unsigned",
-        "--unsigned-format <envelope|tx>",
+        "--unsigned [envelope|tx]",
         "--dry-run",
       ],
       agentFlags: "--json --yes",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `withdraw`",
   },
   "withdraw quote": {
@@ -342,7 +411,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "medium",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "**Withdrawal quote:**",
   },
   ragequit: {
@@ -356,11 +425,10 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "deposit address is revealed onchain. 'exit' is an alias.",
       ],
       examples: [
-        "privacy-pools ragequit ETH -p PA-1",
-        "privacy-pools ragequit ETH --unsigned -p PA-1",
-        "privacy-pools ragequit ETH --dry-run -p PA-1",
-        "privacy-pools ragequit ETH -p PA-1 --chain mainnet",
-        "privacy-pools ragequit --asset ETH -p PA-1",
+        "privacy-pools ragequit ETH --from-pa PA-1",
+        "privacy-pools ragequit ETH --unsigned --from-pa PA-1",
+        "privacy-pools ragequit ETH --dry-run --from-pa PA-1",
+        "privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet",
       ],
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
@@ -370,7 +438,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
-        "--unsigned --unsigned-format tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }",
       ],
       supportsUnsigned: true,
@@ -381,15 +449,14 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       flags: [
         "--asset <symbol|address>",
         "--from-pa <PA-#>",
-        "--unsigned",
-        "--unsigned-format <envelope|tx>",
+        "--unsigned [envelope|tx]",
         "--dry-run",
       ],
       agentFlags: "--json --yes",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `ragequit`",
   },
   accounts: {
@@ -399,20 +466,29 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools accounts",
         "privacy-pools accounts --all",
         "privacy-pools accounts --details",
+        "privacy-pools accounts --summary",
+        "privacy-pools accounts --pending-only",
         "privacy-pools accounts --json",
         "privacy-pools accounts --no-sync --chain mainnet",
       ],
       prerequisites: "init",
       jsonFields:
         "{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }",
+      jsonVariants: [
+        "--summary: { chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }",
+        "--pending-only: { chain, accounts, pendingCount, nextActions? }",
+      ],
+      agentWorkflowNotes: [
+        "Use --summary or --pending-only to reduce JSON size for polling loops.",
+      ],
     },
     capabilities: {
-      flags: ["--no-sync", "--all", "--details"],
+      flags: ["--no-sync", "--all", "--details", "--summary", "--pending-only"],
       agentFlags: "--json",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `accounts`",
   },
   history: {
@@ -434,7 +510,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `history`",
   },
   sync: {
@@ -455,14 +531,14 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    documentedInAgents: true,
+
     agentsDocMarker: "#### `sync`",
   },
   completion: {
     description: "Generate shell completion script",
     help: {
       overview: [
-        "Generated scripts register both privacy-pools and pp.",
+        "Generated scripts register the privacy-pools command.",
       ],
       examples: [
         "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
@@ -477,6 +553,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
+    safeReadOnly: true,
   },
 };
 
@@ -487,6 +564,9 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "pools",
   "activity",
   "stats",
+  "stats global",
+  "stats pool",
+  "describe",
   "deposit",
   "withdraw",
   "withdraw quote",
@@ -530,7 +610,7 @@ const AGENT_NOTES: Record<string, string> = {
   firstRun:
     "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
   unsignedMode:
-    "--unsigned builds transaction payloads without signing or submitting. Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
@@ -560,7 +640,7 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
     txFormat:
       "[{ to, data, value, valueHex, chainId }]: raw array, no envelope wrapper. Intended for direct piping to signing tools.",
     note:
-      "Default --unsigned emits the envelope format. Use --unsigned-format tx for raw transaction array only.",
+      "Default --unsigned emits the envelope format. Use --unsigned tx for raw transaction array only.",
   },
   nextActions: {
     shape:
@@ -570,12 +650,80 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   },
 };
 
-export function getCommandMetadata(path: CommandPath): CommandMetadata {
-  return COMMAND_METADATA[path];
+function descriptorSeed(path: CommandPath): CommandDescriptorSeed {
+  const metadata = getCommandMetadata(path);
+  const capabilities = metadata.capabilities;
+  if (!capabilities) {
+    throw new Error(`Missing capabilities metadata for command path '${path}'.`);
+  }
+
+  return {
+    description: metadata.description,
+    aliases: metadata.aliases ?? [],
+    usage: capabilities.usage ?? path,
+    flags: capabilities.flags ?? [],
+    globalFlags: GLOBAL_FLAG_METADATA.map(({ flag }) => flag),
+    requiresInit: capabilities.requiresInit,
+    expectedLatencyClass: capabilities.expectedLatencyClass ?? "fast",
+    safeReadOnly: metadata.safeReadOnly ?? false,
+    prerequisites: metadata.help?.prerequisites ? [metadata.help.prerequisites] : [],
+    examples: metadata.help?.examples ?? [],
+    jsonFields: metadata.help?.jsonFields ?? null,
+    jsonVariants: metadata.help?.jsonVariants ?? [],
+    safetyNotes: metadata.help?.safetyNotes ?? [],
+    supportsUnsigned: metadata.help?.supportsUnsigned ?? false,
+    supportsDryRun: metadata.help?.supportsDryRun ?? false,
+    agentWorkflowNotes: metadata.help?.agentWorkflowNotes ?? [],
+  };
 }
 
-export function getCommandDescription(path: CommandPath): string {
-  return getCommandMetadata(path).description;
+export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescriptor {
+  const seed = descriptorSeed(path);
+  return {
+    command: path,
+    description: seed.description,
+    aliases: seed.aliases,
+    usage: seed.usage,
+    flags: seed.flags,
+    globalFlags: seed.globalFlags,
+    requiresInit: seed.requiresInit,
+    expectedLatencyClass: seed.expectedLatencyClass,
+    safeReadOnly: seed.safeReadOnly,
+    prerequisites: seed.prerequisites,
+    examples: seed.examples,
+    jsonFields: seed.jsonFields,
+    jsonVariants: seed.jsonVariants,
+    safetyNotes: seed.safetyNotes,
+    supportsUnsigned: seed.supportsUnsigned,
+    supportsDryRun: seed.supportsDryRun,
+    agentWorkflowNotes: seed.agentWorkflowNotes,
+  };
+}
+
+export function resolveCommandPath(query: string | string[]): CommandPath | null {
+  const normalized = Array.isArray(query)
+    ? query.join(" ").trim().replace(/\s+/g, " ")
+    : query.trim().replace(/\s+/g, " ");
+  if (!normalized) {
+    return null;
+  }
+
+  if ((COMMAND_PATHS as string[]).includes(normalized)) {
+    return normalized as CommandPath;
+  }
+
+  const aliasMatch = COMMAND_PATHS.find((path) =>
+    (COMMAND_METADATA[path].aliases ?? []).includes(normalized)
+  );
+  return aliasMatch ?? null;
+}
+
+export function listCommandPaths(): CommandPath[] {
+  return [...COMMAND_PATHS];
+}
+
+export function getCommandMetadata(path: CommandPath): CommandMetadata {
+  return COMMAND_METADATA[path];
 }
 
 export function getDocumentedAgentMarkers(): string[] {
@@ -588,21 +736,21 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
   return {
     commands: CAPABILITIES_COMMAND_ORDER.map((path) => {
       const metadata = getCommandMetadata(path);
-      if (!metadata.capabilities) {
-        throw new Error(`Missing capabilities metadata for command path '${path}'.`);
-      }
-
+      const seed = descriptorSeed(path);
       return {
-        name: metadata.capabilities.name ?? path,
+        name: metadata.capabilities?.name ?? path,
         description: metadata.description,
         aliases: metadata.aliases,
-        usage: metadata.capabilities.usage,
-        flags: metadata.capabilities.flags,
-        agentFlags: metadata.capabilities.agentFlags,
-        requiresInit: metadata.capabilities.requiresInit,
-        expectedLatencyClass: metadata.capabilities.expectedLatencyClass,
+        usage: seed.usage,
+        flags: seed.flags,
+        agentFlags: metadata.capabilities?.agentFlags,
+        requiresInit: seed.requiresInit,
+        expectedLatencyClass: seed.expectedLatencyClass,
       };
     }),
+    commandDetails: Object.fromEntries(
+      COMMAND_PATHS.map((path) => [path, buildCommandDescriptor(path)])
+    ),
     globalFlags: GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({ flag, description })),
     agentWorkflow: AGENT_WORKFLOW,
     agentNotes: AGENT_NOTES,
@@ -616,6 +764,11 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       .filter((path) => COMMAND_METADATA[path].safeReadOnly)
       .map((path) => path),
     jsonOutputContract:
-      "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned-format tx emits a raw transaction array without the envelope.",
+      "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+    documentation: {
+      reference: "docs/reference.md",
+      agentGuide: "AGENTS.md",
+      changelog: "CHANGELOG.md",
+    },
   };
 }
