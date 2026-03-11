@@ -1,143 +1,116 @@
 # Privacy Pools CLI
 
-Command-line interface for [Privacy Pools v1](https://www.privacypools.com) — deposit, withdraw privately, and manage pool accounts on Ethereum and L2s. Built for both interactive use and AI agent integration.
+Private transactions on Ethereum, from your terminal. Deposit into a pool, wait for compliance approval, withdraw to any address — no onchain link between deposit and withdrawal.
 
-> **Warning:** This CLI is experimental. Use at your own risk. For large transactions, use [privacypools.com](https://privacypools.com).
+> [!CAUTION]
+> Experimental software. Start small. For larger amounts, use [privacypools.com](https://privacypools.com).
 
-**Features:**
-
-- Private withdrawals via zero-knowledge proofs and relayed transactions
-- Non-custodial — funds are controlled by your cryptographic commitments
-- Multi-chain: mainnet, Arbitrum, Optimism (+ testnets)
-- Structured JSON output and unsigned transaction mode for agent integration
-- Shell completions (bash, zsh, fish)
+- **Private withdrawals** — zero-knowledge proofs break the onchain link between your deposit and withdrawal
+- **Non-custodial** — your funds, your keys, your recovery phrase
+- **Multi-chain** — Ethereum, Arbitrum, Optimism (+ testnets)
+- **Privacy guardrails** — warns when deposit amounts could fingerprint you, suggests rounder alternatives
+- **Agent-ready** — structured JSON output, unsigned transaction mode, categorized errors ([AGENTS.md](AGENTS.md))
 
 ## Getting Started
 
 ```bash
-# 1. Initialize (generates recovery phrase + signer key)
+# 1. Initialize (creates a recovery phrase and signer key)
 privacy-pools init
 
-# 2. Browse available pools
+# 2. See what's available
 privacy-pools pools
+```
 
+```
+┌───────┬────────────────┬─────────────────┬────────────┬─────────────┬─────────────┐
+│ Asset │ Total Deposits │ Pool Balance    │ USD Value  │ Min Deposit │ Vetting Fee │
+├───────┼────────────────┼─────────────────┼────────────┼─────────────┼─────────────┤
+│ ETH   │ 2,875          │ 823.92 ETH      │ $1,667,647 │ 0.01 ETH    │ 0.50%       │
+│ USDC  │ 351            │ 310,722 USDC    │ $310,693   │ 25 USDC     │ 0.50%       │
+│ USDT  │ 78             │ 105,544 USDT    │ $105,540   │ 25 USDT     │ 0.00%       │
+│ DAI   │ 5              │ 780 DAI         │ $780       │ 250 DAI     │ 0.00%       │
+│ ...   │                │                 │            │             │             │
+└───────┴────────────────┴─────────────────┴────────────┴─────────────┴─────────────┘
+```
+
+```bash
 # 3. Deposit into a pool
 privacy-pools deposit 0.1 ETH
 
-# 4. Check your Pool Accounts (poll until ASP approves your deposit)
-privacy-pools accounts
+# 4. Wait for compliance approval (most < 1 hour, up to 7 days)
+privacy-pools accounts            # poll until aspStatus: "approved"
 
 # 5. Withdraw privately to any address
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 ```
 
-After depositing, your Pool Account shows `aspStatus: pending` until the ASP approves it (usually within 1 hour, up to 7 days in rare cases). Once approved, you can withdraw.
+Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP (Association Set Provider) reviews for compliance. Once approved, you can withdraw privately through a relayer — no onchain connection to your deposit.
 
-**Key concepts:**
+Need to recover funds without ASP approval? `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 
-- **Pool Account (PA-1, PA-2, ...)** — each deposit creates a numbered Pool Account
-- **ASP (Association Set Provider)** — compliance layer that approves deposits for private withdrawal
-- **Relayed withdrawal** — processed through a relayer for enhanced privacy (default)
-- **Direct withdrawal** — interacts with the contract directly (no relayer fees, but not privacy-preserving)
-- **Ragequit / Exit** — emergency withdrawal without ASP approval, reveals deposit address
-
-## Installation
+## Install
 
 ```bash
 npm i -g github:0xmatthewb/privacy-pools-cli
-# or
-bun add -g github:0xmatthewb/privacy-pools-cli
+# or: bun add -g github:0xmatthewb/privacy-pools-cli
 ```
-
-Installed command: `privacy-pools`
 
 Or run from source:
 
 ```bash
 git clone https://github.com/0xmatthewb/privacy-pools-cli.git
-cd privacy-pools-cli
-bun install
-bun run dev -- --help
+cd privacy-pools-cli && bun install
+bun run dev -- pools
 ```
 
 ## Commands
 
-| Command | Description | Requires init? |
-|---------|-------------|----------------|
-| `pools` | List available pools (supports `--all-chains`) | No |
-| `activity` | Public activity feed | No |
-| `stats global` / `stats pool` | Protocol statistics | No |
-| `status` | Configuration and health check | No |
-| `capabilities` | Machine-readable CLI manifest | No |
-| `describe` | Describe one command for agent introspection | No |
-| `guide` | Print usage guide | No |
-| `init` | Initialize wallet and config | No |
+| Command | Description | Wallet required? |
+|---------|-------------|:---:|
+| `pools` | Browse available pools and assets | |
+| `activity` | Public activity feed | |
+| `stats` | Protocol statistics (global or per-pool) | |
+| `status` | Configuration and connectivity health | |
+| `guide` | Print the full usage guide | |
+| `init` | Set up wallet and config (run once) | |
 | `deposit` | Deposit into a pool | Yes |
 | `withdraw` | Withdraw from a pool (relayed or direct) | Yes |
-| `ragequit` / `exit` | Emergency withdrawal without ASP approval | Yes |
-| `accounts` | List Pool Accounts with balances and status | Yes |
-| `history` | Chronological event history | Yes |
-| `sync` | Force-sync local account state | Yes |
-| `completion` | Generate shell completion scripts | No |
+| `ragequit` | Emergency exit without ASP approval (alias: `exit`) | Yes |
+| `accounts` | List Pool Accounts with balances and approval status | Yes |
+| `history` | Chronological event log | Yes |
+| `sync` | Force-sync account state from onchain | Yes |
+| `completion` | Generate shell completions (bash/zsh/fish) | |
 
-For detailed flag reference, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
+All commands accept `--chain <name>` to override your default chain. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
 
 ## Agent / Machine Mode
 
-Pass `--agent` (alias for `--json --yes --quiet`) for structured JSON on stdout with no prompts:
+Pass `--agent` (shorthand for `--json --yes --quiet`) for structured JSON on stdout, no prompts, no banners:
 
 ```bash
-privacy-pools init --agent --default-chain mainnet
-privacy-pools pools --agent
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent          # poll until aspStatus: "approved"
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 ```
 
-**Output convention:** stdout is reserved for JSON (when `--json` is set). stderr carries all human-readable output. This means you can safely pipe stdout to `jq`.
-
-**JSON envelope:**
+Every response is wrapped in a versioned envelope:
 
 ```json
-{ "schemaVersion": "1.2.0", "success": true, ...payload }
-{ "schemaVersion": "1.2.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
+{ "schemaVersion": "1.2.0", "success": true, ...commandPayload }
+{ "schemaVersion": "1.2.0", "success": false, "errorCode": "INPUT_ERROR", "errorMessage": "..." }
 ```
 
-For the full agent integration guide, see [AGENTS.md](AGENTS.md). For skill-aware agents, see [skills/](skills/privacy-pools-cli/).
+stdout is always JSON. stderr carries human-readable output. Pipe safely to `jq`.
 
-## Supported Chains
-
-| Chain | Chain ID | Type |
-|-------|----------|------|
-| `mainnet` | 1 | Mainnet |
-| `arbitrum` | 42161 | Mainnet |
-| `optimism` | 10 | Mainnet |
-| `sepolia` | 11155111 | Testnet |
-| `op-sepolia` | 11155420 | Testnet |
-
-Set per-command with `--chain <name>`, or set a default during `init`.
-
-## Global Flags
-
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--json` | `-j` | Machine-readable JSON output on stdout |
-| `--yes` | `-y` | Skip confirmation prompts |
-| `--agent` | | Machine-friendly mode (`--json --yes --quiet`) |
-| `--chain <name>` | `-c` | Target chain |
-| `--rpc-url <url>` | `-r` | Override RPC URL |
-| `--quiet` | `-q` | Suppress non-essential stderr output |
-| `--verbose` | `-v` | Enable verbose/debug output |
-| `--no-banner` | | Disable ASCII banner |
-| `--no-color` | | Disable colored output (also respects `NO_COLOR`) |
-| `--format <fmt>` | | Output format: `table`, `csv`, `json` |
-| `--timeout <seconds>` | | Network/transaction timeout |
+For unsigned transaction payloads, error taxonomy, and the full integration guide: [AGENTS.md](AGENTS.md).
 
 ## Further Reading
 
-- [docs/reference.md](docs/reference.md) — full command reference, configuration, environment variables, development guide
-- [AGENTS.md](AGENTS.md) — agent integration guide with JSON payloads and error handling
-- [CHANGELOG.md](CHANGELOG.md) — release history
+- [docs/reference.md](docs/reference.md) — flags, configuration, environment variables, project structure
+- [AGENTS.md](AGENTS.md) — agent integration guide, JSON payloads, unsigned mode
+- [CHANGELOG.md](CHANGELOG.md) — release history and migration notes
+
+Supported chains: Ethereum mainnet, Arbitrum, Optimism, Sepolia, OP Sepolia.
 
 ## License
 
