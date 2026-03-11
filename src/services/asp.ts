@@ -9,6 +9,92 @@ import type {
 import { CLIError } from "../utils/errors.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 
+const ASP_MAX_RETRIES = 3;
+const ASP_RETRY_BASE_DELAY_MS = 500;
+
+class RetryableAspHttpError extends Error {
+  constructor(public readonly status: number) {
+    super(`Retryable ASP HTTP ${status}`);
+    this.name = "RetryableAspHttpError";
+  }
+}
+
+const defaultAspRetryWait = async (ms: number): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+let aspRetryWait = defaultAspRetryWait;
+
+export function overrideAspRetryWaitForTests(
+  waitFn?: (ms: number) => Promise<void>
+): void {
+  aspRetryWait = waitFn ?? defaultAspRetryWait;
+}
+
+function genericAspUnavailableError(retryable: boolean = false): CLIError {
+  return new CLIError(
+    "Could not reach the ASP service.",
+    "ASP",
+    "Check your network connection. If it persists, the service may be temporarily down.",
+    undefined,
+    retryable
+  );
+}
+
+function isRetryableAspTransportError(error: unknown): boolean {
+  if (error instanceof RetryableAspHttpError) return true;
+  if (error instanceof CLIError) return false;
+  if (!(error instanceof Error)) return false;
+
+  if (error.name === "AbortError" || error.name === "TimeoutError") {
+    return true;
+  }
+
+  const code = "code" in error ? (error as { code?: unknown }).code : undefined;
+  if (
+    code === "ECONNREFUSED" ||
+    code === "ETIMEDOUT" ||
+    code === "ENOTFOUND" ||
+    code === "ECONNRESET"
+  ) {
+    return true;
+  }
+
+  return error instanceof TypeError
+    || error.message.includes("fetch")
+    || error.message.includes("ECONNREFUSED")
+    || error.message.includes("ETIMEDOUT")
+    || error.message.includes("ENOTFOUND")
+    || error.message.includes("ECONNRESET");
+}
+
+function retryDelayMs(attempt: number): number {
+  return ASP_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1));
+}
+
+async function runAspRequestWithRetry(
+  request: () => Promise<Response>
+): Promise<Response> {
+  for (let attempt = 0; attempt <= ASP_MAX_RETRIES; attempt += 1) {
+    try {
+      return await request();
+    } catch (error) {
+      if (!isRetryableAspTransportError(error)) {
+        throw error;
+      }
+      if (attempt === ASP_MAX_RETRIES) {
+        if (error instanceof RetryableAspHttpError) {
+          throw genericAspUnavailableError(true);
+        }
+        throw error;
+      }
+      await aspRetryWait(retryDelayMs(attempt + 1));
+    }
+  }
+
+  throw genericAspUnavailableError();
+}
+
 async function aspFetch(
   chainConfig: ChainConfig,
   path: string,
@@ -28,41 +114,42 @@ async function aspFetch(
     headers["X-Pool-Scope"] = scope.toString();
   }
 
-  const res = await fetch(url.toString(), {
-    headers,
-    signal: AbortSignal.timeout(getNetworkTimeoutMs()),
+  return runAspRequestWithRetry(async () => {
+    const res = await fetch(url.toString(), {
+      headers,
+      signal: AbortSignal.timeout(getNetworkTimeoutMs()),
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new CLIError(
+          "ASP service: resource not found.",
+          "ASP",
+          "The pool may not be registered yet. Run 'privacy-pools pools' to verify."
+        );
+      }
+      if (res.status === 400) {
+        throw new CLIError(
+          "ASP service returned an error.",
+          "ASP",
+          "Try 'privacy-pools sync' and retry. If it persists, the CLI may be out of date."
+        );
+      }
+      if (res.status === 429 || res.status === 403) {
+        throw new CLIError(
+          "ASP service is temporarily rate-limiting requests.",
+          "ASP",
+          "Wait a moment and try again."
+        );
+      }
+      if (res.status >= 500) {
+        throw new RetryableAspHttpError(res.status);
+      }
+      throw genericAspUnavailableError();
+    }
+
+    return res;
   });
-
-  if (!res.ok) {
-    if (res.status === 404) {
-      throw new CLIError(
-        "ASP service: resource not found.",
-        "ASP",
-        "The pool may not be registered yet. Run 'privacy-pools pools' to verify."
-      );
-    }
-    if (res.status === 400) {
-      throw new CLIError(
-        "ASP service returned an error.",
-        "ASP",
-        "Try 'privacy-pools sync' and retry. If it persists, the CLI may be out of date."
-      );
-    }
-    if (res.status === 429 || res.status === 403) {
-      throw new CLIError(
-        "ASP service is temporarily rate-limiting requests.",
-        "ASP",
-        "Wait a moment and try again."
-      );
-    }
-    throw new CLIError(
-      "Could not reach the ASP service.",
-      "ASP",
-      "Check your network connection. If it persists, the service may be temporarily down."
-    );
-  }
-
-  return res;
 }
 
 async function aspFetchGlobal(
@@ -77,26 +164,27 @@ async function aspFetchGlobal(
     }
   }
 
-  const res = await fetch(url.toString(), {
-    signal: AbortSignal.timeout(getNetworkTimeoutMs()),
-  });
+  return runAspRequestWithRetry(async () => {
+    const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(getNetworkTimeoutMs()),
+    });
 
-  if (!res.ok) {
-    if (res.status === 429 || res.status === 403) {
-      throw new CLIError(
-        "ASP service is temporarily rate-limiting requests.",
-        "ASP",
-        "Wait a moment and try again."
-      );
+    if (!res.ok) {
+      if (res.status === 429 || res.status === 403) {
+        throw new CLIError(
+          "ASP service is temporarily rate-limiting requests.",
+          "ASP",
+          "Wait a moment and try again."
+        );
+      }
+      if (res.status >= 500) {
+        throw new RetryableAspHttpError(res.status);
+      }
+      throw genericAspUnavailableError();
     }
-    throw new CLIError(
-      "Could not reach the ASP service.",
-      "ASP",
-      "Check your network connection. If it persists, the service may be temporarily down."
-    );
-  }
 
-  return res;
+    return res;
+  });
 }
 
 export async function fetchMerkleRoots(

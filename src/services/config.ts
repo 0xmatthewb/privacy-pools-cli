@@ -229,8 +229,8 @@ const DEFAULT_RPC_URLS: Record<number, string[]> = {
     "https://optimism-rpc.publicnode.com",
   ],
   11155111: [
-    "https://sepolia.drpc.org",
     "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://sepolia.drpc.org",
   ],
   11155420: [
     "https://optimism-sepolia.drpc.org",

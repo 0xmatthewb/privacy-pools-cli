@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { CHAINS } from "../../src/config/chains.ts";
+import { overrideAspRetryWaitForTests } from "../../src/services/asp.ts";
 import { listPools, resolvePool } from "../../src/services/pools.ts";
 
 interface MockServer {
@@ -94,7 +95,12 @@ async function startMockServer(chainId: number, statsPayload: unknown): Promise<
 describe("pools service", () => {
   const toClose: MockServer[] = [];
 
+  beforeEach(() => {
+    overrideAspRetryWaitForTests(async () => {});
+  });
+
   afterEach(async () => {
+    overrideAspRetryWaitForTests();
     while (toClose.length > 0) {
       await toClose.pop()!.close();
     }
@@ -257,6 +263,34 @@ describe("pools service", () => {
 
     const pools = await listPools(chainConfig, server.url);
     expect(pools.length).toBe(0);
+  });
+
+  test("listPools deduplicates entries with the same pool address and keeps the first result", async () => {
+    const chainId = 31343;
+    const server = await startMockServer(chainId, {
+      pools: [
+        {
+          tokenAddress: "0x00000000000000000000000000000000000000b1",
+          totalDepositsCount: 10,
+        },
+        {
+          tokenAddress: "0x00000000000000000000000000000000000000b1",
+          totalDepositsCount: 20,
+        },
+      ],
+    });
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      aspHost: server.url,
+    };
+
+    const pools = await listPools(chainConfig, server.url);
+    expect(pools).toHaveLength(1);
+    expect(pools[0]?.totalDepositsCount).toBe(10);
   });
 
   test("resolvePool falls back to a known pool when ASP is reachable but omits that asset", async () => {

@@ -46,7 +46,7 @@ describe("config service", () => {
     expect(getRpcUrl(1)).toBe("https://eth.llamarpc.com");
     expect(getRpcUrl(42161)).toBe("https://arbitrum.drpc.org");
     expect(getRpcUrl(10)).toBe("https://optimism.drpc.org");
-    expect(getRpcUrl(11155111)).toBe("https://sepolia.drpc.org");
+    expect(getRpcUrl(11155111)).toBe("https://ethereum-sepolia-rpc.publicnode.com");
     expect(getRpcUrl(11155420)).toBe("https://optimism-sepolia.drpc.org");
   });
 

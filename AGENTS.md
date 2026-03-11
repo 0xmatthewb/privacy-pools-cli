@@ -466,6 +466,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED`| CONTRACT | No        | Duplicate precommitment, retry deposit      |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`   | CONTRACT | No        | Wrong signer for exit                       |
 | `CONTRACT_NO_ROOTS_AVAILABLE`        | CONTRACT | Yes       | Pool not ready, wait and retry              |
+| `ACCOUNT_NOT_APPROVED`               | ASP      | No        | Deposit pending ASP approval, cannot withdraw yet |
 | `UNKNOWN_ERROR`                      | UNKNOWN  | No        | Unexpected error                            |
 
 ### Exit codes
@@ -488,6 +489,10 @@ When `retryable: true` is present in the error response:
 1. For `RPC_NETWORK_ERROR` or `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
 2. For `CONTRACT_INCORRECT_ASP_ROOT` or `PROOF_MERKLE_ERROR`: run `sync --agent` first, then retry the original command
 3. For `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
+
+When `retryable: false` (non-retryable):
+
+4. For `ACCOUNT_NOT_APPROVED`: inform the user their deposit is pending ASP approval. Suggest running `privacy-pools accounts --json` to check `aspStatus`. Most deposits are approved within 1 hour.
 
 ## Supported Chains
 
