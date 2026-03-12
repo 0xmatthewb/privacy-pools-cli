@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createOutputContext, formatNextActionCommand, renderNextSteps } from "../../src/output/common.ts";
+import { createOutputContext, createNextAction, formatNextActionCommand, renderNextSteps } from "../../src/output/common.ts";
 import { renderInitResult, type InitRenderResult } from "../../src/output/init.ts";
 import { renderDepositSuccess, type DepositSuccessData } from "../../src/output/deposit.ts";
 import { renderWithdrawSuccess, type WithdrawSuccessData } from "../../src/output/withdraw.ts";
@@ -398,13 +398,6 @@ describe("next-step parity across renderers", () => {
         return captureOutput(() => renderSyncComplete(ctx, STUB_SYNC));
       },
     },
-    {
-      name: "renderPools",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderPools(ctx, STUB_POOLS));
-      },
-    },
   ];
 
   for (const { name, render } of cases) {
@@ -426,6 +419,13 @@ describe("next-step parity across renderers", () => {
 
 describe("JSON-only nextActions (agent-only follow-ups)", () => {
   const jsonOnlyCases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
+    {
+      name: "renderPools",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderPools(ctx, STUB_POOLS));
+      },
+    },
     {
       name: "renderPoolDetail",
       render: (json) => {
@@ -513,5 +513,95 @@ describe("template nextActions marked runnable: false", () => {
     for (const action of actions) {
       expect(action.runnable).toBeUndefined();
     }
+  });
+});
+
+// ── renderNextSteps filters out runnable: false ─────────────────────────────
+
+describe("renderNextSteps skips runnable: false actions", () => {
+  test("human output omits template actions", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderNextSteps(ctx, [
+        createNextAction("deposit", "Deposit.", "test", { runnable: false }),
+      ]),
+    );
+    expect(stderrContainsNextSteps(stderr)).toBe(false);
+  });
+
+  test("human output shows runnable actions alongside templates", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderNextSteps(ctx, [
+        createNextAction("accounts", "Check accounts.", "test"),
+        createNextAction("deposit", "Deposit.", "test", { runnable: false }),
+      ]),
+    );
+    expect(stderrContainsNextSteps(stderr)).toBe(true);
+    expect(stderr).toContain("accounts");
+    expect(stderr).not.toContain("deposit");
+  });
+});
+
+// ── Status state-aware next steps ───────────────────────────────────────────
+
+describe("status next steps vary by account state", () => {
+  function getJsonNextActions(result: StatusCheckResult) {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderStatus(ctx, result));
+    return JSON.parse(stdout.trim()).nextActions;
+  }
+
+  test("ready + no accounts → pools only", () => {
+    const result = { ...STUB_STATUS, accountFiles: [] as [string, number][] };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("pools");
+    expect(actions[0].when).toBe("status_ready_no_accounts");
+  });
+
+  test("ready + has accounts → accounts + pools", () => {
+    const actions = getJsonNextActions(STUB_STATUS);
+    expect(actions).toHaveLength(2);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[1].command).toBe("pools");
+    expect(actions[0].when).toBe("status_ready_has_accounts");
+  });
+
+  test("not ready → init with --chain when chain is selected", () => {
+    const result = {
+      ...STUB_STATUS,
+      configExists: false,
+      recoveryPhraseSet: false,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+      accountFiles: [] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("init");
+    expect(actions[0].options.chain).toBe("sepolia");
+  });
+});
+
+// ── Pools suppresses nextActions when CLI not initialized ───────────────────
+
+describe("pools gated on setupReady", () => {
+  test("setupReady: false suppresses JSON nextActions", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data = { ...STUB_POOLS, setupReady: false as const };
+    const { stdout } = captureOutput(() => renderPools(ctx, data));
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toBeUndefined();
+  });
+
+  test("setupReady: true preserves JSON nextActions", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data = { ...STUB_POOLS, setupReady: true as const };
+    const { stdout } = captureOutput(() => renderPools(ctx, data));
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions[0].command).toBe("deposit");
   });
 });

@@ -183,8 +183,14 @@ export function renderNextSteps(
   if (!nextActions || nextActions.length === 0) return;
   if (isSilent(ctx)) return;
 
+  // Only show fully-specified commands to humans.  Template actions
+  // (runnable: false) are for agents — humans shouldn't see a
+  // half-formed command that errors when copy-pasted.
+  const runnable = nextActions.filter((a) => a.runnable !== false);
+  if (runnable.length === 0) return;
+
   process.stderr.write(chalk.dim("\nNext steps:\n"));
-  for (const action of nextActions) {
+  for (const action of runnable) {
     const cmd = formatNextActionCommand(action);
     process.stderr.write(`  ${accent(cmd)}\n`);
     process.stderr.write(`  ${chalk.dim(action.reason)}\n`);

@@ -335,9 +335,15 @@ describe("renderStatus parity", () => {
     expect(json.signerAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
     expect(json.nextActions).toEqual([
       {
+        command: "accounts",
+        reason: "Check on your existing deposits.",
+        when: "status_ready_has_accounts",
+        options: { agent: true, chain: "sepolia" },
+      },
+      {
         command: "pools",
-        reason: "Browse pools now that the CLI is ready.",
-        when: "status_ready",
+        reason: "Browse pools to deposit into.",
+        when: "status_ready_has_accounts",
         options: { agent: true, chain: "sepolia" },
       },
     ]);
@@ -374,7 +380,7 @@ describe("renderStatus parity", () => {
         command: "init",
         reason: "Complete CLI setup before transacting.",
         when: "status_not_ready",
-        options: { agent: true, showMnemonic: true },
+        options: { agent: true, showMnemonic: true, chain: "sepolia" },
       },
     ]);
   });
@@ -399,11 +405,11 @@ describe("renderStatus parity", () => {
     expect(stderr).toContain("Health checks skipped");
   });
 
-  test("human mode: shows full readiness when config+mnemonic+signer present", () => {
+  test("human mode: shows setup complete when config+mnemonic+signer present", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
 
-    expect(stderr).toContain("Ready: deposit, withdraw, ragequit, unsigned");
+    expect(stderr).toContain("Setup complete.");
   });
 
   test("human mode: shows unsigned-only readiness when no signer key", () => {
@@ -412,6 +418,7 @@ describe("renderStatus parity", () => {
     const { stderr } = captureOutput(() => renderStatus(ctx, result));
 
     expect(stderr).toContain("unsigned mode only");
+    expect(stderr).toContain("no signer key");
   });
 
   test("human mode: shows not-ready when no config", () => {

@@ -41,6 +41,10 @@ export interface PoolsRenderData {
   filteredPools: PoolWithChain[];
   chainSummaries?: ChainSummary[];
   warnings: PoolWarning[];
+  /** True when the CLI is initialized (config + mnemonic exist). When false,
+   *  next-step guidance is suppressed — suggesting `deposit` to a user who
+   *  hasn't run `init` yet is misleading. */
+  setupReady?: boolean;
 }
 
 // ── Helpers (moved from command) ─────────────────────────────────────────────
@@ -127,7 +131,11 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
 
   // ── Next-step guidance (shared across JSON / human paths) ────────────
-  const agentNextActions = filteredPools.length > 0
+  // Suppressed entirely when the CLI is not initialized — suggesting
+  // `deposit` to a first-run user who hasn't run `init` is misleading.
+  const showNextSteps = data.setupReady !== false && filteredPools.length > 0;
+
+  const agentNextActions = showNextSteps
     ? [
         createNextAction(
           "deposit",
@@ -146,7 +154,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       ]
     : undefined;
 
-  const humanNextActions = filteredPools.length > 0
+  const humanNextActions = showNextSteps
     ? [
         createNextAction(
           "deposit",

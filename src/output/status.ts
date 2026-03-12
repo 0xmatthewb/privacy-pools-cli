@@ -39,7 +39,11 @@ export interface StatusCheckResult {
   rpcBlockNumber?: bigint;
   /** Whether each health check was enabled. */
   healthChecksEnabled?: { rpc: boolean; asp: boolean };
-  /** Account files that exist, as [chainName, chainId] tuples. */
+  /**
+   * Account files that exist, as [chainName, chainId] tuples.
+   * Non-empty means the user has deposited before (lightweight proxy for
+   * "has pool accounts" without loading full account state).
+   */
   accountFiles: [string, number][];
 }
 
@@ -53,21 +57,45 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
   const workflowChain = result.selectedChain ?? result.defaultChain;
   const notReady = !result.configExists || !result.recoveryPhraseSet;
-
-  // Agents get --show-mnemonic (to capture the phrase in JSON) and explicit --chain.
-  const agentNextActions = notReady
-    ? [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
-        { options: { agent: true, showMnemonic: true } })]
-    : [createNextAction("pools", "Browse pools now that the CLI is ready.", "status_ready",
-        { options: { agent: true, ...(workflowChain ? { chain: workflowChain } : {}) } })];
-
-  // Humans: no --show-mnemonic (agent concern); only include --chain when
-  // the user explicitly overrode their default (otherwise it's noise).
+  const hasAccounts = result.accountFiles.length > 0;
   const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
-  const humanNextActions = notReady
-    ? [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready")]
-    : [createNextAction("pools", "Browse pools now that the CLI is ready.", "status_ready",
-        { options: { ...(chainOverridden && workflowChain ? { chain: workflowChain } : {}) } })];
+
+  // ── Build state-aware next-step guidance ──────────────────────────────
+  // Three states:
+  //   1. Not ready  → init
+  //   2. Ready, no accounts (fresh setup) → pools (browse → deposit)
+  //   3. Ready, has accounts → accounts (check on deposits) + pools
+  const agentChainOpts: Record<string, string> = workflowChain ? { chain: workflowChain } : {};
+  const humanChainOpts: Record<string, string> | undefined =
+    chainOverridden && workflowChain ? { chain: workflowChain } : undefined;
+
+  let agentNextActions: ReturnType<typeof createNextAction>[];
+  let humanNextActions: ReturnType<typeof createNextAction>[];
+
+  if (notReady) {
+    agentNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
+      { options: { agent: true, showMnemonic: true, ...agentChainOpts } })];
+    humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
+      { options: humanChainOpts })];
+  } else if (!hasAccounts) {
+    agentNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
+      { options: { agent: true, ...agentChainOpts } })];
+    humanNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
+      { options: humanChainOpts })];
+  } else {
+    agentNextActions = [
+      createNextAction("accounts", "Check on your existing deposits.", "status_ready_has_accounts",
+        { options: { agent: true, ...agentChainOpts } }),
+      createNextAction("pools", "Browse pools to deposit into.", "status_ready_has_accounts",
+        { options: { agent: true, ...agentChainOpts } }),
+    ];
+    humanNextActions = [
+      createNextAction("accounts", "Check on your existing deposits.", "status_ready_has_accounts",
+        { options: humanChainOpts }),
+      createNextAction("pools", "Browse pools to deposit into.", "status_ready_has_accounts",
+        { options: humanChainOpts }),
+    ];
+  }
 
   if (ctx.mode.isJson) {
     const status: Record<string, unknown> = appendNextActions({
@@ -88,6 +116,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
+    // Capability flags: indicate the wallet is *configured* for these operations,
+    // NOT that spendable funds exist. Agents must check `accounts` to verify
+    // fund availability before attempting withdrawals.
     status.readyForDeposit = readyForDeposit;
     status.readyForWithdraw = readyForDeposit;
     status.readyForUnsigned = readyForUnsigned;
@@ -174,15 +205,13 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     } else {
       info("No account files found.", silent);
     }
-    // Readiness summary
-    const canDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
-    const canUnsigned = result.configExists && result.recoveryPhraseSet;
-    if (canDeposit) {
-      success("Ready: deposit, withdraw, ragequit, unsigned", silent);
-    } else if (canUnsigned) {
-      info("Ready: unsigned mode only (no signer key)", silent);
+    // Readiness summary — describes configuration, not fund availability.
+    if (readyForDeposit) {
+      success("Setup complete.", silent);
+    } else if (readyForUnsigned) {
+      info("Setup complete (unsigned mode only — no signer key).", silent);
     } else {
-      warn("Not ready: run 'privacy-pools init' to get started", silent);
+      warn("Not ready: run 'privacy-pools init' to get started.", silent);
     }
   }
   renderNextSteps(ctx, humanNextActions);

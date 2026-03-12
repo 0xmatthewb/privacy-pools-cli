@@ -2,7 +2,7 @@ import { Command } from "commander";
 import type { Address } from "viem";
 import { getDefaultReadOnlyChains, getAllChainsWithOverrides } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
-import { loadConfig } from "../services/config.js";
+import { loadConfig, configExists, mnemonicExists } from "../services/config.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
@@ -342,6 +342,7 @@ export function createPoolsCommand(): Command {
           sort: sortMode,
           filteredPools: [],
           warnings,
+          setupReady: configExists() && mnemonicExists(),
         };
 
         if (rawPools.length === 0) {
