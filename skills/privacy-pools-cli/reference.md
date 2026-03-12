@@ -756,7 +756,7 @@ privacy-pools sync --agent [--asset <symbol>]
 }
 ```
 
-`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousAvailablePoolAccounts` shows the count before sync — compare with `availablePoolAccounts` to detect newly discovered accounts. `nextActions` may be present with structured follow-up commands.
+`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousAvailablePoolAccounts` shows the count before sync — compare with `availablePoolAccounts` to detect newly discovered accounts.
 
 ---
 

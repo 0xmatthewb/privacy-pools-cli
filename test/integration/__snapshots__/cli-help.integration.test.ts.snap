@@ -336,7 +336,7 @@ Examples:
 Prerequisites:
   Requires: init
 JSON output (--json):
-  { chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts? }"
 `;
 
 exports[`CLI --help snapshots guide --help snapshot 1`] = `

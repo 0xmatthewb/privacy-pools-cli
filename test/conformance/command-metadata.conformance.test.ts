@@ -297,6 +297,28 @@ describe("command metadata conformance", () => {
     );
   });
 
+  test("sync docs do not promise nextActions that the runtime does not emit", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const contract = JSON.parse(
+      readFileSync(`${CLI_ROOT}/docs/contracts/cli-json-contract.v1.3.0.json`, "utf8"),
+    ) as {
+      commands?: { sync?: { successFields?: Record<string, string> } };
+    };
+    const syncJsonFields = getCommandMetadata("sync").help?.jsonFields ?? "";
+    const agentsSection = extractDocumentSection(agents, "#### `sync`", getDocumentedAgentMarkers());
+    const skillSection = extractDocumentSection(
+      skillReference,
+      "### `sync`",
+      ["### `sync`", "## Environment variables"],
+    );
+
+    expect(syncJsonFields).not.toContain("nextActions");
+    expect(normalizeWhitespace(agentsSection)).not.toContain("nextActions");
+    expect(normalizeWhitespace(skillSection)).not.toContain("nextActions");
+    expect(contract.commands?.sync?.successFields).not.toHaveProperty("nextActions");
+  });
+
   test("published docs do not contain malformed privacy-pools command examples", () => {
     const docsToCheck = [
       `${CLI_ROOT}/AGENTS.md`,
