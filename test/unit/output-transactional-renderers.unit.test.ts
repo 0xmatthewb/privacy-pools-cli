@@ -220,7 +220,7 @@ describe("renderDepositSuccess parity", () => {
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
-        reason: "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+        reason: "Poll pending approvals for PA-1. When it disappears from pending results, re-run accounts to confirm approval before a relayed withdrawal.",
         when: "after_deposit",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
@@ -253,7 +253,8 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Pending ASP approval");
-    expect(stderr).not.toContain("Next steps:");
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
 
   test("human mode: omits Net deposited when committedValue is undefined", () => {

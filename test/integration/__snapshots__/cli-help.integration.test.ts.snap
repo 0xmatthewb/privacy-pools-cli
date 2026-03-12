@@ -72,7 +72,7 @@ Safety notes:
 Agent workflow:
   When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.
 JSON output (--json):
-  { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }"
 `;
 
 exports[`CLI --help snapshots status --help snapshot 1`] = `
@@ -91,7 +91,7 @@ Examples:
   privacy-pools status --json --check-rpc
   privacy-pools status --chain mainnet --rpc-url https://...
 JSON output (--json):
-  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options? }], aspLive?, rpcLive?, rpcBlockNumber? }"
+  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }"
 `;
 
 exports[`CLI --help snapshots pools --help snapshot 1`] = `
@@ -183,9 +183,9 @@ Safety notes:
   A vetting fee is deducted from the deposit amount by the pool's ASP.
   Only approved deposits can be withdrawn privately.
 Agent workflow:
-  Poll accounts --pending-only until aspStatus is approved before attempting a private withdrawal.
+  Poll accounts --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts to confirm approval before attempting a private withdrawal.
 JSON output (--json):
-  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
+  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }
@@ -230,7 +230,7 @@ Safety notes:
 JSON output (--json):
   { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }
   direct: same fields but mode: "direct", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.
-  quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }
+  quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }
@@ -300,7 +300,7 @@ Agent workflow:
   Use --summary or --pending-only to reduce JSON size for polling loops.
   nextActions on accounts are poll-oriented only and appear when pending approvals still exist.
 JSON output (--json):
-  { chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }
+  { chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }
   --pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }"
 `;
@@ -409,9 +409,9 @@ Examples:
 Prerequisites:
   Requires: init
 Agent workflow:
-  Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable.
+  Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.
 JSON output (--json):
-  { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }"
 `;
 
 exports[`CLI --help snapshots stats global --help snapshot 1`] = `

@@ -38,7 +38,8 @@
       "reason": "string (why the follow-up is relevant)",
       "when": "string (machine-readable timing label)",
       "args": "string[]? (positional arguments to pass)",
-      "options": "Record<string, string|number|boolean|null>? (named options without leading dashes)"
+      "options": "Record<string, string|number|boolean|null>? (named options without leading dashes)",
+      "runnable": "boolean? (false means the action is a template and needs additional user input before execution)"
     },
     "rawUnsignedTransaction": {
       "to": "0x-prefixed-address",
@@ -142,7 +143,7 @@
         "label": "decimal-string|null",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (poll accounts --pending-only until aspStatus is approved)"
+        "nextActions": "NextAction[]? (poll accounts --pending-only while the Pool Account remains pending; then confirm approval in accounts)"
       },
       "variants": {
         "dryRun": {
@@ -258,7 +259,7 @@
           "feeCommitmentPresent": "boolean",
           "quoteExpiresAt": "iso8601-string|null",
           "extraGas": "boolean? (ERC20 withdrawals only)",
-          "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+          "nextActions": "NextAction[]? (structured follow-up commands for agents; check runnable for template actions)"
         }
       }
     },

@@ -369,6 +369,13 @@ describe("next-step parity across renderers", () => {
       },
     },
     {
+      name: "renderDepositSuccess",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderDepositSuccess(ctx, STUB_DEPOSIT));
+      },
+    },
+    {
       name: "renderWithdrawQuote",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
@@ -473,6 +480,15 @@ describe("emitted nextActions are fully runnable", () => {
   test("accounts poll nextActions omit runnable", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
+    const actions = getNextActions(stdout);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].runnable).toBeUndefined();
+  });
+
+  test("deposit nextActions omit runnable", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderDepositSuccess(ctx, STUB_DEPOSIT));
     const actions = getNextActions(stdout);
     expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("accounts");

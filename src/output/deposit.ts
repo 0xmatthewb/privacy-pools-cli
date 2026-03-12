@@ -10,6 +10,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -18,6 +19,7 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
+import { CHAINS } from "../config/chains.js";
 
 export interface DepositDryRunData {
   chain: string;
@@ -99,9 +101,23 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const agentNextActions = [
     createNextAction(
       "accounts",
-      "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+      `Poll pending approvals for ${data.poolAccountId}. When it disappears from pending results, re-run accounts to confirm approval before a relayed withdrawal.`,
       "after_deposit",
       { options: { agent: true, chain: data.chain, pendingOnly: true } },
+    ),
+  ];
+  const isTestnet = CHAINS[data.chain]?.isTestnet ?? false;
+  const humanNextActions = [
+    createNextAction(
+      "accounts",
+      `Check approval status for ${data.poolAccountId} before withdrawing privately.`,
+      "after_deposit",
+      {
+        options:
+          data.chainOverridden || isTestnet
+            ? { chain: data.chain }
+            : undefined,
+      },
     ),
   ];
 
@@ -146,4 +162,5 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
+  renderNextSteps(ctx, humanNextActions);
 }

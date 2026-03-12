@@ -121,6 +121,7 @@ privacy-pools accounts --pending-only         # pending approvals only
 Without `--chain`, `accounts` acts like a dashboard and aggregates your holdings across all mainnets. Use `--all-chains` to include testnets or `--chain <name>` to focus on one chain.
 
 Compact modes are intended for polling loops. `--summary` and `--pending-only` do not support `--details`, and `--pending-only` also omits balances.
+When polling with `--pending-only`, approved Pool Accounts disappear from the response instead of changing to `approved`. Re-run `privacy-pools accounts` without `--pending-only` to confirm the final status.
 
 ### `history`
 

@@ -85,7 +85,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet",
       ],
       jsonFields:
-        "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       safetyNotes: [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
       ],
@@ -230,7 +230,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools status --chain mainnet --rpc-url https://...",
       ],
       jsonFields:
-        "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+        "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
     },
     capabilities: {
       flags: ["--check", "--no-check", "--check-rpc", "--check-asp"],
@@ -315,7 +315,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
         "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
@@ -329,7 +329,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
-        "Poll accounts --pending-only until aspStatus is approved before attempting a private withdrawal.",
+        "Poll accounts --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts to confirm approval before attempting a private withdrawal.",
       ],
     },
     capabilities: {
@@ -372,7 +372,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }",
       jsonVariants: [
         "direct: same fields but mode: \"direct\", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
-        "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
         "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
         "--dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
@@ -409,9 +409,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       agentWorkflowNotes: [
-        "Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable.",
+        "Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.",
       ],
     },
     capabilities: {
@@ -483,7 +483,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
         "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }",
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }",
@@ -611,13 +611,13 @@ const AGENT_WORKFLOW = [
   "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
   "3. privacy-pools pools --json --chain <chain>",
   "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-  "5. privacy-pools accounts --json --chain <chain> --pending-only  (poll until aspStatus: approved)",
+  "5. privacy-pools accounts --json --chain <chain> --pending-only  (poll while the deposit remains pending)",
   "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
 ];
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    "After depositing, poll 'accounts --json --pending-only' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
+    "After depositing, poll 'accounts --json --pending-only' while the Pool Account remains pending. When it no longer appears there, re-run 'accounts --json' to confirm approval before withdrawing. Most deposits are approved within 1 hour; some may take up to 7 days.",
   withdrawQuote:
     "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
   firstRun:
@@ -662,7 +662,7 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
       "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. " +
       "Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. " +
       "When runnable is omitted or true, the command is fully specified and can be executed as shown. " +
-      "The runnable field is reserved for future template actions.",
+      "When runnable is false, the action is a template and requires additional user input before execution.",
   },
 };
 
