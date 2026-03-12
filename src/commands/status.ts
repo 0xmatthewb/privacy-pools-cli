@@ -97,19 +97,30 @@ export function createStatusCommand(): Command {
 
           result.healthChecksEnabled = { rpc: shouldCheckRpc, asp: shouldCheckAsp };
 
-          if (shouldCheckAsp) {
-            result.aspLive = await checkLiveness(selectedChainConfig);
+          const aspCheck = shouldCheckAsp
+            ? checkLiveness(selectedChainConfig)
+            : Promise.resolve<null | boolean>(null);
+          const rpcCheck = shouldCheckRpc
+            ? (async () => {
+                try {
+                  const client = getPublicClient(selectedChainConfig, globalOpts?.rpcUrl);
+                  const blockNumber = await client.getBlockNumber();
+                  return { live: true, blockNumber };
+                } catch {
+                  return { live: false, blockNumber: undefined };
+                }
+              })()
+            : Promise.resolve<null | { live: boolean; blockNumber?: bigint }>(null);
+
+          const [aspLive, rpcStatus] = await Promise.all([aspCheck, rpcCheck]);
+
+          if (aspLive !== null) {
+            result.aspLive = aspLive;
           }
 
-          if (shouldCheckRpc) {
-            try {
-              const client = getPublicClient(selectedChainConfig, globalOpts?.rpcUrl);
-              const blockNumber = await client.getBlockNumber();
-              result.rpcLive = true;
-              result.rpcBlockNumber = blockNumber;
-            } catch {
-              result.rpcLive = false;
-            }
+          if (rpcStatus !== null) {
+            result.rpcLive = rpcStatus.live;
+            result.rpcBlockNumber = rpcStatus.blockNumber;
           }
         }
 

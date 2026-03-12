@@ -394,8 +394,10 @@ export function createWithdrawCommand(): Command {
         // Fetch ASP data
         stageHeader(2, withdrawSteps, "Fetching ASP data and building proofs", silent);
         spin.text = "Fetching ASP data...";
-        const roots = await fetchMerkleRoots(chainConfig, pool.scope);
-        const leaves = await fetchMerkleLeaves(chainConfig, pool.scope);
+        const [roots, leaves] = await Promise.all([
+          fetchMerkleRoots(chainConfig, pool.scope),
+          fetchMerkleLeaves(chainConfig, pool.scope),
+        ]);
         verbose(
           `ASP roots: mtRoot=${roots.mtRoot} onchainMtRoot=${roots.onchainMtRoot}`,
           isVerbose,
