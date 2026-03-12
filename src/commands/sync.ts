@@ -117,6 +117,7 @@ export function createSyncCommand(): Command {
           syncedSymbols: pools.map((p) => p.symbol),
           availablePoolAccounts: spendableCount,
           previousAvailablePoolAccounts: previousSpendableCount,
+          chainOverridden: !!globalOpts?.chain,
         });
       } catch (error) {
         printError(error, mode.isJson);

@@ -123,6 +123,7 @@ describe("renderPools parity", () => {
         reason: "Deposit into a pool after reviewing its terms.",
         when: "after_browse",
         options: { agent: true, chain: "sepolia" },
+        runnable: false,
       },
     ]);
     expect(stderr).toBe("");
@@ -317,6 +318,7 @@ describe("renderAccounts parity", () => {
         reason: "Withdraw approved funds from a Pool Account.",
         when: "has_spendable",
         options: { agent: true, chain: "sepolia", asset: "ETH" },
+        runnable: false,
       },
     ]);
     expect(stderr).toBe("");

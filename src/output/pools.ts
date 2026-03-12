@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { appendNextActions, createNextAction, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
+import { appendNextActions, createNextAction, renderNextSteps, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
@@ -126,26 +126,43 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
 export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
 
-  if (ctx.mode.isJson) {
-    // Agents benefit from structured nextActions; human path stays quiet
-    // because "deposit" is obvious after browsing pools and requires user-supplied args.
-    const nextActions = filteredPools.length > 0
-      ? [
-          createNextAction(
-            "deposit",
-            allChains
-              ? "Choose a pool from the results, then deposit into it."
-              : "Deposit into a pool after reviewing its terms.",
-            "after_browse",
-            {
-              options: {
-                agent: true,
-                ...(!allChains ? { chain: chainName } : {}),
-              },
+  // ── Next-step guidance (shared across JSON / human paths) ────────────
+  const agentNextActions = filteredPools.length > 0
+    ? [
+        createNextAction(
+          "deposit",
+          allChains
+            ? "Choose a pool from the results, then deposit into it."
+            : "Deposit into a pool after reviewing its terms.",
+          "after_browse",
+          {
+            options: {
+              agent: true,
+              ...(!allChains ? { chain: chainName } : {}),
             },
-          ),
-        ]
-      : undefined;
+            runnable: false,
+          },
+        ),
+      ]
+    : undefined;
+
+  const humanNextActions = filteredPools.length > 0
+    ? [
+        createNextAction(
+          "deposit",
+          allChains
+            ? "Choose a pool from the results, then deposit into it."
+            : "Deposit into a pool after reviewing its terms.",
+          "after_browse",
+          {
+            options: !allChains ? { chain: chainName } : undefined,
+            runnable: false,
+          },
+        ),
+      ]
+    : undefined;
+
+  if (ctx.mode.isJson) {
     if (allChains) {
       printJsonSuccess(appendNextActions({
         allChains: true,
@@ -154,14 +171,14 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
         chains: chainSummaries,
         pools: filteredPools.map((entry) => poolToJson(entry.pool, entry.chain)),
         warnings: warnings.length > 0 ? warnings : undefined,
-      }, nextActions));
+      }, agentNextActions));
     } else {
       printJsonSuccess(appendNextActions({
         chain: chainName,
         search,
         sort,
         pools: filteredPools.map((entry) => poolToJson(entry.pool)),
-      }, nextActions));
+      }, agentNextActions));
     }
     return;
   }
@@ -258,6 +275,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       "Pending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
     ),
   );
+  renderNextSteps(ctx, humanNextActions);
 }
 
 // ── Detail View ─────────────────────────────────────────────────────────────
@@ -301,6 +319,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
             chain,
             asset: pool.symbol,
           },
+          runnable: false,
         },
       ),
     ];

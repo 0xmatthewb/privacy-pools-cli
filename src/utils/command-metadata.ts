@@ -654,9 +654,11 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   },
   nextActions: {
     shape:
-      "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null> }",
+      "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null>, runnable?: boolean }",
     description:
-      "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output.",
+      "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. " +
+      "When runnable is false the action is a template that requires additional user-supplied arguments (e.g. amount, recipient) before it can be executed. " +
+      "When runnable is omitted or true, the command is fully specified and can be executed as shown.",
   },
 };
 

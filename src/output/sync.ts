@@ -23,6 +23,8 @@ export interface SyncResult {
   syncedSymbols?: string[];
   availablePoolAccounts: number;
   previousAvailablePoolAccounts?: number;
+  /** True when the user explicitly passed --chain (overriding the default). */
+  chainOverridden?: boolean;
 }
 
 /**
@@ -58,13 +60,15 @@ export function renderSyncComplete(
     : [createNextAction("pools", "Browse available pools to deposit into.", "after_sync_empty",
         { options: { agent: true, chain: result.chain } })];
 
-  // Human: keeps --chain so the hint stays correct when the user overrode
-  // their default with --chain <other>.
+  // Human: only include --chain when explicitly overridden (otherwise it's noise).
+  const chainOpts = result.chainOverridden
+    ? { chain: result.chain }
+    : undefined;
   const humanNextActions = result.availablePoolAccounts > 0
     ? [createNextAction("accounts", "View your synced Pool Accounts and balances.", "after_sync",
-        { options: { chain: result.chain } })]
+        { options: chainOpts })]
     : [createNextAction("pools", "Browse available pools to deposit into.", "after_sync_empty",
-        { options: { chain: result.chain } })];
+        { options: chainOpts })];
 
   if (ctx.mode.isJson) {
     printJsonSuccess(

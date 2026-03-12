@@ -37,6 +37,13 @@ export interface NextAction {
   when: string;
   args?: string[];
   options?: Record<string, NextActionOptionValue>;
+  /**
+   * Whether the command is fully specified and can be executed as-is.
+   * `false` means the command is a template that requires additional
+   * user-supplied arguments (e.g. amount, recipient) before it can run.
+   * Defaults to `true` when omitted for backward compatibility.
+   */
+  runnable?: boolean;
 }
 
 export type CommandLatencyClass = "fast" | "medium" | "slow";

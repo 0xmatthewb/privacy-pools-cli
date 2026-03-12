@@ -1336,6 +1336,7 @@ export function createWithdrawCommand(): Command {
           quoteExpiresAt: expirationMs ? new Date(expirationMs).toISOString() : null,
           tokenPrice: quoteTokenPrice,
           extraGas: quoteExtraGas,
+          chainOverridden: !!globalOpts?.chain,
         });
       } catch (error) {
         printError(error, isJson);

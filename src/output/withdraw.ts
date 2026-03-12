@@ -225,6 +225,8 @@ export interface WithdrawQuoteData {
   tokenPrice: number | null;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
+  /** True when the user explicitly passed --chain (overriding the default). */
+  chainOverridden?: boolean;
 }
 
 /**
@@ -262,19 +264,25 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     ),
   ];
 
-  // Human: same real args; keeps --chain so the hint stays correct when the
-  // user overrode their default with --chain <other>.
-  const humanNextActions = [
-    createNextAction(
-      "withdraw",
-      "Submit the withdrawal promptly if the quoted fee is acceptable.",
-      "after_quote",
-      {
-        args: [formatUnits(data.amount, data.decimals), data.asset],
-        options: { chain: data.chain, to: data.recipient, extraGas: data.extraGas ?? null },
-      },
-    ),
-  ];
+  // Human: same real args; only include --chain when explicitly overridden.
+  // Suppress entirely when the fee makes the withdrawal uneconomical.
+  const humanNextActions = netAmount > 0n
+    ? [
+        createNextAction(
+          "withdraw",
+          "Submit the withdrawal promptly if the quoted fee is acceptable.",
+          "after_quote",
+          {
+            args: [formatUnits(data.amount, data.decimals), data.asset],
+            options: {
+              ...(data.chainOverridden ? { chain: data.chain } : {}),
+              to: data.recipient,
+              extraGas: data.extraGas ?? null,
+            },
+          },
+        ),
+      ]
+    : [];
 
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = appendNextActions({

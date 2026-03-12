@@ -517,6 +517,7 @@ export function createDepositCommand(): Command {
           label,
           blockNumber: receipt.blockNumber,
           explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+          chainOverridden: !!globalOpts?.chain,
         });
 
         } finally { releaseLock(); }

@@ -94,6 +94,8 @@ export function createNextAction(
   config: {
     args?: string[];
     options?: Record<string, NextActionOptionValue>;
+    /** False when the command is a template requiring additional user input. */
+    runnable?: boolean;
   } = {},
 ): NextAction {
   const action: NextAction = { command, reason, when };
@@ -109,6 +111,10 @@ export function createNextAction(
     if (Object.keys(options).length > 0) {
       action.options = options;
     }
+  }
+
+  if (config.runnable === false) {
+    action.runnable = false;
   }
 
   return action;

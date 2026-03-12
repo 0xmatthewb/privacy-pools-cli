@@ -259,12 +259,22 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Pending ASP approval");
-    // Human next step: includes --chain (correct even if user overrode default),
+    // Human next step: omits --chain when chainOverridden is falsy (default chain),
     // human-friendly reason (no "aspStatus" JSON field name).
     expect(stderr).toContain("Next steps:");
-    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
+    expect(stderr).toContain("privacy-pools accounts");
+    expect(stderr).not.toContain("--chain");
     expect(stderr).toContain("Check back until your deposit is approved");
     expect(stderr).not.toContain("aspStatus");
+  });
+
+  test("human mode: includes --chain when chainOverridden is true", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderDepositSuccess(ctx, { ...STUB_DEPOSIT_SUCCESS, chainOverridden: true }),
+    );
+
+    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
 
   test("human mode: omits Net deposited when committedValue is undefined", () => {
@@ -872,6 +882,50 @@ describe("renderWithdrawQuote parity", () => {
     expect(stderr).not.toContain("$");
     expect(stderr).toContain("Relayer fee:");
     expect(stderr).toContain("You receive:");
+  });
+
+  test("human mode: omits --chain when chainOverridden is falsy", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawQuote(ctx, STUB_WITHDRAW_QUOTE),
+    );
+
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).toContain("privacy-pools withdraw");
+    expect(stderr).not.toContain("--chain");
+  });
+
+  test("human mode: includes --chain when chainOverridden is true", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawQuote(ctx, { ...STUB_WITHDRAW_QUOTE, chainOverridden: true }),
+    );
+
+    expect(stderr).toContain("--chain sepolia");
+  });
+
+  test("human mode: suppresses next steps when fee makes withdrawal uneconomical", () => {
+    const ctx = createOutputContext(makeMode());
+    // Fee of 10100 BPS = 101%, meaning netAmount < 0
+    const { stderr } = captureOutput(() =>
+      renderWithdrawQuote(ctx, { ...STUB_WITHDRAW_QUOTE, quoteFeeBPS: "10100" }),
+    );
+
+    expect(stderr).toContain("Withdrawal quote");
+    expect(stderr).toContain("You receive:");
+    expect(stderr).not.toContain("Next steps:");
+  });
+
+  test("JSON mode: still emits agent nextActions even when fee is uneconomical", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawQuote(ctx, { ...STUB_WITHDRAW_QUOTE, quoteFeeBPS: "10100" }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    // Agent still gets the action — they can decide for themselves
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions.length).toBeGreaterThan(0);
   });
 
   test("quiet mode: emits nothing", () => {

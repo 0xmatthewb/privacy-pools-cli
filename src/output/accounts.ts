@@ -192,6 +192,7 @@ function buildDefaultNextActions(
                   ? { asset: Array.from(approvedAssets)[0]! }
                   : {}),
               },
+              runnable: false,
             },
           ),
         ]

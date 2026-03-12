@@ -45,6 +45,8 @@ export interface DepositSuccessData {
   label: bigint | undefined;
   blockNumber: bigint;
   explorerUrl: string | null;
+  /** True when the user explicitly passed --chain (overriding the default). */
+  chainOverridden?: boolean;
 }
 
 /**
@@ -104,14 +106,14 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     ),
   ];
 
-  // Human: human-readable reason text; keeps --chain so the hint stays correct
-  // even when the user overrode their default with --chain <other>.
+  // Human: human-readable reason text; only include --chain when explicitly
+  // overridden (otherwise it's noise on the default chain).
   const humanNextActions = [
     createNextAction(
       "accounts",
       "Check back until your deposit is approved for private withdrawal.",
       "after_deposit",
-      { options: { chain: data.chain } },
+      { options: { ...(data.chainOverridden ? { chain: data.chain } : {}) } },
     ),
   ];
 

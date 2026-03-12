@@ -398,6 +398,13 @@ describe("next-step parity across renderers", () => {
         return captureOutput(() => renderSyncComplete(ctx, STUB_SYNC));
       },
     },
+    {
+      name: "renderPools",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderPools(ctx, STUB_POOLS));
+      },
+    },
   ];
 
   for (const { name, render } of cases) {
@@ -419,13 +426,6 @@ describe("next-step parity across renderers", () => {
 
 describe("JSON-only nextActions (agent-only follow-ups)", () => {
   const jsonOnlyCases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
-    {
-      name: "renderPools",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderPools(ctx, STUB_POOLS));
-      },
-    },
     {
       name: "renderPoolDetail",
       render: (json) => {
@@ -466,4 +466,52 @@ describe("JSON-only nextActions (agent-only follow-ups)", () => {
       expect(stderrContainsNextSteps(humanResult.stderr)).toBe(false);
     });
   }
+});
+
+// ── runnable: false on template nextActions ──────────────────────────────────
+// Commands that suggest follow-ups requiring user-supplied args should mark
+// them as templates so agents know they can't be executed as-is.
+
+describe("template nextActions marked runnable: false", () => {
+  function getNextActions(stdout: string) {
+    const json = JSON.parse(stdout.trim());
+    return json.nextActions ?? [];
+  }
+
+  test("pools → deposit is marked runnable: false", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderPools(ctx, STUB_POOLS));
+    const actions = getNextActions(stdout);
+    expect(actions.length).toBeGreaterThan(0);
+    expect(actions[0].command).toBe("deposit");
+    expect(actions[0].runnable).toBe(false);
+  });
+
+  test("pool detail → deposit is marked runnable: false", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL));
+    const actions = getNextActions(stdout);
+    expect(actions.length).toBeGreaterThan(0);
+    expect(actions[0].command).toBe("deposit");
+    expect(actions[0].runnable).toBe(false);
+  });
+
+  test("accounts → withdraw is marked runnable: false", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
+    const actions = getNextActions(stdout);
+    const withdrawAction = actions.find((a: any) => a.command === "withdraw");
+    expect(withdrawAction).toBeDefined();
+    expect(withdrawAction.runnable).toBe(false);
+  });
+
+  test("fully-specified nextActions omit runnable (defaults to true)", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderInitResult(ctx, STUB_INIT));
+    const actions = getNextActions(stdout);
+    expect(actions.length).toBeGreaterThan(0);
+    for (const action of actions) {
+      expect(action.runnable).toBeUndefined();
+    }
+  });
 });
