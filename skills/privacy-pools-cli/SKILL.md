@@ -193,7 +193,7 @@ The CLI builds transaction payloads but does **not** sign or submit in `--unsign
 After submission, verify the deposit landed:
 
 ```bash
-privacy-pools accounts --agent --pending-only  # poll until new Pool Account appears
+privacy-pools accounts --agent --pending-only  # check for new Pool Account; follow nextActions from deposit response
 ```
 
 ---
@@ -252,7 +252,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
 4. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
 5. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
-6. privacy-pools accounts --agent --pending-only                        # Poll until aspStatus: "approved"
+6. privacy-pools accounts --agent --pending-only                        # Check approval status (most < 1 hour, up to 7 days)
 7. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw
 ```
 

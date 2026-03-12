@@ -340,11 +340,11 @@ Representative payload (abridged):
     "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
     "3. privacy-pools pools --json --chain <chain>",
     "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-    "5. privacy-pools accounts --json --chain <chain> --pending-only  (poll until aspStatus: approved)",
+    "5. privacy-pools accounts --json --chain <chain> --pending-only  (check approval status; most < 1 hour, up to 7 days)",
     "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, poll 'accounts --json --pending-only' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
+    "polling": "After depositing, check 'accounts --json --pending-only' for aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'. Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
@@ -479,7 +479,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
 }
 ```
 
-`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextActions` is the canonical structured guidance for agents and points to `accounts --pending-only`. All token amounts and block numbers are strings.
+`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextActions` provides the canonical polling command for agents — follow it to check approval status. All token amounts and block numbers are strings.
 
 **Dry-run** (`--dry-run`):
 
@@ -709,7 +709,7 @@ Without `--chain`, `accounts` aggregates all mainnets by default. Use `--all-cha
 
 `--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
-Poll `aspStatus` after depositing with `accounts --agent --pending-only` and wait for `"approved"` before withdrawing via the relayed path. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
+Check `aspStatus` after depositing with `accounts --agent --pending-only` and wait for `"approved"` before withdrawing via the relayed path. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
 
 ### `history`
 
@@ -756,7 +756,7 @@ privacy-pools sync --agent [--asset <symbol>]
 }
 ```
 
-`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousAvailablePoolAccounts` shows the count before sync — compare with `availablePoolAccounts` to detect newly discovered accounts.
+`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousAvailablePoolAccounts` shows the count before sync — compare with `availablePoolAccounts` to detect newly discovered accounts. `nextActions` may be present with structured follow-up commands.
 
 ---
 
