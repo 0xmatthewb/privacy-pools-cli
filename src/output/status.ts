@@ -20,6 +20,7 @@ import {
 } from "./common.js";
 import { highlight, accentBold } from "../utils/theme.js";
 import { CHAINS, MAINNET_CHAIN_NAMES } from "../config/chains.js";
+import type { NextActionOptionValue } from "../types.js";
 
 export interface StatusCheckResult {
   configExists: boolean;
@@ -77,6 +78,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   let hasAccountsReachable: boolean;
   let accountsChainOpt: string | undefined;
+  let accountsNeedsAllChains = false;
 
   if (chainOverridden) {
     // Explicit --chain override: only the overridden chain matters.
@@ -94,32 +96,45 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     // Bare `accounts` (dashboard) will show them.
     hasAccountsReachable = true;
     accountsChainOpt = undefined;
+  } else if (result.accountFiles.length > 0) {
+    // Testnet-only deposits not on the selected chain.
+    // Bare `accounts` won't show them, but `accounts --all-chains` will.
+    hasAccountsReachable = true;
+    accountsChainOpt = undefined;
+    // Signal that --all-chains is needed (handled below).
+    accountsNeedsAllChains = true;
   } else {
-    // No reachable deposits (testnet-only deposits with a non-matching selected chain).
+    // Genuinely no deposits anywhere.
     hasAccountsReachable = false;
     accountsChainOpt = undefined;
   }
 
   // ── Build state-aware next-step guidance ──────────────────────────────
   // Five states:
-  //   1. Not ready (no config or mnemonic)        → init
-  //   2. Unsigned-only, no accounts on chain       → pools (read-only)
-  //   3. Unsigned-only, has accounts on chain      → accounts (read-only)
-  //   4. Fully ready, no accounts on chain         → pools
-  //   5. Fully ready, has accounts on chain        → accounts
+  //   1. Not ready (no config or mnemonic)         → init
+  //   2. Unsigned-only, no reachable accounts      → pools (read-only)
+  //   3. Unsigned-only, has reachable accounts     → accounts (read-only)
+  //   4. Fully ready, no reachable accounts        → pools
+  //   5. Fully ready, has reachable accounts       → accounts
+  //
+  // "Reachable" includes testnet-only deposits via --all-chains.
   //
   // Chain options:
   //   - `pools`/`init`: always use workflowChain.
-  //   - `accounts`: use accountsChainOpt (derived above for correctness).
+  //   - `accounts`: use accountsChainOpt or --all-chains (derived above).
   const poolsAgentChainOpts: Record<string, string> = workflowChain ? { chain: workflowChain } : {};
   const poolsHumanChainOpts: Record<string, string> | undefined =
     chainOverridden && workflowChain ? { chain: workflowChain } : undefined;
-  const accountsAgentChainOpts: Record<string, string> = accountsChainOpt
-    ? { chain: accountsChainOpt }
-    : {};
-  const accountsHumanChainOpts: Record<string, string> | undefined = accountsChainOpt
-    ? { chain: accountsChainOpt }
-    : undefined;
+  const accountsAgentChainOpts: Record<string, NextActionOptionValue> = accountsNeedsAllChains
+    ? { allChains: true }
+    : accountsChainOpt
+      ? { chain: accountsChainOpt }
+      : {};
+  const accountsHumanChainOpts: Record<string, NextActionOptionValue> | undefined = accountsNeedsAllChains
+    ? { allChains: true }
+    : accountsChainOpt
+      ? { chain: accountsChainOpt }
+      : undefined;
 
   let agentNextActions: ReturnType<typeof createNextAction>[];
   let humanNextActions: ReturnType<typeof createNextAction>[];

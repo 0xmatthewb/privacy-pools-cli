@@ -619,10 +619,10 @@ describe("status chain-aware hasAccounts for next steps", () => {
     expect(actions[0].options?.chain).toBeUndefined();
   });
 
-  test("testnet-only deposits + default chain → pools (testnets not reachable via bare accounts)", () => {
+  test("testnet-only deposits + default chain → accounts --all-chains", () => {
     // User's default is mainnet, only has sepolia deposits.
     // Bare `accounts` only shows mainnets, so sepolia deposits are invisible.
-    // Correctly suggests `pools` since no reachable deposits exist.
+    // But they ARE reachable via `accounts --all-chains`.
     const result = {
       ...STUB_STATUS,
       defaultChain: "mainnet",
@@ -631,8 +631,9 @@ describe("status chain-aware hasAccounts for next steps", () => {
     };
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(1);
-    expect(actions[0].command).toBe("pools");
-    expect(actions[0].when).toBe("status_ready_no_accounts");
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_ready_has_accounts");
+    expect(actions[0].options?.allChains).toBe(true);
   });
 
   test("accounts on different chain → pools when chain explicitly overridden", () => {
@@ -694,7 +695,7 @@ describe("status chain-aware hasAccounts for next steps", () => {
     expect(actions[0].options?.chain).toBeUndefined();
   });
 
-  test("no selectedChain + testnet-only account → pools", () => {
+  test("no selectedChain + testnet-only account → accounts --all-chains", () => {
     const result = {
       ...STUB_STATUS,
       selectedChain: null,
@@ -703,6 +704,8 @@ describe("status chain-aware hasAccounts for next steps", () => {
     };
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(1);
-    expect(actions[0].command).toBe("pools");
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_ready_has_accounts");
+    expect(actions[0].options?.allChains).toBe(true);
   });
 });
