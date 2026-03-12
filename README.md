@@ -1,14 +1,13 @@
 # Privacy Pools CLI
 
-Private transactions on Ethereum, from your terminal. Deposit into a pool, wait for approval, and withdraw to any address with no onchain link between the two. 0xbow's Association Set Provider (ASP) validates deposits to keep pools safe from potentially illicit funds.
+Compliant privacy on Ethereum, right from your terminal. Deposit funds publicly and withdraw privately by proving you belong to an association set of approved addresses. Built for agents with machine-readable JSON on stdout.
 
 > [!CAUTION]
-> Experimental software. Start small. For larger amounts, use [privacypools.com](https://privacypools.com).
+> Experimental software, use at your own risk. For large transactions, use [privacypools.com](https://privacypools.com).
 
 - **Private withdrawals:** zero-knowledge proofs break the onchain link between your deposit and withdrawal
-- **Non-custodial:** your funds, your keys, your recovery phrase
+- **Non-custodial:** exit publicly via ragequit at any time, regardless of ASP approval
 - **Multi-chain:** Ethereum, Arbitrum, Optimism (+ testnets)
-- **Privacy guardrails:** warns when deposit amounts could fingerprint you, suggests rounder alternatives
 - **Agent-ready:** structured JSON output, unsigned transaction mode, categorized errors ([AGENTS.md](AGENTS.md))
 
 ## Getting Started
@@ -43,7 +42,7 @@ privacy-pools accounts            # poll until aspStatus: "approved"
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 ```
 
-Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP (Association Set Provider) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit.
+Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Association Set Provider (ASP) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit.
 
 You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 

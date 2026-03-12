@@ -533,7 +533,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts? }",
+        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, args?, options? }] }",
     },
     capabilities: {
       flags: ["-a, --asset <symbol|address>"],

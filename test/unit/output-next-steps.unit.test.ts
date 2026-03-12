@@ -17,7 +17,7 @@ import { renderRagequitSuccess, type RagequitSuccessData } from "../../src/outpu
 import { renderWithdrawQuote, type WithdrawQuoteData } from "../../src/output/withdraw.ts";
 import { renderStatus, type StatusCheckResult } from "../../src/output/status.ts";
 import { renderAccounts, type AccountsRenderData } from "../../src/output/accounts.ts";
-import { renderPoolDetail, type PoolDetailRenderData } from "../../src/output/pools.ts";
+import { renderPools, type PoolsRenderData, renderPoolDetail, type PoolDetailRenderData } from "../../src/output/pools.ts";
 import { renderSyncComplete, type SyncResult } from "../../src/output/sync.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { makeMode, captureOutput } from "../helpers/output.ts";
@@ -55,14 +55,35 @@ describe("formatNextActionCommand", () => {
     expect(result).not.toContain("--agent");
   });
 
-  test("command with boolean option (non-agent)", () => {
+  test("command with boolean option (non-agent) uses kebab-case", () => {
     const result = formatNextActionCommand({
       command: "accounts",
       reason: "Check pending.",
       when: "has_pending",
       options: { agent: true, chain: "sepolia", pendingOnly: true },
     });
-    expect(result).toBe("privacy-pools accounts --chain sepolia --pendingOnly");
+    expect(result).toBe("privacy-pools accounts --chain sepolia --pending-only");
+  });
+
+  test("boolean true camelCase option converts to kebab-case", () => {
+    const result = formatNextActionCommand({
+      command: "init",
+      reason: "Setup.",
+      when: "status_not_ready",
+      options: { agent: true, showMnemonic: true },
+    });
+    expect(result).toBe("privacy-pools init --show-mnemonic");
+  });
+
+  test("boolean false emits --no-<kebab-flag>", () => {
+    const result = formatNextActionCommand({
+      command: "withdraw",
+      reason: "Submit.",
+      when: "after_quote",
+      args: ["0.1", "ETH"],
+      options: { agent: true, chain: "sepolia", to: "0xabc", extraGas: false },
+    });
+    expect(result).toBe("privacy-pools withdraw 0.1 ETH --chain sepolia --to 0xabc --no-extra-gas");
   });
 
   test("skips null option values", () => {
@@ -251,6 +272,33 @@ describe("next-step parity across renderers", () => {
     showPendingOnly: false,
   };
 
+  const STUB_POOLS: PoolsRenderData = {
+    allChains: false,
+    chainName: "sepolia",
+    search: null,
+    sort: "tvl",
+    filteredPools: [
+      {
+        chain: "sepolia",
+        pool: {
+          symbol: "ETH",
+          asset: "0x" + "00".repeat(20),
+          pool: "0x" + "11".repeat(20),
+          scope: 1n,
+          decimals: 18,
+          minimumDepositAmount: 10000000000000000n,
+          vettingFeeBPS: 50n,
+          maxRelayFeeBPS: 100n,
+          totalDepositsCount: 10,
+          totalDepositsValue: 1000000000000000000n,
+          acceptedDepositsValue: 900000000000000000n,
+          pendingDepositsValue: 100000000000000000n,
+        } as any,
+      },
+    ],
+    warnings: [],
+  };
+
   const STUB_POOL_DETAIL: PoolDetailRenderData = {
     chain: "sepolia",
     pool: {
@@ -346,6 +394,13 @@ describe("next-step parity across renderers", () => {
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
         return captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
+      },
+    },
+    {
+      name: "renderPools",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderPools(ctx, STUB_POOLS));
       },
     },
     {

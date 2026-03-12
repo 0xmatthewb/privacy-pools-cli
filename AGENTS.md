@@ -322,7 +322,7 @@ privacy-pools sync --agent
 privacy-pools sync --agent --asset ETH
 ```
 
-JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts? }`
+JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, args?, options? }] }`
 
 ## Auto-Sync Behavior
 

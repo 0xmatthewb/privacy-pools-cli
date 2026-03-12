@@ -132,6 +132,11 @@ export function appendNextActions<T extends Record<string, unknown>>(
  * understand the suggested command.  Machine-only options (e.g. `agent: true`)
  * are excluded because they are not useful in a human-mode hint.
  */
+/** Convert camelCase option keys to CLI-style kebab-case (e.g. showMnemonic → show-mnemonic). */
+function camelToKebab(key: string): string {
+  return key.replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`);
+}
+
 export function formatNextActionCommand(action: NextAction): string {
   const parts = ["privacy-pools", action.command];
 
@@ -144,10 +149,11 @@ export function formatNextActionCommand(action: NextAction): string {
       // Skip machine-only flags that would confuse humans
       if (key === "agent") continue;
       if (value === null || value === undefined) continue;
+      const flag = camelToKebab(key);
       if (typeof value === "boolean") {
-        if (value) parts.push(`--${key}`);
+        parts.push(value ? `--${flag}` : `--no-${flag}`);
       } else {
-        parts.push(`--${key}`, String(value));
+        parts.push(`--${flag}`, String(value));
       }
     }
   }

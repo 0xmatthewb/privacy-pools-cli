@@ -126,24 +126,25 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
 export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
 
-  if (ctx.mode.isJson) {
-    const nextActions = filteredPools.length > 0
-      ? [
-          createNextAction(
-            "deposit",
-            allChains
-              ? "Choose a pool from the results, then deposit into it."
-              : "Deposit into a pool after reviewing its terms.",
-            "after_browse",
-            {
-              options: {
-                agent: true,
-                ...(!allChains ? { chain: chainName } : {}),
-              },
+  const nextActions = filteredPools.length > 0
+    ? [
+        createNextAction(
+          "deposit",
+          allChains
+            ? "Choose a pool from the results, then deposit into it."
+            : "Deposit into a pool after reviewing its terms.",
+          "after_browse",
+          {
+            options: {
+              agent: true,
+              ...(!allChains ? { chain: chainName } : {}),
             },
-          ),
-        ]
-      : undefined;
+          },
+        ),
+      ]
+    : undefined;
+
+  if (ctx.mode.isJson) {
     if (allChains) {
       printJsonSuccess(appendNextActions({
         allChains: true,
@@ -256,6 +257,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       "Pending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
     ),
   );
+  renderNextSteps(ctx, nextActions);
 }
 
 // ── Detail View ─────────────────────────────────────────────────────────────

@@ -482,7 +482,8 @@
         "syncedPools": "number",
         "syncedSymbols": "string[]? (present on successful sync)",
         "availablePoolAccounts": "number",
-        "previousAvailablePoolAccounts": "number? (count before sync)"
+        "previousAvailablePoolAccounts": "number? (count before sync)",
+        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
       }
     },
     "guide": {
