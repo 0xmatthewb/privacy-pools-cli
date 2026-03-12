@@ -288,7 +288,7 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
   "readyForUnsigned": true,
   "nextActions": [
     {
-      "command": "pools",
+      "command": "accounts",
       "reason": "Check on your existing deposits.",
       "when": "status_ready_has_accounts",
       "options": { "agent": true, "chain": "mainnet" }
@@ -329,7 +329,7 @@ Representative payload (abridged):
   "commandDetails": {
     "accounts": {
       "command": "accounts",
-      "flags": ["--no-sync", "--all", "--details", "--summary", "--pending-only"]
+      "flags": ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"]
     }
   },
   "globalFlags": [
