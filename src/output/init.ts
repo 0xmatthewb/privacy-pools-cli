@@ -39,27 +39,50 @@ export interface InitRenderResult {
 export function renderInitResult(ctx: OutputContext, result: InitRenderResult): void {
   guardCsvUnsupported(ctx, "init");
 
-  const agentNextActions = [
-    createNextAction(
-      "status",
-      "Verify wallet readiness and chain health before transacting.",
-      "after_init",
-      { options: { agent: true, chain: result.defaultChain } },
-    ),
-  ];
+  // Agent path: new wallet → status (verify readiness); restore → accounts (sync onchain state).
+  const agentNextActions = result.mnemonicImported
+    ? [
+        createNextAction(
+          "accounts",
+          "Sync and review your restored onchain Pool Accounts.",
+          "after_restore",
+          { options: { agent: true, chain: result.defaultChain } },
+        ),
+      ]
+    : [
+        createNextAction(
+          "status",
+          "Verify wallet readiness and chain health before transacting.",
+          "after_init",
+          { options: { agent: true, chain: result.defaultChain } },
+        ),
+      ];
 
   // Human hint: bare `pools` defaults to showing all mainnets, so if the user
   // configured a testnet as their default chain, the bare command won't show
   // their chain's pools.  Include --chain for testnets so the hint is accurate.
   const isTestnet = CHAINS[result.defaultChain]?.isTestnet ?? false;
-  const humanNextActions = [
-    createNextAction(
-      "pools",
-      "Browse available pools before depositing.",
-      "after_init",
-      isTestnet ? { options: { chain: result.defaultChain } } : undefined,
-    ),
-  ];
+
+  // Differentiate new-wallet vs restore/migration:
+  //   New wallet  → "browse pools before depositing"
+  //   Restore     → "check your onchain state" (accounts)
+  const humanNextActions = result.mnemonicImported
+    ? [
+        createNextAction(
+          "accounts",
+          "Sync and review your onchain Pool Accounts.",
+          "after_restore",
+          isTestnet ? { options: { chain: result.defaultChain } } : undefined,
+        ),
+      ]
+    : [
+        createNextAction(
+          "pools",
+          "Browse available pools before depositing.",
+          "after_init",
+          isTestnet ? { options: { chain: result.defaultChain } } : undefined,
+        ),
+      ];
 
   if (ctx.mode.isJson) {
     const jsonOutput: Record<string, unknown> = appendNextActions({
@@ -84,7 +107,6 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   if (!silent) process.stderr.write("\n");
   if (result.mnemonicImported && !silent) {
     info("Reminder: your signer key pays gas; your recovery phrase controls private account state.", silent);
-    info("If migrating from the website, run 'privacy-pools accounts' to sync your onchain state.", silent);
     process.stderr.write("\n");
   }
   if (!result.mnemonicImported && ctx.mode.skipPrompts) {

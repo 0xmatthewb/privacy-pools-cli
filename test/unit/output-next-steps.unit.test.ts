@@ -795,6 +795,71 @@ describe("status human-mode chain hints", () => {
   });
 });
 
+// ── Init new-wallet vs restore path ─────────────────────────────────────────
+
+describe("init next steps: new wallet vs restore", () => {
+  function getJsonNextActions(data: InitRenderResult) {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderInitResult(ctx, data));
+    return JSON.parse(stdout.trim()).nextActions;
+  }
+
+  function getHumanStderr(data: InitRenderResult): string {
+    const ctx = createOutputContext(makeMode({ isJson: false }));
+    const { stderr } = captureOutput(() => renderInitResult(ctx, data));
+    return stderr;
+  }
+
+  test("new wallet → agent gets status, human gets pools", () => {
+    const actions = getJsonNextActions(STUB_INIT);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("status");
+
+    const stderr = getHumanStderr(STUB_INIT);
+    expect(stderr).toContain("privacy-pools pools");
+    expect(stderr).not.toContain("privacy-pools accounts");
+  });
+
+  test("restore (imported mnemonic) → agent gets accounts, human gets accounts", () => {
+    const restored = { ...STUB_INIT, mnemonicImported: true };
+    const actions = getJsonNextActions(restored);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("after_restore");
+
+    const stderr = getHumanStderr(restored);
+    expect(stderr).toContain("privacy-pools accounts");
+    expect(stderr).not.toContain("privacy-pools pools");
+  });
+
+  test("restore on testnet → human accounts hint includes --chain", () => {
+    const restored: InitRenderResult = {
+      ...STUB_INIT,
+      mnemonicImported: true,
+      defaultChain: "sepolia",
+    };
+    const stderr = getHumanStderr(restored);
+    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
+  });
+
+  test("restore on mainnet → human accounts hint omits --chain", () => {
+    const restored: InitRenderResult = {
+      ...STUB_INIT,
+      mnemonicImported: true,
+      defaultChain: "mainnet",
+    };
+    const stderr = getHumanStderr(restored);
+    expect(stderr).toContain("privacy-pools accounts");
+    expect(stderr).not.toContain("--chain");
+  });
+
+  test("new wallet on testnet → human pools hint includes --chain", () => {
+    const testnet = { ...STUB_INIT, defaultChain: "sepolia" };
+    const stderr = getHumanStderr(testnet);
+    expect(stderr).toContain("privacy-pools pools --chain sepolia");
+  });
+});
+
 // ── Withdraw quote recipient guard ─────────────────────────────────────────
 
 describe("withdraw quote next-step recipient guard", () => {

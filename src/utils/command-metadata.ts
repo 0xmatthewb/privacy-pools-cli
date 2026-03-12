@@ -535,7 +535,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts? }",
+        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, args?, options? }] }",
     },
     capabilities: {
       flags: ["-a, --asset <symbol|address>"],
@@ -611,13 +611,13 @@ const AGENT_WORKFLOW = [
   "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
   "3. privacy-pools pools --json --chain <chain>",
   "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-  "5. privacy-pools accounts --json --chain <chain> --pending-only  (poll while the deposit remains pending)",
+  "5. privacy-pools accounts --json --chain <chain> --pending-only  (check approval status; most < 1 hour, up to 7 days)",
   "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
 ];
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    "After depositing, poll 'accounts --json --pending-only' while the Pool Account remains pending. When it no longer appears there, re-run 'accounts --json' to confirm approval before withdrawing. Most deposits are approved within 1 hour; some may take up to 7 days.",
+    "After depositing, check 'accounts --json --pending-only' for aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'. Follow nextActions from the deposit response for the canonical polling command.",
   withdrawQuote:
     "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
   firstRun:
