@@ -38,28 +38,29 @@ export interface InitRenderResult {
 export function renderInitResult(ctx: OutputContext, result: InitRenderResult): void {
   guardCsvUnsupported(ctx, "init");
 
-  const nextActions = [
+  // Agents get both status (health-check) and pools; humans just get pools
+  // since "status" is a diagnostic command, not a natural next step.
+  const agentNextActions = [
     createNextAction(
       "status",
       "Verify wallet readiness and chain health before transacting.",
       "after_init",
-      {
-        options: {
-          agent: true,
-          chain: result.defaultChain,
-        },
-      },
+      { options: { agent: true, chain: result.defaultChain } },
     ),
     createNextAction(
       "pools",
       "Browse pools on the configured default chain before depositing.",
       "after_init",
-      {
-        options: {
-          agent: true,
-          chain: result.defaultChain,
-        },
-      },
+      { options: { agent: true, chain: result.defaultChain } },
+    ),
+  ];
+
+  // Human hint omits --chain (uses the default they just configured).
+  const humanNextActions = [
+    createNextAction(
+      "pools",
+      "Browse available pools before depositing.",
+      "after_init",
     ),
   ];
 
@@ -67,7 +68,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     const jsonOutput: Record<string, unknown> = appendNextActions({
       defaultChain: result.defaultChain,
       signerKeySet: result.signerKeySet,
-    }, nextActions) as Record<string, unknown>;
+    }, agentNextActions) as Record<string, unknown>;
     if (!result.mnemonicImported) {
       if (result.showMnemonic) {
         jsonOutput.recoveryPhrase = result.mnemonic;
@@ -93,5 +94,5 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     warn("You skipped backup confirmation (--yes mode). Ensure your recovery phrase is securely stored.", silent);
   }
   success("Setup complete!", silent);
-  renderNextSteps(ctx, nextActions);
+  renderNextSteps(ctx, humanNextActions);
 }

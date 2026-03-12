@@ -98,10 +98,11 @@ describe("renderInitResult parity", () => {
     );
 
     expect(stdout).toBe("");
-    // Init completion outputs next-step commands to stderr via shared renderer
+    // Init completion outputs next-step commands to stderr via shared renderer.
+    // Human path shows only "pools" (not "status" — that's a diagnostic, not a workflow step).
     expect(stderr).toContain("Setup complete!");
     expect(stderr).toContain("Next steps:");
-    expect(stderr).toContain("privacy-pools status");
+    expect(stderr).not.toContain("privacy-pools status");
     expect(stderr).toContain("privacy-pools pools");
   });
 

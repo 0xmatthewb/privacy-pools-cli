@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { appendNextActions, createNextAction, renderNextSteps, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
+import { appendNextActions, createNextAction, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
@@ -126,25 +126,26 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
 export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
 
-  const nextActions = filteredPools.length > 0
-    ? [
-        createNextAction(
-          "deposit",
-          allChains
-            ? "Choose a pool from the results, then deposit into it."
-            : "Deposit into a pool after reviewing its terms.",
-          "after_browse",
-          {
-            options: {
-              agent: true,
-              ...(!allChains ? { chain: chainName } : {}),
-            },
-          },
-        ),
-      ]
-    : undefined;
-
   if (ctx.mode.isJson) {
+    // Agents benefit from structured nextActions; human path stays quiet
+    // because "deposit" is obvious after browsing pools and requires user-supplied args.
+    const nextActions = filteredPools.length > 0
+      ? [
+          createNextAction(
+            "deposit",
+            allChains
+              ? "Choose a pool from the results, then deposit into it."
+              : "Deposit into a pool after reviewing its terms.",
+            "after_browse",
+            {
+              options: {
+                agent: true,
+                ...(!allChains ? { chain: chainName } : {}),
+              },
+            },
+          ),
+        ]
+      : undefined;
     if (allChains) {
       printJsonSuccess(appendNextActions({
         allChains: true,
@@ -257,7 +258,6 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       "Pending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
     ),
   );
-  renderNextSteps(ctx, nextActions);
 }
 
 // ── Detail View ─────────────────────────────────────────────────────────────
@@ -287,22 +287,23 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
 
   guardCsvUnsupported(ctx, "pools <asset>");
 
-  const nextActions = [
-    createNextAction(
-      "deposit",
-      "Deposit into this pool if its terms work for you.",
-      "after_pool_detail",
-      {
-        options: {
-          agent: true,
-          chain,
-          asset: pool.symbol,
-        },
-      },
-    ),
-  ];
-
   if (ctx.mode.isJson) {
+    // Agents benefit from structured nextActions; human path stays quiet
+    // because "deposit" is obvious after viewing pool details and requires user-supplied amount.
+    const nextActions = [
+      createNextAction(
+        "deposit",
+        "Deposit into this pool if its terms work for you.",
+        "after_pool_detail",
+        {
+          options: {
+            agent: true,
+            chain,
+            asset: pool.symbol,
+          },
+        },
+      ),
+    ];
     const payload: Record<string, unknown> = appendNextActions({
       chain,
       ...poolToJson(pool),
@@ -400,5 +401,4 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     }
   }
 
-  renderNextSteps(ctx, nextActions);
 }

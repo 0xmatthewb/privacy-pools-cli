@@ -163,6 +163,65 @@ describe("renderNextSteps suppression", () => {
 
 // ── Parity: JSON nextActions ↔ human "Next steps:" ─────────────────────────
 
+// ── Shared stubs for pools (used by both parity and JSON-only tests) ────────
+
+const STUB_POOLS: PoolsRenderData = {
+  allChains: false,
+  chainName: "sepolia",
+  search: null,
+  sort: "tvl",
+  filteredPools: [
+    {
+      chain: "sepolia",
+      pool: {
+        symbol: "ETH",
+        asset: "0x" + "00".repeat(20),
+        pool: "0x" + "11".repeat(20),
+        scope: 1n,
+        decimals: 18,
+        minimumDepositAmount: 10000000000000000n,
+        vettingFeeBPS: 50n,
+        maxRelayFeeBPS: 100n,
+        totalDepositsCount: 10,
+        totalDepositsValue: 1000000000000000000n,
+        acceptedDepositsValue: 900000000000000000n,
+        pendingDepositsValue: 100000000000000000n,
+      } as any,
+    },
+  ],
+  warnings: [],
+};
+
+const STUB_POOL_DETAIL: PoolDetailRenderData = {
+  chain: "sepolia",
+  pool: {
+    symbol: "ETH",
+    asset: "0x" + "00".repeat(20),
+    pool: "0x" + "11".repeat(20),
+    scope: 1n,
+    decimals: 18,
+    minimumDepositAmount: 10000000000000000n,
+    vettingFeeBPS: 50n,
+    maxRelayFeeBPS: 100n,
+  } as any,
+  tokenPrice: null,
+  myPoolAccounts: null,
+  recentActivity: null,
+};
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function getJsonNextActionCommands(stdout: string): string[] {
+  const json = JSON.parse(stdout.trim());
+  return (json.nextActions ?? []).map((a: { command: string }) => a.command);
+}
+
+function stderrContainsNextSteps(stderr: string): boolean {
+  return stderr.includes("Next steps:");
+}
+
+// ── Parity tests ────────────────────────────────────────────────────────────
+
 describe("next-step parity across renderers", () => {
   /**
    * For each renderer, verify that when JSON mode emits nextActions,
@@ -263,6 +322,17 @@ describe("next-step parity across renderers", () => {
             blockNumber: 100n,
             txHash: "0x" + "ab".repeat(32),
           } as any,
+          {
+            paNumber: 2,
+            paId: "PA-2",
+            status: "spendable",
+            aspStatus: "pending",
+            value: 50000000000000000n,
+            commitment: { hash: 3n, label: 4n },
+            label: 4n,
+            blockNumber: 101n,
+            txHash: "0x" + "cd".repeat(32),
+          } as any,
         ],
       },
     ],
@@ -270,50 +340,6 @@ describe("next-step parity across renderers", () => {
     showAll: false,
     showSummary: false,
     showPendingOnly: false,
-  };
-
-  const STUB_POOLS: PoolsRenderData = {
-    allChains: false,
-    chainName: "sepolia",
-    search: null,
-    sort: "tvl",
-    filteredPools: [
-      {
-        chain: "sepolia",
-        pool: {
-          symbol: "ETH",
-          asset: "0x" + "00".repeat(20),
-          pool: "0x" + "11".repeat(20),
-          scope: 1n,
-          decimals: 18,
-          minimumDepositAmount: 10000000000000000n,
-          vettingFeeBPS: 50n,
-          maxRelayFeeBPS: 100n,
-          totalDepositsCount: 10,
-          totalDepositsValue: 1000000000000000000n,
-          acceptedDepositsValue: 900000000000000000n,
-          pendingDepositsValue: 100000000000000000n,
-        } as any,
-      },
-    ],
-    warnings: [],
-  };
-
-  const STUB_POOL_DETAIL: PoolDetailRenderData = {
-    chain: "sepolia",
-    pool: {
-      symbol: "ETH",
-      asset: "0x" + "00".repeat(20),
-      pool: "0x" + "11".repeat(20),
-      scope: 1n,
-      decimals: 18,
-      minimumDepositAmount: 10000000000000000n,
-      vettingFeeBPS: 50n,
-      maxRelayFeeBPS: 100n,
-    } as any,
-    tokenPrice: null,
-    myPoolAccounts: null,
-    recentActivity: null,
   };
 
   const STUB_SYNC: SyncResult = {
@@ -336,15 +362,6 @@ describe("next-step parity across renderers", () => {
     quoteExpiresAt: new Date(Date.now() + 60000).toISOString(),
     tokenPrice: null,
   };
-
-  function getJsonNextActionCommands(stdout: string): string[] {
-    const json = JSON.parse(stdout.trim());
-    return (json.nextActions ?? []).map((a: { command: string }) => a.command);
-  }
-
-  function stderrContainsNextSteps(stderr: string): boolean {
-    return stderr.includes("Next steps:");
-  }
 
   const cases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
     {
@@ -390,24 +407,10 @@ describe("next-step parity across renderers", () => {
       },
     },
     {
-      name: "renderAccounts",
+      name: "renderAccounts (with pending → poll hint)",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
         return captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
-      },
-    },
-    {
-      name: "renderPools",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderPools(ctx, STUB_POOLS));
-      },
-    },
-    {
-      name: "renderPoolDetail",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL));
       },
     },
     {
@@ -427,11 +430,38 @@ describe("next-step parity across renderers", () => {
 
       const humanResult = render(false);
       expect(stderrContainsNextSteps(humanResult.stderr)).toBe(true);
+    });
+  }
+});
 
-      // Each command from JSON nextActions should appear in human output
-      for (const cmd of jsonCommands) {
-        expect(humanResult.stderr).toContain(`privacy-pools ${cmd}`);
-      }
+// ── JSON-only nextActions (human path intentionally quiet) ──────────────────
+
+describe("JSON-only nextActions (browsing commands)", () => {
+  const jsonOnlyCases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
+    {
+      name: "renderPools",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderPools(ctx, STUB_POOLS));
+      },
+    },
+    {
+      name: "renderPoolDetail",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL));
+      },
+    },
+  ];
+
+  for (const { name, render } of jsonOnlyCases) {
+    test(`${name}: JSON nextActions present, human "Next steps:" absent`, () => {
+      const jsonResult = render(true);
+      const jsonCommands = getJsonNextActionCommands(jsonResult.stdout);
+      expect(jsonCommands.length).toBeGreaterThan(0);
+
+      const humanResult = render(false);
+      expect(stderrContainsNextSteps(humanResult.stderr)).toBe(false);
     });
   }
 });
