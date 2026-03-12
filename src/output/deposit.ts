@@ -98,15 +98,18 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
 export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessData): void {
   guardCsvUnsupported(ctx, "deposit");
 
+  const isTestnet = CHAINS[data.chain]?.isTestnet ?? false;
+  const confirmHint = isTestnet
+    ? `re-run accounts --chain ${data.chain}`
+    : "re-run accounts";
   const agentNextActions = [
     createNextAction(
       "accounts",
-      `Poll pending approvals for ${data.poolAccountId}. When it disappears from pending results, re-run accounts to confirm approval before a relayed withdrawal.`,
+      `Poll pending approvals for ${data.poolAccountId}. When it disappears from pending results, ${confirmHint} to confirm approval before a relayed withdrawal.`,
       "after_deposit",
       { options: { agent: true, chain: data.chain, pendingOnly: true } },
     ),
   ];
-  const isTestnet = CHAINS[data.chain]?.isTestnet ?? false;
   const humanNextActions = [
     createNextAction(
       "accounts",

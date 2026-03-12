@@ -228,7 +228,7 @@ JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, ch
 
 All numeric values are strings (wei). `committedValue` and `label` may be `null`.
 
-`nextActions` provides the canonical structured guidance: poll `accounts --agent --pending-only` while the Pool Account remains pending, then re-run `accounts --agent` to confirm approval before withdrawing.
+`nextActions` provides the canonical structured guidance: poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then re-run `accounts --agent --chain <chain>` to confirm approval before withdrawing. Always preserve the same `--chain` scope for both polling and confirmation — bare `accounts` only covers mainnets, so testnet deposits would be invisible without `--chain`.
 
 Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days. A vetting fee is deducted from the deposit amount by the ASP, and only approved deposits can be withdrawn privately.
 
@@ -305,7 +305,7 @@ In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `
 
 `--pending-only` JSON payload: `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`
 
-**Poll pending approvals**: After depositing, poll `accounts --agent --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, approved entries disappear from the response instead of changing to `"approved"`. Once it disappears, re-run `accounts --agent` to confirm approval before withdrawing. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
+**Poll pending approvals**: After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, approved entries disappear from the response instead of changing to `"approved"`. Once it disappears, re-run `accounts --agent --chain <chain>` to confirm approval before withdrawing. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers mainnets. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
 
 #### `history`
 
@@ -348,13 +348,14 @@ Query commands auto-sync with a 2-minute freshness TTL. If data was synced withi
 
 ## Polling for ASP Approval
 
-After depositing, poll `accounts --agent --pending-only` while the deposit remains pending:
+After depositing, poll `accounts --agent --chain <chain> --pending-only` while the deposit remains pending:
 
 - **Initial interval**: 60 seconds
 - **Backoff**: exponential, max 5 minutes between polls
 - **Most deposits approve within 1 hour**
 - **Maximum wait**: 7 days (rare edge cases)
-- Once the Pool Account disappears from pending-only results, re-run `accounts --agent` to confirm it is approved, then proceed with withdrawal
+- Once the Pool Account disappears from pending-only results, re-run `accounts --agent --chain <chain>` to confirm it is approved, then proceed with withdrawal
+- Always preserve `--chain` — bare `accounts` only covers mainnets, so testnet deposits are invisible without it
 
 ## Crash Recovery
 

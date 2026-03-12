@@ -617,7 +617,7 @@ const AGENT_WORKFLOW = [
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    "After depositing, poll 'accounts --json --pending-only' while the Pool Account remains pending. Approved entries disappear from --pending-only results; once gone, re-run 'accounts --json' to confirm aspStatus is 'approved' before withdrawing. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
+    "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Approved entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm aspStatus is 'approved' before withdrawing. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
   withdrawQuote:
     "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
   firstRun:

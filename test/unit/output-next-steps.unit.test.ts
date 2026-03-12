@@ -832,7 +832,7 @@ describe("init next steps: new wallet vs restore", () => {
     expect(stderr).not.toContain("privacy-pools pools");
   });
 
-  test("restore on testnet → both agent and human accounts hints include --chain", () => {
+  test("restore on testnet → both agent and human use --all-chains (broadest sync)", () => {
     const restored: InitRenderResult = {
       ...STUB_INIT,
       mnemonicImported: true,
@@ -840,13 +840,16 @@ describe("init next steps: new wallet vs restore", () => {
     };
     const actions = getJsonNextActions(restored);
     expect(actions[0].command).toBe("accounts");
-    expect(actions[0].options?.chain).toBe("sepolia");
+    // Restore always uses --all-chains regardless of defaultChain,
+    // because we don't know which chains hold recoverable state.
+    expect(actions[0].options?.allChains).toBe(true);
+    expect(actions[0].options?.chain).toBeUndefined();
 
     const stderr = getHumanStderr(restored);
-    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
+    expect(stderr).toContain("privacy-pools accounts --all-chains");
   });
 
-  test("restore on mainnet → agent and human accounts hints omit --chain (broad all-mainnets view)", () => {
+  test("restore on mainnet → both agent and human use --all-chains (broadest sync)", () => {
     const restored: InitRenderResult = {
       ...STUB_INIT,
       mnemonicImported: true,
@@ -854,12 +857,12 @@ describe("init next steps: new wallet vs restore", () => {
     };
     const actions = getJsonNextActions(restored);
     expect(actions[0].command).toBe("accounts");
-    // No --chain: bare accounts covers all mainnets, so cross-chain deposits are reachable.
+    // Restore always uses --all-chains so testnet-only wallets see their funds too.
+    expect(actions[0].options?.allChains).toBe(true);
     expect(actions[0].options?.chain).toBeUndefined();
 
     const stderr = getHumanStderr(restored);
-    expect(stderr).toContain("privacy-pools accounts");
-    expect(stderr).not.toContain("--chain");
+    expect(stderr).toContain("privacy-pools accounts --all-chains");
   });
 
   test("new wallet on testnet → human pools hint includes --chain", () => {

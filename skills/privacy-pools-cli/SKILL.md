@@ -47,7 +47,7 @@ Package: `privacy-pools-cli` on npm. Binary: `privacy-pools`.
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
 | Check accounts | `privacy-pools accounts --agent` | Dashboard view across all mainnets by default |
 | Compact account poll | `privacy-pools accounts --agent --summary` | Counts + balances only |
-| Pending-only poll | `privacy-pools accounts --agent --pending-only` | Pending approvals only |
+| Pending-only poll | `privacy-pools accounts --agent --chain <chain> --pending-only` | Pending approvals only; preserve --chain |
 | Withdraw (relayed) | `privacy-pools withdraw 0.05 ETH --to 0x... --agent` | Requires init |
 | Withdraw all | `privacy-pools withdraw --all ETH --to 0x... --agent` | Full PA balance |
 | Withdraw (unsigned) | `privacy-pools withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
@@ -252,7 +252,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
 4. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
 5. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
-6. privacy-pools accounts --agent --pending-only                        # Approved entries disappear; confirm with accounts --agent
+6. privacy-pools accounts --agent --chain <chain> --pending-only        # Approved entries disappear; confirm with accounts --agent --chain <chain>
 7. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw
 ```
 

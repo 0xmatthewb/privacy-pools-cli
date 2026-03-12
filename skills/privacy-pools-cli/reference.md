@@ -291,7 +291,7 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
       "command": "accounts",
       "reason": "Check on your existing deposits.",
       "when": "status_ready_has_accounts",
-      "options": { "agent": true, "chain": "mainnet" }
+      "options": { "agent": true }
     }
   ]
 }
@@ -344,7 +344,7 @@ Representative payload (abridged):
     "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, poll 'accounts --json --pending-only' while the Pool Account remains pending. Approved entries disappear from --pending-only results; once gone, re-run 'accounts --json' to confirm aspStatus is 'approved' before withdrawing. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
+    "polling": "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Approved entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm aspStatus is 'approved' before withdrawing. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
@@ -471,7 +471,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
   "nextActions": [
     {
       "command": "accounts",
-      "reason": "Poll while pending; approved entries disappear from --pending-only. Confirm with accounts --agent.",
+      "reason": "Poll while pending; approved entries disappear from --pending-only. Confirm with accounts --agent --chain mainnet.",
       "when": "after_deposit",
       "options": { "agent": true, "chain": "mainnet", "pendingOnly": true }
     }
@@ -659,7 +659,7 @@ privacy-pools exit ETH --from-pa PA-1 --agent
 privacy-pools accounts --agent [--details]
 privacy-pools accounts --agent --all-chains
 privacy-pools accounts --agent --summary
-privacy-pools accounts --agent --pending-only
+privacy-pools accounts --agent --chain <chain> --pending-only
 ```
 
 ```json
@@ -709,7 +709,7 @@ Without `--chain`, `accounts` aggregates all mainnets by default. Use `--all-cha
 
 `--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
-After depositing, poll `accounts --agent --pending-only` while the Pool Account remains pending. Approved entries disappear from `--pending-only` results instead of changing status; once gone, re-run `accounts --agent` to confirm `aspStatus: "approved"` before withdrawing. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
+After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Approved entries disappear from `--pending-only` results instead of changing status; once gone, re-run `accounts --agent --chain <chain>` to confirm `aspStatus: "approved"` before withdrawing. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers mainnets, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
 
 ### `history`
 

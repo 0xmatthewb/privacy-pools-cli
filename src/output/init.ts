@@ -41,19 +41,16 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   guardCsvUnsupported(ctx, "init");
 
   // Agent path: new wallet → status (verify readiness); restore → accounts (sync onchain state).
-  // Restore uses the same broad-view logic as human: bare `accounts` covers all mainnets,
-  // testnet default needs explicit --chain, so the agent doesn't miss cross-chain deposits.
+  // Restore always uses --all-chains so the first post-restore screen shows every chain,
+  // including testnets — we don't know which chains hold recoverable state.
   const isTestnet = CHAINS[result.defaultChain]?.isTestnet ?? false;
-  const agentRestoreChainOpts: Record<string, NextActionOptionValue> = isTestnet
-    ? { agent: true, chain: result.defaultChain }
-    : { agent: true };
   const agentNextActions = result.mnemonicImported
     ? [
         createNextAction(
           "accounts",
-          "Sync and review your restored onchain Pool Accounts.",
+          "Sync and review your restored onchain Pool Accounts across all chains.",
           "after_restore",
-          { options: agentRestoreChainOpts },
+          { options: { agent: true, allChains: true } },
         ),
       ]
     : [
@@ -66,15 +63,15 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
       ];
 
   // Differentiate new-wallet vs restore/migration:
-  //   New wallet  → "browse pools before depositing"
-  //   Restore     → "check your onchain state" (accounts)
+  //   New wallet  → "browse pools before depositing" (testnet needs --chain)
+  //   Restore     → "check your onchain state" with --all-chains for broadest coverage
   const humanNextActions = result.mnemonicImported
     ? [
         createNextAction(
           "accounts",
-          "Sync and review your onchain Pool Accounts.",
+          "Sync and review your onchain Pool Accounts across all chains.",
           "after_restore",
-          isTestnet ? { options: { chain: result.defaultChain } } : undefined,
+          { options: { allChains: true } },
         ),
       ]
     : [
