@@ -259,10 +259,10 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Pending ASP approval");
-    // Human next step: clean command, no --chain, human-friendly reason
+    // Human next step: includes --chain (correct even if user overrode default),
+    // human-friendly reason (no "aspStatus" JSON field name).
     expect(stderr).toContain("Next steps:");
-    expect(stderr).toContain("privacy-pools accounts");
-    expect(stderr).not.toContain("--chain");
+    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
     expect(stderr).toContain("Check back until your deposit is approved");
     expect(stderr).not.toContain("aspStatus");
   });

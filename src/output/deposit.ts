@@ -104,12 +104,14 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     ),
   ];
 
-  // Human: no --chain (uses default), human-readable reason text.
+  // Human: human-readable reason text; keeps --chain so the hint stays correct
+  // even when the user overrode their default with --chain <other>.
   const humanNextActions = [
     createNextAction(
       "accounts",
       "Check back until your deposit is approved for private withdrawal.",
       "after_deposit",
+      { options: { chain: data.chain } },
     ),
   ];
 

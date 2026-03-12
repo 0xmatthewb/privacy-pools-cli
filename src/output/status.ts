@@ -61,10 +61,12 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     : [createNextAction("pools", "Browse pools now that the CLI is ready.", "status_ready",
         { options: { agent: true, ...(workflowChain ? { chain: workflowChain } : {}) } })];
 
-  // Humans get clean commands: no --show-mnemonic, no --chain (uses their default).
+  // Humans: no --show-mnemonic (agent concern); keeps --chain so the hint stays
+  // correct when the user ran --chain <other> to override their default.
   const humanNextActions = notReady
     ? [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready")]
-    : [createNextAction("pools", "Browse pools now that the CLI is ready.", "status_ready")];
+    : [createNextAction("pools", "Browse pools now that the CLI is ready.", "status_ready",
+        ...(workflowChain ? [{ options: { chain: workflowChain } }] : []))];
 
   if (ctx.mode.isJson) {
     const status: Record<string, unknown> = appendNextActions({

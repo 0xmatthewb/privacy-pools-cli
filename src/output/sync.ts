@@ -58,10 +58,13 @@ export function renderSyncComplete(
     : [createNextAction("pools", "Browse available pools to deposit into.", "after_sync_empty",
         { options: { agent: true, chain: result.chain } })];
 
-  // Human: no --chain (uses default set during init).
+  // Human: keeps --chain so the hint stays correct when the user overrode
+  // their default with --chain <other>.
   const humanNextActions = result.availablePoolAccounts > 0
-    ? [createNextAction("accounts", "View your synced Pool Accounts and balances.", "after_sync")]
-    : [createNextAction("pools", "Browse available pools to deposit into.", "after_sync_empty")];
+    ? [createNextAction("accounts", "View your synced Pool Accounts and balances.", "after_sync",
+        { options: { chain: result.chain } })]
+    : [createNextAction("pools", "Browse available pools to deposit into.", "after_sync_empty",
+        { options: { chain: result.chain } })];
 
   if (ctx.mode.isJson) {
     printJsonSuccess(

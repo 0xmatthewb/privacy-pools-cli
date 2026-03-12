@@ -262,7 +262,8 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     ),
   ];
 
-  // Human: same real args, but no --chain (uses default).
+  // Human: same real args; keeps --chain so the hint stays correct when the
+  // user overrode their default with --chain <other>.
   const humanNextActions = [
     createNextAction(
       "withdraw",
@@ -270,7 +271,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       "after_quote",
       {
         args: [formatUnits(data.amount, data.decimals), data.asset],
-        options: { to: data.recipient, extraGas: data.extraGas ?? null },
+        options: { chain: data.chain, to: data.recipient, extraGas: data.extraGas ?? null },
       },
     ),
   ];
