@@ -585,10 +585,29 @@ describe("status chain-aware hasAccounts for next steps", () => {
     return JSON.parse(stdout.trim()).nextActions;
   }
 
-  test("accounts on different chain → pools (not accounts) when chain selected", () => {
-    // User is on sepolia but only has mainnet accounts
+  test("accounts on different chain → accounts when using default chain (dashboard model)", () => {
+    // User's default is sepolia, has mainnet accounts.
+    // Since chain is NOT overridden (selectedChain === defaultChain),
+    // bare `accounts` (dashboard) shows all mainnets, so cross-chain
+    // deposits make the dashboard relevant.
     const result = {
       ...STUB_STATUS,
+      selectedChain: "sepolia",
+      defaultChain: "sepolia",
+      accountFiles: [["mainnet", 1]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_ready_has_accounts");
+  });
+
+  test("accounts on different chain → pools when chain explicitly overridden", () => {
+    // User overrode --chain sepolia (different from default mainnet).
+    // Only accounts on the overridden chain matter for the next-step hint.
+    const result = {
+      ...STUB_STATUS,
+      defaultChain: "mainnet",
       selectedChain: "sepolia",
       accountFiles: [["mainnet", 1]] as [string, number][],
     };

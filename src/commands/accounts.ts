@@ -43,7 +43,6 @@ interface AccountScopeSource {
 interface LoadedChainAccounts {
   chainConfig: ChainConfig;
   groups: AccountPoolGroup[];
-  hadPools: boolean;
 }
 
 export function collectAccountScopeStrings(
@@ -91,7 +90,7 @@ async function loadAccountsForChain(
   verbose(`Discovered ${pools.length} pool(s) on ${chainConfig.name}`, isVerbose, silent);
 
   if (pools.length === 0) {
-    return { chainConfig, groups: [], hadPools: false };
+    return { chainConfig, groups: [] };
   }
 
   const poolInfos = pools.map((p) => ({
@@ -185,7 +184,7 @@ async function loadAccountsForChain(
     });
   }
 
-  return { chainConfig, groups, hadPools: true };
+  return { chainConfig, groups };
 }
 
 export function createAccountsCommand(): Command {

@@ -12,7 +12,7 @@ import { CHAINS } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { checkLiveness } from "../services/asp.js";
 import { getPublicClient } from "../services/sdk.js";
-import { accountExists } from "../services/account.js";
+import { accountHasDeposits } from "../services/account.js";
 import { printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
@@ -113,9 +113,11 @@ export function createStatusCommand(): Command {
           }
         }
 
-        // Account files
+        // Account files — only include chains where the user actually has deposits.
+        // accountHasDeposits() inspects the commitments map inside the file,
+        // not just file existence (the SDK creates empty files during init).
         for (const [name, chain] of Object.entries(CHAINS)) {
-          if (accountExists(chain.id)) {
+          if (accountHasDeposits(chain.id)) {
             result.accountFiles.push([name, chain.id]);
           }
         }

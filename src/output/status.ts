@@ -58,13 +58,18 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const workflowChain = result.selectedChain ?? result.defaultChain;
   const notReady = !result.configExists || !result.recoveryPhraseSet;
   const unsignedOnly = readyForUnsigned && !readyForDeposit;
-  // When a specific chain is selected, only consider accounts on that chain
-  // for next-step guidance — suggesting `accounts` when the user has deposits
-  // on a different chain is misleading.
-  const hasAccountsOnChain = result.selectedChain
+  const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
+  // Next-step guidance: should we suggest `accounts` (has deposits) or `pools` (no deposits)?
+  //
+  // When --chain was explicitly overridden, only consider accounts on THAT chain —
+  // suggesting dashboard `accounts` when the user drilled into a specific chain
+  // would be misleading.
+  //
+  // When using the default chain (no override), bare `accounts` acts as a dashboard
+  // across all mainnets, so any deposits on ANY chain make it the right suggestion.
+  const hasAccountsOnChain = chainOverridden
     ? result.accountFiles.some(([name]) => name === result.selectedChain)
     : result.accountFiles.length > 0;
-  const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
 
   // ── Build state-aware next-step guidance ──────────────────────────────
   // Five states:

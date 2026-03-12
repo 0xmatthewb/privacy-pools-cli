@@ -224,7 +224,7 @@ describe("renderAccountsNoPools parity", () => {
     const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, { chain: "sepolia" }));
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No pools found on sepolia");
+    expect(stderr).toContain("No Pool Accounts found on sepolia");
   });
 
   test("quiet mode: emits nothing", () => {

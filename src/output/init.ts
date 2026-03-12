@@ -18,6 +18,7 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
+import { CHAINS } from "../config/chains.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -47,12 +48,16 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     ),
   ];
 
-  // Human hint omits --chain (uses the default they just configured).
+  // Human hint: bare `pools` defaults to showing all mainnets, so if the user
+  // configured a testnet as their default chain, the bare command won't show
+  // their chain's pools.  Include --chain for testnets so the hint is accurate.
+  const isTestnet = CHAINS[result.defaultChain]?.isTestnet ?? false;
   const humanNextActions = [
     createNextAction(
       "pools",
       "Browse available pools before depositing.",
       "after_init",
+      isTestnet ? { options: { chain: result.defaultChain } } : undefined,
     ),
   ];
 

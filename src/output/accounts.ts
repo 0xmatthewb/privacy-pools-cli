@@ -513,7 +513,7 @@ export function renderAccountsNoPools(
   info(
     includeChainFields
       ? `No Pool Accounts found across ${data.allChains ? "all chains" : "mainnets"}.`
-      : `No pools found on ${data.chain}.`,
+      : `No Pool Accounts found on ${data.chain}.`,
     silent,
   );
 }

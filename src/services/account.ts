@@ -40,6 +40,35 @@ export function accountExists(chainId: number): boolean {
   return existsSync(getAccountFilePath(chainId));
 }
 
+/**
+ * Check whether the account file for a chain contains any deposits.
+ *
+ * `accountExists()` only checks whether the file is present, but the SDK
+ * creates empty account files during `initializeAccountService()` even when
+ * no deposits exist.  This function loads the file and inspects the
+ * commitments map to determine if the user has actually deposited.
+ *
+ * Returns `false` when the file doesn't exist, is empty, or the commitments
+ * map has zero entries.
+ */
+export function accountHasDeposits(chainId: number): boolean {
+  const account = loadAccount(chainId);
+  if (!account) return false;
+
+  // The commitments field is deserialized as a Map by our deserializer.
+  const commitments = account.commitments;
+  if (commitments instanceof Map) {
+    return commitments.size > 0;
+  }
+
+  // Fallback: if for some reason it's not a Map, check for the serialized form.
+  if (commitments?.__type === "map" && Array.isArray(commitments.value)) {
+    return commitments.value.length > 0;
+  }
+
+  return false;
+}
+
 export function loadAccount(chainId: number): any | null {
   const path = getAccountFilePath(chainId);
   if (!existsSync(path)) return null;
