@@ -43,11 +43,11 @@ describe("config service", () => {
   // Contract-pinned: These assert the exact built-in defaults.
   // Update these assertions when DEFAULT_RPC_URLS changes in src/services/config.ts.
   test("returns built-in rpc defaults for supported chain ids", () => {
-    expect(getRpcUrl(1)).toBe("https://eth.llamarpc.com");
-    expect(getRpcUrl(42161)).toBe("https://arbitrum.drpc.org");
-    expect(getRpcUrl(10)).toBe("https://optimism.drpc.org");
-    expect(getRpcUrl(11155111)).toBe("https://ethereum-sepolia-rpc.publicnode.com");
-    expect(getRpcUrl(11155420)).toBe("https://optimism-sepolia.drpc.org");
+    expect(getRpcUrl(1)).toBe("https://mainnet.gateway.tenderly.co");
+    expect(getRpcUrl(42161)).toBe("https://arbitrum.gateway.tenderly.co");
+    expect(getRpcUrl(10)).toBe("https://optimism.gateway.tenderly.co");
+    expect(getRpcUrl(11155111)).toBe("https://sepolia.gateway.tenderly.co");
+    expect(getRpcUrl(11155420)).toBe("https://optimism-sepolia.gateway.tenderly.co");
   });
 
   test("respects rpc override flag", () => {
@@ -275,10 +275,41 @@ describe("getRpcUrls multi-URL fallback", () => {
 
   test("returns multiple fallback URLs for chain 1 with no overrides", () => {
     const urls = getRpcUrls(1);
-    expect(urls.length).toBeGreaterThanOrEqual(2);
-    for (const url of urls) {
-      expect(url).toMatch(/^https?:\/\//);
-    }
+    expect(urls).toEqual([
+      "https://mainnet.gateway.tenderly.co",
+      "https://gateway.tenderly.co/public/mainnet",
+      "https://rpc.sentio.xyz/mainnet",
+      "https://0xrpc.io/eth",
+    ]);
+  });
+
+  test("returns the contract-pinned Arbitrum fallback order", () => {
+    expect(getRpcUrls(42161)).toEqual([
+      "https://arbitrum.gateway.tenderly.co",
+      "https://rpc.sentio.xyz/arbitrum-one",
+    ]);
+  });
+
+  test("returns the contract-pinned Optimism fallback order", () => {
+    expect(getRpcUrls(10)).toEqual([
+      "https://optimism.gateway.tenderly.co",
+      "https://gateway.tenderly.co/public/optimism",
+    ]);
+  });
+
+  test("returns the contract-pinned Sepolia fallback order", () => {
+    expect(getRpcUrls(11155111)).toEqual([
+      "https://sepolia.gateway.tenderly.co",
+      "https://gateway.tenderly.co/public/sepolia",
+      "https://rpc.sepolia.ethpandaops.io",
+      "https://eth-sepolia.api.onfinality.io/public",
+    ]);
+  });
+
+  test("returns the contract-pinned OP Sepolia fallback order", () => {
+    expect(getRpcUrls(11155420)).toEqual([
+      "https://optimism-sepolia.gateway.tenderly.co",
+    ]);
   });
 
   test("returns single-element array when flag override provided", () => {

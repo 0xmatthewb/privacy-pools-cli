@@ -308,7 +308,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 
 ## RPC Fallback
 
-Each chain has multiple built-in RPC URLs with automatic fallback. Before each operation, the CLI probes candidate URLs and selects the first healthy one. If all probes fail, it falls back to the primary URL. Override with `--rpc-url`.
+Most chains have multiple built-in RPC URLs with automatic fallback. When using the built-in list, the CLI probes candidate URLs and selects the first healthy one. If all probes fail, it falls back to the primary URL. A user-specified `--rpc-url`, env var, or config override uses only that URL.
 
 ## Project Structure
 

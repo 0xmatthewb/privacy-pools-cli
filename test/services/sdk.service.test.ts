@@ -1,16 +1,40 @@
-import { describe, expect, test } from "bun:test";
-import { getPublicClient, getDataService } from "../../src/services/sdk.ts";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import {
+  getPublicClient,
+  getDataService,
+  getHealthyRpcUrl,
+} from "../../src/services/sdk.ts";
 import { CHAINS } from "../../src/config/chains.ts";
+import { getRpcUrls } from "../../src/services/config.ts";
 import type { Address } from "viem";
 
 describe("sdk service", () => {
   const poolAddress = "0x0000000000000000000000000000000000000001" as Address;
+  const originalFetch = globalThis.fetch;
   const poolInfo = {
     address: poolAddress,
     chainId: CHAINS.sepolia.id,
     scope: 1n,
     deploymentBlock: 123n,
   } as const;
+
+  function rpcSuccess(result: unknown): Response {
+    return new Response(
+      JSON.stringify({ jsonrpc: "2.0", id: 1, result }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }
+
+  function rpcError(message: string): Response {
+    return new Response(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        error: { code: -32000, message },
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }
 
   /* ---------------------------------------------------------------- */
   /*  getPublicClient                                                  */
@@ -35,6 +59,111 @@ describe("sdk service", () => {
 
       const arbClient = getPublicClient(CHAINS.arbitrum);
       expect(arbClient.chain?.id).toBe(42161);
+    });
+  });
+
+  /* ---------------------------------------------------------------- */
+  /*  getHealthyRpcUrl                                                 */
+  /* ---------------------------------------------------------------- */
+
+  describe("getHealthyRpcUrl", () => {
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    test("skips probes when a single rpc override is provided", async () => {
+      const fetchMock = mock(async () => rpcSuccess("0x1"));
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const url = await getHealthyRpcUrl(CHAINS.mainnet.id, "https://custom-rpc.example.com");
+
+      expect(url).toBe("https://custom-rpc.example.com");
+      expect(fetchMock).toHaveBeenCalledTimes(0);
+    });
+
+    test("returns the first url when block and log probes both succeed", async () => {
+      const urls = getRpcUrls(CHAINS.mainnet.id);
+      const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { method: string };
+        if (body.method === "eth_blockNumber") return rpcSuccess("0x1000");
+        if (body.method === "eth_getLogs") return rpcSuccess([]);
+        throw new Error(`unexpected method ${body.method}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
+
+      expect(url).toBe(urls[0]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    test("skips urls that fail the log probe and picks the next healthy fallback", async () => {
+      const urls = getRpcUrls(CHAINS.mainnet.id);
+      const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const body = JSON.parse(String(init?.body)) as { method: string };
+
+        if (url === urls[0] && body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (url === urls[0] && body.method === "eth_getLogs") {
+          return rpcError("rate limited");
+        }
+        if (url === urls[1] && body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (url === urls[1] && body.method === "eth_getLogs") {
+          return rpcSuccess([]);
+        }
+
+        throw new Error(`unexpected probe ${body.method} for ${url}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
+
+      expect(url).toBe(urls[1]);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    test("treats non-array eth_getLogs responses as unhealthy and skips to the next fallback", async () => {
+      const urls = getRpcUrls(CHAINS.mainnet.id);
+      const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const body = JSON.parse(String(init?.body)) as { method: string };
+
+        if (url === urls[0] && body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (url === urls[0] && body.method === "eth_getLogs") {
+          return rpcSuccess(null);
+        }
+        if (url === urls[1] && body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (url === urls[1] && body.method === "eth_getLogs") {
+          return rpcSuccess([]);
+        }
+
+        throw new Error(`unexpected probe ${body.method} for ${url}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
+
+      expect(url).toBe(urls[1]);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    test("falls back to the first url when every probe fails", async () => {
+      const urls = getRpcUrls(CHAINS.mainnet.id);
+      const fetchMock = mock(async () => new Response(null, { status: 500 }));
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
+
+      expect(url).toBe(urls[0]);
+      expect(fetchMock).toHaveBeenCalledTimes(urls.length);
     });
   });
 

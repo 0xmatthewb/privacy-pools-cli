@@ -9,6 +9,9 @@ import { getRpcUrls } from "./config.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 import { withSuppressedSdkStdout } from "./account.js";
 
+const LOG_PROBE_ADDRESS = "0x0000000000000000000000000000000000000000";
+const LOG_PROBE_RANGE = 1_024n;
+
 const LOCAL_DEPOSIT_EVENT = parseAbiItem(
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)"
 );
@@ -37,8 +40,9 @@ export function getPublicClient(
 
 /**
  * Probes RPC URLs in order and returns the first that responds to
- * `eth_blockNumber` within a short timeout.  Falls back to the first
- * URL if all probes fail so the caller still gets the natural error.
+ * both `eth_blockNumber` and a representative `eth_getLogs` call within
+ * a short timeout. Falls back to the first URL if all probes fail so the
+ * caller still gets the natural error.
  *
  * When only a single URL is available the probe is skipped entirely
  * (fast path – no network call).
@@ -54,21 +58,27 @@ export async function getHealthyRpcUrl(
 
   for (const url of urls) {
     try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "eth_blockNumber",
-          params: [],
-        }),
-        signal: AbortSignal.timeout(probeTimeoutMs),
-      });
-      if (res.ok) {
-        const json = (await res.json()) as { result?: string };
-        if (json.result) return url;
-      }
+      const latestBlock = await rpcProbe<string>(
+        url,
+        "eth_blockNumber",
+        [],
+        probeTimeoutMs
+      );
+      if (!latestBlock) continue;
+
+      const toBlock = BigInt(latestBlock);
+      const fromBlock = toBlock > LOG_PROBE_RANGE ? toBlock - LOG_PROBE_RANGE : 0n;
+      const logProbe = await rpcProbe<unknown>(
+        url,
+        "eth_getLogs",
+        [{
+          address: LOG_PROBE_ADDRESS,
+          fromBlock: `0x${fromBlock.toString(16)}`,
+          toBlock: `0x${toBlock.toString(16)}`,
+        }],
+        probeTimeoutMs
+      );
+      if (Array.isArray(logProbe)) return url;
     } catch {
       // URL unhealthy – try next
     }
@@ -76,6 +86,33 @@ export async function getHealthyRpcUrl(
 
   // All probes failed; return first URL so downstream gets the natural error.
   return urls[0];
+}
+
+async function rpcProbe<T>(
+  url: string,
+  method: string,
+  params: unknown[],
+  timeoutMs: number
+): Promise<T | undefined> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  if (!res.ok) return undefined;
+  const json = (await res.json()) as {
+    result?: T;
+    error?: unknown;
+  };
+  if (json.error !== undefined) return undefined;
+  return json.result;
 }
 
 function isLocalRpcUrl(url: string): boolean {
