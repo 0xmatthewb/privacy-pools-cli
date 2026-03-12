@@ -683,6 +683,24 @@ describe("status chain-aware hasAccounts for next steps", () => {
     expect(actions[0].options?.chain).toBe("sepolia");
   });
 
+  test("mixed mainnet + testnet deposits on default testnet → accounts --all-chains", () => {
+    // Default is sepolia, deposits on both sepolia and mainnet.
+    // `--chain sepolia` would hide mainnet holdings; bare `accounts` would
+    // hide sepolia. Only `--all-chains` surfaces everything.
+    const result = {
+      ...STUB_STATUS,
+      defaultChain: "sepolia",
+      selectedChain: "sepolia",
+      accountFiles: [["sepolia", 11155111], ["mainnet", 1]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_ready_has_accounts");
+    expect(actions[0].options?.allChains).toBe(true);
+    expect(actions[0].options?.chain).toBeUndefined();
+  });
+
   test("no selectedChain + mainnet account → accounts (no --chain)", () => {
     const result = {
       ...STUB_STATUS,

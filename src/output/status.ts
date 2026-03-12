@@ -87,10 +87,20 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   } else if (hasOnSelected) {
     // Deposits on the user's default/selected chain.
     // If it's a mainnet, bare `accounts` (dashboard) includes it — no flag needed.
-    // If it's a testnet, dashboard won't show it — include --chain.
+    // If it's a testnet AND there are also mainnet deposits, --all-chains is needed
+    // so neither set is hidden. If testnet-only, --chain <testnet> suffices.
     const selectedIsMainnet = result.selectedChain ? mainnetNames.has(result.selectedChain) : false;
     hasAccountsReachable = true;
-    accountsChainOpt = selectedIsMainnet ? undefined : (result.selectedChain ?? undefined);
+    if (selectedIsMainnet) {
+      accountsChainOpt = undefined;
+    } else if (hasOnMainnets) {
+      // Mixed: testnet selected + mainnet deposits elsewhere → --all-chains
+      accountsChainOpt = undefined;
+      accountsNeedsAllChains = true;
+    } else {
+      // Testnet-only deposits, all on the selected chain → --chain <testnet>
+      accountsChainOpt = result.selectedChain ?? undefined;
+    }
   } else if (hasOnMainnets) {
     // No deposits on the selected chain, but deposits on other mainnets.
     // Bare `accounts` (dashboard) will show them.
