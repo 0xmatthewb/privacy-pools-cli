@@ -66,7 +66,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const humanNextActions = notReady
     ? [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready")]
     : [createNextAction("pools", "Browse pools now that the CLI is ready.", "status_ready",
-        ...(workflowChain ? [{ options: { chain: workflowChain } }] : []))];
+        { options: { ...(workflowChain ? { chain: workflowChain } : {}) } })];
 
   if (ctx.mode.isJson) {
     const status: Record<string, unknown> = appendNextActions({
