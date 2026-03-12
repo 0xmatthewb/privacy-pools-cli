@@ -67,10 +67,12 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
 
   // ── Build state-aware next-step guidance ──────────────────────────────
-  // Three states:
-  //   1. Not ready  → init
-  //   2. Ready, no accounts (fresh setup) → pools
-  //   3. Ready, has accounts → accounts
+  // Five states:
+  //   1. Not ready (no config or mnemonic)        → init
+  //   2. Unsigned-only, no accounts on chain       → pools (read-only)
+  //   3. Unsigned-only, has accounts on chain      → accounts (read-only)
+  //   4. Fully ready, no accounts on chain         → pools
+  //   5. Fully ready, has accounts on chain        → accounts
   const agentChainOpts: Record<string, string> = workflowChain ? { chain: workflowChain } : {};
   const humanChainOpts: Record<string, string> | undefined =
     chainOverridden && workflowChain ? { chain: workflowChain } : undefined;
