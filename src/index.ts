@@ -16,6 +16,12 @@ import { checkForUpdateInBackground, getUpdateNotice } from "./utils/update-chec
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { createRootProgram } from "./program.js";
+import { installSdkConsoleGuard } from "./services/account.js";
+
+// Permanently suppress console.* so deferred SDK callbacks (e.g. RPC retry
+// logs) never leak raw `[Data::WARN]` lines into human output.  Safe because
+// the CLI routes all its own output through process.stderr/stdout.write.
+installSdkConsoleGuard();
 
 // Load .env from the config directory (~/.privacy-pools/.env), not CWD.
 // Loading from CWD would let a malicious .env in a cloned repo silently
