@@ -585,21 +585,54 @@ describe("status chain-aware hasAccounts for next steps", () => {
     return JSON.parse(stdout.trim()).nextActions;
   }
 
-  test("accounts on different chain → accounts when using default chain (dashboard model)", () => {
-    // User's default is sepolia, has mainnet accounts.
-    // Since chain is NOT overridden (selectedChain === defaultChain),
-    // bare `accounts` (dashboard) shows all mainnets, so cross-chain
-    // deposits make the dashboard relevant.
+  test("mainnet deposits + default chain → accounts in dashboard mode (no --chain)", () => {
+    // User's default is mainnet, has mainnet accounts.
+    // Bare `accounts` (dashboard) shows all mainnets — no --chain needed.
     const result = {
       ...STUB_STATUS,
-      selectedChain: "sepolia",
-      defaultChain: "sepolia",
+      defaultChain: "mainnet",
+      selectedChain: "mainnet",
       accountFiles: [["mainnet", 1]] as [string, number][],
     };
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("accounts");
     expect(actions[0].when).toBe("status_ready_has_accounts");
+    // Agent: no --chain → dashboard mode reaches the mainnet deposits.
+    expect(actions[0].options?.chain).toBeUndefined();
+  });
+
+  test("cross-chain mainnet deposits + default chain → accounts in dashboard mode (no --chain)", () => {
+    // User's default is mainnet, has arbitrum accounts.
+    // Bare `accounts` (dashboard) shows all mainnets including arbitrum.
+    const result = {
+      ...STUB_STATUS,
+      defaultChain: "mainnet",
+      selectedChain: "mainnet",
+      accountFiles: [["arbitrum", 42161]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_ready_has_accounts");
+    // No --chain: dashboard mode correctly reaches arbitrum deposits.
+    expect(actions[0].options?.chain).toBeUndefined();
+  });
+
+  test("testnet-only deposits + default chain → pools (testnets not reachable via bare accounts)", () => {
+    // User's default is mainnet, only has sepolia deposits.
+    // Bare `accounts` only shows mainnets, so sepolia deposits are invisible.
+    // Correctly suggests `pools` since no reachable deposits exist.
+    const result = {
+      ...STUB_STATUS,
+      defaultChain: "mainnet",
+      selectedChain: "mainnet",
+      accountFiles: [["sepolia", 11155111]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("pools");
+    expect(actions[0].when).toBe("status_ready_no_accounts");
   });
 
   test("accounts on different chain → pools when chain explicitly overridden", () => {
@@ -617,18 +650,39 @@ describe("status chain-aware hasAccounts for next steps", () => {
     expect(actions[0].when).toBe("status_ready_no_accounts");
   });
 
-  test("accounts on same chain → accounts", () => {
+  test("accounts on overridden chain → accounts with --chain", () => {
+    // User overrode --chain arbitrum (different from default mainnet).
+    // Has arbitrum deposits — suggest accounts scoped to arbitrum.
     const result = {
       ...STUB_STATUS,
+      defaultChain: "mainnet",
+      selectedChain: "arbitrum",
+      accountFiles: [["arbitrum", 42161]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_ready_has_accounts");
+    // Chain override → agent command includes --chain to scope correctly.
+    expect(actions[0].options?.chain).toBe("arbitrum");
+  });
+
+  test("testnet deposits on default testnet chain → accounts with --chain (testnet needs explicit flag)", () => {
+    // Default is sepolia, deposits on sepolia. Bare `accounts` won't show
+    // testnets, so the command must include --chain sepolia.
+    const result = {
+      ...STUB_STATUS,
+      defaultChain: "sepolia",
       selectedChain: "sepolia",
       accountFiles: [["sepolia", 11155111]] as [string, number][],
     };
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("accounts");
+    expect(actions[0].options?.chain).toBe("sepolia");
   });
 
-  test("no selectedChain → any account counts", () => {
+  test("no selectedChain + mainnet account → accounts (no --chain)", () => {
     const result = {
       ...STUB_STATUS,
       selectedChain: null,
@@ -637,5 +691,18 @@ describe("status chain-aware hasAccounts for next steps", () => {
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("accounts");
+    expect(actions[0].options?.chain).toBeUndefined();
+  });
+
+  test("no selectedChain + testnet-only account → pools", () => {
+    const result = {
+      ...STUB_STATUS,
+      selectedChain: null,
+      defaultChain: null,
+      accountFiles: [["sepolia", 11155111]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("pools");
   });
 });

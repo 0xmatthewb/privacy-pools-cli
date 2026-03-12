@@ -45,27 +45,35 @@ export function accountExists(chainId: number): boolean {
  *
  * `accountExists()` only checks whether the file is present, but the SDK
  * creates empty account files during `initializeAccountService()` even when
- * no deposits exist.  This function loads the file and inspects the
- * commitments map to determine if the user has actually deposited.
+ * no deposits exist.  This function loads the file and inspects both the
+ * `commitments` map (SDK runtime state) and the `poolAccounts` map (durable
+ * historical source used by `history`, `pool-accounts`, and integration tests)
+ * to determine if the user has actually deposited.
  *
- * Returns `false` when the file doesn't exist, is empty, or the commitments
- * map has zero entries.
+ * Returns `false` when the file doesn't exist, is empty, or both maps have
+ * zero entries.
  */
 export function accountHasDeposits(chainId: number): boolean {
   const account = loadAccount(chainId);
   if (!account) return false;
 
-  // The commitments field is deserialized as a Map by our deserializer.
-  const commitments = account.commitments;
-  if (commitments instanceof Map) {
-    return commitments.size > 0;
-  }
+  if (mapHasEntries(account.commitments)) return true;
+  if (mapHasEntries(account.poolAccounts)) return true;
 
-  // Fallback: if for some reason it's not a Map, check for the serialized form.
-  if (commitments?.__type === "map" && Array.isArray(commitments.value)) {
-    return commitments.value.length > 0;
-  }
+  return false;
+}
 
+/** Check if a value is a non-empty Map (deserialized or raw serialized form). */
+function mapHasEntries(value: unknown): boolean {
+  if (value instanceof Map) return value.size > 0;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    (value as any).__type === "map" &&
+    Array.isArray((value as any).value)
+  ) {
+    return (value as any).value.length > 0;
+  }
   return false;
 }
 

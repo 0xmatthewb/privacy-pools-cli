@@ -19,6 +19,7 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { highlight, accentBold } from "../utils/theme.js";
+import { CHAINS, MAINNET_CHAIN_NAMES } from "../config/chains.js";
 
 export interface StatusCheckResult {
   configExists: boolean;
@@ -59,17 +60,45 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const notReady = !result.configExists || !result.recoveryPhraseSet;
   const unsignedOnly = readyForUnsigned && !readyForDeposit;
   const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
-  // Next-step guidance: should we suggest `accounts` (has deposits) or `pools` (no deposits)?
+
+  // ── Deposit reachability for next-step guidance ───────────────────────
   //
-  // When --chain was explicitly overridden, only consider accounts on THAT chain —
-  // suggesting dashboard `accounts` when the user drilled into a specific chain
-  // would be misleading.
+  // `hasAccountsReachable` decides whether to suggest `accounts` vs `pools`.
+  // `accountsChainOpt` sets the --chain flag so the suggested command
+  // actually reaches the deposits that triggered the suggestion.
   //
-  // When using the default chain (no override), bare `accounts` acts as a dashboard
-  // across all mainnets, so any deposits on ANY chain make it the right suggestion.
-  const hasAccountsOnChain = chainOverridden
+  // Key constraint: bare `accounts` (no --chain) shows all mainnets only.
+  // Testnet deposits require an explicit --chain flag.
+  const mainnetNames = new Set(MAINNET_CHAIN_NAMES);
+  const hasOnSelected = result.selectedChain
     ? result.accountFiles.some(([name]) => name === result.selectedChain)
-    : result.accountFiles.length > 0;
+    : false;
+  const hasOnMainnets = result.accountFiles.some(([name]) => mainnetNames.has(name));
+
+  let hasAccountsReachable: boolean;
+  let accountsChainOpt: string | undefined;
+
+  if (chainOverridden) {
+    // Explicit --chain override: only the overridden chain matters.
+    hasAccountsReachable = hasOnSelected;
+    accountsChainOpt = result.selectedChain ?? undefined;
+  } else if (hasOnSelected) {
+    // Deposits on the user's default/selected chain.
+    // If it's a mainnet, bare `accounts` (dashboard) includes it — no flag needed.
+    // If it's a testnet, dashboard won't show it — include --chain.
+    const selectedIsMainnet = result.selectedChain ? mainnetNames.has(result.selectedChain) : false;
+    hasAccountsReachable = true;
+    accountsChainOpt = selectedIsMainnet ? undefined : (result.selectedChain ?? undefined);
+  } else if (hasOnMainnets) {
+    // No deposits on the selected chain, but deposits on other mainnets.
+    // Bare `accounts` (dashboard) will show them.
+    hasAccountsReachable = true;
+    accountsChainOpt = undefined;
+  } else {
+    // No reachable deposits (testnet-only deposits with a non-matching selected chain).
+    hasAccountsReachable = false;
+    accountsChainOpt = undefined;
+  }
 
   // ── Build state-aware next-step guidance ──────────────────────────────
   // Five states:
@@ -78,57 +107,67 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   //   3. Unsigned-only, has accounts on chain      → accounts (read-only)
   //   4. Fully ready, no accounts on chain         → pools
   //   5. Fully ready, has accounts on chain        → accounts
-  const agentChainOpts: Record<string, string> = workflowChain ? { chain: workflowChain } : {};
-  const humanChainOpts: Record<string, string> | undefined =
+  //
+  // Chain options:
+  //   - `pools`/`init`: always use workflowChain.
+  //   - `accounts`: use accountsChainOpt (derived above for correctness).
+  const poolsAgentChainOpts: Record<string, string> = workflowChain ? { chain: workflowChain } : {};
+  const poolsHumanChainOpts: Record<string, string> | undefined =
     chainOverridden && workflowChain ? { chain: workflowChain } : undefined;
+  const accountsAgentChainOpts: Record<string, string> = accountsChainOpt
+    ? { chain: accountsChainOpt }
+    : {};
+  const accountsHumanChainOpts: Record<string, string> | undefined = accountsChainOpt
+    ? { chain: accountsChainOpt }
+    : undefined;
 
   let agentNextActions: ReturnType<typeof createNextAction>[];
   let humanNextActions: ReturnType<typeof createNextAction>[];
 
   if (notReady) {
     agentNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
-      { options: { agent: true, showMnemonic: true, ...agentChainOpts } })];
+      { options: { agent: true, showMnemonic: true, ...poolsAgentChainOpts } })];
     humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
-      { options: humanChainOpts })];
-  } else if (unsignedOnly && !hasAccountsOnChain) {
+      { options: poolsHumanChainOpts })];
+  } else if (unsignedOnly && !hasAccountsReachable) {
     agentNextActions = [createNextAction(
       "pools",
       "Browse pools in read-only mode. Configure a valid signer key before depositing.",
       "status_unsigned_no_accounts",
-      { options: { agent: true, ...agentChainOpts } },
+      { options: { agent: true, ...poolsAgentChainOpts } },
     )];
     humanNextActions = [createNextAction(
       "pools",
       "Browse pools in read-only mode. Configure a valid signer key before depositing.",
       "status_unsigned_no_accounts",
-      { options: humanChainOpts }),
+      { options: poolsHumanChainOpts }),
     ];
   } else if (unsignedOnly) {
     agentNextActions = [createNextAction(
       "accounts",
       "Review existing deposits. Configure a valid signer key before depositing or withdrawing.",
       "status_unsigned_has_accounts",
-      { options: { agent: true, ...agentChainOpts } },
+      { options: { agent: true, ...accountsAgentChainOpts } },
     )];
     humanNextActions = [createNextAction(
       "accounts",
       "Review existing deposits. Configure a valid signer key before depositing or withdrawing.",
       "status_unsigned_has_accounts",
-      { options: humanChainOpts },
+      { options: accountsHumanChainOpts },
     )];
-  } else if (!hasAccountsOnChain) {
+  } else if (!hasAccountsReachable) {
     agentNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
-      { options: { agent: true, ...agentChainOpts } })];
+      { options: { agent: true, ...poolsAgentChainOpts } })];
     humanNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
-      { options: humanChainOpts })];
+      { options: poolsHumanChainOpts })];
   } else {
     agentNextActions = [
       createNextAction("accounts", "Check on your existing deposits.", "status_ready_has_accounts",
-        { options: { agent: true, ...agentChainOpts } }),
+        { options: { agent: true, ...accountsAgentChainOpts } }),
     ];
     humanNextActions = [
       createNextAction("accounts", "Check on your existing deposits.", "status_ready_has_accounts",
-        { options: humanChainOpts }),
+        { options: accountsHumanChainOpts }),
     ];
   }
 
