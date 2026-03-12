@@ -178,7 +178,7 @@ export function createHistoryCommand(): Command {
           chainId: chainConfig.id,
           address: p.pool as Address,
           scope: p.scope,
-          deploymentBlock: chainConfig.startBlock,
+          deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
         }));
 
         const dataService = await getDataService(

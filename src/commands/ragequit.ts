@@ -195,7 +195,7 @@ export function createRagequitCommand(): Command {
               chainId: chainConfig.id,
               address: pool.pool,
               scope: pool.scope,
-              deploymentBlock: chainConfig.startBlock,
+              deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
             },
           ],
           chainConfig.id,

@@ -35,10 +35,15 @@ interface SyncGateRpcConfig {
   entrypoint: `0x${string}`;
   poolAddress: `0x${string}`;
   scope: bigint;
+  assetAddress?: `0x${string}`;
+  assetSymbol?: string;
+  assetDecimals?: number;
   blockNumber?: bigint;
   minimumDepositAmount?: bigint;
   vettingFeeBPS?: bigint;
   maxRelayFeeBPS?: bigint;
+  minFromBlock?: bigint;
+  validDepositLog?: boolean;
 }
 
 export interface SyncGateRpcServer {
@@ -62,10 +67,17 @@ function parseConfigFromEnv(): SyncGateRpcConfig {
     entrypoint,
     poolAddress,
     scope: BigInt(scopeRaw),
+    assetAddress: process.env.PP_SYNC_RPC_ASSET as `0x${string}` | undefined,
+    assetSymbol: process.env.PP_SYNC_RPC_SYMBOL ?? undefined,
+    assetDecimals: Number(process.env.PP_SYNC_RPC_DECIMALS ?? "18"),
     blockNumber: BigInt(process.env.PP_SYNC_RPC_BLOCK_NUMBER ?? "10000000"),
     minimumDepositAmount: BigInt(process.env.PP_SYNC_RPC_MIN_DEPOSIT ?? "1"),
     vettingFeeBPS: BigInt(process.env.PP_SYNC_RPC_VETTING_FEE_BPS ?? "0"),
     maxRelayFeeBPS: BigInt(process.env.PP_SYNC_RPC_MAX_RELAY_FEE_BPS ?? "300"),
+    minFromBlock: process.env.PP_SYNC_RPC_MIN_FROM_BLOCK
+      ? BigInt(process.env.PP_SYNC_RPC_MIN_FROM_BLOCK)
+      : undefined,
+    validDepositLog: process.env.PP_SYNC_RPC_VALID_DEPOSIT_LOG === "true",
   };
 }
 
@@ -193,6 +205,26 @@ async function route(
         return;
       }
 
+      if (config.assetAddress && to === config.assetAddress.toLowerCase()) {
+        if (data.startsWith("0x95d89b41")) {
+          writeRpcResult(
+            res,
+            id,
+            encodeAbiParameters([{ type: "string" }], [config.assetSymbol ?? "TOKEN"])
+          );
+          return;
+        }
+
+        if (data.startsWith("0x313ce567")) {
+          writeRpcResult(
+            res,
+            id,
+            encodeAbiParameters([{ type: "uint8" }], [config.assetDecimals ?? 18])
+          );
+          return;
+        }
+      }
+
       writeRpcError(res, id, -32601, `Unsupported eth_call target ${to}`);
       return;
     }
@@ -200,11 +232,28 @@ async function route(
     case "eth_getLogs":
       {
         const request = Array.isArray(payload.params)
-          ? payload.params[0] as { topics?: string[] } | undefined
+          ? payload.params[0] as { topics?: string[]; fromBlock?: string } | undefined
           : undefined;
         const topic0 = Array.isArray(request?.topics)
           ? request?.topics[0]?.toLowerCase()
           : undefined;
+        const fromBlockRaw = request?.fromBlock;
+        const fromBlock = typeof fromBlockRaw === "string"
+          ? BigInt(fromBlockRaw)
+          : undefined;
+
+        if (
+          config.minFromBlock !== undefined
+          && (fromBlock === undefined || fromBlock < config.minFromBlock)
+        ) {
+          writeRpcError(
+            res,
+            id,
+            -32000,
+            `fromBlock below allowed minimum ${config.minFromBlock.toString()}`
+          );
+          return;
+        }
 
         if (topic0 === depositTopic0?.toLowerCase()) {
           writeRpcResult(res, id, [{
@@ -218,7 +267,9 @@ async function route(
                 { type: "uint256" },
                 { type: "uint256" },
               ],
-              [1n, 0n, 1n, 0n]
+              config.validDepositLog
+                ? [1n, 2n, 3n, 4n]
+                : [1n, 0n, 1n, 0n]
             ),
             logIndex: "0x0",
             removed: false,
@@ -264,10 +315,17 @@ export function launchSyncGateRpcServer(
         PP_SYNC_RPC_ENTRYPOINT: config.entrypoint,
         PP_SYNC_RPC_POOL: config.poolAddress,
         PP_SYNC_RPC_SCOPE: config.scope.toString(),
+        PP_SYNC_RPC_ASSET: config.assetAddress,
+        PP_SYNC_RPC_SYMBOL: config.assetSymbol,
+        PP_SYNC_RPC_DECIMALS: config.assetDecimals === undefined
+          ? undefined
+          : String(config.assetDecimals),
         PP_SYNC_RPC_BLOCK_NUMBER: String(config.blockNumber ?? 10000000n),
         PP_SYNC_RPC_MIN_DEPOSIT: String(config.minimumDepositAmount ?? 1n),
         PP_SYNC_RPC_VETTING_FEE_BPS: String(config.vettingFeeBPS ?? 0n),
         PP_SYNC_RPC_MAX_RELAY_FEE_BPS: String(config.maxRelayFeeBPS ?? 300n),
+        PP_SYNC_RPC_MIN_FROM_BLOCK: config.minFromBlock?.toString(),
+        PP_SYNC_RPC_VALID_DEPOSIT_LOG: config.validDepositLog ? "true" : undefined,
       },
     });
 

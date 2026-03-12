@@ -206,7 +206,7 @@ export function createPoolsCommand(): Command {
                 chainId: chainConfig.id,
                 address: pool.pool as Address,
                 scope: pool.scope,
-                deploymentBlock: chainConfig.startBlock,
+                deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
               }],
               chainConfig.id,
               true,

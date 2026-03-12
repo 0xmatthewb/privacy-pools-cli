@@ -99,6 +99,7 @@ export interface CapabilitiesPayload {
 export interface PoolStats {
   asset: Address;
   pool: Address;
+  deploymentBlock?: bigint;
   scope: bigint;
   symbol: string;
   decimals: number;

@@ -2,6 +2,7 @@ import type { Address, PublicClient } from "viem";
 import { erc20Abi, parseAbi } from "viem";
 import type { ChainConfig, PoolStats } from "../types.js";
 import { NATIVE_ASSET_ADDRESS, KNOWN_POOLS } from "../config/chains.js";
+import { resolvePoolDeploymentBlock } from "../config/deployment-hints.js";
 import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
 import { getPublicClient } from "./sdk.js";
 import { CLIError } from "../utils/errors.js";
@@ -294,11 +295,18 @@ export async function listPools(
             publicClient,
             assetConfig.pool
           );
+          const deploymentBlock = resolvePoolDeploymentBlock(
+            chainConfig.id,
+            chainConfig.startBlock,
+            assetAddress,
+            assetConfig.pool
+          );
           const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
 
           return {
             asset: assetAddress,
             pool: assetConfig.pool,
+            deploymentBlock,
             scope,
             symbol: tokenMeta.symbol,
             decimals: tokenMeta.decimals,
@@ -365,6 +373,12 @@ async function resolveKnownPool(
     return {
       asset: knownAddress,
       pool: assetConfig.pool,
+      deploymentBlock: resolvePoolDeploymentBlock(
+        chainConfig.id,
+        chainConfig.startBlock,
+        knownAddress,
+        assetConfig.pool
+      ),
       scope,
       symbol,
       decimals,
@@ -411,6 +425,12 @@ export async function resolvePool(
       return {
         asset: assetAddress,
         pool: assetConfig.pool,
+        deploymentBlock: resolvePoolDeploymentBlock(
+          chainConfig.id,
+          chainConfig.startBlock,
+          assetAddress,
+          assetConfig.pool
+        ),
         scope,
         symbol,
         decimals,
