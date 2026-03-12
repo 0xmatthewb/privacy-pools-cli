@@ -56,7 +56,6 @@ export interface AccountsRenderData {
   warnings?: AccountWarning[];
   groups: AccountPoolGroup[];
   showDetails: boolean;
-  showAll: boolean;
   showSummary: boolean;
   showPendingOnly: boolean;
 }
@@ -529,7 +528,6 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     warnings,
     groups,
     showDetails,
-    showAll,
     showSummary,
     showPendingOnly,
   } = data;
@@ -694,23 +692,13 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
   if (!renderedAny) {
     if (showPendingOnly) {
       info("No pending Pool Accounts found.", silent);
-    } else if (showAll) {
-      info("No Pool Accounts found.", silent);
     } else {
-      // Default view hides spent/exited accounts.  When pool groups exist but
-      // none had visible (spendable) pool accounts, the user has pool history
-      // that was filtered out — don't tell them to "deposit first".
-      const hasHiddenHistory = visibleGroups.length > 0;
-      if (hasHiddenHistory) {
-        info("No spendable Pool Accounts found. Use --all to include spent and exited accounts.", silent);
-      } else {
-        info(
-          includeChainFields
-            ? `No Pool Accounts found on ${allChains ? "any chain" : "mainnets"}. Deposit first, then run 'privacy-pools accounts'.`
-            : `No Pool Accounts found on ${chain}. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.`,
-          silent,
-        );
-      }
+      info(
+        includeChainFields
+          ? `No Pool Accounts found on ${allChains ? "any chain" : "mainnets"}.`
+          : `No Pool Accounts found on ${chain}.`,
+        silent,
+      );
     }
     if (!silent) process.stderr.write("\n");
     renderNextSteps(ctx, nextActions);
@@ -731,9 +719,6 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     } else {
       if (!showDetails) {
         info("Use --details to show transaction hashes and ASP status breakdown.", silent);
-      }
-      if (!showAll) {
-        info("Exited or spent accounts are hidden. Use --all to show them.", silent);
       }
       if (showDetails && !ctx.isVerbose) {
         info(

@@ -292,7 +292,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP],
         showDetails: false,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),
@@ -317,7 +316,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP],
         showDetails: false,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),
@@ -340,7 +338,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_PENDING_GROUP],
         showDetails: false,
-        showAll: false,
         showSummary: true,
         showPendingOnly: false,
       }),
@@ -376,7 +373,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP, STUB_PENDING_GROUP],
         showDetails: false,
-        showAll: false,
         showSummary: false,
         showPendingOnly: true,
       }),
@@ -404,7 +400,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP],
         showDetails: true,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),
@@ -424,7 +419,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP],
         showDetails: true,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),
@@ -443,14 +437,13 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [emptyGroup],
         showDetails: false,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),
     );
 
-    // Group exists with empty poolAccounts → user has history (spent/exited filtered out).
-    expect(stderr).toContain("No spendable Pool Accounts found");
+    // Group exists with empty poolAccounts but no hidden history either.
+    expect(stderr).toContain("No Pool Accounts found");
   });
 
   test("human mode (summary): shows USD column when tokenPrice is set", () => {
@@ -460,7 +453,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP_WITH_USD],
         showDetails: false,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),
@@ -477,7 +469,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP],
         showDetails: false,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),
@@ -493,7 +484,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP_WITH_USD],
         showDetails: true,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),
@@ -510,7 +500,6 @@ describe("renderAccounts parity", () => {
         chain: "sepolia",
         groups: [STUB_GROUP],
         showDetails: false,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),

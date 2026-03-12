@@ -280,7 +280,6 @@ exports[`CLI --help snapshots accounts --help snapshot 1`] = `
 List your Pool Accounts (individual deposit lineages) with balances
 Options:
   --no-sync       Use cached data (faster, but may be stale)
-  --all           Include exited and fully spent Pool Accounts
   --all-chains    Include testnet chains (mainnets shown by default)
   --details       Show additional details per Pool Account
   --summary       Show counts and balances only
@@ -288,7 +287,6 @@ Options:
   -h, --help      display help for command
 Examples:
   privacy-pools accounts
-  privacy-pools accounts --all
   privacy-pools accounts --all-chains
   privacy-pools accounts --details
   privacy-pools accounts --summary

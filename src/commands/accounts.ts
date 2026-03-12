@@ -19,17 +19,13 @@ import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import {
-  buildAllPoolAccountRefs,
-  buildPoolAccountRefs,
-} from "../utils/pool-accounts.js";
+import { buildAllPoolAccountRefs } from "../utils/pool-accounts.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
 
 interface AccountsCommandOptions {
   sync?: boolean;
-  all?: boolean;
   allChains?: boolean;
   details?: boolean;
   summary?: boolean;
@@ -132,10 +128,8 @@ async function loadAccountsForChain(
   const spendable = withSuppressedSdkStdoutSync(() =>
     accountService.getSpendableCommitments(),
   );
-  // Always include historical scopes so the renderer can distinguish "no
-  // spendable accounts" (user has history) from "no accounts at all".
-  // Without this, spent/exited-only users see "No Pool Accounts found"
-  // instead of the more helpful "No spendable Pool Accounts found. Use --all".
+  // Always include historical scopes so spent/exited-only users still see
+  // their pool accounts instead of a confusing empty state.
   const sortedScopeStrings = collectAccountScopeStrings(
     spendable,
     accountService.account,
@@ -161,19 +155,15 @@ async function loadAccountsForChain(
     if (!pool) continue;
 
     const approvedLabels = approvedLabelsByScope.get(scopeStr);
-    const poolAccounts = (opts.all || opts.summary)
-      ? buildAllPoolAccountRefs(
-          accountService.account,
-          pool.scope,
-          commitments,
-          approvedLabels,
-        )
-      : buildPoolAccountRefs(
-          accountService.account,
-          pool.scope,
-          commitments,
-          approvedLabels,
-        );
+    // Always show all pool accounts (pending, approved, spent, exited).
+    // Users commonly check accounts to see if a pending deposit has been
+    // approved — hiding any state behind --all creates a confusing empty view.
+    const poolAccounts = buildAllPoolAccountRefs(
+      accountService.account,
+      pool.scope,
+      commitments,
+      approvedLabels,
+    );
     poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
 
     groups.push({
@@ -196,7 +186,6 @@ export function createAccountsCommand(): Command {
   return new Command("accounts")
     .description(metadata.description)
     .option("--no-sync", "Use cached data (faster, but may be stale)")
-    .option("--all", "Include exited and fully spent Pool Accounts")
     .option("--all-chains", "Include testnet chains (mainnets shown by default)")
     .option("--details", "Show additional details per Pool Account")
     .option("--summary", "Show counts and balances only")
@@ -223,14 +212,6 @@ export function createAccountsCommand(): Command {
             "Compact account modes do not support --details.",
             "INPUT",
             "Remove --details when using --summary or --pending-only.",
-          );
-        }
-
-        if ((opts.summary || opts.pendingOnly) && opts.all) {
-          throw new CLIError(
-            "Compact account modes do not support --all.",
-            "INPUT",
-            "Remove --all when using --summary or --pending-only.",
           );
         }
 
@@ -322,7 +303,6 @@ export function createAccountsCommand(): Command {
           warnings,
           groups,
           showDetails: !!opts.details,
-          showAll: !!opts.all,
           showSummary: !!opts.summary,
           showPendingOnly: !!opts.pendingOnly,
         });

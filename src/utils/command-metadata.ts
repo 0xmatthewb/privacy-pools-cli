@@ -474,7 +474,6 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools accounts",
-        "privacy-pools accounts --all",
         "privacy-pools accounts --all-chains",
         "privacy-pools accounts --details",
         "privacy-pools accounts --summary",
@@ -496,7 +495,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
     },
     capabilities: {
-      flags: ["--no-sync", "--all", "--all-chains", "--details", "--summary", "--pending-only"],
+      flags: ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"],
       agentFlags: "--json",
       requiresInit: true,
       expectedLatencyClass: "slow",

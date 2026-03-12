@@ -170,7 +170,6 @@ describe("accounts CSV", () => {
         chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
-        showAll: false,
         showSummary: false,
         showPendingOnly: false,
       }),

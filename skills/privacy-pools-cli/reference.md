@@ -656,7 +656,7 @@ privacy-pools exit ETH --from-pa PA-1 --agent
 ### `accounts`
 
 ```bash
-privacy-pools accounts --agent [--all] [--details]
+privacy-pools accounts --agent [--details]
 privacy-pools accounts --agent --all-chains
 privacy-pools accounts --agent --summary
 privacy-pools accounts --agent --pending-only

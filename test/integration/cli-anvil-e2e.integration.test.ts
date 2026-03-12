@@ -490,7 +490,7 @@ describe("Anvil E2E", () => {
     expectSuccessStatus(syncResult, "sync after deposit");
 
     const accountsBefore = runCli(
-      ["--agent", "accounts", "--all", "--chain", "sepolia"],
+      ["--agent", "accounts", "--chain", "sepolia"],
       { home, timeoutMs: 120_000, env: cliEnv() }
     );
     expectSuccessStatus(accountsBefore, "accounts before ragequit");
@@ -533,7 +533,7 @@ describe("Anvil E2E", () => {
     expectSuccessStatus(syncAfter, "sync after ragequit");
 
     const accountsAfter = runCli(
-      ["--agent", "accounts", "--all", "--chain", "sepolia"],
+      ["--agent", "accounts", "--chain", "sepolia"],
       { home, timeoutMs: 120_000, env: cliEnv() }
     );
     expectSuccessStatus(accountsAfter, "accounts after ragequit");
@@ -584,7 +584,7 @@ describe("Anvil E2E", () => {
     await approveLabel(depositEvent.label);
 
     const accountsApproved = runCli(
-      ["--agent", "accounts", "--all", "--chain", "sepolia"],
+      ["--agent", "accounts", "--chain", "sepolia"],
       { home, timeoutMs: 120_000, env: cliEnv() }
     );
     expectSuccessStatus(accountsApproved, "accounts after approval");
@@ -637,7 +637,7 @@ describe("Anvil E2E", () => {
     expectSuccessStatus(syncAfter, "sync after direct withdraw");
 
     const accountsAfter = runCli(
-      ["--agent", "accounts", "--all", "--chain", "sepolia"],
+      ["--agent", "accounts", "--chain", "sepolia"],
       { home, timeoutMs: 120_000, env: cliEnv() }
     );
     expectSuccessStatus(accountsAfter, "accounts after direct withdraw");
@@ -732,7 +732,7 @@ describe("Anvil E2E", () => {
     expectSuccessStatus(syncAfter, "sync after relayed withdraw");
 
     const accountsAfter = runCli(
-      ["--agent", "accounts", "--all", "--chain", "sepolia"],
+      ["--agent", "accounts", "--chain", "sepolia"],
       { home, timeoutMs: 120_000, env: cliEnv() }
     );
     expectSuccessStatus(accountsAfter, "accounts after relayed withdraw");

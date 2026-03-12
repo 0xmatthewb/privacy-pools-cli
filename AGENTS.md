@@ -290,7 +290,7 @@ privacy-pools accounts --agent
 privacy-pools accounts --agent --all-chains
 privacy-pools accounts --agent --summary
 privacy-pools accounts --agent --pending-only
-privacy-pools accounts --agent --all --details
+privacy-pools accounts --agent --details
 ```
 
 When no `--chain` is specified, `accounts` aggregates all mainnets by default. Use `--all-chains` to include testnets.

@@ -332,7 +332,6 @@ const STUB_INIT: InitRenderResult = {
       },
     ],
     showDetails: false,
-    showAll: false,
     showSummary: false,
     showPendingOnly: false,
   };

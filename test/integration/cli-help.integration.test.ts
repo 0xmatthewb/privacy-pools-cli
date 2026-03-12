@@ -221,10 +221,10 @@ describe("CLI help and discovery", () => {
     expect(combined).not.toContain("Agent unsigned");
   });
 
-  test("accounts --help shows --all, --details, --no-sync", () => {
+  test("accounts --help shows --details, --no-sync, --all-chains", () => {
     const result = runCli(["accounts", "--help"], { home: createTempHome() });
     const combined = result.stdout + result.stderr;
-    expect(combined).toContain("--all");
+    expect(combined).toContain("--all-chains");
     expect(combined).toContain("--details");
     expect(combined).toContain("--no-sync");
     expect(combined).toContain("--summary");
