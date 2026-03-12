@@ -183,7 +183,7 @@ Safety notes:
   A vetting fee is deducted from the deposit amount by the pool's ASP.
   Only approved deposits can be withdrawn privately.
 Agent workflow:
-  Poll accounts --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts to confirm approval before attempting a private withdrawal.
+  Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm approval before attempting a private withdrawal. Always preserve the same --chain scope for both polling and confirmation.
 JSON output (--json):
   { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }

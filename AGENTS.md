@@ -25,7 +25,7 @@ privacy-pools pools --agent
 privacy-pools status --agent
 privacy-pools init --agent --default-chain mainnet --show-mnemonic
 privacy-pools deposit 0.1 ETH --agent
-privacy-pools accounts --agent --pending-only   # poll while the deposit remains pending
+privacy-pools accounts --agent --pending-only   # poll while the deposit remains pending; preserve --chain if not on mainnet
 privacy-pools withdraw 0.1 ETH --to 0xRecipient --agent
 ```
 

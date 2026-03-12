@@ -143,7 +143,7 @@
         "label": "decimal-string|null",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (poll accounts --pending-only while the Pool Account remains pending; then confirm approval in accounts)"
+        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm approval with accounts --chain <chain>)"
       },
       "variants": {
         "dryRun": {

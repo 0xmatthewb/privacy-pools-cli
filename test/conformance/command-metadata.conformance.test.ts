@@ -239,6 +239,31 @@ describe("command metadata conformance", () => {
     expect(normalizedSection).toContain("machine modes");
   });
 
+  test("deposit polling guidance preserves chain scope across metadata and skill docs", () => {
+    const depositNotes = getCommandMetadata("deposit").help?.agentWorkflowNotes ?? [];
+    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const contract = readFileSync(
+      `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.3.0.json`,
+      "utf8",
+    );
+    const normalizedSkill = normalizeWhitespace(skill);
+    const normalizedReference = normalizeWhitespace(reference);
+    const normalizedContract = normalizeWhitespace(contract);
+
+    expect(depositNotes).toContain(
+      "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm approval before attempting a private withdrawal. Always preserve the same --chain scope for both polling and confirmation.",
+    );
+    expect(normalizedSkill).toContain(
+      "privacy-pools accounts --agent --chain <chain> --pending-only",
+    );
+    expect(normalizedSkill).toContain("preserve --chain");
+    expect(normalizedReference).toContain("same chain scope");
+    expect(normalizedContract).toContain(
+      "poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm approval with accounts --chain <chain>",
+    );
+  });
+
   test("published docs do not contain malformed privacy-pools command examples", () => {
     const docsToCheck = [
       `${CLI_ROOT}/AGENTS.md`,

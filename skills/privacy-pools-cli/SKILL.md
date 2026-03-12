@@ -193,7 +193,7 @@ The CLI builds transaction payloads but does **not** sign or submit in `--unsign
 After submission, verify the deposit landed:
 
 ```bash
-privacy-pools accounts --agent --pending-only  # check for new Pool Account; follow nextActions from deposit response
+privacy-pools accounts --agent --chain <chain> --pending-only  # check for new Pool Account; preserve --chain and follow nextActions from deposit response
 ```
 
 ---

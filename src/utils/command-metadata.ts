@@ -329,7 +329,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
-        "Poll accounts --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts to confirm approval before attempting a private withdrawal.",
+        "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm approval before attempting a private withdrawal. Always preserve the same --chain scope for both polling and confirmation.",
       ],
     },
     capabilities: {
