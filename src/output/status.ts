@@ -57,7 +57,12 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
   const workflowChain = result.selectedChain ?? result.defaultChain;
   const notReady = !result.configExists || !result.recoveryPhraseSet;
-  const hasAccounts = result.accountFiles.length > 0;
+  // When a specific chain is selected, only consider accounts on that chain
+  // for next-step guidance — suggesting `accounts` when the user has deposits
+  // on a different chain is misleading.
+  const hasAccountsOnChain = result.selectedChain
+    ? result.accountFiles.some(([name]) => name === result.selectedChain)
+    : result.accountFiles.length > 0;
   const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
 
   // ── Build state-aware next-step guidance ──────────────────────────────
@@ -77,7 +82,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       { options: { agent: true, showMnemonic: true, ...agentChainOpts } })];
     humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
       { options: humanChainOpts })];
-  } else if (!hasAccounts) {
+  } else if (!hasAccountsOnChain) {
     agentNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
       { options: { agent: true, ...agentChainOpts } })];
     humanNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",

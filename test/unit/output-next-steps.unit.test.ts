@@ -604,4 +604,67 @@ describe("pools gated on setupReady", () => {
     expect(json.nextActions).toBeDefined();
     expect(json.nextActions[0].command).toBe("deposit");
   });
+
+  test("pool detail: setupReady: false suppresses JSON nextActions", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data = { ...STUB_POOL_DETAIL, setupReady: false as const };
+    const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toBeUndefined();
+  });
+
+  test("pool detail: setupReady: true preserves JSON nextActions", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data = { ...STUB_POOL_DETAIL, setupReady: true as const };
+    const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions[0].command).toBe("deposit");
+  });
+});
+
+// ── Status chain-aware hasAccounts ──────────────────────────────────────────
+
+describe("status chain-aware hasAccounts for next steps", () => {
+  function getJsonNextActions(result: StatusCheckResult) {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderStatus(ctx, result));
+    return JSON.parse(stdout.trim()).nextActions;
+  }
+
+  test("accounts on different chain → pools (not accounts) when chain selected", () => {
+    // User is on sepolia but only has mainnet accounts
+    const result = {
+      ...STUB_STATUS,
+      selectedChain: "sepolia",
+      accountFiles: [["mainnet", 1]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("pools");
+    expect(actions[0].when).toBe("status_ready_no_accounts");
+  });
+
+  test("accounts on same chain → accounts + pools", () => {
+    const result = {
+      ...STUB_STATUS,
+      selectedChain: "sepolia",
+      accountFiles: [["sepolia", 11155111]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(2);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[1].command).toBe("pools");
+  });
+
+  test("no selectedChain → any account counts", () => {
+    const result = {
+      ...STUB_STATUS,
+      selectedChain: null,
+      accountFiles: [["mainnet", 1]] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(2);
+    expect(actions[0].command).toBe("accounts");
+  });
 });

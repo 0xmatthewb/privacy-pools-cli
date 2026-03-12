@@ -301,6 +301,8 @@ export interface PoolDetailRenderData {
   tokenPrice: number | null;
   myPoolAccounts: PoolAccountRef[] | null;
   recentActivity: PoolDetailActivityEvent[] | null;
+  /** See PoolsRenderData.setupReady — same semantics. */
+  setupReady?: boolean;
 }
 
 /**
@@ -316,21 +318,24 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
   if (ctx.mode.isJson) {
     // Agents benefit from structured nextActions; human path stays quiet
     // because "deposit" is obvious after viewing pool details and requires user-supplied amount.
-    const nextActions = [
-      createNextAction(
-        "deposit",
-        "Deposit into this pool if its terms work for you.",
-        "after_pool_detail",
-        {
-          options: {
-            agent: true,
-            chain,
-            asset: pool.symbol,
-          },
-          runnable: false,
-        },
-      ),
-    ];
+    // Suppressed when the CLI is not initialized (same gate as list view).
+    const nextActions = data.setupReady !== false
+      ? [
+          createNextAction(
+            "deposit",
+            "Deposit into this pool if its terms work for you.",
+            "after_pool_detail",
+            {
+              options: {
+                agent: true,
+                chain,
+                asset: pool.symbol,
+              },
+              runnable: false,
+            },
+          ),
+        ]
+      : undefined;
     const payload: Record<string, unknown> = appendNextActions({
       chain,
       ...poolToJson(pool),

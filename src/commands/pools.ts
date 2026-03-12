@@ -261,6 +261,7 @@ export function createPoolsCommand(): Command {
             tokenPrice,
             myPoolAccounts,
             recentActivity,
+            setupReady: configExists() && mnemonicExists(),
           });
         } catch (error) {
           printError(error, mode.isJson);
