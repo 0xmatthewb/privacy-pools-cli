@@ -559,7 +559,7 @@ describe("status next steps vary by account state", () => {
     expect(actions[0].when).toBe("status_unsigned_has_accounts");
   });
 
-  test("not ready → init with --chain when chain is selected", () => {
+  test("not ready → init with --default-chain (not --chain) when chain is selected", () => {
     const result = {
       ...STUB_STATUS,
       configExists: false,
@@ -572,7 +572,9 @@ describe("status next steps vary by account state", () => {
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("init");
-    expect(actions[0].options.chain).toBe("sepolia");
+    // init accepts --default-chain, NOT --chain (which is a global workflow flag).
+    expect(actions[0].options.defaultChain).toBe("sepolia");
+    expect(actions[0].options.chain).toBeUndefined();
   });
 });
 
@@ -725,5 +727,111 @@ describe("status chain-aware hasAccounts for next steps", () => {
     expect(actions[0].command).toBe("accounts");
     expect(actions[0].when).toBe("status_ready_has_accounts");
     expect(actions[0].options?.allChains).toBe(true);
+  });
+});
+
+// ── Status human-mode chain hints ──────────────────────────────────────────
+
+describe("status human-mode chain hints", () => {
+  function getHumanStderr(result: StatusCheckResult): string {
+    const ctx = createOutputContext(makeMode({ isJson: false }));
+    const { stderr } = captureOutput(() => renderStatus(ctx, result));
+    return stderr;
+  }
+
+  test("default testnet → human pools hint includes --chain", () => {
+    // User configured default=sepolia, has no accounts. Human next step
+    // should include --chain sepolia so the command actually shows testnet pools.
+    const result: StatusCheckResult = {
+      ...STUB_STATUS,
+      defaultChain: "sepolia",
+      selectedChain: "sepolia",
+      accountFiles: [] as [string, number][],
+    };
+    const stderr = getHumanStderr(result);
+    expect(stderr).toContain("privacy-pools pools --chain sepolia");
+  });
+
+  test("default mainnet → human pools hint omits --chain", () => {
+    const result: StatusCheckResult = {
+      ...STUB_STATUS,
+      defaultChain: "mainnet",
+      selectedChain: "mainnet",
+      accountFiles: [] as [string, number][],
+    };
+    const stderr = getHumanStderr(result);
+    expect(stderr).toContain("privacy-pools pools");
+    expect(stderr).not.toContain("--chain");
+  });
+
+  test("not ready + default testnet → human init uses --default-chain (not --chain)", () => {
+    const result: StatusCheckResult = {
+      ...STUB_STATUS,
+      configExists: false,
+      recoveryPhraseSet: false,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+      accountFiles: [] as [string, number][],
+    };
+    const stderr = getHumanStderr(result);
+    expect(stderr).toContain("privacy-pools init --default-chain sepolia");
+    expect(stderr).not.toContain("init --chain");
+  });
+});
+
+// ── Withdraw quote recipient guard ─────────────────────────────────────────
+
+describe("withdraw quote next-step recipient guard", () => {
+  function getJsonNextActions(data: WithdrawQuoteData) {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderWithdrawQuote(ctx, data));
+    return JSON.parse(stdout.trim()).nextActions;
+  }
+
+  function getHumanStderr(data: WithdrawQuoteData): string {
+    const ctx = createOutputContext(makeMode({ isJson: false }));
+    const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
+    return stderr;
+  }
+
+  const BASE_QUOTE: WithdrawQuoteData = {
+    chain: "sepolia",
+    asset: "ETH",
+    amount: 50000000000000000n,
+    decimals: 18,
+    recipient: "0x" + "22".repeat(20),
+    minWithdrawAmount: "10000000000000000",
+    quoteFeeBPS: "100",
+    feeCommitmentPresent: true,
+    quoteExpiresAt: new Date(Date.now() + 60000).toISOString(),
+    tokenPrice: null,
+  };
+
+  test("with recipient → agent action includes --to and is runnable", () => {
+    const actions = getJsonNextActions(BASE_QUOTE);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("withdraw");
+    expect(actions[0].options.to).toBe(BASE_QUOTE.recipient);
+    expect(actions[0].runnable).not.toBe(false);
+  });
+
+  test("null recipient → agent action omits --to and is not runnable", () => {
+    const actions = getJsonNextActions({ ...BASE_QUOTE, recipient: null });
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("withdraw");
+    expect(actions[0].options.to).toBeUndefined();
+    expect(actions[0].runnable).toBe(false);
+  });
+
+  test("null recipient → human output hides the withdraw next step", () => {
+    const stderr = getHumanStderr({ ...BASE_QUOTE, recipient: null });
+    expect(stderr).not.toContain("privacy-pools withdraw");
+  });
+
+  test("with recipient → human output shows the withdraw next step", () => {
+    const stderr = getHumanStderr(BASE_QUOTE);
+    expect(stderr).toContain("privacy-pools withdraw");
+    expect(stderr).toContain("--to");
   });
 });

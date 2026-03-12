@@ -374,7 +374,7 @@ describe("renderStatus parity", () => {
         command: "init",
         reason: "Complete CLI setup before transacting.",
         when: "status_not_ready",
-        options: { agent: true, showMnemonic: true, chain: "sepolia" },
+        options: { agent: true, showMnemonic: true, defaultChain: "sepolia" },
       },
     ]);
   });

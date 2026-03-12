@@ -130,11 +130,16 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   // "Reachable" includes testnet-only deposits via --all-chains.
   //
   // Chain options:
-  //   - `pools`/`init`: always use workflowChain.
+  //   - `init`: uses `defaultChain` (init's flag is --default-chain, NOT --chain).
+  //   - `pools`: uses `chain`; humans get --chain when overridden OR default is testnet.
   //   - `accounts`: use accountsChainOpt or --all-chains (derived above).
+  const isDefaultTestnet = result.defaultChain ? (CHAINS[result.defaultChain]?.isTestnet ?? false) : false;
+  const initAgentChainOpts: Record<string, string> = workflowChain ? { defaultChain: workflowChain } : {};
+  const initHumanChainOpts: Record<string, string> | undefined =
+    workflowChain ? { defaultChain: workflowChain } : undefined;
   const poolsAgentChainOpts: Record<string, string> = workflowChain ? { chain: workflowChain } : {};
   const poolsHumanChainOpts: Record<string, string> | undefined =
-    chainOverridden && workflowChain ? { chain: workflowChain } : undefined;
+    (chainOverridden || isDefaultTestnet) && workflowChain ? { chain: workflowChain } : undefined;
   const accountsAgentChainOpts: Record<string, NextActionOptionValue> = accountsNeedsAllChains
     ? { allChains: true }
     : accountsChainOpt
@@ -151,9 +156,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   if (notReady) {
     agentNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
-      { options: { agent: true, showMnemonic: true, ...poolsAgentChainOpts } })];
+      { options: { agent: true, showMnemonic: true, ...initAgentChainOpts } })];
     humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
-      { options: poolsHumanChainOpts })];
+      { options: initHumanChainOpts })];
   } else if (unsignedOnly && !hasAccountsReachable) {
     agentNextActions = [createNextAction(
       "pools",

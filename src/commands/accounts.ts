@@ -132,10 +132,14 @@ async function loadAccountsForChain(
   const spendable = withSuppressedSdkStdoutSync(() =>
     accountService.getSpendableCommitments(),
   );
+  // Always include historical scopes so the renderer can distinguish "no
+  // spendable accounts" (user has history) from "no accounts at all".
+  // Without this, spent/exited-only users see "No Pool Accounts found"
+  // instead of the more helpful "No spendable Pool Accounts found. Use --all".
   const sortedScopeStrings = collectAccountScopeStrings(
     spendable,
     accountService.account,
-    !!opts.all || !!opts.summary,
+    true,
   );
 
   spin.text = `Checking ASP approval status on ${chainConfig.name}...`;

@@ -240,21 +240,29 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     return val === "-" ? "" : ` (${val})`;
   };
 
+  // When the recipient is missing, the command is a template — not directly runnable.
+  // Agents get the full action (with `to: null`) so they know to supply --to.
+  // Humans never see non-runnable actions (renderNextSteps filters them out).
+  const hasRecipient = data.recipient !== null && data.recipient !== undefined;
   const agentNextActions = [
     createNextAction(
       "withdraw",
-      "Submit the withdrawal promptly if the quoted fee is acceptable.",
+      hasRecipient
+        ? "Submit the withdrawal promptly if the quoted fee is acceptable."
+        : "Supply a --to address and submit the withdrawal.",
       "after_quote",
       {
         args: [formatUnits(data.amount, data.decimals), data.asset],
-        options: { agent: true, chain: data.chain, to: data.recipient, extraGas: data.extraGas ?? null },
+        options: { agent: true, chain: data.chain, ...(hasRecipient ? { to: data.recipient } : {}), extraGas: data.extraGas ?? null },
+        ...(!hasRecipient && { runnable: false }),
       },
     ),
   ];
 
   // Human: same real args; only include --chain when explicitly overridden.
-  // Suppress entirely when the fee makes the withdrawal uneconomical.
-  const humanNextActions = netAmount > 0n
+  // Suppress entirely when the fee makes the withdrawal uneconomical or
+  // when the recipient is missing (non-runnable commands are filtered out).
+  const humanNextActions = netAmount > 0n && hasRecipient
     ? [
         createNextAction(
           "withdraw",

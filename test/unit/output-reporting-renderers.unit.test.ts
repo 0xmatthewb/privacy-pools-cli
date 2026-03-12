@@ -449,7 +449,8 @@ describe("renderAccounts parity", () => {
       }),
     );
 
-    expect(stderr).toContain("No available Pool Accounts found");
+    // Group exists with empty poolAccounts → user has history (spent/exited filtered out).
+    expect(stderr).toContain("No spendable Pool Accounts found");
   });
 
   test("human mode (summary): shows USD column when tokenPrice is set", () => {

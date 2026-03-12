@@ -697,12 +697,20 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     } else if (showAll) {
       info("No Pool Accounts found.", silent);
     } else {
-      info(
-        includeChainFields
-          ? "No available Pool Accounts found. Deposit first, then run 'privacy-pools accounts'."
-          : `No available Pool Accounts found. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.`,
-        silent,
-      );
+      // Default view hides spent/exited accounts.  When pool groups exist but
+      // none had visible (spendable) pool accounts, the user has pool history
+      // that was filtered out — don't tell them to "deposit first".
+      const hasHiddenHistory = visibleGroups.length > 0;
+      if (hasHiddenHistory) {
+        info("No spendable Pool Accounts found. Use --all to include spent and exited accounts.", silent);
+      } else {
+        info(
+          includeChainFields
+            ? `No Pool Accounts found on ${allChains ? "any chain" : "mainnets"}. Deposit first, then run 'privacy-pools accounts'.`
+            : `No Pool Accounts found on ${chain}. Deposit first, then run 'privacy-pools accounts --chain ${chain}'.`,
+          silent,
+        );
+      }
     }
     if (!silent) process.stderr.write("\n");
     renderNextSteps(ctx, nextActions);
