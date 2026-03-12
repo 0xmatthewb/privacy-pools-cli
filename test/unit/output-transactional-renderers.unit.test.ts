@@ -259,8 +259,12 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Pending ASP approval");
+    // Human next step: clean command, no --chain, human-friendly reason
     expect(stderr).toContain("Next steps:");
-    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
+    expect(stderr).toContain("privacy-pools accounts");
+    expect(stderr).not.toContain("--chain");
+    expect(stderr).toContain("Check back until your deposit is approved");
+    expect(stderr).not.toContain("aspStatus");
   });
 
   test("human mode: omits Net deposited when committedValue is undefined", () => {
@@ -391,7 +395,8 @@ describe("renderRagequitSuccess parity", () => {
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).toContain("privacy-pools accounts");
+    // No human next steps — checking accounts after ragequit is obvious
+    expect(stderr).not.toContain("Next steps:");
   });
 
   test("human mode: omits Explorer when explorerUrl is null", () => {
@@ -653,7 +658,8 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).not.toContain("Relayer fee:");
-    expect(stderr).toContain("privacy-pools accounts");
+    // No human next steps — checking accounts after withdraw is obvious
+    expect(stderr).not.toContain("Next steps:");
   });
 
   test("human mode (relayed): includes relayer fee", () => {
@@ -665,7 +671,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrew");
     expect(stderr).toContain("Relayer fee: 0.50%");
-    expect(stderr).toContain("privacy-pools accounts");
+    expect(stderr).not.toContain("Next steps:");
   });
 
   test("human mode (direct): shows remaining balance", () => {

@@ -134,23 +134,19 @@ export interface WithdrawSuccessData {
 export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessData): void {
   guardCsvUnsupported(ctx, "withdraw");
 
-  const nextActions = [
-    createNextAction(
-      "accounts",
-      data.withdrawMode === "direct"
-        ? "Verify the updated balance after a direct withdrawal."
-        : "Verify the updated balance after the withdrawal settles.",
-      data.withdrawMode === "direct" ? "after_direct_withdrawal" : "after_withdrawal",
-      {
-        options: {
-          agent: true,
-          chain: data.chain,
-        },
-      },
-    ),
-  ];
-
   if (ctx.mode.isJson) {
+    // Agents benefit from structured follow-up; human path stays quiet
+    // because checking accounts after a withdrawal is obvious.
+    const nextActions = [
+      createNextAction(
+        "accounts",
+        data.withdrawMode === "direct"
+          ? "Verify the updated balance after a direct withdrawal."
+          : "Verify the updated balance after the withdrawal settles.",
+        data.withdrawMode === "direct" ? "after_direct_withdrawal" : "after_withdrawal",
+        { options: { agent: true, chain: data.chain } },
+      ),
+    ];
     const payload: Record<string, unknown> = appendNextActions({
       operation: "withdraw",
       mode: data.withdrawMode,
@@ -212,7 +208,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   } else {
     info(`Remaining in ${data.poolAccountId}: ${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`, silent);
   }
-  renderNextSteps(ctx, nextActions);
 }
 
 // ── Quote ────────────────────────────────────────────────────────────────────
@@ -255,19 +250,27 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     return val === "-" ? "" : ` (${val})`;
   };
 
-  const nextActions = [
+  const agentNextActions = [
     createNextAction(
       "withdraw",
       "Submit the withdrawal promptly if the quoted fee is acceptable.",
       "after_quote",
       {
         args: [formatUnits(data.amount, data.decimals), data.asset],
-        options: {
-          agent: true,
-          chain: data.chain,
-          to: data.recipient,
-          extraGas: data.extraGas ?? null,
-        },
+        options: { agent: true, chain: data.chain, to: data.recipient, extraGas: data.extraGas ?? null },
+      },
+    ),
+  ];
+
+  // Human: same real args, but no --chain (uses default).
+  const humanNextActions = [
+    createNextAction(
+      "withdraw",
+      "Submit the withdrawal promptly if the quoted fee is acceptable.",
+      "after_quote",
+      {
+        args: [formatUnits(data.amount, data.decimals), data.asset],
+        options: { to: data.recipient, extraGas: data.extraGas ?? null },
       },
     ),
   ];
@@ -286,7 +289,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       netAmount: netAmount.toString(),
       feeCommitmentPresent: data.feeCommitmentPresent,
       quoteExpiresAt: data.quoteExpiresAt,
-    }, nextActions) as Record<string, unknown>;
+    }, agentNextActions) as Record<string, unknown>;
     if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     printJsonSuccess(
       payload,
@@ -316,5 +319,5 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   if (data.extraGas) {
     info("Gas token drop: enabled (receive ETH for gas)", silent);
   }
-  renderNextSteps(ctx, nextActions);
+  renderNextSteps(ctx, humanNextActions);
 }

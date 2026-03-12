@@ -11,7 +11,6 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
-  renderNextSteps,
   info,
   isSilent,
   printCsv,
@@ -210,19 +209,6 @@ function buildDefaultNextActions(
   ];
 }
 
-/** Human-only: just the poll hint — withdraw is obvious and needs user-supplied args.
- *  Omits --chain since the user's default chain is already set from init/deposit context. */
-function buildPollNextActions(pendingCount: number) {
-  return pendingCount > 0
-    ? [
-        createNextAction(
-          "accounts",
-          "Poll again until pending deposits are approved for private withdrawal.",
-          "has_pending",
-        ),
-      ]
-    : [];
-}
 
 function buildPendingOnlyNextActions(chain: string, pendingCount: number) {
   return pendingCount > 0
@@ -501,7 +487,6 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       info("No available Pool Accounts found.", silent);
       if (!silent) process.stderr.write("\n");
     }
-    renderNextSteps(ctx, buildPollNextActions(summary.pendingCount));
     return;
   }
 
@@ -634,7 +619,4 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     }
   }
 
-  // Human path only shows the poll hint — withdraw is obvious and needs user-supplied args.
-  // JSON paths (above) include the full nextActions with withdraw for agent consumption.
-  renderNextSteps(ctx, buildPollNextActions(summary.pendingCount));
 }

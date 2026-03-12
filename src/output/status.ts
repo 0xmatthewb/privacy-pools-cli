@@ -52,33 +52,19 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const readyForDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
   const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
   const workflowChain = result.selectedChain ?? result.defaultChain;
-  const nextActions = !result.configExists || !result.recoveryPhraseSet
-    ? [
-        createNextAction(
-          "init",
-          "Complete CLI setup before transacting.",
-          "status_not_ready",
-          {
-            options: {
-              agent: true,
-              showMnemonic: true,
-            },
-          },
-        ),
-      ]
-    : [
-        createNextAction(
-          "pools",
-          "Browse pools now that the CLI is ready.",
-          "status_ready",
-          {
-            options: {
-              agent: true,
-              ...(workflowChain ? { chain: workflowChain } : {}),
-            },
-          },
-        ),
-      ];
+  const notReady = !result.configExists || !result.recoveryPhraseSet;
+
+  // Agents get --show-mnemonic (to capture the phrase in JSON) and explicit --chain.
+  const agentNextActions = notReady
+    ? [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
+        { options: { agent: true, showMnemonic: true } })]
+    : [createNextAction("pools", "Browse pools now that the CLI is ready.", "status_ready",
+        { options: { agent: true, ...(workflowChain ? { chain: workflowChain } : {}) } })];
+
+  // Humans get clean commands: no --show-mnemonic, no --chain (uses their default).
+  const humanNextActions = notReady
+    ? [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready")]
+    : [createNextAction("pools", "Browse pools now that the CLI is ready.", "status_ready")];
 
   if (ctx.mode.isJson) {
     const status: Record<string, unknown> = appendNextActions({
@@ -95,7 +81,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       entrypoint: result.entrypoint,
       aspHost: result.aspHost,
       accountFiles: result.accountFiles.map(([name, chainId]) => ({ chain: name, chainId })),
-    }, nextActions) as Record<string, unknown>;
+    }, agentNextActions) as Record<string, unknown>;
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
@@ -196,5 +182,5 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       warn("Not ready: run 'privacy-pools init' to get started", silent);
     }
   }
-  renderNextSteps(ctx, nextActions);
+  renderNextSteps(ctx, humanNextActions);
 }

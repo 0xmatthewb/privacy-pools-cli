@@ -220,15 +220,9 @@ function stderrContainsNextSteps(stderr: string): boolean {
   return stderr.includes("Next steps:");
 }
 
-// ── Parity tests ────────────────────────────────────────────────────────────
+// ── Shared stubs ─────────────────────────────────────────────────────────────
 
-describe("next-step parity across renderers", () => {
-  /**
-   * For each renderer, verify that when JSON mode emits nextActions,
-   * human mode emits "Next steps:" with a matching command string.
-   */
-
-  const STUB_INIT: InitRenderResult = {
+const STUB_INIT: InitRenderResult = {
     defaultChain: "sepolia",
     signerKeySet: true,
     mnemonicImported: false,
@@ -363,6 +357,11 @@ describe("next-step parity across renderers", () => {
     tokenPrice: null,
   };
 
+// ── Parity tests ────────────────────────────────────────────────────────────
+
+describe("next-step parity across renderers", () => {
+  // Commands where humans genuinely benefit from next-step guidance:
+  // workflow inflection points with non-obvious or pre-assembled commands.
   const cases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
     {
       name: "renderInitResult",
@@ -379,20 +378,6 @@ describe("next-step parity across renderers", () => {
       },
     },
     {
-      name: "renderWithdrawSuccess",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderWithdrawSuccess(ctx, STUB_WITHDRAW));
-      },
-    },
-    {
-      name: "renderRagequitSuccess",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderRagequitSuccess(ctx, STUB_RAGEQUIT));
-      },
-    },
-    {
       name: "renderWithdrawQuote",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
@@ -404,13 +389,6 @@ describe("next-step parity across renderers", () => {
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
         return captureOutput(() => renderStatus(ctx, STUB_STATUS));
-      },
-    },
-    {
-      name: "renderAccounts (with pending → poll hint)",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
       },
     },
     {
@@ -435,8 +413,11 @@ describe("next-step parity across renderers", () => {
 });
 
 // ── JSON-only nextActions (human path intentionally quiet) ──────────────────
+// These commands provide nextActions for agents but stay quiet for humans because
+// either the next step is obvious (accounts after withdraw/ragequit) or requires
+// user-supplied args (deposit after browsing pools).
 
-describe("JSON-only nextActions (browsing commands)", () => {
+describe("JSON-only nextActions (agent-only follow-ups)", () => {
   const jsonOnlyCases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
     {
       name: "renderPools",
@@ -450,6 +431,27 @@ describe("JSON-only nextActions (browsing commands)", () => {
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
         return captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL));
+      },
+    },
+    {
+      name: "renderWithdrawSuccess",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderWithdrawSuccess(ctx, STUB_WITHDRAW));
+      },
+    },
+    {
+      name: "renderRagequitSuccess",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderRagequitSuccess(ctx, STUB_RAGEQUIT));
+      },
+    },
+    {
+      name: "renderAccounts",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
       },
     },
   ];
