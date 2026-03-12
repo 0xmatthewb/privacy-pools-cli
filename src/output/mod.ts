@@ -61,7 +61,8 @@ export {
   renderAccountsNoPools,
   renderAccounts,
   type AccountPoolGroup,
-  type AccountsEmptyRenderOptions,
+  type AccountWarning,
+  type AccountsEmptyRenderData,
   type AccountsRenderData,
 } from "./accounts.js";
 export {

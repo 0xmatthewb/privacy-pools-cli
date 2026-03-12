@@ -135,19 +135,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   guardCsvUnsupported(ctx, "withdraw");
 
   if (ctx.mode.isJson) {
-    // Agents benefit from structured follow-up; human path stays quiet
-    // because checking accounts after a withdrawal is obvious.
-    const nextActions = [
-      createNextAction(
-        "accounts",
-        data.withdrawMode === "direct"
-          ? "Verify the updated balance after a direct withdrawal."
-          : "Verify the updated balance after the withdrawal settles.",
-        data.withdrawMode === "direct" ? "after_direct_withdrawal" : "after_withdrawal",
-        { options: { agent: true, chain: data.chain } },
-      ),
-    ];
-    const payload: Record<string, unknown> = appendNextActions({
+    const payload: Record<string, unknown> = {
       operation: "withdraw",
       mode: data.withdrawMode,
       txHash: data.txHash,
@@ -162,7 +150,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       poolAccountNumber: data.poolAccountNumber,
       poolAccountId: data.poolAccountId,
       remainingBalance: data.remainingBalance.toString(),
-    }, nextActions) as Record<string, unknown>;
+    };
     if (data.withdrawMode === "direct") {
       payload.fee = null;
     } else {

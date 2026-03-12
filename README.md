@@ -96,8 +96,8 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 Every response is wrapped in a versioned envelope:
 
 ```json
-{ "schemaVersion": "1.2.0", "success": true, ...commandPayload }
-{ "schemaVersion": "1.2.0", "success": false, "errorCode": "INPUT_ERROR", "errorMessage": "..." }
+{ "schemaVersion": "1.3.0", "success": true, ...commandPayload }
+{ "schemaVersion": "1.3.0", "success": false, "errorCode": "INPUT_ERROR", "errorMessage": "..." }
 ```
 
 stdout is always JSON. stderr carries human-readable output. Pipe safely to `jq`.

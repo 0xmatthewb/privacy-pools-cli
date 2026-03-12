@@ -117,15 +117,7 @@ describe("renderPools parity", () => {
     expect(json.pools.length).toBe(1);
     expect(json.pools[0].asset).toBe("ETH");
     expect(json.pools[0].tokenAddress).toBe("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
-    expect(json.nextActions).toEqual([
-      {
-        command: "deposit",
-        reason: "Deposit into a pool after reviewing its terms.",
-        when: "after_browse",
-        options: { agent: true, chain: "sepolia" },
-        runnable: false,
-      },
-    ]);
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 
@@ -206,7 +198,7 @@ describe("poolToJson", () => {
 describe("renderAccountsNoPools parity", () => {
   test("JSON mode: emits empty accounts envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, { chain: "sepolia" }));
 
     const json = JSON.parse(stdout.trim());
     expect(json.success).toBe(true);
@@ -217,7 +209,7 @@ describe("renderAccountsNoPools parity", () => {
   test("JSON mode with --summary shape: emits zero-count summary envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
-      renderAccountsNoPools(ctx, "sepolia", { summary: true }),
+      renderAccountsNoPools(ctx, { chain: "sepolia", summary: true }),
     );
 
     const json = JSON.parse(stdout.trim());
@@ -229,7 +221,7 @@ describe("renderAccountsNoPools parity", () => {
 
   test("human mode: emits no-pools message", () => {
     const ctx = createOutputContext(makeMode());
-    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, { chain: "sepolia" }));
 
     expect(stdout).toBe("");
     expect(stderr).toContain("No pools found on sepolia");
@@ -237,7 +229,7 @@ describe("renderAccountsNoPools parity", () => {
 
   test("quiet mode: emits nothing", () => {
     const ctx = createOutputContext(makeMode({ isQuiet: true }));
-    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, { chain: "sepolia" }));
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
@@ -256,6 +248,8 @@ describe("renderAccounts parity", () => {
   };
 
   const STUB_GROUP: AccountPoolGroup = {
+    chain: "sepolia",
+    chainId: 11155111,
     symbol: "ETH",
     poolAddress: "0x1111111111111111111111111111111111111111",
     decimals: 18,
@@ -296,7 +290,6 @@ describe("renderAccounts parity", () => {
     const { stdout, stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
@@ -311,16 +304,9 @@ describe("renderAccounts parity", () => {
     expect(json.accounts.length).toBe(1);
     expect(json.accounts[0].poolAccountId).toBe("PA-1");
     expect(json.accounts[0].aspStatus).toBe("approved");
+    expect(typeof json.accounts[0].explorerUrl).toBe("string");
     expect(json.accounts[0].explorerUrl).toContain("etherscan.io");
-    expect(json.nextActions).toEqual([
-      {
-        command: "withdraw",
-        reason: "Withdraw approved funds from a Pool Account.",
-        when: "has_spendable",
-        options: { agent: true, chain: "sepolia", asset: "ETH" },
-        runnable: false,
-      },
-    ]);
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 
@@ -329,7 +315,6 @@ describe("renderAccounts parity", () => {
     const { stdout, stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
@@ -353,7 +338,6 @@ describe("renderAccounts parity", () => {
     const { stdout } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_PENDING_GROUP],
         showDetails: false,
         showAll: false,
@@ -380,7 +364,7 @@ describe("renderAccounts parity", () => {
         command: "accounts",
         reason: "Poll again until pending deposits are approved for private withdrawal.",
         when: "has_pending",
-        options: { agent: true, chain: "sepolia" },
+        options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
     ]);
   });
@@ -390,7 +374,6 @@ describe("renderAccounts parity", () => {
     const { stdout } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP, STUB_PENDING_GROUP],
         showDetails: false,
         showAll: false,
@@ -419,7 +402,6 @@ describe("renderAccounts parity", () => {
     const { stdout, stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: true,
         showAll: false,
@@ -440,7 +422,6 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: true,
         showAll: false,
@@ -460,7 +441,6 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [emptyGroup],
         showDetails: false,
         showAll: false,
@@ -477,7 +457,6 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP_WITH_USD],
         showDetails: false,
         showAll: false,
@@ -495,7 +474,6 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
@@ -512,7 +490,6 @@ describe("renderAccounts parity", () => {
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP_WITH_USD],
         showDetails: true,
         showAll: false,
@@ -530,7 +507,6 @@ describe("renderAccounts parity", () => {
     const { stdout, stderr } = captureOutput(() =>
       renderAccounts(ctx, {
         chain: "sepolia",
-        chainId: 11155111,
         groups: [STUB_GROUP],
         showDetails: false,
         showAll: false,
@@ -760,9 +736,7 @@ describe("renderPoolDetail parity", () => {
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
-    expect(json.nextActions).toBeDefined();
-    expect(json.nextActions[0].command).toBe("deposit");
-    expect(json.nextActions[0].when).toBe("after_pool_detail");
+    expect(json.nextActions).toBeUndefined();
 
     // myFunds shape
     expect(json.myFunds).toBeDefined();

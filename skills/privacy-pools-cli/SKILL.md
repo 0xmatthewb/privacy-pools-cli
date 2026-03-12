@@ -1,6 +1,6 @@
 ---
 name: privacy-pools-cli
-version: 1.2.0
+version: 1.3.0
 description: >
   Deposit, withdraw, and manage funds in Privacy Pools v1 on Ethereum, Arbitrum,
   and Optimism. Use when the user or agent needs to interact with Privacy Pools:
@@ -42,10 +42,10 @@ Package: `privacy-pools-cli` on npm. Binary: `privacy-pools`.
 | Check status | `privacy-pools status --agent --check` | No wallet needed |
 | Discover capabilities | `privacy-pools capabilities --agent` | No wallet needed |
 | Describe one command | `privacy-pools describe withdraw quote --agent` | No wallet needed |
-| Initialize wallet | `privacy-pools init --agent --default-chain mainnet` | One-time setup |
+| Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-mnemonic` | One-time setup |
 | Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
-| Check accounts | `privacy-pools accounts --agent` | Poll for aspStatus; includes balances |
+| Check accounts | `privacy-pools accounts --agent` | Dashboard view across all mainnets by default |
 | Compact account poll | `privacy-pools accounts --agent --summary` | Counts + balances only |
 | Pending-only poll | `privacy-pools accounts --agent --pending-only` | Pending approvals only |
 | Withdraw (relayed) | `privacy-pools withdraw 0.05 ETH --to 0x... --agent` | Requires init |
@@ -72,19 +72,19 @@ All commands also accept `--json`, `--yes`, and `--quiet` individually.
 
 ---
 
-## 2. JSON output contract (v1.2.0)
+## 2. JSON output contract (v1.3.0)
 
 Every response when `--json` or `--agent` is set:
 
 ```json
-{ "schemaVersion": "1.2.0", "success": true, ...payload }
+{ "schemaVersion": "1.3.0", "success": true, ...payload }
 ```
 
 Errors:
 
 ```json
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -116,7 +116,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -193,7 +193,7 @@ The CLI builds transaction payloads but does **not** sign or submit in `--unsign
 After submission, verify the deposit landed:
 
 ```bash
-privacy-pools accounts --agent  # poll until new Pool Account appears
+privacy-pools accounts --agent --pending-only  # poll until new Pool Account appears
 ```
 
 ---
@@ -248,9 +248,9 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 
 ```
 1. privacy-pools capabilities --agent                                   # Discover all commands
-2. privacy-pools describe deposit --agent                               # Inspect one command if needed
-3. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
-4. privacy-pools init --agent --default-chain mainnet                   # Initialize (once)
+2. privacy-pools status --agent                                         # Check setup and health
+3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
+4. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
 5. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
 6. privacy-pools accounts --agent --pending-only                        # Poll until aspStatus: "approved"
 7. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw

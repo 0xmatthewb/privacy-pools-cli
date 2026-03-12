@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { appendNextActions, createNextAction, renderNextSteps, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
+import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
@@ -41,10 +41,6 @@ export interface PoolsRenderData {
   filteredPools: PoolWithChain[];
   chainSummaries?: ChainSummary[];
   warnings: PoolWarning[];
-  /** True when the CLI is initialized (config + mnemonic exist). When false,
-   *  next-step guidance is suppressed — suggesting `deposit` to a user who
-   *  hasn't run `init` yet is misleading. */
-  setupReady?: boolean;
 }
 
 // ── Helpers (moved from command) ─────────────────────────────────────────────
@@ -130,63 +126,23 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
 export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
 
-  // ── Next-step guidance (shared across JSON / human paths) ────────────
-  // Suppressed entirely when the CLI is not initialized — suggesting
-  // `deposit` to a first-run user who hasn't run `init` is misleading.
-  const showNextSteps = data.setupReady !== false && filteredPools.length > 0;
-
-  const agentNextActions = showNextSteps
-    ? [
-        createNextAction(
-          "deposit",
-          allChains
-            ? "Choose a pool from the results, then deposit into it."
-            : "Deposit into a pool after reviewing its terms.",
-          "after_browse",
-          {
-            options: {
-              agent: true,
-              ...(!allChains ? { chain: chainName } : {}),
-            },
-            runnable: false,
-          },
-        ),
-      ]
-    : undefined;
-
-  const humanNextActions = showNextSteps
-    ? [
-        createNextAction(
-          "deposit",
-          allChains
-            ? "Choose a pool from the results, then deposit into it."
-            : "Deposit into a pool after reviewing its terms.",
-          "after_browse",
-          {
-            options: !allChains ? { chain: chainName } : undefined,
-            runnable: false,
-          },
-        ),
-      ]
-    : undefined;
-
   if (ctx.mode.isJson) {
     if (allChains) {
-      printJsonSuccess(appendNextActions({
+      printJsonSuccess({
         allChains: true,
         search,
         sort,
         chains: chainSummaries,
         pools: filteredPools.map((entry) => poolToJson(entry.pool, entry.chain)),
         warnings: warnings.length > 0 ? warnings : undefined,
-      }, agentNextActions));
+      });
     } else {
-      printJsonSuccess(appendNextActions({
+      printJsonSuccess({
         chain: chainName,
         search,
         sort,
         pools: filteredPools.map((entry) => poolToJson(entry.pool)),
-      }, agentNextActions));
+      });
     }
     return;
   }
@@ -283,7 +239,6 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       "Pending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
     ),
   );
-  renderNextSteps(ctx, humanNextActions);
 }
 
 // ── Detail View ─────────────────────────────────────────────────────────────
@@ -301,8 +256,6 @@ export interface PoolDetailRenderData {
   tokenPrice: number | null;
   myPoolAccounts: PoolAccountRef[] | null;
   recentActivity: PoolDetailActivityEvent[] | null;
-  /** See PoolsRenderData.setupReady — same semantics. */
-  setupReady?: boolean;
 }
 
 /**
@@ -316,30 +269,10 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
   guardCsvUnsupported(ctx, "pools <asset>");
 
   if (ctx.mode.isJson) {
-    // Agents benefit from structured nextActions; human path stays quiet
-    // because "deposit" is obvious after viewing pool details and requires user-supplied amount.
-    // Suppressed when the CLI is not initialized (same gate as list view).
-    const nextActions = data.setupReady !== false
-      ? [
-          createNextAction(
-            "deposit",
-            "Deposit into this pool if its terms work for you.",
-            "after_pool_detail",
-            {
-              options: {
-                agent: true,
-                chain,
-                asset: pool.symbol,
-              },
-              runnable: false,
-            },
-          ),
-        ]
-      : undefined;
-    const payload: Record<string, unknown> = appendNextActions({
+    const payload: Record<string, unknown> = {
       chain,
       ...poolToJson(pool),
-    }, nextActions) as Record<string, unknown>;
+    };
 
     if (myPoolAccounts !== null) {
       const spendable = myPoolAccounts.filter((pa) => pa.status === "spendable");

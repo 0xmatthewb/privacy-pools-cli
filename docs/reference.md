@@ -101,6 +101,7 @@ List your Pool Accounts with balances, ASP approval status, and account lifecycl
 
 ```bash
 privacy-pools accounts
+privacy-pools accounts --all-chains           # include testnets too
 privacy-pools accounts --all                  # include spent and exited accounts
 privacy-pools accounts --details              # show commitment hashes, labels, and tx info
 privacy-pools accounts --summary              # counts + balances only
@@ -111,12 +112,15 @@ privacy-pools accounts --pending-only         # pending approvals only
 |------|-------------|
 | `--no-sync` | Skip syncing account state before displaying |
 | `--all` | Include exited and fully spent Pool Accounts |
+| `--all-chains` | Aggregate testnets too (default without `--chain` is all mainnets) |
 | `--details` | Show low-level commitment details (hash, label, block, tx) |
 | `--summary` | Show counts and balances without listing every Pool Account |
 | `--pending-only` | Show only Pool Accounts with `aspStatus: pending` |
 
 **Pool Account statuses:** `spendable` (can withdraw), `spent` (fully withdrawn), `exited` (exit/ragequit).
 **ASP statuses:** `approved` (can withdraw privately), `pending` (waiting for ASP), `unknown`.
+
+Without `--chain`, `accounts` acts like a dashboard and aggregates your holdings across all mainnets. Use `--all-chains` to include testnets or `--chain <name>` to focus on one chain.
 
 Compact modes are intended for polling loops. `--summary` and `--pending-only` do not support `--details`, and `--pending-only` also omits balances.
 

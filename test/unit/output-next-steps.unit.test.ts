@@ -4,8 +4,8 @@
  * Verifies:
  *   1. formatNextActionCommand produces correct CLI strings
  *   2. renderNextSteps respects isSilent (quiet / agent / json / csv)
- *   3. Human-mode output from each transactional renderer includes "Next steps:"
- *      whenever the JSON output includes nextActions (parity guarantee)
+ *   3. Human-mode output only renders next-step guidance where the CLI now
+ *      intentionally exposes it, and browse/post-success surfaces stay quiet
  */
 
 import { describe, expect, test } from "bun:test";
@@ -296,9 +296,10 @@ const STUB_INIT: InitRenderResult = {
 
   const STUB_ACCOUNTS: AccountsRenderData = {
     chain: "sepolia",
-    chainId: 11155111,
     groups: [
       {
+        chain: "sepolia",
+        chainId: 11155111,
         symbol: "ETH",
         poolAddress: "0x" + "11".repeat(20),
         decimals: 18,
@@ -360,21 +361,12 @@ const STUB_INIT: InitRenderResult = {
 // ── Parity tests ────────────────────────────────────────────────────────────
 
 describe("next-step parity across renderers", () => {
-  // Commands where humans genuinely benefit from next-step guidance:
-  // workflow inflection points with non-obvious or pre-assembled commands.
   const cases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
     {
       name: "renderInitResult",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
         return captureOutput(() => renderInitResult(ctx, STUB_INIT));
-      },
-    },
-    {
-      name: "renderDepositSuccess",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderDepositSuccess(ctx, STUB_DEPOSIT));
       },
     },
     {
@@ -392,10 +384,10 @@ describe("next-step parity across renderers", () => {
       },
     },
     {
-      name: "renderSyncComplete",
+      name: "renderAccounts",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderSyncComplete(ctx, STUB_SYNC));
+        return captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
       },
     },
   ];
@@ -412,13 +404,8 @@ describe("next-step parity across renderers", () => {
   }
 });
 
-// ── JSON-only nextActions (human path intentionally quiet) ──────────────────
-// These commands provide nextActions for agents but stay quiet for humans because
-// either the next step is obvious (accounts after withdraw/ragequit) or requires
-// user-supplied args (deposit after browsing pools).
-
-describe("JSON-only nextActions (agent-only follow-ups)", () => {
-  const jsonOnlyCases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
+describe("surfaces without next steps stay quiet", () => {
+  const cases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
     {
       name: "renderPools",
       render: (json) => {
@@ -448,19 +435,19 @@ describe("JSON-only nextActions (agent-only follow-ups)", () => {
       },
     },
     {
-      name: "renderAccounts",
+      name: "renderSyncComplete",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
+        return captureOutput(() => renderSyncComplete(ctx, STUB_SYNC));
       },
     },
   ];
 
-  for (const { name, render } of jsonOnlyCases) {
-    test(`${name}: JSON nextActions present, human "Next steps:" absent`, () => {
+  for (const { name, render } of cases) {
+    test(`${name}: JSON and human output omit next-step guidance`, () => {
       const jsonResult = render(true);
       const jsonCommands = getJsonNextActionCommands(jsonResult.stdout);
-      expect(jsonCommands.length).toBeGreaterThan(0);
+      expect(jsonCommands).toHaveLength(0);
 
       const humanResult = render(false);
       expect(stderrContainsNextSteps(humanResult.stderr)).toBe(false);
@@ -468,44 +455,13 @@ describe("JSON-only nextActions (agent-only follow-ups)", () => {
   }
 });
 
-// ── runnable: false on template nextActions ──────────────────────────────────
-// Commands that suggest follow-ups requiring user-supplied args should mark
-// them as templates so agents know they can't be executed as-is.
-
-describe("template nextActions marked runnable: false", () => {
+describe("emitted nextActions are fully runnable", () => {
   function getNextActions(stdout: string) {
     const json = JSON.parse(stdout.trim());
     return json.nextActions ?? [];
   }
 
-  test("pools → deposit is marked runnable: false", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout } = captureOutput(() => renderPools(ctx, STUB_POOLS));
-    const actions = getNextActions(stdout);
-    expect(actions.length).toBeGreaterThan(0);
-    expect(actions[0].command).toBe("deposit");
-    expect(actions[0].runnable).toBe(false);
-  });
-
-  test("pool detail → deposit is marked runnable: false", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL));
-    const actions = getNextActions(stdout);
-    expect(actions.length).toBeGreaterThan(0);
-    expect(actions[0].command).toBe("deposit");
-    expect(actions[0].runnable).toBe(false);
-  });
-
-  test("accounts → withdraw is marked runnable: false", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout } = captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
-    const actions = getNextActions(stdout);
-    const withdrawAction = actions.find((a: any) => a.command === "withdraw");
-    expect(withdrawAction).toBeDefined();
-    expect(withdrawAction.runnable).toBe(false);
-  });
-
-  test("fully-specified nextActions omit runnable (defaults to true)", () => {
+  test("init nextActions omit runnable", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() => renderInitResult(ctx, STUB_INIT));
     const actions = getNextActions(stdout);
@@ -513,6 +469,15 @@ describe("template nextActions marked runnable: false", () => {
     for (const action of actions) {
       expect(action.runnable).toBeUndefined();
     }
+  });
+
+  test("accounts poll nextActions omit runnable", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
+    const actions = getNextActions(stdout);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].runnable).toBeUndefined();
   });
 });
 
@@ -560,12 +525,38 @@ describe("status next steps vary by account state", () => {
     expect(actions[0].when).toBe("status_ready_no_accounts");
   });
 
-  test("ready + has accounts → accounts + pools", () => {
+  test("ready + has accounts → accounts only", () => {
     const actions = getJsonNextActions(STUB_STATUS);
-    expect(actions).toHaveLength(2);
+    expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("accounts");
-    expect(actions[1].command).toBe("pools");
     expect(actions[0].when).toBe("status_ready_has_accounts");
+  });
+
+  test("unsigned-only + no accounts → pools in read-only mode", () => {
+    const result = {
+      ...STUB_STATUS,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+      accountFiles: [] as [string, number][],
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("pools");
+    expect(actions[0].when).toBe("status_unsigned_no_accounts");
+  });
+
+  test("unsigned-only + has accounts → accounts in read-only mode", () => {
+    const result = {
+      ...STUB_STATUS,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+    };
+    const actions = getJsonNextActions(result);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_unsigned_has_accounts");
   });
 
   test("not ready → init with --chain when chain is selected", () => {
@@ -582,44 +573,6 @@ describe("status next steps vary by account state", () => {
     expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("init");
     expect(actions[0].options.chain).toBe("sepolia");
-  });
-});
-
-// ── Pools suppresses nextActions when CLI not initialized ───────────────────
-
-describe("pools gated on setupReady", () => {
-  test("setupReady: false suppresses JSON nextActions", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const data = { ...STUB_POOLS, setupReady: false as const };
-    const { stdout } = captureOutput(() => renderPools(ctx, data));
-    const json = JSON.parse(stdout.trim());
-    expect(json.nextActions).toBeUndefined();
-  });
-
-  test("setupReady: true preserves JSON nextActions", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const data = { ...STUB_POOLS, setupReady: true as const };
-    const { stdout } = captureOutput(() => renderPools(ctx, data));
-    const json = JSON.parse(stdout.trim());
-    expect(json.nextActions).toBeDefined();
-    expect(json.nextActions[0].command).toBe("deposit");
-  });
-
-  test("pool detail: setupReady: false suppresses JSON nextActions", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const data = { ...STUB_POOL_DETAIL, setupReady: false as const };
-    const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
-    const json = JSON.parse(stdout.trim());
-    expect(json.nextActions).toBeUndefined();
-  });
-
-  test("pool detail: setupReady: true preserves JSON nextActions", () => {
-    const ctx = createOutputContext(makeMode({ isJson: true }));
-    const data = { ...STUB_POOL_DETAIL, setupReady: true as const };
-    const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
-    const json = JSON.parse(stdout.trim());
-    expect(json.nextActions).toBeDefined();
-    expect(json.nextActions[0].command).toBe("deposit");
   });
 });
 
@@ -645,16 +598,15 @@ describe("status chain-aware hasAccounts for next steps", () => {
     expect(actions[0].when).toBe("status_ready_no_accounts");
   });
 
-  test("accounts on same chain → accounts + pools", () => {
+  test("accounts on same chain → accounts", () => {
     const result = {
       ...STUB_STATUS,
       selectedChain: "sepolia",
       accountFiles: [["sepolia", 11155111]] as [string, number][],
     };
     const actions = getJsonNextActions(result);
-    expect(actions).toHaveLength(2);
+    expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("accounts");
-    expect(actions[1].command).toBe("pools");
   });
 
   test("no selectedChain → any account counts", () => {
@@ -664,7 +616,7 @@ describe("status chain-aware hasAccounts for next steps", () => {
       accountFiles: [["mainnet", 1]] as [string, number][],
     };
     const actions = getJsonNextActions(result);
-    expect(actions).toHaveLength(2);
+    expect(actions).toHaveLength(1);
     expect(actions[0].command).toBe("accounts");
   });
 });

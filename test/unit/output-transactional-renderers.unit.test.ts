@@ -41,12 +41,6 @@ describe("renderInitResult parity", () => {
         when: "after_init",
         options: { agent: true, chain: "sepolia" },
       },
-      {
-        command: "pools",
-        reason: "Browse pools on the configured default chain before depositing.",
-        when: "after_init",
-        options: { agent: true, chain: "sepolia" },
-      },
     ]);
     expect(stderr).toBe("");
   });
@@ -228,7 +222,7 @@ describe("renderDepositSuccess parity", () => {
         command: "accounts",
         reason: "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
         when: "after_deposit",
-        options: { agent: true, chain: "sepolia" },
+        options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
     ]);
     expect(stderr).toBe("");
@@ -259,22 +253,7 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Pending ASP approval");
-    // Human next step: omits --chain when chainOverridden is falsy (default chain),
-    // human-friendly reason (no "aspStatus" JSON field name).
-    expect(stderr).toContain("Next steps:");
-    expect(stderr).toContain("privacy-pools accounts");
-    expect(stderr).not.toContain("--chain");
-    expect(stderr).toContain("Check back until your deposit is approved");
-    expect(stderr).not.toContain("aspStatus");
-  });
-
-  test("human mode: includes --chain when chainOverridden is true", () => {
-    const ctx = createOutputContext(makeMode());
-    const { stderr } = captureOutput(() =>
-      renderDepositSuccess(ctx, { ...STUB_DEPOSIT_SUCCESS, chainOverridden: true }),
-    );
-
-    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
+    expect(stderr).not.toContain("Next steps:");
   });
 
   test("human mode: omits Net deposited when committedValue is undefined", () => {
@@ -382,14 +361,7 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.scope).toBe("42");
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
-    expect(json.nextActions).toEqual([
-      {
-        command: "accounts",
-        reason: "Verify that the Pool Account is now marked as exited.",
-        when: "after_ragequit",
-        options: { agent: true, chain: "sepolia" },
-      },
-    ]);
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 
@@ -599,14 +571,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextActions).toEqual([
-      {
-        command: "accounts",
-        reason: "Verify the updated balance after a direct withdrawal.",
-        when: "after_direct_withdrawal",
-        options: { agent: true, chain: "sepolia" },
-      },
-    ]);
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 
@@ -621,14 +586,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextActions).toEqual([
-      {
-        command: "accounts",
-        reason: "Verify the updated balance after the withdrawal settles.",
-        when: "after_withdrawal",
-        options: { agent: true, chain: "sepolia" },
-      },
-    ]);
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 

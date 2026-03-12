@@ -8,8 +8,6 @@
 
 import type { OutputContext } from "./common.js";
 import {
-  appendNextActions,
-  createNextAction,
   printJsonSuccess,
   success,
   info,
@@ -88,14 +86,8 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   guardCsvUnsupported(ctx, "ragequit");
 
   if (ctx.mode.isJson) {
-    // Agents benefit from structured follow-up; human path stays quiet
-    // because checking accounts after a ragequit is obvious.
-    const nextActions = [
-      createNextAction("accounts", "Verify that the Pool Account is now marked as exited.", "after_ragequit",
-        { options: { agent: true, chain: data.chain } }),
-    ];
     printJsonSuccess(
-      appendNextActions({
+      {
         operation: "ragequit",
         txHash: data.txHash,
         amount: data.amount.toString(),
@@ -107,7 +99,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         scope: data.scope.toString(),
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
-      }, nextActions),
+      },
       false,
     );
     return;

@@ -64,7 +64,7 @@ Examples:
   privacy-pools init
   privacy-pools init --yes --default-chain mainnet
   privacy-pools init --force --yes --default-chain mainnet
-  privacy-pools init --json --show-mnemonic
+  privacy-pools init --json --yes --default-chain mainnet --show-mnemonic
   privacy-pools init --mnemonic "word ..." --private-key 0x...
   cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet
 Safety notes:
@@ -116,7 +116,7 @@ Examples:
 Agent workflow:
   In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.
 JSON output (--json):
-  { chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings?, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }"
 `;
 
 exports[`CLI --help snapshots activity --help snapshot 1`] = `
@@ -183,7 +183,7 @@ Safety notes:
   A vetting fee is deducted from the deposit amount by the pool's ASP.
   Only approved deposits can be withdrawn privately.
 Agent workflow:
-  Poll accounts until aspStatus is approved before attempting a private withdrawal.
+  Poll accounts --pending-only until aspStatus is approved before attempting a private withdrawal.
 JSON output (--json):
   { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }
@@ -228,7 +228,7 @@ Prerequisites:
 Safety notes:
   Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.
 JSON output (--json):
-  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options? }] }
+  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }
   direct: same fields but mode: "direct", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.
   quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }
   --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }
@@ -266,7 +266,7 @@ Prerequisites:
 Safety notes:
   Ragequit is public and irreversible and reveals the original deposit address onchain.
 JSON output (--json):
-  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
+  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }
   --unsigned: { mode, operation, chain, asset, amount, transactions[] }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }
@@ -281,6 +281,7 @@ List your Pool Accounts (individual deposit lineages) with balances
 Options:
   --no-sync       Use cached data (faster, but may be stale)
   --all           Include exited and fully spent Pool Accounts
+  --all-chains    Include testnet chains (mainnets shown by default)
   --details       Show additional details per Pool Account
   --summary       Show counts and balances only
   --pending-only  Show only pending ASP approvals
@@ -288,6 +289,7 @@ Options:
 Examples:
   privacy-pools accounts
   privacy-pools accounts --all
+  privacy-pools accounts --all-chains
   privacy-pools accounts --details
   privacy-pools accounts --summary
   privacy-pools accounts --pending-only
@@ -296,11 +298,13 @@ Examples:
 Prerequisites:
   Requires: init
 Agent workflow:
+  Without --chain, accounts aggregates all mainnets by default. Use --all-chains to include testnets.
   Use --summary or --pending-only to reduce JSON size for polling loops.
+  nextActions on accounts are poll-oriented only and appear when pending approvals still exist.
 JSON output (--json):
-  { chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }
-  --summary: { chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }
-  --pending-only: { chain, accounts, pendingCount, nextActions? }"
+  { chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }
+  --summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }
+  --pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }"
 `;
 
 exports[`CLI --help snapshots history --help snapshot 1`] = `
@@ -334,7 +338,7 @@ Examples:
 Prerequisites:
   Requires: init
 JSON output (--json):
-  { chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts? }"
 `;
 
 exports[`CLI --help snapshots guide --help snapshot 1`] = `

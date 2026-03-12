@@ -80,7 +80,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools init",
         "privacy-pools init --yes --default-chain mainnet",
         "privacy-pools init --force --yes --default-chain mainnet",
-        "privacy-pools init --json --show-mnemonic",
+        "privacy-pools init --json --yes --default-chain mainnet --show-mnemonic",
         "privacy-pools init --mnemonic \"word ...\" --private-key 0x...",
         "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet",
       ],
@@ -105,7 +105,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--force",
         "--show-mnemonic",
       ],
-      agentFlags: "--yes --json --default-chain <chain>",
+      agentFlags: "--yes --json --default-chain <chain> --show-mnemonic",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -123,7 +123,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools pools --json --chain mainnet",
       ],
       jsonFields:
-        "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings?, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
       agentWorkflowNotes: [
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
       ],
@@ -329,7 +329,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
-        "Poll accounts until aspStatus is approved before attempting a private withdrawal.",
+        "Poll accounts --pending-only until aspStatus is approved before attempting a private withdrawal.",
       ],
     },
     capabilities: {
@@ -369,7 +369,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.",
       ],
       jsonFields:
-        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }",
       jsonVariants: [
         "direct: same fields but mode: \"direct\", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }",
@@ -445,7 +445,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Ragequit is public and irreversible and reveals the original deposit address onchain.",
       ],
       jsonFields:
-        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
         "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
@@ -475,6 +475,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       examples: [
         "privacy-pools accounts",
         "privacy-pools accounts --all",
+        "privacy-pools accounts --all-chains",
         "privacy-pools accounts --details",
         "privacy-pools accounts --summary",
         "privacy-pools accounts --pending-only",
@@ -483,17 +484,19 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }",
       jsonVariants: [
-        "--summary: { chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }",
-        "--pending-only: { chain, accounts, pendingCount, nextActions? }",
+        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }",
+        "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }",
       ],
       agentWorkflowNotes: [
+        "Without --chain, accounts aggregates all mainnets by default. Use --all-chains to include testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
+        "nextActions on accounts are poll-oriented only and appear when pending approvals still exist.",
       ],
     },
     capabilities: {
-      flags: ["--no-sync", "--all", "--details", "--summary", "--pending-only"],
+      flags: ["--no-sync", "--all", "--all-chains", "--details", "--summary", "--pending-only"],
       agentFlags: "--json",
       requiresInit: true,
       expectedLatencyClass: "slow",
@@ -533,7 +536,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, args?, options? }] }",
+        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts? }",
     },
     capabilities: {
       flags: ["-a, --asset <symbol|address>"],
@@ -605,16 +608,17 @@ export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] = [
 ];
 
 const AGENT_WORKFLOW = [
-  "1. privacy-pools init --json --yes --default-chain <chain>",
-  "2. privacy-pools pools --json --chain <chain>",
-  "3. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-  "4. privacy-pools accounts --json --chain <chain>  (poll until aspStatus: approved)",
-  "5. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
+  "1. privacy-pools status --json",
+  "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
+  "3. privacy-pools pools --json --chain <chain>",
+  "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
+  "5. privacy-pools accounts --json --chain <chain> --pending-only  (poll until aspStatus: approved)",
+  "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
 ];
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    "After depositing, poll 'accounts --json' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
+    "After depositing, poll 'accounts --json --pending-only' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
   withdrawQuote:
     "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
   firstRun:
@@ -657,8 +661,9 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
       "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null>, runnable?: boolean }",
     description:
       "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. " +
-      "When runnable is false the action is a template that requires additional user-supplied arguments (e.g. amount, recipient) before it can be executed. " +
-      "When runnable is omitted or true, the command is fully specified and can be executed as shown.",
+      "Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. " +
+      "When runnable is omitted or true, the command is fully specified and can be executed as shown. " +
+      "The runnable field is reserved for future template actions.",
   },
 };
 

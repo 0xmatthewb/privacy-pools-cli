@@ -1,4 +1,6 @@
 import { Command } from "commander";
+import type { Address } from "viem";
+import { getAllChainsWithOverrides, getDefaultReadOnlyChains } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
@@ -12,11 +14,10 @@ import { listPools } from "../services/pools.js";
 import { fetchApprovedLabels } from "../services/asp.js";
 import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
-import { CLIError, printError } from "../utils/errors.js";
+import { CLIError, classifyError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
-import type { GlobalOptions } from "../types.js";
-import type { Address } from "viem";
+import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
   buildAllPoolAccountRefs,
@@ -24,11 +25,12 @@ import {
 } from "../utils/pool-accounts.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
-import type { AccountPoolGroup } from "../output/accounts.js";
+import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
 
 interface AccountsCommandOptions {
   sync?: boolean;
   all?: boolean;
+  allChains?: boolean;
   details?: boolean;
   summary?: boolean;
   pendingOnly?: boolean;
@@ -36,6 +38,12 @@ interface AccountsCommandOptions {
 
 interface AccountScopeSource {
   poolAccounts?: Map<bigint, unknown[]>;
+}
+
+interface LoadedChainAccounts {
+  chainConfig: ChainConfig;
+  groups: AccountPoolGroup[];
+  hadPools: boolean;
 }
 
 export function collectAccountScopeStrings(
@@ -66,12 +74,127 @@ export function collectAccountScopeStrings(
   });
 }
 
+async function loadAccountsForChain(
+  chainConfig: ChainConfig,
+  opts: AccountsCommandOptions,
+  globalOpts: GlobalOptions,
+  spin: ReturnType<typeof spinner>,
+  silent: boolean,
+  mode: ReturnType<typeof resolveGlobalMode>,
+  isVerbose: boolean,
+  mnemonic: string,
+): Promise<LoadedChainAccounts> {
+  verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
+
+  spin.text = `Discovering pools on ${chainConfig.name}...`;
+  const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
+  verbose(`Discovered ${pools.length} pool(s) on ${chainConfig.name}`, isVerbose, silent);
+
+  if (pools.length === 0) {
+    return { chainConfig, groups: [], hadPools: false };
+  }
+
+  const poolInfos = pools.map((p) => ({
+    chainId: chainConfig.id,
+    address: p.pool as Address,
+    scope: p.scope,
+    deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
+  }));
+
+  spin.text = `Initializing account state on ${chainConfig.name}...`;
+  const dataService = await getDataService(
+    chainConfig,
+    pools[0].pool,
+    globalOpts?.rpcUrl,
+  );
+  const accountService = await initializeAccountService(
+    dataService,
+    mnemonic,
+    poolInfos,
+    chainConfig.id,
+    false,
+    silent,
+    true,
+  );
+
+  await withSpinnerProgress(
+    spin,
+    `Syncing onchain events on ${chainConfig.name}`,
+    () => syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
+      skip: opts.sync === false,
+      force: false,
+      silent,
+      isJson: mode.isJson,
+      isVerbose,
+      errorLabel: "Account",
+    }),
+  );
+
+  const spendable = withSuppressedSdkStdoutSync(() =>
+    accountService.getSpendableCommitments(),
+  );
+  const sortedScopeStrings = collectAccountScopeStrings(
+    spendable,
+    accountService.account,
+    !!opts.all || !!opts.summary,
+  );
+
+  spin.text = `Checking ASP approval status on ${chainConfig.name}...`;
+  const approvedLabelsByScope = new Map<string, Set<string> | null>();
+  await Promise.all(
+    sortedScopeStrings.map(async (scopeStr) => {
+      const pool = pools.find((p) => p.scope.toString() === scopeStr);
+      if (pool) {
+        approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
+      }
+    }),
+  );
+
+  const groups: AccountPoolGroup[] = [];
+  for (const scopeStr of sortedScopeStrings) {
+    const scopeBigInt = BigInt(scopeStr);
+    const commitments = spendable.get(scopeBigInt) ?? [];
+    const pool = pools.find((p) => p.scope.toString() === scopeStr);
+    if (!pool) continue;
+
+    const approvedLabels = approvedLabelsByScope.get(scopeStr);
+    const poolAccounts = (opts.all || opts.summary)
+      ? buildAllPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          commitments,
+          approvedLabels,
+        )
+      : buildPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          commitments,
+          approvedLabels,
+        );
+    poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
+
+    groups.push({
+      chain: chainConfig.name,
+      chainId: chainConfig.id,
+      symbol: pool.symbol,
+      poolAddress: pool.pool,
+      decimals: pool.decimals,
+      scope: pool.scope,
+      tokenPrice: deriveTokenPrice(pool),
+      poolAccounts,
+    });
+  }
+
+  return { chainConfig, groups, hadPools: true };
+}
+
 export function createAccountsCommand(): Command {
   const metadata = getCommandMetadata("accounts");
   return new Command("accounts")
     .description(metadata.description)
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option("--all", "Include exited and fully spent Pool Accounts")
+    .option("--all-chains", "Include testnet chains (mainnets shown by default)")
     .option("--details", "Show additional details per Pool Account")
     .option("--summary", "Show counts and balances only")
     .option("--pending-only", "Show only pending ASP approvals")
@@ -88,7 +211,7 @@ export function createAccountsCommand(): Command {
           throw new CLIError(
             "Cannot specify both --summary and --pending-only.",
             "INPUT",
-            "Use one compact polling mode at a time."
+            "Use one compact polling mode at a time.",
           );
         }
 
@@ -96,7 +219,7 @@ export function createAccountsCommand(): Command {
           throw new CLIError(
             "Compact account modes do not support --details.",
             "INPUT",
-            "Remove --details when using --summary or --pending-only."
+            "Remove --details when using --summary or --pending-only.",
           );
         }
 
@@ -104,133 +227,96 @@ export function createAccountsCommand(): Command {
           throw new CLIError(
             "Compact account modes do not support --all.",
             "INPUT",
-            "Remove --all when using --summary or --pending-only."
+            "Remove --all when using --summary or --pending-only.",
           );
         }
 
         const config = loadConfig();
-        const chainConfig = resolveChain(
-          globalOpts?.chain,
-          config.defaultChain
-        );
-        verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
+        const explicitChain = globalOpts?.chain;
+        const useMultiChain = opts.allChains || !explicitChain;
 
+        if (useMultiChain && globalOpts?.rpcUrl) {
+          throw new CLIError(
+            "--rpc-url cannot be combined with multi-chain accounts queries.",
+            "INPUT",
+            "Use --chain <name> to target a single chain with --rpc-url.",
+          );
+        }
+
+        const chainsToQuery = opts.allChains
+          ? getAllChainsWithOverrides()
+          : explicitChain
+            ? [resolveChain(explicitChain, config.defaultChain)]
+            : getDefaultReadOnlyChains();
+
+        const rootChain = explicitChain
+          ? chainsToQuery[0].name
+          : opts.allChains
+            ? "all-chains"
+            : "all-mainnets";
+        const queriedChains = useMultiChain ? chainsToQuery.map((chain) => chain.name) : undefined;
         const mnemonic = loadMnemonic();
 
-        const spin = spinner("Discovering pools...", silent);
+        const spin = spinner(
+          useMultiChain
+            ? `Loading My Pools across ${opts.allChains ? "all chains" : "mainnets"}...`
+            : `Loading Pool Accounts on ${chainsToQuery[0].name}...`,
+          silent,
+        );
         spin.start();
 
-        const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
-        verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
+        const loadedResults: LoadedChainAccounts[] = [];
+        const warnings: AccountWarning[] = [];
+        let firstError: unknown;
 
-        if (pools.length === 0) {
-          spin.stop();
-          renderAccountsNoPools(ctx, chainConfig.name, {
+        for (const chainConfig of chainsToQuery) {
+          try {
+            const result = await loadAccountsForChain(
+              chainConfig,
+              opts,
+              globalOpts,
+              spin,
+              silent,
+              mode,
+              isVerbose,
+              mnemonic,
+            );
+            loadedResults.push(result);
+          } catch (error) {
+            if (firstError === undefined) firstError = error;
+            const classified = classifyError(error);
+            warnings.push({
+              chain: chainConfig.name,
+              category: classified.category,
+              message: classified.message,
+            });
+          }
+        }
+
+        spin.stop();
+
+        if (loadedResults.length === 0) {
+          throw firstError;
+        }
+
+        const groups = loadedResults.flatMap((result) => result.groups);
+        if (groups.length === 0) {
+          renderAccountsNoPools(ctx, {
+            chain: rootChain,
+            allChains: opts.allChains || undefined,
+            chains: queriedChains,
+            warnings,
             summary: !!opts.summary,
             pendingOnly: !!opts.pendingOnly,
           });
           return;
         }
 
-        const poolInfos = pools.map((p) => ({
-          chainId: chainConfig.id,
-          address: p.pool as Address,
-          scope: p.scope,
-          deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
-        }));
-
-        const dataService = await getDataService(
-          chainConfig,
-          pools[0].pool,
-          globalOpts?.rpcUrl
-        );
-
-        spin.text = "Initializing account state...";
-        const accountService = await initializeAccountService(
-          dataService,
-          mnemonic,
-          poolInfos,
-          chainConfig.id,
-          false,
-          silent,
-          true
-        );
-
-        await withSpinnerProgress(
-          spin,
-          "Syncing onchain events",
-          () => syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-            skip: opts.sync === false,
-            force: false,
-            silent,
-            isJson: mode.isJson,
-            isVerbose,
-            errorLabel: "Account",
-          }),
-        );
-
-        const spendable = withSuppressedSdkStdoutSync(() =>
-          accountService.getSpendableCommitments()
-        );
-        const sortedScopeStrings = collectAccountScopeStrings(
-          spendable,
-          accountService.account,
-          !!opts.all || !!opts.summary,
-        );
-
-        // Fetch ASP approval status in parallel (non-fatal if unavailable)
-        spin.text = "Checking ASP approval status...";
-        const approvedLabelsByScope = new Map<string, Set<string> | null>();
-        await Promise.all(
-          sortedScopeStrings.map(async (scopeStr) => {
-            const pool = pools.find((p) => p.scope.toString() === scopeStr);
-            if (pool) {
-              approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
-            }
-          })
-        );
-
-        spin.stop();
-
-        // Build render data
-        const groups: AccountPoolGroup[] = [];
-        for (const scopeStr of sortedScopeStrings) {
-          const scopeBigInt = BigInt(scopeStr);
-          const commitments = spendable.get(scopeBigInt) ?? [];
-          const pool = pools.find(
-            (p) => p.scope.toString() === scopeStr
-          );
-          if (!pool) continue;
-
-          const approvedLabels = approvedLabelsByScope.get(scopeStr);
-          const poolAccounts = (opts.all || opts.summary)
-            ? buildAllPoolAccountRefs(
-              accountService.account,
-              pool.scope,
-              commitments,
-              approvedLabels
-            )
-            : buildPoolAccountRefs(
-            accountService.account,
-            pool.scope,
-            commitments,
-            approvedLabels
-          );
-          poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
-
-          groups.push({
-            symbol: pool.symbol,
-            poolAddress: pool.pool,
-            decimals: pool.decimals,
-            scope: pool.scope,
-            tokenPrice: deriveTokenPrice(pool),
-            poolAccounts,
-          });
-        }
-
         renderAccounts(ctx, {
-          chain: chainConfig.name,
-          chainId: chainConfig.id,
+          chain: rootChain,
+          allChains: opts.allChains || undefined,
+          chains: queriedChains,
+          warnings,
           groups,
           showDetails: !!opts.details,
           showAll: !!opts.all,

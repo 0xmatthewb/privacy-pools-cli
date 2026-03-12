@@ -10,7 +10,6 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
-  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -102,18 +101,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       "accounts",
       "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
       "after_deposit",
-      { options: { agent: true, chain: data.chain } },
-    ),
-  ];
-
-  // Human: human-readable reason text; only include --chain when explicitly
-  // overridden (otherwise it's noise on the default chain).
-  const humanNextActions = [
-    createNextAction(
-      "accounts",
-      "Check back until your deposit is approved for private withdrawal.",
-      "after_deposit",
-      { options: { ...(data.chainOverridden ? { chain: data.chain } : {}) } },
+      { options: { agent: true, chain: data.chain, pendingOnly: true } },
     ),
   ];
 
@@ -158,5 +146,4 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
-  renderNextSteps(ctx, humanNextActions);
 }

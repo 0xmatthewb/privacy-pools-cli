@@ -340,12 +340,6 @@ describe("renderStatus parity", () => {
         when: "status_ready_has_accounts",
         options: { agent: true, chain: "sepolia" },
       },
-      {
-        command: "pools",
-        reason: "Browse pools to deposit into.",
-        when: "status_ready_has_accounts",
-        options: { agent: true, chain: "sepolia" },
-      },
     ]);
     expect(stderr).toBe("");
   });
@@ -381,6 +375,30 @@ describe("renderStatus parity", () => {
         reason: "Complete CLI setup before transacting.",
         when: "status_not_ready",
         options: { agent: true, showMnemonic: true, chain: "sepolia" },
+      },
+    ]);
+  });
+
+  test("JSON mode: keeps unsigned-only follow-ups read-only when no signer is configured", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const result = {
+      ...STUB_STATUS,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+      accountFiles: [],
+    };
+    const { stdout } = captureOutput(() => renderStatus(ctx, result));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.readyForDeposit).toBe(false);
+    expect(json.readyForUnsigned).toBe(true);
+    expect(json.nextActions).toEqual([
+      {
+        command: "pools",
+        reason: "Browse pools in read-only mode. Configure a valid signer key before depositing.",
+        when: "status_unsigned_no_accounts",
+        options: { agent: true, chain: "sepolia" },
       },
     ]);
   });

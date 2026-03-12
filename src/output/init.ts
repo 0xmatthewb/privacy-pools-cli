@@ -38,18 +38,10 @@ export interface InitRenderResult {
 export function renderInitResult(ctx: OutputContext, result: InitRenderResult): void {
   guardCsvUnsupported(ctx, "init");
 
-  // Agents get both status (health-check) and pools; humans just get pools
-  // since "status" is a diagnostic command, not a natural next step.
   const agentNextActions = [
     createNextAction(
       "status",
       "Verify wallet readiness and chain health before transacting.",
-      "after_init",
-      { options: { agent: true, chain: result.defaultChain } },
-    ),
-    createNextAction(
-      "pools",
-      "Browse pools on the configured default chain before depositing.",
       "after_init",
       { options: { agent: true, chain: result.defaultChain } },
     ),
