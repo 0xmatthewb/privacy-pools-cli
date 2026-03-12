@@ -104,7 +104,7 @@ privacy-pools accounts
 privacy-pools accounts --all-chains           # include testnets too
 privacy-pools accounts --details              # show commitment hashes, labels, and tx info
 privacy-pools accounts --summary              # counts + balances only
-privacy-pools accounts --pending-only         # pending approvals only
+privacy-pools accounts --chain <chain> --pending-only  # pending approvals only on one chain
 ```
 
 | Flag | Description |

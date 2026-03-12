@@ -89,7 +89,7 @@ Pass `--agent` (shorthand for `--json --yes --quiet`) for structured JSON on std
 
 ```bash
 privacy-pools deposit 0.1 ETH --agent
-privacy-pools accounts --agent --pending-only   # poll while the deposit remains pending; preserve --chain if not on mainnet
+privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 ```
 

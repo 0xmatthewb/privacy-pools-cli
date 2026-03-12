@@ -25,7 +25,7 @@ privacy-pools pools --agent
 privacy-pools status --agent
 privacy-pools init --agent --default-chain mainnet --show-mnemonic
 privacy-pools deposit 0.1 ETH --agent
-privacy-pools accounts --agent --pending-only   # poll while the deposit remains pending; preserve --chain if not on mainnet
+privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools withdraw 0.1 ETH --to 0xRecipient --agent
 ```
 
@@ -163,7 +163,7 @@ privacy-pools status --agent --check
 
 JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
-`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags — they indicate the wallet is set up for those operations, **not** that spendable funds exist. To verify fund availability before withdrawing, check `accounts --agent`. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
+`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags — they indicate the wallet is set up for those operations, **not** that spendable funds exist. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the all-mainnets dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
 
 #### `capabilities`
 
@@ -289,7 +289,7 @@ List Pool Accounts with their approval status and per-pool balance totals.
 privacy-pools accounts --agent
 privacy-pools accounts --agent --all-chains
 privacy-pools accounts --agent --summary
-privacy-pools accounts --agent --pending-only
+privacy-pools accounts --agent --chain <chain> --pending-only
 privacy-pools accounts --agent --details
 ```
 
@@ -437,7 +437,7 @@ privacy-pools deposit 0.1 ETH --unsigned tx --agent
 2. Agent receives transactions[] array
 3. Agent signs each transaction with its own key
 4. Agent submits signed transactions to the network
-5. Agent calls: privacy-pools accounts --agent  (to verify the deposit landed)
+5. Agent calls: privacy-pools accounts --agent --chain <chain> --pending-only  (to verify the deposit landed; preserve chain scope)
 ```
 
 ## Dry-Run Mode
@@ -504,7 +504,7 @@ When `retryable: true` is present in the error response:
 
 When `retryable: false` (non-retryable):
 
-4. For `ACCOUNT_NOT_APPROVED`: inform the user their deposit is pending ASP approval. Suggest running `privacy-pools accounts --json` to check `aspStatus`. Most deposits are approved within 1 hour.
+4. For `ACCOUNT_NOT_APPROVED`: inform the user their deposit is pending ASP approval. Suggest running `privacy-pools accounts --json --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. Most deposits are approved within 1 hour.
 
 ## Supported Chains
 

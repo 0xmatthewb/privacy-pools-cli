@@ -477,7 +477,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools accounts --all-chains",
         "privacy-pools accounts --details",
         "privacy-pools accounts --summary",
-        "privacy-pools accounts --pending-only",
+        "privacy-pools accounts --chain <name> --pending-only",
         "privacy-pools accounts --json",
         "privacy-pools accounts --no-sync --chain mainnet",
       ],
@@ -611,7 +611,7 @@ const AGENT_WORKFLOW = [
   "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
   "3. privacy-pools pools --json --chain <chain>",
   "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-  "5. privacy-pools accounts --json --chain <chain> --pending-only  (approved entries disappear; confirm with accounts --json)",
+  "5. privacy-pools accounts --json --chain <chain> --pending-only  (approved entries disappear; confirm with accounts --json --chain <chain>)",
   "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
 ];
 
@@ -627,7 +627,7 @@ const AGENT_NOTES: Record<string, string> = {
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
-    "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json' to verify fund availability before withdrawing.",
+    "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the all-mainnets dashboard.",
 };
 
 const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {

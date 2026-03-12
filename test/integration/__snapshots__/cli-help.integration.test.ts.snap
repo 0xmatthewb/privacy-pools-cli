@@ -290,7 +290,7 @@ Examples:
   privacy-pools accounts --all-chains
   privacy-pools accounts --details
   privacy-pools accounts --summary
-  privacy-pools accounts --pending-only
+  privacy-pools accounts --chain <name> --pending-only
   privacy-pools accounts --json
   privacy-pools accounts --no-sync --chain mainnet
 Prerequisites:

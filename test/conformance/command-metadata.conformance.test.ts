@@ -264,6 +264,39 @@ describe("command metadata conformance", () => {
     );
   });
 
+  test("agent discovery and guide preserve chain scope for approval checks", () => {
+    const payload = buildCapabilitiesPayload();
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const normalizedAgents = normalizeWhitespace(agents);
+    const normalizedWorkflowStep = normalizeWhitespace(payload.agentWorkflow[4] ?? "");
+    const statusCheck = payload.agentNotes?.statusCheck ?? "";
+
+    expect(normalizedWorkflowStep).toContain("accounts --json --chain <chain> --pending-only");
+    expect(normalizedWorkflowStep).toContain("confirm with accounts --json --chain <chain>");
+    expect(statusCheck).toContain("accounts --json --chain <chain>");
+    expect(statusCheck).toContain("all-mainnets dashboard");
+    expect(normalizedAgents).toContain(
+      "privacy-pools accounts --agent --chain <chain> --pending-only (to verify the deposit landed; preserve chain scope)",
+    );
+    expect(normalizedAgents).toContain(
+      "Suggest running `privacy-pools accounts --json --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt.",
+    );
+  });
+
+  test("accounts examples use explicit chain scope for pending-only polling", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const accountsExamples = getCommandMetadata("accounts").help?.examples ?? [];
+
+    expect(accountsExamples).toContain("privacy-pools accounts --chain <name> --pending-only");
+    expect(normalizeWhitespace(agents)).toContain(
+      "privacy-pools accounts --agent --chain <chain> --pending-only",
+    );
+    expect(normalizeWhitespace(reference)).toContain(
+      "privacy-pools accounts --chain <chain> --pending-only",
+    );
+  });
+
   test("published docs do not contain malformed privacy-pools command examples", () => {
     const docsToCheck = [
       `${CLI_ROOT}/AGENTS.md`,
