@@ -95,7 +95,7 @@ The envelope format includes additional context fields depending on the operatio
 
 All responses include `{ "schemaVersion": "1.3.0", "success": true, ... }` envelope.
 
-Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options? }`. Treat `nextActions` as the canonical machine follow-up field.
+Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
 ### `pools`
 
@@ -340,11 +340,11 @@ Representative payload (abridged):
     "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
     "3. privacy-pools pools --json --chain <chain>",
     "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-    "5. privacy-pools accounts --json --chain <chain> --pending-only  (check approval status; most < 1 hour, up to 7 days)",
+    "5. privacy-pools accounts --json --chain <chain> --pending-only  (approved entries disappear; confirm with accounts --json)",
     "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, check 'accounts --json --pending-only' for aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'. Follow nextActions from the deposit response for the canonical polling command.",
+    "polling": "After depositing, poll 'accounts --json --pending-only' while the Pool Account remains pending. Approved entries disappear from --pending-only results; once gone, re-run 'accounts --json' to confirm aspStatus is 'approved' before withdrawing. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
@@ -356,8 +356,8 @@ Representative payload (abridged):
     "poolAccountStatus": { "values": ["spendable", "spent", "exited"] },
     "errorCategories": { "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"] },
     "nextActions": {
-      "shape": "{ command, reason, when, args?, options? }",
-      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output."
+      "shape": "{ command, reason, when, args?, options?, runnable? }",
+      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. When runnable is false, the action is a template that needs additional user input before execution."
     }
   },
   "safeReadOnlyCommands": ["pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "completion"],
@@ -471,7 +471,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
   "nextActions": [
     {
       "command": "accounts",
-      "reason": "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+      "reason": "Poll while pending; approved entries disappear from --pending-only. Confirm with accounts --agent.",
       "when": "after_deposit",
       "options": { "agent": true, "chain": "mainnet", "pendingOnly": true }
     }
@@ -609,7 +609,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 }
 ```
 
-`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH. `nextActions` provides a ready-to-run `withdraw` follow-up with the quoted parameters.
+`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH. `nextActions` provides a `withdraw` follow-up with the quoted parameters; check `runnable` — quotes without a `--to` recipient produce a template action (`runnable: false`) that still needs the recipient before execution.
 
 ### `ragequit` (alias: `exit`)
 
@@ -709,7 +709,7 @@ Without `--chain`, `accounts` aggregates all mainnets by default. Use `--all-cha
 
 `--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
-Check `aspStatus` after depositing with `accounts --agent --pending-only` and wait for `"approved"` before withdrawing via the relayed path. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
+After depositing, poll `accounts --agent --pending-only` while the Pool Account remains pending. Approved entries disappear from `--pending-only` results instead of changing status; once gone, re-run `accounts --agent` to confirm `aspStatus: "approved"` before withdrawing. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
 
 ### `history`
 

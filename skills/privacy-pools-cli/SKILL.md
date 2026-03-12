@@ -100,7 +100,7 @@ Errors:
 
 Parse `success` first. On failure, use `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
 
-Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, args?, options? }`. Treat `nextActions` as the canonical machine follow-up field.
+Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
 ---
 
@@ -252,7 +252,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
 4. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
 5. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
-6. privacy-pools accounts --agent --pending-only                        # Check approval status (most < 1 hour, up to 7 days)
+6. privacy-pools accounts --agent --pending-only                        # Approved entries disappear; confirm with accounts --agent
 7. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw
 ```
 

@@ -7,6 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
+import type { NextActionOptionValue } from "../types.js";
 import {
   appendNextActions,
   createNextAction,
@@ -40,13 +41,19 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   guardCsvUnsupported(ctx, "init");
 
   // Agent path: new wallet → status (verify readiness); restore → accounts (sync onchain state).
+  // Restore uses the same broad-view logic as human: bare `accounts` covers all mainnets,
+  // testnet default needs explicit --chain, so the agent doesn't miss cross-chain deposits.
+  const isTestnet = CHAINS[result.defaultChain]?.isTestnet ?? false;
+  const agentRestoreChainOpts: Record<string, NextActionOptionValue> = isTestnet
+    ? { agent: true, chain: result.defaultChain }
+    : { agent: true };
   const agentNextActions = result.mnemonicImported
     ? [
         createNextAction(
           "accounts",
           "Sync and review your restored onchain Pool Accounts.",
           "after_restore",
-          { options: { agent: true, chain: result.defaultChain } },
+          { options: agentRestoreChainOpts },
         ),
       ]
     : [
@@ -57,11 +64,6 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
           { options: { agent: true, chain: result.defaultChain } },
         ),
       ];
-
-  // Human hint: bare `pools` defaults to showing all mainnets, so if the user
-  // configured a testnet as their default chain, the bare command won't show
-  // their chain's pools.  Include --chain for testnets so the hint is accurate.
-  const isTestnet = CHAINS[result.defaultChain]?.isTestnet ?? false;
 
   // Differentiate new-wallet vs restore/migration:
   //   New wallet  → "browse pools before depositing"

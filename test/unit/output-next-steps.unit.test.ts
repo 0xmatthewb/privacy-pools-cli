@@ -832,22 +832,31 @@ describe("init next steps: new wallet vs restore", () => {
     expect(stderr).not.toContain("privacy-pools pools");
   });
 
-  test("restore on testnet → human accounts hint includes --chain", () => {
+  test("restore on testnet → both agent and human accounts hints include --chain", () => {
     const restored: InitRenderResult = {
       ...STUB_INIT,
       mnemonicImported: true,
       defaultChain: "sepolia",
     };
+    const actions = getJsonNextActions(restored);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].options?.chain).toBe("sepolia");
+
     const stderr = getHumanStderr(restored);
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
 
-  test("restore on mainnet → human accounts hint omits --chain", () => {
+  test("restore on mainnet → agent and human accounts hints omit --chain (broad all-mainnets view)", () => {
     const restored: InitRenderResult = {
       ...STUB_INIT,
       mnemonicImported: true,
       defaultChain: "mainnet",
     };
+    const actions = getJsonNextActions(restored);
+    expect(actions[0].command).toBe("accounts");
+    // No --chain: bare accounts covers all mainnets, so cross-chain deposits are reachable.
+    expect(actions[0].options?.chain).toBeUndefined();
+
     const stderr = getHumanStderr(restored);
     expect(stderr).toContain("privacy-pools accounts");
     expect(stderr).not.toContain("--chain");
