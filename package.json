@@ -8,6 +8,7 @@
   },
   "files": [
     "dist",
+    "scripts/start-built-cli.mjs",
     "AGENTS.md",
     "CHANGELOG.md",
     "docs/reference.md",
@@ -23,7 +24,7 @@
     "prepare": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
     "cli": "bun src/index.ts",
     "dev": "bun src/index.ts",
-    "start": "node dist/index.js",
+    "start": "node scripts/start-built-cli.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-bun-tests.mjs ./test/unit ./test/integration ./test/fuzz ./test/services",
     "test:ci": "node scripts/run-bun-tests.mjs ./test/unit ./test/integration ./test/fuzz ./test/services && node scripts/run-bun-tests.mjs ./test/conformance --timeout 120000",

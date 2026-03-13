@@ -285,6 +285,7 @@ describe("packaged CLI smoke", () => {
 
     expect(filePaths.has("dist/index.js")).toBe(true);
     expect(filePaths.has("package.json")).toBe(true);
+    expect(filePaths.has("scripts/start-built-cli.mjs")).toBe(true);
     expect(packedCommandNames).toEqual(sourceBaseNames("src/commands"));
     expect(packedOutputNames).toEqual(sourceBaseNames("src/output"));
   }, 30_000);

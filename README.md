@@ -60,6 +60,10 @@ Or run from source:
 git clone https://github.com/0xmatthewb/privacy-pools-cli.git
 cd privacy-pools-cli && bun install
 bun run dev -- pools
+
+# Built checkout entrypoint
+bun run build
+bun run start -- --help
 ```
 
 ## Commands

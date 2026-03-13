@@ -345,8 +345,11 @@ bun run dev -- --help
 bun run dev -- init
 bun run dev -- status
 
-# Build and link for local testing
+# Build the packaged CLI, then run the built entrypoint
 bun run build
+bun run start -- --help
+
+# Link for local testing
 bun run circuits:provision
 npm link
 privacy-pools --help
