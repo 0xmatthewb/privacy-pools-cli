@@ -17,6 +17,7 @@ import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { createRootProgram } from "./program.js";
 import { installSdkConsoleGuard } from "./services/account.js";
+import { dangerTone } from "./utils/theme.js";
 
 // Permanently suppress console.* so deferred SDK callbacks (e.g. RPC retry
 // logs) never leak raw `[Data::WARN]` lines into human output.  Safe because
@@ -43,6 +44,26 @@ if (argv.includes("--no-color")) {
 // Fire-and-forget update check — caches result for 24h, never blocks.
 checkForUpdateInBackground();
 
+function normalizeRepositoryUrl(repository: unknown): string | null {
+  const raw = typeof repository === "string"
+    ? repository
+    : typeof repository === "object" &&
+        repository !== null &&
+        "url" in repository &&
+        typeof (repository as { url?: unknown }).url === "string"
+      ? (repository as { url: string }).url
+      : null;
+
+  if (!raw) return null;
+
+  return raw
+    .replace(/^git\+/, "")
+    .replace(/^https?:\/\//, "")
+    .replace(/^ssh:\/\/git@/, "")
+    .replace(/^git@github\.com:/, "github.com/")
+    .replace(/\.git$/, "");
+}
+
 function hasShortFlag(args: string[], flag: string): boolean {
   for (const token of args) {
     if (!token.startsWith("-") || token.startsWith("--")) continue;
@@ -53,14 +74,58 @@ function hasShortFlag(args: string[], flag: string): boolean {
   return false;
 }
 
+const ROOT_OPTIONS_WITH_VALUE = new Set([
+  "-c",
+  "--chain",
+  "--format",
+  "-r",
+  "--rpc-url",
+  "--timeout",
+]);
+
+const WELCOME_BOOLEAN_FLAGS = new Set([
+  "-q",
+  "--quiet",
+  "-v",
+  "--verbose",
+  "-y",
+  "--yes",
+  "--no-banner",
+  "--no-color",
+]);
+
+function isWelcomeShortFlagBundle(token: string): boolean {
+  if (!/^-[A-Za-z]+$/.test(token) || token.startsWith("--")) return false;
+  return token
+    .slice(1)
+    .split("")
+    .every((flag) => flag === "q" || flag === "v" || flag === "y");
+}
+
 function firstNonOptionToken(args: string[]): string | undefined {
-  const optionsWithValue = new Set(["-c", "--chain", "-r", "--rpc-url"]);
   for (let i = 0; i < args.length; i++) {
     const token = args[i];
     if (!token.startsWith("-")) return token;
-    if (optionsWithValue.has(token)) i++;
+    if (ROOT_OPTIONS_WITH_VALUE.has(token)) i++;
   }
   return undefined;
+}
+
+function isWelcomeFlagOnlyInvocation(args: string[]): boolean {
+  if (args.length === 0) return true;
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (ROOT_OPTIONS_WITH_VALUE.has(token)) {
+      if (i + 1 >= args.length) return false;
+      i++;
+      continue;
+    }
+    if (WELCOME_BOOLEAN_FLAGS.has(token) || isWelcomeShortFlagBundle(token)) {
+      continue;
+    }
+    return false;
+  }
+  return true;
 }
 
 const firstCommandToken = firstNonOptionToken(argv);
@@ -76,7 +141,9 @@ const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
 const isHelpLike = argv.includes("--help") || hasShortFlag(argv, "h") || firstCommandToken === "help";
 const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
 const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
-const isWelcome = argv.length === 0 && !isMachineMode;
+const suppressBanner = argv.includes("--no-banner");
+const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
+const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
 let machineCapturedOut = "";
 
 const program = createRootProgram(pkg.version);
@@ -105,7 +172,7 @@ program.configureOutput({
   },
   outputError: (str, write) => {
     if (!isMachineMode) {
-      write(chalk.red(str));
+      write(dangerTone(str));
     }
   },
 });
@@ -187,7 +254,15 @@ function mapCommanderError(error: unknown): CLIError | null {
     ) {
       // Bare invocation: show banner (once per session) + condensed welcome
       if (isWelcome) {
-        await printBanner();
+        if (isQuiet) {
+          process.exit(0);
+        }
+        if (!suppressBanner) {
+          await printBanner({
+            version: pkg.version,
+            repository: normalizeRepositoryUrl(pkg.repository),
+          });
+        }
         process.stdout.write(welcomeScreen() + "\n");
         const notice = getUpdateNotice(pkg.version);
         if (notice) process.stderr.write(chalk.dim(notice) + "\n");

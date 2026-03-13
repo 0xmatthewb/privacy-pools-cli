@@ -26,9 +26,14 @@ import {
   formatTxHash,
   formatUsdValue,
 } from "../utils/format.js";
-import { highlight, accentBold } from "../utils/theme.js";
+import { accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import { explorerTxUrl, isMultiChainScope } from "../config/chains.js";
+import {
+  isActivePoolAccountStatus,
+  renderAspApprovalStatus,
+  renderPoolAccountStatus,
+} from "../utils/statuses.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,7 +105,9 @@ interface AccountsSummaryData {
   balances: JsonBalanceRow[];
   pendingCount: number;
   approvedCount: number;
-  spendableCount: number;
+  poiRequiredCount: number;
+  declinedCount: number;
+  unknownCount: number;
   spentCount: number;
   exitedCount: number;
 }
@@ -146,23 +153,28 @@ function summarizeGroups(
   const balances: JsonBalanceRow[] = [];
   let pendingCount = 0;
   let approvedCount = 0;
-  let spendableCount = 0;
+  let poiRequiredCount = 0;
+  let declinedCount = 0;
+  let unknownCount = 0;
   let spentCount = 0;
   let exitedCount = 0;
 
   for (const group of groups) {
     let groupTotal = 0n;
-    let groupSpendableCount = 0;
+    let groupActiveCount = 0;
 
     for (const pa of group.poolAccounts) {
-      if (pa.aspStatus === "pending") pendingCount++;
-      if (pa.aspStatus === "approved") approvedCount++;
+      if (pa.status === "pending") pendingCount++;
+      if (pa.status === "approved") approvedCount++;
+      if (pa.status === "poi_required") poiRequiredCount++;
+      if (pa.status === "declined") declinedCount++;
+      if (pa.status === "unknown") unknownCount++;
 
-      if (pa.status === "spendable") {
-        spendableCount++;
+      if (pa.value > 0n && isActivePoolAccountStatus(pa.status)) {
         groupTotal += pa.value;
-        groupSpendableCount++;
-      } else if (pa.status === "spent") {
+        groupActiveCount++;
+      }
+      if (pa.status === "spent") {
         spentCount++;
       } else if (pa.status === "exited") {
         exitedCount++;
@@ -185,7 +197,7 @@ function summarizeGroups(
       });
     }
 
-    if (groupSpendableCount > 0) {
+    if (groupActiveCount > 0) {
       balances.push({
         asset: group.symbol,
         balance: groupTotal.toString(),
@@ -193,7 +205,7 @@ function summarizeGroups(
           group.tokenPrice !== null
             ? formatUsdValue(groupTotal, group.decimals, group.tokenPrice)
             : null,
-        poolAccounts: groupSpendableCount,
+        poolAccounts: groupActiveCount,
         ...(includeChainFields ? { chain: group.chain, chainId: group.chainId } : {}),
       });
     }
@@ -204,7 +216,9 @@ function summarizeGroups(
     balances,
     pendingCount,
     approvedCount,
-    spendableCount,
+    poiRequiredCount,
+    declinedCount,
+    unknownCount,
     spentCount,
     exitedCount,
   };
@@ -216,7 +230,7 @@ function buildPollNextActions(meta: AccountsRootMeta, pendingCount: number) {
   return [
     createNextAction(
       "accounts",
-      "Poll again until pending deposits are approved for private withdrawal.",
+      "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
       "has_pending",
       {
         options: {
@@ -240,14 +254,33 @@ function renderWarnings(warnings: AccountWarning[] | undefined, silent: boolean)
   process.stderr.write("\n");
 }
 
+function formatActiveReviewSummary(poolAccounts: PoolAccountRef[]): string {
+  const pendingCount = poolAccounts.filter((pa) => pa.status === "pending").length;
+  const poiRequiredCount = poolAccounts.filter((pa) => pa.status === "poi_required").length;
+  const declinedCount = poolAccounts.filter((pa) => pa.status === "declined").length;
+  const unknownCount = poolAccounts.filter((pa) => pa.status === "unknown").length;
+  const parts: string[] = [];
+
+  if (pendingCount > 0) parts.push(`${pendingCount} pending`);
+  if (poiRequiredCount > 0) parts.push(`${poiRequiredCount} PoA needed`);
+  if (declinedCount > 0) parts.push(`${declinedCount} declined`);
+  if (unknownCount > 0) parts.push(`${unknownCount} unknown`);
+
+  return parts.length > 0 ? ` (${parts.join(", ")})` : "";
+}
+
+function renderEffectiveHumanStatus(pa: PoolAccountRef): string {
+  return renderPoolAccountStatus(pa.status);
+}
+
 function renderSummaryCsv(
   meta: AccountsRootMeta,
   summary: AccountsSummaryData,
   includeChainFields: boolean,
 ): void {
   const headers = includeChainFields
-    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "Spendable", "Spent", "Exited"]
-    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "Spendable", "Spent", "Exited"];
+    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "PoA Needed", "Declined", "Unknown", "Spent", "Exited"]
+    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "PoA Needed", "Declined", "Unknown", "Spent", "Exited"];
   const sourceRows =
     summary.balances.length > 0
       ? summary.balances
@@ -266,7 +299,9 @@ function renderSummaryCsv(
       String(balance.poolAccounts),
       String(summary.pendingCount),
       String(summary.approvedCount),
-      String(summary.spendableCount),
+      String(summary.poiRequiredCount),
+      String(summary.declinedCount),
+      String(summary.unknownCount),
       String(summary.spentCount),
       String(summary.exitedCount),
     ];
@@ -285,21 +320,22 @@ function renderHumanBalanceSummary(
   const anyUsd = groups.some(
     (group) =>
       group.tokenPrice !== null &&
-      group.poolAccounts.some((pa) => pa.status === "spendable"),
+      group.poolAccounts.some((pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status)),
   );
   const summaryRows: string[][] = [];
 
   for (const group of groups) {
-    const spendablePAs = group.poolAccounts.filter((pa) => pa.status === "spendable");
-    if (spendablePAs.length === 0) continue;
+    const activePAs = group.poolAccounts.filter(
+      (pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status),
+    );
+    if (activePAs.length === 0) continue;
 
-    const total = spendablePAs.reduce((sum, pa) => sum + pa.value, 0n);
+    const total = activePAs.reduce((sum, pa) => sum + pa.value, 0n);
     const dd = displayDecimals(group.decimals);
     const totalFmt = formatAmount(total, group.decimals, group.symbol, dd);
-    const pendingCount = spendablePAs.filter((pa) => pa.aspStatus === "pending").length;
     const paLabel =
-      `${spendablePAs.length} Pool Account${spendablePAs.length === 1 ? "" : "s"}` +
-      (pendingCount > 0 ? ` (${pendingCount} pending)` : "");
+      `${activePAs.length} Pool Account${activePAs.length === 1 ? "" : "s"}` +
+      formatActiveReviewSummary(activePAs);
 
     const label = includeChainFields
       ? `${group.symbol} Pool (${group.chain})`
@@ -355,22 +391,18 @@ function renderHumanGroupTable(
   if (showDetails) {
     const detailHeaders = ctx.isVerbose
       ? hasUsd
-        ? ["PA", "Status", "ASP", "Value", "USD", "Commitment", "Label", "Block", "Tx"]
-        : ["PA", "Status", "ASP", "Value", "Commitment", "Label", "Block", "Tx"]
+        ? ["PA", "State", "Review", "Value", "USD", "Commitment", "Label", "Block", "Tx"]
+        : ["PA", "State", "Review", "Value", "Commitment", "Label", "Block", "Tx"]
       : hasUsd
-        ? ["PA", "Status", "ASP", "Value", "USD", "Tx"]
-        : ["PA", "Status", "ASP", "Value", "Tx"];
+        ? ["PA", "State", "Review", "Value", "USD", "Tx"]
+        : ["PA", "State", "Review", "Value", "Tx"];
     printTable(
       detailHeaders,
       group.poolAccounts.map((pa) => {
         const base = [
           pa.paId,
-          pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
-          pa.aspStatus === "approved"
-            ? highlight("Approved")
-            : pa.aspStatus === "pending"
-              ? chalk.yellow("Pending")
-              : "",
+          renderPoolAccountStatus(pa.status),
+          pa.aspStatus === "unknown" ? "-" : renderAspApprovalStatus(pa.aspStatus),
           formatAmount(pa.value, group.decimals, group.symbol, dd),
         ];
         if (hasUsd) {
@@ -394,13 +426,7 @@ function renderHumanGroupTable(
     printTable(
       summaryHeaders,
       group.poolAccounts.map((pa) => {
-        const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
-        const aspSuffix =
-          pa.aspStatus === "approved"
-            ? ` (${highlight("Approved")})`
-            : pa.aspStatus === "pending"
-              ? ` (${chalk.yellow("Pending")})`
-              : "";
+        const statusLabel = renderEffectiveHumanStatus(pa);
         const row = [
           pa.paId,
           formatAmount(pa.value, group.decimals, group.symbol, dd),
@@ -408,22 +434,22 @@ function renderHumanGroupTable(
         if (hasUsd) {
           row.push(formatUsdValue(pa.value, group.decimals, group.tokenPrice!));
         }
-        row.push(`${statusLabel}${aspSuffix}`);
+        row.push(statusLabel);
         return row;
       }),
     );
   }
 
-  const spendablePAs = group.poolAccounts.filter((pa) => pa.status === "spendable");
-  if (spendablePAs.length > 0) {
-    const total = spendablePAs.reduce((sum, pa) => sum + pa.value, 0n);
+  const activePAs = group.poolAccounts.filter((pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status));
+  if (activePAs.length > 0) {
+    const total = activePAs.reduce((sum, pa) => sum + pa.value, 0n);
     const totalFmt = formatAmount(total, group.decimals, group.symbol, dd);
     const usdFmt = hasUsd
       ? `  ${formatUsdValue(total, group.decimals, group.tokenPrice!)}`
       : "";
     process.stderr.write(
       chalk.dim(
-        `    Total: ${totalFmt}${usdFmt}  (${spendablePAs.length} account${spendablePAs.length === 1 ? "" : "s"})\n`,
+        `    Total: ${totalFmt}${usdFmt}  (${activePAs.length} account${activePAs.length === 1 ? "" : "s"})\n`,
       ),
     );
   }
@@ -454,7 +480,9 @@ export function renderAccountsNoPools(
           {
             pendingCount: 0,
             approvedCount: 0,
-            spendableCount: 0,
+            poiRequiredCount: 0,
+            declinedCount: 0,
+            unknownCount: 0,
             spentCount: 0,
             exitedCount: 0,
             balances: [],
@@ -481,7 +509,9 @@ export function renderAccountsNoPools(
           balances: [],
           pendingCount: 0,
           approvedCount: 0,
-          spendableCount: 0,
+          poiRequiredCount: 0,
+          declinedCount: 0,
+          unknownCount: 0,
           spentCount: 0,
           exitedCount: 0,
         },
@@ -574,7 +604,9 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             {
               pendingCount: summary.pendingCount,
               approvedCount: summary.approvedCount,
-              spendableCount: summary.spendableCount,
+              poiRequiredCount: summary.poiRequiredCount,
+              declinedCount: summary.declinedCount,
+              unknownCount: summary.unknownCount,
               spentCount: summary.spentCount,
               exitedCount: summary.exitedCount,
               balances: summary.balances,
@@ -621,6 +653,8 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   const silent = isSilent(ctx);
   const hasPendingApprovals = summary.pendingCount > 0;
+  const hasPoiRequiredApprovals = summary.poiRequiredCount > 0;
+  const hasDeclinedApprovals = summary.declinedCount > 0;
   const title = showSummary
     ? includeChainFields
       ? `My Pools summary across ${allChains ? "all chains" : "mainnet chains"}:`
@@ -638,7 +672,23 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (!silent && hasPendingApprovals) {
     info(
-      "Pending ASP approval: recent deposits usually approve within ~1 hour, but some may take up to 7 days before private withdrawal.",
+      "Pending ASP approval: recent deposits usually approve within ~1 hour, but some may take up to 7 days before withdraw becomes available.",
+      silent,
+    );
+    process.stderr.write("\n");
+  }
+
+  if (!silent && hasDeclinedApprovals) {
+    info(
+      "Declined Pool Accounts cannot use withdraw, including --direct. Use ragequit to exit publicly to the original deposit address.",
+      silent,
+    );
+    process.stderr.write("\n");
+  }
+
+  if (!silent && hasPoiRequiredApprovals) {
+    info(
+      "PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at tornado.0xbow.io, then re-check accounts. Ragequit remains available if you prefer a public exit to the original deposit address.",
       silent,
     );
     process.stderr.write("\n");
@@ -648,19 +698,27 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     printTable(
       ["Status", "Count"],
       [
-        ["Pending", String(summary.pendingCount)],
-        ["Approved", String(summary.approvedCount)],
-        ["Spendable", String(summary.spendableCount)],
-        ["Spent", String(summary.spentCount)],
-        ["Exited", String(summary.exitedCount)],
+        [renderPoolAccountStatus("approved"), String(summary.approvedCount)],
+        [renderPoolAccountStatus("pending"), String(summary.pendingCount)],
+        [renderPoolAccountStatus("poi_required"), String(summary.poiRequiredCount)],
+        [renderPoolAccountStatus("declined"), String(summary.declinedCount)],
+        [renderPoolAccountStatus("unknown"), String(summary.unknownCount)],
+        [renderPoolAccountStatus("spent"), String(summary.spentCount)],
+        [renderPoolAccountStatus("exited"), String(summary.exitedCount)],
       ],
     );
     process.stderr.write("\n");
 
     renderHumanBalanceSummary(visibleGroups, silent, includeChainFields);
 
-    if (summary.spendableCount === 0 && summary.pendingCount === 0) {
-      info("No available Pool Accounts found.", silent);
+    const activeCount =
+      summary.approvedCount +
+      summary.pendingCount +
+      summary.poiRequiredCount +
+      summary.declinedCount +
+      summary.unknownCount;
+    if (activeCount === 0) {
+      info("No Pool Accounts with remaining balance found.", silent);
       if (!silent) process.stderr.write("\n");
     }
 
@@ -715,7 +773,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       info("PA = Pool Account. Use -p PA-1 with withdraw or ragequit to target one.", silent);
     }
     if (showPendingOnly) {
-      info("Pending-only mode hides approved accounts and withdraw suggestions.", silent);
+      info(
+        "Pending-only mode hides final states once review completes. Re-run without --pending-only to confirm whether a disappeared PA was approved, declined, or needs Proof of Association.",
+        silent,
+      );
     } else {
       if (!showDetails) {
         info("Use --details to show transaction hashes and ASP status breakdown.", silent);

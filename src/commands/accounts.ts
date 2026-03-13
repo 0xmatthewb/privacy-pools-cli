@@ -16,7 +16,12 @@ import {
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
-import { fetchApprovedLabels } from "../services/asp.js";
+import {
+  formatIncompleteAspReviewDataMessage,
+  hasIncompleteDepositReviewData,
+  loadAspDepositReviewState,
+  type LoadedAspDepositReviewState,
+} from "../services/asp.js";
 import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
@@ -24,7 +29,7 @@ import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { buildAllPoolAccountRefs } from "../utils/pool-accounts.js";
+import { buildAllPoolAccountRefs, collectActiveLabels } from "../utils/pool-accounts.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
@@ -46,6 +51,7 @@ interface AccountScopeSource {
 interface LoadedChainAccounts {
   chainConfig: ChainConfig;
   groups: AccountPoolGroup[];
+  warnings: AccountWarning[];
 }
 
 function describeAccountsChainScope(allChains: boolean | undefined): string {
@@ -104,6 +110,14 @@ export function collectAccountScopeStrings(
   });
 }
 
+export function hasIncompleteAspReviewData(
+  labels: readonly string[],
+  approvedLabels: Set<string> | null,
+  reviewStatuses: ReadonlyMap<string, unknown> | null,
+): boolean {
+  return hasIncompleteDepositReviewData(labels, approvedLabels, reviewStatuses);
+}
+
 async function loadAccountsForChain(
   chainConfig: ChainConfig,
   ctx: ChainLoadContext,
@@ -118,7 +132,7 @@ async function loadAccountsForChain(
   verbose(`Discovered ${pools.length} pool(s) on ${chainConfig.name}`, isVerbose, silent);
 
   if (pools.length === 0) {
-    return { chainConfig, groups: [] };
+    return { chainConfig, groups: [], warnings: [] };
   }
 
   // Pre-build scope→pool lookup to avoid repeated linear scans.
@@ -185,11 +199,24 @@ async function loadAccountsForChain(
     spin.text = `Checking ASP approval status on ${chainConfig.name}...`;
   }
   const approvedLabelsByScope = new Map<string, Set<string> | null>();
+  const reviewStatusesByScope = new Map<string, LoadedAspDepositReviewState["reviewStatuses"]>();
+  let hasPartialAspReviewData = false;
   await Promise.all(
     sortedScopeStrings.map(async (scopeStr) => {
       const pool = poolByScope.get(scopeStr);
       if (pool) {
-        approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
+        const labels = collectActiveLabels(spendable.get(BigInt(scopeStr)) ?? []);
+        const aspReviewState = await loadAspDepositReviewState(
+          chainConfig,
+          pool.scope,
+          labels,
+        );
+
+        approvedLabelsByScope.set(scopeStr, aspReviewState.approvedLabels);
+        reviewStatusesByScope.set(scopeStr, aspReviewState.reviewStatuses);
+        if (aspReviewState.hasIncompleteReviewData) {
+          hasPartialAspReviewData = true;
+        }
       }
     }),
   );
@@ -202,6 +229,7 @@ async function loadAccountsForChain(
     if (!pool) continue;
 
     const approvedLabels = approvedLabelsByScope.get(scopeStr);
+    const reviewStatuses = reviewStatusesByScope.get(scopeStr);
     // Always show all pool accounts (pending, approved, spent, exited).
     // Users commonly check accounts to see if a pending deposit has been
     // approved — hiding any state behind --all creates a confusing empty view.
@@ -210,6 +238,7 @@ async function loadAccountsForChain(
       pool.scope,
       commitments,
       approvedLabels,
+      reviewStatuses,
     );
     poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
 
@@ -225,7 +254,15 @@ async function loadAccountsForChain(
     });
   }
 
-  return { chainConfig, groups };
+  const warnings: AccountWarning[] = hasPartialAspReviewData
+    ? [{
+        chain: chainConfig.name,
+        category: "ASP",
+        message: formatIncompleteAspReviewDataMessage("accounts"),
+      }]
+    : [];
+
+  return { chainConfig, groups, warnings };
 }
 
 // ── Command ─────────────────────────────────────────────────────────────────
@@ -364,12 +401,14 @@ export function createAccountsCommand(): Command {
               continue;
             }
 
+            warnings.push(...outcome.result.warnings);
             loadedResults.push(outcome.result);
           }
         } else {
           for (const chainConfig of chainsToQuery) {
             try {
               const result = await loadAccountsForChain(chainConfig, chainCtx);
+              warnings.push(...result.warnings);
               loadedResults.push(result);
             } catch (error) {
               if (firstError === undefined) firstError = error;

@@ -142,7 +142,7 @@ describe("accounts CSV", () => {
       {
         paNumber: 1,
         paId: "PA-1",
-        status: "spendable",
+        status: "approved",
         aspStatus: "approved",
         commitment: STUB_COMMITMENT,
         label: 456n,
@@ -179,7 +179,7 @@ describe("accounts CSV", () => {
     expect(lines[0]).toBe("PA,Status,ASP,Asset,Value,Tx");
     expect(lines[0]).not.toContain("Block");
     expect(lines[1]).toContain("PA-1");
-    expect(lines[1]).toContain("spendable");
+    expect(lines[1]).toContain("approved");
     expect(stderr).toBe("");
   });
 });

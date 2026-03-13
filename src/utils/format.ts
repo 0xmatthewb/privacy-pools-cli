@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import Table from "cli-table3";
 import { formatUnits } from "viem";
-import { highlight, accent, spinnerColor } from "./theme.js";
+import { accent, notice, spinnerColor, successTone } from "./theme.js";
 
 /**
  * Number of fractional digits to show when formatting token amounts.
@@ -171,12 +171,12 @@ export function spinner(text: string, quiet: boolean = false) {
 
 export function success(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${highlight(`✓ ${message}`)}\n`);
+  process.stderr.write(`${successTone(`✓ ${message}`)}\n`);
 }
 
 export function warn(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${chalk.yellow(`⚠ ${message}`)}\n`);
+  process.stderr.write(`${notice(`⚠ ${message}`)}\n`);
 }
 
 export function info(message: string, quiet: boolean = false): void {

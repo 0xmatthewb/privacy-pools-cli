@@ -105,7 +105,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const agentNextActions = [
     createNextAction(
       "accounts",
-      `Poll pending approvals for ${data.poolAccountId}. When it disappears from pending results, ${confirmHint} to confirm approval before a relayed withdrawal.`,
+      `Poll pending review for ${data.poolAccountId}. When it disappears from pending results, ${confirmHint} to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.`,
       "after_deposit",
       { options: { agent: true, chain: data.chain, pendingOnly: true } },
     ),
@@ -113,7 +113,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const humanNextActions = [
     createNextAction(
       "accounts",
-      `Check approval status for ${data.poolAccountId} before withdrawing privately.`,
+      `Check the final review status for ${data.poolAccountId}. Withdraw only after approval. If it is declined, use ragequit; if it needs Proof of Association, complete the PoA flow at tornado.0xbow.io first.`,
       "after_deposit",
       {
         options:

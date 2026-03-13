@@ -198,6 +198,29 @@ describe("pools with fixture server", () => {
     // but the command didn't throw an ASP error — proof the fixture served data.
     expect(Array.isArray(json.pools)).toBe(true);
   });
+
+  test("pools <asset> keeps wallet-state warnings concise when RPC log methods are unavailable", () => {
+    const home = createTempHome();
+    mustInitSeededHome(home, "sepolia");
+
+    const result = runCli(
+      ["--chain", "sepolia", "--rpc-url", fixture.url, "pools", "ETH"],
+      {
+        home,
+        timeoutMs: 15_000,
+        env: fixtureEnv(),
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("");
+    expect(result.stderr).toContain("ETH Pool on sepolia");
+    expect(result.stderr).toContain("Could not load your wallet state from onchain data right now.");
+    expect(result.stderr).toContain("privacy-pools status --check --chain sepolia");
+    expect(result.stderr).not.toContain("Method not found");
+    expect(result.stderr).not.toContain("eth_getLogs");
+    expect(result.stderr).not.toContain("viem/");
+  });
 });
 
 // ── status health check ──────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "1.3.0",
-  "schemaVersion": "1.3.0",
+  "version": "1.5.0",
+  "schemaVersion": "1.5.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {
@@ -143,7 +143,7 @@
         "label": "decimal-string|null",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm approval with accounts --chain <chain>)"
+        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poi_required before choosing withdraw or ragequit)"
       },
       "variants": {
         "dryRun": {
@@ -328,7 +328,9 @@
         "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "pendingCount": "number",
         "approvedCount": "number",
-        "spendableCount": "number",
+        "poiRequiredCount": "number",
+        "declinedCount": "number",
+        "unknownCount": "number",
         "spentCount": "number",
         "exitedCount": "number",
         "balances": "Balance[]",
@@ -343,8 +345,8 @@
       "accountFields": {
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
-        "status": "\"spendable\"|\"spent\"|\"exited\"",
-        "aspStatus": "\"pending\"|\"approved\"|\"unknown\"",
+        "status": "\"approved\"|\"pending\"|\"poi_required\"|\"declined\"|\"unknown\"|\"spent\"|\"exited\"",
+        "aspStatus": "\"pending\"|\"approved\"|\"poi_required\"|\"declined\"|\"unknown\"",
         "asset": "string",
         "scope": "decimal-string",
         "value": "decimal-string-wei",
@@ -358,9 +360,9 @@
       },
       "balanceFields": {
         "asset": "string",
-        "balance": "decimal-string-wei (total spendable)",
+        "balance": "decimal-string-wei (total across Pool Accounts with remaining balance)",
         "usdValue": "string|null (formatted USD e.g. $1,000.00)",
-        "poolAccounts": "number (spendable account count)",
+        "poolAccounts": "number (account count included in the balance total)",
         "chain": "string? (present in multi-chain mode)",
         "chainId": "number? (present in multi-chain mode)"
       }

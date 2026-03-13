@@ -221,7 +221,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
     // Capability flags: indicate the wallet is *configured* for these operations,
-    // NOT that spendable funds exist. Agents must check `accounts` to verify
+    // NOT that withdrawable funds exist. Agents must check `accounts` to verify
     // fund availability before attempting withdrawals.
     status.readyForDeposit = readyForDeposit;
     status.readyForWithdraw = readyForDeposit;

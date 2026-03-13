@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createTempHome, runCli } from "../helpers/cli.ts";
 
 describe("CLI help and discovery", () => {
-  const BANNER_SENTINEL = " ,---.  ,---.";
+  const BANNER_SENTINEL = ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
 
   test("root --help lists all commands", () => {
     const result = runCli(["--help"], { home: createTempHome() });
@@ -120,7 +120,12 @@ describe("CLI help and discovery", () => {
     });
     expect(first.status).toBe(0);
     expect(first.stderr).toContain(BANNER_SENTINEL);
+    expect(first.stderr).toContain("A compliant way to transact privately on Ethereum.");
+    expect(first.stderr).toMatch(/v\d+\.\d+\.\d+/);
+    expect(first.stderr).toContain("github.com/0xmatthewb/privacy-pools-cli");
     expect(first.stdout).toContain("Explore (no wallet needed)");
+    expect(first.stdout).toContain("For large transactions, use privacypools.com.");
+    expect(first.stdout).not.toContain("https://privacypools.com");
 
     // Second bare invocation in same session suppresses banner
     const second = runCli([], {
@@ -130,6 +135,58 @@ describe("CLI help and discovery", () => {
     expect(second.status).toBe(0);
     expect(second.stderr).not.toContain(BANNER_SENTINEL);
     expect(second.stdout).toContain("Explore (no wallet needed)");
+  });
+
+  test("--no-banner keeps the welcome screen but suppresses banner art", () => {
+    const home = createTempHome();
+    const sessionId = `pp-cli-test-no-banner-${Date.now()}`;
+
+    const result = runCli(["--no-banner"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).not.toContain(BANNER_SENTINEL);
+    expect(result.stdout).toContain("Explore (no wallet needed)");
+  });
+
+  test("--quiet keeps bare invocation silent", () => {
+    const home = createTempHome();
+    const sessionId = `pp-cli-test-quiet-${Date.now()}`;
+
+    const result = runCli(["--quiet"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("");
+    expect(result.stderr.trim()).toBe("");
+  });
+
+  test("--verbose keeps the curated welcome screen on bare invocation", () => {
+    const home = createTempHome();
+    const sessionId = `pp-cli-test-verbose-${Date.now()}`;
+
+    const result = runCli(["--verbose"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Explore (no wallet needed)");
+    expect(result.stderr).toContain(BANNER_SENTINEL);
+  });
+
+  test("--chain mainnet keeps the curated welcome screen on bare invocation", () => {
+    const home = createTempHome();
+    const sessionId = `pp-cli-test-chain-${Date.now()}`;
+
+    const result = runCli(["--chain", "mainnet"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Explore (no wallet needed)");
+    expect(result.stderr).toContain(BANNER_SENTINEL);
   });
 
   test("banner is not shown before commands", () => {

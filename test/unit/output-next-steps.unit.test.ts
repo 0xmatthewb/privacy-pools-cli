@@ -309,7 +309,7 @@ const STUB_INIT: InitRenderResult = {
           {
             paNumber: 1,
             paId: "PA-1",
-            status: "spendable",
+            status: "approved",
             aspStatus: "approved",
             value: 100000000000000000n,
             commitment: { hash: 1n, label: 2n },
@@ -320,7 +320,7 @@ const STUB_INIT: InitRenderResult = {
           {
             paNumber: 2,
             paId: "PA-2",
-            status: "spendable",
+            status: "pending",
             aspStatus: "pending",
             value: 50000000000000000n,
             commitment: { hash: 3n, label: 4n },

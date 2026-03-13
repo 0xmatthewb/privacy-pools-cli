@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { dangerTone, notice } from "./theme.js";
 import { printJsonError } from "./json.js";
 import { isTransientNetworkError } from "./network.js";
 
@@ -229,9 +230,9 @@ export function printError(error: unknown, json: boolean = false): void {
       false
     );
   } else {
-    process.stderr.write(chalk.red(`Error [${classified.category}]: ${classified.message}`) + "\n");
+    process.stderr.write(dangerTone(`Error [${classified.category}]: ${classified.message}`) + "\n");
     if (classified.hint) {
-      process.stderr.write(chalk.yellow(`Hint: ${classified.hint}`) + "\n");
+      process.stderr.write(notice(`Hint: ${classified.hint}`) + "\n");
     }
   }
 

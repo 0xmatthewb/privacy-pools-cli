@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
+  buildLoadedAspDepositReviewState,
   checkLiveness,
   fetchApprovedLabels,
   fetchDepositsLargerThan,
@@ -8,6 +9,7 @@ import {
   fetchMerkleLeaves,
   fetchMerkleRoots,
   fetchPoolsStats,
+  formatIncompleteAspReviewDataMessage,
   overrideAspRetryWaitForTests,
 } from "../../src/services/asp.ts";
 
@@ -124,6 +126,25 @@ describe("asp service", () => {
     ) as typeof fetch;
 
     await expect(fetchApprovedLabels(chain, 1n)).resolves.toEqual(new Set(["1", "2", "3"]));
+  });
+
+  test("formats context-specific incomplete review warnings", () => {
+    expect(formatIncompleteAspReviewDataMessage("accounts")).toContain("--pending-only");
+    expect(formatIncompleteAspReviewDataMessage("pool-detail")).toContain("unknown");
+    expect(formatIncompleteAspReviewDataMessage("ragequit", "mainnet")).toContain(
+      "privacy-pools accounts --chain mainnet",
+    );
+  });
+
+  test("buildLoadedAspDepositReviewState flags omitted review rows as incomplete", () => {
+    const state = buildLoadedAspDepositReviewState(
+      ["1", "2"],
+      new Set(["1"]),
+      new Map([["1", "approved"]]),
+    );
+
+    expect(state.reviewStatuses).toEqual(new Map([["1", "approved"]]));
+    expect(state.hasIncompleteReviewData).toBe(true);
   });
 
   test("maps 400 errors to ASP category with version/sync hint", async () => {

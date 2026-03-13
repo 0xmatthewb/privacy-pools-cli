@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createTempHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
 
 describe("completion command", () => {
-  const BANNER_SENTINEL = " ,---.  ,---.";
+  const BANNER_SENTINEL = ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
 
   test("completion bash emits a bash completion script", () => {
     const result = runCli(["completion", "bash"], { home: createTempHome() });

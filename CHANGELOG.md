@@ -4,6 +4,35 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.4.0] - 2026-03-13
+
+### Added
+
+- Shared status-color rendering for account and review states across CLI output.
+- Explicit support for `declined`, `poi_required`, and fail-closed `unknown` ASP review states throughout machine and human flows.
+- Public-activity normalization and richer pool-detail warnings so degraded wallet-state paths stay actionable without leaking low-level RPC noise.
+
+### Changed
+
+- `accounts`, `pools`, `activity`, `withdraw`, and `ragequit` now share a consistent ASP review-state model and action-eligibility rules.
+- Agent discovery, runtime metadata, and shipped docs now standardize on `--agent` as the canonical automation mode.
+- Bare invocation, welcome/banner behavior, and packaged `start` flow were tightened so source checkouts and installed builds fail more predictably.
+- `package-lock.json` is refreshed to match the published package metadata and remove the retired `pp` alias from release artifacts.
+
+### Fixed
+
+- Blocked private withdraw for deposits that are `declined`, still pending ASP leaves, or require Proof of Association.
+- Made `ragequit` state-aware so exit guidance matches the selected Pool Account’s real recovery path.
+- Fixed stale agent and skill-reference copy drift around approval polling, stream boundaries, and discovery examples.
+- Replaced vague built-artifact startup failures with a clear build hint when `dist/` is missing.
+
+### Verification
+
+- `npm run typecheck`
+- `npm run build`
+- `npm run test:ci`
+- `npm run test:smoke`
+
 ## [1.3.0] - 2026-03-13
 
 ### Added
@@ -134,6 +163,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Enabled GitHub Actions CI/CD workflows for the repository.
 - Completed the initial packaging and release flow.
 
+[1.4.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.0.2...v1.1.0

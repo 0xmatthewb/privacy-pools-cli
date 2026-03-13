@@ -37,15 +37,17 @@ privacy-pools deposit 0.1 ETH
 
 # 4. Wait for ASP approval (most < 1 hour, up to 7 days)
 privacy-pools accounts --chain mainnet --pending-only   # poll while the deposit remains pending
-privacy-pools accounts --chain mainnet                  # confirm approval before withdrawing
+privacy-pools accounts --chain mainnet                  # confirm approved vs declined vs PoA-needed before next step
 
 # 5. Withdraw privately to any address
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 ```
 
-Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Association Set Provider (ASP) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit.
+Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Association Set Provider (ASP) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit. If a deposit is marked `poi_required`, complete Proof of Association before withdrawing privately. If it is declined, the recovery path is `ragequit`, which exits publicly to your deposit address.
 
 You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
+
+For relayed withdrawals, the CLI warns if your chosen amount would leave a tiny remainder below the relayer minimum so you can adjust before stranding the relayed path for the leftover balance.
 
 ## Install
 
@@ -60,6 +62,10 @@ Or run from source:
 git clone https://github.com/0xmatthewb/privacy-pools-cli.git
 cd privacy-pools-cli && bun install
 bun run dev -- pools
+
+# Built checkout entrypoint
+bun run build
+bun run start -- --help
 ```
 
 ## Commands
@@ -97,8 +103,8 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 Every response is wrapped in a versioned envelope:
 
 ```json
-{ "schemaVersion": "1.3.0", "success": true, ...commandPayload }
-{ "schemaVersion": "1.3.0", "success": false, "errorCode": "INPUT_ERROR", "errorMessage": "..." }
+{ "schemaVersion": "1.5.0", "success": true, ...commandPayload }
+{ "schemaVersion": "1.5.0", "success": false, "errorCode": "INPUT_ERROR", "errorMessage": "..." }
 ```
 
 stdout is always JSON. stderr carries human-readable output. Pipe safely to `jq`.

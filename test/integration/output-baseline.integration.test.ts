@@ -260,10 +260,14 @@ describe("--agent mode output contracts", () => {
     const json = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      guide: string;
+      mode: string;
+      help: string;
     }>(result.stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
+    expect(json.mode).toBe("help");
+    expect(json.help).toContain("privacy-pools capabilities --agent");
+    expect(json.help).toContain("privacy-pools describe <command...> --agent");
   });
 
   test("--agent capabilities: JSON on stdout, stderr empty", () => {
