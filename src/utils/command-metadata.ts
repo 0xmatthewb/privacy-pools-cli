@@ -335,7 +335,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       safetyNotes: [
         "Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.",
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits marked poi_required need Proof of Association (tornado.0xbow.io) before they can withdraw privately.",
+        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -446,7 +446,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Use 'withdraw' to withdraw privately once your deposit is ASP-approved.",
         "Use 'ragequit' at any time to recover funds publicly to your deposit",
         "address. Declined deposits must use this path; pending and",
-        "'poi_required' deposits can also use it, but your deposit address is revealed onchain. 'exit' is an alias.",
+        "Deposits that require PoA can also use it, but your deposit address is revealed onchain. 'exit' is an alias.",
       ],
       examples: [
         "privacy-pools ragequit ETH --from-pa PA-1",

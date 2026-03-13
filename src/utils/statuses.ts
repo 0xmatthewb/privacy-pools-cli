@@ -103,7 +103,7 @@ export function formatAspApprovalStatus(
         case "pending":
           return "Pending";
         case "poi_required":
-          return "POA Needed";
+          return "PoA Needed";
         case "declined":
           return "Declined";
       }
@@ -117,7 +117,7 @@ export function formatAspApprovalStatus(
     case "pending":
       return "Pending";
     case "poi_required":
-      return "POA Needed";
+      return "PoA Needed";
     case "declined":
       return "Declined";
     default:
@@ -156,7 +156,7 @@ export function formatPoolAccountStatus(status: PoolAccountStatus): string {
     case "pending":
       return "Pending";
     case "poi_required":
-      return "POA Needed";
+      return "PoA Needed";
     case "declined":
       return "Declined";
     case "unknown":

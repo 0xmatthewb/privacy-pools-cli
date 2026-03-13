@@ -262,7 +262,7 @@ function formatActiveReviewSummary(poolAccounts: PoolAccountRef[]): string {
   const parts: string[] = [];
 
   if (pendingCount > 0) parts.push(`${pendingCount} pending`);
-  if (poiRequiredCount > 0) parts.push(`${poiRequiredCount} POA needed`);
+  if (poiRequiredCount > 0) parts.push(`${poiRequiredCount} PoA needed`);
   if (declinedCount > 0) parts.push(`${declinedCount} declined`);
   if (unknownCount > 0) parts.push(`${unknownCount} unknown`);
 
@@ -279,8 +279,8 @@ function renderSummaryCsv(
   includeChainFields: boolean,
 ): void {
   const headers = includeChainFields
-    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "POA Needed", "Declined", "Unknown", "Spent", "Exited"]
-    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "POA Needed", "Declined", "Unknown", "Spent", "Exited"];
+    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "PoA Needed", "Declined", "Unknown", "Spent", "Exited"]
+    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "PoA Needed", "Declined", "Unknown", "Spent", "Exited"];
   const sourceRows =
     summary.balances.length > 0
       ? summary.balances
@@ -688,7 +688,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (!silent && hasPoiRequiredApprovals) {
     info(
-      "POA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at tornado.0xbow.io, then re-check accounts. Ragequit remains available if you prefer a public exit to the original deposit address.",
+      "PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at tornado.0xbow.io, then re-check accounts. Ragequit remains available if you prefer a public exit to the original deposit address.",
       silent,
     );
     process.stderr.write("\n");

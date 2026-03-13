@@ -60,7 +60,7 @@ describe("formatApprovalResolutionHint", () => {
     expect(hint).toContain("privacy-pools ragequit --chain sepolia --asset ETH --from-pa PA-4");
   });
 
-  test("explains poi_required Pool Accounts need POA before withdraw", () => {
+  test("explains poi_required Pool Accounts need PoA before withdraw", () => {
     const hint = formatApprovalResolutionHint({
       chainName: "mainnet",
       assetSymbol: "ETH",

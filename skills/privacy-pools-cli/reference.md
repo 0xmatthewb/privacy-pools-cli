@@ -479,7 +479,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
   "nextActions": [
     {
       "command": "accounts",
-      "reason": "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain mainnet to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.",
+      "reason": "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain mainnet to confirm whether it was approved, declined, or needs Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit.",
       "when": "after_deposit",
       "options": { "agent": true, "chain": "mainnet", "pendingOnly": true }
     }

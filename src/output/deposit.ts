@@ -113,7 +113,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const humanNextActions = [
     createNextAction(
       "accounts",
-      `Check the final review status for ${data.poolAccountId}. Withdraw only after approval. If it is declined, use ragequit; if it needs Proof of Association, complete that flow first.`,
+      `Check the final review status for ${data.poolAccountId}. Withdraw only after approval. If it is declined, use ragequit; if it needs Proof of Association, complete the PoA flow at tornado.0xbow.io first.`,
       "after_deposit",
       {
         options:

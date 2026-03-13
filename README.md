@@ -37,7 +37,7 @@ privacy-pools deposit 0.1 ETH
 
 # 4. Wait for ASP approval (most < 1 hour, up to 7 days)
 privacy-pools accounts --chain mainnet --pending-only   # poll while the deposit remains pending
-privacy-pools accounts --chain mainnet                  # confirm approved vs declined vs POA-needed before next step
+privacy-pools accounts --chain mainnet                  # confirm approved vs declined vs PoA-needed before next step
 
 # 5. Withdraw privately to any address
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...

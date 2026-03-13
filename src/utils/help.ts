@@ -233,7 +233,7 @@ export function guideText(): string {
     `  ${accent("privacy-pools init")}`,
     `  ${accent("privacy-pools pools")}                                          ${chalk.dim("(browse available pools)")}`,
     `  ${accent("privacy-pools deposit 0.1 ETH")}`,
-    `  ${accent("privacy-pools accounts")}                                       ${chalk.dim("(confirm approved vs declined vs POA-needed)")}`,
+    `  ${accent("privacy-pools accounts")}                                       ${chalk.dim("(confirm approved vs declined vs PoA-needed)")}`,
     `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-1")}`,
     chalk.dim("  Commands use your default chain (set during init). Add --chain <name> to override."),
     "",

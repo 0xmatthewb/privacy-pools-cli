@@ -273,7 +273,7 @@ function formatReviewSummary(poolAccounts: PoolAccountRef[]): string {
   const parts: string[] = [];
 
   if (pendingCount > 0) parts.push(`${pendingCount} pending`);
-  if (poiRequiredCount > 0) parts.push(`${poiRequiredCount} POA needed`);
+  if (poiRequiredCount > 0) parts.push(`${poiRequiredCount} PoA needed`);
   if (declinedCount > 0) parts.push(`${declinedCount} declined`);
   if (unknownCount > 0) parts.push(`${unknownCount} unknown`);
 
@@ -390,7 +390,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     if (active.some((pa) => pa.status === "poi_required")) {
       process.stderr.write(
         chalk.dim(
-          "\n  POA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at tornado.0xbow.io, then re-check accounts. Ragequit remains available if you prefer a public exit.\n",
+          "\n  PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at tornado.0xbow.io, then re-check accounts. Ragequit remains available if you prefer a public exit.\n",
         ),
       );
     }

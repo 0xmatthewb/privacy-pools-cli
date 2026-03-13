@@ -306,11 +306,11 @@ export function formatIncompleteAspReviewDataMessage(
 ): string {
   switch (context) {
     case "accounts":
-      return "Some ASP review data was unavailable or incomplete; non-approved deposits may appear as unknown, and --pending-only results may miss pending, declined, or POA-needed accounts until the ASP catches up.";
+      return "Some ASP review data was unavailable or incomplete; non-approved deposits may appear as unknown, and --pending-only results may miss pending, declined, or PoA-needed accounts until the ASP catches up.";
     case "pool-detail":
       return "Some ASP review data was unavailable or incomplete; some Pool Account review states may appear as unknown until the ASP catches up.";
     case "ragequit":
-      return `Some ASP review data was unavailable or incomplete${chainName ? ` on ${chainName}` : ""}; a Pool Account may appear as unknown even when the ASP would normally report pending, declined, or POA-needed. Re-run 'privacy-pools accounts${chainName ? ` --chain ${chainName}` : ""}' if you need the exact review state before exiting.`;
+      return `Some ASP review data was unavailable or incomplete${chainName ? ` on ${chainName}` : ""}; a Pool Account may appear as unknown even when the ASP would normally report pending, declined, or PoA-needed. Re-run 'privacy-pools accounts${chainName ? ` --chain ${chainName}` : ""}' if you need the exact review state before exiting.`;
   }
 }
 
@@ -367,7 +367,7 @@ export function buildLoadedAspDepositReviewState(
  * Fetch per-label ASP review statuses for active deposits with remaining balance.
  * Returns null when the endpoint is unavailable so callers can fail closed
  * for non-approved deposits instead of guessing between pending, declined,
- * and POA-needed states.
+ * and PoA-needed states.
  */
 export async function fetchDepositReviewStatuses(
   chainConfig: ChainConfig,

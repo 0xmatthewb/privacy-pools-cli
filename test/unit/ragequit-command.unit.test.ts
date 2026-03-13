@@ -80,7 +80,7 @@ describe("ragequit command helpers", () => {
     expect(advisory?.message).toContain("prefer public recovery instead of waiting");
   });
 
-  test("poi_required advisory points to the POA flow", () => {
+  test("poi_required advisory points to the PoA flow", () => {
     const advisory = getRagequitAdvisory(
       makePoolAccountRef({ status: "poi_required", aspStatus: "poi_required" }),
     );
