@@ -322,7 +322,7 @@ Representative payload (abridged):
       "name": "deposit",
       "description": "Deposit into a pool",
       "flags": ["--asset <symbol|address>", "--unsigned [envelope|tx]", "--dry-run"],
-      "agentFlags": "--json --yes",
+      "agentFlags": "--agent",
       "requiresInit": true
     }
   ],
@@ -336,20 +336,20 @@ Representative payload (abridged):
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
   ],
   "agentWorkflow": [
-    "1. privacy-pools status --json",
-    "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
-    "3. privacy-pools pools --json --chain <chain>",
-    "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-    "5. privacy-pools accounts --json --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --json --chain <chain>)",
-    "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
+    "1. privacy-pools status --agent",
+    "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
+    "3. privacy-pools pools --agent --chain <chain>",
+    "4. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>",
+    "5. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
+    "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
-    "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
+    "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
+    "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-    "statusCheck": "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard."
+    "statusCheck": "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
   },
   "schemas": {
     "aspApprovalStatus": { "values": ["approved", "pending", "poi_required", "declined", "unknown"] },
@@ -856,7 +856,7 @@ When `retryable: true`:
 3. `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR`: wait 30-60s and retry.
 
 When `retryable: false`:
-4. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --json --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --json --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+4. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ---
 

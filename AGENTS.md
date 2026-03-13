@@ -506,7 +506,7 @@ When `retryable: true` is present in the error response:
 
 When `retryable: false` (non-retryable):
 
-4. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --json --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+4. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ## Supported Chains
 
