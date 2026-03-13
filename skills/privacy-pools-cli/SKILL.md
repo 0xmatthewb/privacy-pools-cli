@@ -29,7 +29,7 @@ triggers:
 
 SDK-powered CLI for [Privacy Pools v1](https://privacypools.com) — compliant, private transactions on Ethereum, Arbitrum, and Optimism.
 
-Package: `privacy-pools-cli` on npm. Binary: `privacy-pools`.
+Install from GitHub: `npm i -g github:0xmatthewb/privacy-pools-cli` or `bun add -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`.
 
 ## Quick reference
 
@@ -264,14 +264,15 @@ In machine modes, non-round deposit amounts are rejected by default because they
 
 ## 9. Error handling
 
-Error codes: `INPUT_ERROR`, `RPC_ERROR`, `RPC_NETWORK_ERROR`, `RPC_POOL_RESOLUTION_FAILED`, `ASP_ERROR`, `RELAYER_ERROR`, `PROOF_ERROR`, `PROOF_GENERATION_FAILED`, `PROOF_MERKLE_ERROR`, `PROOF_MALFORMED`, `CONTRACT_NULLIFIER_ALREADY_SPENT`, `CONTRACT_INCORRECT_ASP_ROOT`, `CONTRACT_INVALID_PROOF`, `CONTRACT_INVALID_PROCESSOOOR`, `CONTRACT_PRECOMMITMENT_ALREADY_USED`, `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`, `CONTRACT_NO_ROOTS_AVAILABLE`, `ACCOUNT_NOT_APPROVED`, `UNKNOWN_ERROR`.
+See [reference.md](reference.md#error-format) for the full current error table and payload shape.
 
 Exit codes: 0 (success), 1 (unknown), 2 (input), 3 (RPC), 4 (ASP), 5 (relayer), 6 (proof), 7 (contract).
 
-Retryable errors include `retryable: true`. Recommended retry strategy:
-- `RPC_NETWORK_ERROR` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
-- `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent` first, then retry
-- `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
+Recommended retry strategy:
+- `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
+- `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent` first, then retry.
+- `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR`: wait 30-60s and retry.
+- `ACCOUNT_NOT_APPROVED`: do not retry immediately; keep polling `accounts --agent --chain <chain> --pending-only`, then confirm with `accounts --agent --chain <chain>`.
 
 ---
 

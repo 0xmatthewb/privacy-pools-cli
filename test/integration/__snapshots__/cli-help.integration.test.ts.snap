@@ -355,7 +355,7 @@ Examples:
   privacy-pools capabilities
   privacy-pools capabilities --json
 JSON output (--json):
-  { commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }"
+  { commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }"
 `;
 
 exports[`CLI --help snapshots describe --help snapshot 1`] = `

@@ -354,7 +354,10 @@ Representative payload (abridged):
   "schemas": {
     "aspApprovalStatus": { "values": ["approved", "pending", "unknown"] },
     "poolAccountStatus": { "values": ["spendable", "spent", "exited"] },
-    "errorCategories": { "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"] },
+    "errorCategories": {
+      "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],
+      "description": "Error responses include top-level errorCode/errorMessage plus error.{ code, category, message, hint?, retryable? }."
+    },
     "nextActions": {
       "shape": "{ command, reason, when, args?, options?, runnable? }",
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. When runnable is false, the action is a template that needs additional user input before execution."
@@ -368,7 +371,12 @@ Representative payload (abridged):
     { "name": "sepolia", "chainId": 11155111, "testnet": true },
     { "name": "op-sepolia", "chainId": 11155420, "testnet": true }
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned tx emits a raw transaction array without the envelope."
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+  "documentation": {
+    "reference": "docs/reference.md",
+    "agentGuide": "AGENTS.md",
+    "changelog": "CHANGELOG.md"
+  }
 }
 ```
 
@@ -805,6 +813,7 @@ All errors in JSON mode:
 | `INPUT_ERROR` | INPUT | No | Bad arguments, missing flags |
 | `RPC_ERROR` | RPC | No | RPC call failure |
 | `RPC_NETWORK_ERROR` | RPC | Yes | Network connectivity issue |
+| `RPC_RATE_LIMITED` | RPC | Yes | RPC provider rate limit (429); use `--rpc-url` |
 | `RPC_POOL_RESOLUTION_FAILED` | RPC | Yes | Pool resolution failed (ASP + RPC both down) |
 | `ASP_ERROR` | ASP | No | ASP service failure |
 | `RELAYER_ERROR` | RELAYER | No | Relayer request failure |
@@ -819,6 +828,9 @@ All errors in JSON mode:
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED` | CONTRACT | No | Duplicate precommitment, retry deposit |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | Wrong signer for exit |
 | `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool not ready, wait and retry |
+| `CONTRACT_INSUFFICIENT_FUNDS` | CONTRACT | No | Wallet lacks ETH for amount + gas |
+| `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | Nonce conflict; pending tx may be stuck |
+| `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit pending ASP approval, cannot withdraw yet |
 | `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error |
 
 ### Exit codes
@@ -837,9 +849,12 @@ All errors in JSON mode:
 ### Retry strategy
 
 When `retryable: true`:
-1. `RPC_NETWORK_ERROR` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries
-2. `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent`, then retry
-3. `CONTRACT_NO_ROOTS_AVAILABLE`: wait 30-60s and retry
+1. `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
+2. `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent`, then retry.
+3. `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR`: wait 30-60s and retry.
+
+When `retryable: false`:
+4. `ACCOUNT_NOT_APPROVED`: keep polling `privacy-pools accounts --json --chain <chain> --pending-only`, then confirm approval with `privacy-pools accounts --json --chain <chain>`.
 
 ---
 
@@ -857,6 +872,6 @@ When `retryable: true`:
 
 ## Links
 
-- npm: [privacy-pools-cli](https://www.npmjs.com/package/privacy-pools-cli)
+- GitHub: [0xmatthewb/privacy-pools-cli](https://github.com/0xmatthewb/privacy-pools-cli)
 - Privacy Pools: [https://privacypools.com](https://privacypools.com)
 - 0xbow: [https://0xbow.io](https://0xbow.io)
