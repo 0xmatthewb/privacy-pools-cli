@@ -189,7 +189,7 @@ privacy-pools guide
 Describe all CLI commands, flags, and workflows in a structured format. Useful for agent/tool discovery.
 
 ```bash
-privacy-pools capabilities --json
+privacy-pools capabilities --agent
 ```
 
 The JSON payload includes `commands[]`, `commandDetails{}`, global flags, workflow guidance, supported chains, and the machine-readable output contract.
@@ -199,8 +199,8 @@ The JSON payload includes `commands[]`, `commandDetails{}`, global flags, workfl
 Describe one command in a structured format. Useful when a human or agent wants the runtime contract for one command path without parsing long-form docs.
 
 ```bash
-privacy-pools describe withdraw quote --json
-privacy-pools describe stats global --json
+privacy-pools describe withdraw quote --agent
+privacy-pools describe stats global --agent
 ```
 
 ### `activity`

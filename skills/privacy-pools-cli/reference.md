@@ -371,7 +371,7 @@ Representative payload (abridged):
     { "name": "sepolia", "chainId": 11155111, "testnet": true },
     { "name": "op-sepolia", "chainId": 11155420, "testnet": true }
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {
     "reference": "docs/reference.md",
     "agentGuide": "AGENTS.md",

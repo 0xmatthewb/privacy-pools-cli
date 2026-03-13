@@ -170,7 +170,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       examples: [
         "privacy-pools stats global",
         "privacy-pools stats pool --asset ETH",
-        "privacy-pools stats pool --asset USDC --json --chain mainnet",
+        "privacy-pools stats pool --asset USDC --agent --chain mainnet",
       ],
     },
     capabilities: {
@@ -293,6 +293,13 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   },
   guide: {
     description: "Show usage guide, workflow, and reference",
+    help: {
+      examples: [
+        "privacy-pools guide",
+        "privacy-pools guide --agent",
+      ],
+      jsonFields: "{ mode: \"help\", help }",
+    },
     capabilities: {
       flags: [],
       agentFlags: "--agent",
@@ -787,7 +794,7 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       .filter((path) => COMMAND_METADATA[path].safeReadOnly)
       .map((path) => path),
     jsonOutputContract:
-      "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+      "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
     documentation: {
       reference: "docs/reference.md",
       agentGuide: "AGENTS.md",

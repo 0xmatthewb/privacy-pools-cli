@@ -150,7 +150,7 @@ Commands:
 Examples:
   privacy-pools stats global
   privacy-pools stats pool --asset ETH
-  privacy-pools stats pool --asset USDC --json --chain mainnet"
+  privacy-pools stats pool --asset USDC --agent --chain mainnet"
 `;
 
 exports[`CLI --help snapshots deposit --help snapshot 1`] = `

@@ -235,6 +235,26 @@ describe("command metadata conformance", () => {
     expect(reference).toContain("### `describe`");
   });
 
+  test("human reference uses canonical --agent examples for discovery commands", () => {
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const normalizedReference = normalizeWhitespace(reference);
+
+    expect(normalizedReference).toContain("privacy-pools capabilities --agent");
+    expect(normalizedReference).toContain("privacy-pools describe withdraw quote --agent");
+    expect(normalizedReference).toContain("privacy-pools describe stats global --agent");
+  });
+
+  test("command metadata keeps discovery and contract text aligned with --agent mode", () => {
+    const payload = buildCapabilitiesPayload();
+    const statsExamples = payload.commandDetails["stats"]?.examples ?? [];
+    const guideDescriptor = payload.commandDetails["guide"];
+
+    expect(statsExamples).toContain("privacy-pools stats pool --asset USDC --agent --chain mainnet");
+    expect(payload.jsonOutputContract).toContain("--json or --agent");
+    expect(guideDescriptor?.examples ?? []).toContain("privacy-pools guide --agent");
+    expect(guideDescriptor?.jsonFields).toBe('{ mode: "help", help }');
+  });
+
   test("AGENTS deposit section documents the non-round deposit privacy guard", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const section = extractDocumentSection(agents, "#### `deposit`", getDocumentedAgentMarkers());
