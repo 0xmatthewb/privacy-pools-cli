@@ -6,6 +6,12 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ## [1.4.0] - 2026-03-13
 
+### Breaking
+
+- Bumped the machine-readable JSON schema to `1.5.0`.
+- Pool Account `status` now reports effective review and lifecycle states instead of generic `spendable`, with active accounts surfacing `approved`, `pending`, `poi_required`, `declined`, or `unknown`.
+- `accounts --summary` replaced `spendableCount` with `poiRequiredCount`, `declinedCount`, and `unknownCount`.
+
 ### Added
 
 - Shared status-color rendering for account and review states across CLI output.
