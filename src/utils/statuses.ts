@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { dangerTone, notice, successTone } from "./theme.js";
 
 export type PoolAccountStatus = "spendable" | "spent" | "exited";
 export type AspApprovalStatus = "approved" | "pending" | "declined" | "unknown";
@@ -55,11 +56,11 @@ export function renderAspApprovalStatus(
 
   switch (normalizeAspApprovalStatus(rawStatus)) {
     case "approved":
-      return chalk.green(label);
+      return successTone(label);
     case "pending":
-      return chalk.yellow(label);
+      return notice(label);
     case "declined":
-      return chalk.red(label);
+      return dangerTone(label);
     default:
       return chalk.dim(label);
   }
@@ -81,7 +82,7 @@ export function renderPoolAccountStatus(status: PoolAccountStatus): string {
 
   switch (status) {
     case "spendable":
-      return chalk.green(label);
+      return successTone(label);
     case "spent":
     case "exited":
       return chalk.dim(label);

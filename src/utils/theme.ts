@@ -9,17 +9,26 @@ import chalk from "chalk";
 
 // ── Accent colours ────────────────────────────────────────────────────────────
 
-/** Steel-blue — banner art, command examples, section headers. */
-export const accent = chalk.hex("#5B9BD5");
+/** Vivid cornflower blue — banner art, command examples, section headers. */
+export const accent = chalk.hex("#50ACFF");
 
 /** Bold variant for section headings (e.g. "Usage:", "Quick Guide"). */
-export const accentBold = chalk.bold.hex("#5B9BD5");
+export const accentBold = chalk.bold.hex("#50ACFF");
 
-/** Muted amber — success marks, command names, positive-status indicators. */
-export const highlight = chalk.hex("#D4944A");
+/** Honey gold — command names and key metadata. */
+export const highlight = chalk.hex("#FFBF33");
 
-/** Pale pink — arguments and parameter names in help text. */
-export const subtle = chalk.hex("#C48B9F");
+/** Soft lemon — warnings, hints, and cautionary help text. */
+export const notice = chalk.hex("#FFF05A");
+
+/** Fresh mint — success messages and approved/spendable states. */
+export const successTone = chalk.hex("#7CF29A");
+
+/** Warm coral-red — errors and declined states. */
+export const dangerTone = chalk.hex("#FF8A80");
+
+/** Soft coral — arguments and parameter names in help text. */
+export const subtle = chalk.hex("#E56B8E");
 
 /** Ora spinner colour name closest to the accent (used by ora's `color` opt). */
-export const spinnerColor = "cyan" as const;
+export const spinnerColor = "blue" as const;

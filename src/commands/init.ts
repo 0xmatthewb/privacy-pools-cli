@@ -28,6 +28,7 @@ import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { notice } from "../utils/theme.js";
 import { createOutputContext } from "../output/common.js";
 import { renderInitResult } from "../output/init.js";
 
@@ -232,7 +233,7 @@ export function createInitCommand(): Command {
         if (mnemonicSource) {
           if (opts.mnemonic && !silent) {
             process.stderr.write(
-              chalk.yellow("Warning: --mnemonic is visible in process list and shell history. Prefer --mnemonic-file or --mnemonic-stdin.\n")
+              notice("Warning: --mnemonic is visible in process list and shell history. Prefer --mnemonic-file or --mnemonic-stdin.\n")
             );
           }
           mnemonic = mnemonicSource;
@@ -269,8 +270,8 @@ export function createInitCommand(): Command {
         // Skip display if mnemonic was imported (--mnemonic or --mnemonic-file)
         if (!mnemonicSource && !isJson) {
           process.stderr.write("\n");
-          process.stderr.write(chalk.bold.yellow("⚠  IMPORTANT: Save your recovery phrase securely!") + "\n");
-          process.stderr.write(chalk.bold.yellow("   This is the ONLY time it will be displayed.") + "\n");
+          process.stderr.write(chalk.bold(notice("⚠  IMPORTANT: Save your recovery phrase securely!")) + "\n");
+          process.stderr.write(chalk.bold(notice("   This is the ONLY time it will be displayed.")) + "\n");
           process.stderr.write("\n");
           process.stderr.write(chalk.bold(mnemonic) + "\n");
           process.stderr.write("\n");
@@ -302,7 +303,7 @@ export function createInitCommand(): Command {
               ].join("\n");
               writeFileSync(filePath.trim(), fileContent, { mode: 0o600 });
               success(`Recovery phrase saved to ${filePath.trim()}`, silent);
-              process.stderr.write(chalk.yellow("  Remember to move this file to a secure location and delete the original.\n"));
+              process.stderr.write(notice("  Remember to move this file to a secure location and delete the original.\n"));
             }
 
             process.stderr.write("\n");
@@ -322,14 +323,14 @@ export function createInitCommand(): Command {
         } else if (!mnemonicSource && isJson && !isQuiet) {
           if (opts.showMnemonic) {
             process.stderr.write(
-              chalk.bold.yellow("⚠  Save your recovery phrase from the JSON output below.") +
+              chalk.bold(notice("⚠  Save your recovery phrase from the JSON output below.")) +
               "\n"
             );
           } else {
             process.stderr.write(
-              chalk.bold.yellow(
+              chalk.bold(notice(
                 "⚠  Recovery phrase is redacted from JSON by default. Re-run with --show-mnemonic to print it once."
-              ) + "\n"
+              )) + "\n"
             );
           }
         }
@@ -339,7 +340,7 @@ export function createInitCommand(): Command {
 
         if (signerKeySource && opts.privateKey && !silent) {
           process.stderr.write(
-            chalk.yellow("Warning: --private-key is visible in process list and shell history. Prefer --private-key-file, --private-key-stdin, or PRIVACY_POOLS_PRIVATE_KEY env var.\n")
+            notice("Warning: --private-key is visible in process list and shell history. Prefer --private-key-file, --private-key-stdin, or PRIVACY_POOLS_PRIVATE_KEY env var.\n")
           );
         }
 

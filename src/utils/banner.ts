@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { accent } from "./theme.js";
+import { accent, accentBold, highlight } from "./theme.js";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -57,52 +57,122 @@ function markBannerShown(): void {
 }
 
 const LOGO_LINES = [
-  " ,---.  ,---.  ,-..-.   .-..--.    ,--,.-.   .-.",
-  " | .-.\\ | .-.\\ |(| \\ \\ / // /\\ \\ .' .') \\ \\_/ )/",
-  " | |-' )| `-'/ (_)  \\ V // /__\\ \\|  |(_) \\   (_)",
-  " | |--' |   (  | |   ) / |  __  |\\  \\     ) (   ",
-  " | |    | |\\ \\ | |  (_)  | |  |)| \\  `-.  | |   ",
-  " /(     |_| \\)`-'       |_|  (_)  \\____\\/(_|   ",
-  "(_,---.   .---.)  .---.  ,-.      .---. (__)    ",
-  "  | .-.\\ / .-. ) / .-. ) | |     ( .-._)        ",
-  "  | |-' )| | |(_)| | |(_)| |    (_) \\           ",
-  "  | |--' | | | | | | | | | |    _  \\ \\          ",
-  "  | |    \\ `-' / \\ `-' / | `--.( `-'  )         ",
-  "  /(      )---'   )---'  |( __.'`----'          ",
-  " (__)    (_)     (_)     (_)                    ",
+  ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.",
+  "| .-.\\| .-.\\|(|\\ \\ / / /\\ \\.' .')\\ \\_/ )/   | .-.\\/ .-. )/ .-. )| |    ( .-._)",
+  "| |-' | `-'/(_) \\ V / /__\\ |  |(_)\\   (_)   | |-' | | |(_| | |(_| |   (_) \\",
+  "| |--'|   ( | |  ) /|  __  \\  \\    ) (      | |--'| | | || | | || |   _  \\ \\",
+  "| |   | |\\ \\| | (_) | |  |)|\\  `-. | |      | |   \\ `-' /\\ `-' /| `--( `-'  )",
+  "/(    |_| \\)`-'     |_|  (_) \\____/(_|      /(     )---'  )---' |( __.`----'",
+  "(__)       (__)                   (__)      (__)   (_)    (_)    (_)",
 ];
 
 const TAGLINE = "A compliant way to transact privately on Ethereum.";
 
-const FRAME_DELAY = 80;
+const DEFAULT_WEBSITE = "privacypools.com";
+
+const FRAME_DELAY = 65;
+
+interface BannerMeta {
+  version?: string;
+  repository?: string | null;
+  website?: string;
+}
+
+interface BannerLine {
+  plain: string;
+  styled: string;
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function printBanner(): Promise<void> {
+function buildPanelLines(meta: BannerMeta): BannerLine[] {
+  const contentWidth = Math.max(40, (process.stderr.columns ?? 80) - 2);
+  const version = meta.version?.trim();
+  const website = meta.website?.trim() || DEFAULT_WEBSITE;
+  const repository = meta.repository?.trim();
+  const compactHeader = {
+    plain: TAGLINE,
+    styled: chalk.dim(TAGLINE),
+  };
+  const compactMeta = {
+    plain: version
+      ? repository
+        ? `v${version} | ${website} | ${repository}`
+        : `v${version} | ${website}`
+      : repository
+        ? `${website} | ${repository}`
+        : website,
+    styled: version
+      ? repository
+        ? `${highlight(`v${version}`)}${chalk.dim(" | ")}${accent(website)}${chalk.dim(" | ")}${accent(repository)}`
+        : `${highlight(`v${version}`)}${chalk.dim(" | ")}${accent(website)}`
+      : repository
+        ? `${accent(website)}${chalk.dim(" | ")}${accent(repository)}`
+        : accent(website),
+  };
+
+  if (compactHeader.plain.length <= contentWidth && compactMeta.plain.length <= contentWidth) {
+    return [compactHeader, compactMeta];
+  }
+
+  const lines: BannerLine[] = [
+    {
+      plain: TAGLINE,
+      styled: chalk.dim(TAGLINE),
+    },
+    {
+      plain: version ? `v${version} | ${website}` : website,
+      styled: version
+        ? `${highlight(`v${version}`)}${chalk.dim(" | ")}${accent(website)}`
+        : accent(website),
+    },
+  ];
+
+  if (repository) {
+    lines.push({
+      plain: repository,
+      styled: accent(repository),
+    });
+  }
+
+  return lines;
+}
+
+function composeBannerLines(meta: BannerMeta): string[] {
+  const panelLines = buildPanelLines(meta);
+  return [
+    ...LOGO_LINES.map((line) => accentBold(line)),
+   "",
+    ...panelLines.map((line) => `  ${line.styled}`),
+  ];
+}
+
+export async function printBanner(meta: BannerMeta = {}): Promise<void> {
   // Only show once per terminal session.
   if (hasBannerBeenShown()) return;
 
+  const lines = composeBannerLines(meta);
+
   // Skip animation if output is not a TTY (piped, CI, etc.)
   if (!process.stderr.isTTY) {
-    for (const line of LOGO_LINES) {
-      process.stderr.write(accent(line) + "\n");
+    for (const line of lines) {
+      process.stderr.write(line + "\n");
     }
-    process.stderr.write(chalk.dim(`  ${TAGLINE}`) + "\n\n");
+    process.stderr.write("\n");
     markBannerShown();
     return;
   }
 
   // Animate line-by-line
-  for (const line of LOGO_LINES) {
-    process.stderr.write(accent(line) + "\n");
+  for (const line of lines) {
+    process.stderr.write(line + "\n");
     await sleep(FRAME_DELAY);
   }
-  process.stderr.write(chalk.dim(`  ${TAGLINE}`) + "\n");
 
   // Pause to let the banner breathe before the rest of the output
-  await sleep(250);
+  await sleep(180);
   process.stderr.write("\n");
   markBannerShown();
 }

@@ -17,6 +17,7 @@ import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { createRootProgram } from "./program.js";
 import { installSdkConsoleGuard } from "./services/account.js";
+import { dangerTone } from "./utils/theme.js";
 
 // Permanently suppress console.* so deferred SDK callbacks (e.g. RPC retry
 // logs) never leak raw `[Data::WARN]` lines into human output.  Safe because
@@ -42,6 +43,26 @@ if (argv.includes("--no-color")) {
 
 // Fire-and-forget update check — caches result for 24h, never blocks.
 checkForUpdateInBackground();
+
+function normalizeRepositoryUrl(repository: unknown): string | null {
+  const raw = typeof repository === "string"
+    ? repository
+    : typeof repository === "object" &&
+        repository !== null &&
+        "url" in repository &&
+        typeof (repository as { url?: unknown }).url === "string"
+      ? (repository as { url: string }).url
+      : null;
+
+  if (!raw) return null;
+
+  return raw
+    .replace(/^git\+/, "")
+    .replace(/^https?:\/\//, "")
+    .replace(/^ssh:\/\/git@/, "")
+    .replace(/^git@github\.com:/, "github.com/")
+    .replace(/\.git$/, "");
+}
 
 function hasShortFlag(args: string[], flag: string): boolean {
   for (const token of args) {
@@ -117,7 +138,7 @@ program.configureOutput({
   },
   outputError: (str, write) => {
     if (!isMachineMode) {
-      write(chalk.red(str));
+      write(dangerTone(str));
     }
   },
 });
@@ -200,7 +221,10 @@ function mapCommanderError(error: unknown): CLIError | null {
       // Bare invocation: show banner (once per session) + condensed welcome
       if (isWelcome) {
         if (!suppressBanner) {
-          await printBanner();
+          await printBanner({
+            version: pkg.version,
+            repository: normalizeRepositoryUrl(pkg.repository),
+          });
         }
         process.stdout.write(welcomeScreen() + "\n");
         const notice = getUpdateNotice(pkg.version);

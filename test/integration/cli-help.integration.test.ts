@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createTempHome, runCli } from "../helpers/cli.ts";
 
 describe("CLI help and discovery", () => {
-  const BANNER_SENTINEL = " ,---.  ,---.";
+  const BANNER_SENTINEL = ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
 
   test("root --help lists all commands", () => {
     const result = runCli(["--help"], { home: createTempHome() });
@@ -120,7 +120,12 @@ describe("CLI help and discovery", () => {
     });
     expect(first.status).toBe(0);
     expect(first.stderr).toContain(BANNER_SENTINEL);
+    expect(first.stderr).toContain("A compliant way to transact privately on Ethereum.");
+    expect(first.stderr).toMatch(/v\d+\.\d+\.\d+/);
+    expect(first.stderr).toContain("github.com/0xmatthewb/privacy-pools-cli");
     expect(first.stdout).toContain("Explore (no wallet needed)");
+    expect(first.stdout).toContain("For large transactions, use privacypools.com.");
+    expect(first.stdout).not.toContain("https://privacypools.com");
 
     // Second bare invocation in same session suppresses banner
     const second = runCli([], {
