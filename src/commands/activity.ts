@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
-import { getDefaultReadOnlyChains } from "../config/chains.js";
+import { getDefaultReadOnlyChains, MULTI_CHAIN_SCOPE_ALL_MAINNETS } from "../config/chains.js";
 import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
@@ -169,7 +169,7 @@ export function createActivityCommand(): Command {
 
           renderActivity(ctx, {
             mode: "global-activity",
-            chain: "all-mainnets",
+            chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
             chains: chainNames,
             page: parseNumberish(response.page) ?? page,
             perPage: parseNumberish(response.perPage) ?? perPage,

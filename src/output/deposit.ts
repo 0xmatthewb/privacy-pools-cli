@@ -19,7 +19,7 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
-import { CHAINS } from "../config/chains.js";
+import { isTestnetChain } from "../config/chains.js";
 
 export interface DepositDryRunData {
   chain: string;
@@ -98,7 +98,7 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
 export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessData): void {
   guardCsvUnsupported(ctx, "deposit");
 
-  const isTestnet = CHAINS[data.chain]?.isTestnet ?? false;
+  const isTestnet = isTestnetChain(data.chain);
   const confirmHint = isTestnet
     ? `re-run accounts --chain ${data.chain}`
     : "re-run accounts";

@@ -7,6 +7,11 @@ import type {
 } from "../types.js";
 import { CLIError } from "../utils/errors.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
+import {
+  isTransientNetworkError,
+  retryWithBackoff,
+  overrideRetryWaitForTests,
+} from "../utils/network.js";
 
 const RELAYER_MAX_RETRIES = 2;
 const RELAYER_RETRY_DELAYS_MS = [250, 500] as const;
@@ -21,48 +26,18 @@ class RetryableRelayerHttpError extends Error {
   }
 }
 
-const defaultRelayerRetryWait = async (ms: number): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-};
-
-let relayerRetryWait = defaultRelayerRetryWait;
-
 export function overrideRelayerRetryWaitForTests(
   waitFn?: (ms: number) => Promise<void>
 ): void {
-  relayerRetryWait = waitFn ?? defaultRelayerRetryWait;
+  overrideRetryWaitForTests(waitFn);
 }
 
 function isHexString(value: unknown): value is `0x${string}` {
   return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
 }
 
-function isRetryableRelayerTransportError(error: unknown): boolean {
-  if (error instanceof RetryableRelayerHttpError) return true;
-  if (error instanceof CLIError) return false;
-  if (!(error instanceof Error)) return false;
-
-  if (error.name === "AbortError" || error.name === "TimeoutError") {
-    return true;
-  }
-
-  const code = "code" in error ? (error as { code?: unknown }).code : undefined;
-  if (
-    code === "ECONNREFUSED" ||
-    code === "ETIMEDOUT" ||
-    code === "ENOTFOUND" ||
-    code === "ECONNRESET"
-  ) {
-    return true;
-  }
-
-  return error instanceof TypeError
-    || error.message.includes("fetch")
-    || error.message.includes("ECONNREFUSED")
-    || error.message.includes("ETIMEDOUT")
-    || error.message.includes("ENOTFOUND")
-    || error.message.includes("ECONNRESET")
-    || error.message.includes("aborted");
+function isRetryableRelayerError(error: unknown): boolean {
+  return error instanceof RetryableRelayerHttpError || isTransientNetworkError(error);
 }
 
 function relayerUnavailableError(message: string): CLIError {
@@ -81,28 +56,19 @@ function relayerTransportError(error: unknown): CLIError {
 async function runRelayerRequestWithRetry<T>(
   request: () => Promise<T>
 ): Promise<T> {
-  for (let attempt = 0; attempt <= RELAYER_MAX_RETRIES; attempt += 1) {
-    try {
-      return await request();
-    } catch (error) {
-      if (!isRetryableRelayerTransportError(error)) {
-        throw error;
+  return retryWithBackoff(request, {
+    maxRetries: RELAYER_MAX_RETRIES,
+    delayMs: (attempt) => RELAYER_RETRY_DELAYS_MS[attempt - 1] ?? 500,
+    isRetryable: isRetryableRelayerError,
+    onExhausted: (error): never => {
+      if (error instanceof RetryableRelayerHttpError) {
+        throw relayerUnavailableError(
+          error.statusText || `HTTP ${error.status}`
+        );
       }
-
-      if (attempt === RELAYER_MAX_RETRIES) {
-        if (error instanceof RetryableRelayerHttpError) {
-          throw relayerUnavailableError(
-            error.statusText || `HTTP ${error.status}`
-          );
-        }
-        throw relayerTransportError(error);
-      }
-
-      await relayerRetryWait(RELAYER_RETRY_DELAYS_MS[attempt]);
-    }
-  }
-
-  throw relayerUnavailableError("Unknown relayer error");
+      throw relayerTransportError(error);
+    },
+  });
 }
 
 async function relayerFetch(
@@ -278,7 +244,7 @@ export async function submitRelayRequest(
       }),
     });
   } catch (error) {
-    if (isRetryableRelayerTransportError(error)) {
+    if (isTransientNetworkError(error)) {
       throw relayerTransportError(error);
     }
     throw error;

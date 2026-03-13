@@ -31,10 +31,29 @@ export interface GlobalOptions {
 
 export type NextActionOptionValue = string | number | boolean | null;
 
+/**
+ * Discriminator for _when_ a next-action applies.
+ *
+ * Each value names a specific CLI state transition.  Agents can use this to
+ * decide programmatically whether a suggested action is relevant.
+ */
+export type NextActionWhen =
+  | "after_init"
+  | "after_restore"
+  | "after_deposit"
+  | "after_quote"
+  | "after_withdraw"
+  | "has_pending"
+  | "status_not_ready"
+  | "status_unsigned_no_accounts"
+  | "status_unsigned_has_accounts"
+  | "status_ready_no_accounts"
+  | "status_ready_has_accounts";
+
 export interface NextAction {
   command: string;
   reason: string;
-  when: string;
+  when: NextActionWhen | (string & {});
   args?: string[];
   options?: Record<string, NextActionOptionValue>;
   /**

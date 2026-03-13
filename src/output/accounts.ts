@@ -28,7 +28,7 @@ import {
 } from "../utils/format.js";
 import { highlight, accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
-import { explorerTxUrl } from "../config/chains.js";
+import { explorerTxUrl, isMultiChainScope } from "../config/chains.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -222,7 +222,7 @@ function buildPollNextActions(meta: AccountsRootMeta, pendingCount: number) {
         options: {
           agent: true,
           ...(meta.allChains ? { allChains: true } : {}),
-          ...(isMultiChain(meta) ? {} : meta.chain !== "all-mainnets" && meta.chain !== "all-chains"
+          ...(isMultiChain(meta) ? {} : !isMultiChainScope(meta.chain)
             ? { chain: meta.chain }
             : {}),
           pendingOnly: true,

@@ -19,7 +19,7 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { highlight, accentBold } from "../utils/theme.js";
-import { CHAINS, MAINNET_CHAIN_NAMES } from "../config/chains.js";
+import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import type { NextActionOptionValue } from "../types.js";
 
 export interface StatusCheckResult {
@@ -133,7 +133,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   //   - `init`: uses `defaultChain` (init's flag is --default-chain, NOT --chain).
   //   - `pools`: uses `chain`; humans get --chain when overridden OR default is testnet.
   //   - `accounts`: use accountsChainOpt or --all-chains (derived above).
-  const isDefaultTestnet = result.defaultChain ? (CHAINS[result.defaultChain]?.isTestnet ?? false) : false;
+  const isDefaultTestnet = isTestnetChain(result.defaultChain);
   const initAgentChainOpts: Record<string, string> = workflowChain ? { defaultChain: workflowChain } : {};
   const initHumanChainOpts: Record<string, string> | undefined =
     workflowChain ? { defaultChain: workflowChain } : undefined;

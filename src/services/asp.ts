@@ -8,6 +8,11 @@ import type {
 } from "../types.js";
 import { CLIError } from "../utils/errors.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
+import {
+  isTransientNetworkError,
+  retryWithBackoff,
+  overrideRetryWaitForTests,
+} from "../utils/network.js";
 
 const ASP_MAX_RETRIES = 3;
 const ASP_RETRY_BASE_DELAY_MS = 500;
@@ -19,16 +24,10 @@ class RetryableAspHttpError extends Error {
   }
 }
 
-const defaultAspRetryWait = async (ms: number): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-};
-
-let aspRetryWait = defaultAspRetryWait;
-
 export function overrideAspRetryWaitForTests(
   waitFn?: (ms: number) => Promise<void>
 ): void {
-  aspRetryWait = waitFn ?? defaultAspRetryWait;
+  overrideRetryWaitForTests(waitFn);
 }
 
 function genericAspUnavailableError(retryable: boolean = false): CLIError {
@@ -41,58 +40,26 @@ function genericAspUnavailableError(retryable: boolean = false): CLIError {
   );
 }
 
-function isRetryableAspTransportError(error: unknown): boolean {
-  if (error instanceof RetryableAspHttpError) return true;
-  if (error instanceof CLIError) return false;
-  if (!(error instanceof Error)) return false;
-
-  if (error.name === "AbortError" || error.name === "TimeoutError") {
-    return true;
-  }
-
-  const code = "code" in error ? (error as { code?: unknown }).code : undefined;
-  if (
-    code === "ECONNREFUSED" ||
-    code === "ETIMEDOUT" ||
-    code === "ENOTFOUND" ||
-    code === "ECONNRESET"
-  ) {
-    return true;
-  }
-
-  return error instanceof TypeError
-    || error.message.includes("fetch")
-    || error.message.includes("ECONNREFUSED")
-    || error.message.includes("ETIMEDOUT")
-    || error.message.includes("ENOTFOUND")
-    || error.message.includes("ECONNRESET");
+function isRetryableAspError(error: unknown): boolean {
+  return error instanceof RetryableAspHttpError || isTransientNetworkError(error);
 }
 
-function retryDelayMs(attempt: number): number {
-  return ASP_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1));
-}
+const aspRetryConfig = {
+  maxRetries: ASP_MAX_RETRIES,
+  delayMs: (attempt: number) => ASP_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1)),
+  isRetryable: isRetryableAspError,
+  onExhausted: (error: unknown): never => {
+    if (error instanceof RetryableAspHttpError) {
+      throw genericAspUnavailableError(true);
+    }
+    throw error;
+  },
+} as const;
 
 async function runAspRequestWithRetry(
   request: () => Promise<Response>
 ): Promise<Response> {
-  for (let attempt = 0; attempt <= ASP_MAX_RETRIES; attempt += 1) {
-    try {
-      return await request();
-    } catch (error) {
-      if (!isRetryableAspTransportError(error)) {
-        throw error;
-      }
-      if (attempt === ASP_MAX_RETRIES) {
-        if (error instanceof RetryableAspHttpError) {
-          throw genericAspUnavailableError(true);
-        }
-        throw error;
-      }
-      await aspRetryWait(retryDelayMs(attempt + 1));
-    }
-  }
-
-  throw genericAspUnavailableError();
+  return retryWithBackoff(request, aspRetryConfig);
 }
 
 async function aspFetch(

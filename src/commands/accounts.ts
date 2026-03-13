@@ -1,6 +1,11 @@
 import { Command } from "commander";
 import type { Address } from "viem";
-import { getAllChainsWithOverrides, getDefaultReadOnlyChains } from "../config/chains.js";
+import {
+  getAllChainsWithOverrides,
+  getDefaultReadOnlyChains,
+  MULTI_CHAIN_SCOPE_ALL_MAINNETS,
+  MULTI_CHAIN_SCOPE_ALL_CHAINS,
+} from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
@@ -24,6 +29,8 @@ import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
 
+// ── Types ───────────────────────────────────────────────────────────────────
+
 interface AccountsCommandOptions {
   sync?: boolean;
   allChains?: boolean;
@@ -40,6 +47,19 @@ interface LoadedChainAccounts {
   chainConfig: ChainConfig;
   groups: AccountPoolGroup[];
 }
+
+/** Bundled context for loadAccountsForChain — avoids 8-param sprawl. */
+interface ChainLoadContext {
+  opts: AccountsCommandOptions;
+  rpcUrl: string | undefined;
+  spin: ReturnType<typeof spinner>;
+  silent: boolean;
+  mode: ReturnType<typeof resolveGlobalMode>;
+  isVerbose: boolean;
+  mnemonic: string;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 export function collectAccountScopeStrings(
   spendable: ReadonlyMap<bigint, readonly unknown[]>,
@@ -71,22 +91,23 @@ export function collectAccountScopeStrings(
 
 async function loadAccountsForChain(
   chainConfig: ChainConfig,
-  opts: AccountsCommandOptions,
-  globalOpts: GlobalOptions,
-  spin: ReturnType<typeof spinner>,
-  silent: boolean,
-  mode: ReturnType<typeof resolveGlobalMode>,
-  isVerbose: boolean,
-  mnemonic: string,
+  ctx: ChainLoadContext,
 ): Promise<LoadedChainAccounts> {
+  const { opts, rpcUrl, spin, silent, mode, isVerbose, mnemonic } = ctx;
   verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
 
   spin.text = `Discovering pools on ${chainConfig.name}...`;
-  const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
+  const pools = await listPools(chainConfig, rpcUrl);
   verbose(`Discovered ${pools.length} pool(s) on ${chainConfig.name}`, isVerbose, silent);
 
   if (pools.length === 0) {
     return { chainConfig, groups: [] };
+  }
+
+  // Pre-build scope→pool lookup to avoid repeated linear scans.
+  const poolByScope = new Map<string, (typeof pools)[number]>();
+  for (const p of pools) {
+    poolByScope.set(p.scope.toString(), p);
   }
 
   const poolInfos = pools.map((p) => ({
@@ -100,7 +121,7 @@ async function loadAccountsForChain(
   const dataService = await getDataService(
     chainConfig,
     pools[0].pool,
-    globalOpts?.rpcUrl,
+    rpcUrl,
   );
   const accountService = await initializeAccountService(
     dataService,
@@ -140,7 +161,7 @@ async function loadAccountsForChain(
   const approvedLabelsByScope = new Map<string, Set<string> | null>();
   await Promise.all(
     sortedScopeStrings.map(async (scopeStr) => {
-      const pool = pools.find((p) => p.scope.toString() === scopeStr);
+      const pool = poolByScope.get(scopeStr);
       if (pool) {
         approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
       }
@@ -151,7 +172,7 @@ async function loadAccountsForChain(
   for (const scopeStr of sortedScopeStrings) {
     const scopeBigInt = BigInt(scopeStr);
     const commitments = spendable.get(scopeBigInt) ?? [];
-    const pool = pools.find((p) => p.scope.toString() === scopeStr);
+    const pool = poolByScope.get(scopeStr);
     if (!pool) continue;
 
     const approvedLabels = approvedLabelsByScope.get(scopeStr);
@@ -181,6 +202,8 @@ async function loadAccountsForChain(
   return { chainConfig, groups };
 }
 
+// ── Command ─────────────────────────────────────────────────────────────────
+
 export function createAccountsCommand(): Command {
   const metadata = getCommandMetadata("accounts");
   return new Command("accounts")
@@ -195,8 +218,8 @@ export function createAccountsCommand(): Command {
       const globalOpts = cmd.parent?.opts() as GlobalOptions;
       const mode = resolveGlobalMode(globalOpts);
       const isVerbose = globalOpts?.verbose ?? false;
-      const ctx = createOutputContext(mode, isVerbose);
-      const silent = isSilent(ctx);
+      const outCtx = createOutputContext(mode, isVerbose);
+      const silent = isSilent(outCtx);
 
       try {
         if (opts.summary && opts.pendingOnly) {
@@ -236,8 +259,8 @@ export function createAccountsCommand(): Command {
         const rootChain = explicitChain
           ? chainsToQuery[0].name
           : opts.allChains
-            ? "all-chains"
-            : "all-mainnets";
+            ? MULTI_CHAIN_SCOPE_ALL_CHAINS
+            : MULTI_CHAIN_SCOPE_ALL_MAINNETS;
         const queriedChains = useMultiChain ? chainsToQuery.map((chain) => chain.name) : undefined;
         const mnemonic = loadMnemonic();
 
@@ -249,22 +272,26 @@ export function createAccountsCommand(): Command {
         );
         spin.start();
 
+        const chainCtx: ChainLoadContext = {
+          opts,
+          rpcUrl: globalOpts?.rpcUrl,
+          spin,
+          silent,
+          mode,
+          isVerbose,
+          mnemonic,
+        };
+
         const loadedResults: LoadedChainAccounts[] = [];
         const warnings: AccountWarning[] = [];
         let firstError: unknown;
 
+        // Sequential loading: spinner text updates per-chain give human users
+        // a sense of progress, and deterministic ordering matters for agents
+        // parsing JSON output.
         for (const chainConfig of chainsToQuery) {
           try {
-            const result = await loadAccountsForChain(
-              chainConfig,
-              opts,
-              globalOpts,
-              spin,
-              silent,
-              mode,
-              isVerbose,
-              mnemonic,
-            );
+            const result = await loadAccountsForChain(chainConfig, chainCtx);
             loadedResults.push(result);
           } catch (error) {
             if (firstError === undefined) firstError = error;
@@ -285,7 +312,7 @@ export function createAccountsCommand(): Command {
 
         const groups = loadedResults.flatMap((result) => result.groups);
         if (groups.length === 0) {
-          renderAccountsNoPools(ctx, {
+          renderAccountsNoPools(outCtx, {
             chain: rootChain,
             allChains: opts.allChains || undefined,
             chains: queriedChains,
@@ -296,7 +323,7 @@ export function createAccountsCommand(): Command {
           return;
         }
 
-        renderAccounts(ctx, {
+        renderAccounts(outCtx, {
           chain: rootChain,
           allChains: opts.allChains || undefined,
           chains: queriedChains,

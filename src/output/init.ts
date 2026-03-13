@@ -19,7 +19,7 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
-import { CHAINS } from "../config/chains.js";
+import { isTestnetChain } from "../config/chains.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -43,7 +43,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   // Agent path: new wallet → status (verify readiness); restore → accounts (sync onchain state).
   // Restore always uses --all-chains so the first post-restore screen shows every chain,
   // including testnets — we don't know which chains hold recoverable state.
-  const isTestnet = CHAINS[result.defaultChain]?.isTestnet ?? false;
+  const isTestnet = isTestnetChain(result.defaultChain);
   const agentNextActions = result.mnemonicImported
     ? [
         createNextAction(
