@@ -74,25 +74,58 @@ function hasShortFlag(args: string[], flag: string): boolean {
   return false;
 }
 
+const ROOT_OPTIONS_WITH_VALUE = new Set([
+  "-c",
+  "--chain",
+  "--format",
+  "-r",
+  "--rpc-url",
+  "--timeout",
+]);
+
+const WELCOME_BOOLEAN_FLAGS = new Set([
+  "-q",
+  "--quiet",
+  "-v",
+  "--verbose",
+  "-y",
+  "--yes",
+  "--no-banner",
+  "--no-color",
+]);
+
+function isWelcomeShortFlagBundle(token: string): boolean {
+  if (!/^-[A-Za-z]+$/.test(token) || token.startsWith("--")) return false;
+  return token
+    .slice(1)
+    .split("")
+    .every((flag) => flag === "q" || flag === "v" || flag === "y");
+}
+
 function firstNonOptionToken(args: string[]): string | undefined {
-  const optionsWithValue = new Set(["-c", "--chain", "-r", "--rpc-url"]);
   for (let i = 0; i < args.length; i++) {
     const token = args[i];
     if (!token.startsWith("-")) return token;
-    if (optionsWithValue.has(token)) i++;
+    if (ROOT_OPTIONS_WITH_VALUE.has(token)) i++;
   }
   return undefined;
 }
 
 function isWelcomeFlagOnlyInvocation(args: string[]): boolean {
   if (args.length === 0) return true;
-
-  const welcomeFlags = new Set([
-    "--no-banner",
-    "--no-color",
-  ]);
-
-  return args.every((token) => welcomeFlags.has(token));
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (ROOT_OPTIONS_WITH_VALUE.has(token)) {
+      if (i + 1 >= args.length) return false;
+      i++;
+      continue;
+    }
+    if (WELCOME_BOOLEAN_FLAGS.has(token) || isWelcomeShortFlagBundle(token)) {
+      continue;
+    }
+    return false;
+  }
+  return true;
 }
 
 const firstCommandToken = firstNonOptionToken(argv);
@@ -109,6 +142,7 @@ const isHelpLike = argv.includes("--help") || hasShortFlag(argv, "h") || firstCo
 const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
 const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
 const suppressBanner = argv.includes("--no-banner");
+const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
 const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
 let machineCapturedOut = "";
 
@@ -220,6 +254,9 @@ function mapCommanderError(error: unknown): CLIError | null {
     ) {
       // Bare invocation: show banner (once per session) + condensed welcome
       if (isWelcome) {
+        if (isQuiet) {
+          process.exit(0);
+        }
         if (!suppressBanner) {
           await printBanner({
             version: pkg.version,
