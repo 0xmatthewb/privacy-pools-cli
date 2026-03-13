@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import type { Address } from "viem";
 import { getDefaultReadOnlyChains, getAllChainsWithOverrides } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
@@ -227,10 +227,11 @@ export function createPoolsCommand(): Command {
     .argument("[asset]", "Asset symbol for detail view (e.g. ETH, BOLD)")
     .option("--all-chains", "Include testnet chains (mainnet chains shown by default)")
     .option("--search <query>", "Filter by chain/symbol/address/scope")
-    .option(
-      "--sort <mode>",
-      `Sort mode (${SUPPORTED_SORT_MODES.join(", ")})`,
-      "tvl-desc"
+    .addOption(
+      new Option(
+        "--sort <mode>",
+        `Sort mode (${SUPPORTED_SORT_MODES.join(", ")})`
+      ).choices(SUPPORTED_SORT_MODES as unknown as string[]).default("tvl-desc")
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (asset: string | undefined, opts: PoolsCommandOptions, cmd) => {

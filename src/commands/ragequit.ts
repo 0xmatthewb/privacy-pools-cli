@@ -136,7 +136,7 @@ export function createRagequitCommand(): Command {
       new Option("-i, --commitment <index>", "Deprecated: 0-based spendable commitment index (use --from-pa)")
         .hideHelp()
     )
-    .option("--unsigned [format]", "Build unsigned payload; format: envelope (default) or tx")
+    .addOption(new Option("--unsigned [format]", "Build unsigned payload; format: envelope (default) or tx").choices(["envelope", "tx"]))
     .addOption(new Option("--unsigned-format <format>", "Deprecated: use --unsigned [format]").hideHelp())
     .option("--dry-run", "Generate proof and validate without submitting")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
