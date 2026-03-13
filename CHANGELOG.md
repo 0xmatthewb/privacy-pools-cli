@@ -4,6 +4,34 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.3.0] - 2026-03-13
+
+### Added
+
+- Unified next-step guidance for humans and agents through a shared `nextActions` renderer, with runtime discovery exposed via `capabilities` and `describe`.
+- State-aware onboarding and recovery flows that distinguish first run, restore, signerless read-only setups, and wallets with existing deposits.
+- A default multi-chain `accounts` dashboard across supported mainnet chains, with compact polling-oriented views for agents.
+
+### Changed
+
+- `accounts` now shows all Pool Accounts by default, including spent and exited history, and loads supported mainnet chains in parallel with delayed aggregate progress on slower runs.
+- Deposit approval polling, restore routing, and withdrawal remediation now preserve chain scope consistently across human output, machine `nextActions`, and long-form docs.
+- Help, reference docs, and agent skill docs are aligned around the `1.3.0` JSON contract and canonical next-step behavior.
+- RPC and retry handling now reuse healthy probe results, share retry infrastructure, and prefer fallbacks that support `eth_getLogs`.
+
+### Fixed
+
+- Removed misleading or non-runnable next steps across `status`, `init`, `withdraw quote`, `accounts`, and post-deposit follow-ups.
+- Fixed testnet and mixed-chain workflows that previously suggested bare `accounts` or incorrect chain flags.
+- Started account sync from per-pool deployment blocks so late-deployed pools avoid unnecessary backfill work.
+- Hardened relayer retries, network error classification, and deferred SDK stdout suppression.
+
+### Verification
+
+- `bun run typecheck`
+- `bun run test:ci`
+- `PP_ANVIL_E2E=1 bun run test:e2e:anvil`
+
 ## [1.2.0] - 2026-03-10
 
 ### Breaking
@@ -106,6 +134,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Enabled GitHub Actions CI/CD workflows for the repository.
 - Completed the initial packaging and release flow.
 
+[1.3.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.0.1...v1.0.2
