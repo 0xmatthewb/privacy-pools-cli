@@ -31,6 +31,36 @@ describe("completion command", () => {
     expect(result.stderr).not.toContain(BANNER_SENTINEL);
   });
 
+  test("completion powershell emits a PowerShell completion script", () => {
+    const result = runCli(["completion", "powershell"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Register-ArgumentCompleter");
+    expect(result.stdout).toContain("-CommandName privacy-pools");
+    expect(result.stdout).toContain("-ScriptBlock");
+    expect(result.stdout).toContain("completion --query --shell powershell");
+    expect(result.stdout).toContain("CompletionResult");
+    expect(result.stderr).not.toContain(BANNER_SENTINEL);
+  });
+
+  test("--json completion powershell returns shell and script payload", () => {
+    const result = runCli(["--json", "completion", "powershell"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    const parsed = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      mode: string;
+      shell: string;
+      completionScript: string;
+    }>(result.stdout);
+
+    expect(parsed.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(parsed.success).toBe(true);
+    expect(parsed.mode).toBe("completion-script");
+    expect(parsed.shell).toBe("powershell");
+    expect(parsed.completionScript).toContain("Register-ArgumentCompleter");
+    expect(parsed.completionScript).toContain("-CommandName privacy-pools");
+  });
+
   test("completion --help hides internal query arguments", () => {
     const result = runCli(["completion", "--help"], { home: createTempHome() });
     expect(result.status).toBe(0);
@@ -160,6 +190,88 @@ describe("completion command", () => {
       .filter(Boolean);
     expect(lines).toContain("-p");
     expect(lines).toContain("--from-pa");
+  });
+
+  test("query mode suggests format values after --format", () => {
+    const result = runCli(
+      [
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "2",
+        "--",
+        "privacy-pools",
+        "--format",
+        "",
+      ],
+      { home: createTempHome() }
+    );
+
+    expect(result.status).toBe(0);
+    const lines = result.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(lines).toContain("table");
+    expect(lines).toContain("csv");
+    expect(lines).toContain("json");
+  });
+
+  test("query mode suggests sort values after pools --sort", () => {
+    const result = runCli(
+      [
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "3",
+        "--",
+        "privacy-pools",
+        "pools",
+        "--sort",
+        "",
+      ],
+      { home: createTempHome() }
+    );
+
+    expect(result.status).toBe(0);
+    const lines = result.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(lines).toContain("tvl-desc");
+    expect(lines).toContain("asset-asc");
+    expect(lines).toContain("asset-desc");
+  });
+
+  test("query mode suggests unsigned format values after deposit --unsigned", () => {
+    const result = runCli(
+      [
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "3",
+        "--",
+        "privacy-pools",
+        "deposit",
+        "--unsigned",
+        "",
+      ],
+      { home: createTempHome() }
+    );
+
+    expect(result.status).toBe(0);
+    const lines = result.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    expect(lines).toContain("envelope");
+    expect(lines).toContain("tx");
   });
 
   test("unsupported shell returns INPUT error", () => {

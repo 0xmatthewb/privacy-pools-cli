@@ -85,7 +85,7 @@ export function createRootProgram(version: string): Command {
   program.addCommand(createGuideCommand());
   program.addCommand(createCapabilitiesCommand());
   program.addCommand(createDescribeCommand());
-  program.addCommand(createCompletionCommand(), { hidden: true });
+  program.addCommand(createCompletionCommand());
 
   return program;
 }

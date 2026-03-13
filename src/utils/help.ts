@@ -9,8 +9,10 @@ const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
 
 const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities", "describe"];
 const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "history", "sync"];
+const TOOLING_ORDER = ["completion"];
 const EXPLORE_SET = new Set(EXPLORE_ORDER);
 const TRANSACT_SET = new Set(TRANSACT_ORDER);
+const TOOLING_SET = new Set(TOOLING_ORDER);
 
 const CMD_RE = /^(\s{2,})([a-z][\w-]*(?:\|[a-z][\w-]*)?(?:\s+\[[^\]]+\])?(?:\s+<[^>]+>)?)(\s{2,})(.+)$/i;
 
@@ -57,7 +59,7 @@ export function styleCommanderHelp(raw: string): string {
 
     // Only group root-level commands; sub-commands pass through unsorted
     const isRoot = entries.some(
-      (e) => EXPLORE_SET.has(e.name) || TRANSACT_SET.has(e.name),
+      (e) => EXPLORE_SET.has(e.name) || TRANSACT_SET.has(e.name) || TOOLING_SET.has(e.name),
     );
     if (!isRoot) {
       for (const e of entries) result.push(...e.lines.map(styleCmdLine));
@@ -77,6 +79,8 @@ export function styleCommanderHelp(raw: string): string {
     emitGroup("Explore (no wallet needed)", EXPLORE_ORDER);
     result.push("");
     emitGroup("Transact (run init first)", TRANSACT_ORDER);
+    result.push("");
+    emitGroup("Tooling", TOOLING_ORDER);
 
     cmdBuffer = [];
   }
