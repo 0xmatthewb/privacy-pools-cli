@@ -26,9 +26,13 @@ import {
   formatTxHash,
   formatUsdValue,
 } from "../utils/format.js";
-import { highlight, accentBold } from "../utils/theme.js";
+import { accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import { explorerTxUrl, isMultiChainScope } from "../config/chains.js";
+import {
+  renderAspApprovalStatus,
+  renderPoolAccountStatus,
+} from "../utils/statuses.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -365,12 +369,8 @@ function renderHumanGroupTable(
       group.poolAccounts.map((pa) => {
         const base = [
           pa.paId,
-          pa.status.charAt(0).toUpperCase() + pa.status.slice(1),
-          pa.aspStatus === "approved"
-            ? highlight("Approved")
-            : pa.aspStatus === "pending"
-              ? chalk.yellow("Pending")
-              : "",
+          renderPoolAccountStatus(pa.status),
+          renderAspApprovalStatus(pa.aspStatus),
           formatAmount(pa.value, group.decimals, group.symbol, dd),
         ];
         if (hasUsd) {
@@ -394,13 +394,10 @@ function renderHumanGroupTable(
     printTable(
       summaryHeaders,
       group.poolAccounts.map((pa) => {
-        const statusLabel = pa.status.charAt(0).toUpperCase() + pa.status.slice(1);
-        const aspSuffix =
-          pa.aspStatus === "approved"
-            ? ` (${highlight("Approved")})`
-            : pa.aspStatus === "pending"
-              ? ` (${chalk.yellow("Pending")})`
-              : "";
+        const statusLabel = renderPoolAccountStatus(pa.status);
+        const aspSuffix = pa.aspStatus === "unknown"
+          ? ""
+          : ` (${renderAspApprovalStatus(pa.aspStatus)})`;
         const row = [
           pa.paId,
           formatAmount(pa.value, group.decimals, group.symbol, dd),
@@ -648,11 +645,11 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     printTable(
       ["Status", "Count"],
       [
-        ["Pending", String(summary.pendingCount)],
-        ["Approved", String(summary.approvedCount)],
-        ["Spendable", String(summary.spendableCount)],
-        ["Spent", String(summary.spentCount)],
-        ["Exited", String(summary.exitedCount)],
+        [renderAspApprovalStatus("pending"), String(summary.pendingCount)],
+        [renderAspApprovalStatus("approved"), String(summary.approvedCount)],
+        [renderPoolAccountStatus("spendable"), String(summary.spendableCount)],
+        [renderPoolAccountStatus("spent"), String(summary.spentCount)],
+        [renderPoolAccountStatus("exited"), String(summary.exitedCount)],
       ],
     );
     process.stderr.write("\n");

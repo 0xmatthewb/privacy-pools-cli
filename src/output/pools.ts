@@ -12,6 +12,10 @@ import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
+import {
+  renderAspApprovalStatus,
+  renderPoolAccountStatus,
+} from "../utils/statuses.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -340,13 +344,12 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     if (spendable.length > 0) {
       process.stderr.write("\n");
       for (const pa of spendable) {
-        const aspLabel = pa.aspStatus === "approved"
-          ? chalk.green("Approved")
-          : pa.aspStatus === "pending"
-            ? chalk.yellow("Pending")
-            : "";
+        const aspLabel = pa.aspStatus === "unknown" ? "" : renderAspApprovalStatus(pa.aspStatus);
         const valFmt = formatAmount(pa.value, pool.decimals, pool.symbol, dd);
-        process.stderr.write(`  ${pa.paId}  ${valFmt}  Spendable (${aspLabel})\n`);
+        const statusLabel = renderPoolAccountStatus(pa.status);
+        process.stderr.write(
+          `  ${pa.paId}  ${valFmt}  ${statusLabel}${aspLabel ? ` (${aspLabel})` : ""}\n`,
+        );
       }
     }
   } else {
@@ -361,7 +364,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
         event.type === "withdrawal" ? "Withdraw" : event.type.padEnd(8);
       const amt = event.amount ?? "-";
       const time = event.timeLabel;
-      const status = event.status ?? "";
+      const status = event.status ? renderAspApprovalStatus(event.status, { preserveInput: true }) : "";
       process.stderr.write(`  ${typeFmt}  ${amt.padEnd(18)}  ${time.padEnd(10)}  ${status}\n`);
     }
   }

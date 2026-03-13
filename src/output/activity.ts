@@ -11,6 +11,7 @@ import { printJsonSuccess, printCsv, printTable, isSilent } from "./common.js";
 import { formatAddress } from "../utils/format.js";
 import { accentBold } from "../utils/theme.js";
 import { explorerTxUrl } from "../config/chains.js";
+import { renderAspApprovalStatus } from "../utils/statuses.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -134,7 +135,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       e.type,
       eventPoolLabel(e),
       e.amountFormatted,
-      e.reviewStatus ?? "-",
+      e.reviewStatus ? renderAspApprovalStatus(e.reviewStatus, { preserveInput: true }) : "-",
       e.timeLabel,
       e.txHash ? formatAddress(e.txHash, 8) : "-",
     ]),
