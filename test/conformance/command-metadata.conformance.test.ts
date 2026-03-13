@@ -190,6 +190,9 @@ describe("command metadata conformance", () => {
     expect(normalizedSection).toContain(payload.agentNotes?.statusCheck ?? "");
     expect(normalizedSection).toContain("safeReadOnlyCommands");
     expect(normalizedSection).toContain("jsonOutputContract");
+    expect(normalizedSection).toContain("documentation");
+    expect(normalizedSection).toContain("agentGuide");
+    expect(normalizedSection).toContain("error.{ code, category, message, hint?, retryable? }");
     expect(normalizedSection).toContain("category");
     expect(normalizedSection).toContain("hint");
     expect(normalizedSection).toContain("retryable");
@@ -317,6 +320,27 @@ describe("command metadata conformance", () => {
     expect(normalizeWhitespace(agentsSection)).not.toContain("nextActions");
     expect(normalizeWhitespace(skillSection)).not.toContain("nextActions");
     expect(contract.commands?.sync?.successFields).not.toHaveProperty("nextActions");
+  });
+
+  test("skill docs stay aligned on current error handling and install source", () => {
+    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const normalizedSkill = normalizeWhitespace(skill);
+    const normalizedReference = normalizeWhitespace(reference);
+
+    expect(normalizedSkill).toContain("github:0xmatthewb/privacy-pools-cli");
+    expect(normalizedReference).toContain("https://github.com/0xmatthewb/privacy-pools-cli");
+    expect(normalizedSkill).not.toContain("privacy-pools-cli on npm");
+    expect(normalizedReference).not.toContain("npmjs.com/package/privacy-pools-cli");
+
+    expect(normalizedSkill).toContain("RPC_RATE_LIMITED");
+    expect(normalizedSkill).toContain("CONTRACT_NONCE_ERROR");
+    expect(normalizedSkill).toContain("ACCOUNT_NOT_APPROVED");
+
+    expect(normalizedReference).toContain("RPC_RATE_LIMITED");
+    expect(normalizedReference).toContain("CONTRACT_INSUFFICIENT_FUNDS");
+    expect(normalizedReference).toContain("CONTRACT_NONCE_ERROR");
+    expect(normalizedReference).toContain("ACCOUNT_NOT_APPROVED");
   });
 
   test("published docs do not contain malformed privacy-pools command examples", () => {

@@ -250,7 +250,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools capabilities --json",
       ],
       jsonFields:
-        "{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract }",
+        "{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
     },
     capabilities: {
       flags: [],
@@ -645,7 +645,7 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
     values: ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],
     exitCodes: { INPUT: 2, RPC: 3, ASP: 4, RELAYER: 5, PROOF: 6, CONTRACT: 7, UNKNOWN: 1 },
     description:
-      "Error responses include: errorCode (machine-readable), category, message, hint (suggested fix), retryable (boolean).",
+      "Error responses include top-level errorCode/errorMessage plus error.{ code, category, message, hint?, retryable? }.",
   },
   unsignedOutput: {
     envelopeFormat:
@@ -780,7 +780,7 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       .filter((path) => COMMAND_METADATA[path].safeReadOnly)
       .map((path) => path),
     jsonOutputContract:
-      "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, category, hint, retryable }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+      "All commands emit { schemaVersion, success, ...payload } on stdout when --json is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
     documentation: {
       reference: "docs/reference.md",
       agentGuide: "AGENTS.md",
