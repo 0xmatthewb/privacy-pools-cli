@@ -71,10 +71,14 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     description: "Initialize wallet and configuration",
     help: {
       overview: [
+        "Generates a BIP-39 mnemonic (used to derive deposit commitments) and a signer key (your onchain identity). Run once.",
+        "",
         "Privacy Pools uses two keys:",
         "  Recovery phrase: keeps your deposits private (generated during init)",
         "  Signer key:     pays gas and sends transactions (can be set later)",
         "  These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.",
+        "",
+        "During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin. Circuit artifacts are provisioned automatically on first proof and cached under ~/.privacy-pools/circuits/.",
       ],
       examples: [
         "privacy-pools init",
@@ -82,6 +86,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools init --force --yes --default-chain mainnet",
         "privacy-pools init --agent --default-chain mainnet --show-mnemonic",
         "privacy-pools init --mnemonic \"word ...\" --private-key 0x...",
+        "privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key.txt",
         "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet",
       ],
       jsonFields:
@@ -114,6 +119,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   pools: {
     description: "List available pools and assets",
     help: {
+      overview: [
+        "When no --chain is specified, shows all mainnet chains. Use --all-chains to include testnets. Pools are sorted by pool balance (highest first) by default. Pass a single asset symbol (e.g. 'pools ETH') for a detail view with your funds, recent activity, and pool stats.",
+      ],
       examples: [
         "privacy-pools pools",
         "privacy-pools pools ETH",
@@ -270,7 +278,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     description: "Describe one command for runtime agent introspection",
     help: {
       overview: [
-        "Accepts spaced command paths like 'withdraw quote' and 'stats global'.",
+        "Useful when a human or agent wants the runtime contract for one command without parsing long-form docs. Accepts spaced command paths like 'withdraw quote' and 'stats global'.",
       ],
       examples: [
         "privacy-pools describe withdraw",
@@ -312,9 +320,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     description: "Deposit into a pool",
     help: {
       overview: [
-        "Deposits funds into a Privacy Pool. A ZK proof is generated locally",
-        "and the transaction is submitted onchain. The first run may download",
-        "circuit files (~60s). Subsequent runs typically complete in 10-30s.",
+        "Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may download circuit files (~60s). Subsequent runs typically complete in 10-30s.",
+        "",
+        "Non-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.",
       ],
       examples: [
         "privacy-pools deposit 0.1 ETH",
@@ -362,10 +370,11 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     description: "Withdraw from a pool",
     help: {
       overview: [
-        "Withdraws funds from a Privacy Pool. Generates a ZK proof locally and",
-        "submits via relayer (default, private) or directly onchain (--direct).",
-        "Both withdrawal modes still require ASP approval. Proof generation may",
-        "take 10-30s. Use 'withdraw quote' to check fees first.",
+        "Withdraws funds from a Privacy Pool via a relayer (default, recommended) for enhanced privacy. The relayer pays gas on your behalf and takes a small fee, keeping your withdrawal address unlinkable to your deposit. ASP approval is required before withdrawal. If a deposit is poi_required, complete Proof of Association at tornado.0xbow.io first. If it is declined, the recovery path is ragequit. Proof generation may take 10-30s. Use 'withdraw quote' to check relayer fees first.",
+        "",
+        "A --direct mode exists but is not recommended: it interacts with the pool contract directly, publicly linking your deposit and withdrawal addresses onchain. Prefer relayed withdrawals for privacy.",
+        "",
+        "Non-round withdrawal amounts may reduce privacy. The CLI suggests round alternatives.",
       ],
       examples: [
         "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
@@ -378,7 +387,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
-        "Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.",
+        "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
       ],
@@ -443,10 +452,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     aliases: ["exit"],
     help: {
       overview: [
-        "Use 'withdraw' to withdraw privately once your deposit is ASP-approved.",
-        "Use 'ragequit' at any time to recover funds publicly to your deposit",
-        "address. Declined deposits must use this path; pending and",
-        "Deposits that require PoA can also use it, but your deposit address is revealed onchain. 'exit' is an alias.",
+        "Emergency withdrawal without ASP approval. The original depositor can publicly reclaim funds when the deposit label is not approved. Use 'withdraw' to withdraw privately once your deposit is ASP-approved. Use 'ragequit' at any time to recover funds publicly to your deposit address. Declined deposits must use this path; pending and poi_required deposits can also use it. Falls back to a built-in pool registry when public pool discovery is unavailable. 'exit' is an alias.",
       ],
       examples: [
         "privacy-pools ragequit ETH --from-pa PA-1",
@@ -486,6 +492,15 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   accounts: {
     description: "List your Pool Accounts (individual deposit lineages) with balances",
     help: {
+      overview: [
+        "Without --chain, accounts acts like a dashboard and aggregates your holdings across all mainnet chains. Use --all-chains to include testnets or --chain <name> to focus on one chain.",
+        "",
+        "Pool Account statuses: approved, pending, poi_required, declined, unknown, spent (fully withdrawn), exited (exit/ragequit).",
+        "",
+        "ASP statuses: approved (eligible for withdraw), pending (waiting for ASP), poi_required (complete Proof of Association at tornado.0xbow.io before withdraw), declined (cannot use withdraw; use ragequit), unknown.",
+        "",
+        "Compact modes --summary and --pending-only are intended for polling loops and do not support --details. When polling with --pending-only, Pool Accounts disappear from results when ASP review finishes. Re-run accounts without --pending-only to confirm whether the final status is approved, declined, or poi_required.",
+      ],
       examples: [
         "privacy-pools accounts",
         "privacy-pools accounts --all-chains",
@@ -542,6 +557,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   sync: {
     description: "Force-sync local account state from onchain events",
     help: {
+      overview: [
+        "Most commands auto-sync with a 2-minute freshness window. Use sync to force a refresh when you need the latest state immediately.",
+      ],
       examples: [
         "privacy-pools sync",
         "privacy-pools sync --asset ETH --agent",
@@ -565,11 +583,18 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Generated scripts register the privacy-pools command.",
+        "",
+        "Setup (add to your shell profile):",
+        "  bash:  privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
+        "  zsh:   privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
+        "  fish:  privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
+        "  pwsh:  privacy-pools completion powershell >> $PROFILE",
       ],
       examples: [
         "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
         "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
         "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
+        "privacy-pools completion powershell >> $PROFILE",
       ],
       jsonFields: "{ mode, shell, completionScript }",
     },
@@ -641,10 +666,10 @@ const AGENT_NOTES: Record<string, string> = {
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
-    "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard.",
+    "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags; they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard.",
 };
 
-const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
+export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   aspApprovalStatus: {
     values: ["approved", "pending", "poi_required", "declined", "unknown"],
     description:

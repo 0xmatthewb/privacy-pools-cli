@@ -275,7 +275,7 @@ describe("command metadata conformance", () => {
       "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
     );
     expect(normalizeWhitespace(agents)).toContain("leave a positive remainder below the relayer minimum");
-    expect(normalizeWhitespace(reference)).toContain("leave a positive remainder below the relayer minimum");
+    expect(normalizeWhitespace(reference)).toContain("leave a positive remainder below that minimum");
     expect(normalizeWhitespace(skillReference)).toContain("leave a positive remainder below the relayer minimum");
   });
 
@@ -298,7 +298,9 @@ describe("command metadata conformance", () => {
       "privacy-pools accounts --agent --chain <chain> --pending-only",
     );
     expect(normalizedSkill).toContain("preserve --chain");
-    expect(normalizedReference).toContain("same chain scope");
+    // reference.md is now auto-generated from command metadata and does not
+    // include agentWorkflowNotes — chain scope guidance lives in SKILL.md,
+    // AGENTS.md, and the JSON contract instead.
     expect(normalizedContract).toContain(
       "poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poi_required before choosing withdraw or ragequit",
     );
@@ -376,7 +378,7 @@ describe("command metadata conformance", () => {
       "privacy-pools accounts --agent --chain <chain> --pending-only",
     );
     expect(normalizeWhitespace(reference)).toContain(
-      "privacy-pools accounts --chain <chain> --pending-only",
+      "privacy-pools accounts --chain <name> --pending-only",
     );
   });
 
