@@ -305,6 +305,47 @@ describe("command metadata conformance", () => {
     );
   });
 
+  test("agent-facing docs and metadata prefer canonical --agent examples", () => {
+    const agentExamplePaths: CommandPath[] = [
+      "init",
+      "pools",
+      "activity",
+      "stats global",
+      "stats pool",
+      "status",
+      "capabilities",
+      "describe",
+      "deposit",
+      "withdraw quote",
+      "accounts",
+      "history",
+      "sync",
+    ];
+
+    for (const path of agentExamplePaths) {
+      const examples = getCommandMetadata(path).help?.examples ?? [];
+      expect(examples.join("\n")).not.toContain("--json");
+    }
+  });
+
+  test("published agent guide documents stdout exceptions explicitly", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const normalizedAgents = normalizeWhitespace(agents);
+
+    expect(normalizedAgents).toContain("Human-readable command output goes to");
+    expect(normalizedAgents).toContain("built-in help, welcome, and shell completion text");
+    expect(normalizedAgents).toContain("which write to");
+  });
+
+  test("proof provisioning copy stays aligned on first-run timing", () => {
+    const depositOverview = normalizeWhitespace(
+      (getCommandMetadata("deposit").help?.overview ?? []).join(" "),
+    );
+
+    expect(depositOverview).toContain("(~60s)");
+    expect(depositOverview).not.toContain("(~30s)");
+  });
+
   test("accounts examples use explicit chain scope for pending-only polling", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");

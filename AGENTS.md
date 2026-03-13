@@ -33,7 +33,7 @@ privacy-pools withdraw 0.1 ETH --to 0xRecipient --agent
 
 **Agent mode**: Pass `--agent` to any command. This is equivalent to `--json --yes --quiet` — machine-readable JSON on stdout, no interactive prompts, no banners or progress text.
 
-**Dual output**: Human-readable text always goes to **stderr**. Structured JSON always goes to **stdout**. In `--agent` mode, stderr is suppressed.
+**Dual output**: Structured JSON always goes to **stdout**. Human-readable command output goes to **stderr**, except built-in help, welcome, and shell completion text, which write to **stdout**. In `--agent` mode, stderr is suppressed.
 
 **JSON envelope**: Every response follows the schema:
 

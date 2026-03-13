@@ -80,7 +80,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools init",
         "privacy-pools init --yes --default-chain mainnet",
         "privacy-pools init --force --yes --default-chain mainnet",
-        "privacy-pools init --json --yes --default-chain mainnet --show-mnemonic",
+        "privacy-pools init --agent --default-chain mainnet --show-mnemonic",
         "privacy-pools init --mnemonic \"word ...\" --private-key 0x...",
         "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet",
       ],
@@ -120,7 +120,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools pools BOLD --chain mainnet",
         "privacy-pools pools --all-chains --sort tvl-desc",
         "privacy-pools pools --search usdc --sort asset-asc",
-        "privacy-pools pools --json --chain mainnet",
+        "privacy-pools pools --agent --chain mainnet",
       ],
       jsonFields:
         "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
@@ -149,7 +149,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools activity",
         "privacy-pools activity --page 2 --limit 20",
         "privacy-pools activity --asset ETH",
-        "privacy-pools activity --asset USDC --json --chain mainnet",
+        "privacy-pools activity --asset USDC --agent --chain mainnet",
       ],
       jsonFields:
         "{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }] }",
@@ -187,7 +187,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools stats global",
-        "privacy-pools stats global --json",
+        "privacy-pools stats global --agent",
       ],
       jsonFields:
         "{ mode, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
@@ -208,7 +208,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools stats pool --asset ETH",
-        "privacy-pools stats pool --asset USDC --json --chain mainnet",
+        "privacy-pools stats pool --asset USDC --agent --chain mainnet",
       ],
       jsonFields: "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
     },
@@ -230,7 +230,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools status",
         "privacy-pools status --check",
         "privacy-pools status --no-check",
-        "privacy-pools status --json --check-rpc",
+        "privacy-pools status --agent --check-rpc",
         "privacy-pools status --chain mainnet --rpc-url https://...",
       ],
       jsonFields:
@@ -251,7 +251,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools capabilities",
-        "privacy-pools capabilities --json",
+        "privacy-pools capabilities --agent",
       ],
       jsonFields:
         "{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
@@ -274,8 +274,8 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       examples: [
         "privacy-pools describe withdraw",
-        "privacy-pools describe withdraw quote --json",
-        "privacy-pools describe stats global --json",
+        "privacy-pools describe withdraw quote --agent",
+        "privacy-pools describe stats global --agent",
       ],
       jsonFields:
         "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
@@ -307,12 +307,12 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Deposits funds into a Privacy Pool. A ZK proof is generated locally",
         "and the transaction is submitted onchain. The first run may download",
-        "circuit files (~30s). Subsequent runs typically complete in 10-30s.",
+        "circuit files (~60s). Subsequent runs typically complete in 10-30s.",
       ],
       examples: [
         "privacy-pools deposit 0.1 ETH",
         "privacy-pools deposit 100 USDC",
-        "privacy-pools deposit 0.05 ETH --json --yes",
+        "privacy-pools deposit 0.05 ETH --agent",
         "privacy-pools deposit 0.1 ETH --unsigned",
         "privacy-pools deposit 0.1 ETH --dry-run",
         "privacy-pools deposit 0.1 --asset ETH --chain mainnet",
@@ -412,7 +412,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
-        "privacy-pools withdraw quote 100 USDC --json --chain mainnet",
+        "privacy-pools withdraw quote 100 USDC --agent --chain mainnet",
       ],
       prerequisites: "init",
       jsonFields:
@@ -485,7 +485,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools accounts --details",
         "privacy-pools accounts --summary",
         "privacy-pools accounts --chain <name> --pending-only",
-        "privacy-pools accounts --json",
+        "privacy-pools accounts --agent",
         "privacy-pools accounts --no-sync --chain mainnet",
       ],
       prerequisites: "init",
@@ -516,7 +516,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       examples: [
         "privacy-pools history",
         "privacy-pools history --limit 10",
-        "privacy-pools history --json",
+        "privacy-pools history --agent",
         "privacy-pools history --no-sync --chain mainnet",
       ],
       prerequisites: "init",
@@ -537,7 +537,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools sync",
-        "privacy-pools sync --asset ETH --json",
+        "privacy-pools sync --asset ETH --agent",
         "privacy-pools sync --chain mainnet",
       ],
       prerequisites: "init",
