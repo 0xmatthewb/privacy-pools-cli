@@ -449,7 +449,7 @@ export function createWithdrawCommand(): Command {
           throw new CLIError(
             "No eligible Pool Account is currently approved for private withdrawal.",
             "ASP",
-            `Your deposit may still be pending ASP approval. Run 'privacy-pools accounts --json --chain ${chainConfig.name}' to check aspStatus. Most deposits are approved within 1 hour.`,
+            `Your deposit may still be pending ASP approval or may have been declined. Run 'privacy-pools accounts --json --chain ${chainConfig.name}' to check aspStatus. Most deposits are approved within 1 hour.`,
             "ACCOUNT_NOT_APPROVED",
             true
           );
@@ -497,7 +497,7 @@ export function createWithdrawCommand(): Command {
             throw new CLIError(
               `${requested.paId} is not currently approved for private withdrawal.`,
               "ASP",
-              `This Pool Account may still be pending ASP approval. Run 'privacy-pools accounts --json --chain ${chainConfig.name}' to check aspStatus.`,
+              `This Pool Account may still be pending ASP approval or may have been declined. Run 'privacy-pools accounts --json --chain ${chainConfig.name}' to check aspStatus.`,
               "ACCOUNT_NOT_APPROVED",
               true
             );

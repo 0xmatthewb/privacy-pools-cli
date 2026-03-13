@@ -10,7 +10,7 @@ import {
   initializeAccountService,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
-import { fetchPoolEvents } from "../services/asp.js";
+import { fetchApprovedLabels, fetchDepositReviewStatuses, fetchPoolEvents } from "../services/asp.js";
 import {
   spinner,
   formatAmount,
@@ -25,6 +25,7 @@ import { buildPoolAccountRefs } from "../utils/pool-accounts.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import type { ChainConfig, GlobalOptions, PoolStats, AspPublicEvent } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { normalizeAspApprovalStatus } from "../utils/statuses.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderPoolsEmpty, renderPools, renderPoolDetail } from "../output/pools.js";
 import type { PoolWithChain, PoolsRenderData } from "../output/pools.js";
@@ -68,6 +69,21 @@ function parseSortMode(raw: string | undefined): PoolsSortMode {
 
 function poolFundsMetric(pool: PoolStats): bigint {
   return pool.totalInPoolValue ?? pool.acceptedDepositsValue ?? 0n;
+}
+
+function collectSpendableLabels(
+  commitments: ReadonlyArray<unknown>,
+): string[] {
+  const labels = new Set<string>();
+
+  for (const commitment of commitments) {
+    if (typeof commitment !== "object" || commitment === null) continue;
+    const label = "label" in commitment ? (commitment as { label?: unknown }).label : undefined;
+    if (typeof label !== "bigint") continue;
+    labels.add(label.toString());
+  }
+
+  return Array.from(labels);
 }
 
 function poolDepositsMetric(pool: PoolStats): number {
@@ -217,7 +233,29 @@ export function createPoolsCommand(): Command {
               accountService.getSpendableCommitments()
             );
             const poolCommitments = spendable.get(pool.scope) ?? [];
-            myPoolAccounts = buildPoolAccountRefs(accountService.account, pool.scope, poolCommitments);
+            const [approvedLabels, rawReviewStatuses] = await Promise.all([
+              fetchApprovedLabels(chainConfig, pool.scope),
+              fetchDepositReviewStatuses(
+                chainConfig,
+                pool.scope,
+                collectSpendableLabels(poolCommitments),
+              ),
+            ]);
+            const reviewStatuses = rawReviewStatuses
+              ? new Map(
+                  Array.from(rawReviewStatuses.entries()).map(([label, status]) => [
+                    label,
+                    normalizeAspApprovalStatus(status),
+                  ]),
+                )
+              : null;
+            myPoolAccounts = buildPoolAccountRefs(
+              accountService.account,
+              pool.scope,
+              poolCommitments,
+              approvedLabels,
+              reviewStatuses,
+            );
           } catch { /* graceful skip — wallet not initialized */ }
 
           // Try to fetch recent activity (non-fatal).

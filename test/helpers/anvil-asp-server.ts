@@ -109,6 +109,13 @@ async function route(
         pendingGrowth24h: 0,
       },
     ];
+  } else if (path === `/${state.chainId}/public/deposits-by-label`) {
+    const labelsHeader = firstHeaderValue(req.headers["x-labels"]);
+    const labels = labelsHeader?.split(",").map((label) => label.trim()).filter(Boolean) ?? [];
+    body = labels.map((label) => ({
+      label,
+      reviewStatus: state.approvedLabels.includes(label) ? "approved" : "pending",
+    }));
   } else if (path === `/${state.chainId}/public/mt-leaves`) {
     const scopeHeader = firstHeaderValue(req.headers["x-pool-scope"]);
     if (scopeHeader !== state.scope) {

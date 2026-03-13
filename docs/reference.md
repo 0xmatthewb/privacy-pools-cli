@@ -116,7 +116,7 @@ privacy-pools accounts --chain <chain> --pending-only  # pending approvals only 
 | `--pending-only` | Show only Pool Accounts with `aspStatus: pending` |
 
 **Pool Account statuses:** `spendable` (can withdraw), `spent` (fully withdrawn), `exited` (exit/ragequit).
-**ASP statuses:** `approved` (can withdraw privately), `pending` (waiting for ASP), `unknown`.
+**ASP statuses:** `approved` (can withdraw privately), `pending` (waiting for ASP), `declined` (rejected for private withdrawal), `unknown`.
 
 Without `--chain`, `accounts` acts like a dashboard and aggregates your holdings across all mainnet chains. Use `--all-chains` to include testnets or `--chain <name>` to focus on one chain.
 

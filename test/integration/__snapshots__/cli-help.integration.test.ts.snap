@@ -301,7 +301,7 @@ Agent workflow:
   nextActions on accounts are poll-oriented only and appear when pending approvals still exist.
 JSON output (--json):
   { chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
-  --summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }
+  --summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, declinedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }
   --pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }"
 `;
 

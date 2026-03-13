@@ -104,6 +104,7 @@ interface AccountsSummaryData {
   balances: JsonBalanceRow[];
   pendingCount: number;
   approvedCount: number;
+  declinedCount: number;
   spendableCount: number;
   spentCount: number;
   exitedCount: number;
@@ -150,6 +151,7 @@ function summarizeGroups(
   const balances: JsonBalanceRow[] = [];
   let pendingCount = 0;
   let approvedCount = 0;
+  let declinedCount = 0;
   let spendableCount = 0;
   let spentCount = 0;
   let exitedCount = 0;
@@ -161,6 +163,7 @@ function summarizeGroups(
     for (const pa of group.poolAccounts) {
       if (pa.aspStatus === "pending") pendingCount++;
       if (pa.aspStatus === "approved") approvedCount++;
+      if (pa.aspStatus === "declined") declinedCount++;
 
       if (pa.status === "spendable") {
         spendableCount++;
@@ -208,6 +211,7 @@ function summarizeGroups(
     balances,
     pendingCount,
     approvedCount,
+    declinedCount,
     spendableCount,
     spentCount,
     exitedCount,
@@ -250,8 +254,8 @@ function renderSummaryCsv(
   includeChainFields: boolean,
 ): void {
   const headers = includeChainFields
-    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "Spendable", "Spent", "Exited"]
-    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "Spendable", "Spent", "Exited"];
+    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "Declined", "Spendable", "Spent", "Exited"]
+    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "Declined", "Spendable", "Spent", "Exited"];
   const sourceRows =
     summary.balances.length > 0
       ? summary.balances
@@ -270,6 +274,7 @@ function renderSummaryCsv(
       String(balance.poolAccounts),
       String(summary.pendingCount),
       String(summary.approvedCount),
+      String(summary.declinedCount),
       String(summary.spendableCount),
       String(summary.spentCount),
       String(summary.exitedCount),
@@ -451,6 +456,7 @@ export function renderAccountsNoPools(
           {
             pendingCount: 0,
             approvedCount: 0,
+            declinedCount: 0,
             spendableCount: 0,
             spentCount: 0,
             exitedCount: 0,
@@ -478,6 +484,7 @@ export function renderAccountsNoPools(
           balances: [],
           pendingCount: 0,
           approvedCount: 0,
+          declinedCount: 0,
           spendableCount: 0,
           spentCount: 0,
           exitedCount: 0,
@@ -571,6 +578,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             {
               pendingCount: summary.pendingCount,
               approvedCount: summary.approvedCount,
+              declinedCount: summary.declinedCount,
               spendableCount: summary.spendableCount,
               spentCount: summary.spentCount,
               exitedCount: summary.exitedCount,
@@ -647,6 +655,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       [
         [renderAspApprovalStatus("pending"), String(summary.pendingCount)],
         [renderAspApprovalStatus("approved"), String(summary.approvedCount)],
+        [renderAspApprovalStatus("declined"), String(summary.declinedCount)],
         [renderPoolAccountStatus("spendable"), String(summary.spendableCount)],
         [renderPoolAccountStatus("spent"), String(summary.spentCount)],
         [renderPoolAccountStatus("exited"), String(summary.exitedCount)],

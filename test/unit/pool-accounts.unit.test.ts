@@ -93,4 +93,54 @@ describe("pool account mapping", () => {
     expect(parsePoolAccountSelector("PA-0")).toBeNull();
     expect(parsePoolAccountSelector("foo")).toBeNull();
   });
+
+  test("review statuses surface declined accounts and keep approved gated by ASP leaves", () => {
+    const scope = 3003n;
+    const approved = commitment(
+      10n,
+      101n,
+      100n,
+      10n,
+      "0x1010101010101010101010101010101010101010101010101010101010101010",
+    );
+    const declined = commitment(
+      20n,
+      202n,
+      200n,
+      20n,
+      "0x2020202020202020202020202020202020202020202020202020202020202020",
+    );
+    const approvedButLeafPending = commitment(
+      30n,
+      303n,
+      300n,
+      30n,
+      "0x3030303030303030303030303030303030303030303030303030303030303030",
+    );
+
+    const account: PrivacyPoolAccount = {
+      masterKeys: [5n as any, 6n as any],
+      poolAccounts: new Map([
+        [scope as any, [
+          { label: approved.label as any, deposit: approved, children: [] },
+          { label: declined.label as any, deposit: declined, children: [] },
+          { label: approvedButLeafPending.label as any, deposit: approvedButLeafPending, children: [] },
+        ]],
+      ]) as any,
+    };
+
+    const refs = buildAllPoolAccountRefs(
+      account,
+      scope,
+      [approved, declined, approvedButLeafPending],
+      new Set([approved.label.toString()]),
+      new Map([
+        [approved.label.toString(), "approved"],
+        [declined.label.toString(), "declined"],
+        [approvedButLeafPending.label.toString(), "approved"],
+      ]),
+    );
+
+    expect(refs.map((row) => row.aspStatus)).toEqual(["approved", "declined", "pending"]);
+  });
 });

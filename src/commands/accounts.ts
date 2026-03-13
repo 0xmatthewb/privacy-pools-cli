@@ -16,7 +16,7 @@ import {
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
-import { fetchApprovedLabels } from "../services/asp.js";
+import { fetchApprovedLabels, fetchDepositReviewStatuses } from "../services/asp.js";
 import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
@@ -25,6 +25,7 @@ import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { buildAllPoolAccountRefs } from "../utils/pool-accounts.js";
+import { normalizeAspApprovalStatus, type AspApprovalStatus } from "../utils/statuses.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
@@ -60,6 +61,21 @@ function formatAccountsLoadingText(
   const baseText = `Loading My Pools across ${describeAccountsChainScope(allChains)}...`;
   if (completedChains === undefined || totalChains === undefined) return baseText;
   return `${baseText} (${completedChains}/${totalChains} complete)`;
+}
+
+function collectSpendableLabels(
+  commitments: ReadonlyArray<unknown>,
+): string[] {
+  const labels = new Set<string>();
+
+  for (const commitment of commitments) {
+    if (typeof commitment !== "object" || commitment === null) continue;
+    const label = "label" in commitment ? (commitment as { label?: unknown }).label : undefined;
+    if (typeof label !== "bigint") continue;
+    labels.add(label.toString());
+  }
+
+  return Array.from(labels);
 }
 
 /** Bundled context for loadAccountsForChain — avoids 8-param sprawl. */
@@ -185,11 +201,29 @@ async function loadAccountsForChain(
     spin.text = `Checking ASP approval status on ${chainConfig.name}...`;
   }
   const approvedLabelsByScope = new Map<string, Set<string> | null>();
+  const reviewStatusesByScope = new Map<string, Map<string, AspApprovalStatus> | null>();
   await Promise.all(
     sortedScopeStrings.map(async (scopeStr) => {
       const pool = poolByScope.get(scopeStr);
       if (pool) {
-        approvedLabelsByScope.set(scopeStr, await fetchApprovedLabels(chainConfig, pool.scope));
+        const labels = collectSpendableLabels(spendable.get(BigInt(scopeStr)) ?? []);
+        const [approvedLabels, rawReviewStatuses] = await Promise.all([
+          fetchApprovedLabels(chainConfig, pool.scope),
+          fetchDepositReviewStatuses(chainConfig, pool.scope, labels),
+        ]);
+
+        approvedLabelsByScope.set(scopeStr, approvedLabels);
+        reviewStatusesByScope.set(
+          scopeStr,
+          rawReviewStatuses
+            ? new Map(
+                Array.from(rawReviewStatuses.entries()).map(([label, status]) => [
+                  label,
+                  normalizeAspApprovalStatus(status),
+                ]),
+              )
+            : null,
+        );
       }
     }),
   );
@@ -202,6 +236,7 @@ async function loadAccountsForChain(
     if (!pool) continue;
 
     const approvedLabels = approvedLabelsByScope.get(scopeStr);
+    const reviewStatuses = reviewStatusesByScope.get(scopeStr);
     // Always show all pool accounts (pending, approved, spent, exited).
     // Users commonly check accounts to see if a pending deposit has been
     // approved — hiding any state behind --all creates a confusing empty view.
@@ -210,6 +245,7 @@ async function loadAccountsForChain(
       pool.scope,
       commitments,
       approvedLabels,
+      reviewStatuses,
     );
     poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
 

@@ -76,7 +76,8 @@ async function aspFetch(
   chainConfig: ChainConfig,
   path: string,
   scope?: bigint,
-  query?: Record<string, string>
+  query?: Record<string, string>,
+  extraHeaders?: Record<string, string>,
 ): Promise<Response> {
   const url = new URL(`${chainConfig.aspHost}/${chainConfig.id}${path}`);
   if (query) {
@@ -85,7 +86,7 @@ async function aspFetch(
     }
   }
 
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...(extraHeaders ?? {}) };
   if (scope !== undefined) {
     // Must be decimal string, never hex
     headers["X-Pool-Scope"] = scope.toString();
@@ -278,6 +279,45 @@ export async function fetchApprovedLabels(
     const res = await aspFetch(chainConfig, "/public/mt-leaves", scope);
     const { aspLeaves } = (await res.json()) as { aspLeaves: string[] };
     return new Set(aspLeaves.map((leaf) => BigInt(leaf).toString()));
+  } catch {
+    return null;
+  }
+}
+
+interface AspDepositStatusRow {
+  label?: string;
+  reviewStatus?: string;
+}
+
+/**
+ * Fetch per-label ASP review statuses for spendable deposits.
+ * Returns null when the endpoint is unavailable so callers can fall back
+ * to leaf-only pending/approved inference.
+ */
+export async function fetchDepositReviewStatuses(
+  chainConfig: ChainConfig,
+  scope: bigint,
+  labels: string[],
+): Promise<Map<string, string> | null> {
+  if (labels.length === 0) return new Map();
+
+  try {
+    const res = await aspFetch(
+      chainConfig,
+      "/public/deposits-by-label",
+      scope,
+      undefined,
+      { "X-Labels": labels.join(",") },
+    );
+    const rows = await res.json() as AspDepositStatusRow[];
+    const reviewStatuses = new Map<string, string>();
+
+    for (const row of rows) {
+      if (typeof row.label !== "string" || typeof row.reviewStatus !== "string") continue;
+      reviewStatuses.set(BigInt(row.label).toString(), row.reviewStatus);
+    }
+
+    return reviewStatuses;
   } catch {
     return null;
   }

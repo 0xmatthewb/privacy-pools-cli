@@ -4,11 +4,14 @@ import type {
   PrivacyPoolAccount,
   RagequitEvent,
 } from "@0xbow/privacy-pools-core-sdk";
+import {
+  type AspApprovalStatus,
+  type PoolAccountStatus,
+} from "./statuses.js";
 
 interface PoolAccountLike extends Pick<PoolAccount, "deposit" | "children" | "ragequit"> {}
 
-export type PoolAccountStatus = "spendable" | "spent" | "exited";
-export type AspApprovalStatus = "approved" | "pending" | "unknown";
+export type { PoolAccountStatus, AspApprovalStatus } from "./statuses.js";
 
 export interface PoolAccountRef {
   paNumber: number;
@@ -80,9 +83,10 @@ export function buildPoolAccountRefs(
   account: PrivacyPoolAccount | null | undefined,
   scope: bigint,
   spendableCommitments: readonly AccountCommitment[],
-  approvedLabels?: Set<string> | null
+  approvedLabels?: Set<string> | null,
+  reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
 ): PoolAccountRef[] {
-  return buildAllPoolAccountRefs(account, scope, spendableCommitments, approvedLabels)
+  return buildAllPoolAccountRefs(account, scope, spendableCommitments, approvedLabels, reviewStatuses)
     .filter((pa) => pa.status === "spendable");
 }
 
@@ -90,7 +94,8 @@ export function buildAllPoolAccountRefs(
   account: PrivacyPoolAccount | null | undefined,
   scope: bigint,
   spendableCommitments: readonly AccountCommitment[],
-  approvedLabels?: Set<string> | null
+  approvedLabels?: Set<string> | null,
+  reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
 ): PoolAccountRef[] {
   const spendableByKey = new Map<string, AccountCommitment>();
   for (const commitment of spendableCommitments) {
@@ -99,8 +104,18 @@ export function buildAllPoolAccountRefs(
 
   function resolveAspStatus(label: bigint, status: PoolAccountStatus): AspApprovalStatus {
     if (status === "exited" || status === "spent") return "unknown";
+
+    const labelKey = label.toString();
+    const reviewStatus = reviewStatuses?.get(labelKey);
+    if (reviewStatus) {
+      if (reviewStatus === "approved" && approvedLabels && !approvedLabels.has(labelKey)) {
+        return "pending";
+      }
+      return reviewStatus;
+    }
+
     if (!approvedLabels) return "unknown";
-    return approvedLabels.has(label.toString()) ? "approved" : "pending";
+    return approvedLabels.has(labelKey) ? "approved" : "pending";
   }
 
   const refs: PoolAccountRef[] = [];

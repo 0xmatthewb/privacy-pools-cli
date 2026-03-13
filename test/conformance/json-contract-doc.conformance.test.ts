@@ -86,7 +86,9 @@ describe("external JSON contract doc conformance", () => {
     expect(activity.successFields?.note).toContain("string?");
 
     const accounts = commands.accounts as { accountFields?: Record<string, string> };
+    expect(accounts.accountFields?.aspStatus).toContain("\"declined\"");
     expect(accounts.accountFields?.aspStatus).toContain("\"unknown\"");
+    expect((accounts as { summaryVariant?: Record<string, string> }).summaryVariant?.declinedCount).toBe("number");
     expect((accounts as { summaryVariant?: Record<string, string> }).summaryVariant?.approvedCount).toBe("number");
     expect((accounts as { pendingOnlyVariant?: Record<string, string> }).pendingOnlyVariant?.accounts).toContain("\"pending\"");
 

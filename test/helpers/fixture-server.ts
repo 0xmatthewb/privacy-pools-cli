@@ -106,6 +106,10 @@ const SEPOLIA_ENTRYPOINT =
 const FIXTURE_POOL =
   "0x1234567890abcdef1234567890abcdef12345678" as Address;
 
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 // ── Routing ──────────────────────────────────────────────────────────────────
 
 function route(req: IncomingMessage, res: ServerResponse): void {
@@ -116,6 +120,13 @@ function route(req: IncomingMessage, res: ServerResponse): void {
 
   if (path.match(/\/\d+\/public\/pools-stats$/)) {
     body = POOLS_STATS;
+  } else if (path.match(/\/\d+\/public\/deposits-by-label$/)) {
+    const labelsHeader = firstHeaderValue(req.headers["x-labels"]);
+    const labels = labelsHeader?.split(",").map((label) => label.trim()).filter(Boolean) ?? [];
+    body = labels.map((label) => ({
+      label,
+      reviewStatus: MT_LEAVES.aspLeaves.includes(label) ? "approved" : "pending",
+    }));
   } else if (path.match(/\/global\/public\/events$/) || path.match(/\/\d+\/public\/events$/)) {
     const page = Number(url.searchParams.get("page") ?? 1);
     const perPage = Number(url.searchParams.get("perPage") ?? GLOBAL_EVENTS.perPage);

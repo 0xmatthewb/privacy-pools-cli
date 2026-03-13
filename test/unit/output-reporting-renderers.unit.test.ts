@@ -215,6 +215,7 @@ describe("renderAccountsNoPools parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.pendingCount).toBe(0);
     expect(json.approvedCount).toBe(0);
+    expect(json.declinedCount).toBe(0);
     expect(json.balances).toEqual([]);
     expect(json.accounts).toBeUndefined();
   });
@@ -285,6 +286,16 @@ describe("renderAccounts parity", () => {
     ],
   };
 
+  const STUB_DECLINED_GROUP: AccountPoolGroup = {
+    ...STUB_GROUP,
+    poolAccounts: [
+      {
+        ...STUB_GROUP.poolAccounts[0]!,
+        aspStatus: "declined",
+      },
+    ],
+  };
+
   test("JSON mode: emits accounts envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
@@ -347,6 +358,7 @@ describe("renderAccounts parity", () => {
     expect(json.accounts).toBeUndefined();
     expect(json.pendingCount).toBe(1);
     expect(json.approvedCount).toBe(0);
+    expect(json.declinedCount).toBe(0);
     expect(json.spendableCount).toBe(1);
     expect(json.balances).toEqual([
       {
@@ -427,6 +439,22 @@ describe("renderAccounts parity", () => {
     expect(stderr).toContain("Commitment");
     expect(stderr).toContain("Label");
     expect(stderr).toContain("Block");
+  });
+
+  test("human mode: surfaces declined ASP status for spendable accounts", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        groups: [STUB_DECLINED_GROUP],
+        showDetails: false,
+        showSummary: false,
+        showPendingOnly: false,
+      }),
+    );
+
+    expect(stderr).toContain("Declined");
+    expect(stderr).toContain("Spendable");
   });
 
   test("human mode: shows empty-state message when no groups have accounts", () => {

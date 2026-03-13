@@ -485,7 +485,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       jsonFields:
         "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
-        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }",
+        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, declinedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }",
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }",
       ],
       agentWorkflowNotes: [
@@ -632,9 +632,9 @@ const AGENT_NOTES: Record<string, string> = {
 
 const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   aspApprovalStatus: {
-    values: ["approved", "pending", "unknown"],
+    values: ["approved", "pending", "declined", "unknown"],
     description:
-      "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'unknown' applies to exited or spent accounts.",
+      "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.",
   },
   poolAccountStatus: {
     values: ["spendable", "spent", "exited"],
