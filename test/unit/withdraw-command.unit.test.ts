@@ -81,7 +81,7 @@ describe("formatApprovalResolutionHint", () => {
       status: "unknown",
     });
 
-    expect(hint).toContain("privacy-pools accounts --json --chain sepolia");
+    expect(hint).toContain("privacy-pools accounts --agent --chain sepolia");
     expect(hint).toContain("Pending deposits need more time");
     expect(hint).toContain("declined deposits must use");
   });
