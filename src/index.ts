@@ -63,6 +63,17 @@ function firstNonOptionToken(args: string[]): string | undefined {
   return undefined;
 }
 
+function isWelcomeFlagOnlyInvocation(args: string[]): boolean {
+  if (args.length === 0) return true;
+
+  const welcomeFlags = new Set([
+    "--no-banner",
+    "--no-color",
+  ]);
+
+  return args.every((token) => welcomeFlags.has(token));
+}
+
 const firstCommandToken = firstNonOptionToken(argv);
 const formatFlagValue = (() => {
   const idx = argv.indexOf("--format");
@@ -76,7 +87,8 @@ const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
 const isHelpLike = argv.includes("--help") || hasShortFlag(argv, "h") || firstCommandToken === "help";
 const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
 const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
-const isWelcome = argv.length === 0 && !isMachineMode;
+const suppressBanner = argv.includes("--no-banner");
+const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
 let machineCapturedOut = "";
 
 const program = createRootProgram(pkg.version);
@@ -187,7 +199,9 @@ function mapCommanderError(error: unknown): CLIError | null {
     ) {
       // Bare invocation: show banner (once per session) + condensed welcome
       if (isWelcome) {
-        await printBanner();
+        if (!suppressBanner) {
+          await printBanner();
+        }
         process.stdout.write(welcomeScreen() + "\n");
         const notice = getUpdateNotice(pkg.version);
         if (notice) process.stderr.write(chalk.dim(notice) + "\n");

@@ -132,6 +132,19 @@ describe("CLI help and discovery", () => {
     expect(second.stdout).toContain("Explore (no wallet needed)");
   });
 
+  test("--no-banner keeps the welcome screen but suppresses banner art", () => {
+    const home = createTempHome();
+    const sessionId = `pp-cli-test-no-banner-${Date.now()}`;
+
+    const result = runCli(["--no-banner"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).not.toContain(BANNER_SENTINEL);
+    expect(result.stdout).toContain("Explore (no wallet needed)");
+  });
+
   test("banner is not shown before commands", () => {
     const home = createTempHome();
     const sessionId = `pp-cli-test-banner-cmd-${Date.now()}`;
