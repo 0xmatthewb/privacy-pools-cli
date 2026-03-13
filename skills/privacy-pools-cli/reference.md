@@ -870,6 +870,8 @@ When `retryable: false`:
 | `sepolia` | 11155111 | Yes | `0x34a2068192b1297f2a7f85d7d8cde66f8f0921cb` |
 | `op-sepolia` | 11155420 | Yes | `0x54aca0d27500669fa37867233e05423701f11ba1` |
 
+`ethereum` is accepted as an alias for `mainnet`.
+
 ---
 
 ## Links
