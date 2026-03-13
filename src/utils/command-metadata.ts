@@ -105,7 +105,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--force",
         "--show-mnemonic",
       ],
-      agentFlags: "--yes --json --default-chain <chain> --show-mnemonic",
+      agentFlags: "--agent --default-chain <chain> --show-mnemonic",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -134,7 +134,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       flags: ["--all-chains", "--search <query>", "--sort <mode>"],
-      agentFlags: "--json [--all-chains] [--search <query>] [--sort <mode>]",
+      agentFlags: "--agent [--all-chains] [--search <query>] [--sort <mode>]",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
@@ -156,7 +156,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       flags: ["--asset <symbol|address>", "--page <n>", "--limit <n>"],
-      agentFlags: "--json [--asset <symbol>] [--page <n>] [--limit <n>]",
+      agentFlags: "--agent [--asset <symbol>] [--page <n>] [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
@@ -176,7 +176,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "stats",
       flags: ["global", "pool --asset <symbol|address>"],
-      agentFlags: "global --json (or: pool --asset <symbol> --json)",
+      agentFlags: "global --agent (or: pool --asset <symbol> --agent)",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
@@ -195,7 +195,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "stats global",
       flags: [],
-      agentFlags: "--json",
+      agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
@@ -215,7 +215,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "stats pool --asset <symbol|address>",
       flags: ["--asset <symbol|address>"],
-      agentFlags: "--json --asset <symbol>",
+      agentFlags: "--agent --asset <symbol>",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
@@ -238,7 +238,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       flags: ["--check", "--no-check", "--check-rpc", "--check-asp"],
-      agentFlags: "--json [--no-check] [--check-rpc] [--check-asp]",
+      agentFlags: "--agent [--no-check] [--check-rpc] [--check-asp]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -258,7 +258,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       flags: [],
-      agentFlags: "--json",
+      agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -283,7 +283,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "describe <command...>",
       flags: ["<command...>"],
-      agentFlags: "--json <command...>",
+      agentFlags: "--agent <command...>",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -295,7 +295,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     description: "Show usage guide, workflow, and reference",
     capabilities: {
       flags: [],
-      agentFlags: "--json",
+      agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -344,7 +344,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--dry-run",
         "--ignore-unique-amount",
       ],
-      agentFlags: "--json --yes",
+      agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -400,7 +400,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--unsigned [envelope|tx]",
         "--dry-run",
       ],
-      agentFlags: "--json --yes",
+      agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -424,7 +424,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "withdraw quote <amount> --asset <symbol|address>",
       flags: ["--asset <symbol|address>", "--to <address>"],
-      agentFlags: "--json",
+      agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "medium",
     },
@@ -469,7 +469,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--unsigned [envelope|tx]",
         "--dry-run",
       ],
-      agentFlags: "--json --yes",
+      agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -503,7 +503,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       flags: ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"],
-      agentFlags: "--json",
+      agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -525,7 +525,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       flags: ["--no-sync", "--limit <n>"],
-      agentFlags: "--json",
+      agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -546,7 +546,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       flags: ["-a, --asset <symbol|address>"],
-      agentFlags: "--json [--asset <symbol>]",
+      agentFlags: "--agent [--asset <symbol>]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -568,7 +568,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       flags: ["[shell]", "--shell <shell>"],
-      agentFlags: "--json <shell>",
+      agentFlags: "--agent <shell>",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -614,19 +614,19 @@ export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] = [
 ];
 
 const AGENT_WORKFLOW = [
-  "1. privacy-pools status --json",
-  "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
-  "3. privacy-pools pools --json --chain <chain>",
-  "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-  "5. privacy-pools accounts --json --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --json --chain <chain>)",
-  "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
+  "1. privacy-pools status --agent",
+  "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
+  "3. privacy-pools pools --agent --chain <chain>",
+  "4. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>",
+  "5. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
+  "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>",
 ];
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
+    "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
   withdrawQuote:
-    "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
+    "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
   firstRun:
     "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
   unsignedMode:
@@ -634,7 +634,7 @@ const AGENT_NOTES: Record<string, string> = {
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
-    "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard.",
+    "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard.",
 };
 
 const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {

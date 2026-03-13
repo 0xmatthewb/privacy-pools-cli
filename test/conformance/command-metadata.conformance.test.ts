@@ -291,17 +291,17 @@ describe("command metadata conformance", () => {
     const normalizedWorkflowStep = normalizeWhitespace(payload.agentWorkflow[4] ?? "");
     const statusCheck = payload.agentNotes?.statusCheck ?? "";
 
-    expect(normalizedWorkflowStep).toContain("accounts --json --chain <chain> --pending-only");
+    expect(normalizedWorkflowStep).toContain("accounts --agent --chain <chain> --pending-only");
     expect(normalizedWorkflowStep).toContain(
-      "confirm approved vs declined vs poi_required with accounts --json --chain <chain>",
+      "confirm approved vs declined vs poi_required with accounts --agent --chain <chain>",
     );
-    expect(statusCheck).toContain("accounts --json --chain <chain>");
+    expect(statusCheck).toContain("accounts --agent --chain <chain>");
     expect(statusCheck).toContain("default multi-chain mainnet dashboard");
     expect(normalizedAgents).toContain(
       "privacy-pools accounts --agent --chain <chain> --pending-only (to verify the deposit landed; preserve chain scope)",
     );
     expect(normalizedAgents).toContain(
-      "suggest running `privacy-pools accounts --json --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt.",
+      "suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt.",
     );
   });
 
