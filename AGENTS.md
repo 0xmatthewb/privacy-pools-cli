@@ -90,7 +90,7 @@ These commands work immediately after install — no `init` or private keys need
 
 #### `pools`
 
-List available Privacy Pools. When no `--chain` is specified, defaults to querying all mainnets.
+List available Privacy Pools. When no `--chain` is specified, defaults to querying all mainnet chains.
 
 ```bash
 privacy-pools pools --agent
@@ -112,7 +112,7 @@ With `--all-chains`, each pool includes a `chain` field and the root includes `a
 
 #### `activity`
 
-Public onchain activity feed. When no `--chain` is specified, defaults to querying all mainnets.
+Public onchain activity feed. When no `--chain` is specified, defaults to querying all mainnet chains.
 
 ```bash
 privacy-pools activity --agent
@@ -121,7 +121,7 @@ privacy-pools activity --agent --asset ETH --limit 20
 
 JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }] }`
 
-When querying all mainnets (no `--chain`), `chain` is `"all-mainnets"` and `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
+When querying all mainnet chains (no `--chain`), `chain` is `"all-mainnets"` and `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
 
 When filtering by `--chain` without `--asset`, events are filtered client-side. In this case `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
@@ -163,7 +163,7 @@ privacy-pools status --agent --check
 
 JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
-`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags — they indicate the wallet is set up for those operations, **not** that spendable funds exist. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the all-mainnets dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
+`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags — they indicate the wallet is set up for those operations, **not** that spendable funds exist. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
 
 #### `capabilities`
 
@@ -228,7 +228,7 @@ JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, ch
 
 All numeric values are strings (wei). `committedValue` and `label` may be `null`.
 
-`nextActions` provides the canonical structured guidance: poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then re-run `accounts --agent --chain <chain>` to confirm approval before withdrawing. Always preserve the same `--chain` scope for both polling and confirmation — bare `accounts` only covers mainnets, so testnet deposits would be invisible without `--chain`.
+`nextActions` provides the canonical structured guidance: poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then re-run `accounts --agent --chain <chain>` to confirm approval before withdrawing. Always preserve the same `--chain` scope for both polling and confirmation — bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without `--chain`.
 
 Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days. A vetting fee is deducted from the deposit amount by the ASP, and only approved deposits can be withdrawn privately.
 
@@ -293,7 +293,7 @@ privacy-pools accounts --agent --chain <chain> --pending-only
 privacy-pools accounts --agent --details
 ```
 
-When no `--chain` is specified, `accounts` aggregates all mainnets by default. Use `--all-chains` to include testnets.
+When no `--chain` is specified, `accounts` aggregates all mainnet chains by default. Use `--all-chains` to include testnets.
 
 JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
@@ -305,7 +305,7 @@ In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `
 
 `--pending-only` JSON payload: `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`
 
-**Poll pending approvals**: After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, approved entries disappear from the response instead of changing to `"approved"`. Once it disappears, re-run `accounts --agent --chain <chain>` to confirm approval before withdrawing. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers mainnets. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
+**Poll pending approvals**: After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, approved entries disappear from the response instead of changing to `"approved"`. Once it disappears, re-run `accounts --agent --chain <chain>` to confirm approval before withdrawing. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers the mainnet chains. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
 
 #### `history`
 
@@ -355,7 +355,7 @@ After depositing, poll `accounts --agent --chain <chain> --pending-only` while t
 - **Most deposits approve within 1 hour**
 - **Maximum wait**: 7 days (rare edge cases)
 - Once the Pool Account disappears from pending-only results, re-run `accounts --agent --chain <chain>` to confirm it is approved, then proceed with withdrawal
-- Always preserve `--chain` — bare `accounts` only covers mainnets, so testnet deposits are invisible without it
+- Always preserve `--chain` — bare `accounts` only covers the mainnet chains, so testnet deposits are invisible without it
 
 ## Crash Recovery
 

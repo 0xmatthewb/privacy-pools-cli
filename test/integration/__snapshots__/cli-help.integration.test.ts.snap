@@ -100,7 +100,7 @@ List available pools and assets
 Arguments:
   asset             Asset symbol for detail view (e.g. ETH, BOLD)
 Options:
-  --all-chains      Include testnet chains (mainnets shown by default)
+  --all-chains      Include testnet chains (mainnet chains shown by default)
   --search <query>  Filter by chain/symbol/address/scope
   --sort <mode>     Sort mode (default, asset-asc, asset-desc, tvl-desc,
                     tvl-asc, deposits-desc, deposits-asc, chain-asset) (default:
@@ -280,7 +280,7 @@ exports[`CLI --help snapshots accounts --help snapshot 1`] = `
 List your Pool Accounts (individual deposit lineages) with balances
 Options:
   --no-sync       Use cached data (faster, but may be stale)
-  --all-chains    Include testnet chains (mainnets shown by default)
+  --all-chains    Include testnet chains (mainnet chains shown by default)
   --details       Show additional details per Pool Account
   --summary       Show counts and balances only
   --pending-only  Show only pending ASP approvals
@@ -296,7 +296,7 @@ Examples:
 Prerequisites:
   Requires: init
 Agent workflow:
-  Without --chain, accounts aggregates all mainnets by default. Use --all-chains to include testnets.
+  Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.
   Use --summary or --pending-only to reduce JSON size for polling loops.
   nextActions on accounts are poll-oriented only and appear when pending approvals still exist.
 JSON output (--json):

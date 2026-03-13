@@ -168,7 +168,7 @@ export function createPoolsCommand(): Command {
   return new Command("pools")
     .description(metadata.description)
     .argument("[asset]", "Asset symbol for detail view (e.g. ETH, BOLD)")
-    .option("--all-chains", "Include testnet chains (mainnets shown by default)")
+    .option("--all-chains", "Include testnet chains (mainnet chains shown by default)")
     .option("--search <query>", "Filter by chain/symbol/address/scope")
     .option(
       "--sort <mode>",

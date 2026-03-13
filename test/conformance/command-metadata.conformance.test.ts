@@ -274,7 +274,7 @@ describe("command metadata conformance", () => {
     expect(normalizedWorkflowStep).toContain("accounts --json --chain <chain> --pending-only");
     expect(normalizedWorkflowStep).toContain("confirm with accounts --json --chain <chain>");
     expect(statusCheck).toContain("accounts --json --chain <chain>");
-    expect(statusCheck).toContain("all-mainnets dashboard");
+    expect(statusCheck).toContain("default multi-chain mainnet dashboard");
     expect(normalizedAgents).toContain(
       "privacy-pools accounts --agent --chain <chain> --pending-only (to verify the deposit landed; preserve chain scope)",
     );

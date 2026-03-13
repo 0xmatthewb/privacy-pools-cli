@@ -104,7 +104,7 @@ privacy-pools pools --agent [--all-chains] [--search <query>] [--sort <mode>]
 privacy-pools pools ETH --agent                    # detail view for a specific pool
 ```
 
-Defaults to all mainnets when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
+Defaults to all mainnet chains when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
 
 **Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity? }`. Does not support CSV.
 
@@ -165,7 +165,7 @@ All numeric token amounts are in wei (strings). USD values, counts, and growth r
 privacy-pools activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
 ```
 
-Defaults to all mainnets when no `--chain` is specified.
+Defaults to all mainnet chains when no `--chain` is specified.
 
 **Global:**
 
@@ -349,7 +349,7 @@ Representative payload (abridged):
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-    "statusCheck": "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the all-mainnets dashboard."
+    "statusCheck": "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard."
   },
   "schemas": {
     "aspApprovalStatus": { "values": ["approved", "pending", "unknown"] },
@@ -701,7 +701,7 @@ privacy-pools accounts --agent --chain <chain> --pending-only
 
 `status` values: `"spendable"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`, `"unknown"` (`"unknown"` for spent or exited accounts). `pendingCount` is the number of accounts with `aspStatus: "pending"`.
 
-Without `--chain`, `accounts` aggregates all mainnets by default. Use `--all-chains` to include testnets. In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId`.
+Without `--chain`, `accounts` aggregates all mainnet chains by default. Use `--all-chains` to include testnets. In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId`.
 
 `balances` contains per-pool totals for spendable accounts. `balance` is the total spendable amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
 
@@ -709,7 +709,7 @@ Without `--chain`, `accounts` aggregates all mainnets by default. Use `--all-cha
 
 `--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
-After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Approved entries disappear from `--pending-only` results instead of changing status; once gone, re-run `accounts --agent --chain <chain>` to confirm `aspStatus: "approved"` before withdrawing. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers mainnets, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
+After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Approved entries disappear from `--pending-only` results instead of changing status; once gone, re-run `accounts --agent --chain <chain>` to confirm `aspStatus: "approved"` before withdrawing. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
 
 ### `history`
 

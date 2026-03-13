@@ -489,7 +489,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }",
       ],
       agentWorkflowNotes: [
-        "Without --chain, accounts aggregates all mainnets by default. Use --all-chains to include testnets.",
+        "Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
         "nextActions on accounts are poll-oriented only and appear when pending approvals still exist.",
       ],
@@ -627,7 +627,7 @@ const AGENT_NOTES: Record<string, string> = {
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
-    "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the all-mainnets dashboard.",
+    "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard.",
 };
 
 const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {

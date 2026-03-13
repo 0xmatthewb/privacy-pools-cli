@@ -48,11 +48,26 @@ interface LoadedChainAccounts {
   groups: AccountPoolGroup[];
 }
 
+function describeAccountsChainScope(allChains: boolean | undefined): string {
+  return allChains ? "all chains" : "mainnet chains";
+}
+
+function formatAccountsLoadingText(
+  allChains: boolean | undefined,
+  completedChains?: number,
+  totalChains?: number,
+): string {
+  const baseText = `Loading My Pools across ${describeAccountsChainScope(allChains)}...`;
+  if (completedChains === undefined || totalChains === undefined) return baseText;
+  return `${baseText} (${completedChains}/${totalChains} complete)`;
+}
+
 /** Bundled context for loadAccountsForChain — avoids 8-param sprawl. */
 interface ChainLoadContext {
   opts: AccountsCommandOptions;
   rpcUrl: string | undefined;
-  spin: ReturnType<typeof spinner>;
+  spin?: ReturnType<typeof spinner>;
+  showPerChainProgress: boolean;
   silent: boolean;
   mode: ReturnType<typeof resolveGlobalMode>;
   isVerbose: boolean;
@@ -93,10 +108,12 @@ async function loadAccountsForChain(
   chainConfig: ChainConfig,
   ctx: ChainLoadContext,
 ): Promise<LoadedChainAccounts> {
-  const { opts, rpcUrl, spin, silent, mode, isVerbose, mnemonic } = ctx;
+  const { opts, rpcUrl, spin, showPerChainProgress, silent, mode, isVerbose, mnemonic } = ctx;
   verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
 
-  spin.text = `Discovering pools on ${chainConfig.name}...`;
+  if (spin && showPerChainProgress) {
+    spin.text = `Discovering pools on ${chainConfig.name}...`;
+  }
   const pools = await listPools(chainConfig, rpcUrl);
   verbose(`Discovered ${pools.length} pool(s) on ${chainConfig.name}`, isVerbose, silent);
 
@@ -117,7 +134,9 @@ async function loadAccountsForChain(
     deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
   }));
 
-  spin.text = `Initializing account state on ${chainConfig.name}...`;
+  if (spin && showPerChainProgress) {
+    spin.text = `Initializing account state on ${chainConfig.name}...`;
+  }
   const dataService = await getDataService(
     chainConfig,
     pools[0].pool,
@@ -133,18 +152,23 @@ async function loadAccountsForChain(
     true,
   );
 
-  await withSpinnerProgress(
-    spin,
-    `Syncing onchain events on ${chainConfig.name}`,
-    () => syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-      skip: opts.sync === false,
-      force: false,
-      silent,
-      isJson: mode.isJson,
-      isVerbose,
-      errorLabel: "Account",
-    }),
-  );
+  const syncChain = () => syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
+    skip: opts.sync === false,
+    force: false,
+    silent,
+    isJson: mode.isJson,
+    isVerbose,
+    errorLabel: "Account",
+  });
+  if (spin && showPerChainProgress) {
+    await withSpinnerProgress(
+      spin,
+      `Syncing onchain events on ${chainConfig.name}`,
+      syncChain,
+    );
+  } else {
+    await syncChain();
+  }
 
   const spendable = withSuppressedSdkStdoutSync(() =>
     accountService.getSpendableCommitments(),
@@ -157,7 +181,9 @@ async function loadAccountsForChain(
     true,
   );
 
-  spin.text = `Checking ASP approval status on ${chainConfig.name}...`;
+  if (spin && showPerChainProgress) {
+    spin.text = `Checking ASP approval status on ${chainConfig.name}...`;
+  }
   const approvedLabelsByScope = new Map<string, Set<string> | null>();
   await Promise.all(
     sortedScopeStrings.map(async (scopeStr) => {
@@ -209,7 +235,7 @@ export function createAccountsCommand(): Command {
   return new Command("accounts")
     .description(metadata.description)
     .option("--no-sync", "Use cached data (faster, but may be stale)")
-    .option("--all-chains", "Include testnet chains (mainnets shown by default)")
+    .option("--all-chains", "Include testnet chains (mainnet chains shown by default)")
     .option("--details", "Show additional details per Pool Account")
     .option("--summary", "Show counts and balances only")
     .option("--pending-only", "Show only pending ASP approvals")
@@ -266,16 +292,18 @@ export function createAccountsCommand(): Command {
 
         const spin = spinner(
           useMultiChain
-            ? `Loading My Pools across ${opts.allChains ? "all chains" : "mainnets"}...`
+            ? formatAccountsLoadingText(opts.allChains)
             : `Loading Pool Accounts on ${chainsToQuery[0].name}...`,
           silent,
         );
         spin.start();
+        const useParallelChainLoading = useMultiChain && chainsToQuery.length > 1;
 
         const chainCtx: ChainLoadContext = {
           opts,
           rpcUrl: globalOpts?.rpcUrl,
           spin,
+          showPerChainProgress: !useParallelChainLoading,
           silent,
           mode,
           isVerbose,
@@ -286,21 +314,72 @@ export function createAccountsCommand(): Command {
         const warnings: AccountWarning[] = [];
         let firstError: unknown;
 
-        // Sequential loading: spinner text updates per-chain give human users
-        // a sense of progress, and deterministic ordering matters for agents
-        // parsing JSON output.
-        for (const chainConfig of chainsToQuery) {
+        if (useParallelChainLoading) {
+          const totalChains = chainsToQuery.length;
+          let completedChains = 0;
+          let showAggregateProgress = false;
+          const updateAggregateProgress = () => {
+            if (!showAggregateProgress || silent) return;
+            spin.text = formatAccountsLoadingText(opts.allChains, completedChains, totalChains);
+          };
+          const progressTimer = setTimeout(() => {
+            showAggregateProgress = true;
+            updateAggregateProgress();
+          }, 3000);
+
+          type ChainLoadOutcome =
+            | { chainConfig: ChainConfig; result: LoadedChainAccounts }
+            | { chainConfig: ChainConfig; error: unknown };
+
+          // Preserve deterministic output order by iterating the Promise.all results
+          // in the same order as the input chain list, even though the work runs concurrently.
+          let outcomes: ChainLoadOutcome[] = [];
           try {
-            const result = await loadAccountsForChain(chainConfig, chainCtx);
-            loadedResults.push(result);
-          } catch (error) {
-            if (firstError === undefined) firstError = error;
-            const classified = classifyError(error);
-            warnings.push({
-              chain: chainConfig.name,
-              category: classified.category,
-              message: classified.message,
-            });
+            outcomes = await Promise.all(
+              chainsToQuery.map(async (chainConfig) => {
+                try {
+                  const result = await loadAccountsForChain(chainConfig, chainCtx);
+                  return { chainConfig, result };
+                } catch (error) {
+                  return { chainConfig, error };
+                } finally {
+                  completedChains += 1;
+                  updateAggregateProgress();
+                }
+              }),
+            );
+          } finally {
+            clearTimeout(progressTimer);
+          }
+
+          for (const outcome of outcomes) {
+            if ("error" in outcome) {
+              if (firstError === undefined) firstError = outcome.error;
+              const classified = classifyError(outcome.error);
+              warnings.push({
+                chain: outcome.chainConfig.name,
+                category: classified.category,
+                message: classified.message,
+              });
+              continue;
+            }
+
+            loadedResults.push(outcome.result);
+          }
+        } else {
+          for (const chainConfig of chainsToQuery) {
+            try {
+              const result = await loadAccountsForChain(chainConfig, chainCtx);
+              loadedResults.push(result);
+            } catch (error) {
+              if (firstError === undefined) firstError = error;
+              const classified = classifyError(error);
+              warnings.push({
+                chain: chainConfig.name,
+                category: classified.category,
+                message: classified.message,
+              });
+            }
           }
         }
 

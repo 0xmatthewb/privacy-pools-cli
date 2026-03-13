@@ -502,7 +502,7 @@ export function renderAccountsNoPools(
   if (data.pendingOnly) {
     info(
       includeChainFields
-        ? `No pending Pool Accounts found across ${data.allChains ? "all chains" : "mainnets"}.`
+        ? `No pending Pool Accounts found across ${data.allChains ? "all chains" : "mainnet chains"}.`
         : `No pending Pool Accounts found on ${data.chain}.`,
       silent,
     );
@@ -511,7 +511,7 @@ export function renderAccountsNoPools(
 
   info(
     includeChainFields
-      ? `No Pool Accounts found across ${data.allChains ? "all chains" : "mainnets"}.`
+      ? `No Pool Accounts found across ${data.allChains ? "all chains" : "mainnet chains"}.`
       : `No Pool Accounts found on ${data.chain}.`,
     silent,
   );
@@ -623,14 +623,14 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
   const hasPendingApprovals = summary.pendingCount > 0;
   const title = showSummary
     ? includeChainFields
-      ? `My Pools summary across ${allChains ? "all chains" : "mainnets"}:`
+      ? `My Pools summary across ${allChains ? "all chains" : "mainnet chains"}:`
       : `Pool Account summary on ${chain}:`
     : showPendingOnly
       ? includeChainFields
-        ? `Pending Pool Accounts across ${allChains ? "all chains" : "mainnets"}:`
+        ? `Pending Pool Accounts across ${allChains ? "all chains" : "mainnet chains"}:`
         : `Pending Pool Accounts on ${chain}:`
       : includeChainFields
-        ? `My Pools across ${allChains ? "all chains" : "mainnets"}:`
+        ? `My Pools across ${allChains ? "all chains" : "mainnet chains"}:`
         : `Pool Accounts on ${chain}:`;
 
   if (!silent) process.stderr.write(`\n${accentBold(title)}\n\n`);
@@ -695,7 +695,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     } else {
       info(
         includeChainFields
-          ? `No Pool Accounts found on ${allChains ? "any chain" : "mainnets"}.`
+          ? `No Pool Accounts found on ${allChains ? "any chain" : "mainnet chains"}.`
           : `No Pool Accounts found on ${chain}.`,
         silent,
       );
