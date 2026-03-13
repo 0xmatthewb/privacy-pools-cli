@@ -10,6 +10,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   warn,
@@ -18,6 +19,8 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { highlight, accentBold } from "../utils/theme.js";
+import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
+import type { NextActionOptionValue } from "../types.js";
 
 export interface StatusCheckResult {
   configExists: boolean;
@@ -38,7 +41,11 @@ export interface StatusCheckResult {
   rpcBlockNumber?: bigint;
   /** Whether each health check was enabled. */
   healthChecksEnabled?: { rpc: boolean; asp: boolean };
-  /** Account files that exist, as [chainName, chainId] tuples. */
+  /**
+   * Account files that exist, as [chainName, chainId] tuples.
+   * Non-empty means the user has deposited before (lightweight proxy for
+   * "has pool accounts" without loading full account state).
+   */
   accountFiles: [string, number][];
 }
 
@@ -48,38 +55,153 @@ export interface StatusCheckResult {
 export function renderStatus(ctx: OutputContext, result: StatusCheckResult): void {
   guardCsvUnsupported(ctx, "status");
 
-  if (ctx.mode.isJson) {
-    const readyForDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
-    const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
-    const workflowChain = result.selectedChain ?? result.defaultChain;
-    const nextActions = !result.configExists || !result.recoveryPhraseSet
-      ? [
-          createNextAction(
-            "init",
-            "Complete CLI setup before transacting.",
-            "status_not_ready",
-            {
-              options: {
-                agent: true,
-                showMnemonic: true,
-              },
-            },
-          ),
-        ]
-      : [
-          createNextAction(
-            "pools",
-            "Browse pools now that the CLI is ready.",
-            "status_ready",
-            {
-              options: {
-                agent: true,
-                ...(workflowChain ? { chain: workflowChain } : {}),
-              },
-            },
-          ),
-        ];
+  const readyForDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
+  const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
+  const workflowChain = result.selectedChain ?? result.defaultChain;
+  const notReady = !result.configExists || !result.recoveryPhraseSet;
+  const unsignedOnly = readyForUnsigned && !readyForDeposit;
+  const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
 
+  // ── Deposit reachability for next-step guidance ───────────────────────
+  //
+  // `hasAccountsReachable` decides whether to suggest `accounts` vs `pools`.
+  // `accountsChainOpt` sets the --chain flag so the suggested command
+  // actually reaches the deposits that triggered the suggestion.
+  //
+  // Key constraint: bare `accounts` (no --chain) shows all mainnets only.
+  // Testnet deposits require an explicit --chain flag.
+  const mainnetNames = new Set(MAINNET_CHAIN_NAMES);
+  const hasOnSelected = result.selectedChain
+    ? result.accountFiles.some(([name]) => name === result.selectedChain)
+    : false;
+  const hasOnMainnets = result.accountFiles.some(([name]) => mainnetNames.has(name));
+
+  let hasAccountsReachable: boolean;
+  let accountsChainOpt: string | undefined;
+  let accountsNeedsAllChains = false;
+
+  if (chainOverridden) {
+    // Explicit --chain override: only the overridden chain matters.
+    hasAccountsReachable = hasOnSelected;
+    accountsChainOpt = result.selectedChain ?? undefined;
+  } else if (hasOnSelected) {
+    // Deposits on the user's default/selected chain.
+    // If it's a mainnet, bare `accounts` (dashboard) includes it — no flag needed.
+    // If it's a testnet AND there are also mainnet deposits, --all-chains is needed
+    // so neither set is hidden. If testnet-only, --chain <testnet> suffices.
+    const selectedIsMainnet = result.selectedChain ? mainnetNames.has(result.selectedChain) : false;
+    hasAccountsReachable = true;
+    if (selectedIsMainnet) {
+      accountsChainOpt = undefined;
+    } else if (hasOnMainnets) {
+      // Mixed: testnet selected + mainnet deposits elsewhere → --all-chains
+      accountsChainOpt = undefined;
+      accountsNeedsAllChains = true;
+    } else {
+      // Testnet-only deposits, all on the selected chain → --chain <testnet>
+      accountsChainOpt = result.selectedChain ?? undefined;
+    }
+  } else if (hasOnMainnets) {
+    // No deposits on the selected chain, but deposits on other mainnets.
+    // Bare `accounts` (dashboard) will show them.
+    hasAccountsReachable = true;
+    accountsChainOpt = undefined;
+  } else if (result.accountFiles.length > 0) {
+    // Testnet-only deposits not on the selected chain.
+    // Bare `accounts` won't show them, but `accounts --all-chains` will.
+    hasAccountsReachable = true;
+    accountsChainOpt = undefined;
+    // Signal that --all-chains is needed (handled below).
+    accountsNeedsAllChains = true;
+  } else {
+    // Genuinely no deposits anywhere.
+    hasAccountsReachable = false;
+    accountsChainOpt = undefined;
+  }
+
+  // ── Build state-aware next-step guidance ──────────────────────────────
+  // Five states:
+  //   1. Not ready (no config or mnemonic)         → init
+  //   2. Unsigned-only, no reachable accounts      → pools (read-only)
+  //   3. Unsigned-only, has reachable accounts     → accounts (read-only)
+  //   4. Fully ready, no reachable accounts        → pools
+  //   5. Fully ready, has reachable accounts       → accounts
+  //
+  // "Reachable" includes testnet-only deposits via --all-chains.
+  //
+  // Chain options:
+  //   - `init`: uses `defaultChain` (init's flag is --default-chain, NOT --chain).
+  //   - `pools`: uses `chain`; humans get --chain when overridden OR default is testnet.
+  //   - `accounts`: use accountsChainOpt or --all-chains (derived above).
+  const isDefaultTestnet = isTestnetChain(result.defaultChain);
+  const initAgentChainOpts: Record<string, string> = workflowChain ? { defaultChain: workflowChain } : {};
+  const initHumanChainOpts: Record<string, string> | undefined =
+    workflowChain ? { defaultChain: workflowChain } : undefined;
+  const poolsAgentChainOpts: Record<string, string> = workflowChain ? { chain: workflowChain } : {};
+  const poolsHumanChainOpts: Record<string, string> | undefined =
+    (chainOverridden || isDefaultTestnet) && workflowChain ? { chain: workflowChain } : undefined;
+  const accountsAgentChainOpts: Record<string, NextActionOptionValue> = accountsNeedsAllChains
+    ? { allChains: true }
+    : accountsChainOpt
+      ? { chain: accountsChainOpt }
+      : {};
+  const accountsHumanChainOpts: Record<string, NextActionOptionValue> | undefined = accountsNeedsAllChains
+    ? { allChains: true }
+    : accountsChainOpt
+      ? { chain: accountsChainOpt }
+      : undefined;
+
+  let agentNextActions: ReturnType<typeof createNextAction>[];
+  let humanNextActions: ReturnType<typeof createNextAction>[];
+
+  if (notReady) {
+    agentNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
+      { options: { agent: true, showMnemonic: true, ...initAgentChainOpts } })];
+    humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
+      { options: initHumanChainOpts })];
+  } else if (unsignedOnly && !hasAccountsReachable) {
+    agentNextActions = [createNextAction(
+      "pools",
+      "Browse pools in read-only mode. Configure a valid signer key before depositing.",
+      "status_unsigned_no_accounts",
+      { options: { agent: true, ...poolsAgentChainOpts } },
+    )];
+    humanNextActions = [createNextAction(
+      "pools",
+      "Browse pools in read-only mode. Configure a valid signer key before depositing.",
+      "status_unsigned_no_accounts",
+      { options: poolsHumanChainOpts }),
+    ];
+  } else if (unsignedOnly) {
+    agentNextActions = [createNextAction(
+      "accounts",
+      "Review existing deposits. Configure a valid signer key before depositing or withdrawing.",
+      "status_unsigned_has_accounts",
+      { options: { agent: true, ...accountsAgentChainOpts } },
+    )];
+    humanNextActions = [createNextAction(
+      "accounts",
+      "Review existing deposits. Configure a valid signer key before depositing or withdrawing.",
+      "status_unsigned_has_accounts",
+      { options: accountsHumanChainOpts },
+    )];
+  } else if (!hasAccountsReachable) {
+    agentNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
+      { options: { agent: true, ...poolsAgentChainOpts } })];
+    humanNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
+      { options: poolsHumanChainOpts })];
+  } else {
+    agentNextActions = [
+      createNextAction("accounts", "Check on your existing deposits.", "status_ready_has_accounts",
+        { options: { agent: true, ...accountsAgentChainOpts } }),
+    ];
+    humanNextActions = [
+      createNextAction("accounts", "Check on your existing deposits.", "status_ready_has_accounts",
+        { options: accountsHumanChainOpts }),
+    ];
+  }
+
+  if (ctx.mode.isJson) {
     const status: Record<string, unknown> = appendNextActions({
       configExists: result.configExists,
       configDir: result.configDir,
@@ -94,10 +216,13 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       entrypoint: result.entrypoint,
       aspHost: result.aspHost,
       accountFiles: result.accountFiles.map(([name, chainId]) => ({ chain: name, chainId })),
-    }, nextActions) as Record<string, unknown>;
+    }, agentNextActions) as Record<string, unknown>;
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
+    // Capability flags: indicate the wallet is *configured* for these operations,
+    // NOT that spendable funds exist. Agents must check `accounts` to verify
+    // fund availability before attempting withdrawals.
     status.readyForDeposit = readyForDeposit;
     status.readyForWithdraw = readyForDeposit;
     status.readyForUnsigned = readyForUnsigned;
@@ -184,16 +309,14 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     } else {
       info("No account files found.", silent);
     }
-    // Readiness summary
-    const canDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
-    const canUnsigned = result.configExists && result.recoveryPhraseSet;
-    if (canDeposit) {
-      success("Ready: deposit, withdraw, ragequit, unsigned", silent);
-    } else if (canUnsigned) {
-      info("Ready: unsigned mode only (no signer key)", silent);
+    // Readiness summary — describes configuration, not fund availability.
+    if (readyForDeposit) {
+      success("Setup complete.", silent);
+    } else if (readyForUnsigned) {
+      info("Setup complete (unsigned mode only — no signer key).", silent);
     } else {
-      warn("Not ready: run 'privacy-pools init' to get started", silent);
+      warn("Not ready: run 'privacy-pools init' to get started.", silent);
     }
-    process.stderr.write("\n");
   }
+  renderNextSteps(ctx, humanNextActions);
 }

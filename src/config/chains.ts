@@ -105,6 +105,24 @@ export const TESTNET_CHAIN_NAMES = CHAIN_NAMES.filter(
   (name) => CHAINS[name].isTestnet,
 );
 
+// ── Multi-chain scope sentinels ─────────────────────────────────────────────
+// Used as the JSON `chain` value when querying multiple chains.
+
+/** JSON `chain` value when querying all mainnets (default, no --chain). */
+export const MULTI_CHAIN_SCOPE_ALL_MAINNETS = "all-mainnets";
+/** JSON `chain` value when --all-chains includes testnets. */
+export const MULTI_CHAIN_SCOPE_ALL_CHAINS = "all-chains";
+
+/** Whether a chain string represents a multi-chain scope rather than a specific chain. */
+export function isMultiChainScope(chain: string): boolean {
+  return chain === MULTI_CHAIN_SCOPE_ALL_MAINNETS || chain === MULTI_CHAIN_SCOPE_ALL_CHAINS;
+}
+
+/** Whether a chain name refers to a testnet.  Returns `false` for unknown/null names. */
+export function isTestnetChain(chainName: string | null | undefined): boolean {
+  return chainName ? (CHAINS[chainName]?.isTestnet ?? false) : false;
+}
+
 /** All chain configs with host overrides applied (includes testnets). */
 export function getAllChainsWithOverrides(): ChainConfig[] {
   return CHAIN_NAMES.map((name) => resolveChainOverrides(CHAINS[name]));

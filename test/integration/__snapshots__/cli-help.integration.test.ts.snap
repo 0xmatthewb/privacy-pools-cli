@@ -32,7 +32,8 @@ Options:
   -h, --help           display help for command
   Get started:      privacy-pools init
   Full guide:       privacy-pools guide
-  Command help:     privacy-pools <command> --help"
+  Command help:     privacy-pools <command> --help
+  Agent discovery:  privacy-pools capabilities"
 `;
 
 exports[`CLI --help snapshots init --help snapshot 1`] = `
@@ -63,7 +64,7 @@ Examples:
   privacy-pools init
   privacy-pools init --yes --default-chain mainnet
   privacy-pools init --force --yes --default-chain mainnet
-  privacy-pools init --json --show-mnemonic
+  privacy-pools init --json --yes --default-chain mainnet --show-mnemonic
   privacy-pools init --mnemonic "word ..." --private-key 0x...
   cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet
 Safety notes:
@@ -71,7 +72,7 @@ Safety notes:
 Agent workflow:
   When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.
 JSON output (--json):
-  { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }"
 `;
 
 exports[`CLI --help snapshots status --help snapshot 1`] = `
@@ -90,7 +91,7 @@ Examples:
   privacy-pools status --json --check-rpc
   privacy-pools status --chain mainnet --rpc-url https://...
 JSON output (--json):
-  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options? }], aspLive?, rpcLive?, rpcBlockNumber? }"
+  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }"
 `;
 
 exports[`CLI --help snapshots pools --help snapshot 1`] = `
@@ -99,7 +100,7 @@ List available pools and assets
 Arguments:
   asset             Asset symbol for detail view (e.g. ETH, BOLD)
 Options:
-  --all-chains      Include testnet chains (mainnets shown by default)
+  --all-chains      Include testnet chains (mainnet chains shown by default)
   --search <query>  Filter by chain/symbol/address/scope
   --sort <mode>     Sort mode (default, asset-asc, asset-desc, tvl-desc,
                     tvl-asc, deposits-desc, deposits-asc, chain-asset) (default:
@@ -115,7 +116,7 @@ Examples:
 Agent workflow:
   In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.
 JSON output (--json):
-  { chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings?, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }"
 `;
 
 exports[`CLI --help snapshots activity --help snapshot 1`] = `
@@ -165,6 +166,9 @@ Options:
                                 submitting
   --ignore-unique-amount        Bypass the non-round amount privacy check
   -h, --help                    display help for command
+Deposits funds into a Privacy Pool. A ZK proof is generated locally
+and the transaction is submitted onchain. The first run may download
+circuit files (~30s). Subsequent runs typically complete in 10-30s.
 Examples:
   privacy-pools deposit 0.1 ETH
   privacy-pools deposit 100 USDC
@@ -179,9 +183,9 @@ Safety notes:
   A vetting fee is deducted from the deposit amount by the pool's ASP.
   Only approved deposits can be withdrawn privately.
 Agent workflow:
-  Poll accounts until aspStatus is approved before attempting a private withdrawal.
+  Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm approval before attempting a private withdrawal. Always preserve the same --chain scope for both polling and confirmation.
 JSON output (--json):
-  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
+  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }
@@ -208,6 +212,9 @@ Options:
   -h, --help                                display help for command
 Commands:
   quote [options] <amountOrAsset> [amount]  Request relayer quote and limits without generating a proof
+Withdraws funds from a Privacy Pool. Generates a ZK proof locally and
+submits via relayer (default, private) or directly onchain (--direct).
+Proof generation may take 10-30s. Use 'withdraw quote' to check fees first.
 Examples:
   privacy-pools withdraw 0.05 ETH --to 0xRecipient...
   privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2
@@ -221,9 +228,9 @@ Prerequisites:
 Safety notes:
   Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.
 JSON output (--json):
-  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options? }] }
+  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }
   direct: same fields but mode: "direct", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.
-  quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }
+  quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }
@@ -259,7 +266,7 @@ Prerequisites:
 Safety notes:
   Ragequit is public and irreversible and reveals the original deposit address onchain.
 JSON output (--json):
-  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options? }] }
+  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }
   --unsigned: { mode, operation, chain, asset, amount, transactions[] }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }
@@ -273,27 +280,29 @@ exports[`CLI --help snapshots accounts --help snapshot 1`] = `
 List your Pool Accounts (individual deposit lineages) with balances
 Options:
   --no-sync       Use cached data (faster, but may be stale)
-  --all           Include exited and fully spent Pool Accounts
+  --all-chains    Include testnet chains (mainnet chains shown by default)
   --details       Show additional details per Pool Account
   --summary       Show counts and balances only
   --pending-only  Show only pending ASP approvals
   -h, --help      display help for command
 Examples:
   privacy-pools accounts
-  privacy-pools accounts --all
+  privacy-pools accounts --all-chains
   privacy-pools accounts --details
   privacy-pools accounts --summary
-  privacy-pools accounts --pending-only
+  privacy-pools accounts --chain <name> --pending-only
   privacy-pools accounts --json
   privacy-pools accounts --no-sync --chain mainnet
 Prerequisites:
   Requires: init
 Agent workflow:
+  Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.
   Use --summary or --pending-only to reduce JSON size for polling loops.
+  nextActions on accounts are poll-oriented only and appear when pending approvals still exist.
 JSON output (--json):
-  { chain, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl }], balances: [{ asset, balance, usdValue, poolAccounts }], pendingCount, nextActions?: [{ command, reason, when, args?, options? }] }
-  --summary: { chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }
-  --pending-only: { chain, accounts, pendingCount, nextActions? }"
+  { chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
+  --summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }
+  --pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }"
 `;
 
 exports[`CLI --help snapshots history --help snapshot 1`] = `
@@ -400,9 +409,9 @@ Examples:
 Prerequisites:
   Requires: init
 Agent workflow:
-  Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable.
+  Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.
 JSON output (--json):
-  { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options? }] }"
+  { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }"
 `;
 
 exports[`CLI --help snapshots stats global --help snapshot 1`] = `

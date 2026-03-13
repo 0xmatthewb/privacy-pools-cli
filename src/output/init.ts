@@ -6,11 +6,12 @@
  * remain in the command handler.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
+import type { NextActionOptionValue } from "../types.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -18,7 +19,7 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
-import { accent } from "../utils/theme.js";
+import { isTestnetChain } from "../config/chains.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -39,34 +40,54 @@ export interface InitRenderResult {
 export function renderInitResult(ctx: OutputContext, result: InitRenderResult): void {
   guardCsvUnsupported(ctx, "init");
 
+  // Agent path: new wallet → status (verify readiness); restore → accounts (sync onchain state).
+  // Restore always uses --all-chains so the first post-restore screen shows every chain,
+  // including testnets — we don't know which chains hold recoverable state.
+  const isTestnet = isTestnetChain(result.defaultChain);
+  const agentNextActions = result.mnemonicImported
+    ? [
+        createNextAction(
+          "accounts",
+          "Sync and review your restored onchain Pool Accounts across all chains.",
+          "after_restore",
+          { options: { agent: true, allChains: true } },
+        ),
+      ]
+    : [
+        createNextAction(
+          "status",
+          "Verify wallet readiness and chain health before transacting.",
+          "after_init",
+          { options: { agent: true, chain: result.defaultChain } },
+        ),
+      ];
+
+  // Differentiate new-wallet vs restore/migration:
+  //   New wallet  → "browse pools before depositing" (testnet needs --chain)
+  //   Restore     → "check your onchain state" with --all-chains for broadest coverage
+  const humanNextActions = result.mnemonicImported
+    ? [
+        createNextAction(
+          "accounts",
+          "Sync and review your onchain Pool Accounts across all chains.",
+          "after_restore",
+          { options: { allChains: true } },
+        ),
+      ]
+    : [
+        createNextAction(
+          "pools",
+          "Browse available pools before depositing.",
+          "after_init",
+          isTestnet ? { options: { chain: result.defaultChain } } : undefined,
+        ),
+      ];
+
   if (ctx.mode.isJson) {
     const jsonOutput: Record<string, unknown> = appendNextActions({
       defaultChain: result.defaultChain,
       signerKeySet: result.signerKeySet,
-    }, [
-      createNextAction(
-        "status",
-        "Verify wallet readiness and chain health before transacting.",
-        "after_init",
-        {
-          options: {
-            agent: true,
-            chain: result.defaultChain,
-          },
-        },
-      ),
-      createNextAction(
-        "pools",
-        "Browse pools on the configured default chain before depositing.",
-        "after_init",
-        {
-          options: {
-            agent: true,
-            chain: result.defaultChain,
-          },
-        },
-      ),
-    ]) as Record<string, unknown>;
+    }, agentNextActions) as Record<string, unknown>;
     if (!result.mnemonicImported) {
       if (result.showMnemonic) {
         jsonOutput.recoveryPhrase = result.mnemonic;
@@ -85,20 +106,11 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   if (!silent) process.stderr.write("\n");
   if (result.mnemonicImported && !silent) {
     info("Reminder: your signer key pays gas; your recovery phrase controls private account state.", silent);
-    info("If migrating from the website, run 'privacy-pools accounts' to sync your onchain state.", silent);
     process.stderr.write("\n");
   }
   if (!result.mnemonicImported && ctx.mode.skipPrompts) {
     warn("You skipped backup confirmation (--yes mode). Ensure your recovery phrase is securely stored.", silent);
   }
-  success("Setup complete! Here's what to do next:", silent);
-  if (!silent) {
-    process.stderr.write("\n");
-    process.stderr.write(`  ${chalk.dim("1.")} Browse pools          ${accent("privacy-pools pools")}\n`);
-    process.stderr.write(`  ${chalk.dim("2.")} Make a deposit         ${accent("privacy-pools deposit 0.1 ETH")}\n`);
-    process.stderr.write(`  ${chalk.dim("3.")} Check your accounts    ${accent("privacy-pools accounts")}\n`);
-    process.stderr.write(`  ${chalk.dim("4.")} Withdraw funds         ${accent("privacy-pools withdraw 0.05 ETH --to 0x...")}\n`);
-    process.stderr.write("\n");
-    info(`Full guide: ${accent("privacy-pools guide")}`, silent);
-  }
+  success("Setup complete!", silent);
+  renderNextSteps(ctx, humanNextActions);
 }

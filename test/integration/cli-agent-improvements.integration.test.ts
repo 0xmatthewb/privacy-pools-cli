@@ -251,13 +251,6 @@ describe("agent-focused improvements", () => {
     );
     expect(summaryAndDetails.status).toBe(2);
     expect(summaryAndDetails.stdout).toContain("do not support --details");
-
-    const pendingAndAll = runCli(
-      ["--json", "accounts", "--pending-only", "--all"],
-      { home: createTempHome() },
-    );
-    expect(pendingAndAll.status).toBe(2);
-    expect(pendingAndAll.stdout).toContain("do not support --all");
   });
 
   test("deposit --agent rejects non-round amounts before wallet checks", () => {

@@ -12,7 +12,7 @@ import { CHAINS } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { checkLiveness } from "../services/asp.js";
 import { getPublicClient } from "../services/sdk.js";
-import { accountExists } from "../services/account.js";
+import { accountHasDeposits } from "../services/account.js";
 import { printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
@@ -97,25 +97,38 @@ export function createStatusCommand(): Command {
 
           result.healthChecksEnabled = { rpc: shouldCheckRpc, asp: shouldCheckAsp };
 
-          if (shouldCheckAsp) {
-            result.aspLive = await checkLiveness(selectedChainConfig);
+          const aspCheck = shouldCheckAsp
+            ? checkLiveness(selectedChainConfig)
+            : Promise.resolve<null | boolean>(null);
+          const rpcCheck = shouldCheckRpc
+            ? (async () => {
+                try {
+                  const client = getPublicClient(selectedChainConfig, globalOpts?.rpcUrl);
+                  const blockNumber = await client.getBlockNumber();
+                  return { live: true, blockNumber };
+                } catch {
+                  return { live: false, blockNumber: undefined };
+                }
+              })()
+            : Promise.resolve<null | { live: boolean; blockNumber?: bigint }>(null);
+
+          const [aspLive, rpcStatus] = await Promise.all([aspCheck, rpcCheck]);
+
+          if (aspLive !== null) {
+            result.aspLive = aspLive;
           }
 
-          if (shouldCheckRpc) {
-            try {
-              const client = getPublicClient(selectedChainConfig, globalOpts?.rpcUrl);
-              const blockNumber = await client.getBlockNumber();
-              result.rpcLive = true;
-              result.rpcBlockNumber = blockNumber;
-            } catch {
-              result.rpcLive = false;
-            }
+          if (rpcStatus !== null) {
+            result.rpcLive = rpcStatus.live;
+            result.rpcBlockNumber = rpcStatus.blockNumber;
           }
         }
 
-        // Account files
+        // Account files — only include chains where the user actually has deposits.
+        // accountHasDeposits() inspects the commitments map inside the file,
+        // not just file existence (the SDK creates empty files during init).
         for (const [name, chain] of Object.entries(CHAINS)) {
-          if (accountExists(chain.id)) {
+          if (accountHasDeposits(chain.id)) {
             result.accountFiles.push([name, chain.id]);
           }
         }

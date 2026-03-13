@@ -33,10 +33,10 @@ During interactive setup, `init` offers to write a recovery backup to `~/privacy
 
 ### `pools`
 
-List available Privacy Pools on a chain. When no `--chain` is specified, shows all mainnets (mainnet, arbitrum, optimism). Use `--all-chains` to include testnets. Pools are sorted by pool balance (highest first) by default.
+List available Privacy Pools on a chain. When no `--chain` is specified, shows all mainnet chains (mainnet, arbitrum, optimism). Use `--all-chains` to include testnets. Pools are sorted by pool balance (highest first) by default.
 
 ```bash
-privacy-pools pools                    # all mainnets, sorted by pool balance
+privacy-pools pools                    # all mainnet chains, sorted by pool balance
 privacy-pools pools --chain mainnet    # specific chain
 privacy-pools pools --all-chains       # all chains including testnets
 privacy-pools pools ETH                # detail view: stats, your funds, recent activity
@@ -101,16 +101,16 @@ List your Pool Accounts with balances, ASP approval status, and account lifecycl
 
 ```bash
 privacy-pools accounts
-privacy-pools accounts --all                  # include spent and exited accounts
+privacy-pools accounts --all-chains           # include testnets too
 privacy-pools accounts --details              # show commitment hashes, labels, and tx info
 privacy-pools accounts --summary              # counts + balances only
-privacy-pools accounts --pending-only         # pending approvals only
+privacy-pools accounts --chain <chain> --pending-only  # pending approvals only on one chain
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--no-sync` | Skip syncing account state before displaying |
-| `--all` | Include exited and fully spent Pool Accounts |
+| `--all-chains` | Aggregate testnets too (default without `--chain` is all mainnet chains) |
 | `--details` | Show low-level commitment details (hash, label, block, tx) |
 | `--summary` | Show counts and balances without listing every Pool Account |
 | `--pending-only` | Show only Pool Accounts with `aspStatus: pending` |
@@ -118,7 +118,10 @@ privacy-pools accounts --pending-only         # pending approvals only
 **Pool Account statuses:** `spendable` (can withdraw), `spent` (fully withdrawn), `exited` (exit/ragequit).
 **ASP statuses:** `approved` (can withdraw privately), `pending` (waiting for ASP), `unknown`.
 
+Without `--chain`, `accounts` acts like a dashboard and aggregates your holdings across all mainnet chains. Use `--all-chains` to include testnets or `--chain <name>` to focus on one chain.
+
 Compact modes are intended for polling loops. `--summary` and `--pending-only` do not support `--details`, and `--pending-only` also omits balances.
+When polling with `--pending-only`, approved Pool Accounts disappear from the response instead of changing to `approved`. Re-run `privacy-pools accounts` with the same chain scope and without `--pending-only` to confirm the final status.
 
 ### `history`
 
@@ -203,7 +206,7 @@ privacy-pools describe stats global --json
 Show the public activity feed (recent deposits, withdrawals, and exits).
 
 ```bash
-privacy-pools activity                                 # all mainnets
+privacy-pools activity                                 # all mainnet chains
 privacy-pools activity --chain mainnet                # specific chain
 privacy-pools activity --asset ETH --chain mainnet    # filter to one pool
 privacy-pools activity --page 2 --limit 20             # pagination
@@ -220,7 +223,7 @@ privacy-pools activity --page 2 --limit 20             # pagination
 Show public protocol statistics. Subcommands: `global` and `pool`.
 
 ```bash
-privacy-pools stats global                            # all mainnets (aggregated)
+privacy-pools stats global                            # all mainnet chains (aggregated)
 privacy-pools stats pool --asset ETH --chain mainnet  # per-pool stats
 ```
 
@@ -308,7 +311,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 
 ## RPC Fallback
 
-Each chain has multiple built-in RPC URLs with automatic fallback. Before each operation, the CLI probes candidate URLs and selects the first healthy one. If all probes fail, it falls back to the primary URL. Override with `--rpc-url`.
+Most chains have multiple built-in RPC URLs with automatic fallback. When using the built-in list, the CLI probes candidate URLs and selects the first healthy one. If all probes fail, it falls back to the primary URL. A user-specified `--rpc-url`, env var, or config override uses only that URL.
 
 ## Project Structure
 

@@ -15,7 +15,7 @@ import type {
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderGlobalStats, renderPoolStats } from "../output/stats.js";
-import { getDefaultReadOnlyChains } from "../config/chains.js";
+import { getDefaultReadOnlyChains, MULTI_CHAIN_SCOPE_ALL_MAINNETS } from "../config/chains.js";
 
 interface PoolStatsCommandOptions {
   asset?: string;
@@ -69,7 +69,7 @@ export function createStatsCommand(): Command {
         const ctx = createOutputContext(mode);
         renderGlobalStats(ctx, {
           mode: "global-stats",
-          chain: "all-mainnets",
+          chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
           chains: chainNames,
           cacheTimestamp: stats.cacheTimestamp ?? null,
           allTime: stats.allTime ?? null,

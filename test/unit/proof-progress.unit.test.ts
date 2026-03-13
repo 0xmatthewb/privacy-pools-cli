@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { withProofProgress, resetFirstRunMessage } from "../../src/utils/proof-progress.ts";
+import { withProofProgress, withSpinnerProgress, resetFirstRunMessage } from "../../src/utils/proof-progress.ts";
 
 function mockSpinner(): { text: string } {
   return { text: "" };
@@ -131,5 +131,90 @@ describe("withProofProgress", () => {
     });
     expect(captured).toBe("Second...");
     expect(captured).not.toContain("first proof");
+  });
+});
+
+describe("withSpinnerProgress", () => {
+  test("returns wrapped function result", async () => {
+    const spin = mockSpinner();
+    const result = await withSpinnerProgress(spin as any, "Sync", async () => 42);
+    expect(result).toBe(42);
+  });
+
+  test("sets initial spinner text without first-run logic", async () => {
+    const spin = mockSpinner();
+    let captured = "";
+    await withSpinnerProgress(spin as any, "Syncing", async () => {
+      captured = spin.text;
+      return "done";
+    });
+    expect(captured).toBe("Syncing...");
+    expect(captured).not.toContain("first proof");
+    expect(captured).not.toContain("circuit");
+  });
+
+  test("re-throws errors from wrapped function", async () => {
+    const spin = mockSpinner();
+    await expect(
+      withSpinnerProgress(spin as any, "Sync", async () => {
+        throw new Error("sync failed");
+      })
+    ).rejects.toThrow("sync failed");
+  });
+
+  test("clears interval on success", async () => {
+    jest.useFakeTimers();
+    const spin = mockSpinner();
+    const result = await withSpinnerProgress(spin as any, "Quick", async () => "ok");
+    expect(result).toBe("ok");
+    const textAfter = spin.text;
+    jest.advanceTimersByTime(1100);
+    expect(spin.text).toBe(textAfter);
+    jest.useRealTimers();
+  });
+
+  test("clears interval on error", async () => {
+    jest.useFakeTimers();
+    const spin = mockSpinner();
+    try {
+      await withSpinnerProgress(spin as any, "Fail", async () => {
+        throw new Error("fail");
+      });
+    } catch {
+      // expected
+    }
+    const textAfter = spin.text;
+    jest.advanceTimersByTime(1100);
+    expect(spin.text).toBe(textAfter);
+    jest.useRealTimers();
+  });
+
+  test("updates spinner text with elapsed time after delay", async () => {
+    jest.useFakeTimers();
+    const spin = mockSpinner();
+    const promise = withSpinnerProgress(spin as any, "Syncing", async () => {
+      await new Promise((r) => setTimeout(r, 1050));
+      return "synced";
+    });
+    jest.advanceTimersByTime(1100);
+    const result = await promise;
+    expect(result).toBe("synced");
+    expect(spin.text).toMatch(/Syncing\.\.\. \(\d+s\)/);
+    jest.useRealTimers();
+  });
+
+  test("shows 'still working' message after 30s (not 'almost there')", async () => {
+    jest.useFakeTimers();
+    const spin = mockSpinner();
+    const promise = withSpinnerProgress(spin as any, "Syncing", async () => {
+      await new Promise((r) => setTimeout(r, 31_000));
+      return "done";
+    });
+    jest.advanceTimersByTime(31_000);
+    const result = await promise;
+    expect(result).toBe("done");
+    expect(spin.text).toContain("still working");
+    expect(spin.text).not.toContain("almost there");
+    jest.useRealTimers();
   });
 });

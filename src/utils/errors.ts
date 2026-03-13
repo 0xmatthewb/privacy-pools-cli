@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { printJsonError } from "./json.js";
+import { isTransientNetworkError } from "./network.js";
 
 export type ErrorCategory =
   | "INPUT"
@@ -126,7 +127,7 @@ export function classifyError(error: unknown): CLIError {
       return new CLIError(
         "Proof generation failed.",
         "PROOF",
-        "Run 'privacy-pools sync' and retry. If it persists, verify you are using the correct recovery phrase.",
+        "Run 'privacy-pools sync' to refresh local state and retry. If it persists, verify you are using the correct recovery phrase and that the Pool Account has not already been spent.",
         "PROOF_GENERATION_FAILED"
       );
     }
@@ -143,15 +144,56 @@ export function classifyError(error: unknown): CLIError {
     );
   }
 
+  if (message.includes("429") || message.toLowerCase().includes("rate limit")) {
+    return new CLIError(
+      `RPC rate-limited: ${message}`,
+      "RPC",
+      "Your RPC provider is rate-limiting requests. Wait a moment and retry, or use a dedicated RPC URL with --rpc-url.",
+      "RPC_RATE_LIMITED",
+      true
+    );
+  }
+
+  // Catch-all for transient transport failures (ECONNREFUSED, ENOTFOUND,
+  // fetch errors, ENETUNREACH, etc.) using the shared predicate from network.ts.
+  // `isTransientNetworkError` covers Error instances; the message fallback
+  // handles non-Error values (e.g. raw strings) that contain network tokens.
   if (
-    message.includes("fetch") ||
-    message.includes("ECONNREFUSED")
+    isTransientNetworkError(error) ||
+    /fetch|ECONNREFUSED|ENOTFOUND|ENETUNREACH|EAI_AGAIN/.test(message)
   ) {
     return new CLIError(
       `Network error: ${message}`,
       "RPC",
-      "Check your RPC URL and network connectivity.",
+      "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable.",
       "RPC_NETWORK_ERROR",
+      true
+    );
+  }
+
+  // Insufficient gas / funds from transaction simulation
+  if (
+    message.includes("insufficient funds") ||
+    message.includes("exceeds the balance")
+  ) {
+    return new CLIError(
+      "Insufficient funds for transaction.",
+      "CONTRACT",
+      "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your balance with 'privacy-pools status'.",
+      "CONTRACT_INSUFFICIENT_FUNDS"
+    );
+  }
+
+  // Nonce errors (concurrent transactions or stuck tx)
+  if (
+    message.includes("nonce") &&
+    (message.includes("too low") || message.includes("already known"))
+  ) {
+    return new CLIError(
+      `Transaction nonce conflict: ${message}`,
+      "CONTRACT",
+      "A previous transaction may be pending. Wait for it to confirm or use a wallet management tool to resolve stuck transactions.",
+      "CONTRACT_NONCE_ERROR",
       true
     );
   }

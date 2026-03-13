@@ -27,6 +27,7 @@ import {
 } from "../../src/services/asp.ts";
 import {
   getRelayerDetails,
+  overrideRelayerRetryWaitForTests,
   requestQuote,
   submitRelayRequest,
 } from "../../src/services/relayer.ts";
@@ -37,10 +38,12 @@ const originalFetch = globalThis.fetch;
 
 beforeEach(() => {
   overrideAspRetryWaitForTests(async () => {});
+  overrideRelayerRetryWaitForTests(async () => {});
 });
 
 afterEach(() => {
   overrideAspRetryWaitForTests();
+  overrideRelayerRetryWaitForTests();
 });
 
 /* ------------------------------------------------------------------ */
@@ -269,26 +272,32 @@ describe("resilience: Relayer network failures", () => {
     mock.restore();
   });
 
-  // NOTE: Relayer service functions do NOT wrap raw fetch rejections in CLIError.
-  // The classifyError utility handles that at the command handler level.
-
   test("getRelayerDetails rejects on network error", async () => {
     globalThis.fetch = mockNetworkError("fetch failed");
     await expect(
       getRelayerDetails(chain, VALID_ADDRESS)
-    ).rejects.toThrow("fetch failed");
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("fetch failed"),
+    });
   });
 
   test("requestQuote rejects on timeout", async () => {
     globalThis.fetch = mockNetworkError("The operation was aborted");
-    await expect(requestQuote(chain, QUOTE_PARAMS)).rejects.toThrow("aborted");
+    await expect(requestQuote(chain, QUOTE_PARAMS)).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("aborted"),
+    });
   });
 
   test("submitRelayRequest rejects on ECONNREFUSED", async () => {
     globalThis.fetch = mockNetworkError("ECONNREFUSED");
     await expect(
       submitRelayRequest(chain, RELAY_PARAMS)
-    ).rejects.toThrow("ECONNREFUSED");
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("ECONNREFUSED"),
+    });
   });
 });
 

@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "1.2.0",
-  "schemaVersion": "1.2.0",
+  "version": "1.3.0",
+  "schemaVersion": "1.3.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {
@@ -38,7 +38,8 @@
       "reason": "string (why the follow-up is relevant)",
       "when": "string (machine-readable timing label)",
       "args": "string[]? (positional arguments to pass)",
-      "options": "Record<string, string|number|boolean|null>? (named options without leading dashes)"
+      "options": "Record<string, string|number|boolean|null>? (named options without leading dashes)",
+      "runnable": "boolean? (false means the action is a template and needs additional user input before execution)"
     },
     "rawUnsignedTransaction": {
       "to": "0x-prefixed-address",
@@ -65,7 +66,7 @@
         "recoveryPhraseRedacted": "boolean? (true when a new recovery phrase was generated but not printed)",
         "recoveryPhrase": "string? (present only when newly generated and --show-mnemonic is provided)",
         "warning": "string? (security guidance for agents)",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
       }
     },
     "status": {
@@ -86,9 +87,9 @@
         "aspLive": "boolean|undefined (present when health checks run)",
         "rpcLive": "boolean|undefined (present when health checks run)",
         "rpcBlockNumber": "string|undefined (present when rpc check succeeds)",
-        "readyForDeposit": "boolean (configExists && recoveryPhraseSet && signerKeyValid)",
-        "readyForWithdraw": "boolean (configExists && recoveryPhraseSet && signerKeyValid)",
-        "readyForUnsigned": "boolean (configExists && recoveryPhraseSet)",
+        "readyForDeposit": "boolean (configuration capability flag: configExists && recoveryPhraseSet && signerKeyValid)",
+        "readyForWithdraw": "boolean (configuration capability flag: configExists && recoveryPhraseSet && signerKeyValid)",
+        "readyForUnsigned": "boolean (configuration capability flag: configExists && recoveryPhraseSet)",
         "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
       }
     },
@@ -100,8 +101,7 @@
         "sort": "string",
         "chains": "ChainSummary[]? (multi-chain mode: { chain, pools, error })",
         "pools": "Pool[]",
-        "warnings": "PoolWarning[]? (multi-chain mode)",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "warnings": "PoolWarning[]? (multi-chain mode)"
       },
       "poolFields": {
         "asset": "string",
@@ -143,7 +143,7 @@
         "label": "decimal-string|null",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm approval with accounts --chain <chain>)"
       },
       "variants": {
         "dryRun": {
@@ -190,8 +190,7 @@
         "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
         "fee": "null? (direct mode only)",
         "remainingBalance": "decimal-string-wei",
-        "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)"
       },
       "variants": {
         "dryRun": {
@@ -260,7 +259,7 @@
           "feeCommitmentPresent": "boolean",
           "quoteExpiresAt": "iso8601-string|null",
           "extraGas": "boolean? (ERC20 withdrawals only)",
-          "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+          "nextActions": "NextAction[]? (structured follow-up commands for agents; check runnable for template actions)"
         }
       }
     },
@@ -279,8 +278,7 @@
         "poolAddress": "0x-prefixed-address",
         "scope": "decimal-string",
         "blockNumber": "decimal-string",
-        "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "explorerUrl": "string|null"
       },
       "variants": {
         "dryRun": {
@@ -314,21 +312,27 @@
     },
     "accounts": {
       "successFields": {
-        "chain": "string",
+        "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
+        "allChains": "boolean? (true when --all-chains is used)",
+        "chains": "string[]? (queried chains in multi-chain mode)",
+        "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "accounts": "Account[]",
         "balances": "Balance[]",
         "pendingCount": "number",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "nextActions": "NextAction[]? (poll-oriented only; emitted when pending approvals exist)"
       },
       "summaryVariant": {
-        "chain": "string",
+        "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
+        "allChains": "boolean? (true when --all-chains is used)",
+        "chains": "string[]? (queried chains in multi-chain mode)",
+        "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "pendingCount": "number",
         "approvedCount": "number",
         "spendableCount": "number",
         "spentCount": "number",
         "exitedCount": "number",
         "balances": "Balance[]",
-        "nextActions": "NextAction[]? (structured follow-up commands for agents)"
+        "nextActions": "NextAction[]? (poll-oriented only; emitted when pending approvals exist)"
       },
       "pendingOnlyVariant": {
         "chain": "string",
@@ -348,13 +352,17 @@
         "label": "decimal-string",
         "blockNumber": "decimal-string",
         "txHash": "0x-prefixed-hash",
-        "explorerUrl": "string|null"
+        "explorerUrl": "string|null",
+        "chain": "string? (present in multi-chain mode)",
+        "chainId": "number? (present in multi-chain mode)"
       },
       "balanceFields": {
         "asset": "string",
         "balance": "decimal-string-wei (total spendable)",
         "usdValue": "string|null (formatted USD e.g. $1,000.00)",
-        "poolAccounts": "number (spendable account count)"
+        "poolAccounts": "number (spendable account count)",
+        "chain": "string? (present in multi-chain mode)",
+        "chainId": "number? (present in multi-chain mode)"
       }
     },
     "history": {

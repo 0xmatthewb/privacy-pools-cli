@@ -58,8 +58,8 @@ exports[`JSON envelope structure snapshots capabilities --json success envelope 
   "agentNotes.statusCheck": "string",
   "agentNotes.unsignedMode": "string",
   "agentNotes.withdrawQuote": "string",
-  "agentWorkflow": "array(5)",
-  "commandDetails.accounts.agentWorkflowNotes": "array(1)",
+  "agentWorkflow": "array(6)",
+  "commandDetails.accounts.agentWorkflowNotes": "array(3)",
   "commandDetails.accounts.aliases": "array(0)",
   "commandDetails.accounts.command": "string",
   "commandDetails.accounts.description": "string",
@@ -483,7 +483,7 @@ exports[`JSON envelope structure snapshots history --json envelope shape (initia
 exports[`JSON envelope structure snapshots init --json success envelope shape 1`] = `
 {
   "defaultChain": "string",
-  "nextActions": "array(2)",
+  "nextActions": "array(1)",
   "schemaVersion": "string",
   "signerKeySet": "boolean",
   "success": "boolean",

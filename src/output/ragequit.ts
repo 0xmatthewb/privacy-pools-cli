@@ -8,8 +8,6 @@
 
 import type { OutputContext } from "./common.js";
 import {
-  appendNextActions,
-  createNextAction,
   printJsonSuccess,
   success,
   info,
@@ -89,7 +87,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
 
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      appendNextActions({
+      {
         operation: "ragequit",
         txHash: data.txHash,
         amount: data.amount.toString(),
@@ -101,19 +99,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         scope: data.scope.toString(),
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
-      }, [
-        createNextAction(
-          "accounts",
-          "Verify that the Pool Account is now marked as exited.",
-          "after_ragequit",
-          {
-            options: {
-              agent: true,
-              chain: data.chain,
-            },
-          },
-        ),
-      ]),
+      },
       false,
     );
     return;
@@ -129,5 +115,4 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
-  info(`Verify account closed: privacy-pools accounts --chain ${data.chain}`, silent);
 }

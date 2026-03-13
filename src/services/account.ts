@@ -40,6 +40,43 @@ export function accountExists(chainId: number): boolean {
   return existsSync(getAccountFilePath(chainId));
 }
 
+/**
+ * Check whether the account file for a chain contains any deposits.
+ *
+ * `accountExists()` only checks whether the file is present, but the SDK
+ * creates empty account files during `initializeAccountService()` even when
+ * no deposits exist.  This function loads the file and inspects both the
+ * `commitments` map (SDK runtime state) and the `poolAccounts` map (durable
+ * historical source used by `history`, `pool-accounts`, and integration tests)
+ * to determine if the user has actually deposited.
+ *
+ * Returns `false` when the file doesn't exist, is empty, or both maps have
+ * zero entries.
+ */
+export function accountHasDeposits(chainId: number): boolean {
+  const account = loadAccount(chainId);
+  if (!account) return false;
+
+  if (mapHasEntries(account.commitments)) return true;
+  if (mapHasEntries(account.poolAccounts)) return true;
+
+  return false;
+}
+
+/** Check if a value is a non-empty Map (deserialized or raw serialized form). */
+function mapHasEntries(value: unknown): boolean {
+  if (value instanceof Map) return value.size > 0;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    (value as any).__type === "map" &&
+    Array.isArray((value as any).value)
+  ) {
+    return (value as any).value.length > 0;
+  }
+  return false;
+}
+
 export function loadAccount(chainId: number): any | null {
   const path = getAccountFilePath(chainId);
   if (!existsSync(path)) return null;
@@ -82,6 +119,22 @@ export function toPoolInfo(pool: {
  * Suppress them while we call into the SDK so retries and debug chatter
  * cannot leak into CLI output, especially in JSON/agent mode.
  */
+// ── SDK console suppression ──────────────────────────────────────────────────
+// The core SDK (@0xbow/privacy-pools-core-sdk) emits diagnostic messages via
+// console.log/warn/error.  We suppress these in CLI output.
+//
+// Two layers:
+//   1. `withSuppressedSdkStdout` — swap-and-restore guard around individual SDK
+//      calls.  Handles the common case where SDK work completes synchronously
+//      within the awaited promise.
+//   2. `installSdkConsoleGuard` — permanent no-op replacement of console methods.
+//      Called once from the CLI entry point.  Catches deferred SDK callbacks
+//      (e.g. `setTimeout`-based retries) that fire after the swap-and-restore
+//      guard has already restored the originals.
+//
+// The CLI itself never uses console.* — all output goes through process.stderr.write
+// and process.stdout.write — so the permanent guard is safe.
+
 function silenceSdkConsole(): () => void {
   const original = {
     log: console.log,
@@ -124,6 +177,25 @@ export function withSuppressedSdkStdoutSync<T>(fn: () => T): T {
   } finally {
     restore();
   }
+}
+
+/**
+ * Permanently suppress console.log/info/debug/warn/error for the lifetime of
+ * the process.  Call once at CLI startup.  This catches deferred SDK logging
+ * (e.g. retry callbacks via setTimeout) that escapes the per-call guards.
+ *
+ * Safe because the CLI routes all its own output through process.stderr.write /
+ * process.stdout.write and never calls console.* directly.
+ */
+let _guardInstalled = false;
+export function installSdkConsoleGuard(): void {
+  if (_guardInstalled) return;
+  _guardInstalled = true;
+  console.log = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+  console.warn = () => {};
+  console.error = () => {};
 }
 
 export async function initializeAccountService(

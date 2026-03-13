@@ -352,7 +352,7 @@ export function createWithdrawCommand(): Command {
               chainId: chainConfig.id,
               address: pool.pool,
               scope: pool.scope,
-              deploymentBlock: chainConfig.startBlock,
+              deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
             },
           ],
           chainConfig.id,
@@ -394,8 +394,10 @@ export function createWithdrawCommand(): Command {
         // Fetch ASP data
         stageHeader(2, withdrawSteps, "Fetching ASP data and building proofs", silent);
         spin.text = "Fetching ASP data...";
-        const roots = await fetchMerkleRoots(chainConfig, pool.scope);
-        const leaves = await fetchMerkleLeaves(chainConfig, pool.scope);
+        const [roots, leaves] = await Promise.all([
+          fetchMerkleRoots(chainConfig, pool.scope),
+          fetchMerkleLeaves(chainConfig, pool.scope),
+        ]);
         verbose(
           `ASP roots: mtRoot=${roots.mtRoot} onchainMtRoot=${roots.onchainMtRoot}`,
           isVerbose,
@@ -447,7 +449,7 @@ export function createWithdrawCommand(): Command {
           throw new CLIError(
             "No eligible Pool Account is currently approved for private withdrawal.",
             "ASP",
-            "Your deposit may still be pending ASP approval. Run 'privacy-pools accounts --json' to check aspStatus. Most deposits are approved within 1 hour.",
+            `Your deposit may still be pending ASP approval. Run 'privacy-pools accounts --json --chain ${chainConfig.name}' to check aspStatus. Most deposits are approved within 1 hour.`,
             "ACCOUNT_NOT_APPROVED",
             true
           );
@@ -495,7 +497,7 @@ export function createWithdrawCommand(): Command {
             throw new CLIError(
               `${requested.paId} is not currently approved for private withdrawal.`,
               "ASP",
-              "This Pool Account may still be pending ASP approval. Run 'privacy-pools accounts --json' to check aspStatus.",
+              `This Pool Account may still be pending ASP approval. Run 'privacy-pools accounts --json --chain ${chainConfig.name}' to check aspStatus.`,
               "ACCOUNT_NOT_APPROVED",
               true
             );
@@ -1336,6 +1338,7 @@ export function createWithdrawCommand(): Command {
           quoteExpiresAt: expirationMs ? new Date(expirationMs).toISOString() : null,
           tokenPrice: quoteTokenPrice,
           extraGas: quoteExtraGas,
+          chainOverridden: !!globalOpts?.chain,
         });
       } catch (error) {
         printError(error, isJson);

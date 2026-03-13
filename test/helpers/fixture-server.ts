@@ -24,22 +24,20 @@ import type { Address } from "viem";
 
 // ── Canned response data ─────────────────────────────────────────────────────
 
-const POOLS_STATS: object[] = [
-  {
-    scope: "12345",
-    chainId: 11155111,
-    tokenAddress: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    tokenSymbol: "ETH",
-    totalInPoolValue: "5000000000000000000",
-    totalDepositsValue: "10000000000000000000",
-    acceptedDepositsValue: "8000000000000000000",
-    pendingDepositsValue: "2000000000000000000",
-    totalDepositsCount: 42,
-    acceptedDepositsCount: 35,
-    pendingDepositsCount: 7,
-    growth24h: 0.05,
-  },
-];
+const POOLS_STATS: object[] = [1, 10, 42161, 11155111, 11155420].map((chainId) => ({
+  scope: "12345",
+  chainId,
+  tokenAddress: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  tokenSymbol: "ETH",
+  totalInPoolValue: "5000000000000000000",
+  totalDepositsValue: "10000000000000000000",
+  acceptedDepositsValue: "8000000000000000000",
+  pendingDepositsValue: "2000000000000000000",
+  totalDepositsCount: 42,
+  acceptedDepositsCount: 35,
+  pendingDepositsCount: 7,
+  growth24h: 0.05,
+}));
 
 const GLOBAL_EVENTS = {
   events: [

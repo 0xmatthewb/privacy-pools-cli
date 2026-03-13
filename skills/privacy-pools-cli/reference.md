@@ -10,7 +10,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: `main
 
 ```json
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -93,9 +93,9 @@ The envelope format includes additional context fields depending on the operatio
 
 ## JSON output shapes by command
 
-All responses include `{ "schemaVersion": "1.2.0", "success": true, ... }` envelope.
+All responses include `{ "schemaVersion": "1.3.0", "success": true, ... }` envelope.
 
-Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options? }`. Treat `nextActions` as the canonical machine follow-up field.
+Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
 ### `pools`
 
@@ -104,9 +104,9 @@ privacy-pools pools --agent [--all-chains] [--search <query>] [--sort <mode>]
 privacy-pools pools ETH --agent                    # detail view for a specific pool
 ```
 
-Defaults to all mainnets when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
+Defaults to all mainnet chains when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
 
-**Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity?, nextActions? }`. Does not support CSV.
+**Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity? }`. Does not support CSV.
 
 **Single chain** (with `--chain`):
 
@@ -155,7 +155,7 @@ Defaults to all mainnets when no `--chain` is specified. Default sort is `tvl-de
 }
 ```
 
-`asset` is the CLI asset symbol to use in follow-up commands. `tokenAddress` is the token address. Pools responses may also include `nextActions` with a suggested `deposit` follow-up after browsing.
+`asset` is the CLI asset symbol to use in follow-up commands. `tokenAddress` is the token address.
 
 All numeric token amounts are in wei (strings). USD values, counts, and growth rates are nullable.
 
@@ -165,7 +165,7 @@ All numeric token amounts are in wei (strings). USD values, counts, and growth r
 privacy-pools activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
 ```
 
-Defaults to all mainnets when no `--chain` is specified.
+Defaults to all mainnet chains when no `--chain` is specified.
 
 **Global:**
 
@@ -288,10 +288,10 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
   "readyForUnsigned": true,
   "nextActions": [
     {
-      "command": "pools",
-      "reason": "Browse pools on the configured chain before depositing.",
-      "when": "status_ready",
-      "options": { "agent": true, "chain": "mainnet" }
+      "command": "accounts",
+      "reason": "Check on your existing deposits.",
+      "when": "status_ready_has_accounts",
+      "options": { "agent": true }
     }
   ]
 }
@@ -299,7 +299,7 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
 
 Health checks run by default when a chain is selected. Pass `--no-check` to suppress them, or use `--check-rpc` / `--check-asp` to run only specific checks.
 
-When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When setup is ready, `nextActions` points to `pools`.
+When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When no deposits exist, `nextActions` points to `pools`; when deposits already exist, it points to `accounts`. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`.
 
 | Field | Type | When present |
 |-------|------|-------------|
@@ -329,34 +329,35 @@ Representative payload (abridged):
   "commandDetails": {
     "accounts": {
       "command": "accounts",
-      "flags": ["--no-sync", "--all", "--details", "--summary", "--pending-only"]
+      "flags": ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"]
     }
   },
   "globalFlags": [
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
   ],
   "agentWorkflow": [
-    "1. privacy-pools init --json --yes --default-chain <chain>",
-    "2. privacy-pools pools --json --chain <chain>",
-    "3. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-    "4. privacy-pools accounts --json --chain <chain>  (poll until aspStatus: approved)",
-    "5. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
+    "1. privacy-pools status --json",
+    "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
+    "3. privacy-pools pools --json --chain <chain>",
+    "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
+    "5. privacy-pools accounts --json --chain <chain> --pending-only  (approved entries disappear; confirm with accounts --json --chain <chain>)",
+    "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, poll 'accounts --json' to check aspStatus. Most deposits are approved within 1 hour; some may take up to 7 days. Do not attempt withdrawal until aspStatus is 'approved'.",
+    "polling": "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Approved entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm aspStatus is 'approved' before withdrawing. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-    "statusCheck": "Run 'status --json' before transacting. Check readyForDeposit/readyForWithdraw/readyForUnsigned fields."
+    "statusCheck": "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard."
   },
   "schemas": {
     "aspApprovalStatus": { "values": ["approved", "pending", "unknown"] },
     "poolAccountStatus": { "values": ["spendable", "spent", "exited"] },
     "errorCategories": { "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"] },
     "nextActions": {
-      "shape": "{ command, reason, when, args?, options? }",
-      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output."
+      "shape": "{ command, reason, when, args?, options?, runnable? }",
+      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. When runnable is false, the action is a template that needs additional user input before execution."
     }
   },
   "safeReadOnlyCommands": ["pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "completion"],
@@ -403,7 +404,7 @@ privacy-pools describe stats global --agent
 ### `init`
 
 ```bash
-privacy-pools init --agent --default-chain mainnet
+privacy-pools init --agent --default-chain mainnet --show-mnemonic
 privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
 cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
 privacy-pools init --agent --private-key 0x... --default-chain mainnet
@@ -415,17 +416,11 @@ printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 word2 ..." --
 {
   "defaultChain": "mainnet",
   "signerKeySet": true,
-  "recoveryPhraseRedacted": true,
+  "recoveryPhrase": "test test test test test test test test test test test junk",
   "nextActions": [
     {
       "command": "status",
       "reason": "Verify wallet readiness and chain health before transacting.",
-      "when": "after_init",
-      "options": { "agent": true, "chain": "mainnet" }
-    },
-    {
-      "command": "pools",
-      "reason": "Browse pools on the configured default chain before depositing.",
       "when": "after_init",
       "options": { "agent": true, "chain": "mainnet" }
     }
@@ -476,15 +471,15 @@ privacy-pools deposit 0.1 --asset ETH --agent
   "nextActions": [
     {
       "command": "accounts",
-      "reason": "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+      "reason": "Poll while pending; approved entries disappear from --pending-only. Confirm with accounts --agent --chain mainnet.",
       "when": "after_deposit",
-      "options": { "agent": true, "chain": "mainnet" }
+      "options": { "agent": true, "chain": "mainnet", "pendingOnly": true }
     }
   ]
 }
 ```
 
-`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextActions` is the canonical structured guidance for agents. All token amounts and block numbers are strings.
+`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextActions` provides the canonical polling command for agents — follow it to check approval status. All token amounts and block numbers are strings.
 
 **Dry-run** (`--dry-run`):
 
@@ -543,19 +538,11 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
     "eligible": 42,
     "total": 128,
     "percentage": 32.81
-  },
-  "nextActions": [
-    {
-      "command": "accounts",
-      "reason": "Verify the updated balance after the withdrawal settles.",
-      "when": "after_withdrawal",
-      "options": { "agent": true, "chain": "mainnet" }
-    }
-  ]
+  }
 }
 ```
 
-**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, no `extraGas`, and human output includes a note that direct withdrawal links deposit and withdrawal onchain. `nextActions` still points to `accounts` for post-withdraw verification.
+**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, no `extraGas`, and human output includes a note that direct withdrawal links deposit and withdrawal onchain.
 
 **Dry-run:**
 
@@ -622,7 +609,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 }
 ```
 
-`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH. `nextActions` provides a ready-to-run `withdraw` follow-up with the quoted parameters.
+`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH. `nextActions` provides a `withdraw` follow-up with the quoted parameters; check `runnable` — quotes without a `--to` recipient produce a template action (`runnable: false`) that still needs the recipient before execution.
 
 ### `ragequit` (alias: `exit`)
 
@@ -645,15 +632,7 @@ privacy-pools exit ETH --from-pa PA-1 --agent
   "poolAddress": "0x...",
   "scope": "123...",
   "blockNumber": "22154000",
-  "explorerUrl": "https://etherscan.io/tx/0x...",
-  "nextActions": [
-    {
-      "command": "accounts",
-      "reason": "Verify that the Pool Account is now marked as exited.",
-      "when": "after_ragequit",
-      "options": { "agent": true, "chain": "mainnet" }
-    }
-  ]
+  "explorerUrl": "https://etherscan.io/tx/0x..."
 }
 ```
 
@@ -677,14 +656,16 @@ privacy-pools exit ETH --from-pa PA-1 --agent
 ### `accounts`
 
 ```bash
-privacy-pools accounts --agent [--all] [--details]
+privacy-pools accounts --agent [--details]
+privacy-pools accounts --agent --all-chains
 privacy-pools accounts --agent --summary
-privacy-pools accounts --agent --pending-only
+privacy-pools accounts --agent --chain <chain> --pending-only
 ```
 
 ```json
 {
-  "chain": "mainnet",
+  "chain": "all-mainnets",
+  "chains": ["mainnet", "arbitrum", "optimism"],
   "accounts": [
     {
       "poolAccountNumber": 1,
@@ -698,7 +679,9 @@ privacy-pools accounts --agent --pending-only
       "label": "456...",
       "blockNumber": "22153800",
       "txHash": "0x...",
-      "explorerUrl": "https://etherscan.io/tx/0x..."
+      "explorerUrl": "https://etherscan.io/tx/0x...",
+      "chain": "mainnet",
+      "chainId": 1
     }
   ],
   "balances": [
@@ -706,30 +689,27 @@ privacy-pools accounts --agent --pending-only
       "asset": "ETH",
       "balance": "500000000000000000",
       "usdValue": "$1,000.00",
-      "poolAccounts": 3
+      "poolAccounts": 3,
+      "chain": "mainnet",
+      "chainId": 1
     }
   ],
   "pendingCount": 0,
-  "nextActions": [
-    {
-      "command": "withdraw",
-      "reason": "Withdraw approved funds from a Pool Account.",
-      "when": "has_spendable",
-      "options": { "agent": true, "chain": "mainnet" }
-    }
-  ]
+  "warnings": []
 }
 ```
 
 `status` values: `"spendable"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`, `"unknown"` (`"unknown"` for spent or exited accounts). `pendingCount` is the number of accounts with `aspStatus: "pending"`.
 
+Without `--chain`, `accounts` aggregates all mainnet chains by default. Use `--all-chains` to include testnets. In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId`.
+
 `balances` contains per-pool totals for spendable accounts. `balance` is the total spendable amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
 
-`--summary` returns `{ chain, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }` and omits `accounts`.
+`--summary` returns `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }` and omits `accounts`.
 
-`--pending-only` returns `{ chain, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
+`--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
-Poll `aspStatus` after depositing and wait for `"approved"` before withdrawing via the relayed path.
+After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Approved entries disappear from `--pending-only` results instead of changing status; once gone, re-run `accounts --agent --chain <chain>` to confirm `aspStatus: "approved"` before withdrawing. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
 
 ### `history`
 
@@ -804,7 +784,7 @@ All errors in JSON mode:
 
 ```json
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",

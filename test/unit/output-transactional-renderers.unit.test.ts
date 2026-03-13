@@ -41,12 +41,6 @@ describe("renderInitResult parity", () => {
         when: "after_init",
         options: { agent: true, chain: "sepolia" },
       },
-      {
-        command: "pools",
-        reason: "Browse pools on the configured default chain before depositing.",
-        when: "after_init",
-        options: { agent: true, chain: "sepolia" },
-      },
     ]);
     expect(stderr).toBe("");
   });
@@ -98,10 +92,12 @@ describe("renderInitResult parity", () => {
     );
 
     expect(stdout).toBe("");
-    // Init completion outputs next-step commands to stderr
+    // Init completion outputs next-step commands to stderr via shared renderer.
+    // Human path shows only "pools" (not "status" — that's a diagnostic, not a workflow step).
+    expect(stderr).toContain("Setup complete!");
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).not.toContain("privacy-pools status");
     expect(stderr).toContain("privacy-pools pools");
-    expect(stderr).toContain("privacy-pools deposit");
-    expect(stderr).toContain("privacy-pools guide");
   });
 
   test("quiet mode: emits nothing", () => {
@@ -224,9 +220,9 @@ describe("renderDepositSuccess parity", () => {
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
-        reason: "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
+        reason: "Poll pending approvals for PA-1. When it disappears from pending results, re-run accounts --chain sepolia to confirm approval before a relayed withdrawal.",
         when: "after_deposit",
-        options: { agent: true, chain: "sepolia" },
+        options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
     ]);
     expect(stderr).toBe("");
@@ -257,7 +253,7 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Pending ASP approval");
-    expect(stderr).toContain("Check Pool Accounts");
+    expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
 
@@ -366,14 +362,7 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.scope).toBe("42");
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
-    expect(json.nextActions).toEqual([
-      {
-        command: "accounts",
-        reason: "Verify that the Pool Account is now marked as exited.",
-        when: "after_ragequit",
-        options: { agent: true, chain: "sepolia" },
-      },
-    ]);
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 
@@ -389,7 +378,8 @@ describe("renderRagequitSuccess parity", () => {
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).toContain("privacy-pools accounts");
+    // No human next steps — checking accounts after ragequit is obvious
+    expect(stderr).not.toContain("Next steps:");
   });
 
   test("human mode: omits Explorer when explorerUrl is null", () => {
@@ -582,14 +572,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextActions).toEqual([
-      {
-        command: "accounts",
-        reason: "Verify the updated balance after a direct withdrawal.",
-        when: "after_direct_withdrawal",
-        options: { agent: true, chain: "sepolia" },
-      },
-    ]);
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 
@@ -604,14 +587,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextActions).toEqual([
-      {
-        command: "accounts",
-        reason: "Verify the updated balance after the withdrawal settles.",
-        when: "after_withdrawal",
-        options: { agent: true, chain: "sepolia" },
-      },
-    ]);
+    expect(json.nextActions).toBeUndefined();
     expect(stderr).toBe("");
   });
 
@@ -651,7 +627,8 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).not.toContain("Relayer fee:");
-    expect(stderr).toContain("privacy-pools accounts");
+    // No human next steps — checking accounts after withdraw is obvious
+    expect(stderr).not.toContain("Next steps:");
   });
 
   test("human mode (relayed): includes relayer fee", () => {
@@ -663,7 +640,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrew");
     expect(stderr).toContain("Relayer fee: 0.50%");
-    expect(stderr).toContain("privacy-pools accounts");
+    expect(stderr).not.toContain("Next steps:");
   });
 
   test("human mode (direct): shows remaining balance", () => {
@@ -864,6 +841,50 @@ describe("renderWithdrawQuote parity", () => {
     expect(stderr).not.toContain("$");
     expect(stderr).toContain("Relayer fee:");
     expect(stderr).toContain("You receive:");
+  });
+
+  test("human mode: omits --chain when chainOverridden is falsy", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawQuote(ctx, STUB_WITHDRAW_QUOTE),
+    );
+
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).toContain("privacy-pools withdraw");
+    expect(stderr).not.toContain("--chain");
+  });
+
+  test("human mode: includes --chain when chainOverridden is true", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawQuote(ctx, { ...STUB_WITHDRAW_QUOTE, chainOverridden: true }),
+    );
+
+    expect(stderr).toContain("--chain sepolia");
+  });
+
+  test("human mode: suppresses next steps when fee makes withdrawal uneconomical", () => {
+    const ctx = createOutputContext(makeMode());
+    // Fee of 10100 BPS = 101%, meaning netAmount < 0
+    const { stderr } = captureOutput(() =>
+      renderWithdrawQuote(ctx, { ...STUB_WITHDRAW_QUOTE, quoteFeeBPS: "10100" }),
+    );
+
+    expect(stderr).toContain("Withdrawal quote");
+    expect(stderr).toContain("You receive:");
+    expect(stderr).not.toContain("Next steps:");
+  });
+
+  test("JSON mode: still emits agent nextActions even when fee is uneconomical", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawQuote(ctx, { ...STUB_WITHDRAW_QUOTE, quoteFeeBPS: "10100" }),
+    );
+
+    const json = JSON.parse(stdout.trim());
+    // Agent still gets the action — they can decide for themselves
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions.length).toBeGreaterThan(0);
   });
 
   test("quiet mode: emits nothing", () => {

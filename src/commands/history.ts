@@ -16,6 +16,7 @@ import { listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
 import { getPublicClient } from "../services/sdk.js";
 import { spinner, verbose } from "../utils/format.js";
+import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
@@ -177,7 +178,7 @@ export function createHistoryCommand(): Command {
           chainId: chainConfig.id,
           address: p.pool as Address,
           scope: p.scope,
-          deploymentBlock: chainConfig.startBlock,
+          deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
         }));
 
         const dataService = await getDataService(
@@ -196,15 +197,18 @@ export function createHistoryCommand(): Command {
           true
         );
 
-        spin.text = "Syncing...";
-        await syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-          skip: opts.sync === false,
-          force: false,
-          silent,
-          isJson: mode.isJson,
-          isVerbose,
-          errorLabel: "History",
-        });
+        await withSpinnerProgress(
+          spin,
+          "Syncing",
+          () => syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
+            skip: opts.sync === false,
+            force: false,
+            silent,
+            isJson: mode.isJson,
+            isVerbose,
+            errorLabel: "History",
+          }),
+        );
 
         // Extract chronological events from local account state.
         const events = buildHistoryEventsFromAccount(accountService.account, pools);

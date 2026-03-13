@@ -7,6 +7,10 @@ import type { PublicClient, Address, Hex } from "viem";
 import type { ChainConfig } from "../types.js";
 import { getRpcUrls } from "./config.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
+import { withSuppressedSdkStdout } from "./account.js";
+
+const LOG_PROBE_ADDRESS = "0x0000000000000000000000000000000000000000";
+const LOG_PROBE_RANGE = 1_024n;
 
 const LOCAL_DEPOSIT_EVENT = parseAbiItem(
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)"
@@ -17,6 +21,76 @@ const LOCAL_WITHDRAWAL_EVENT = parseAbiItem(
 const LOCAL_RAGEQUIT_EVENT = parseAbiItem(
   "event Ragequit(address indexed _ragequitter, uint256 _commitment, uint256 _label, uint256 _value)"
 );
+
+const DATA_SERVICE_LOG_FETCH_CONFIG = new Map<
+  number,
+  {
+    blockChunkSize: number;
+    concurrency: number;
+    chunkDelayMs: number;
+    retryOnFailure: boolean;
+    maxRetries: number;
+    retryBaseDelayMs: number;
+  }
+>([
+  [
+    1,
+    {
+      blockChunkSize: 1_250_000,
+      concurrency: 1,
+      chunkDelayMs: 0,
+      retryOnFailure: true,
+      maxRetries: 3,
+      retryBaseDelayMs: 500,
+    },
+  ],
+  [
+    10,
+    {
+      blockChunkSize: 12_000_000,
+      concurrency: 1,
+      chunkDelayMs: 0,
+      retryOnFailure: true,
+      maxRetries: 3,
+      retryBaseDelayMs: 500,
+    },
+  ],
+  [
+    42161,
+    {
+      blockChunkSize: 48_000_000,
+      concurrency: 1,
+      chunkDelayMs: 0,
+      retryOnFailure: true,
+      maxRetries: 3,
+      retryBaseDelayMs: 500,
+    },
+  ],
+]);
+
+const healthyRpcUrlCache = new Map<string, Promise<string>>();
+const dataServiceCache = new Map<string, Promise<DataService>>();
+
+function normalizeRpcOverride(rpcOverride?: string): string {
+  return rpcOverride?.trim() ?? "";
+}
+
+function healthyRpcCacheKey(chainId: number, rpcOverride?: string): string {
+  return `${chainId}:${normalizeRpcOverride(rpcOverride)}`;
+}
+
+function dataServiceCacheKey(
+  chainId: number,
+  rpcUrl: string,
+  isLocalCompat: boolean
+): string {
+  return `${chainId}:${rpcUrl}:${isLocalCompat ? "local" : "remote"}`;
+}
+
+export function resetSdkServiceCachesForTests(): void {
+  healthyRpcUrlCache.clear();
+  dataServiceCache.clear();
+}
 
 export function getPublicClient(
   chainConfig: ChainConfig,
@@ -36,8 +110,9 @@ export function getPublicClient(
 
 /**
  * Probes RPC URLs in order and returns the first that responds to
- * `eth_blockNumber` within a short timeout.  Falls back to the first
- * URL if all probes fail so the caller still gets the natural error.
+ * both `eth_blockNumber` and a representative `eth_getLogs` call within
+ * a short timeout. Falls back to the first URL if all probes fail so the
+ * caller still gets the natural error.
  *
  * When only a single URL is available the probe is skipped entirely
  * (fast path – no network call).
@@ -46,35 +121,82 @@ export async function getHealthyRpcUrl(
   chainId: number,
   rpcOverride?: string
 ): Promise<string> {
-  const urls = getRpcUrls(chainId, rpcOverride);
-  if (urls.length <= 1) return urls[0];
+  const cacheKey = healthyRpcCacheKey(chainId, rpcOverride);
+  const cached = healthyRpcUrlCache.get(cacheKey);
+  if (cached) return cached;
 
-  const probeTimeoutMs = Math.min(getNetworkTimeoutMs(), 3_000);
+  const probePromise = (async () => {
+    const urls = getRpcUrls(chainId, rpcOverride);
+    if (urls.length <= 1) return urls[0];
 
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "eth_blockNumber",
-          params: [],
-        }),
-        signal: AbortSignal.timeout(probeTimeoutMs),
-      });
-      if (res.ok) {
-        const json = (await res.json()) as { result?: string };
-        if (json.result) return url;
+    const probeTimeoutMs = Math.min(getNetworkTimeoutMs(), 3_000);
+
+    for (const url of urls) {
+      try {
+        const latestBlock = await rpcProbe<string>(
+          url,
+          "eth_blockNumber",
+          [],
+          probeTimeoutMs
+        );
+        if (!latestBlock) continue;
+
+        const toBlock = BigInt(latestBlock);
+        const fromBlock = toBlock > LOG_PROBE_RANGE ? toBlock - LOG_PROBE_RANGE : 0n;
+        const logProbe = await rpcProbe<unknown>(
+          url,
+          "eth_getLogs",
+          [{
+            address: LOG_PROBE_ADDRESS,
+            fromBlock: `0x${fromBlock.toString(16)}`,
+            toBlock: `0x${toBlock.toString(16)}`,
+          }],
+          probeTimeoutMs
+        );
+        if (Array.isArray(logProbe)) return url;
+      } catch {
+        // URL unhealthy – try next
       }
-    } catch {
-      // URL unhealthy – try next
     }
-  }
 
-  // All probes failed; return first URL so downstream gets the natural error.
-  return urls[0];
+    // All probes failed; return first URL so downstream gets the natural error.
+    return urls[0];
+  })();
+
+  healthyRpcUrlCache.set(cacheKey, probePromise);
+  try {
+    return await probePromise;
+  } catch (error) {
+    healthyRpcUrlCache.delete(cacheKey);
+    throw error;
+  }
+}
+
+async function rpcProbe<T>(
+  url: string,
+  method: string,
+  params: unknown[],
+  timeoutMs: number
+): Promise<T | undefined> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  if (!res.ok) return undefined;
+  const json = (await res.json()) as {
+    result?: T;
+    error?: unknown;
+  };
+  if (json.error !== undefined) return undefined;
+  return json.result;
 }
 
 function isLocalRpcUrl(url: string): boolean {
@@ -216,21 +338,37 @@ export async function getDataService(
   rpcOverride?: string
 ): Promise<DataService> {
   const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
-  if (isLocalRpcUrl(rpcUrl)) {
-    return new LocalCompatDataService(
-      getPublicClient(chainConfig, rpcUrl),
-      chainConfig
-    ) as unknown as DataService;
-  }
+  const useLocalCompat = isLocalRpcUrl(rpcUrl);
+  const cacheKey = dataServiceCacheKey(chainConfig.id, rpcUrl, useLocalCompat);
+  const cached = dataServiceCache.get(cacheKey);
+  if (cached) return cached;
 
-  return new DataService(
-    [
-      {
-        chainId: chainConfig.id,
-        rpcUrl,
-        privacyPoolAddress: poolAddress,
-        startBlock: chainConfig.startBlock,
-      },
-    ]
-  );
+  const dataServicePromise = useLocalCompat
+    ? Promise.resolve(
+        new LocalCompatDataService(
+          getPublicClient(chainConfig, rpcUrl),
+          chainConfig
+        ) as unknown as DataService
+      )
+    : withSuppressedSdkStdout(async () =>
+        new DataService(
+          [
+            {
+              chainId: chainConfig.id,
+              rpcUrl,
+              privacyPoolAddress: poolAddress,
+              startBlock: chainConfig.startBlock,
+            },
+          ],
+          DATA_SERVICE_LOG_FETCH_CONFIG
+        )
+      );
+
+  dataServiceCache.set(cacheKey, dataServicePromise);
+  try {
+    return await dataServicePromise;
+  } catch (error) {
+    dataServiceCache.delete(cacheKey);
+    throw error;
+  }
 }

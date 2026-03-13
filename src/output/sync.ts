@@ -6,7 +6,13 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, info, success, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  printJsonSuccess,
+  info,
+  success,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 
 export interface SyncResult {
   chain: string;
@@ -14,6 +20,8 @@ export interface SyncResult {
   syncedSymbols?: string[];
   availablePoolAccounts: number;
   previousAvailablePoolAccounts?: number;
+  /** True when the user explicitly passed --chain (overriding the default). */
+  chainOverridden?: boolean;
 }
 
 /**
@@ -44,13 +52,15 @@ export function renderSyncComplete(
   guardCsvUnsupported(ctx, "sync");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
-      chain: result.chain,
-      syncedPools: result.syncedPools,
-      syncedSymbols: result.syncedSymbols,
-      availablePoolAccounts: result.availablePoolAccounts,
-      previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
-    });
+    printJsonSuccess(
+      {
+        chain: result.chain,
+        syncedPools: result.syncedPools,
+        syncedSymbols: result.syncedSymbols,
+        availablePoolAccounts: result.availablePoolAccounts,
+        previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
+      },
+    );
     return;
   }
 

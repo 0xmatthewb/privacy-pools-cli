@@ -7,15 +7,83 @@ import type {
 } from "../types.js";
 import { CLIError } from "../utils/errors.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
+import {
+  isTransientNetworkError,
+  retryWithBackoff,
+} from "../utils/network.js";
+import type { RetryConfig } from "../utils/network.js";
+
+const RELAYER_MAX_RETRIES = 2;
+const RELAYER_RETRY_DELAYS_MS = [250, 500] as const;
+
+class RetryableRelayerHttpError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string
+  ) {
+    super(`Retryable relayer HTTP ${status} ${statusText}`);
+    this.name = "RetryableRelayerHttpError";
+  }
+}
+
+let relayerWaitFn: RetryConfig["waitFn"];
+
+/**
+ * Override the retry wait function for relayer tests only.
+ * Does not affect ASP retry timing.
+ * Call with no argument to restore the default.
+ */
+export function overrideRelayerRetryWaitForTests(
+  waitFn?: (ms: number) => Promise<void>
+): void {
+  relayerWaitFn = waitFn;
+}
 
 function isHexString(value: unknown): value is `0x${string}` {
   return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
 }
 
+function isRetryableRelayerError(error: unknown): boolean {
+  return error instanceof RetryableRelayerHttpError || isTransientNetworkError(error);
+}
+
+function relayerUnavailableError(message: string): CLIError {
+  return new CLIError(
+    `Relayer request failed: ${message}`,
+    "RELAYER",
+    "Check your network connection and try again. If it persists, the relayer may be temporarily down."
+  );
+}
+
+function relayerTransportError(error: unknown): CLIError {
+  const message = error instanceof Error ? error.message : "network error";
+  return relayerUnavailableError(message);
+}
+
+async function runRelayerRequestWithRetry<T>(
+  request: () => Promise<T>
+): Promise<T> {
+  return retryWithBackoff(request, {
+    maxRetries: RELAYER_MAX_RETRIES,
+    delayMs: (attempt) => RELAYER_RETRY_DELAYS_MS[attempt - 1] ?? 500,
+    isRetryable: isRetryableRelayerError,
+    onExhausted: (error): never => {
+      if (error instanceof RetryableRelayerHttpError) {
+        throw relayerUnavailableError(
+          error.statusText || `HTTP ${error.status}`
+        );
+      }
+      throw relayerTransportError(error);
+    },
+    waitFn: relayerWaitFn,
+  });
+}
+
 async function relayerFetch(
   chainConfig: ChainConfig,
   path: string,
-  options?: RequestInit
+  options?: RequestInit,
+  allowRetryableGatewayStatuses: boolean = false
 ): Promise<Response> {
   const url = `${chainConfig.relayerHost}${path}`;
   const res = await fetch(url, {
@@ -48,21 +116,30 @@ async function relayerFetch(
         "The relayer is busy. Wait a moment and try again."
       );
     }
-    throw new CLIError(
-      `Relayer request failed: ${message}`,
-      "RELAYER",
-      "Check your network connection and try again. If it persists, the relayer may be temporarily down."
-    );
+    if (allowRetryableGatewayStatuses && (res.status === 502 || res.status === 504)) {
+      throw new RetryableRelayerHttpError(res.status, res.statusText || message);
+    }
+    throw relayerUnavailableError(message);
   }
 
   return res;
+}
+
+async function relayerFetchWithRetry(
+  chainConfig: ChainConfig,
+  path: string,
+  options?: RequestInit
+): Promise<Response> {
+  return runRelayerRequestWithRetry(() =>
+    relayerFetch(chainConfig, path, options, true)
+  );
 }
 
 export async function getRelayerDetails(
   chainConfig: ChainConfig,
   assetAddress: Address
 ): Promise<RelayerDetailsResponse> {
-  const res = await relayerFetch(
+  const res = await relayerFetchWithRetry(
     chainConfig,
     `/relayer/details?chainId=${chainConfig.id}&assetAddress=${assetAddress}`
   );
@@ -78,7 +155,7 @@ export async function requestQuote(
     recipient?: Address;
   }
 ): Promise<RelayerQuoteResponse> {
-  const res = await relayerFetch(chainConfig, "/relayer/quote", {
+  const res = await relayerFetchWithRetry(chainConfig, "/relayer/quote", {
     method: "POST",
     body: JSON.stringify({
       chainId: chainConfig.id,
@@ -158,20 +235,29 @@ export async function submitRelayRequest(
     feeCommitment: RelayerQuoteResponse["feeCommitment"];
   }
 ): Promise<RelayerRequestResponse> {
-  const res = await relayerFetch(chainConfig, "/relayer/request", {
-    method: "POST",
-    body: JSON.stringify({
-      chainId: chainConfig.id,
-      scope: params.scope.toString(), // decimal string
-      withdrawal: {
-        processooor: params.withdrawal.processooor,
-        data: params.withdrawal.data,
-      },
-      proof: params.proof,
-      publicSignals: params.publicSignals,
-      feeCommitment: params.feeCommitment,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await relayerFetch(chainConfig, "/relayer/request", {
+      method: "POST",
+      body: JSON.stringify({
+        chainId: chainConfig.id,
+        scope: params.scope.toString(), // decimal string
+        withdrawal: {
+          processooor: params.withdrawal.processooor,
+          data: params.withdrawal.data,
+        },
+        proof: params.proof,
+        publicSignals: params.publicSignals,
+        feeCommitment: params.feeCommitment,
+      }),
+    });
+  } catch (error) {
+    if (isTransientNetworkError(error)) {
+      throw relayerTransportError(error);
+    }
+    throw error;
+  }
+
   const body = await res.json();
 
   if (body?.success !== true) {

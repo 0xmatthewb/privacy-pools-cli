@@ -20,18 +20,22 @@ import {
   type SyncGateRpcServer,
 } from "../helpers/sync-gate-rpc-server.ts";
 
-const chainConfig = CHAINS.sepolia;
+const mainnetChainConfig = CHAINS.mainnet;
+const arbitrumChainConfig = CHAINS.arbitrum;
+const optimismChainConfig = CHAINS.optimism;
+const sepoliaChainConfig = CHAINS.sepolia;
+const opSepoliaChainConfig = CHAINS["op-sepolia"];
 const mockPoolAddress = "0x1234567890abcdef1234567890abcdef12345678" as const;
 const mockScope = 12345n;
 
 let fixture: FixtureServer;
-let rpcServer: SyncGateRpcServer;
+let rpcServers: Record<string, SyncGateRpcServer>;
 
 function seedCachedAccount(home: string): void {
   const accountsDir = join(home, ".privacy-pools", "accounts");
   mkdirSync(accountsDir, { recursive: true });
   writeFileSync(
-    join(accountsDir, `${chainConfig.id}.json`),
+    join(accountsDir, `${sepoliaChainConfig.id}.json`),
     serialize({ poolAccounts: new Map() }),
     "utf8"
   );
@@ -55,7 +59,7 @@ function commitment(
   };
 }
 
-function seedDetailedCachedAccount(home: string): void {
+function seedDetailedCachedAccount(home: string, chainId: number = sepoliaChainConfig.id): void {
   const accountsDir = join(home, ".privacy-pools", "accounts");
   mkdirSync(accountsDir, { recursive: true });
 
@@ -96,7 +100,7 @@ function seedDetailedCachedAccount(home: string): void {
   );
 
   writeFileSync(
-    join(accountsDir, `${chainConfig.id}.json`),
+    join(accountsDir, `${chainId}.json`),
     serialize({
       masterKeys: [1n, 2n],
       poolAccounts: new Map([
@@ -127,22 +131,54 @@ function seedDetailedCachedAccount(home: string): void {
 function testEnv() {
   return {
     PRIVACY_POOLS_ASP_HOST: fixture.url,
-    PRIVACY_POOLS_RPC_URL_SEPOLIA: rpcServer.url,
+    PRIVACY_POOLS_RPC_URL_ETHEREUM: rpcServers.mainnet.url,
+    PRIVACY_POOLS_RPC_URL_ARBITRUM: rpcServers.arbitrum.url,
+    PRIVACY_POOLS_RPC_URL_OPTIMISM: rpcServers.optimism.url,
+    PRIVACY_POOLS_RPC_URL_SEPOLIA: rpcServers.sepolia.url,
+    PRIVACY_POOLS_RPC_URL_OP_SEPOLIA: rpcServers["op-sepolia"].url,
   };
 }
 
 beforeAll(async () => {
   fixture = await launchFixtureServer();
-  rpcServer = await launchSyncGateRpcServer({
-    chainId: chainConfig.id,
-    entrypoint: chainConfig.entrypoint,
-    poolAddress: mockPoolAddress,
-    scope: mockScope,
-  });
+  rpcServers = {
+    mainnet: await launchSyncGateRpcServer({
+      chainId: mainnetChainConfig.id,
+      entrypoint: mainnetChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+    arbitrum: await launchSyncGateRpcServer({
+      chainId: arbitrumChainConfig.id,
+      entrypoint: arbitrumChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+    optimism: await launchSyncGateRpcServer({
+      chainId: optimismChainConfig.id,
+      entrypoint: optimismChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+    sepolia: await launchSyncGateRpcServer({
+      chainId: sepoliaChainConfig.id,
+      entrypoint: sepoliaChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+    "op-sepolia": await launchSyncGateRpcServer({
+      chainId: opSepoliaChainConfig.id,
+      entrypoint: opSepoliaChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+  };
 });
 
 afterAll(() => {
-  killSyncGateRpcServer(rpcServer);
+  for (const server of Object.values(rpcServers)) {
+    killSyncGateRpcServer(server);
+  }
   killFixtureServer(fixture);
 });
 
@@ -252,7 +288,7 @@ describe("accounts/history --no-sync", () => {
         poolAccounts: 2,
       },
     ]);
-    expect(json.nextActions?.map((action) => action.command)).toEqual(["withdraw", "accounts"]);
+    expect(json.nextActions?.map((action) => action.command)).toEqual(["accounts"]);
   }, 30_000);
 
   test("accounts --no-sync --pending-only filters cached pending approvals", () => {
@@ -286,5 +322,119 @@ describe("accounts/history --no-sync", () => {
     expect(json.nextActions).toHaveLength(1);
     expect(json.nextActions?.[0]?.command).toBe("accounts");
     expect(json.nextActions?.[0]?.options).toEqual({ agent: true, chain: "sepolia", pendingOnly: true });
+  }, 30_000);
+
+  test("accounts --no-sync --pending-only aggregates mainnets by default and surfaces partial-failure warnings", () => {
+    const home = createTempHome();
+    mustInitSeededHome(home, "mainnet");
+    seedDetailedCachedAccount(home, mainnetChainConfig.id);
+    seedDetailedCachedAccount(home, arbitrumChainConfig.id);
+
+    const result = runCli(
+      ["--agent", "accounts", "--no-sync", "--pending-only"],
+      {
+        home,
+        timeoutMs: 30_000,
+        env: {
+          ...testEnv(),
+          PRIVACY_POOLS_ASP_HOST_OPTIMISM: "http://127.0.0.1:9",
+        },
+      },
+    );
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      chain: string;
+      chains: string[];
+      warnings?: Array<{ chain: string; category: string; message: string }>;
+      pendingCount: number;
+      accounts: Array<{ poolAccountId: string; aspStatus: string; chain: string; chainId: number }>;
+      balances?: unknown[];
+      nextActions?: Array<{ command: string; options?: Record<string, boolean | string> }>;
+    }>(result.stdout);
+    expect(json.success).toBe(true);
+    expect(json.chain).toBe("all-mainnets");
+    expect(json.chains).toEqual(["mainnet", "arbitrum", "optimism"]);
+    expect(json.pendingCount).toBe(2);
+    expect(json.accounts).toHaveLength(2);
+    expect(json.accounts.every((account) => account.aspStatus === "pending")).toBe(true);
+    expect(json.accounts.map((account) => account.chain)).toEqual(["mainnet", "arbitrum"]);
+    expect(json.accounts.map((account) => account.chainId)).toEqual([1, 42161]);
+    expect(json.accounts.map((account) => account.poolAccountId)).toEqual(["PA-2", "PA-2"]);
+    expect(json.balances).toBeUndefined();
+    expect(json.warnings).toHaveLength(1);
+    expect(json.warnings?.[0]?.chain).toBe("optimism");
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Poll again until pending deposits are approved for private withdrawal.",
+        when: "has_pending",
+        options: { agent: true, pendingOnly: true },
+      },
+    ]);
+  }, 30_000);
+
+  test("accounts --no-sync --all-chains --summary includes testnets and chain metadata", () => {
+    const home = createTempHome();
+    mustInitSeededHome(home, "mainnet");
+    for (const chainId of [
+      mainnetChainConfig.id,
+      arbitrumChainConfig.id,
+      optimismChainConfig.id,
+      sepoliaChainConfig.id,
+      opSepoliaChainConfig.id,
+    ]) {
+      seedDetailedCachedAccount(home, chainId);
+    }
+
+    const result = runCli(
+      ["--agent", "accounts", "--no-sync", "--all-chains", "--summary"],
+      { home, timeoutMs: 30_000, env: testEnv() },
+    );
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      chain: string;
+      allChains?: boolean;
+      chains: string[];
+      pendingCount: number;
+      approvedCount: number;
+      spendableCount: number;
+      spentCount: number;
+      exitedCount: number;
+      balances: Array<{ asset: string; balance: string; poolAccounts: number; chain: string; chainId: number }>;
+      nextActions?: Array<{ command: string; options?: Record<string, boolean | string> }>;
+    }>(result.stdout);
+    expect(json.success).toBe(true);
+    expect(json.chain).toBe("all-chains");
+    expect(json.allChains).toBe(true);
+    expect(json.chains).toEqual(["mainnet", "arbitrum", "optimism", "sepolia", "op-sepolia"]);
+    expect(json.pendingCount).toBe(5);
+    expect(json.approvedCount).toBe(5);
+    expect(json.spendableCount).toBe(10);
+    expect(json.spentCount).toBe(5);
+    expect(json.exitedCount).toBe(5);
+    expect(json.balances).toHaveLength(5);
+    expect(json.balances.map((balance) => balance.chain)).toEqual([
+      "mainnet",
+      "arbitrum",
+      "optimism",
+      "sepolia",
+      "op-sepolia",
+    ]);
+    expect(json.balances.map((balance) => balance.chainId)).toEqual([1, 42161, 10, 11155111, 11155420]);
+    expect(json.balances.every((balance) => balance.asset === "ETH")).toBe(true);
+    expect(json.balances.every((balance) => balance.balance === "3000000000000000000")).toBe(true);
+    expect(json.balances.every((balance) => balance.poolAccounts === 2)).toBe(true);
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason: "Poll again until pending deposits are approved for private withdrawal.",
+        when: "has_pending",
+        options: { agent: true, allChains: true, pendingOnly: true },
+      },
+    ]);
   }, 30_000);
 });

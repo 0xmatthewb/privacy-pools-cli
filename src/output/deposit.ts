@@ -10,6 +10,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -18,6 +19,7 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
+import { isTestnetChain } from "../config/chains.js";
 
 export interface DepositDryRunData {
   chain: string;
@@ -44,6 +46,8 @@ export interface DepositSuccessData {
   label: bigint | undefined;
   blockNumber: bigint;
   explorerUrl: string | null;
+  /** True when the user explicitly passed --chain (overriding the default). */
+  chainOverridden?: boolean;
 }
 
 /**
@@ -94,6 +98,32 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
 export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessData): void {
   guardCsvUnsupported(ctx, "deposit");
 
+  const isTestnet = isTestnetChain(data.chain);
+  const confirmHint = isTestnet
+    ? `re-run accounts --chain ${data.chain}`
+    : "re-run accounts";
+  const agentNextActions = [
+    createNextAction(
+      "accounts",
+      `Poll pending approvals for ${data.poolAccountId}. When it disappears from pending results, ${confirmHint} to confirm approval before a relayed withdrawal.`,
+      "after_deposit",
+      { options: { agent: true, chain: data.chain, pendingOnly: true } },
+    ),
+  ];
+  const humanNextActions = [
+    createNextAction(
+      "accounts",
+      `Check approval status for ${data.poolAccountId} before withdrawing privately.`,
+      "after_deposit",
+      {
+        options:
+          data.chainOverridden || isTestnet
+            ? { chain: data.chain }
+            : undefined,
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
       appendNextActions({
@@ -110,19 +140,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         label: data.label?.toString() ?? null,
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
-      }, [
-        createNextAction(
-          "accounts",
-          "Poll until aspStatus becomes approved before attempting a relayed withdrawal.",
-          "after_deposit",
-          {
-            options: {
-              agent: true,
-              chain: data.chain,
-            },
-          },
-        ),
-      ]),
+      }, agentNextActions),
       false,
     );
     return;
@@ -147,5 +165,5 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
-  info("Check Pool Accounts: privacy-pools accounts --chain " + data.chain, silent);
+  renderNextSteps(ctx, humanNextActions);
 }

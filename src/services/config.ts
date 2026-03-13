@@ -216,25 +216,27 @@ export function resolveRpcEnvVar(chainId: number): string | undefined {
 // Users can override per chain via init --rpc-url or config.json.
 const DEFAULT_RPC_URLS: Record<number, string[]> = {
   1: [
-    "https://eth.llamarpc.com",
-    "https://eth.drpc.org",
-    "https://ethereum-rpc.publicnode.com",
+    "https://mainnet.gateway.tenderly.co",
+    "https://gateway.tenderly.co/public/mainnet",
+    "https://rpc.sentio.xyz/mainnet",
+    "https://0xrpc.io/eth",
   ],
   42161: [
-    "https://arbitrum.drpc.org",
-    "https://arbitrum-one-rpc.publicnode.com",
+    "https://arbitrum.gateway.tenderly.co",
+    "https://rpc.sentio.xyz/arbitrum-one",
   ],
   10: [
-    "https://optimism.drpc.org",
-    "https://optimism-rpc.publicnode.com",
+    "https://optimism.gateway.tenderly.co",
+    "https://gateway.tenderly.co/public/optimism",
   ],
   11155111: [
-    "https://ethereum-sepolia-rpc.publicnode.com",
-    "https://sepolia.drpc.org",
+    "https://sepolia.gateway.tenderly.co",
+    "https://gateway.tenderly.co/public/sepolia",
+    "https://rpc.sepolia.ethpandaops.io",
+    "https://eth-sepolia.api.onfinality.io/public",
   ],
   11155420: [
-    "https://optimism-sepolia.drpc.org",
-    "https://sepolia.optimism.io",
+    "https://optimism-sepolia.gateway.tenderly.co",
   ],
 };
 

@@ -12,10 +12,27 @@ interface MockServer {
 }
 
 async function startMockServer(chainId: number, statsPayload: unknown): Promise<MockServer> {
-  const entrypoint = "0x00000000000000000000000000000000000000e1" as Address;
-  const pool = "0x00000000000000000000000000000000000000a1" as Address;
-  const asset = "0x00000000000000000000000000000000000000b1" as Address;
-  const scope = 123456789n;
+  return startMockServerWithConfig(chainId, statsPayload, {});
+}
+
+async function startMockServerWithConfig(
+  chainId: number,
+  statsPayload: unknown,
+  config: {
+    entrypoint?: Address;
+    pool?: Address;
+    asset?: Address;
+    scope?: bigint;
+    symbol?: string;
+    decimals?: number;
+  }
+): Promise<MockServer> {
+  const entrypoint = config.entrypoint ?? "0x00000000000000000000000000000000000000e1" as Address;
+  const pool = config.pool ?? "0x00000000000000000000000000000000000000a1" as Address;
+  const asset = config.asset ?? "0x00000000000000000000000000000000000000b1" as Address;
+  const scope = config.scope ?? 123456789n;
+  const symbol = config.symbol ?? "ETHX";
+  const decimals = config.decimals ?? 18;
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? "";
@@ -52,9 +69,9 @@ async function startMockServer(chainId: number, statsPayload: unknown): Promise<
         } else if (to === pool.toLowerCase()) {
           result = encodeAbiParameters([{ type: "uint256" }], [scope]);
         } else if (to === asset.toLowerCase() && data.startsWith("0x95d89b41")) {
-          result = encodeAbiParameters([{ type: "string" }], ["ETHX"]);
+          result = encodeAbiParameters([{ type: "string" }], [symbol]);
         } else if (to === asset.toLowerCase() && data.startsWith("0x313ce567")) {
-          result = encodeAbiParameters([{ type: "uint8" }], [18]);
+          result = encodeAbiParameters([{ type: "uint8" }], [decimals]);
         }
 
         res.writeHead(200, { "content-type": "application/json" });
@@ -165,6 +182,32 @@ describe("pools service", () => {
     const pools = await listPools(chainConfig, server.url);
     expect(pools.length).toBe(1);
     expect(pools[0].scope).toBe(123456789n);
+  });
+
+  test("listPools attaches deploymentBlock for known deployed pools", async () => {
+    const chainId = CHAINS.sepolia.id;
+    const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
+    const pool = "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f" as Address;
+    const server = await startMockServerWithConfig(
+      chainId,
+      {
+        pools: [{ tokenAddress: asset }],
+      },
+      {
+        entrypoint: CHAINS.sepolia.entrypoint,
+        asset,
+        pool,
+        scope: 987654321n,
+        symbol: "USDC",
+        decimals: 6,
+      }
+    );
+    toClose.push(server);
+
+    const pools = await listPools(CHAINS.sepolia, server.url);
+    expect(pools).toHaveLength(1);
+    expect(pools[0].symbol).toBe("USDC");
+    expect(pools[0].deploymentBlock).toBe(8587064n);
   });
 
   test("listPools supports scope-keyed object payload shape", async () => {
@@ -376,5 +419,6 @@ describe("pools service", () => {
     expect(pool.asset.toLowerCase()).toBe("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
     expect(pool.pool.toLowerCase()).toBe(ethPool.toLowerCase());
     expect(pool.scope).toBe(scope);
+    expect(pool.deploymentBlock).toBe(8461454n);
   });
 });

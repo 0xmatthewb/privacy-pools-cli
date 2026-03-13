@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { appendNextActions, createNextAction, guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
+import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
@@ -127,39 +127,22 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
 
   if (ctx.mode.isJson) {
-    const nextActions = filteredPools.length > 0
-      ? [
-          createNextAction(
-            "deposit",
-            allChains
-              ? "Choose a pool from the results, then deposit into it."
-              : "Deposit into a pool after reviewing its terms.",
-            "after_browse",
-            {
-              options: {
-                agent: true,
-                ...(!allChains ? { chain: chainName } : {}),
-              },
-            },
-          ),
-        ]
-      : undefined;
     if (allChains) {
-      printJsonSuccess(appendNextActions({
+      printJsonSuccess({
         allChains: true,
         search,
         sort,
         chains: chainSummaries,
         pools: filteredPools.map((entry) => poolToJson(entry.pool, entry.chain)),
         warnings: warnings.length > 0 ? warnings : undefined,
-      }, nextActions));
+      });
     } else {
-      printJsonSuccess(appendNextActions({
+      printJsonSuccess({
         chain: chainName,
         search,
         sort,
         pools: filteredPools.map((entry) => poolToJson(entry.pool)),
-      }, nextActions));
+      });
     }
     return;
   }
@@ -286,23 +269,10 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
   guardCsvUnsupported(ctx, "pools <asset>");
 
   if (ctx.mode.isJson) {
-    const payload: Record<string, unknown> = appendNextActions({
+    const payload: Record<string, unknown> = {
       chain,
       ...poolToJson(pool),
-    }, [
-      createNextAction(
-        "deposit",
-        "Deposit into this pool if its terms work for you.",
-        "after_pool_detail",
-        {
-          options: {
-            agent: true,
-            chain,
-            asset: pool.symbol,
-          },
-        },
-      ),
-    ]) as Record<string, unknown>;
+    };
 
     if (myPoolAccounts !== null) {
       const spendable = myPoolAccounts.filter((pa) => pa.status === "spendable");
@@ -396,5 +366,4 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     }
   }
 
-  process.stderr.write("\n");
 }

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
   getRelayerDetails,
+  overrideRelayerRetryWaitForTests,
   requestQuote,
   submitRelayRequest,
 } from "../../src/services/relayer.ts";
@@ -12,6 +13,7 @@ const originalFetch = globalThis.fetch;
 describe("relayer service", () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    overrideRelayerRetryWaitForTests();
     mock.restore();
   });
 
@@ -66,6 +68,61 @@ describe("relayer service", () => {
     });
   });
 
+  test("getRelayerDetails retries retryable gateway failures before succeeding", async () => {
+    overrideRelayerRetryWaitForTests(async () => {});
+
+    let attempts = 0;
+    globalThis.fetch = mock(() => {
+      attempts += 1;
+      if (attempts < 3) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: "bad gateway" }), {
+            status: 502,
+            statusText: "Bad Gateway",
+          })
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            feeReceiverAddress: "0x0000000000000000000000000000000000000001",
+            feeBPS: "12",
+            minWithdrawAmount: "1000",
+          }),
+          { status: 200 }
+        )
+      );
+    }) as typeof fetch;
+
+    const result = await getRelayerDetails(
+      chain,
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    );
+
+    expect(result.feeBPS).toBe("12");
+    expect(attempts).toBe(3);
+  });
+
+  test("getRelayerDetails wraps exhausted transport retries as RELAYER errors", async () => {
+    overrideRelayerRetryWaitForTests(async () => {});
+
+    let attempts = 0;
+    globalThis.fetch = mock(() => {
+      attempts += 1;
+      return Promise.reject(new TypeError("fetch failed"));
+    }) as typeof fetch;
+
+    await expect(
+      getRelayerDetails(chain, "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE")
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("fetch failed"),
+    });
+
+    expect(attempts).toBe(3);
+  });
+
   test("requestQuote accepts large feeBPS (bounds check is caller responsibility)", async () => {
     globalThis.fetch = mock(() =>
       Promise.resolve(
@@ -90,6 +147,61 @@ describe("relayer service", () => {
     // Service layer validates format only — feeBPS "99999" is a valid numeric string.
     // The withdraw command is responsible for bounds-checking against pool.maxRelayFeeBPS.
     expect(quote.feeBPS).toBe("99999");
+  });
+
+  test("requestQuote retries transport failures before succeeding", async () => {
+    overrideRelayerRetryWaitForTests(async () => {});
+
+    let attempts = 0;
+    globalThis.fetch = mock(() => {
+      attempts += 1;
+      if (attempts === 1) {
+        return Promise.reject(new TypeError("fetch failed"));
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            baseFeeBPS: "10",
+            feeBPS: "12",
+            gasPrice: "100",
+            detail: { relayTxCost: { gas: "1", eth: "1" } },
+          }),
+          { status: 200 }
+        )
+      );
+    }) as typeof fetch;
+
+    const quote = await requestQuote(chain, {
+      amount: 1000n,
+      asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      extraGas: false,
+    });
+
+    expect(quote.feeBPS).toBe("12");
+    expect(attempts).toBe(2);
+  });
+
+  test("requestQuote does not retry 503 capacity errors", async () => {
+    overrideRelayerRetryWaitForTests(async () => {});
+
+    const fetchMock = mock(() =>
+      Promise.resolve(new Response(JSON.stringify({ message: "busy" }), { status: 503 }))
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      requestQuote(chain, {
+        amount: 1000n,
+        asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        extraGas: false,
+      })
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("capacity"),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   test("requestQuote surfaces nested relayer error.message", async () => {
@@ -371,5 +483,42 @@ describe("relayer service", () => {
     expect(result.success).toBe(true);
     expect(result.txHash).toBe(validTxHash);
   });
-});
 
+  test("submitRelayRequest remains single-shot on retryable gateway failures", async () => {
+    overrideRelayerRetryWaitForTests(async () => {});
+
+    const fetchMock = mock(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ message: "bad gateway" }), {
+          status: 502,
+          statusText: "Bad Gateway",
+        })
+      )
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      submitRelayRequest(chain, {
+        scope: 1n,
+        withdrawal: {
+          processooor: "0x0000000000000000000000000000000000000001",
+          data: "0x",
+        },
+        proof: { _pA: ["0", "0"], _pB: [["0", "0"], ["0", "0"]], _pC: ["0", "0"], _pubSignals: [] },
+        publicSignals: [],
+        feeCommitment: {
+          expiration: Date.now() + 60_000,
+          withdrawalData: "0x1234",
+          asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+          amount: "1000",
+          extraGas: false,
+          signedRelayerCommitment: "0x5678",
+        },
+      })
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

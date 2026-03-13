@@ -12,6 +12,7 @@ import {
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
 import { spinner, verbose } from "../utils/format.js";
+import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
@@ -60,7 +61,7 @@ export function createSyncCommand(): Command {
           chainId: chainConfig.id,
           address: p.pool as Address,
           scope: p.scope,
-          deploymentBlock: chainConfig.startBlock,
+          deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
         }));
 
         const dataService = await getDataService(
@@ -87,15 +88,18 @@ export function createSyncCommand(): Command {
           0
         );
 
-        spin.text = "Syncing deposit/withdrawal/ragequit events...";
-        await syncAccountEvents(preSyncService, poolInfos, pools, chainConfig.id, {
-          skip: false,
-          force: true,
-          silent,
-          isJson: mode.isJson,
-          isVerbose,
-          errorLabel: "Sync",
-        });
+        await withSpinnerProgress(
+          spin,
+          "Syncing deposit/withdrawal/ragequit events",
+          () => syncAccountEvents(preSyncService, poolInfos, pools, chainConfig.id, {
+            skip: false,
+            force: true,
+            silent,
+            isJson: mode.isJson,
+            isVerbose,
+            errorLabel: "Sync",
+          }),
+        );
 
         const spendable = withSuppressedSdkStdoutSync(() =>
           preSyncService.getSpendableCommitments()
@@ -113,6 +117,7 @@ export function createSyncCommand(): Command {
           syncedSymbols: pools.map((p) => p.symbol),
           availablePoolAccounts: spendableCount,
           previousAvailablePoolAccounts: previousSpendableCount,
+          chainOverridden: !!globalOpts?.chain,
         });
       } catch (error) {
         printError(error, mode.isJson);
