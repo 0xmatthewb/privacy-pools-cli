@@ -10,7 +10,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: `main
 
 ```json
 {
-  "schemaVersion": "1.3.0",
+  "schemaVersion": "1.5.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -93,7 +93,7 @@ The envelope format includes additional context fields depending on the operatio
 
 ## JSON output shapes by command
 
-All responses include `{ "schemaVersion": "1.3.0", "success": true, ... }` envelope.
+All responses include `{ "schemaVersion": "1.5.0", "success": true, ... }` envelope.
 
 Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
@@ -106,7 +106,7 @@ privacy-pools pools ETH --agent                    # detail view for a specific 
 
 Defaults to all mainnet chains when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
 
-**Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet initialized), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, recentActivity? }`. Does not support CSV.
+**Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. Does not support CSV.
 
 **Single chain** (with `--chain`):
 
@@ -340,20 +340,20 @@ Representative payload (abridged):
     "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
     "3. privacy-pools pools --json --chain <chain>",
     "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-    "5. privacy-pools accounts --json --chain <chain> --pending-only  (approved entries disappear; confirm with accounts --json --chain <chain>)",
+    "5. privacy-pools accounts --json --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --json --chain <chain>)",
     "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Approved entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm aspStatus is 'approved' before withdrawing. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
+    "polling": "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-    "statusCheck": "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard."
+    "statusCheck": "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard."
   },
   "schemas": {
-    "aspApprovalStatus": { "values": ["approved", "pending", "unknown"] },
-    "poolAccountStatus": { "values": ["spendable", "spent", "exited"] },
+    "aspApprovalStatus": { "values": ["approved", "pending", "poi_required", "declined", "unknown"] },
+    "poolAccountStatus": { "values": ["approved", "pending", "poi_required", "declined", "unknown", "spent", "exited"] },
     "errorCategories": {
       "values": ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],
       "description": "Error responses include top-level errorCode/errorMessage plus error.{ code, category, message, hint?, retryable? }."
@@ -479,7 +479,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
   "nextActions": [
     {
       "command": "accounts",
-      "reason": "Poll while pending; approved entries disappear from --pending-only. Confirm with accounts --agent --chain mainnet.",
+      "reason": "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain mainnet to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.",
       "when": "after_deposit",
       "options": { "agent": true, "chain": "mainnet", "pendingOnly": true }
     }
@@ -521,6 +521,8 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 **Amount shortcuts:** `--all` withdraws the entire PA balance. Percentages (`50%`, `100%`) withdraw a fraction. After PA selection, the CLI shows the selected PA's available balance.
 
 **Extra gas (ERC20 only):** `--extra-gas` (default: true for ERC20 tokens) requests gas tokens alongside the withdrawal. Use `--no-extra-gas` to opt out. Ignored for native ETH.
+
+For relayed withdrawals, the CLI also warns if the chosen amount would leave a positive remainder below the relayer minimum. In that case, withdraw less, use `--all` / `100%`, or plan to recover the leftover balance publicly later.
 
 **Success (relayed):**
 
@@ -678,7 +680,7 @@ privacy-pools accounts --agent --chain <chain> --pending-only
     {
       "poolAccountNumber": 1,
       "poolAccountId": "PA-1",
-      "status": "spendable",
+      "status": "approved",
       "aspStatus": "approved",
       "asset": "ETH",
       "scope": "123...",
@@ -707,17 +709,17 @@ privacy-pools accounts --agent --chain <chain> --pending-only
 }
 ```
 
-`status` values: `"spendable"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`, `"unknown"` (`"unknown"` for spent or exited accounts). `pendingCount` is the number of accounts with `aspStatus: "pending"`.
+`status` values: `"approved"`, `"pending"`, `"poi_required"`, `"declined"`, `"unknown"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`, `"poi_required"`, `"declined"`, `"unknown"` (`"unknown"` for spent or exited accounts, or when ASP review data is unavailable). `pendingCount` is the number of accounts with `status: "pending"`.
 
 Without `--chain`, `accounts` aggregates all mainnet chains by default. Use `--all-chains` to include testnets. In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId`.
 
-`balances` contains per-pool totals for spendable accounts. `balance` is the total spendable amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
+`balances` contains per-pool totals for Pool Accounts with remaining balance. `balance` is the total amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
 
-`--summary` returns `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }` and omits `accounts`.
+`--summary` returns `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions? }` and omits `accounts`.
 
 `--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
-After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Approved entries disappear from `--pending-only` results instead of changing status; once gone, re-run `accounts --agent --chain <chain>` to confirm `aspStatus: "approved"` before withdrawing. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
+After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Reviewed entries disappear from `--pending-only` results instead of changing in place; once gone, re-run `accounts --agent --chain <chain>` to confirm whether the final status is `approved`, `declined`, or `poi_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
 
 ### `history`
 
@@ -792,7 +794,7 @@ All errors in JSON mode:
 
 ```json
 {
-  "schemaVersion": "1.3.0",
+  "schemaVersion": "1.5.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -830,7 +832,7 @@ All errors in JSON mode:
 | `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool not ready, wait and retry |
 | `CONTRACT_INSUFFICIENT_FUNDS` | CONTRACT | No | Wallet lacks ETH for amount + gas |
 | `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | Nonce conflict; pending tx may be stuck |
-| `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit pending ASP approval, cannot withdraw yet |
+| `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
 | `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error |
 
 ### Exit codes
@@ -854,7 +856,7 @@ When `retryable: true`:
 3. `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR`: wait 30-60s and retry.
 
 When `retryable: false`:
-4. `ACCOUNT_NOT_APPROVED`: keep polling `privacy-pools accounts --json --chain <chain> --pending-only`, then confirm approval with `privacy-pools accounts --json --chain <chain>`.
+4. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --json --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --json --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ---
 

@@ -63,7 +63,7 @@ privacy-pools deposit 0.1 --asset ETH
 
 ### `withdraw`
 
-Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relayer pays gas and takes a fee). Add `--direct` to interact with the pool contract directly (no relayer fees, but not privacy-preserving).
+Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relayer pays gas and takes a fee). Add `--direct` to interact with the pool contract directly (no relayer fees, but not privacy-preserving). ASP approval is required for both relayed and direct withdrawals. If a deposit is `poi_required`, complete Proof of Association first. If it is declined, the recovery path is `ragequit`, which exits publicly to the original deposit address.
 
 ```bash
 # Relayed withdrawal (default, enhanced privacy)
@@ -95,6 +95,8 @@ privacy-pools withdraw quote 0.1 --asset ETH --to 0xRecipient...
 
 **Privacy hint:** Non-round withdrawal amounts may be identifiable. The CLI suggests round alternatives for better privacy.
 
+**Relayer minimum hint:** For relayed withdrawals, the CLI also warns if your chosen amount would leave a positive remainder below the relayer minimum. In that case, consider withdrawing less, using `--all` / `100%`, or planning to recover the leftover balance publicly later.
+
 ### `accounts`
 
 List your Pool Accounts with balances, ASP approval status, and account lifecycle info.
@@ -115,13 +117,13 @@ privacy-pools accounts --chain <chain> --pending-only  # pending approvals only 
 | `--summary` | Show counts and balances without listing every Pool Account |
 | `--pending-only` | Show only Pool Accounts with `aspStatus: pending` |
 
-**Pool Account statuses:** `spendable` (can withdraw), `spent` (fully withdrawn), `exited` (exit/ragequit).
-**ASP statuses:** `approved` (can withdraw privately), `pending` (waiting for ASP), `declined` (rejected for private withdrawal), `unknown`.
+**Pool Account statuses:** `approved`, `pending`, `poi_required`, `declined`, `unknown`, `spent` (fully withdrawn), `exited` (exit/ragequit).
+**ASP statuses:** `approved` (eligible for `withdraw`), `pending` (waiting for ASP), `poi_required` (complete Proof of Association before `withdraw`), `declined` (cannot use `withdraw`; use `ragequit`), `unknown`.
 
 Without `--chain`, `accounts` acts like a dashboard and aggregates your holdings across all mainnet chains. Use `--all-chains` to include testnets or `--chain <name>` to focus on one chain.
 
 Compact modes are intended for polling loops. `--summary` and `--pending-only` do not support `--details`, and `--pending-only` also omits balances.
-When polling with `--pending-only`, approved Pool Accounts disappear from the response instead of changing to `approved`. Re-run `privacy-pools accounts` with the same chain scope and without `--pending-only` to confirm the final status.
+When polling with `--pending-only`, Pool Accounts disappear from the response when ASP review finishes. Re-run `privacy-pools accounts` with the same chain scope and without `--pending-only` to confirm whether the final status is `approved`, `declined`, or `poi_required`.
 
 ### `history`
 

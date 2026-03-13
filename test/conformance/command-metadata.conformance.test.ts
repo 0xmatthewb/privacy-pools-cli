@@ -126,6 +126,7 @@ describe("command metadata conformance", () => {
     const withdraw = payload.commands.find((command) => command.name === "withdraw");
     const history = payload.commands.find((command) => command.name === "history");
     const poolsJsonFields = getCommandMetadata("pools").help?.jsonFields;
+    const poolsJsonVariants = getCommandMetadata("pools").help?.jsonVariants ?? [];
 
     expect(withdraw?.flags ?? []).toContain("--all");
     expect(withdraw?.flags ?? []).toContain("--extra-gas");
@@ -134,6 +135,8 @@ describe("command metadata conformance", () => {
     expect(poolsJsonFields).toContain("chain?");
     expect(poolsJsonFields).toContain("allChains?");
     expect(poolsJsonFields).toContain("chains?");
+    expect(poolsJsonVariants.join(" ")).toContain("myFundsWarning");
+    expect(poolsJsonVariants.join(" ")).toContain("recentActivity");
   });
 
   test("AGENTS command catalog markers stay aligned with documented command metadata", () => {
@@ -242,12 +245,26 @@ describe("command metadata conformance", () => {
     expect(normalizedSection).toContain("machine modes");
   });
 
+  test("withdraw docs stay aligned on relayer-minimum remainder guidance", () => {
+    const withdrawNotes = getCommandMetadata("withdraw").help?.safetyNotes ?? [];
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+
+    expect(withdrawNotes).toContain(
+      "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
+    );
+    expect(normalizeWhitespace(agents)).toContain("leave a positive remainder below the relayer minimum");
+    expect(normalizeWhitespace(reference)).toContain("leave a positive remainder below the relayer minimum");
+    expect(normalizeWhitespace(skillReference)).toContain("leave a positive remainder below the relayer minimum");
+  });
+
   test("deposit polling guidance preserves chain scope across metadata and skill docs", () => {
     const depositNotes = getCommandMetadata("deposit").help?.agentWorkflowNotes ?? [];
     const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
     const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
     const contract = readFileSync(
-      `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.3.0.json`,
+      `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.5.0.json`,
       "utf8",
     );
     const normalizedSkill = normalizeWhitespace(skill);
@@ -255,7 +272,7 @@ describe("command metadata conformance", () => {
     const normalizedContract = normalizeWhitespace(contract);
 
     expect(depositNotes).toContain(
-      "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm approval before attempting a private withdrawal. Always preserve the same --chain scope for both polling and confirmation.",
+      "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association first if needed. Always preserve the same --chain scope for both polling and confirmation.",
     );
     expect(normalizedSkill).toContain(
       "privacy-pools accounts --agent --chain <chain> --pending-only",
@@ -263,7 +280,7 @@ describe("command metadata conformance", () => {
     expect(normalizedSkill).toContain("preserve --chain");
     expect(normalizedReference).toContain("same chain scope");
     expect(normalizedContract).toContain(
-      "poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm approval with accounts --chain <chain>",
+      "poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poi_required before choosing withdraw or ragequit",
     );
   });
 
@@ -275,14 +292,16 @@ describe("command metadata conformance", () => {
     const statusCheck = payload.agentNotes?.statusCheck ?? "";
 
     expect(normalizedWorkflowStep).toContain("accounts --json --chain <chain> --pending-only");
-    expect(normalizedWorkflowStep).toContain("confirm with accounts --json --chain <chain>");
+    expect(normalizedWorkflowStep).toContain(
+      "confirm approved vs declined vs poi_required with accounts --json --chain <chain>",
+    );
     expect(statusCheck).toContain("accounts --json --chain <chain>");
     expect(statusCheck).toContain("default multi-chain mainnet dashboard");
     expect(normalizedAgents).toContain(
       "privacy-pools accounts --agent --chain <chain> --pending-only (to verify the deposit landed; preserve chain scope)",
     );
     expect(normalizedAgents).toContain(
-      "Suggest running `privacy-pools accounts --json --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt.",
+      "suggest running `privacy-pools accounts --json --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt.",
     );
   });
 
@@ -304,7 +323,7 @@ describe("command metadata conformance", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
     const contract = JSON.parse(
-      readFileSync(`${CLI_ROOT}/docs/contracts/cli-json-contract.v1.3.0.json`, "utf8"),
+      readFileSync(`${CLI_ROOT}/docs/contracts/cli-json-contract.v1.5.0.json`, "utf8"),
     ) as {
       commands?: { sync?: { successFields?: Record<string, string> } };
     };
