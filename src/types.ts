@@ -148,13 +148,20 @@ export interface AspEventPoolRef {
   denomination?: string;
 }
 
+export interface AspReviewStatusObject {
+  decisionStatus?: string;
+  reviewStatus?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 export interface AspPublicEvent {
   type?: string;
   txHash?: string;
   timestamp?: number | string;
   amount?: string;
   publicAmount?: string;
-  reviewStatus?: string;
+  reviewStatus?: string | AspReviewStatusObject;
   pool?: AspEventPoolRef;
   [key: string]: unknown;
 }

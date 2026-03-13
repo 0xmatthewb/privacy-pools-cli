@@ -21,7 +21,13 @@ import {
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
-import { fetchMerkleRoots, fetchMerkleLeaves, fetchDepositsLargerThan } from "../services/asp.js";
+import {
+  buildLoadedAspDepositReviewState,
+  fetchMerkleRoots,
+  fetchMerkleLeaves,
+  fetchDepositsLargerThan,
+  fetchDepositReviewStatuses,
+} from "../services/asp.js";
 import { getRelayerDetails, requestQuote, submitRelayRequest } from "../services/relayer.js";
 import {
   spinner,
@@ -61,10 +67,17 @@ import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote } from
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
+  buildAllPoolAccountRefs,
   buildPoolAccountRefs,
+  collectActiveLabels,
+  describeUnavailablePoolAccount,
+  getUnknownPoolAccountError,
   parsePoolAccountSelector,
-  poolAccountId,
+  type PoolAccountRef,
 } from "../utils/pool-accounts.js";
+import {
+  type AspApprovalStatus,
+} from "../utils/statuses.js";
 
 const entrypointLatestRootAbi = [
   {
@@ -85,6 +98,73 @@ const poolCurrentRootAbi = [
     outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;
+
+type WithdrawReviewStatus = Exclude<AspApprovalStatus, "approved">;
+
+function getEligibleUnapprovedStatuses(
+  poolAccounts: readonly PoolAccountRef[],
+  withdrawalAmount: bigint,
+): WithdrawReviewStatus[] {
+  const statuses = new Set<WithdrawReviewStatus>();
+
+  for (const poolAccount of poolAccounts) {
+    if (poolAccount.value < withdrawalAmount) continue;
+    if (poolAccount.status === "approved") continue;
+    if (
+      poolAccount.status === "pending" ||
+      poolAccount.status === "poi_required" ||
+      poolAccount.status === "declined" ||
+      poolAccount.status === "unknown"
+    ) {
+      statuses.add(poolAccount.status);
+    }
+  }
+
+  return Array.from(statuses);
+}
+
+export function formatApprovalResolutionHint(params: {
+  chainName: string;
+  assetSymbol: string;
+  poolAccountId?: string;
+  status?: WithdrawReviewStatus;
+}): string {
+  const { chainName, assetSymbol, poolAccountId, status } = params;
+  const ragequitSelector = poolAccountId ?? "<PA-#>";
+  const ragequitCmd =
+    `privacy-pools ragequit --chain ${chainName} --asset ${assetSymbol} --from-pa ${ragequitSelector}`;
+
+  switch (status) {
+    case "pending":
+      return `ASP approval is required for both relayed and direct withdrawals. Run 'privacy-pools accounts --json --chain ${chainName}' to check aspStatus. Most deposits are approved within 1 hour, though some may take up to 7 days.`;
+    case "poi_required":
+      return `This Pool Account needs Proof of Association before it can use withdraw. Complete the POA flow at https://tornado.0xbow.io, then re-run 'privacy-pools accounts --json --chain ${chainName}' to confirm aspStatus. If you prefer a public recovery path instead, use '${ragequitCmd}'.`;
+    case "declined":
+      return `This Pool Account was declined by the ASP. Private withdraw, including --direct, is unavailable. Use '${ragequitCmd}' to exit publicly to the original deposit address.`;
+    default:
+      return `Run 'privacy-pools accounts --json --chain ${chainName}' to inspect aspStatus. Pending deposits need more time, POA-needed deposits need Proof of Association at https://tornado.0xbow.io, and declined deposits must use '${ragequitCmd}' to exit publicly to the original deposit address.`;
+  }
+}
+
+export function getRelayedWithdrawalRemainderAdvisory(params: {
+  remainingBalance: bigint;
+  minWithdrawAmount: bigint;
+  poolAccountId: string;
+  assetSymbol: string;
+  decimals: number;
+}): string | null {
+  const { remainingBalance, minWithdrawAmount, poolAccountId, assetSymbol, decimals } = params;
+  if (remainingBalance <= 0n || remainingBalance >= minWithdrawAmount) {
+    return null;
+  }
+
+  return (
+    `${poolAccountId} would keep ${formatAmount(remainingBalance, decimals, assetSymbol)}, ` +
+    `which is below the relayer minimum (${formatAmount(minWithdrawAmount, decimals, assetSymbol)}). ` +
+    "Withdraw less to keep a privately withdrawable remainder, use --all/100% to fully withdraw it, " +
+    "or ragequit the remainder publicly later."
+  );
+}
 
 export function createWithdrawCommand(): Command {
   const metadata = getCommandMetadata("withdraw");
@@ -319,7 +399,7 @@ export function createWithdrawCommand(): Command {
           verbose(`Requested withdrawal amount: ${withdrawalAmount.toString()}`, isVerbose, silent);
           withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
         } else {
-          // Use a minimal positive threshold to select any PA with spendable balance.
+          // Use a minimal positive threshold to select any PA with remaining balance.
           // The real withdrawal amount is resolved after PA selection.
           withdrawalAmount = 1n;
           withdrawalUsd = "";
@@ -361,26 +441,66 @@ export function createWithdrawCommand(): Command {
           true
         );
 
-        // Find spendable Pool Accounts for this scope.
+        // Find Pool Accounts in this scope with remaining balance.
         const spendable = withSuppressedSdkStdoutSync(() =>
           accountService.getSpendableCommitments()
         );
         const poolCommitments =
           spendable.get(pool.scope) ?? [];
 
-        const poolAccounts = buildPoolAccountRefs(
+        const rawPoolAccounts = buildPoolAccountRefs(
           accountService.account,
           pool.scope,
           poolCommitments
         );
-        verbose(`Available Pool Accounts in this pool: ${poolAccounts.length}`, isVerbose, silent);
+        const allKnownPoolAccounts = buildAllPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          poolCommitments,
+        );
+        verbose(`Available Pool Accounts in this pool: ${rawPoolAccounts.length}`, isVerbose, silent);
+
+        if (fromPaNumber !== undefined && fromPaNumber !== null) {
+          const requestedKnownPoolAccount = allKnownPoolAccounts.find(
+            (pa) => pa.paNumber === fromPaNumber,
+          );
+          const requestedActivePoolAccount = rawPoolAccounts.find(
+            (pa) => pa.paNumber === fromPaNumber,
+          );
+          const unavailableReason =
+            requestedKnownPoolAccount && !requestedActivePoolAccount
+              ? describeUnavailablePoolAccount(requestedKnownPoolAccount, "withdraw")
+              : null;
+          if (requestedKnownPoolAccount && unavailableReason) {
+            spin.stop();
+            throw new CLIError(
+              unavailableReason,
+              "INPUT",
+              `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect ${requestedKnownPoolAccount.paId} and choose a Pool Account with remaining balance.`
+            );
+          }
+          if (!requestedKnownPoolAccount) {
+            spin.stop();
+            const unknownPoolAccount = getUnknownPoolAccountError({
+              paNumber: fromPaNumber,
+              symbol: pool.symbol,
+              chainName: chainConfig.name,
+              knownPoolAccountsCount: allKnownPoolAccounts.length,
+            });
+            throw new CLIError(
+              unknownPoolAccount.message,
+              "INPUT",
+              unknownPoolAccount.hint,
+            );
+          }
+        }
 
         const baseSelection = selectBestWithdrawalCommitment(
-          poolAccounts,
+          rawPoolAccounts,
           withdrawalAmount
         );
 
-        if (baseSelection.kind === "insufficient") {
+        if (baseSelection.kind === "insufficient" && (fromPaNumber === undefined || fromPaNumber === null)) {
           spin.stop();
           throw new CLIError(
             `No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
@@ -394,9 +514,15 @@ export function createWithdrawCommand(): Command {
         // Fetch ASP data
         stageHeader(2, withdrawSteps, "Fetching ASP data and building proofs", silent);
         spin.text = "Fetching ASP data...";
-        const [roots, leaves] = await Promise.all([
+        const activeLabels = collectActiveLabels(poolCommitments);
+        const [roots, leaves, rawReviewStatuses] = await Promise.all([
           fetchMerkleRoots(chainConfig, pool.scope),
           fetchMerkleLeaves(chainConfig, pool.scope),
+          fetchDepositReviewStatuses(
+            chainConfig,
+            pool.scope,
+            activeLabels,
+          ),
         ]);
         verbose(
           `ASP roots: mtRoot=${roots.mtRoot} onchainMtRoot=${roots.onchainMtRoot}`,
@@ -411,7 +537,28 @@ export function createWithdrawCommand(): Command {
 
         const aspRoot = BigInt(roots.onchainMtRoot) as unknown as SDKHash;
         const aspLabels = leaves.aspLeaves.map((s) => BigInt(s));
+        const approvedLabelStrings = new Set(aspLabels.map((label) => label.toString()));
+        const aspReviewState = buildLoadedAspDepositReviewState(
+          activeLabels,
+          approvedLabelStrings,
+          rawReviewStatuses,
+        );
         const allCommitmentHashes = leaves.stateTreeLeaves.map((s) => BigInt(s));
+
+        const allPoolAccounts = buildAllPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          poolCommitments,
+          aspReviewState.approvedLabels,
+          aspReviewState.reviewStatuses,
+        );
+        const poolAccounts = buildPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          poolCommitments,
+          aspReviewState.approvedLabels,
+          aspReviewState.reviewStatuses,
+        );
 
         // Ensure ASP tree and on-chain root are converged before proof generation.
         if (BigInt(roots.mtRoot) !== BigInt(roots.onchainMtRoot)) {
@@ -446,10 +593,16 @@ export function createWithdrawCommand(): Command {
         );
 
         if (approvedSelection.kind === "unapproved") {
+          const statuses = getEligibleUnapprovedStatuses(poolAccounts, withdrawalAmount);
+          const singularStatus = statuses.length === 1 ? statuses[0] : undefined;
           throw new CLIError(
-            "No eligible Pool Account is currently approved for private withdrawal.",
+            "No eligible Pool Account is currently approved for withdrawal.",
             "ASP",
-            `Your deposit may still be pending ASP approval or may have been declined. Run 'privacy-pools accounts --json --chain ${chainConfig.name}' to check aspStatus. Most deposits are approved within 1 hour.`,
+            formatApprovalResolutionHint({
+              chainName: chainConfig.name,
+              assetSymbol: pool.symbol,
+              status: singularStatus,
+            }),
             "ACCOUNT_NOT_APPROVED",
             true
           );
@@ -478,10 +631,27 @@ export function createWithdrawCommand(): Command {
         if (fromPaNumber !== undefined && fromPaNumber !== null) {
           const requested = poolAccounts.find((pa) => pa.paNumber === fromPaNumber);
           if (!requested) {
+            const historical = allPoolAccounts.find((pa) => pa.paNumber === fromPaNumber);
+            const unavailableReason = historical
+              ? describeUnavailablePoolAccount(historical, "withdraw")
+              : null;
+            if (historical && unavailableReason) {
+              throw new CLIError(
+                unavailableReason,
+                "INPUT",
+                `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect ${historical.paId} and choose a Pool Account with remaining balance.`
+              );
+            }
+            const unknownPoolAccount = getUnknownPoolAccountError({
+              paNumber: fromPaNumber,
+              symbol: pool.symbol,
+              chainName: chainConfig.name,
+              knownPoolAccountsCount: allPoolAccounts.length,
+            });
             throw new CLIError(
-              `Unknown Pool Account ${poolAccountId(fromPaNumber)} for ${pool.symbol}.`,
+              unknownPoolAccount.message,
               "INPUT",
-              `Run 'privacy-pools accounts --chain ${chainConfig.name}' to list available Pool Accounts.`
+              unknownPoolAccount.hint,
             );
           }
 
@@ -495,9 +665,20 @@ export function createWithdrawCommand(): Command {
 
           if (!approvedLabelSet.has(requested.label)) {
             throw new CLIError(
-              `${requested.paId} is not currently approved for private withdrawal.`,
+              `${requested.paId} is not currently approved for withdrawal.`,
               "ASP",
-              `This Pool Account may still be pending ASP approval or may have been declined. Run 'privacy-pools accounts --json --chain ${chainConfig.name}' to check aspStatus.`,
+              formatApprovalResolutionHint({
+                chainName: chainConfig.name,
+                assetSymbol: pool.symbol,
+                poolAccountId: requested.paId,
+                status:
+                  requested.status === "pending" ||
+                  requested.status === "poi_required" ||
+                  requested.status === "declined" ||
+                  requested.status === "unknown"
+                    ? requested.status
+                    : undefined,
+              }),
               "ACCOUNT_NOT_APPROVED",
               true
             );
@@ -850,6 +1031,19 @@ export function createWithdrawCommand(): Command {
             );
           }
 
+          const remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory({
+            remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+            minWithdrawAmount: BigInt(details.minWithdrawAmount),
+            poolAccountId: selectedPoolAccount.paId,
+            assetSymbol: pool.symbol,
+            decimals: pool.decimals,
+          });
+
+          if (skipPrompts && !silent && remainingBelowMinAdvisory) {
+            warn(remainingBelowMinAdvisory, silent);
+            process.stderr.write("\n");
+          }
+
           let quote = await requestQuote(chainConfig, {
             amount: withdrawalAmount,
             asset: pool.asset,
@@ -977,6 +1171,10 @@ export function createWithdrawCommand(): Command {
               }
               process.stderr.write(`  Quote expires:   in ${secondsLeft}s\n`);
               process.stderr.write("  ────────────────────────────────────────────────\n");
+              if (remainingBelowMinAdvisory) {
+                warn(remainingBelowMinAdvisory, silent);
+                process.stderr.write("\n");
+              }
 
               const ok = await confirm({
                 message: "Confirm withdrawal?",

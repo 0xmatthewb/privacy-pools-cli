@@ -20,6 +20,7 @@ export interface AnvilAspState {
   baseStateTreeLeaves: string[];
   insertedStateTreeLeaves: string[];
   approvedLabels: string[];
+  reviewStatuses: Record<string, string>;
 }
 
 export interface AnvilAspServer {
@@ -114,7 +115,9 @@ async function route(
     const labels = labelsHeader?.split(",").map((label) => label.trim()).filter(Boolean) ?? [];
     body = labels.map((label) => ({
       label,
-      reviewStatus: state.approvedLabels.includes(label) ? "approved" : "pending",
+      reviewStatus:
+        state.reviewStatuses[label]
+        ?? (state.approvedLabels.includes(label) ? "approved" : "pending"),
     }));
   } else if (path === `/${state.chainId}/public/mt-leaves`) {
     const scopeHeader = firstHeaderValue(req.headers["x-pool-scope"]);

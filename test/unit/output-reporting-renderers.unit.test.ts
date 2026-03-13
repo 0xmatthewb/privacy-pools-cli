@@ -215,6 +215,7 @@ describe("renderAccountsNoPools parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.pendingCount).toBe(0);
     expect(json.approvedCount).toBe(0);
+    expect(json.poiRequiredCount).toBe(0);
     expect(json.declinedCount).toBe(0);
     expect(json.balances).toEqual([]);
     expect(json.accounts).toBeUndefined();
@@ -260,7 +261,7 @@ describe("renderAccounts parity", () => {
       {
         paNumber: 1,
         paId: "PA-1",
-        status: "spendable",
+        status: "approved",
         aspStatus: "approved",
         commitment: STUB_COMMITMENT,
         label: 456n,
@@ -281,6 +282,7 @@ describe("renderAccounts parity", () => {
     poolAccounts: [
       {
         ...STUB_GROUP.poolAccounts[0]!,
+        status: "pending",
         aspStatus: "pending",
       },
     ],
@@ -291,7 +293,19 @@ describe("renderAccounts parity", () => {
     poolAccounts: [
       {
         ...STUB_GROUP.poolAccounts[0]!,
+        status: "declined",
         aspStatus: "declined",
+      },
+    ],
+  };
+
+  const STUB_POI_REQUIRED_GROUP: AccountPoolGroup = {
+    ...STUB_GROUP,
+    poolAccounts: [
+      {
+        ...STUB_GROUP.poolAccounts[0]!,
+        status: "poi_required",
+        aspStatus: "poi_required",
       },
     ],
   };
@@ -358,8 +372,9 @@ describe("renderAccounts parity", () => {
     expect(json.accounts).toBeUndefined();
     expect(json.pendingCount).toBe(1);
     expect(json.approvedCount).toBe(0);
+    expect(json.poiRequiredCount).toBe(0);
     expect(json.declinedCount).toBe(0);
-    expect(json.spendableCount).toBe(1);
+    expect(json.unknownCount).toBe(0);
     expect(json.balances).toEqual([
       {
         asset: "ETH",
@@ -371,7 +386,7 @@ describe("renderAccounts parity", () => {
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
-        reason: "Poll again until pending deposits are approved for private withdrawal.",
+        reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
         when: "has_pending",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
@@ -398,11 +413,27 @@ describe("renderAccounts parity", () => {
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
-        reason: "Poll again until pending deposits are approved for private withdrawal.",
+        reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
         when: "has_pending",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
     ]);
+  });
+
+  test("human mode: surfaces POA-needed account status and remediation guidance", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "sepolia",
+        groups: [STUB_POI_REQUIRED_GROUP],
+        showDetails: false,
+        showSummary: false,
+        showPendingOnly: false,
+      }),
+    );
+
+    expect(stderr).toContain("POA Needed");
+    expect(stderr).toContain("tornado.0xbow.io");
   });
 
   test("human mode (detail): hides troubleshooting columns by default", () => {
@@ -441,7 +472,7 @@ describe("renderAccounts parity", () => {
     expect(stderr).toContain("Block");
   });
 
-  test("human mode: surfaces declined ASP status for spendable accounts", () => {
+  test("human mode: surfaces declined account status and exit-only guidance", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
@@ -454,7 +485,7 @@ describe("renderAccounts parity", () => {
     );
 
     expect(stderr).toContain("Declined");
-    expect(stderr).toContain("Spendable");
+    expect(stderr).toContain("cannot use withdraw");
   });
 
   test("human mode: shows empty-state message when no groups have accounts", () => {
@@ -717,7 +748,7 @@ const STUB_POOL_DETAIL_POOL = {
 const STUB_POOL_ACCOUNT_REF = {
   paNumber: 1,
   paId: "PA-1",
-  status: "spendable" as const,
+  status: "approved" as const,
   aspStatus: "approved" as const,
   commitment: {
     hash: 123n,
@@ -735,6 +766,11 @@ const STUB_POOL_ACCOUNT_REF = {
 const STUB_ACTIVITY: PoolDetailActivityEvent[] = [
   { type: "deposit", amount: "1.0 ETH", timeLabel: "2h ago", status: "Approved" },
   { type: "withdrawal", amount: "0.5 ETH", timeLabel: "1d ago", status: null },
+];
+
+const STUB_NORMALIZED_ACTIVITY: PoolDetailActivityEvent[] = [
+  { type: "deposit", amount: "1.0 ETH", timeLabel: "2h ago", status: "approved" },
+  { type: "withdrawal", amount: "0.5 ETH", timeLabel: "1d ago", status: "approved" },
 ];
 
 const STUB_POOL_DETAIL_DATA: PoolDetailRenderData = {
@@ -763,11 +799,11 @@ describe("renderPoolDetail parity", () => {
     expect(json.myFunds.pendingCount).toBe(0);
     expect(json.myFunds.accounts.length).toBe(1);
     expect(json.myFunds.accounts[0].id).toBe("PA-1");
-    expect(json.myFunds.accounts[0].status).toBe("spendable");
+    expect(json.myFunds.accounts[0].status).toBe("approved");
     expect(json.myFunds.accounts[0].aspStatus).toBe("approved");
 
     // recentActivity
-    expect(json.recentActivity).toEqual(STUB_ACTIVITY);
+    expect(json.recentActivity).toEqual(STUB_NORMALIZED_ACTIVITY);
 
     expect(stderr).toBe("");
   });
@@ -779,6 +815,33 @@ describe("renderPoolDetail parity", () => {
 
     const json = JSON.parse(stdout.trim());
     expect(json.myFunds).toBeNull();
+  });
+
+  test("JSON mode: includes myFundsWarning when wallet state could not be loaded", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: PoolDetailRenderData = {
+      ...STUB_POOL_DETAIL_DATA,
+      myPoolAccounts: null,
+      myFundsWarning: "Could not load your wallet state right now: boom",
+    };
+    const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.myFunds).toBeNull();
+    expect(json.myFundsWarning).toBe("Could not load your wallet state right now: boom");
+  });
+
+  test("JSON mode: includes myFundsWarning alongside myFunds when ASP review data is partial", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: PoolDetailRenderData = {
+      ...STUB_POOL_DETAIL_DATA,
+      myFundsWarning: "Some ASP review data was unavailable or incomplete.",
+    };
+    const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.myFunds).toBeDefined();
+    expect(json.myFundsWarning).toBe("Some ASP review data was unavailable or incomplete.");
   });
 
   test("JSON mode: omits recentActivity when null", () => {
@@ -814,6 +877,32 @@ describe("renderPoolDetail parity", () => {
     expect(stderr).toContain("privacy-pools init");
   });
 
+  test("human mode: shows wallet-state warning instead of init prompt when loading fails", () => {
+    const ctx = createOutputContext(makeMode());
+    const data: PoolDetailRenderData = {
+      ...STUB_POOL_DETAIL_DATA,
+      myPoolAccounts: null,
+      myFundsWarning: "Could not load your wallet state right now: Stored recovery phrase is invalid or corrupted.",
+    };
+    const { stderr } = captureOutput(() => renderPoolDetail(ctx, data));
+
+    expect(stderr).toContain("Could not load your wallet state right now");
+    expect(stderr).not.toContain("privacy-pools init");
+  });
+
+  test("human mode: shows myFundsWarning alongside loaded funds when ASP review data is partial", () => {
+    const ctx = createOutputContext(makeMode());
+    const data: PoolDetailRenderData = {
+      ...STUB_POOL_DETAIL_DATA,
+      myFundsWarning: "Some ASP review data was unavailable or incomplete.",
+    };
+    const { stderr } = captureOutput(() => renderPoolDetail(ctx, data));
+
+    expect(stderr).toContain("My Funds:");
+    expect(stderr).toContain("Some ASP review data was unavailable or incomplete.");
+    expect(stderr).not.toContain("privacy-pools init");
+  });
+
   test("human mode: shows recent activity", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA));
@@ -822,6 +911,8 @@ describe("renderPoolDetail parity", () => {
     expect(stderr).toContain("Deposit");
     expect(stderr).toContain("1.0 ETH");
     expect(stderr).toContain("2h ago");
+    expect(stderr).toContain("0.5 ETH");
+    expect(stderr).toContain("Approved");
   });
 
   test("quiet mode: emits nothing", () => {

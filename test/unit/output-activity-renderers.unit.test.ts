@@ -91,7 +91,23 @@ describe("renderActivity pool-activity parity", () => {
     expect(stderr).toContain("Activity for ETH on sepolia");
     expect(stderr).toContain("deposit");
     expect(stderr).toContain("1.0 ETH");
-    expect(stderr).toContain("approved");
+    expect(stderr).toContain("Approved");
+  });
+
+  test("missing withdrawal review status is normalized to approved", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: ActivityRenderData = {
+      ...STUB_POOL_ACTIVITY,
+      events: [{
+        ...STUB_EVENT,
+        type: "withdrawal",
+        reviewStatus: null,
+      }],
+    };
+
+    const { stdout } = captureOutput(() => renderActivity(ctx, data));
+    const json = JSON.parse(stdout.trim());
+    expect(json.events[0].reviewStatus).toBe("approved");
   });
 
   test("human mode: shows 'No activity found' for empty events", () => {

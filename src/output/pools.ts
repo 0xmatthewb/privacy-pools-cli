@@ -13,6 +13,8 @@ import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } fr
 import type { PoolStats } from "../types.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import {
+  isActivePoolAccountStatus,
+  normalizePublicEventReviewStatus,
   renderAspApprovalStatus,
   renderPoolAccountStatus,
 } from "../utils/statuses.js";
@@ -259,14 +261,30 @@ export interface PoolDetailRenderData {
   pool: PoolStats;
   tokenPrice: number | null;
   myPoolAccounts: PoolAccountRef[] | null;
+  myFundsWarning?: string | null;
   recentActivity: PoolDetailActivityEvent[] | null;
+}
+
+function formatReviewSummary(poolAccounts: PoolAccountRef[]): string {
+  const pendingCount = poolAccounts.filter((pa) => pa.status === "pending").length;
+  const poiRequiredCount = poolAccounts.filter((pa) => pa.status === "poi_required").length;
+  const declinedCount = poolAccounts.filter((pa) => pa.status === "declined").length;
+  const unknownCount = poolAccounts.filter((pa) => pa.status === "unknown").length;
+  const parts: string[] = [];
+
+  if (pendingCount > 0) parts.push(`${pendingCount} pending`);
+  if (poiRequiredCount > 0) parts.push(`${poiRequiredCount} POA needed`);
+  if (declinedCount > 0) parts.push(`${declinedCount} declined`);
+  if (unknownCount > 0) parts.push(`${unknownCount} unknown`);
+
+  return parts.length > 0 ? ` (${parts.join(", ")})` : "";
 }
 
 /**
  * Render pool detail view: `pools <asset>`.
  */
 export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData): void {
-  const { chain, pool, tokenPrice, myPoolAccounts, recentActivity } = data;
+  const { chain, pool, tokenPrice, myPoolAccounts, myFundsWarning, recentActivity } = data;
   const dd = displayDecimals(pool.decimals);
   const hasUsd = tokenPrice !== null;
 
@@ -279,13 +297,15 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     };
 
     if (myPoolAccounts !== null) {
-      const spendable = myPoolAccounts.filter((pa) => pa.status === "spendable");
-      const myTotal = spendable.reduce((sum, pa) => sum + pa.value, 0n);
+      const active = myPoolAccounts.filter((pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status));
+      const myTotal = active.reduce((sum, pa) => sum + pa.value, 0n);
       payload.myFunds = {
         balance: myTotal.toString(),
         usdValue: hasUsd ? formatUsdValue(myTotal, pool.decimals, tokenPrice) : null,
-        poolAccounts: spendable.length,
-        pendingCount: spendable.filter((pa) => pa.aspStatus === "pending").length,
+        poolAccounts: active.length,
+        pendingCount: active.filter((pa) => pa.status === "pending").length,
+        poiRequiredCount: active.filter((pa) => pa.status === "poi_required").length,
+        declinedCount: active.filter((pa) => pa.status === "declined").length,
         accounts: myPoolAccounts.map((pa) => ({
           id: pa.paId,
           status: pa.status,
@@ -297,8 +317,15 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
       payload.myFunds = null;
     }
 
+    if (myFundsWarning) {
+      payload.myFundsWarning = myFundsWarning;
+    }
+
     if (recentActivity !== null) {
-      payload.recentActivity = recentActivity;
+      payload.recentActivity = recentActivity.map((event) => ({
+        ...event,
+        status: normalizePublicEventReviewStatus(event.type, event.status),
+      }));
     }
 
     printJsonSuccess(payload, false);
@@ -334,26 +361,45 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
   // ── My Funds section ──
   process.stderr.write("\n");
   if (myPoolAccounts !== null) {
-    const spendable = myPoolAccounts.filter((pa) => pa.status === "spendable");
-    const myTotal = spendable.reduce((sum, pa) => sum + pa.value, 0n);
-    const pendingCount = spendable.filter((pa) => pa.aspStatus === "pending").length;
+    const active = myPoolAccounts.filter((pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status));
+    const myTotal = active.reduce((sum, pa) => sum + pa.value, 0n);
     const usdFmt = hasUsd ? `  (${formatUsdValue(myTotal, pool.decimals, tokenPrice)})` : "";
     process.stderr.write(`  My Funds:          ${formatAmount(myTotal, pool.decimals, pool.symbol, dd)}${usdFmt}\n`);
-    process.stderr.write(`  My Pool Accounts:  ${spendable.length}${pendingCount > 0 ? ` (${pendingCount} pending)` : ""}\n`);
+    process.stderr.write(`  My Pool Accounts:  ${active.length}${formatReviewSummary(active)}\n`);
 
-    if (spendable.length > 0) {
+    if (active.length > 0) {
       process.stderr.write("\n");
-      for (const pa of spendable) {
-        const aspLabel = pa.aspStatus === "unknown" ? "" : renderAspApprovalStatus(pa.aspStatus);
+      for (const pa of active) {
         const valFmt = formatAmount(pa.value, pool.decimals, pool.symbol, dd);
-        const statusLabel = renderPoolAccountStatus(pa.status);
-        process.stderr.write(
-          `  ${pa.paId}  ${valFmt}  ${statusLabel}${aspLabel ? ` (${aspLabel})` : ""}\n`,
-        );
+        process.stderr.write(`  ${pa.paId}  ${valFmt}  ${renderPoolAccountStatus(pa.status)}\n`);
       }
     }
+
+    if (myFundsWarning) {
+      process.stderr.write(chalk.yellow(`\n  ${myFundsWarning}\n`));
+    }
+
+    if (active.some((pa) => pa.status === "declined")) {
+      process.stderr.write(
+        chalk.dim(
+          "\n  Declined Pool Accounts cannot use withdraw, including --direct. Use ragequit to exit publicly to the deposit address.\n",
+        ),
+      );
+    }
+
+    if (active.some((pa) => pa.status === "poi_required")) {
+      process.stderr.write(
+        chalk.dim(
+          "\n  POA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at tornado.0xbow.io, then re-check accounts. Ragequit remains available if you prefer a public exit.\n",
+        ),
+      );
+    }
   } else {
-    process.stderr.write(chalk.dim(`  Run 'privacy-pools init' to see your funds here.\n`));
+    if (myFundsWarning) {
+      process.stderr.write(chalk.yellow(`  ${myFundsWarning}\n`));
+    } else {
+      process.stderr.write(chalk.dim(`  Run 'privacy-pools init' to see your funds here.\n`));
+    }
   }
 
   // ── Recent Activity section ──
@@ -364,7 +410,10 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
         event.type === "withdrawal" ? "Withdraw" : event.type.padEnd(8);
       const amt = event.amount ?? "-";
       const time = event.timeLabel;
-      const status = event.status ? renderAspApprovalStatus(event.status, { preserveInput: true }) : "";
+      const status = renderAspApprovalStatus(
+        normalizePublicEventReviewStatus(event.type, event.status),
+        { preserveInput: true },
+      );
       process.stderr.write(`  ${typeFmt}  ${amt.padEnd(18)}  ${time.padEnd(10)}  ${status}\n`);
     }
   }

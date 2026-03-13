@@ -277,6 +277,7 @@ async function resetAspState(): Promise<void> {
     baseStateTreeLeaves: [...baseStateTreeLeaves],
     insertedStateTreeLeaves: [],
     approvedLabels: [],
+    reviewStatuses: {},
   };
   writeCurrentAspState();
 }
@@ -389,6 +390,26 @@ async function approveLabel(label: bigint): Promise<void> {
   aspState = {
     ...requireAspState(),
     approvedLabels: labels,
+    reviewStatuses: {
+      ...requireAspState().reviewStatuses,
+      [label.toString()]: "approved",
+    },
+  };
+  writeCurrentAspState();
+}
+
+function setLabelReviewStatus(
+  label: bigint,
+  reviewStatus: "pending" | "declined" | "poi_required",
+): void {
+  const labelString = label.toString();
+  aspState = {
+    ...requireAspState(),
+    approvedLabels: requireAspState().approvedLabels.filter((value) => value !== labelString),
+    reviewStatuses: {
+      ...requireAspState().reviewStatuses,
+      [labelString]: reviewStatus,
+    },
   };
   writeCurrentAspState();
 }
@@ -503,7 +524,7 @@ describe("Anvil E2E", () => {
       expect.arrayContaining([
         expect.objectContaining({
           poolAccountId: depositJson.poolAccountId,
-          status: "spendable",
+          status: "pending",
           aspStatus: "pending",
         }),
       ])
@@ -650,7 +671,7 @@ describe("Anvil E2E", () => {
       expect.arrayContaining([
         expect.objectContaining({
           poolAccountId: depositJson.poolAccountId,
-          status: "spendable",
+          status: "approved",
         }),
       ])
     );
@@ -745,11 +766,242 @@ describe("Anvil E2E", () => {
       expect.arrayContaining([
         expect.objectContaining({
           poolAccountId: depositJson.poolAccountId,
-          status: "spendable",
+          status: "approved",
           aspStatus: "approved",
         }),
       ])
     );
+  });
+
+  anvilTest("deposit -> declined -> withdraw blocked -> ragequit succeeds", async () => {
+    ensureEnabled();
+
+    const home = createTempHome("pp-anvil-declined-");
+    mustInitSeededHome(home, "sepolia");
+
+    const depositResult = runCli(
+      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
+      { home, timeoutMs: 180_000, env: cliEnv() }
+    );
+    expectSuccessStatus(depositResult, "deposit");
+
+    const depositJson = parseJsonOutput<{
+      success: boolean;
+      txHash: `0x${string}`;
+      poolAccountId: string;
+    }>(depositResult.stdout);
+    expect(depositJson.success).toBe(true);
+
+    const depositEvent = await decodeDeposit(depositJson.txHash);
+    aspState = {
+      ...requireAspState(),
+      insertedStateTreeLeaves: [
+        ...requireAspState().insertedStateTreeLeaves,
+        depositEvent.commitment.toString(),
+      ],
+    };
+    writeCurrentAspState();
+    setLabelReviewStatus(depositEvent.label, "declined");
+
+    const syncResult = runCli(
+      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      { home, timeoutMs: 120_000, env: cliEnv() }
+    );
+    expectSuccessStatus(syncResult, "sync after declined deposit");
+
+    const accountsResult = runCli(
+      ["--agent", "accounts", "--chain", "sepolia"],
+      { home, timeoutMs: 120_000, env: cliEnv() }
+    );
+    expectSuccessStatus(accountsResult, "accounts after declined review");
+    const accountsJson = parseJsonOutput<{
+      success: boolean;
+      accounts: Array<{ poolAccountId: string; status: string; aspStatus: string }>;
+    }>(accountsResult.stdout);
+    expect(accountsJson.accounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          poolAccountId: depositJson.poolAccountId,
+          status: "declined",
+          aspStatus: "declined",
+        }),
+      ])
+    );
+
+    const pendingOnlyResult = runCli(
+      ["--agent", "accounts", "--pending-only", "--chain", "sepolia"],
+      { home, timeoutMs: 120_000, env: cliEnv() }
+    );
+    expectSuccessStatus(pendingOnlyResult, "pending-only after declined review");
+    const pendingOnlyJson = parseJsonOutput<{
+      success: boolean;
+      accounts: Array<{ poolAccountId: string }>;
+    }>(pendingOnlyResult.stdout);
+    expect(pendingOnlyJson.accounts).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ poolAccountId: depositJson.poolAccountId }),
+      ])
+    );
+
+    const withdrawResult = runCli(
+      [
+        "--agent",
+        "withdraw",
+        "50%",
+        "ETH",
+        "--to",
+        relayedRecipient,
+        "--from-pa",
+        depositJson.poolAccountId,
+        "--chain",
+        "sepolia",
+      ],
+      { home, timeoutMs: 300_000, env: cliEnv() }
+    );
+    expect(withdrawResult.status).toBe(4);
+    const withdrawJson = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      error: { hint?: string };
+    }>(withdrawResult.stdout);
+    expect(withdrawJson.success).toBe(false);
+    expect(withdrawJson.errorCode).toBe("ACCOUNT_NOT_APPROVED");
+    expect(withdrawJson.error.hint).toContain("declined");
+    expect(withdrawJson.error.hint).toContain("ragequit");
+
+    const ragequitResult = runCli(
+      [
+        "--agent",
+        "ragequit",
+        "ETH",
+        "--from-pa",
+        depositJson.poolAccountId,
+        "--chain",
+        "sepolia",
+      ],
+      { home, timeoutMs: 300_000, env: cliEnv() }
+    );
+    expectSuccessStatus(ragequitResult, "ragequit after declined review");
+
+    const syncAfter = runCli(
+      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      { home, timeoutMs: 120_000, env: cliEnv() }
+    );
+    expectSuccessStatus(syncAfter, "sync after declined ragequit");
+
+    const accountsAfter = runCli(
+      ["--agent", "accounts", "--chain", "sepolia"],
+      { home, timeoutMs: 120_000, env: cliEnv() }
+    );
+    expectSuccessStatus(accountsAfter, "accounts after declined ragequit");
+    const accountsAfterJson = parseJsonOutput<{
+      success: boolean;
+      accounts: Array<{ poolAccountId: string; status: string }>;
+    }>(accountsAfter.stdout);
+    expect(accountsAfterJson.accounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          poolAccountId: depositJson.poolAccountId,
+          status: "exited",
+        }),
+      ])
+    );
+  });
+
+  anvilTest("deposit -> poi_required -> direct withdraw blocked", async () => {
+    ensureEnabled();
+
+    const home = createTempHome("pp-anvil-poi-required-");
+    mustInitSeededHome(home, "sepolia");
+
+    const depositResult = runCli(
+      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
+      { home, timeoutMs: 180_000, env: cliEnv() }
+    );
+    expectSuccessStatus(depositResult, "deposit");
+
+    const depositJson = parseJsonOutput<{
+      success: boolean;
+      txHash: `0x${string}`;
+      poolAccountId: string;
+    }>(depositResult.stdout);
+    expect(depositJson.success).toBe(true);
+
+    const depositEvent = await decodeDeposit(depositJson.txHash);
+    aspState = {
+      ...requireAspState(),
+      insertedStateTreeLeaves: [
+        ...requireAspState().insertedStateTreeLeaves,
+        depositEvent.commitment.toString(),
+      ],
+    };
+    writeCurrentAspState();
+    setLabelReviewStatus(depositEvent.label, "poi_required");
+
+    const syncResult = runCli(
+      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      { home, timeoutMs: 120_000, env: cliEnv() }
+    );
+    expectSuccessStatus(syncResult, "sync after poi_required deposit");
+
+    const accountsResult = runCli(
+      ["--agent", "accounts", "--chain", "sepolia"],
+      { home, timeoutMs: 120_000, env: cliEnv() }
+    );
+    expectSuccessStatus(accountsResult, "accounts after poi_required review");
+    const accountsJson = parseJsonOutput<{
+      success: boolean;
+      accounts: Array<{ poolAccountId: string; status: string; aspStatus: string }>;
+    }>(accountsResult.stdout);
+    expect(accountsJson.accounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          poolAccountId: depositJson.poolAccountId,
+          status: "poi_required",
+          aspStatus: "poi_required",
+        }),
+      ])
+    );
+
+    const pendingOnlyResult = runCli(
+      ["--agent", "accounts", "--pending-only", "--chain", "sepolia"],
+      { home, timeoutMs: 120_000, env: cliEnv() }
+    );
+    expectSuccessStatus(pendingOnlyResult, "pending-only after poi_required review");
+    const pendingOnlyJson = parseJsonOutput<{
+      success: boolean;
+      accounts: Array<{ poolAccountId: string }>;
+    }>(pendingOnlyResult.stdout);
+    expect(pendingOnlyJson.accounts).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ poolAccountId: depositJson.poolAccountId }),
+      ])
+    );
+
+    const withdrawResult = runCli(
+      [
+        "--agent",
+        "withdraw",
+        "50%",
+        "ETH",
+        "--direct",
+        "--from-pa",
+        depositJson.poolAccountId,
+        "--chain",
+        "sepolia",
+      ],
+      { home, timeoutMs: 300_000, env: cliEnv() }
+    );
+    expect(withdrawResult.status).toBe(4);
+    const withdrawJson = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      error: { hint?: string };
+    }>(withdrawResult.stdout);
+    expect(withdrawJson.success).toBe(false);
+    expect(withdrawJson.errorCode).toBe("ACCOUNT_NOT_APPROVED");
+    expect(withdrawJson.error.hint).toContain("Proof of Association");
+    expect(withdrawJson.error.hint).toContain("tornado.0xbow.io");
   });
 
   anvilTest("deposit -> ragequit --unsigned and --dry-run", async () => {

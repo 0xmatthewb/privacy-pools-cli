@@ -265,7 +265,9 @@ describe("accounts/history --no-sync", () => {
       chain: string;
       pendingCount: number;
       approvedCount: number;
-      spendableCount: number;
+      poiRequiredCount: number;
+      declinedCount: number;
+      unknownCount: number;
       spentCount: number;
       exitedCount: number;
       balances: Array<{ asset: string; balance: string; usdValue: string | null; poolAccounts: number }>;
@@ -277,7 +279,9 @@ describe("accounts/history --no-sync", () => {
     expect(json.accounts).toBeUndefined();
     expect(json.pendingCount).toBe(1);
     expect(json.approvedCount).toBe(1);
-    expect(json.spendableCount).toBe(2);
+    expect(json.poiRequiredCount).toBe(0);
+    expect(json.declinedCount).toBe(0);
+    expect(json.unknownCount).toBe(0);
     expect(json.spentCount).toBe(1);
     expect(json.exitedCount).toBe(1);
     expect(json.balances).toEqual([
@@ -316,7 +320,7 @@ describe("accounts/history --no-sync", () => {
     expect(json.accounts).toHaveLength(1);
     expect(json.accounts[0]?.poolAccountId).toBe("PA-2");
     expect(json.accounts[0]?.aspStatus).toBe("pending");
-    expect(json.accounts[0]?.status).toBe("spendable");
+    expect(json.accounts[0]?.status).toBe("pending");
     expect(json.accounts[0]?.value).toBe("2000000000000000000");
     expect(json.balances).toBeUndefined();
     expect(json.nextActions).toHaveLength(1);
@@ -368,7 +372,7 @@ describe("accounts/history --no-sync", () => {
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
-        reason: "Poll again until pending deposits are approved for private withdrawal.",
+        reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
         when: "has_pending",
         options: { agent: true, pendingOnly: true },
       },
@@ -401,7 +405,9 @@ describe("accounts/history --no-sync", () => {
       chains: string[];
       pendingCount: number;
       approvedCount: number;
-      spendableCount: number;
+      poiRequiredCount: number;
+      declinedCount: number;
+      unknownCount: number;
       spentCount: number;
       exitedCount: number;
       balances: Array<{ asset: string; balance: string; poolAccounts: number; chain: string; chainId: number }>;
@@ -413,7 +419,9 @@ describe("accounts/history --no-sync", () => {
     expect(json.chains).toEqual(["mainnet", "arbitrum", "optimism", "sepolia", "op-sepolia"]);
     expect(json.pendingCount).toBe(5);
     expect(json.approvedCount).toBe(5);
-    expect(json.spendableCount).toBe(10);
+    expect(json.poiRequiredCount).toBe(0);
+    expect(json.declinedCount).toBe(0);
+    expect(json.unknownCount).toBe(0);
     expect(json.spentCount).toBe(5);
     expect(json.exitedCount).toBe(5);
     expect(json.balances).toHaveLength(5);
@@ -431,7 +439,7 @@ describe("accounts/history --no-sync", () => {
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
-        reason: "Poll again until pending deposits are approved for private withdrawal.",
+        reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
         when: "has_pending",
         options: { agent: true, allChains: true, pendingOnly: true },
       },

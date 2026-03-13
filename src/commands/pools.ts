@@ -10,25 +10,29 @@ import {
   initializeAccountService,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
-import { fetchApprovedLabels, fetchDepositReviewStatuses, fetchPoolEvents } from "../services/asp.js";
+import {
+  fetchPoolEvents,
+  formatIncompleteAspReviewDataMessage,
+  loadAspDepositReviewState,
+} from "../services/asp.js";
 import {
   spinner,
   formatAmount,
-  formatTimeAgo,
   displayDecimals,
   deriveTokenPrice,
+  verbose,
 } from "../utils/format.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
-import { buildPoolAccountRefs } from "../utils/pool-accounts.js";
+import { buildPoolAccountRefs, collectActiveLabels } from "../utils/pool-accounts.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import type { ChainConfig, GlobalOptions, PoolStats, AspPublicEvent } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { normalizeAspApprovalStatus } from "../utils/statuses.js";
+import { normalizeActivityEvent } from "../utils/public-activity.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderPoolsEmpty, renderPools, renderPoolDetail } from "../output/pools.js";
-import type { PoolWithChain, PoolsRenderData } from "../output/pools.js";
+import type { PoolDetailActivityEvent, PoolWithChain, PoolsRenderData } from "../output/pools.js";
 
 interface PoolsCommandOptions {
   allChains?: boolean;
@@ -71,21 +75,6 @@ function poolFundsMetric(pool: PoolStats): bigint {
   return pool.totalInPoolValue ?? pool.acceptedDepositsValue ?? 0n;
 }
 
-function collectSpendableLabels(
-  commitments: ReadonlyArray<unknown>,
-): string[] {
-  const labels = new Set<string>();
-
-  for (const commitment of commitments) {
-    if (typeof commitment !== "object" || commitment === null) continue;
-    const label = "label" in commitment ? (commitment as { label?: unknown }).label : undefined;
-    if (typeof label !== "bigint") continue;
-    labels.add(label.toString());
-  }
-
-  return Array.from(labels);
-}
-
 function poolDepositsMetric(pool: PoolStats): number {
   return pool.totalDepositsCount ?? 0;
 }
@@ -96,6 +85,58 @@ function withChainMeta(chainConfig: ChainConfig, pools: PoolStats[]): PoolWithCh
     chainId: chainConfig.id,
     pool,
   }));
+}
+
+function isPoolDetailInitRequiredError(error: unknown): boolean {
+  const classified = classifyError(error);
+  return (
+    classified.category === "INPUT" &&
+    classified.message.includes("No recovery phrase found")
+  );
+}
+
+export function formatPoolDetailMyFundsWarning(
+  error: unknown,
+  chainName: string,
+): string {
+  const classified = classifyError(error);
+  const diagnosticsCmd = `privacy-pools status --check --chain ${chainName}`;
+
+  if (classified.category === "RPC") {
+    return (
+      "Could not load your wallet state from onchain data right now. " +
+      `Check your RPC connection and try again, or run '${diagnosticsCmd}'.`
+    );
+  }
+
+  if (classified.category === "ASP") {
+    return (
+      "Could not load ASP-backed wallet review data right now. " +
+      `Pool stats are still available; retry shortly or run '${diagnosticsCmd}'.`
+    );
+  }
+
+  if (
+    classified.category === "INPUT" &&
+    classified.message.includes("Stored recovery phrase is invalid or corrupted")
+  ) {
+    return (
+      "Could not load your wallet state right now because the stored recovery phrase " +
+      "looks invalid or corrupted. Re-import it with 'privacy-pools init --force' if needed."
+    );
+  }
+
+  if (classified.category === "INPUT") {
+    return (
+      "Could not load your local wallet state right now. " +
+      `Check your local setup and run '${diagnosticsCmd}' for more details.`
+    );
+  }
+
+  return (
+    "Could not load your wallet state right now. " +
+    `Pool stats and recent activity are still available. Try again, or run '${diagnosticsCmd}'.`
+  );
 }
 
 function applySearch(
@@ -197,6 +238,7 @@ export function createPoolsCommand(): Command {
       const mode = resolveGlobalMode(globalOpts);
       const ctx = createOutputContext(mode);
       const silent = isSilent(ctx);
+      const isVerbose = globalOpts?.verbose ?? false;
 
       // ── Detail view: `pools <asset>` ──────────────────────────────────
       if (asset) {
@@ -212,6 +254,7 @@ export function createPoolsCommand(): Command {
 
           // Try to load wallet and accounts (non-fatal).
           let myPoolAccounts: PoolAccountRef[] | null = null;
+          let myFundsWarning: string | null = null;
           try {
             const mnemonic = loadMnemonic();
             const dataService = await getDataService(chainConfig, pool.pool, globalOpts?.rpcUrl);
@@ -233,60 +276,47 @@ export function createPoolsCommand(): Command {
               accountService.getSpendableCommitments()
             );
             const poolCommitments = spendable.get(pool.scope) ?? [];
-            const [approvedLabels, rawReviewStatuses] = await Promise.all([
-              fetchApprovedLabels(chainConfig, pool.scope),
-              fetchDepositReviewStatuses(
-                chainConfig,
-                pool.scope,
-                collectSpendableLabels(poolCommitments),
-              ),
-            ]);
-            const reviewStatuses = rawReviewStatuses
-              ? new Map(
-                  Array.from(rawReviewStatuses.entries()).map(([label, status]) => [
-                    label,
-                    normalizeAspApprovalStatus(status),
-                  ]),
-                )
-              : null;
+            const activeLabels = collectActiveLabels(poolCommitments);
+            const aspReviewState = await loadAspDepositReviewState(
+              chainConfig,
+              pool.scope,
+              activeLabels,
+            );
+            if (aspReviewState.hasIncompleteReviewData) {
+              myFundsWarning = formatIncompleteAspReviewDataMessage("pool-detail");
+            }
             myPoolAccounts = buildPoolAccountRefs(
               accountService.account,
               pool.scope,
               poolCommitments,
-              approvedLabels,
-              reviewStatuses,
+              aspReviewState.approvedLabels,
+              aspReviewState.reviewStatuses,
             );
-          } catch { /* graceful skip — wallet not initialized */ }
+          } catch (error) {
+            if (!isPoolDetailInitRequiredError(error)) {
+              const classified = classifyError(error);
+              verbose(
+                `Pool detail wallet-state load failed: ${classified.code}: ${classified.message}` +
+                  (classified.hint ? ` | ${classified.hint}` : ""),
+                isVerbose,
+                silent,
+              );
+              myFundsWarning = formatPoolDetailMyFundsWarning(error, chainConfig.name);
+            }
+          }
 
           // Try to fetch recent activity (non-fatal).
-          interface ActivityEventSummary {
-            type: string;
-            amount: string | null;
-            timeLabel: string;
-            status: string | null;
-          }
-          let recentActivity: ActivityEventSummary[] | null = null;
+          let recentActivity: PoolDetailActivityEvent[] | null = null;
           try {
             const eventsPage = await fetchPoolEvents(chainConfig, pool.scope, 1, 5);
             const events = Array.isArray(eventsPage.events) ? eventsPage.events : [];
-            recentActivity = events.map((e: AspPublicEvent) => {
-              const rawAmount = typeof e.amount === "string" ? e.amount
-                : typeof e.publicAmount === "string" ? e.publicAmount
-                : null;
-              let amountFmt = "-";
-              if (rawAmount && /^-?\d+$/.test(rawAmount)) {
-                try {
-                  amountFmt = formatAmount(BigInt(rawAmount), pool.decimals, pool.symbol, displayDecimals(pool.decimals));
-                } catch { amountFmt = rawAmount; }
-              }
-              const ts = typeof e.timestamp === "number"
-                ? (e.timestamp < 1e12 ? e.timestamp * 1000 : e.timestamp)
-                : null;
+            recentActivity = events.map((event: AspPublicEvent) => {
+              const normalized = normalizeActivityEvent(event, pool.symbol);
               return {
-                type: typeof e.type === "string" ? e.type : "unknown",
-                amount: amountFmt,
-                timeLabel: formatTimeAgo(ts),
-                status: typeof e.reviewStatus === "string" ? e.reviewStatus : null,
+                type: normalized.type,
+                amount: normalized.amountFormatted,
+                timeLabel: normalized.timeLabel,
+                status: normalized.reviewStatus,
               };
             });
           } catch { /* graceful skip */ }
@@ -298,6 +328,7 @@ export function createPoolsCommand(): Command {
             pool,
             tokenPrice,
             myPoolAccounts,
+            myFundsWarning,
             recentActivity,
           });
         } catch (error) {

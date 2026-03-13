@@ -124,6 +124,10 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       jsonFields:
         "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }",
+      jsonVariants: [
+        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }",
+        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poiRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }",
+      ],
       agentWorkflowNotes: [
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
       ],
@@ -324,12 +328,12 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       safetyNotes: [
         "Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.",
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        "Only approved deposits can be withdrawn privately.",
+        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits marked poi_required need Proof of Association before they can withdraw privately.",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
-        "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm approval before attempting a private withdrawal. Always preserve the same --chain scope for both polling and confirmation.",
+        "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association first if needed. Always preserve the same --chain scope for both polling and confirmation.",
       ],
     },
     capabilities: {
@@ -353,7 +357,8 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Withdraws funds from a Privacy Pool. Generates a ZK proof locally and",
         "submits via relayer (default, private) or directly onchain (--direct).",
-        "Proof generation may take 10-30s. Use 'withdraw quote' to check fees first.",
+        "Both withdrawal modes still require ASP approval. Proof generation may",
+        "take 10-30s. Use 'withdraw quote' to check fees first.",
       ],
       examples: [
         "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
@@ -367,6 +372,8 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
         "Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.",
+        "ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.",
+        "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
       ],
       jsonFields:
         "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }",
@@ -431,8 +438,8 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Use 'withdraw' to withdraw privately once your deposit is ASP-approved.",
         "Use 'ragequit' at any time to recover funds publicly to your deposit",
-        "address, even if not approved. No ASP approval is needed, but your",
-        "deposit address is revealed onchain. 'exit' is an alias.",
+        "address. Declined deposits must use this path; pending and",
+        "'poi_required' deposits can also use it, but your deposit address is revealed onchain. 'exit' is an alias.",
       ],
       examples: [
         "privacy-pools ragequit ETH --from-pa PA-1",
@@ -485,13 +492,13 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       jsonFields:
         "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
-        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, declinedCount, spendableCount, spentCount, exitedCount, balances, nextActions? }",
+        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions? }",
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }",
       ],
       agentWorkflowNotes: [
         "Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
-        "nextActions on accounts are poll-oriented only and appear when pending approvals still exist.",
+        "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association before choosing withdraw or ragequit.",
       ],
     },
     capabilities: {
@@ -611,13 +618,13 @@ const AGENT_WORKFLOW = [
   "2. privacy-pools init --json --yes --default-chain <chain> --show-mnemonic",
   "3. privacy-pools pools --json --chain <chain>",
   "4. privacy-pools deposit <amount> --asset <symbol> --json --yes --chain <chain>",
-  "5. privacy-pools accounts --json --chain <chain> --pending-only  (approved entries disappear; confirm with accounts --json --chain <chain>)",
+  "5. privacy-pools accounts --json --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --json --chain <chain>)",
   "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --json --yes --chain <chain>",
 ];
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Approved entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm aspStatus is 'approved' before withdrawing. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
+    "After depositing, poll 'accounts --json --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --json --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
   withdrawQuote:
     "Use 'withdraw quote <amount> --asset <symbol> --json' to check relayer fees before committing to a withdrawal.",
   firstRun:
@@ -627,19 +634,19 @@ const AGENT_NOTES: Record<string, string> = {
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
-    "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that spendable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard.",
+    "Run 'status --json' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --json --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --json' only for the default multi-chain mainnet dashboard.",
 };
 
 const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   aspApprovalStatus: {
-    values: ["approved", "pending", "declined", "unknown"],
+    values: ["approved", "pending", "poi_required", "declined", "unknown"],
     description:
-      "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.",
+      "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poi_required' means Proof of Association is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.",
   },
   poolAccountStatus: {
-    values: ["spendable", "spent", "exited"],
+    values: ["approved", "pending", "poi_required", "declined", "unknown", "spent", "exited"],
     description:
-      "Lifecycle status of a Pool Account. 'spendable' means funds are available. 'spent' means withdrawn. 'exited' means ragequit/exit was used.",
+      "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poi_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used.",
   },
   errorCategories: {
     values: ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],

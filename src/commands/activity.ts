@@ -7,12 +7,15 @@ import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
-import { formatAmount, displayDecimals, spinner, formatTimeAgo } from "../utils/format.js";
-import type { GlobalOptions, AspPublicEvent } from "../types.js";
+import { spinner } from "../utils/format.js";
+import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderActivity } from "../output/activity.js";
-import type { NormalizedActivityEvent } from "../output/activity.js";
+import {
+  normalizeActivityEvent,
+  parseNumberish as parseNumberishValue,
+} from "../utils/public-activity.js";
 
 interface ActivityCommandOptions {
   asset?: string;
@@ -34,69 +37,7 @@ export function parsePositiveInt(raw: string | undefined, fieldName: string): nu
   return parsed;
 }
 
-/** @internal Exported for unit testing. */
-export function parseNumberish(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function toMsTimestamp(value: unknown): number | null {
-  const parsed = parseNumberish(value);
-  if (parsed === null) return null;
-  return parsed < 1e12 ? Math.floor(parsed * 1000) : Math.floor(parsed);
-}
-
-function normalizeActivityEvent(
-  event: AspPublicEvent,
-  fallbackSymbol?: string
-): NormalizedActivityEvent {
-  const pool = event.pool ?? {};
-  const chainId = parseNumberish(pool.chainId);
-  const amountRaw =
-    typeof event.amount === "string"
-      ? event.amount
-      : typeof event.publicAmount === "string"
-        ? event.publicAmount
-        : null;
-
-  const symbol =
-    typeof pool.tokenSymbol === "string" && pool.tokenSymbol.trim() !== ""
-      ? pool.tokenSymbol
-      : fallbackSymbol ?? null;
-  const decimals = parseNumberish(pool.denomination) ?? 18;
-
-  let amountFormatted = "-";
-  if (amountRaw && /^-?\d+$/.test(amountRaw)) {
-    try {
-      amountFormatted = formatAmount(BigInt(amountRaw), decimals, symbol ?? undefined, displayDecimals(decimals));
-    } catch {
-      amountFormatted = amountRaw;
-    }
-  } else if (amountRaw) {
-    amountFormatted = amountRaw;
-  }
-
-  const timestampMs = toMsTimestamp(event.timestamp);
-
-  return {
-    type: typeof event.type === "string" ? event.type : "unknown",
-    txHash: typeof event.txHash === "string" ? event.txHash : null,
-    reviewStatus: typeof event.reviewStatus === "string" ? event.reviewStatus : null,
-    amountRaw,
-    amountFormatted,
-    timestampMs,
-    timeLabel: formatTimeAgo(timestampMs),
-    poolSymbol: symbol,
-    poolAddress: typeof pool.poolAddress === "string" ? pool.poolAddress : null,
-    chainId,
-  };
-}
+export { parseNumberishValue as parseNumberish };
 
 export function createActivityCommand(): Command {
   const metadata = getCommandMetadata("activity");
@@ -141,10 +82,10 @@ export function createActivityCommand(): Command {
           renderActivity(ctx, {
             mode: "pool-activity",
             chain: chainConfig.name,
-            page: parseNumberish(response.page) ?? page,
-            perPage: parseNumberish(response.perPage) ?? perPage,
-            total: parseNumberish(response.total) ?? null,
-            totalPages: parseNumberish(response.totalPages) ?? null,
+            page: parseNumberishValue(response.page) ?? page,
+            perPage: parseNumberishValue(response.perPage) ?? perPage,
+            total: parseNumberishValue(response.total) ?? null,
+            totalPages: parseNumberishValue(response.totalPages) ?? null,
             events,
             asset: pool.symbol,
             pool: pool.pool,
@@ -171,10 +112,10 @@ export function createActivityCommand(): Command {
             mode: "global-activity",
             chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
             chains: chainNames,
-            page: parseNumberish(response.page) ?? page,
-            perPage: parseNumberish(response.perPage) ?? perPage,
-            total: parseNumberish(response.total) ?? null,
-            totalPages: parseNumberish(response.totalPages) ?? null,
+            page: parseNumberishValue(response.page) ?? page,
+            perPage: parseNumberishValue(response.perPage) ?? perPage,
+            total: parseNumberishValue(response.total) ?? null,
+            totalPages: parseNumberishValue(response.totalPages) ?? null,
             events,
           });
           return;
@@ -194,8 +135,8 @@ export function createActivityCommand(): Command {
         renderActivity(ctx, {
           mode: "global-activity",
           chain: chainConfig.name,
-          page: parseNumberish(response.page) ?? page,
-          perPage: parseNumberish(response.perPage) ?? perPage,
+          page: parseNumberishValue(response.page) ?? page,
+          perPage: parseNumberishValue(response.perPage) ?? perPage,
           total: null,
           totalPages: null,
           events,

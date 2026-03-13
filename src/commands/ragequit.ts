@@ -2,7 +2,11 @@ import { Command, Option } from "commander";
 import { confirm, select } from "@inquirer/prompts";
 import type { Address, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { type Hash as SDKHash } from "@0xbow/privacy-pools-core-sdk";
+import type {
+  AccountCommitment,
+  Hash as SDKHash,
+  PrivacyPoolAccount,
+} from "@0xbow/privacy-pools-core-sdk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
@@ -16,6 +20,11 @@ import {
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
+import {
+  formatIncompleteAspReviewDataMessage,
+  loadAspDepositReviewState,
+  normalizeDepositReviewStatuses,
+} from "../services/asp.js";
 import { explorerTxUrl } from "../config/chains.js";
 import {
   spinner,
@@ -44,11 +53,76 @@ import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
+  buildAllPoolAccountRefs,
   buildPoolAccountRefs,
+  collectActiveLabels,
+  describeUnavailablePoolAccount,
+  getUnknownPoolAccountError,
   parsePoolAccountSelector,
   poolAccountId,
   type PoolAccountRef,
 } from "../utils/pool-accounts.js";
+import { formatPoolAccountStatus, type AspApprovalStatus } from "../utils/statuses.js";
+
+interface RagequitAdvisory {
+  level: "info" | "warn";
+  message: string;
+}
+
+export function formatRagequitPoolAccountChoice(
+  poolAccount: PoolAccountRef,
+  decimals: number,
+  symbol: string,
+): string {
+  return `${poolAccount.paId} • ${formatAmount(poolAccount.value, decimals, symbol)} • ${formatPoolAccountStatus(poolAccount.status)}`;
+}
+
+export function getRagequitAdvisory(poolAccount: PoolAccountRef): RagequitAdvisory | null {
+  switch (poolAccount.status) {
+    case "approved":
+      return {
+        level: "warn",
+        message:
+          `${poolAccount.paId} is approved for private withdrawal. Continue with ragequit only if you intentionally want a public exit to the original deposit address.`,
+      };
+    case "pending":
+      return {
+        level: "info",
+        message:
+          `${poolAccount.paId} is still pending ASP review. Ragequit is available if you prefer public recovery instead of waiting for approval.`,
+      };
+    case "poi_required":
+      return {
+        level: "info",
+        message:
+          `${poolAccount.paId} needs Proof of Association before it can use withdraw. Complete the POA flow at https://tornado.0xbow.io for a private withdrawal, or continue with ragequit for a public exit.`,
+      };
+    case "declined":
+      return {
+        level: "info",
+        message:
+          `${poolAccount.paId} was declined by the ASP. Ragequit is the only recovery path for this Pool Account and will return funds publicly to the original deposit address.`,
+      };
+    default:
+      return null;
+  }
+}
+
+export function buildRagequitPoolAccountRefs(
+  account: PrivacyPoolAccount | null | undefined,
+  scope: bigint,
+  spendableCommitments: readonly AccountCommitment[],
+  approvedLabels: Set<string> | null,
+  rawReviewStatuses: ReadonlyMap<string, string> | null,
+): PoolAccountRef[] {
+  return buildPoolAccountRefs(
+    account,
+    scope,
+    spendableCommitments,
+    approvedLabels,
+    normalizeDepositReviewStatuses(rawReviewStatuses),
+  );
+}
 
 export function createRagequitCommand(): Command {
   const metadata = getCommandMetadata("ragequit");
@@ -210,11 +284,71 @@ export function createRagequitCommand(): Command {
         );
         const poolCommitments =
           spendable.get(pool.scope) ?? [];
-        verbose(`Spendable commitments for scope: ${poolCommitments.length}`, isVerbose, silent);
-        const poolAccounts = buildPoolAccountRefs(
+        const allKnownPoolAccounts = buildAllPoolAccountRefs(
           accountService.account,
           pool.scope,
-          poolCommitments
+          poolCommitments,
+        );
+        verbose(`Spendable commitments for scope: ${poolCommitments.length}`, isVerbose, silent);
+
+        if (fromPaNumber !== undefined && fromPaNumber !== null) {
+          const requestedKnownPoolAccount = allKnownPoolAccounts.find(
+            (pa) => pa.paNumber === fromPaNumber,
+          );
+          const unavailableReason = requestedKnownPoolAccount
+            ? describeUnavailablePoolAccount(requestedKnownPoolAccount, "ragequit")
+            : null;
+          if (requestedKnownPoolAccount && unavailableReason) {
+            spin.stop();
+            throw new CLIError(
+              unavailableReason,
+              "INPUT",
+              `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect ${requestedKnownPoolAccount.paId} and choose a Pool Account with remaining balance.`
+            );
+          }
+          if (!requestedKnownPoolAccount) {
+            spin.stop();
+            const unknownPoolAccount = getUnknownPoolAccountError({
+              paNumber: fromPaNumber,
+              symbol: pool.symbol,
+              chainName: chainConfig.name,
+              knownPoolAccountsCount: allKnownPoolAccounts.length,
+            });
+            throw new CLIError(
+              unknownPoolAccount.message,
+              "INPUT",
+              unknownPoolAccount.hint,
+            );
+          }
+        }
+
+        const activeLabels = collectActiveLabels(poolCommitments);
+        const aspReviewState = !silent
+          ? await loadAspDepositReviewState(
+              chainConfig,
+              pool.scope,
+              activeLabels,
+            )
+          : {
+              approvedLabels: new Set<string>(),
+              rawReviewStatuses: new Map<string, string>(),
+              reviewStatuses: new Map<string, AspApprovalStatus>(),
+              hasIncompleteReviewData: false,
+            };
+        const hasIncompleteAspReviewData = aspReviewState.hasIncompleteReviewData;
+        const allPoolAccounts = buildAllPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          poolCommitments,
+          aspReviewState.approvedLabels,
+          aspReviewState.reviewStatuses,
+        );
+        const poolAccounts = buildRagequitPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          poolCommitments,
+          aspReviewState.approvedLabels,
+          aspReviewState.rawReviewStatuses,
         );
 
         if (poolCommitments.length === 0) {
@@ -228,6 +362,10 @@ export function createRagequitCommand(): Command {
 
         spin.stop();
 
+        if (hasIncompleteAspReviewData && !silent) {
+          warn(formatIncompleteAspReviewDataMessage("ragequit", chainConfig.name), false);
+        }
+
         // Select Pool Account
         let selectedPoolAccount: PoolAccountRef;
         if (fromPaNumber !== undefined && fromPaNumber !== null) {
@@ -235,10 +373,29 @@ export function createRagequitCommand(): Command {
             (pa) => pa.paNumber === fromPaNumber
           );
           if (!requestedPoolAccount) {
+            const historicalPoolAccount = allPoolAccounts.find(
+              (pa) => pa.paNumber === fromPaNumber,
+            );
+            const unavailableReason = historicalPoolAccount
+              ? describeUnavailablePoolAccount(historicalPoolAccount, "ragequit")
+              : null;
+            if (historicalPoolAccount && unavailableReason) {
+              throw new CLIError(
+                unavailableReason,
+                "INPUT",
+                `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect ${historicalPoolAccount.paId} and choose a Pool Account with remaining balance.`
+              );
+            }
+            const unknownPoolAccount = getUnknownPoolAccountError({
+              paNumber: fromPaNumber,
+              symbol: pool.symbol,
+              chainName: chainConfig.name,
+              knownPoolAccountsCount: allPoolAccounts.length,
+            });
             throw new CLIError(
-              `Unknown Pool Account ${poolAccountId(fromPaNumber)} for ${pool.symbol}.`,
+              unknownPoolAccount.message,
               "INPUT",
-              `Run 'privacy-pools accounts --chain ${chainConfig.name}' to list available Pool Accounts.`
+              unknownPoolAccount.hint,
             );
           }
           selectedPoolAccount = requestedPoolAccount;
@@ -261,7 +418,7 @@ export function createRagequitCommand(): Command {
             selectedPoolAccount = {
               paNumber: idx + 1,
               paId: poolAccountId(idx + 1),
-              status: "spendable",
+              status: "unknown",
               aspStatus: "unknown",
               commitment: legacyCommitment,
               label: legacyCommitment.label,
@@ -279,7 +436,7 @@ export function createRagequitCommand(): Command {
           const selected = await select({
             message: "Select Pool Account to exit:",
             choices: poolAccounts.map((pa) => ({
-              name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
+              name: formatRagequitPoolAccountChoice(pa, pool.decimals, pool.symbol),
               value: pa.paNumber,
             })),
           });
@@ -301,8 +458,9 @@ export function createRagequitCommand(): Command {
         const tokenPrice = deriveTokenPrice(pool);
         const recoverUsd = usdSuffix(commitment.value, pool.decimals, tokenPrice);
 
-        // Critical warning — look up the depositor address to show where funds will go
-        if (!skipPrompts) {
+        // Always show the public-exit warning in human mode, even when --yes
+        // skips the confirmation prompt.
+        if (!silent) {
           process.stderr.write("\n");
 
           // Try to resolve the deposit address so the user knows where funds go
@@ -329,11 +487,21 @@ export function createRagequitCommand(): Command {
             "By exiting, you are withdrawing funds publicly to your deposit address and will not gain any privacy. If your deposit is approved, use 'withdraw' instead for a private withdrawal.",
             silent
           );
+          const advisory = getRagequitAdvisory(selectedPoolAccount);
+          if (advisory) {
+            if (advisory.level === "warn") {
+              warn(advisory.message, silent);
+            } else {
+              info(advisory.message, silent);
+            }
+          }
           if (depositorAddr) {
             info(`Funds will be sent to: ${depositorAddr}`, silent);
           }
           process.stderr.write("\n");
+        }
 
+        if (!skipPrompts) {
           const ok = await confirm({
             message: `Ragequit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)}${recoverUsd} from ${pool.symbol} pool? This is irreversible.`,
             default: false,

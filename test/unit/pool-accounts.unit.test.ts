@@ -3,7 +3,9 @@ import type { AccountCommitment, PrivacyPoolAccount } from "@0xbow/privacy-pools
 import {
   buildAllPoolAccountRefs,
   buildPoolAccountRefs,
+  describeUnavailablePoolAccount,
   getNextPoolAccountNumber,
+  getUnknownPoolAccountError,
   parsePoolAccountSelector,
 } from "../../src/utils/pool-accounts.ts";
 
@@ -26,7 +28,7 @@ function commitment(
 }
 
 describe("pool account mapping", () => {
-  test("buildAllPoolAccountRefs includes spendable, spent, exited, and unmatched spendables", () => {
+  test("buildAllPoolAccountRefs includes active, spent, exited, and unmatched accounts", () => {
     const scope = 1001n;
     const c1 = commitment(1n, 11n, 100n, 10n, "0x1111111111111111111111111111111111111111111111111111111111111111");
     const c2Deposit = commitment(2n, 22n, 200n, 20n, "0x2222222222222222222222222222222222222222222222222222222222222222");
@@ -59,7 +61,7 @@ describe("pool account mapping", () => {
 
     const all = buildAllPoolAccountRefs(account, scope, [c1, orphan]);
     expect(all.map((row) => row.paId)).toEqual(["PA-1", "PA-2", "PA-3", "PA-4"]);
-    expect(all.map((row) => row.status)).toEqual(["spendable", "spent", "exited", "spendable"]);
+    expect(all.map((row) => row.status)).toEqual(["unknown", "spent", "exited", "unknown"]);
     expect(all[0].value).toBe(100n);
     expect(all[1].value).toBe(0n);
     expect(all[2].value).toBe(0n);
@@ -67,9 +69,9 @@ describe("pool account mapping", () => {
     expect(all[2].txHash).toBe("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     expect(all[3].value).toBe(50n);
 
-    const spendableOnly = buildPoolAccountRefs(account, scope, [c1, orphan]);
-    expect(spendableOnly.map((row) => row.paId)).toEqual(["PA-1", "PA-4"]);
-    expect(spendableOnly.every((row) => row.status === "spendable")).toBe(true);
+    const activeOnly = buildPoolAccountRefs(account, scope, [c1, orphan]);
+    expect(activeOnly.map((row) => row.paId)).toEqual(["PA-1", "PA-4"]);
+    expect(activeOnly.every((row) => row.status === "unknown")).toBe(true);
   });
 
   test("getNextPoolAccountNumber follows existing scope length", () => {
@@ -110,6 +112,13 @@ describe("pool account mapping", () => {
       20n,
       "0x2020202020202020202020202020202020202020202020202020202020202020",
     );
+    const poiRequired = commitment(
+      25n,
+      252n,
+      250n,
+      25n,
+      "0x2525252525252525252525252525252525252525252525252525252525252525",
+    );
     const approvedButLeafPending = commitment(
       30n,
       303n,
@@ -124,6 +133,7 @@ describe("pool account mapping", () => {
         [scope as any, [
           { label: approved.label as any, deposit: approved, children: [] },
           { label: declined.label as any, deposit: declined, children: [] },
+          { label: poiRequired.label as any, deposit: poiRequired, children: [] },
           { label: approvedButLeafPending.label as any, deposit: approvedButLeafPending, children: [] },
         ]],
       ]) as any,
@@ -132,15 +142,139 @@ describe("pool account mapping", () => {
     const refs = buildAllPoolAccountRefs(
       account,
       scope,
-      [approved, declined, approvedButLeafPending],
+      [approved, declined, poiRequired, approvedButLeafPending],
       new Set([approved.label.toString()]),
       new Map([
         [approved.label.toString(), "approved"],
         [declined.label.toString(), "declined"],
+        [poiRequired.label.toString(), "poi_required"],
         [approvedButLeafPending.label.toString(), "approved"],
       ]),
     );
 
-    expect(refs.map((row) => row.aspStatus)).toEqual(["approved", "declined", "pending"]);
+    expect(refs.map((row) => row.status)).toEqual(["approved", "declined", "poi_required", "pending"]);
+    expect(refs.map((row) => row.aspStatus)).toEqual(["approved", "declined", "poi_required", "pending"]);
+  });
+
+  test("approved review statuses fail closed when ASP leaves are unavailable", () => {
+    const scope = 4004n;
+    const approved = commitment(
+      10n,
+      101n,
+      100n,
+      10n,
+      "0x1010101010101010101010101010101010101010101010101010101010101010",
+    );
+    const declined = commitment(
+      20n,
+      202n,
+      200n,
+      20n,
+      "0x2020202020202020202020202020202020202020202020202020202020202020",
+    );
+
+    const account: PrivacyPoolAccount = {
+      masterKeys: [5n as any, 6n as any],
+      poolAccounts: new Map([
+        [scope as any, [
+          { label: approved.label as any, deposit: approved, children: [] },
+          { label: declined.label as any, deposit: declined, children: [] },
+        ]],
+      ]) as any,
+    };
+
+    const refs = buildAllPoolAccountRefs(
+      account,
+      scope,
+      [approved, declined],
+      null,
+      new Map([
+        [approved.label.toString(), "approved"],
+        [declined.label.toString(), "declined"],
+      ]),
+    );
+
+    expect(refs.map((row) => row.status)).toEqual(["unknown", "declined"]);
+    expect(refs.map((row) => row.aspStatus)).toEqual(["unknown", "declined"]);
+  });
+
+  test("missing per-label review rows fail closed instead of guessing pending", () => {
+    const scope = 5005n;
+    const approved = commitment(
+      10n,
+      101n,
+      100n,
+      10n,
+      "0x1010101010101010101010101010101010101010101010101010101010101010",
+    );
+    const missingStatus = commitment(
+      20n,
+      202n,
+      200n,
+      20n,
+      "0x2020202020202020202020202020202020202020202020202020202020202020",
+    );
+
+    const account: PrivacyPoolAccount = {
+      masterKeys: [5n as any, 6n as any],
+      poolAccounts: new Map([
+        [scope as any, [
+          { label: approved.label as any, deposit: approved, children: [] },
+          { label: missingStatus.label as any, deposit: missingStatus, children: [] },
+        ]],
+      ]) as any,
+    };
+
+    const refs = buildAllPoolAccountRefs(
+      account,
+      scope,
+      [approved, missingStatus],
+      new Set([approved.label.toString()]),
+      new Map([[approved.label.toString(), "approved"]]),
+    );
+
+    expect(refs.map((row) => row.status)).toEqual(["approved", "unknown"]);
+    expect(refs.map((row) => row.aspStatus)).toEqual(["approved", "unknown"]);
+  });
+
+  test("describeUnavailablePoolAccount explains spent and exited states", () => {
+    expect(
+      describeUnavailablePoolAccount({ paId: "PA-2", status: "spent" }, "withdraw"),
+    ).toContain("already fully withdrawn");
+    expect(
+      describeUnavailablePoolAccount({ paId: "PA-3", status: "exited" }, "ragequit"),
+    ).toContain("already exited publicly");
+    expect(
+      describeUnavailablePoolAccount({ paId: "PA-1", status: "approved" }, "withdraw"),
+    ).toBeNull();
+  });
+
+  test("getUnknownPoolAccountError explains when a specific selector cannot exist yet", () => {
+    expect(
+      getUnknownPoolAccountError({
+        paNumber: 2,
+        symbol: "ETH",
+        chainName: "sepolia",
+        knownPoolAccountsCount: 0,
+      }),
+    ).toEqual({
+      message: "Unknown Pool Account PA-2 for ETH.",
+      hint:
+        "No local Pool Accounts are available for ETH on sepolia yet. Deposit first, then run 'privacy-pools accounts --chain sepolia' to confirm available Pool Accounts.",
+    });
+  });
+
+  test("getUnknownPoolAccountError keeps the normal listing hint when accounts exist", () => {
+    expect(
+      getUnknownPoolAccountError({
+        paNumber: 3,
+        symbol: "ETH",
+        chainName: "mainnet",
+        knownPoolAccountsCount: 1,
+      }),
+    ).toEqual({
+      message: "Unknown Pool Account PA-3 for ETH.",
+      hint: "Run 'privacy-pools accounts --chain mainnet' to list available Pool Accounts.",
+    });
   });
 });

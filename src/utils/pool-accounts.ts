@@ -6,6 +6,7 @@ import type {
 } from "@0xbow/privacy-pools-core-sdk";
 import {
   type AspApprovalStatus,
+  isActivePoolAccountStatus,
   type PoolAccountStatus,
 } from "./statuses.js";
 
@@ -25,8 +26,30 @@ export interface PoolAccountRef {
   txHash: string;
 }
 
+type PoolAccountAction = "withdraw" | "ragequit";
+
+interface UnknownPoolAccountErrorParams {
+  paNumber: number;
+  symbol: string;
+  chainName: string;
+  knownPoolAccountsCount: number;
+}
+
 function commitmentKey(commitment: Pick<AccountCommitment, "label" | "hash">): string {
   return `${commitment.label.toString()}:${commitment.hash.toString()}`;
+}
+
+export function collectActiveLabels(commitments: readonly unknown[]): string[] {
+  const labels = new Set<string>();
+
+  for (const commitment of commitments) {
+    if (typeof commitment !== "object" || commitment === null) continue;
+    const label = "label" in commitment ? (commitment as { label?: unknown }).label : undefined;
+    if (typeof label !== "bigint") continue;
+    labels.add(label.toString());
+  }
+
+  return Array.from(labels);
 }
 
 function getCurrentCommitment(poolAccount: PoolAccountLike): AccountCommitment {
@@ -87,7 +110,7 @@ export function buildPoolAccountRefs(
   reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
 ): PoolAccountRef[] {
   return buildAllPoolAccountRefs(account, scope, spendableCommitments, approvedLabels, reviewStatuses)
-    .filter((pa) => pa.status === "spendable");
+    .filter((pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status));
 }
 
 export function buildAllPoolAccountRefs(
@@ -102,20 +125,25 @@ export function buildAllPoolAccountRefs(
     spendableByKey.set(commitmentKey(commitment), commitment);
   }
 
-  function resolveAspStatus(label: bigint, status: PoolAccountStatus): AspApprovalStatus {
-    if (status === "exited" || status === "spent") return "unknown";
+  function resolveAspStatus(label: bigint, hasReviewableBalance: boolean): AspApprovalStatus {
+    if (!hasReviewableBalance) return "unknown";
 
     const labelKey = label.toString();
     const reviewStatus = reviewStatuses?.get(labelKey);
     if (reviewStatus) {
-      if (reviewStatus === "approved" && approvedLabels && !approvedLabels.has(labelKey)) {
-        return "pending";
+      if (reviewStatus === "approved") {
+        if (approvedLabels === null || approvedLabels === undefined) {
+          return "unknown";
+        }
+        if (!approvedLabels.has(labelKey)) {
+          return "pending";
+        }
       }
       return reviewStatus;
     }
 
     if (!approvedLabels) return "unknown";
-    return approvedLabels.has(labelKey) ? "approved" : "pending";
+    return approvedLabels.has(labelKey) ? "approved" : "unknown";
   }
 
   const refs: PoolAccountRef[] = [];
@@ -127,17 +155,18 @@ export function buildAllPoolAccountRefs(
     const spendable = spendableByKey.get(key);
     const commitment = spendable ?? currentCommitment;
     const ragequit = isRagequitEvent(poolAccount.ragequit) ? poolAccount.ragequit : null;
+    const aspStatus = resolveAspStatus(commitment.label, !ragequit && commitment.value > 0n);
     const status: PoolAccountStatus = ragequit
       ? "exited"
-      : commitment.value > 0n
-        ? "spendable"
-        : "spent";
+      : commitment.value === 0n
+        ? "spent"
+        : aspStatus;
 
     refs.push({
       paNumber: nextPoolAccountNumber,
       paId: poolAccountId(nextPoolAccountNumber),
       status,
-      aspStatus: resolveAspStatus(commitment.label, status),
+      aspStatus,
       commitment,
       label: commitment.label,
       value: ragequit ? 0n : commitment.value,
@@ -155,11 +184,12 @@ export function buildAllPoolAccountRefs(
   for (const commitment of spendableCommitments) {
     const key = commitmentKey(commitment);
     if (!spendableByKey.has(key)) continue;
+    const aspStatus = resolveAspStatus(commitment.label, commitment.value > 0n);
     refs.push({
       paNumber: nextPoolAccountNumber,
       paId: poolAccountId(nextPoolAccountNumber),
-      status: "spendable",
-      aspStatus: resolveAspStatus(commitment.label, "spendable"),
+      status: commitment.value === 0n ? "spent" : aspStatus,
+      aspStatus,
       commitment,
       label: commitment.label,
       value: commitment.value,
@@ -172,6 +202,46 @@ export function buildAllPoolAccountRefs(
 
   refs.sort((a, b) => a.paNumber - b.paNumber);
   return refs;
+}
+
+export function describeUnavailablePoolAccount(
+  poolAccount: Pick<PoolAccountRef, "paId" | "status">,
+  action: PoolAccountAction,
+): string | null {
+  switch (poolAccount.status) {
+    case "spent":
+      return action === "withdraw"
+        ? `${poolAccount.paId} was already fully withdrawn and no longer has a balance to use.`
+        : `${poolAccount.paId} was already fully withdrawn and no longer has a balance to exit.`;
+    case "exited":
+      return action === "withdraw"
+        ? `${poolAccount.paId} was already exited publicly and cannot be withdrawn again.`
+        : `${poolAccount.paId} was already exited publicly and cannot be exited again.`;
+    default:
+      return null;
+  }
+}
+
+export function getUnknownPoolAccountError(
+  params: UnknownPoolAccountErrorParams,
+): { message: string; hint: string } {
+  const { paNumber, symbol, chainName, knownPoolAccountsCount } = params;
+  const paId = poolAccountId(paNumber);
+
+  if (knownPoolAccountsCount === 0) {
+    return {
+      message: `Unknown Pool Account ${paId} for ${symbol}.`,
+      hint:
+        `No local Pool Accounts are available for ${symbol} on ${chainName} yet. ` +
+        `Deposit first, then run 'privacy-pools accounts --chain ${chainName}' ` +
+        "to confirm available Pool Accounts.",
+    };
+  }
+
+  return {
+    message: `Unknown Pool Account ${paId} for ${symbol}.`,
+    hint: `Run 'privacy-pools accounts --chain ${chainName}' to list available Pool Accounts.`,
+  };
 }
 
 export function getNextPoolAccountNumber(

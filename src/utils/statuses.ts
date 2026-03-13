@@ -1,8 +1,26 @@
 import chalk from "chalk";
 import { dangerTone, notice, successTone } from "./theme.js";
 
-export type PoolAccountStatus = "spendable" | "spent" | "exited";
-export type AspApprovalStatus = "approved" | "pending" | "declined" | "unknown";
+export type PoolAccountStatus =
+  | "approved"
+  | "pending"
+  | "poi_required"
+  | "declined"
+  | "unknown"
+  | "spent"
+  | "exited";
+export type AspApprovalStatus =
+  | "approved"
+  | "pending"
+  | "poi_required"
+  | "declined"
+  | "unknown";
+
+interface StatusObjectLike {
+  decisionStatus?: unknown;
+  reviewStatus?: unknown;
+  status?: unknown;
+}
 
 export function normalizeAspApprovalStatus(
   rawStatus: string | null | undefined,
@@ -15,14 +33,59 @@ export function normalizeAspApprovalStatus(
       return "approved";
     case "pending":
       return "pending";
+    case "poi_required":
+      return "poi_required";
     case "declined":
     case "rejected":
     case "denied":
-    case "poi_required":
       return "declined";
     default:
       return "unknown";
   }
+}
+
+export function extractPublicEventReviewStatus(rawStatus: unknown): string | null {
+  if (typeof rawStatus === "string") {
+    return rawStatus;
+  }
+
+  if (typeof rawStatus !== "object" || rawStatus === null) {
+    return null;
+  }
+
+  const candidate = rawStatus as StatusObjectLike;
+  const resolved =
+    typeof candidate.decisionStatus === "string"
+      ? candidate.decisionStatus
+      : typeof candidate.reviewStatus === "string"
+        ? candidate.reviewStatus
+        : typeof candidate.status === "string"
+          ? candidate.status
+          : null;
+
+  return resolved && resolved.trim().length > 0 ? resolved : null;
+}
+
+export function normalizePublicEventReviewStatus(
+  type: string | null | undefined,
+  rawStatus: unknown,
+): AspApprovalStatus {
+  const normalizedType = type?.trim().toLowerCase();
+  if (
+    normalizedType === "withdrawal" ||
+    normalizedType === "ragequit" ||
+    normalizedType === "exit"
+  ) {
+    return "approved";
+  }
+
+  const extractedStatus = extractPublicEventReviewStatus(rawStatus);
+  const normalizedStatus = normalizeAspApprovalStatus(extractedStatus);
+  if (normalizedStatus !== "unknown") {
+    return normalizedStatus;
+  }
+
+  return extractedStatus && extractedStatus.trim().length > 0 ? "unknown" : "pending";
 }
 
 export function formatAspApprovalStatus(
@@ -33,7 +96,19 @@ export function formatAspApprovalStatus(
 
   if (options.preserveInput && rawStatus && rawStatus.trim().length > 0) {
     const trimmed = rawStatus.trim();
-    return trimmed.toLowerCase() === "poi_required" ? "POI Required" : trimmed;
+    if (normalized !== "unknown") {
+      switch (normalized) {
+        case "approved":
+          return "Approved";
+        case "pending":
+          return "Pending";
+        case "poi_required":
+          return "POA Needed";
+        case "declined":
+          return "Declined";
+      }
+    }
+    return trimmed;
   }
 
   switch (normalized) {
@@ -41,6 +116,8 @@ export function formatAspApprovalStatus(
       return "Approved";
     case "pending":
       return "Pending";
+    case "poi_required":
+      return "POA Needed";
     case "declined":
       return "Declined";
     default:
@@ -59,6 +136,8 @@ export function renderAspApprovalStatus(
       return successTone(label);
     case "pending":
       return notice(label);
+    case "poi_required":
+      return dangerTone(label);
     case "declined":
       return dangerTone(label);
     default:
@@ -66,10 +145,22 @@ export function renderAspApprovalStatus(
   }
 }
 
+export function isActivePoolAccountStatus(status: PoolAccountStatus): boolean {
+  return status !== "spent" && status !== "exited";
+}
+
 export function formatPoolAccountStatus(status: PoolAccountStatus): string {
   switch (status) {
-    case "spendable":
-      return "Spendable";
+    case "approved":
+      return "Approved";
+    case "pending":
+      return "Pending";
+    case "poi_required":
+      return "POA Needed";
+    case "declined":
+      return "Declined";
+    case "unknown":
+      return "Unknown";
     case "spent":
       return "Spent";
     case "exited":
@@ -81,8 +172,16 @@ export function renderPoolAccountStatus(status: PoolAccountStatus): string {
   const label = formatPoolAccountStatus(status);
 
   switch (status) {
-    case "spendable":
+    case "approved":
       return successTone(label);
+    case "pending":
+      return notice(label);
+    case "poi_required":
+      return dangerTone(label);
+    case "declined":
+      return dangerTone(label);
+    case "unknown":
+      return chalk.dim(label);
     case "spent":
     case "exited":
       return chalk.dim(label);

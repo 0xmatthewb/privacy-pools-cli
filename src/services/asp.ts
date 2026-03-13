@@ -9,6 +9,10 @@ import type {
 import { CLIError } from "../utils/errors.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 import {
+  normalizeAspApprovalStatus,
+  type AspApprovalStatus,
+} from "../utils/statuses.js";
+import {
   isTransientNetworkError,
   retryWithBackoff,
 } from "../utils/network.js";
@@ -289,10 +293,81 @@ interface AspDepositStatusRow {
   reviewStatus?: string;
 }
 
+export interface LoadedAspDepositReviewState {
+  approvedLabels: Set<string> | null;
+  rawReviewStatuses: Map<string, string> | null;
+  reviewStatuses: Map<string, AspApprovalStatus> | null;
+  hasIncompleteReviewData: boolean;
+}
+
+export function formatIncompleteAspReviewDataMessage(
+  context: "accounts" | "pool-detail" | "ragequit",
+  chainName?: string,
+): string {
+  switch (context) {
+    case "accounts":
+      return "Some ASP review data was unavailable or incomplete; non-approved deposits may appear as unknown, and --pending-only results may miss pending, declined, or POA-needed accounts until the ASP catches up.";
+    case "pool-detail":
+      return "Some ASP review data was unavailable or incomplete; some Pool Account review states may appear as unknown until the ASP catches up.";
+    case "ragequit":
+      return `Some ASP review data was unavailable or incomplete${chainName ? ` on ${chainName}` : ""}; a Pool Account may appear as unknown even when the ASP would normally report pending, declined, or POA-needed. Re-run 'privacy-pools accounts${chainName ? ` --chain ${chainName}` : ""}' if you need the exact review state before exiting.`;
+  }
+}
+
+export function normalizeDepositReviewStatuses(
+  rawReviewStatuses: ReadonlyMap<string, string> | null,
+): Map<string, AspApprovalStatus> | null {
+  if (rawReviewStatuses === null) return null;
+
+  return new Map(
+    Array.from(rawReviewStatuses.entries()).map(([label, status]) => [
+      label,
+      normalizeAspApprovalStatus(status),
+    ]),
+  );
+}
+
+export function hasIncompleteDepositReviewData(
+  labels: readonly string[],
+  approvedLabels: Set<string> | null,
+  reviewStatuses: ReadonlyMap<string, unknown> | null,
+): boolean {
+  if (labels.length === 0) return false;
+  if (approvedLabels === null || reviewStatuses === null) return true;
+  return labels.some((label) => !reviewStatuses.has(label));
+}
+
+export function buildLoadedAspDepositReviewState(
+  labels: readonly string[],
+  approvedLabels: Set<string> | null,
+  rawReviewStatuses: Map<string, string> | null,
+): LoadedAspDepositReviewState {
+  if (labels.length === 0) {
+    return {
+      approvedLabels: new Set<string>(),
+      rawReviewStatuses: new Map<string, string>(),
+      reviewStatuses: new Map<string, AspApprovalStatus>(),
+      hasIncompleteReviewData: false,
+    };
+  }
+
+  return {
+    approvedLabels,
+    rawReviewStatuses,
+    reviewStatuses: normalizeDepositReviewStatuses(rawReviewStatuses),
+    hasIncompleteReviewData: hasIncompleteDepositReviewData(
+      labels,
+      approvedLabels,
+      rawReviewStatuses,
+    ),
+  };
+}
+
 /**
- * Fetch per-label ASP review statuses for spendable deposits.
- * Returns null when the endpoint is unavailable so callers can fall back
- * to leaf-only pending/approved inference.
+ * Fetch per-label ASP review statuses for active deposits with remaining balance.
+ * Returns null when the endpoint is unavailable so callers can fail closed
+ * for non-approved deposits instead of guessing between pending, declined,
+ * and POA-needed states.
  */
 export async function fetchDepositReviewStatuses(
   chainConfig: ChainConfig,
@@ -321,6 +396,21 @@ export async function fetchDepositReviewStatuses(
   } catch {
     return null;
   }
+}
+
+export async function loadAspDepositReviewState(
+  chainConfig: ChainConfig,
+  scope: bigint,
+  labels: string[],
+): Promise<LoadedAspDepositReviewState> {
+  const [approvedLabels, rawReviewStatuses] = labels.length === 0
+    ? [new Set<string>(), new Map<string, string>()]
+    : await Promise.all([
+    fetchApprovedLabels(chainConfig, scope),
+    fetchDepositReviewStatuses(chainConfig, scope, labels),
+  ]);
+
+  return buildLoadedAspDepositReviewState(labels, approvedLabels, rawReviewStatuses);
 }
 
 export async function checkLiveness(chainConfig: ChainConfig): Promise<boolean> {

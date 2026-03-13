@@ -220,7 +220,7 @@ describe("renderDepositSuccess parity", () => {
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
-        reason: "Poll pending approvals for PA-1. When it disappears from pending results, re-run accounts --chain sepolia to confirm approval before a relayed withdrawal.",
+        reason: "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain sepolia to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.",
         when: "after_deposit",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
