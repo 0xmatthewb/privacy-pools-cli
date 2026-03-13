@@ -15,6 +15,8 @@ const TRANSIENT_ERROR_CODES: ReadonlySet<string> = new Set([
   "ETIMEDOUT",
   "ENOTFOUND",
   "ECONNRESET",
+  "ENETUNREACH",
+  "EAI_AGAIN",
 ]);
 
 const TRANSIENT_MESSAGE_TOKENS: readonly string[] = [
@@ -23,6 +25,8 @@ const TRANSIENT_MESSAGE_TOKENS: readonly string[] = [
   "ETIMEDOUT",
   "ENOTFOUND",
   "ECONNRESET",
+  "ENETUNREACH",
+  "EAI_AGAIN",
   "aborted",
 ];
 

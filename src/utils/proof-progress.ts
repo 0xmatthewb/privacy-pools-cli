@@ -3,28 +3,29 @@ import type { Ora } from "ora";
 /** Track whether we've shown the first-run message in this process. */
 let firstRunMessageShown = false;
 
-/**
- * Wraps an async proof-generation call with a spinner that shows elapsed time.
- * Prevents the "frozen spinner" effect during 10-30+ second ZK proof generation.
- * On the first proof of the session, adds a brief note that circuits may be downloading.
- */
 /** @internal Exported for test isolation only. */
 export function resetFirstRunMessage(): void {
   firstRunMessageShown = false;
 }
 
-export async function withProofProgress<T>(
+// ── Shared elapsed-time spinner scaffold ─────────────────────────────────
+
+interface ElapsedSpinnerOptions {
+  /** Text shown before the first interval tick (default: `${label}...`). */
+  initialText?: string;
+  /** Suffix shown after 30+ seconds (default: "still working"). */
+  longRunLabel?: string;
+}
+
+async function withElapsedSpinner<T>(
   spin: Ora,
   label: string,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
+  opts?: ElapsedSpinnerOptions,
 ): Promise<T> {
   const start = Date.now();
-  const isFirstRun = !firstRunMessageShown;
-  firstRunMessageShown = true;
-
-  spin.text = isFirstRun
-    ? `${label}... (first proof may download circuits)`
-    : `${label}...`;
+  const longLabel = opts?.longRunLabel ?? "still working";
+  spin.text = opts?.initialText ?? `${label}...`;
 
   const interval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - start) / 1000);
@@ -33,7 +34,7 @@ export async function withProofProgress<T>(
     } else if (elapsed < 30) {
       spin.text = `${label}... (${elapsed}s) - this may take a moment`;
     } else {
-      spin.text = `${label}... (${elapsed}s) - almost there`;
+      spin.text = `${label}... (${elapsed}s) - ${longLabel}`;
     }
   }, 1000);
 
@@ -45,6 +46,26 @@ export async function withProofProgress<T>(
     clearInterval(interval);
     throw error;
   }
+}
+
+// ── Public wrappers ──────────────────────────────────────────────────────
+
+/**
+ * Wraps an async proof-generation call with a spinner that shows elapsed time.
+ * Prevents the "frozen spinner" effect during 10-30+ second ZK proof generation.
+ * On the first proof of the session, adds a brief note that circuits may be downloading.
+ */
+export async function withProofProgress<T>(
+  spin: Ora,
+  label: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const isFirstRun = !firstRunMessageShown;
+  firstRunMessageShown = true;
+  return withElapsedSpinner(spin, label, fn, {
+    initialText: isFirstRun ? `${label}... (first proof may download circuits)` : undefined,
+    longRunLabel: "almost there",
+  });
 }
 
 /**
@@ -59,26 +80,5 @@ export async function withSpinnerProgress<T>(
   label: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  const start = Date.now();
-  spin.text = `${label}...`;
-
-  const interval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - start) / 1000);
-    if (elapsed < 10) {
-      spin.text = `${label}... (${elapsed}s)`;
-    } else if (elapsed < 30) {
-      spin.text = `${label}... (${elapsed}s) - this may take a moment`;
-    } else {
-      spin.text = `${label}... (${elapsed}s) - still working`;
-    }
-  }, 1000);
-
-  try {
-    const result = await fn();
-    clearInterval(interval);
-    return result;
-  } catch (error) {
-    clearInterval(interval);
-    throw error;
-  }
+  return withElapsedSpinner(spin, label, fn);
 }

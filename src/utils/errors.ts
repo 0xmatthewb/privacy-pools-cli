@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { printJsonError } from "./json.js";
+import { isTransientNetworkError } from "./network.js";
 
 export type ErrorCategory =
   | "INPUT"
@@ -153,12 +154,13 @@ export function classifyError(error: unknown): CLIError {
     );
   }
 
+  // Catch-all for transient transport failures (ECONNREFUSED, ENOTFOUND,
+  // fetch errors, ENETUNREACH, etc.) using the shared predicate from network.ts.
+  // `isTransientNetworkError` covers Error instances; the message fallback
+  // handles non-Error values (e.g. raw strings) that contain network tokens.
   if (
-    message.includes("fetch") ||
-    message.includes("ECONNREFUSED") ||
-    message.includes("ENOTFOUND") ||
-    message.includes("ENETUNREACH") ||
-    message.includes("EAI_AGAIN")
+    isTransientNetworkError(error) ||
+    /fetch|ECONNREFUSED|ENOTFOUND|ENETUNREACH|EAI_AGAIN/.test(message)
   ) {
     return new CLIError(
       `Network error: ${message}`,
