@@ -78,23 +78,19 @@ export interface RetryConfig {
    * Should rethrow a classified `CLIError`.
    */
   onExhausted: (error: unknown) => never;
+
+  /**
+   * Optional wait function used between retries.
+   * Defaults to `setTimeout`.  Each service can supply its own override
+   * (typically via a test helper) so that stubbing ASP retry timing doesn't
+   * affect relayer timing and vice versa.
+   */
+  waitFn?: (ms: number) => Promise<void>;
 }
 
 const defaultRetryWait = async (ms: number): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, ms));
 };
-
-let retryWait = defaultRetryWait;
-
-/**
- * Override the retry wait function for tests (avoids real `setTimeout` delays).
- * Call with no argument to restore the default.
- */
-export function overrideRetryWaitForTests(
-  waitFn?: (ms: number) => Promise<void>,
-): void {
-  retryWait = waitFn ?? defaultRetryWait;
-}
 
 /**
  * Execute `request` with automatic retries on transient failures.
@@ -107,6 +103,7 @@ export async function retryWithBackoff<T>(
   request: () => Promise<T>,
   config: RetryConfig,
 ): Promise<T> {
+  const wait = config.waitFn ?? defaultRetryWait;
   for (let attempt = 0; attempt <= config.maxRetries; attempt += 1) {
     try {
       return await request();
@@ -119,7 +116,7 @@ export async function retryWithBackoff<T>(
         config.onExhausted(error);
       }
 
-      await retryWait(config.delayMs(attempt + 1));
+      await wait(config.delayMs(attempt + 1));
     }
   }
 

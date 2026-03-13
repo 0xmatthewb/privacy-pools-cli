@@ -10,8 +10,8 @@ import { getNetworkTimeoutMs } from "../utils/mode.js";
 import {
   isTransientNetworkError,
   retryWithBackoff,
-  overrideRetryWaitForTests,
 } from "../utils/network.js";
+import type { RetryConfig } from "../utils/network.js";
 
 const RELAYER_MAX_RETRIES = 2;
 const RELAYER_RETRY_DELAYS_MS = [250, 500] as const;
@@ -26,10 +26,17 @@ class RetryableRelayerHttpError extends Error {
   }
 }
 
+let relayerWaitFn: RetryConfig["waitFn"];
+
+/**
+ * Override the retry wait function for relayer tests only.
+ * Does not affect ASP retry timing.
+ * Call with no argument to restore the default.
+ */
 export function overrideRelayerRetryWaitForTests(
   waitFn?: (ms: number) => Promise<void>
 ): void {
-  overrideRetryWaitForTests(waitFn);
+  relayerWaitFn = waitFn;
 }
 
 function isHexString(value: unknown): value is `0x${string}` {
@@ -68,6 +75,7 @@ async function runRelayerRequestWithRetry<T>(
       }
       throw relayerTransportError(error);
     },
+    waitFn: relayerWaitFn,
   });
 }
 

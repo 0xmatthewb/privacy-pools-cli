@@ -11,8 +11,8 @@ import { getNetworkTimeoutMs } from "../utils/mode.js";
 import {
   isTransientNetworkError,
   retryWithBackoff,
-  overrideRetryWaitForTests,
 } from "../utils/network.js";
+import type { RetryConfig } from "../utils/network.js";
 
 const ASP_MAX_RETRIES = 3;
 const ASP_RETRY_BASE_DELAY_MS = 500;
@@ -24,10 +24,17 @@ class RetryableAspHttpError extends Error {
   }
 }
 
+let aspWaitFn: RetryConfig["waitFn"];
+
+/**
+ * Override the retry wait function for ASP tests only.
+ * Does not affect relayer retry timing.
+ * Call with no argument to restore the default.
+ */
 export function overrideAspRetryWaitForTests(
   waitFn?: (ms: number) => Promise<void>
 ): void {
-  overrideRetryWaitForTests(waitFn);
+  aspWaitFn = waitFn;
 }
 
 function genericAspUnavailableError(retryable: boolean = false): CLIError {
@@ -44,22 +51,25 @@ function isRetryableAspError(error: unknown): boolean {
   return error instanceof RetryableAspHttpError || isTransientNetworkError(error);
 }
 
-const aspRetryConfig = {
-  maxRetries: ASP_MAX_RETRIES,
-  delayMs: (attempt: number) => ASP_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1)),
-  isRetryable: isRetryableAspError,
-  onExhausted: (error: unknown): never => {
-    if (error instanceof RetryableAspHttpError) {
-      throw genericAspUnavailableError(true);
-    }
-    throw error;
-  },
-} as const;
+function aspRetryConfig(): RetryConfig {
+  return {
+    maxRetries: ASP_MAX_RETRIES,
+    delayMs: (attempt: number) => ASP_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1)),
+    isRetryable: isRetryableAspError,
+    onExhausted: (error: unknown): never => {
+      if (error instanceof RetryableAspHttpError) {
+        throw genericAspUnavailableError(true);
+      }
+      throw error;
+    },
+    waitFn: aspWaitFn,
+  };
+}
 
 async function runAspRequestWithRetry(
   request: () => Promise<Response>
 ): Promise<Response> {
-  return retryWithBackoff(request, aspRetryConfig);
+  return retryWithBackoff(request, aspRetryConfig());
 }
 
 async function aspFetch(
