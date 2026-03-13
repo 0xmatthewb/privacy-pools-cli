@@ -63,7 +63,7 @@ privacy-pools deposit 0.1 --asset ETH
 
 ### `withdraw`
 
-Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relayer pays gas and takes a fee). Add `--direct` to interact with the pool contract directly (no relayer fees, but not privacy-preserving). ASP approval is required for both relayed and direct withdrawals. If a deposit is `poi_required`, complete Proof of Association first. If it is declined, the recovery path is `ragequit`, which exits publicly to the original deposit address.
+Withdraw from a pool. Uses a relayer by default for enhanced privacy (the relayer pays gas and takes a fee). Add `--direct` to interact with the pool contract directly (no relayer fees, but not privacy-preserving). ASP approval is required for both relayed and direct withdrawals. If a deposit is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is declined, the recovery path is `ragequit`, which exits publicly to the original deposit address.
 
 ```bash
 # Relayed withdrawal (default, enhanced privacy)
@@ -118,7 +118,7 @@ privacy-pools accounts --chain <chain> --pending-only  # pending approvals only 
 | `--pending-only` | Show only Pool Accounts with `aspStatus: pending` |
 
 **Pool Account statuses:** `approved`, `pending`, `poi_required`, `declined`, `unknown`, `spent` (fully withdrawn), `exited` (exit/ragequit).
-**ASP statuses:** `approved` (eligible for `withdraw`), `pending` (waiting for ASP), `poi_required` (complete Proof of Association before `withdraw`), `declined` (cannot use `withdraw`; use `ragequit`), `unknown`.
+**ASP statuses:** `approved` (eligible for `withdraw`), `pending` (waiting for ASP), `poi_required` (complete Proof of Association at tornado.0xbow.io before `withdraw`), `declined` (cannot use `withdraw`; use `ragequit`), `unknown`.
 
 Without `--chain`, `accounts` acts like a dashboard and aggregates your holdings across all mainnet chains. Use `--all-chains` to include testnets or `--chain <name>` to focus on one chain.
 

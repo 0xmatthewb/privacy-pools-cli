@@ -86,7 +86,7 @@ describe("ragequit command helpers", () => {
     );
 
     expect(advisory).not.toBeNull();
-    expect(advisory?.message).toContain("https://tornado.0xbow.io");
+    expect(advisory?.message).toContain("tornado.0xbow.io");
     expect(advisory?.message).toContain("private withdrawal");
   });
 

@@ -335,12 +335,12 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       safetyNotes: [
         "Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.",
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits marked poi_required need Proof of Association before they can withdraw privately.",
+        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits marked poi_required need Proof of Association (tornado.0xbow.io) before they can withdraw privately.",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
-        "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association first if needed. Always preserve the same --chain scope for both polling and confirmation.",
+        "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.",
       ],
     },
     capabilities: {
@@ -505,7 +505,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       agentWorkflowNotes: [
         "Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
-        "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association before choosing withdraw or ragequit.",
+        "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit.",
       ],
     },
     capabilities: {
@@ -648,7 +648,7 @@ const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   aspApprovalStatus: {
     values: ["approved", "pending", "poi_required", "declined", "unknown"],
     description:
-      "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poi_required' means Proof of Association is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.",
+      "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poi_required' means Proof of Association (tornado.0xbow.io) is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.",
   },
   poolAccountStatus: {
     values: ["approved", "pending", "poi_required", "declined", "unknown", "spent", "exited"],

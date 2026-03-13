@@ -69,7 +69,7 @@ describe("formatApprovalResolutionHint", () => {
     });
 
     expect(hint).toContain("Proof of Association");
-    expect(hint).toContain("https://tornado.0xbow.io");
+    expect(hint).toContain("tornado.0xbow.io");
     expect(hint).toContain("privacy-pools ragequit --chain mainnet --asset ETH --from-pa PA-2");
   });
 

@@ -183,9 +183,9 @@ Prerequisites:
 Safety notes:
   Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.
   A vetting fee is deducted from the deposit amount by the pool's ASP.
-  Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits marked poi_required need Proof of Association before they can withdraw privately.
+  Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits marked poi_required need Proof of Association (tornado.0xbow.io) before they can withdraw privately.
 Agent workflow:
-  Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association first if needed. Always preserve the same --chain scope for both polling and confirmation.
+  Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.
 JSON output (--json):
   { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }
@@ -303,7 +303,7 @@ Prerequisites:
 Agent workflow:
   Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.
   Use --summary or --pending-only to reduce JSON size for polling loops.
-  When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association before choosing withdraw or ragequit.
+  When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit.
 JSON output (--json):
   { chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions? }

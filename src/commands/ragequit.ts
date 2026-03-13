@@ -95,7 +95,7 @@ export function getRagequitAdvisory(poolAccount: PoolAccountRef): RagequitAdviso
       return {
         level: "info",
         message:
-          `${poolAccount.paId} needs Proof of Association before it can use withdraw. Complete the POA flow at https://tornado.0xbow.io for a private withdrawal, or continue with ragequit for a public exit.`,
+          `${poolAccount.paId} needs Proof of Association before it can use withdraw. Complete the POA flow at tornado.0xbow.io for a private withdrawal, or continue with ragequit for a public exit.`,
       };
     case "declined":
       return {
