@@ -28,11 +28,11 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("exit");
     expect(result.stdout).toContain("accounts");
     expect(result.stdout).toContain("history");
-    // sync is visible; completion is hidden; capabilities is visible
+    // sync, completion, and capabilities are all visible
     expect(result.stdout).toContain("sync");
     expect(result.stdout).toContain("capabilities");
     expect(result.stdout).toContain("describe");
-    expect(result.stdout).not.toContain("completion");
+    expect(result.stdout).toContain("completion");
   });
 
   test("root --version returns semantic version", () => {

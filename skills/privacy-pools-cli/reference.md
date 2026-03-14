@@ -349,7 +349,7 @@ Representative payload (abridged):
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-    "statusCheck": "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags — they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
+    "statusCheck": "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags; they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
   },
   "schemas": {
     "aspApprovalStatus": { "values": ["approved", "pending", "poi_required", "declined", "unknown"] },
@@ -487,7 +487,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
 }
 ```
 
-`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextActions` provides the canonical polling command for agents — follow it to check approval status. All token amounts and block numbers are strings.
+`committedValue` is the net amount after vetting fee (may be `null`). `label` may be `null`. `nextActions` provides the canonical polling command for agents; follow it to check approval status. All token amounts and block numbers are strings.
 
 **Dry-run** (`--dry-run`):
 
@@ -619,7 +619,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 }
 ```
 
-`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH. `nextActions` provides a `withdraw` follow-up with the quoted parameters; check `runnable` — quotes without a `--to` recipient produce a template action (`runnable: false`) that still needs the recipient before execution.
+`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH. `nextActions` provides a `withdraw` follow-up with the quoted parameters; check `runnable`: quotes without a `--to` recipient produce a template action (`runnable: false`) that still needs the recipient before execution.
 
 ### `ragequit` (alias: `exit`)
 
@@ -719,7 +719,7 @@ Without `--chain`, `accounts` aggregates all mainnet chains by default. Use `--a
 
 `--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
-After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Reviewed entries disappear from `--pending-only` results instead of changing in place; once gone, re-run `accounts --agent --chain <chain>` to confirm whether the final status is `approved`, `declined`, or `poi_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` for both polling and confirmation — bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
+After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Reviewed entries disappear from `--pending-only` results instead of changing in place; once gone, re-run `accounts --agent --chain <chain>` to confirm whether the final status is `approved`, `declined`, or `poi_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
 
 ### `history`
 
@@ -766,7 +766,7 @@ privacy-pools sync --agent [--asset <symbol>]
 }
 ```
 
-`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousAvailablePoolAccounts` shows the count before sync — compare with `availablePoolAccounts` to detect newly discovered accounts.
+`syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousAvailablePoolAccounts` shows the count before sync; compare with `availablePoolAccounts` to detect newly discovered accounts.
 
 ---
 

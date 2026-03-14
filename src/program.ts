@@ -36,7 +36,10 @@ export function createRootProgram(version: string): Command {
     .version(version)
     .option("-c, --chain <name>", globalFlagDescription("-c, --chain <name>"))
     .option("-j, --json", globalFlagDescription("-j, --json"))
-    .option("--format <format>", globalFlagDescription("--format <format>"))
+    .addOption(
+      new Option("--format <format>", globalFlagDescription("--format <format>"))
+        .choices(["table", "csv", "json"])
+    )
     .option("-y, --yes", globalFlagDescription("-y, --yes"));
 
   program.addOption(
@@ -85,7 +88,7 @@ export function createRootProgram(version: string): Command {
   program.addCommand(createGuideCommand());
   program.addCommand(createCapabilitiesCommand());
   program.addCommand(createDescribeCommand());
-  program.addCommand(createCompletionCommand(), { hidden: true });
+  program.addCommand(createCompletionCommand());
 
   return program;
 }

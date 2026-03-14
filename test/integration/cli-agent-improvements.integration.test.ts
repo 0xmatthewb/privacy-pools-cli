@@ -45,7 +45,7 @@ describe("agent-focused improvements", () => {
       expectedLatencyClass: string;
     }>(result.stdout);
     expect(json.command).toBe("withdraw quote");
-    expect(json.usage).toBe("withdraw quote <amount> --asset <symbol|address>");
+    expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
     expect(json.flags).toContain("--to <address>");
     expect(json.globalFlags).toContain("--agent");
     expect(json.requiresInit).toBe(true);

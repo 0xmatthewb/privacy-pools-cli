@@ -313,7 +313,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     if (readyForDeposit) {
       success("Setup complete.", silent);
     } else if (readyForUnsigned) {
-      info("Setup complete (unsigned mode only — no signer key).", silent);
+      info("Setup complete (unsigned mode only, no signer key).", silent);
     } else {
       warn("Not ready: run 'privacy-pools init' to get started.", silent);
     }

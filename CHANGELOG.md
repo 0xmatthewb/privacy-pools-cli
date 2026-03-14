@@ -4,6 +4,34 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.5.0] - 2026-03-13
+
+### Added
+
+- Surfaced the `completion` command in root help and added first-class PowerShell completion generation alongside bash, zsh, and fish.
+- Added generated `docs/reference.md` output from the runtime command tree and metadata, plus a docs drift check that keeps the shipped reference aligned with the CLI.
+- Added an agent eval harness and end-to-end scenarios covering discovery, `nextActions`, and retry/error behavior.
+
+### Changed
+
+- Reworked root help and `privacy-pools guide` so onboarding, command discovery, and shell-completion setup are easier to follow for new users.
+- Enriched command metadata, `capabilities`, `describe`, `AGENTS.md`, and skill docs so human and agent discovery stay aligned on positional syntax, `--agent`, and runtime workflow guidance.
+- Improved dynamic completion suggestions by deriving choice values for `--format`, `pools --sort`, and `--unsigned` flows from runtime command definitions where possible.
+- Hardened the default quality gates so CI now covers evals, generated docs drift, and clean-checkout conformance behavior.
+
+### Fixed
+
+- Fixed agent follow-up execution so structured `nextActions.options` convert correctly from camelCase metadata to CLI kebab-case flags, including `false` boolean options.
+- Fixed ambiguous agent-facing usage strings for deposit, withdraw, withdraw quote, and ragequit so runtime discovery no longer advertises invalid hybrid invocations.
+- Fixed the human guide’s completion hint so it points users to setup instructions instead of dumping a raw shell script.
+
+### Verification
+
+- `bun run typecheck`
+- `bun run test:ci`
+- `bun run docs:check`
+- `bun run test:smoke`
+
 ## [1.4.0] - 2026-03-13
 
 ### Breaking
@@ -169,6 +197,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Enabled GitHub Actions CI/CD workflows for the repository.
 - Completed the initial packaging and release flow.
 
+[1.5.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.1.0...v1.2.0

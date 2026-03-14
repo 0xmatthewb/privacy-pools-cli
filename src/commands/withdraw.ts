@@ -175,8 +175,8 @@ export function createWithdrawCommand(): Command {
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
     .option("-p, --from-pa <PA-#|#>", "Withdraw from a specific Pool Account (e.g. PA-2)")
-    .addOption(new Option("--direct", "Use direct withdrawal (not privacy-preserving)").hideHelp())
-    .option("--unsigned [format]", "Build unsigned payload; format: envelope (default) or tx")
+    .addOption(new Option("--direct", "NOT recommended. Withdraw directly onchain, publicly linking deposit and withdrawal addresses. Use relayed mode (default) for privacy.").hideHelp())
+    .addOption(new Option("--unsigned [format]", "Build unsigned payload; format: envelope (default) or tx").choices(["envelope", "tx"]))
     .addOption(new Option("--unsigned-format <format>", "Deprecated: use --unsigned [format]").hideHelp())
     .option("--dry-run", "Generate and verify withdrawal artifacts without submitting")
     .option("-a, --asset <symbol|address>", "Asset to withdraw")
@@ -319,7 +319,7 @@ export function createWithdrawCommand(): Command {
             throw new CLIError(
               "Relayed withdrawals require --to <address>.",
               "INPUT",
-              "Specify a recipient with --to, or use --direct for direct withdrawal."
+              "Specify a recipient with --to. Note: --direct is available but not recommended, as it publicly links your deposit and withdrawal addresses."
             );
           }
         } else if (isDirect && !opts.to && !signerAddress) {
@@ -1093,7 +1093,7 @@ export function createWithdrawCommand(): Command {
               throw new CLIError(
                 `Quoted relay fee (${formatBPS(quote.feeBPS)}) exceeds onchain maximum (${formatBPS(pool.maxRelayFeeBPS)}).`,
                 "RELAYER",
-                "Try again later when fees are lower, or use --direct for a direct withdrawal."
+                "Try again later when fees are lower. If privacy is not a concern, --direct withdraws without a relayer but publicly links your deposit and withdrawal addresses."
               );
             }
 

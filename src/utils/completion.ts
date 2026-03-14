@@ -5,6 +5,7 @@ export const SUPPORTED_COMPLETION_SHELLS = [
   "bash",
   "zsh",
   "fish",
+  "powershell",
 ] as const;
 
 export type CompletionShell = (typeof SUPPORTED_COMPLETION_SHELLS)[number];
@@ -312,11 +313,35 @@ ${registrations}
 `;
 }
 
+function renderPowerShellCompletion(commandNames: string[]): string {
+  const registrations = commandNames
+    .map(
+      (commandName) => `Register-ArgumentCompleter -CommandName ${commandName} -ScriptBlock {
+    param($wordToComplete, $commandAst, $cursorPosition)
+    $words = $commandAst.ToString() -split '\\s+'
+    $cword = $words.Count - 1
+    if ($wordToComplete -eq '') { $cword = $words.Count; $words += '' }
+    $candidates = & ${commandName} completion --query --shell powershell --cword $cword -- @words 2>$null
+    if ($candidates) {
+        $candidates -split '\\n' | Where-Object { $_ -ne '' } | ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        }
+    }
+}`
+    )
+    .join("\n\n");
+
+  return `# ${commandNames.join(", ")} PowerShell completion
+${registrations}
+`;
+}
+
 export function renderCompletionScript(
   shell: CompletionShell,
   commandNames: string[] = [...PUBLISHED_BINARY_NAMES]
 ): string {
   if (shell === "bash") return renderBashCompletion(commandNames);
   if (shell === "zsh") return renderZshCompletion(commandNames);
+  if (shell === "powershell") return renderPowerShellCompletion(commandNames);
   return renderFishCompletion(commandNames);
 }
