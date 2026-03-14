@@ -27,7 +27,7 @@ triggers:
 
 # Privacy Pools CLI
 
-SDK-powered CLI for [Privacy Pools v1](https://privacypools.com) — compliant, private transactions on Ethereum, Arbitrum, and Optimism.
+SDK-powered CLI for [Privacy Pools v1](https://privacypools.com). Compliant, private transactions on Ethereum, Arbitrum, and Optimism.
 
 Install from GitHub: `npm i -g github:0xmatthewb/privacy-pools-cli` or `bun add -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`.
 
@@ -185,10 +185,10 @@ ERC-20 deposits produce two transactions (approve + deposit). Submit them in ord
 
 The CLI builds transaction payloads but does **not** sign or submit in `--unsigned` mode. Hand the payload to your signer:
 
-1. **Bankr / custodial agent** — forward the JSON to your signing endpoint, then submit to the network
-2. **External wallet (viem, ethers)** — use `sendTransaction({ to, data, value, chainId })` with your signer
-3. **Multisig / MPC** — submit each transaction object as a proposal
-4. **Hardware wallet** — display the transaction for user approval
+1. **Bankr / custodial agent**: forward the JSON to your signing endpoint, then submit to the network
+2. **External wallet (viem, ethers)**: use `sendTransaction({ to, data, value, chainId })` with your signer
+3. **Multisig / MPC**: submit each transaction object as a proposal
+4. **Hardware wallet**: display the transaction for user approval
 
 After submission, verify the deposit landed:
 
@@ -256,7 +256,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 7. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw
 ```
 
-**Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change — always query at runtime rather than hard-coding.
+**Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.
 
 In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when that tradeoff is intentional.
 
@@ -278,7 +278,7 @@ Recommended retry strategy:
 
 ## 10. Security
 
-- The **recovery phrase** is the master secret. Anyone with it can spend all deposited funds. Store it in an encrypted file or secrets manager — never in plain text, logs, or source control.
+- The **recovery phrase** is the master secret. Anyone with it can spend all deposited funds. Store it in an encrypted file or secrets manager, never in plain text, logs, or source control.
 - When using `--show-mnemonic` during `init`, capture the recovery phrase output programmatically and write it to a secure store. Do not log or display it to end users.
 - The config directory (`~/.privacy-pools`) contains key material. Restrict filesystem permissions (`chmod 700`).
 - Avoid setting `PRIVACY_POOLS_PRIVATE_KEY` in shared or CI environments where env vars may be logged. Prefer `--private-key-file` with a restricted-access file.
