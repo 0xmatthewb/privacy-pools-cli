@@ -103,6 +103,25 @@ describe("agent nextActions eval", () => {
     expect(args).toContain("mainnet");
   });
 
+  test("buildArgsFromNextAction converts camelCase to kebab-case and handles false booleans", () => {
+    const action: NextAction = {
+      command: "init",
+      options: {
+        showMnemonic: true,
+        defaultChain: "mainnet",
+        extraGas: false,
+      },
+    };
+
+    const args = buildArgsFromNextAction(action);
+    expect(args).toContain("--show-mnemonic");
+    expect(args).not.toContain("--showMnemonic");
+    expect(args).toContain("--default-chain");
+    expect(args).not.toContain("--defaultChain");
+    expect(args).toContain("--no-extra-gas");
+    expect(args).not.toContain("--extraGas");
+  });
+
   test("extractFirstRunnableAction skips non-runnable", () => {
     const payload = {
       success: true,

@@ -66,6 +66,11 @@ export function extractFirstRunnableAction(payload: unknown): NextAction | null 
   return actions.find((a) => isRunnableAction(a)) ?? null;
 }
 
+/** Convert camelCase option keys to CLI-style kebab-case (e.g. showMnemonic → show-mnemonic). */
+function camelToKebab(key: string): string {
+  return key.replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`);
+}
+
 /** Build CLI args from a structured nextAction. */
 export function buildArgsFromNextAction(action: NextAction): string[] {
   const args: string[] = [];
@@ -78,14 +83,15 @@ export function buildArgsFromNextAction(action: NextAction): string[] {
     args.push(...action.args);
   }
 
-  // Add option flags
+  // Add option flags — convert camelCase keys to kebab-case and emit --no-* for false booleans
   if (action.options && typeof action.options === "object") {
     for (const [key, value] of Object.entries(action.options)) {
-      const flag = key.startsWith("-") ? key : `--${key}`;
-      if (value === true) {
-        args.push(flag);
-      } else if (value !== false && value !== undefined && value !== null) {
-        args.push(flag, String(value));
+      if (value === null || value === undefined) continue;
+      const flag = camelToKebab(key);
+      if (typeof value === "boolean") {
+        args.push(value ? `--${flag}` : `--no-${flag}`);
+      } else {
+        args.push(`--${flag}`, String(value));
       }
     }
   }

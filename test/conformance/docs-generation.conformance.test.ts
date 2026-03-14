@@ -5,9 +5,14 @@ import { describe, expect, test } from "bun:test";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 describe("docs generation drift detection", () => {
-  const distExists = existsSync(join(CLI_ROOT, "dist", "program.js"));
+  test("docs/reference.md matches generated output", () => {
+    const distExists = existsSync(join(CLI_ROOT, "dist", "program.js"));
+    if (!distExists) {
+      throw new Error(
+        "dist/program.js not found. Run `bun run build` before running conformance tests.",
+      );
+    }
 
-  test.skipIf(!distExists)("docs/reference.md matches generated output", () => {
     const result = spawnSync("node", ["scripts/generate-reference.mjs", "--check"], {
       cwd: CLI_ROOT,
       timeout: 30_000,

@@ -57,7 +57,7 @@ describe("agent discovery eval", () => {
     }
   });
 
-  test("read-only chain: capabilities → status → pools", () => {
+  test("read-only chain: capabilities → status (no wallet required)", () => {
     const home = createTempHome();
 
     const scenario: EvalScenario = {
