@@ -231,7 +231,7 @@ export function guideText(): string {
     `  ${accent("bun add -g github:0xmatthewb/privacy-pools-cli")}`,
     `  ${accent("privacy-pools status")}`,
     `  ${accent("bun run dev -- status")}                        ${chalk.dim("(from source, no global install)")}`,
-    `  ${accent("privacy-pools completion zsh")}                   ${chalk.dim("(shell autocomplete)")}`,
+    `  ${accent("privacy-pools completion --help")}                  ${chalk.dim("(shell autocomplete setup)")}`,
     "",
     chalk.bold("Quick Start"),
     `  ${accent("privacy-pools init")}`,
