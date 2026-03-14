@@ -8,7 +8,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ### Added
 
-- Surfaced the `completion` command in root help and added first-class PowerShell completion generation alongside bash, zsh, and fish.
+- Surfaced the `completion` command in root help and added PowerShell completion generation alongside bash, zsh, and fish.
 - Added generated `docs/reference.md` output from the runtime command tree and metadata, plus a docs drift check that keeps the shipped reference aligned with the CLI.
 - Added an agent eval harness and end-to-end scenarios covering discovery, `nextActions`, and retry/error behavior.
 
