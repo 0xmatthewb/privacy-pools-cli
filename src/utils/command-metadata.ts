@@ -352,7 +352,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
     },
     capabilities: {
-      usage: "deposit <amount> --asset <symbol|address>",
+      usage: "deposit <amount> [asset] --asset <symbol|address>",
       flags: [
         "--asset <symbol|address>",
         "--unsigned [envelope|tx]",
@@ -404,7 +404,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       supportsDryRun: true,
     },
     capabilities: {
-      usage: "withdraw <amount> --asset <symbol|address> --to <address>",
+      usage: "withdraw [amount] [asset] --asset <symbol|address> --to <address>",
       flags: [
         "--asset <symbol|address>",
         "--to <address>",
@@ -438,7 +438,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
     },
     capabilities: {
-      usage: "withdraw quote <amount> --asset <symbol|address>",
+      usage: "withdraw quote <amount|asset> [amount] --asset <symbol|address>",
       flags: ["--asset <symbol|address>", "--to <address>"],
       agentFlags: "--agent",
       requiresInit: true,
@@ -475,7 +475,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       supportsDryRun: true,
     },
     capabilities: {
-      usage: "ragequit --asset <symbol|address> --from-pa <PA-#>",
+      usage: "ragequit [asset] --asset <symbol|address> --from-pa <PA-#>",
       flags: [
         "--asset <symbol|address>",
         "--from-pa <PA-#>",

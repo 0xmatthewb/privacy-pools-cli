@@ -122,6 +122,45 @@ describe("agent nextActions eval", () => {
     expect(args).not.toContain("--extraGas");
   });
 
+  test("followNextActions: status → init end-to-end", () => {
+    const home = createTempHome();
+
+    const scenario: EvalScenario = {
+      name: "follow-nextactions-e2e",
+      description: "Harness auto-follows status nextAction to init and succeeds",
+      steps: [
+        {
+          command: ["status"],
+          expectedStatus: 0,
+          followNextActions: true,
+          assertions: (_result, parsed) => {
+            const p = parsed as Record<string, unknown>;
+            expect(p.success).toBe(true);
+            // Should emit an init nextAction
+            const actions = extractNextActions(parsed);
+            expect(actions.some((a) => a.command === "init")).toBe(true);
+          },
+        },
+      ],
+    };
+
+    const results = runEvalScenario(scenario, {
+      runner: runCli,
+      home,
+    });
+
+    // Step 0: status succeeded and emitted nextAction
+    expect(results[0].result.status).toBe(0);
+    expect(results[0].followedAction).toBeDefined();
+    expect(results[0].followedAction!.command).toBe("init");
+
+    // Step 1: the followed init command ran and succeeded
+    expect(results).toHaveLength(2);
+    expect(results[1].result.status).toBe(0);
+    const initParsed = results[1].parsed as Record<string, unknown>;
+    expect(initParsed.success).toBe(true);
+  });
+
   test("extractFirstRunnableAction skips non-runnable", () => {
     const payload = {
       success: true,

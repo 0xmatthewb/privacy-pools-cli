@@ -48,6 +48,8 @@ cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainn
 
 List available pools and assets
 
+**Usage:** `privacy-pools pools [asset] [options]`
+
 When no --chain is specified, shows all mainnet chains. Use --all-chains to include testnets. Pools are sorted by pool balance (highest first) by default. Pass a single asset symbol (e.g. 'pools ETH') for a detail view with your funds, recent activity, and pool stats.
 
 ```bash
@@ -126,6 +128,8 @@ privacy-pools stats pool --asset USDC --agent --chain mainnet
 
 Describe one command for runtime agent introspection
 
+**Usage:** `privacy-pools describe <command> [options]`
+
 Useful when a human or agent wants the runtime contract for one command without parsing long-form docs. Accepts spaced command paths like 'withdraw quote' and 'stats global'.
 
 ```bash
@@ -139,6 +143,8 @@ privacy-pools describe stats global --agent
 ### `deposit`
 
 Deposit into a pool
+
+**Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
 Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may download circuit files (~60s). Subsequent runs typically complete in 10-30s.
 
@@ -169,6 +175,8 @@ privacy-pools deposit 0.1 --asset ETH --chain mainnet
 ### `withdraw`
 
 Withdraw from a pool
+
+**Usage:** `privacy-pools withdraw [amount] [asset] [options]`
 
 Withdraws funds from a Privacy Pool via a relayer (default, recommended) for enhanced privacy. The relayer pays gas on your behalf and takes a small fee, keeping your withdrawal address unlinkable to your deposit. ASP approval is required before withdrawal. If a deposit is poi_required, complete Proof of Association at tornado.0xbow.io first. If it is declined, the recovery path is ragequit. Proof generation may take 10-30s. Use 'withdraw quote' to check relayer fees first.
 
@@ -207,6 +215,8 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet
 ### `withdraw quote`
 
 Request relayer quote and limits without generating a proof
+
+**Usage:** `privacy-pools withdraw quote <amountOrAsset> [amount] [options]`
 
 ```bash
 privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
@@ -313,6 +323,8 @@ privacy-pools status --chain mainnet --rpc-url https://...
 
 Publicly withdraw funds to your deposit address
 
+**Usage:** `privacy-pools ragequit [asset] [options]`
+
 Emergency withdrawal without ASP approval. The original depositor can publicly reclaim funds when the deposit label is not approved. Use 'withdraw' to withdraw privately once your deposit is ASP-approved. Use 'ragequit' at any time to recover funds publicly to your deposit address. Declined deposits must use this path; pending and poi_required deposits can also use it. Falls back to a built-in pool registry when public pool discovery is unavailable. 'exit' is an alias.
 
 ```bash
@@ -347,6 +359,8 @@ privacy-pools guide --agent
 ### `completion`
 
 Generate shell completion script
+
+**Usage:** `privacy-pools completion [shell] [options]`
 
 Generated scripts register the privacy-pools command.
 

@@ -107,6 +107,16 @@ for (const path of CAPABILITIES_COMMAND_ORDER) {
   lines.push("");
   lines.push(metadata.description);
 
+  // Usage line with positional arguments from Commander
+  const cmdArgs = cmd.registeredArguments || [];
+  if (cmdArgs.length > 0) {
+    const argSyntax = cmdArgs
+      .map((a) => (a.required ? `<${a.name()}>` : `[${a.name()}]`))
+      .join(" ");
+    lines.push("");
+    lines.push(`**Usage:** \`privacy-pools ${path} ${argSyntax} [options]\``);
+  }
+
   // Overview prose from metadata
   const overview = metadata.help?.overview ?? [];
   if (overview.length > 0) {
