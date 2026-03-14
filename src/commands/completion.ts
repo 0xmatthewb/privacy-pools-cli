@@ -57,7 +57,7 @@ export function createCompletionCommand(): Command {
     )
     .addOption(new Option("--query", "Internal: query completion candidates").hideHelp())
     .addOption(new Option("--cword <index>", "Internal: current word index").hideHelp())
-    .argument("[shell]", "Target shell (bash|zsh|fish)")
+    .argument("[shell]", "Target shell (bash|zsh|fish|powershell)")
     .allowExcessArguments(true)
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action((shellArg: string | undefined, opts: CompletionCommandOptions, cmd: Command) => {

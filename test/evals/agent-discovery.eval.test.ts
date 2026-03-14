@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createTempHome, runCli, parseJsonOutput } from "../helpers/cli.ts";
+import { createTempHome, runCli } from "../helpers/cli.ts";
 import {
   runEvalScenario,
   type EvalScenario,

@@ -231,7 +231,7 @@ export function createPoolsCommand(): Command {
       new Option(
         "--sort <mode>",
         `Sort mode (${SUPPORTED_SORT_MODES.join(", ")})`
-      ).choices(SUPPORTED_SORT_MODES as unknown as string[]).default("tvl-desc")
+      ).choices([...SUPPORTED_SORT_MODES]).default("tvl-desc")
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(async (asset: string | undefined, opts: PoolsCommandOptions, cmd) => {

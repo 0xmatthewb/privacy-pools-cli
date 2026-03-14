@@ -110,7 +110,7 @@ export function isRetryableError(payload: unknown): boolean {
 /** Normalize args to ensure --agent is present. */
 function normalizeAgentArgs(args: string[]): string[] {
   if (args.includes("--agent")) return args;
-  // Don't add --agent if --json is already there (it's a subset)
+  // Prepend --agent so all eval steps run in agent mode
   return ["--agent", ...args];
 }
 

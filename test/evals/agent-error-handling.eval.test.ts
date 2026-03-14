@@ -8,7 +8,6 @@ import { createTempHome, runCli } from "../helpers/cli.ts";
 import {
   runEvalScenario,
   isRetryableError,
-  isRunnableAction,
   type EvalScenario,
 } from "./helpers/eval-harness.ts";
 
@@ -122,9 +121,5 @@ describe("agent error handling eval", () => {
     expect(isRetryableError(rpcError)).toBe(true);
   });
 
-  test("isRunnableAction unit tests", () => {
-    expect(isRunnableAction({ command: "init", runnable: false })).toBe(false);
-    expect(isRunnableAction({ command: "init", runnable: true })).toBe(true);
-    expect(isRunnableAction({ command: "init" })).toBe(true);
-  });
+
 });

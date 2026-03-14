@@ -392,7 +392,7 @@ exports[`CLI --help snapshots completion --help snapshot 1`] = `
 "Usage: privacy-pools completion [options] [shell]
 Generate shell completion script
 Arguments:
-  shell                Target shell (bash|zsh|fish)
+  shell                Target shell (bash|zsh|fish|powershell)
 Options:
   -s, --shell <shell>  Target shell (choices: "bash", "zsh", "fish",
                        "powershell")

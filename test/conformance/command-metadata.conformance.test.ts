@@ -299,7 +299,7 @@ describe("command metadata conformance", () => {
     );
     expect(normalizedSkill).toContain("preserve --chain");
     // reference.md is now auto-generated from command metadata and does not
-    // include agentWorkflowNotes — chain scope guidance lives in SKILL.md,
+    // include agentWorkflowNotes; chain scope guidance lives in SKILL.md,
     // AGENTS.md, and the JSON contract instead.
     expect(normalizedContract).toContain(
       "poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poi_required before choosing withdraw or ragequit",
