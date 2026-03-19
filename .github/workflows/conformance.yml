@@ -1,14 +1,13 @@
-# Conformance — nightly scheduled tests.
+# Conformance — nightly scheduled core conformance tests.
 #
 # WHEN does this run?
 #   - Automatically every day at 3:17 AM UTC (a cron schedule)
 #   - Manually via the "Run workflow" button on GitHub
 #
 # WHAT does it do?
-#   Runs the conformance test suite, which verifies the CLI still
-#   behaves correctly against external services / specs. These tests
-#   are slower and may depend on live endpoints, so they run on a
-#   schedule instead of on every PR.
+#   Runs the core conformance suite, which verifies the CLI still
+#   behaves correctly against protocol specs and generated artifacts.
+#   Frontend parity checks live in a separate non-blocking workflow.
 #
 # WHERE do results show up?
 #   Go to the "Actions" tab on GitHub → click "Conformance" in the
@@ -37,10 +36,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
 

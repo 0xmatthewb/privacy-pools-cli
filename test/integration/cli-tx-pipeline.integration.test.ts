@@ -9,12 +9,13 @@
  * and pins the exact failure stage so behavioral drift is caught.
  *
  * True success-path tests (generating precommitments, building unsigned
- * tx payloads, submitting transactions) require either:
- *   1. A funded E2E test (PP_E2E_ENABLED=1, skipped by default)
- *   2. An Anvil-forked local chain with deployed contracts
+ * tx payloads, submitting transactions) live in the Anvil suite, which
+ * runs the CLI against a forked local chain without live funds:
+ *   1. `PP_ANVIL_E2E=1 bun run test:e2e:anvil` for the full suite
+ *   2. `PP_ANVIL_E2E=1 bun run test:e2e:anvil:smoke` for the required CI lane
  *
- * Addresses audit finding 1: "Default integration suite does not exercise
- * protocol-critical success paths."
+ * This file still matters because it pins the offline failure boundary for
+ * the default integration suite, while the Anvil lane covers the happy path.
  */
 
 import { describe, expect, test } from "bun:test";
