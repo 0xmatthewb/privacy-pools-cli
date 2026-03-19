@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import {
   CLI_CWD,
   createTempHome,
@@ -48,16 +48,18 @@ describe("packaged CLI smoke", () => {
   let home: string;
 
   beforeAll(() => {
-    const build = spawnSync("npm", ["run", "-s", "build"], {
-      cwd: CLI_CWD,
-      encoding: "utf8",
-      timeout: 120_000,
-      maxBuffer: 10 * 1024 * 1024,
-    });
-    if (build.status !== 0) {
-      throw new Error(
-        `Build failed (exit ${build.status}):\n${build.stderr}\n${build.stdout}`,
-      );
+    if (!existsSync(`${CLI_CWD}/dist/index.js`)) {
+      const build = spawnSync("npm", ["run", "-s", "build"], {
+        cwd: CLI_CWD,
+        encoding: "utf8",
+        timeout: 120_000,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      if (build.status !== 0) {
+        throw new Error(
+          `Build failed (exit ${build.status}):\n${build.stderr}\n${build.stdout}`,
+        );
+      }
     }
     home = createTempHome("pp-smoke-dist-");
   }, 120_000);

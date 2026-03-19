@@ -14,12 +14,12 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createTempHome, mustInitSeededHome } from "../helpers/cli.ts";
 import { CLI_CWD } from "../helpers/cli.ts";
+import { createTrackedTempDir } from "../helpers/temp.ts";
 
 describe(".env trust boundary", () => {
   test("CWD .env does not override config-home for sensitive env vars", () => {
@@ -29,7 +29,7 @@ describe(".env trust boundary", () => {
 
     // 2. Create a temporary CWD with a poisoned .env that tries to override
     //    the RPC URL and private key.
-    const poisonedCwd = mkdtempSync(join(tmpdir(), "pp-env-poison-"));
+    const poisonedCwd = createTrackedTempDir("pp-env-poison-");
     const POISONED_RPC = "http://evil.example.com:8545";
     const POISONED_KEY =
       "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";

@@ -8,9 +8,17 @@ describe("docs generation drift detection", () => {
   test("docs/reference.md matches generated output", () => {
     const distExists = existsSync(join(CLI_ROOT, "dist", "program.js"));
     if (!distExists) {
-      throw new Error(
-        "dist/program.js not found. Run `bun run build` before running conformance tests.",
-      );
+      const build = spawnSync("bun", ["run", "build"], {
+        cwd: CLI_ROOT,
+        timeout: 120_000,
+      });
+
+      const buildStderr = build.stderr?.toString() ?? "";
+      if (build.status !== 0 || !existsSync(join(CLI_ROOT, "dist", "program.js"))) {
+        throw new Error(
+          `dist/program.js not found and rebuild failed. Run \`bun run build\` before running conformance tests.\n${buildStderr}`,
+        );
+      }
     }
 
     const result = spawnSync("node", ["scripts/generate-reference.mjs", "--check"], {
