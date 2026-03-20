@@ -13,8 +13,8 @@
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
+  createSeededHome,
   createTempHome,
-  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -200,8 +200,7 @@ describe("pools with fixture server", () => {
   });
 
   test("pools <asset> keeps wallet-state warnings concise when RPC log methods are unavailable", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
 
     const result = runCli(
       ["--chain", "sepolia", "--rpc-url", fixture.url, "pools", "ETH"],
@@ -227,8 +226,7 @@ describe("pools with fixture server", () => {
 
 describe("status health check success path", () => {
   test("status --json with fixture server reports aspLive true", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
 
     const result = runCli(
       ["--json", "--rpc-url", "http://127.0.0.1:9", "status"],

@@ -11,7 +11,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "bun:test";
@@ -37,10 +37,15 @@ export interface CliRunResult {
 }
 
 const trackedTempHomes = new Set<string>();
+const retainedTempHomes = new Set<string>();
+const seededHomeTemplates = new Map<string, string>();
 const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
 
-function cleanupTrackedTempHomes(): void {
+function cleanupTrackedTempHomes(includeRetained: boolean = false): void {
   for (const dir of trackedTempHomes) {
+    if (!includeRetained && retainedTempHomes.has(dir)) {
+      continue;
+    }
     try {
       rmSync(dir, {
         recursive: true,
@@ -59,14 +64,31 @@ function cleanupTrackedTempHomes(): void {
 // Register cleanup during module evaluation so Bun sees the suite hook
 // before tests begin executing. Lazy registration inside helpers is too late
 // for ad hoc `bun test <file>` runs and can leak temp homes.
-afterAll(cleanupTrackedTempHomes);
-process.once("beforeExit", cleanupTrackedTempHomes);
-process.once("exit", cleanupTrackedTempHomes);
+afterAll(() => cleanupTrackedTempHomes(false));
+process.once("beforeExit", () => cleanupTrackedTempHomes(true));
+process.once("exit", () => cleanupTrackedTempHomes(true));
 
 export function createTempHome(prefix: string = "pp-cli-test-"): string {
   const effectivePrefix = TEST_RUN_ID ? `${prefix}${TEST_RUN_ID}-` : prefix;
   const home = mkdtempSync(join(tmpdir(), effectivePrefix));
   trackedTempHomes.add(home);
+  return home;
+}
+
+export function createSeededHome(chain: string = "mainnet"): string {
+  let template = seededHomeTemplates.get(chain);
+  if (!template) {
+    template = createTempHome(`pp-seeded-template-${chain}-`);
+    mustInitSeededHome(template, chain);
+    retainedTempHomes.add(template);
+    seededHomeTemplates.set(chain, template);
+  }
+
+  const home = createTempHome(`pp-seeded-home-${chain}-`);
+  cpSync(template, home, {
+    recursive: true,
+    force: true,
+  });
   return home;
 }
 

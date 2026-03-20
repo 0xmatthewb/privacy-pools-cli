@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
-  createTempHome,
-  mustInitSeededHome,
+  createSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -62,8 +61,7 @@ afterAll(() => {
 
 describe("deployment block hints", () => {
   test("accounts sync uses the pool deployment block for known late-deployed pools", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
 
     const result = runCli(
       ["--json", "--chain", "sepolia", "accounts", "--summary"],
