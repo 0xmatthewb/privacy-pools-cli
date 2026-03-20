@@ -2,10 +2,8 @@
  * Success-path integration tests for read-only commands.
  *
  * Uses a local ASP fixture HTTP server (separate process) so that `activity`,
- * `stats`, and `status --check-asp` can be exercised through their success
- * paths without a live ASP.  The `pools` command additionally requires RPC
- * reads, so for pools we verify the error shifts from ASP -> RPC when the
- * fixture is active.
+ * `stats`, `pools`, and `status --check-asp` can be exercised through their
+ * success paths without a live ASP.
  *
  * Addresses audit finding 2: "Read-only commands are mostly validated through
  * offline failure behavior, not successful payload correctness."
@@ -171,6 +169,47 @@ describe("stats global success path", () => {
 // ── pools ────────────────────────────────────────────────────────────────────
 
 describe("pools with fixture server", () => {
+  test("pools --json --chain sepolia returns a non-empty payload", () => {
+    const result = runCli(
+      ["--json", "--chain", "sepolia", "pools"],
+      {
+        home: createTempHome(),
+        timeoutMs: 15_000,
+        env: { ...fixtureEnv(), PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture.url },
+      },
+    );
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      chain?: string;
+      pools: Array<{
+        asset?: string;
+        tokenAddress?: string;
+        pool?: string;
+        scope?: number | string;
+        minimumDeposit?: string;
+        vettingFeeBPS?: string;
+        maxRelayFeeBPS?: string;
+      }>;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
+    expect(json.chain).toBe("sepolia");
+    expect(Array.isArray(json.pools)).toBe(true);
+    expect(json.pools.length).toBeGreaterThan(0);
+    expect(json.pools[0]).toMatchObject({
+      asset: "ETH",
+      tokenAddress: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      pool: "0x1234567890AbcdEF1234567890aBcdef12345678",
+      scope: "12345",
+      minimumDeposit: "1000000000000000",
+      vettingFeeBPS: "50",
+      maxRelayFeeBPS: "250",
+    });
+    expect(result.stderr.trim()).toBe("");
+  });
+
   test("pools --json --chain sepolia: ASP fixture reachable, RPC fails silently per-pool", () => {
     // pools calls fetchPoolsStats (ASP) then does on-chain RPC reads per pool.
     // With the fixture server handling ASP and no live RPC, the ASP fetch
