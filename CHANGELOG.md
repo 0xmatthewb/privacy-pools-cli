@@ -8,15 +8,15 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ### Added
 
-- Added dedicated packaged-smoke, coverage, Anvil smoke, eval, and core-conformance lanes, with frontend parity kept as an informational check.
 - Added built-entrypoint and packed-tarball coverage so shipped installs are verified directly before release.
+- Added dedicated packaged-smoke, coverage, Anvil smoke, evals, and core-conformance lanes while keeping frontend parity informational.
 
 ### Changed
 
 - Reworked startup and discovery paths so `--version`, `--help`, `guide`, `capabilities`, and `describe` stay on lightweight fast paths while heavier command runtime code loads only when needed.
 - Tightened completion query handling, root discovery output, and update-check timing so read-only and agent-facing commands feel much faster without changing the CLI contract.
 - Adopted Node 25 as the development and CI baseline while supporting the published CLI on Node 22.x, 24.x, and 25.x.
-- Refreshed runtime and tooling dependencies, docs generation, and packaged validation to match the shipped build.
+- Refreshed runtime and tooling dependencies, docs generation, and packaged validation so the shipped build, docs, and merge gate stay aligned.
 
 ### Fixed
 
