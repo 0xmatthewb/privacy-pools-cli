@@ -51,15 +51,7 @@ export async function handleCompletionCommand(
   cmd: Command,
 ): Promise<void> {
   const root = cmd.parent;
-  if (!root) {
-    throw new CLIError(
-      "Internal error in completion setup.",
-      "UNKNOWN",
-      "Please report this at https://github.com/0xmatthewb/privacy-pools-cli/issues",
-    );
-  }
-
-  const globalOpts = root.opts() as GlobalOptions;
+  const globalOpts = root?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
   const ctx = createOutputContext(mode);
@@ -69,9 +61,17 @@ export async function handleCompletionCommand(
     if (opts.query) {
       const shellName = opts.shell ? parseShell(opts.shell) : detectCompletionShell();
       const cword = parseCword(opts.cword);
-      const candidates = queryCompletionCandidates(root, words, cword);
+      const candidates = queryCompletionCandidates(words, cword);
       renderCompletionQuery(ctx, shellName, cword, candidates);
       return;
+    }
+
+    if (!root) {
+      throw new CLIError(
+        "Internal error in completion setup.",
+        "UNKNOWN",
+        "Please report this at https://github.com/0xmatthewb/privacy-pools-cli/issues",
+      );
     }
 
     if (words.length > 1) {

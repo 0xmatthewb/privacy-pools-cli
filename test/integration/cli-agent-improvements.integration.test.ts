@@ -130,6 +130,21 @@ describe("agent-focused improvements", () => {
     expect(result.stderr.trim()).toBe("");
   });
 
+  test("guide accepts unrelated root flags without changing payload shape", () => {
+    const result = runCli(["guide", "--agent", "--chain", "mainnet"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      mode: string;
+      help: string;
+    }>(result.stdout);
+    expect(json.mode).toBe("help");
+    expect(json.help).toContain("Privacy Pools: Quick Guide");
+    expect(result.stderr.trim()).toBe("");
+  });
+
   test("init --mnemonic-stdin imports recovery phrase without leaking it", () => {
     const result = runCli(
       [

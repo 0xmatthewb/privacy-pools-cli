@@ -55,6 +55,30 @@ const ROOT_OPTIONS_WITH_VALUE = new Set([
   "--timeout",
 ]);
 
+const ROOT_LONG_OPTIONS_WITH_INLINE_VALUE = [
+  "--chain",
+  "--format",
+  "--rpc-url",
+  "--timeout",
+] as const;
+
+function hasLongFlag(args: string[], flag: string): boolean {
+  return args.some((token) => token === flag || token.startsWith(`${flag}=`));
+}
+
+function readLongOptionValue(args: string[], flag: string): string | null {
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (token === flag) {
+      return i + 1 < args.length ? args[i + 1] ?? null : null;
+    }
+    if (token.startsWith(`${flag}=`)) {
+      return token.slice(flag.length + 1);
+    }
+  }
+  return null;
+}
+
 const WELCOME_BOOLEAN_FLAGS = new Set([
   "-q",
   "--quiet",
@@ -97,6 +121,13 @@ function isWelcomeFlagOnlyInvocation(args: string[]): boolean {
     if (ROOT_OPTIONS_WITH_VALUE.has(token)) {
       if (i + 1 >= args.length) return false;
       i++;
+      continue;
+    }
+    if (
+      ROOT_LONG_OPTIONS_WITH_INLINE_VALUE.some((flag) =>
+        token.startsWith(`${flag}=`)
+      )
+    ) {
       continue;
     }
     if (WELCOME_BOOLEAN_FLAGS.has(token) || isWelcomeShortFlagBundle(token)) {
@@ -183,19 +214,14 @@ export async function runCli(
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
   const firstCommandToken = firstNonOptionToken(argv);
-  const formatFlagValue = (() => {
-    const idx = argv.indexOf("--format");
-    return idx !== -1 && idx + 1 < argv.length
-      ? argv[idx + 1].toLowerCase()
-      : null;
-  })();
+  const formatFlagValue = readLongOptionValue(argv, "--format")?.toLowerCase() ?? null;
   const isJson =
-    argv.includes("--json") ||
+    hasLongFlag(argv, "--json") ||
     hasShortFlag(argv, "j") ||
     formatFlagValue === "json";
   const isCsvMode = formatFlagValue === "csv";
-  const isAgent = argv.includes("--agent");
-  const isUnsigned = argv.includes("--unsigned");
+  const isAgent = hasLongFlag(argv, "--agent");
+  const isUnsigned = hasLongFlag(argv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
   const isHelpLike =
     argv.includes("--help") ||

@@ -1,10 +1,4 @@
 import type { GlobalOptions } from "./types.js";
-import {
-  buildCapabilitiesPayload,
-  buildCommandDescriptor,
-  listCommandPaths,
-  resolveCommandPath,
-} from "./utils/command-metadata.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { resolveGlobalMode } from "./utils/mode.js";
@@ -13,10 +7,9 @@ import {
   isCompletionShell,
   queryCompletionCandidates,
 } from "./utils/completion.js";
-import { accentBold } from "./utils/theme.js";
 
 interface ParsedStaticCommand {
-  command: "capabilities" | "describe";
+  command: "guide" | "capabilities" | "describe";
   commandTokens: string[];
   globalOpts: GlobalOptions;
 }
@@ -46,8 +39,9 @@ function guardStaticCsvUnsupported(
   }
 }
 
-function renderStaticCapabilities(globalOpts: GlobalOptions): void {
+async function renderStaticCapabilities(globalOpts: GlobalOptions): Promise<void> {
   guardStaticCsvUnsupported(globalOpts, "capabilities");
+  const { buildCapabilitiesPayload } = await import("./utils/command-metadata.js");
   const payload = buildCapabilitiesPayload();
   const mode = resolveGlobalMode(globalOpts);
 
@@ -84,6 +78,28 @@ function renderStaticCapabilities(globalOpts: GlobalOptions): void {
   process.stderr.write("\n");
 }
 
+async function renderStaticGuide(globalOpts: GlobalOptions): Promise<void> {
+  guardStaticCsvUnsupported(globalOpts, "guide");
+  const mode = resolveGlobalMode(globalOpts);
+  const { guideText } = await import("./utils/help.js");
+
+  if (mode.isJson) {
+    printJsonSuccess({
+      mode: "help",
+      help: guideText(),
+    });
+    return;
+  }
+
+  if (isQuietMode(globalOpts)) {
+    return;
+  }
+
+  process.stderr.write("\n");
+  process.stderr.write(`${guideText()}\n`);
+  process.stderr.write("\n");
+}
+
 function writeList(label: string, values: string[]): void {
   if (values.length === 0) return;
   process.stderr.write(`\n${label}:\n`);
@@ -92,12 +108,17 @@ function writeList(label: string, values: string[]): void {
   }
 }
 
-function renderStaticDescribe(
+async function renderStaticDescribe(
   globalOpts: GlobalOptions,
   commandTokens: string[],
-): void {
+): Promise<void> {
   guardStaticCsvUnsupported(globalOpts, "describe");
   const mode = resolveGlobalMode(globalOpts);
+  const {
+    buildCommandDescriptor,
+    listCommandPaths,
+    resolveCommandPath,
+  } = await import("./utils/command-metadata.js");
   const commandPath = resolveCommandPath(commandTokens);
   if (!commandPath) {
     throw new CLIError(
@@ -117,6 +138,7 @@ function renderStaticDescribe(
     return;
   }
 
+  const { accentBold } = await import("./utils/theme.js");
   process.stderr.write(`\n${accentBold(`Command: ${descriptor.command}`)}\n\n`);
   process.stderr.write(`Description: ${descriptor.description}\n`);
   process.stderr.write(`Usage: privacy-pools ${descriptor.usage}\n`);
@@ -319,7 +341,11 @@ function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {
     }
 
     if (!command) {
-      if (token !== "capabilities" && token !== "describe") {
+      if (
+        token !== "guide" &&
+        token !== "capabilities" &&
+        token !== "describe"
+      ) {
         return null;
       }
       command = token;
@@ -330,23 +356,29 @@ function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {
   }
 
   if (!command || helpLike || versionLike) return null;
+  if (command === "guide" && commandTokens.length > 0) return null;
   if (command === "capabilities" && commandTokens.length > 0) return null;
   if (command === "describe" && commandTokens.length === 0) return null;
 
   return { command, commandTokens, globalOpts };
 }
 
-export function runStaticDiscoveryCommand(argv: string[]): boolean {
+export async function runStaticDiscoveryCommand(argv: string[]): Promise<boolean> {
   const parsed = parseStaticCommand(argv);
   if (!parsed) return false;
 
   try {
-    if (parsed.command === "capabilities") {
-      renderStaticCapabilities(parsed.globalOpts);
+    if (parsed.command === "guide") {
+      await renderStaticGuide(parsed.globalOpts);
       return true;
     }
 
-    renderStaticDescribe(parsed.globalOpts, parsed.commandTokens);
+    if (parsed.command === "capabilities") {
+      await renderStaticCapabilities(parsed.globalOpts);
+      return true;
+    }
+
+    await renderStaticDescribe(parsed.globalOpts, parsed.commandTokens);
     return true;
   } catch (error) {
     printError(error, resolveGlobalMode(parsed.globalOpts).isJson);
@@ -479,7 +511,6 @@ function parseCompletionQuery(
 
 export async function runStaticCompletionQuery(
   argv: string[],
-  version: string,
 ): Promise<boolean> {
   let parsed: ParsedStaticCompletionQuery | null = null;
   try {
@@ -495,9 +526,7 @@ export async function runStaticCompletionQuery(
       );
     }
 
-    const { createRootProgram } = await import("./program.js");
-    const root = createRootProgram(version);
-    const candidates = queryCompletionCandidates(root, parsed.words, parsed.cword);
+    const candidates = queryCompletionCandidates(parsed.words, parsed.cword);
 
     if (mode.isJson) {
       printJsonSuccess({

@@ -44,6 +44,23 @@ const ROOT_OPTIONS_WITH_VALUE = new Set([
   "--timeout",
 ]);
 
+function hasLongFlag(args: string[], flag: string): boolean {
+  return args.some((token) => token === flag || token.startsWith(`${flag}=`));
+}
+
+function readLongOptionValue(args: string[], flag: string): string | null {
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (token === flag) {
+      return i + 1 < args.length ? args[i + 1] ?? null : null;
+    }
+    if (token.startsWith(`${flag}=`)) {
+      return token.slice(flag.length + 1);
+    }
+  }
+  return null;
+}
+
 function allNonOptionTokens(args: string[]): string[] {
   const tokens: string[] = [];
   for (let i = 0; i < args.length; i++) {
@@ -67,19 +84,14 @@ function firstNonOptionToken(args: string[]): string | undefined {
 }
 
 const firstCommandToken = firstNonOptionToken(argv);
-const formatFlagValue = (() => {
-  const idx = argv.indexOf("--format");
-  return idx !== -1 && idx + 1 < argv.length
-    ? argv[idx + 1].toLowerCase()
-    : null;
-})();
+const formatFlagValue = readLongOptionValue(argv, "--format")?.toLowerCase() ?? null;
 const isJson =
-  argv.includes("--json") ||
+  hasLongFlag(argv, "--json") ||
   hasShortFlag(argv, "j") ||
   formatFlagValue === "json";
 const isCsvMode = formatFlagValue === "csv";
-const isAgent = argv.includes("--agent");
-const isUnsigned = argv.includes("--unsigned");
+const isAgent = hasLongFlag(argv, "--agent");
+const isUnsigned = hasLongFlag(argv, "--unsigned");
 const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
 const isHelpLike =
   argv.includes("--help") ||
@@ -118,7 +130,7 @@ if (isRootHelpInvocation) {
 
 if (!isHelpLike && !isVersionLike && firstCommandToken === "completion") {
   const { runStaticCompletionQuery } = await import("./static-discovery.js");
-  if (await runStaticCompletionQuery(argv, pkg.version)) {
+  if (await runStaticCompletionQuery(argv)) {
     process.exit(0);
   }
 }
@@ -126,10 +138,12 @@ if (!isHelpLike && !isVersionLike && firstCommandToken === "completion") {
 if (
   !isHelpLike &&
   !isVersionLike &&
-  (firstCommandToken === "capabilities" || firstCommandToken === "describe")
+  (firstCommandToken === "guide" ||
+    firstCommandToken === "capabilities" ||
+    firstCommandToken === "describe")
 ) {
   const { runStaticDiscoveryCommand } = await import("./static-discovery.js");
-  if (runStaticDiscoveryCommand(argv)) {
+  if (await runStaticDiscoveryCommand(argv)) {
     process.exit(0);
   }
 }

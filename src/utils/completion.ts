@@ -1,5 +1,6 @@
 import type { Command, Option } from "commander";
 import { CHAIN_NAMES } from "../config/chains.js";
+import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
 
 export const SUPPORTED_COMPLETION_SHELLS = [
   "bash",
@@ -12,10 +13,17 @@ export type CompletionShell = (typeof SUPPORTED_COMPLETION_SHELLS)[number];
 
 const PUBLISHED_BINARY_NAMES = ["privacy-pools"] as const;
 
-interface CompletionOptionSpec {
+export interface CompletionOptionSpec {
   names: string[];
   takesValue: boolean;
   values: string[];
+}
+
+export interface CompletionCommandSpec {
+  name: string;
+  aliases?: string[];
+  options?: CompletionOptionSpec[];
+  subcommands?: CompletionCommandSpec[];
 }
 
 interface CompletionCommandNode {
@@ -25,6 +33,8 @@ interface CompletionCommandNode {
 }
 
 const INTERNAL_COMPLETION_OPTION_NAMES = new Set(["--query", "--cword"]);
+const OUTPUT_FORMAT_VALUES = ["table", "csv", "json"] as const;
+const UNSIGNED_FORMAT_VALUES = ["envelope", "tx"] as const;
 
 function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
@@ -42,6 +52,175 @@ export function detectCompletionShell(
   if (raw.includes("fish")) return "fish";
   return "bash";
 }
+
+function completionOption(
+  flags: string,
+  values: readonly string[] = [],
+): CompletionOptionSpec {
+  const names = flags
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => part.split(/\s+/)[0] ?? "")
+    .filter(Boolean);
+
+  return {
+    names: uniqueSorted(names),
+    takesValue: /<[^>]+>|\[[^\]]+\]/.test(flags),
+    values: uniqueSorted([...values]),
+  };
+}
+
+function completionCommand(
+  name: string,
+  config: {
+    aliases?: string[];
+    options?: CompletionOptionSpec[];
+    subcommands?: CompletionCommandSpec[];
+  } = {},
+): CompletionCommandSpec {
+  return {
+    name,
+    aliases: config.aliases ?? [],
+    options: config.options ?? [],
+    subcommands: config.subcommands ?? [],
+  };
+}
+
+export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
+  "privacy-pools",
+  {
+    options: [
+      completionOption("-c, --chain <name>", CHAIN_NAMES),
+      completionOption("-j, --json"),
+      completionOption("--format <format>", OUTPUT_FORMAT_VALUES),
+      completionOption("-y, --yes"),
+      completionOption("-r, --rpc-url <url>"),
+      completionOption("--agent"),
+      completionOption("-q, --quiet"),
+      completionOption("--no-banner"),
+      completionOption("-v, --verbose"),
+      completionOption("--timeout <seconds>"),
+      completionOption("--no-color"),
+      completionOption("-V, --version"),
+    ],
+    subcommands: [
+      completionCommand("init", {
+        options: [
+          completionOption("--mnemonic <phrase>"),
+          completionOption("--mnemonic-file <path>"),
+          completionOption("--mnemonic-stdin"),
+          completionOption("--show-mnemonic"),
+          completionOption("--private-key <key>"),
+          completionOption("--private-key-file <path>"),
+          completionOption("--private-key-stdin"),
+          completionOption("--default-chain <chain>", CHAIN_NAMES),
+          completionOption("--rpc-url <url>"),
+          completionOption("--force"),
+          completionOption("--skip-circuits"),
+        ],
+      }),
+      completionCommand("pools", {
+        options: [
+          completionOption("--all-chains"),
+          completionOption("--search <query>"),
+          completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
+        ],
+      }),
+      completionCommand("deposit", {
+        options: [
+          completionOption("-a, --asset <symbol|address>"),
+          completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
+          completionOption("--unsigned-format <format>"),
+          completionOption("--dry-run"),
+          completionOption("--ignore-unique-amount"),
+        ],
+      }),
+      completionCommand("accounts", {
+        options: [
+          completionOption("--no-sync"),
+          completionOption("--all-chains"),
+          completionOption("--details"),
+          completionOption("--summary"),
+          completionOption("--pending-only"),
+        ],
+      }),
+      completionCommand("withdraw", {
+        options: [
+          completionOption("-t, --to <address>"),
+          completionOption("-p, --from-pa <PA-#|#>"),
+          completionOption("--direct"),
+          completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
+          completionOption("--unsigned-format <format>"),
+          completionOption("--dry-run"),
+          completionOption("-a, --asset <symbol|address>"),
+          completionOption("--all"),
+          completionOption("--extra-gas"),
+          completionOption("--no-extra-gas"),
+        ],
+        subcommands: [
+          completionCommand("quote", {
+            options: [
+              completionOption("-a, --asset <symbol|address>"),
+              completionOption("-t, --to <address>"),
+            ],
+          }),
+        ],
+      }),
+      completionCommand("ragequit", {
+        aliases: ["exit"],
+        options: [
+          completionOption("-a, --asset <symbol|address>"),
+          completionOption("-p, --from-pa <PA-#|#>"),
+          completionOption("-i, --commitment <index>"),
+          completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
+          completionOption("--unsigned-format <format>"),
+          completionOption("--dry-run"),
+        ],
+      }),
+      completionCommand("history", {
+        options: [
+          completionOption("--no-sync"),
+          completionOption("-n, --limit <n>"),
+        ],
+      }),
+      completionCommand("sync", {
+        options: [completionOption("-a, --asset <symbol|address>")],
+      }),
+      completionCommand("status", {
+        options: [
+          completionOption("--check"),
+          completionOption("--no-check"),
+          completionOption("--check-rpc"),
+          completionOption("--check-asp"),
+        ],
+      }),
+      completionCommand("activity", {
+        options: [
+          completionOption("-a, --asset <symbol|address>"),
+          completionOption("--page <n>"),
+          completionOption("--limit <n>"),
+        ],
+      }),
+      completionCommand("stats", {
+        subcommands: [
+          completionCommand("global"),
+          completionCommand("pool", {
+            options: [completionOption("-a, --asset <symbol|address>")],
+          }),
+        ],
+      }),
+      completionCommand("guide"),
+      completionCommand("capabilities"),
+      completionCommand("describe"),
+      completionCommand("completion", {
+        options: [
+          completionOption("-s, --shell <shell>", SUPPORTED_COMPLETION_SHELLS),
+        ],
+      }),
+    ],
+  },
+);
 
 function optionValues(option: Option): string[] {
   const values = new Set<string>();
@@ -79,16 +258,36 @@ function toOptionSpec(option: Option): CompletionOptionSpec | null {
   };
 }
 
-function buildTree(command: Command): CompletionCommandNode {
+export function buildCompletionSpecFromCommand(
+  command: Command,
+): CompletionCommandSpec {
   const options = command.options
     .map(toOptionSpec)
     .filter((value): value is CompletionOptionSpec => value !== null);
+  const subcommands = command.commands.map((subcommand) =>
+    buildCompletionSpecFromCommand(subcommand),
+  );
+
+  return {
+    name: command.name(),
+    aliases: command.aliases(),
+    options,
+    subcommands,
+  };
+}
+
+function buildTreeFromSpec(spec: CompletionCommandSpec): CompletionCommandNode {
+  const options = (spec.options ?? []).map((option) => ({
+    names: uniqueSorted(option.names),
+    takesValue: option.takesValue,
+    values: uniqueSorted(option.values),
+  }));
 
   const subcommands = new Map<string, CompletionCommandNode>();
 
-  for (const subcommand of command.commands) {
-    const node = buildTree(subcommand);
-    const names = [subcommand.name(), ...subcommand.aliases()].filter(
+  for (const subcommand of spec.subcommands ?? []) {
+    const node = buildTreeFromSpec(subcommand);
+    const names = [subcommand.name, ...(subcommand.aliases ?? [])].filter(
       (name): name is string => typeof name === "string" && name.length > 0
     );
     for (const name of names) {
@@ -97,11 +296,13 @@ function buildTree(command: Command): CompletionCommandNode {
   }
 
   return {
-    name: command.name(),
+    name: spec.name,
     options,
     subcommands,
   };
 }
+
+const STATIC_COMPLETION_TREE = buildTreeFromSpec(STATIC_COMPLETION_SPEC);
 
 function mergedOptions(
   current: CompletionCommandNode,
@@ -204,11 +405,14 @@ function filterByPrefix(candidates: string[], prefix: string): string[] {
 }
 
 export function queryCompletionCandidates(
-  rootCommand: Command,
   wordsInput: string[],
-  cwordInput?: number
+  cwordInput?: number,
+  rootSpec: CompletionCommandSpec = STATIC_COMPLETION_SPEC,
 ): string[] {
-  const tree = buildTree(rootCommand);
+  const tree =
+    rootSpec === STATIC_COMPLETION_SPEC
+      ? STATIC_COMPLETION_TREE
+      : buildTreeFromSpec(rootSpec);
   const commandName = tree.name || "privacy-pools";
   const acceptedCommandNames = uniqueSorted([commandName, ...PUBLISHED_BINARY_NAMES]);
   const words = normalizeWords(wordsInput, commandName, acceptedCommandNames);
