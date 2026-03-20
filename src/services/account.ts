@@ -15,7 +15,6 @@ import {
 } from "../utils/critical-section.js";
 import { warn, verbose as logVerbose } from "../utils/format.js";
 import {
-  installConsoleGuard,
   withSuppressedConsole,
   withSuppressedConsoleSync,
 } from "../utils/console-guard.js";
@@ -54,7 +53,7 @@ export function toPoolInfo(pool: {
 //   1. `withSuppressedSdkStdout` — swap-and-restore guard around individual SDK
 //      calls.  Handles the common case where SDK work completes synchronously
 //      within the awaited promise.
-//   2. `installSdkConsoleGuard` — permanent no-op replacement of console methods.
+//   2. `installConsoleGuard` — permanent no-op replacement of console methods.
 //      Called once from the CLI entry point.  Catches deferred SDK callbacks
 //      (e.g. `setTimeout`-based retries) that fire after the swap-and-restore
 //      guard has already restored the originals.
@@ -70,18 +69,6 @@ export async function withSuppressedSdkStdout<T>(
 
 export function withSuppressedSdkStdoutSync<T>(fn: () => T): T {
   return withSuppressedConsoleSync(fn);
-}
-
-/**
- * Permanently suppress console.log/info/debug/warn/error for the lifetime of
- * the process.  Call once at CLI startup.  This catches deferred SDK logging
- * (e.g. retry callbacks via setTimeout) that escapes the per-call guards.
- *
- * Safe because the CLI routes all its own output through process.stderr.write /
- * process.stdout.write and never calls console.* directly.
- */
-export function installSdkConsoleGuard(): void {
-  installConsoleGuard();
 }
 
 export async function initializeAccountService(

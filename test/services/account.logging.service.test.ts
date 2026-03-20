@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { withSuppressedSdkStdout, installSdkConsoleGuard } from "../../src/services/account.ts";
+import { withSuppressedSdkStdout } from "../../src/services/account.ts";
+import { installConsoleGuard } from "../../src/utils/console-guard.ts";
 
 describe("account service stdout guard", () => {
   test("suppresses SDK console noise across stdout and stderr methods", async () => {
@@ -114,7 +115,7 @@ describe("account service stdout guard", () => {
   });
 });
 
-describe("installSdkConsoleGuard", () => {
+describe("installConsoleGuard", () => {
   test("permanently silences console methods", () => {
     const origLog = console.log;
     const origWarn = console.warn;
@@ -122,7 +123,7 @@ describe("installSdkConsoleGuard", () => {
     const origInfo = console.info;
     const origDebug = console.debug;
     try {
-      installSdkConsoleGuard();
+      installConsoleGuard();
 
       // All methods should now be no-ops (not the originals).
       expect(console.log).not.toBe(origLog);
