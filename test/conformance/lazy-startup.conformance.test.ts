@@ -76,20 +76,20 @@ describe("lazy startup conformance", () => {
     expect(source).toContain('await import("dotenv")');
   });
 
-  test("static discovery stays on the slim metadata module", () => {
+  test("static discovery stays on the generated discovery artifact", () => {
     const staticDiscovery = readSource("src/static-discovery.ts");
     const capabilities = readSource("src/commands/capabilities.ts");
     const describe = readSource("src/commands/describe.ts");
     const program = readSource("src/program.ts");
 
-    expect(staticDiscovery).toContain("./utils/command-discovery-metadata.js");
-    expect(staticDiscovery).not.toContain("./utils/command-metadata.js");
-    expect(capabilities).toContain("../utils/command-discovery-metadata.js");
-    expect(capabilities).not.toContain("../utils/command-metadata.js");
-    expect(describe).toContain("../utils/command-discovery-metadata.js");
-    expect(describe).not.toContain("../utils/command-metadata.js");
-    expect(program).toContain("./utils/command-discovery-metadata.js");
-    expect(program).not.toContain("./utils/command-metadata.js");
+    expect(staticDiscovery).toContain("./utils/command-discovery-static.js");
+    expect(staticDiscovery).not.toContain("./utils/command-discovery-metadata.js");
+    expect(capabilities).toContain("../utils/command-discovery-static.js");
+    expect(capabilities).not.toContain("../utils/command-discovery-metadata.js");
+    expect(describe).toContain("../utils/command-discovery-static.js");
+    expect(describe).not.toContain("../utils/command-discovery-metadata.js");
+    expect(program).toContain("./utils/command-discovery-static.js");
+    expect(program).not.toContain("./utils/command-discovery-metadata.js");
   });
 
   test("static root help stays off the full command tree", () => {
@@ -97,6 +97,15 @@ describe("lazy startup conformance", () => {
 
     expect(staticDiscovery).toContain("./utils/root-help.js");
     expect(staticDiscovery).not.toContain("./program.js");
+  });
+
+  test("static completion query stays off the script-rendering module", () => {
+    const staticDiscovery = readSource("src/static-discovery.ts");
+    const completionCommand = readSource("src/commands/completion.ts");
+
+    expect(staticDiscovery).toContain("./utils/completion-query.js");
+    expect(staticDiscovery).not.toContain("./utils/completion.js");
+    expect(completionCommand).toContain("../utils/completion-query.js");
   });
 
   test("root program imports heavy commands from shell modules", () => {

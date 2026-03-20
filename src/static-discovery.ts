@@ -2,11 +2,6 @@ import type { GlobalOptions } from "./types.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { resolveGlobalMode } from "./utils/mode.js";
-import {
-  detectCompletionShell,
-  isCompletionShell,
-  queryCompletionCandidates,
-} from "./utils/completion.js";
 
 interface ParsedStaticCommand {
   command: "guide" | "capabilities" | "describe";
@@ -16,9 +11,24 @@ interface ParsedStaticCommand {
 
 interface ParsedStaticCompletionQuery {
   globalOpts: GlobalOptions;
-  shell: ReturnType<typeof detectCompletionShell>;
+  shell: "bash" | "zsh" | "fish" | "powershell";
   cword: number | undefined;
   words: string[];
+}
+
+function isKnownCompletionShell(
+  value: string,
+): value is ParsedStaticCompletionQuery["shell"] {
+  return value === "bash" || value === "zsh" || value === "fish" || value === "powershell";
+}
+
+function detectStaticCompletionShell(
+  envShell: string | undefined = process.env.SHELL,
+): ParsedStaticCompletionQuery["shell"] {
+  const raw = (envShell ?? "").toLowerCase();
+  if (raw.includes("zsh")) return "zsh";
+  if (raw.includes("fish")) return "fish";
+  return "bash";
 }
 
 function isQuietMode(globalOpts: GlobalOptions): boolean {
@@ -41,10 +51,10 @@ function guardStaticCsvUnsupported(
 
 async function renderStaticCapabilities(globalOpts: GlobalOptions): Promise<void> {
   guardStaticCsvUnsupported(globalOpts, "capabilities");
-  const { buildCapabilitiesPayload } = await import(
-    "./utils/command-discovery-metadata.js"
+  const { STATIC_CAPABILITIES_PAYLOAD } = await import(
+    "./utils/command-discovery-static.js"
   );
-  const payload = buildCapabilitiesPayload();
+  const payload = STATIC_CAPABILITIES_PAYLOAD;
   const mode = resolveGlobalMode(globalOpts);
 
   if (mode.isJson) {
@@ -117,20 +127,20 @@ async function renderStaticDescribe(
   guardStaticCsvUnsupported(globalOpts, "describe");
   const mode = resolveGlobalMode(globalOpts);
   const {
-    buildCommandDescriptor,
-    listCommandPaths,
-    resolveCommandPath,
-  } = await import("./utils/command-discovery-metadata.js");
-  const commandPath = resolveCommandPath(commandTokens);
+    listStaticCommandPaths,
+    resolveStaticCommandPath,
+    STATIC_CAPABILITIES_PAYLOAD,
+  } = await import("./utils/command-discovery-static.js");
+  const commandPath = resolveStaticCommandPath(commandTokens);
   if (!commandPath) {
     throw new CLIError(
       `Unknown command path: ${commandTokens.join(" ")}`,
       "INPUT",
-      `Valid command paths: ${listCommandPaths().join(", ")}`,
+      `Valid command paths: ${listStaticCommandPaths().join(", ")}`,
     );
   }
 
-  const descriptor = buildCommandDescriptor(commandPath);
+  const descriptor = STATIC_CAPABILITIES_PAYLOAD.commandDetails[commandPath];
   if (mode.isJson) {
     printJsonSuccess(descriptor);
     return;
@@ -483,10 +493,10 @@ function parseCompletionQuery(
 
   const shellValue = shellFlag ?? shellArg;
   const shell = shellValue
-    ? isCompletionShell(shellValue)
+    ? isKnownCompletionShell(shellValue)
       ? shellValue
       : null
-    : detectCompletionShell();
+    : detectStaticCompletionShell();
   if (!shell) {
     throw new CLIError(
       `Unsupported shell '${shellValue}'.`,
@@ -528,6 +538,9 @@ export async function runStaticCompletionQuery(
       );
     }
 
+    const { queryCompletionCandidates } = await import(
+      "./utils/completion-query.js"
+    );
     const candidates = queryCompletionCandidates(parsed.words, parsed.cword);
 
     if (mode.isJson) {

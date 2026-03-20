@@ -7,7 +7,7 @@
  *
  * Disabled via `PP_NO_UPDATE_CHECK=1`.
  *
- * Display: a single dim line shown only on the welcome screen and --help.
+ * Display: a single dim line shown only on the welcome screen.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from "fs";

@@ -39,6 +39,7 @@
     "test:evals": "node scripts/run-bun-tests.mjs ./test/evals --timeout 120000",
     "test:e2e:anvil": "node scripts/run-anvil-tests.mjs",
     "test:e2e:anvil:smoke": "node scripts/run-anvil-smoke.mjs",
+    "discovery:generate": "bun run build && node scripts/generate-command-discovery-static.mjs",
     "docs:generate": "bun run build && node scripts/generate-reference.mjs --write",
     "docs:preview": "bun run build && node scripts/generate-reference.mjs",
     "docs:check": "bun run build && node scripts/generate-reference.mjs --check"

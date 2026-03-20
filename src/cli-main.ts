@@ -306,23 +306,19 @@ export async function runCli(
     applyMachineMode(program);
   }
 
-  // Fire-and-forget update check — caches result for 24h, never blocks.
-  // Restrict this to interactive human flows so automation, CI, and piped
-  // output do not pay even the small cache-read / network-start cost.
-  if (
-    shouldStartUpdateCheck(
-      firstCommandToken,
-      isMachineMode,
-      isQuiet,
-      isHelpLike,
-      isVersionLike,
-    )
-  ) {
-    checkForUpdateInBackground();
-  }
+  const shouldCheckUpdates = shouldStartUpdateCheck(
+    firstCommandToken,
+    isMachineMode,
+    isQuiet,
+    isHelpLike,
+    isVersionLike,
+  );
 
   try {
     await program.parseAsync();
+    if (shouldCheckUpdates) {
+      checkForUpdateInBackground();
+    }
     if (
       isMachineMode &&
       !isHelpLike &&
@@ -358,6 +354,9 @@ export async function runCli(
         process.stdout.write(welcomeScreen() + "\n");
         const notice = getUpdateNotice(pkg.version);
         if (notice) process.stderr.write(chalk!.dim(notice) + "\n");
+        if (shouldCheckUpdates) {
+          checkForUpdateInBackground();
+        }
         process.exit(0);
       }
 

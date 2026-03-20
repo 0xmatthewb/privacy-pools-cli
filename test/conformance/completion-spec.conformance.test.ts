@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { createRootProgram } from "../../src/program.ts";
 import {
   buildCompletionSpecFromCommand,
+} from "../../src/utils/completion.ts";
+import {
   STATIC_COMPLETION_SPEC,
   type CompletionCommandSpec,
-} from "../../src/utils/completion.ts";
+} from "../../src/utils/completion-query.ts";
 
 interface NormalizedCompletionSpec {
   name: string;

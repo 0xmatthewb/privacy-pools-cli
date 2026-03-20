@@ -4,7 +4,7 @@ import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderCapabilities } from "../output/capabilities.js";
-import { buildCapabilitiesPayload } from "../utils/command-discovery-metadata.js";
+import { STATIC_CAPABILITIES_PAYLOAD } from "../utils/command-discovery-static.js";
 
 export async function handleCapabilitiesCommand(
   _opts: unknown,
@@ -14,7 +14,7 @@ export async function handleCapabilitiesCommand(
   const mode = resolveGlobalMode(globalOpts);
 
   try {
-    renderCapabilities(createOutputContext(mode), buildCapabilitiesPayload());
+    renderCapabilities(createOutputContext(mode), STATIC_CAPABILITIES_PAYLOAD);
   } catch (error) {
     printError(error, mode.isJson);
   }

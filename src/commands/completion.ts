@@ -6,9 +6,9 @@ import {
   detectCompletionShell,
   isCompletionShell,
   queryCompletionCandidates,
-  renderCompletionScript as generateCompletionScript,
   SUPPORTED_COMPLETION_SHELLS,
-} from "../utils/completion.js";
+} from "../utils/completion-query.js";
+import { renderCompletionScript as generateCompletionScript } from "../utils/completion.js";
 import { createOutputContext } from "../output/common.js";
 import {
   renderCompletionScript as outputCompletionScript,

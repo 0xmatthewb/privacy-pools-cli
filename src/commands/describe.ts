@@ -3,10 +3,10 @@ import { renderCommandDescription } from "../output/describe.js";
 import { createOutputContext } from "../output/common.js";
 import type { GlobalOptions } from "../types.js";
 import {
-  buildCommandDescriptor,
-  listCommandPaths,
-  resolveCommandPath,
-} from "../utils/command-discovery-metadata.js";
+  listStaticCommandPaths,
+  resolveStaticCommandPath,
+  STATIC_CAPABILITIES_PAYLOAD,
+} from "../utils/command-discovery-static.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 
@@ -17,18 +17,18 @@ export async function handleDescribeCommand(...args: unknown[]): Promise<void> {
   const mode = resolveGlobalMode(globalOpts);
 
   try {
-    const commandPath = resolveCommandPath(commandTokens);
+    const commandPath = resolveStaticCommandPath(commandTokens);
     if (!commandPath) {
       throw new CLIError(
         `Unknown command path: ${commandTokens.join(" ")}`,
         "INPUT",
-        `Valid command paths: ${listCommandPaths().join(", ")}`,
+        `Valid command paths: ${listStaticCommandPaths().join(", ")}`,
       );
     }
 
     renderCommandDescription(
       createOutputContext(mode),
-      buildCommandDescriptor(commandPath),
+      STATIC_CAPABILITIES_PAYLOAD.commandDetails[commandPath],
     );
   } catch (error) {
     printError(error, mode.isJson);
