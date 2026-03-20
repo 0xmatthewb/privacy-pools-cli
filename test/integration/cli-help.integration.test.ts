@@ -292,9 +292,10 @@ describe("CLI help and discovery", () => {
     expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  test("--format=csv on bare invocation does not emit a JSON help envelope", () => {
+  test("--format=csv on bare invocation falls back to the human welcome screen", () => {
     const result = runCli(["--format=csv"], { home: createTempHome() });
     expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Explore (no wallet needed)");
     expect(result.stdout.trim().startsWith("{")).toBe(false);
     expect(result.stderr.trim().startsWith("{")).toBe(false);
   });

@@ -233,7 +233,8 @@ export async function runCli(
     isStructuredOutputMode && (isHelpLike || isVersionLike);
   const suppressBanner = argv.includes("--no-banner");
   const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
-  const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
+  const isWelcome =
+    isWelcomeFlagOnlyInvocation(argv) && (!isMachineMode || isCsvMode);
   let machineCapturedOut = "";
   const [chalk, dangerTone] = !isMachineMode
     ? await Promise.all([
