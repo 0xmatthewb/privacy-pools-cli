@@ -42,8 +42,10 @@ const seededHomeTemplates = new Map<string, string>();
 const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
 
 function cleanupTrackedTempHomes(includeRetained: boolean = false): void {
+  const remainingTracked = new Set<string>();
   for (const dir of trackedTempHomes) {
     if (!includeRetained && retainedTempHomes.has(dir)) {
+      remainingTracked.add(dir);
       continue;
     }
     try {
@@ -59,6 +61,14 @@ function cleanupTrackedTempHomes(includeRetained: boolean = false): void {
     }
   }
   trackedTempHomes.clear();
+  for (const dir of remainingTracked) {
+    trackedTempHomes.add(dir);
+  }
+
+  if (includeRetained) {
+    retainedTempHomes.clear();
+    seededHomeTemplates.clear();
+  }
 }
 
 // Register cleanup during module evaluation so Bun sees the suite hook
