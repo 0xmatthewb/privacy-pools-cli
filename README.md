@@ -68,6 +68,12 @@ bun run build
 bun run start -- --help
 ```
 
+## Runtime Requirements
+
+- Supported runtime: Node 24.x and 25.x
+- Recommended dev/CI runtime: Node 25.x
+- Recommended Bun version for repo workflows: 1.3.11
+
 ## Commands
 
 | Command | Description | Wallet required? |
