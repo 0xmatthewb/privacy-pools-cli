@@ -103,7 +103,7 @@ npm unlink -g privacy-pools-cli
 
 ### Runtime Requirements
 
-- Supported runtime: Node 24.x and 25.x
+- Supported runtime: Node 22.x, 24.x, and 25.x
 - Recommended dev/CI runtime: Node 25.x
 - Recommended Bun version for repo workflows: 1.3.11
 
