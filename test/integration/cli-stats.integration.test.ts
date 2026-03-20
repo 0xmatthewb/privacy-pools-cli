@@ -17,7 +17,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   createTempHome,
-  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -26,12 +25,6 @@ import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
-
-function seededHome(chain: string = "sepolia"): string {
-  const home = createTempHome();
-  mustInitSeededHome(home, chain);
-  return home;
-}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // 1. Input validation

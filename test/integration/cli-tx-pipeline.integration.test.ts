@@ -9,18 +9,18 @@
  * and pins the exact failure stage so behavioral drift is caught.
  *
  * True success-path tests (generating precommitments, building unsigned
- * tx payloads, submitting transactions) require either:
- *   1. A funded E2E test (PP_E2E_ENABLED=1, skipped by default)
- *   2. An Anvil-forked local chain with deployed contracts
+ * tx payloads, submitting transactions) live in the Anvil suite, which
+ * runs the CLI against a forked local chain without live funds:
+ *   1. `PP_ANVIL_E2E=1 bun run test:e2e:anvil` for the full suite
+ *   2. `PP_ANVIL_E2E=1 bun run test:e2e:anvil:smoke` for the required CI lane
  *
- * Addresses audit finding 1: "Default integration suite does not exercise
- * protocol-critical success paths."
+ * This file still matters because it pins the offline failure boundary for
+ * the default integration suite, while the Anvil lane covers the happy path.
  */
 
 import { describe, expect, test } from "bun:test";
 import {
-  createTempHome,
-  mustInitSeededHome,
+  createSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -29,12 +29,6 @@ const OFFLINE_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
   PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
 };
-
-function seededHome(): string {
-  const home = createTempHome();
-  mustInitSeededHome(home, "sepolia");
-  return home;
-}
 
 // Helper: assert the command progressed past all input validation and
 // failed at pool resolution (ASP + RPC both unreachable), the expected offline stage.
@@ -56,7 +50,7 @@ describe("deposit command pipeline", () => {
   test("deposit --dry-run --json fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
     expectPoolResolutionFailure(result, json);
@@ -65,7 +59,7 @@ describe("deposit command pipeline", () => {
   test("deposit --unsigned --json fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--chain", "sepolia"],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
     expectPoolResolutionFailure(result, json);
@@ -74,7 +68,7 @@ describe("deposit command pipeline", () => {
   test("deposit --unsigned --unsigned-format tx returns migration INPUT error", () => {
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{ success: boolean; errorMessage: string; error: { category: string } }>(result.stdout);
@@ -86,7 +80,7 @@ describe("deposit command pipeline", () => {
   test("deposit --dry-run rejects zero amount", () => {
     const result = runCli(
       ["--json", "deposit", "0", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     expect(result.status).not.toBe(0);
     const json = parseJsonOutput<{ success: boolean; error: { category: string } }>(result.stdout);
@@ -96,7 +90,7 @@ describe("deposit command pipeline", () => {
   test("deposit --unsigned-format returns migration INPUT error", () => {
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned-format", "tx", "--chain", "sepolia"],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{
@@ -122,7 +116,7 @@ describe("withdraw command pipeline", () => {
         "--asset", "ETH", "--dry-run", "--direct",
         "--to", RECIPIENT, "--chain", "sepolia",
       ],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
     expectPoolResolutionFailure(result, json);
@@ -135,7 +129,7 @@ describe("withdraw command pipeline", () => {
         "--asset", "ETH", "--unsigned", "--direct",
         "--to", RECIPIENT, "--chain", "sepolia",
       ],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
     expectPoolResolutionFailure(result, json);
@@ -148,7 +142,7 @@ describe("withdraw command pipeline", () => {
         "--dry-run", "--direct",
         "--to", RECIPIENT, "--chain", "sepolia",
       ],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{ success: boolean; error: { category: string } }>(result.stdout);
@@ -163,7 +157,7 @@ describe("withdraw command pipeline", () => {
         "--asset", "ETH", "--dry-run", "--direct",
         "--chain", "sepolia",
       ],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{ success: boolean; error: { category: string } }>(result.stdout);
@@ -178,7 +172,7 @@ describe("ragequit command pipeline", () => {
   test("ragequit --dry-run fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
     expectPoolResolutionFailure(result, json);
@@ -187,7 +181,7 @@ describe("ragequit command pipeline", () => {
   test("ragequit --unsigned fails at ASP pool resolution", () => {
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--chain", "sepolia"],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
     expectPoolResolutionFailure(result, json);
@@ -196,7 +190,7 @@ describe("ragequit command pipeline", () => {
   test("ragequit --dry-run without --asset returns INPUT error", () => {
     const result = runCli(
       ["--json", "ragequit", "--dry-run", "--chain", "sepolia"],
-      { home: seededHome(), timeoutMs: 10_000, env: OFFLINE_ENV },
+      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{ success: boolean; error: { category: string } }>(result.stdout);

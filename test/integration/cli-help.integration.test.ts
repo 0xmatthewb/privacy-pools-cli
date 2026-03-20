@@ -189,6 +189,19 @@ describe("CLI help and discovery", () => {
     expect(result.stderr).toContain(BANNER_SENTINEL);
   });
 
+  test("--chain=mainnet keeps the curated welcome screen on bare invocation", () => {
+    const home = createTempHome();
+    const sessionId = `pp-cli-test-chain-inline-${Date.now()}`;
+
+    const result = runCli(["--chain=mainnet"], {
+      home,
+      env: { TERM_SESSION_ID: sessionId },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Explore (no wallet needed)");
+    expect(result.stderr).toContain(BANNER_SENTINEL);
+  });
+
   test("banner is not shown before commands", () => {
     const home = createTempHome();
     const sessionId = `pp-cli-test-banner-cmd-${Date.now()}`;
@@ -205,6 +218,15 @@ describe("CLI help and discovery", () => {
 
   test("--json --help returns JSON with mode help", () => {
     const result = runCli(["--json", "--help"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.mode).toBe("help");
+    expect(typeof parsed.help).toBe("string");
+  });
+
+  test("--format=json --help returns JSON with mode help", () => {
+    const result = runCli(["--format=json", "--help"], { home: createTempHome() });
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).not.toBe("");
     const parsed = JSON.parse(result.stdout.trim());
@@ -237,6 +259,45 @@ describe("CLI help and discovery", () => {
     const parsed = JSON.parse(result.stdout.trim());
     expect(parsed.mode).toBe("version");
     expect(parsed.version).toMatch(/\d+\.\d+\.\d+/);
+  });
+
+  test("--format=json --version returns JSON with mode version", () => {
+    const result = runCli(["--format=json", "--version"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.mode).toBe("version");
+    expect(parsed.version).toMatch(/\d+\.\d+\.\d+/);
+  });
+
+  test("--format=json on bare invocation returns JSON help", () => {
+    const result = runCli(["--format=json"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).not.toBe("");
+    const parsed = JSON.parse(result.stdout.trim());
+    expect(parsed.mode).toBe("help");
+    expect(typeof parsed.help).toBe("string");
+  });
+
+  test("--format=csv --help stays human-readable", () => {
+    const result = runCli(["--format=csv", "--help"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("privacy-pools");
+    expect(result.stdout.trim().startsWith("{")).toBe(false);
+  });
+
+  test("--format=csv --version stays human-readable", () => {
+    const result = runCli(["--format=csv", "--version"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  test("--format=csv on bare invocation falls back to the human welcome screen", () => {
+    const result = runCli(["--format=csv"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Explore (no wallet needed)");
+    expect(result.stdout.trim().startsWith("{")).toBe(false);
+    expect(result.stderr.trim().startsWith("{")).toBe(false);
   });
 
   // --- Flag presence in command help ---

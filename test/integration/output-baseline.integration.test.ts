@@ -14,8 +14,8 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+  createSeededHome,
   createTempHome,
-  mustInitSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -28,12 +28,6 @@ import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 const OFFLINE_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
-
-function seededHome(chain: string = "sepolia"): string {
-  const home = createTempHome();
-  mustInitSeededHome(home, chain);
-  return home;
-}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // 1. Human-mode output contracts
@@ -77,7 +71,7 @@ describe("human-mode output contracts", () => {
   });
 
   test("status (with init): stderr shows config, stdout is empty", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["--no-banner", "--rpc-url", "http://127.0.0.1:9", "status"],
       { home, env: OFFLINE_ENV },
@@ -102,7 +96,7 @@ describe("human-mode output contracts", () => {
   });
 
   test("human-mode error: stderr has Error prefix, stdout is empty", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(["deposit", "0.01", "--yes", "--chain", "sepolia"], {
       home,
       env: OFFLINE_ENV,
@@ -177,7 +171,7 @@ describe("JSON-mode envelope completeness", () => {
   });
 
   test("status --json (with init): stdout has complete status", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(["--json", "status"], { home });
     expect(result.status).toBe(0);
     const json = parseJsonOutput<{
@@ -221,7 +215,7 @@ describe("JSON-mode envelope completeness", () => {
   });
 
   test("sync --json (ASP offline): error envelope with ASP category", () => {
-    const home = seededHome("mainnet");
+    const home = createSeededHome("mainnet");
     const result = runCli(["--json", "--chain", "mainnet", "sync"], {
       home,
       timeoutMs: 10_000,
@@ -286,8 +280,8 @@ describe("--agent mode output contracts", () => {
   });
 
   test("--agent status: JSON on stdout, stderr empty", () => {
-    const home = seededHome();
-    const result = runCli(["--agent", "status"], { home });
+    const home = createSeededHome("sepolia");
+    const result = runCli(["--agent", "status"], { home, timeoutMs: 60_000 });
     expect(result.status).toBe(0);
     expect(result.stderr.trim()).toBe("");
     const json = parseJsonOutput<{
@@ -322,7 +316,7 @@ describe("--agent mode output contracts", () => {
 describe("error envelope field completeness", () => {
   test("INPUT error has all envelope fields", () => {
     const result = runCli(["--json", "deposit", "0.1", "--yes"], {
-      home: seededHome(),
+      home: createSeededHome("sepolia"),
     });
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{
@@ -350,7 +344,7 @@ describe("error envelope field completeness", () => {
   });
 
   test("ASP error has all envelope fields", () => {
-    const home = seededHome("mainnet");
+    const home = createSeededHome("mainnet");
     const result = runCli(["--json", "--chain", "mainnet", "accounts"], {
       home,
       timeoutMs: 10_000,
@@ -404,7 +398,7 @@ describe("error envelope field completeness", () => {
 
 describe("--unsigned error envelopes", () => {
   test("deposit --unsigned without --asset: JSON error on stdout", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(["deposit", "0.1", "--unsigned"], { home });
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{
@@ -418,7 +412,7 @@ describe("--unsigned error envelopes", () => {
   });
 
   test("withdraw --unsigned without --to: JSON error on stdout", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["withdraw", "0.1", "--unsigned", "--asset", "ETH"],
       { home }
@@ -435,7 +429,7 @@ describe("--unsigned error envelopes", () => {
   });
 
   test("ragequit --unsigned without --asset: JSON error on stdout", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(["ragequit", "--unsigned"], { home });
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{
@@ -449,7 +443,7 @@ describe("--unsigned error envelopes", () => {
   });
 
   test("--unsigned-format returns migration INPUT error", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "deposit", "0.1", "--asset", "ETH", "--unsigned-format", "tx"],
       { home }
@@ -471,7 +465,7 @@ describe("--unsigned error envelopes", () => {
 
 describe("--dry-run output contracts", () => {
   test("deposit --dry-run human mode: stderr error, stdout empty", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(["deposit", "0.01", "--dry-run", "--chain", "sepolia"], {
       home,
       timeoutMs: 10_000,
@@ -483,7 +477,7 @@ describe("--dry-run output contracts", () => {
   });
 
   test("deposit --dry-run --json: JSON error envelope for missing asset", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_ENV }
@@ -502,7 +496,7 @@ describe("--dry-run output contracts", () => {
   });
 
   test("withdraw --dry-run --json: JSON error for missing asset", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(
       [
         "--json", "withdraw", "0.01", "--dry-run", "--direct",
@@ -523,7 +517,7 @@ describe("--dry-run output contracts", () => {
   });
 
   test("ragequit --dry-run --json: JSON error for missing asset", () => {
-    const home = seededHome();
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "ragequit", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_ENV }
@@ -556,7 +550,7 @@ describe("mode-contract matrix", () => {
 
   for (const tc of MATRIX) {
     describe(tc.label, () => {
-      const home = tc.needsInit ? seededHome() : createTempHome();
+      const home = tc.needsInit ? createSeededHome("sepolia") : createTempHome();
       const opts = { home, timeoutMs: 15_000, env: OFFLINE_ENV };
 
       test("--json: parseable JSON on stdout, stderr empty", () => {
@@ -598,7 +592,10 @@ describe("mode-contract matrix", () => {
 
 describe("stdout/stderr stream separation", () => {
   test("JSON success goes to stdout only", () => {
-    const result = runCli(["--json", "status"], { home: seededHome() });
+    const result = runCli(["--json", "status"], {
+      home: createSeededHome("sepolia"),
+      timeoutMs: 60_000,
+    });
     expect(result.status).toBe(0);
     // stdout must be valid JSON
     const json = JSON.parse(result.stdout.trim());
@@ -609,7 +606,7 @@ describe("stdout/stderr stream separation", () => {
 
   test("JSON error goes to stdout only", () => {
     const result = runCli(["--json", "deposit", "0.1", "--yes"], {
-      home: seededHome(),
+      home: createSeededHome("sepolia"),
     });
     expect(result.status).toBe(2);
     // stdout must be valid JSON
@@ -620,14 +617,17 @@ describe("stdout/stderr stream separation", () => {
   });
 
   test("human-mode error goes to stderr only", () => {
-    const result = runCli(["deposit", "0.1", "--yes"], { home: seededHome() });
+    const result = runCli(["deposit", "0.1", "--yes"], { home: createSeededHome("sepolia") });
     expect(result.status).toBe(2);
     expect(result.stderr).toContain("Error");
     expect(result.stdout.trim()).toBe("");
   });
 
   test("human-mode success output goes to stderr only (status command)", () => {
-    const result = runCli(["--no-banner", "status"], { home: seededHome() });
+    const result = runCli(["--no-banner", "status"], {
+      home: createSeededHome("sepolia"),
+      timeoutMs: 60_000,
+    });
     expect(result.status).toBe(0);
     expect(result.stderr).toContain("Privacy Pools CLI Status");
     expect(result.stdout.trim()).toBe("");

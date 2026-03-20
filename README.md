@@ -47,8 +47,6 @@ Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Associati
 
 You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 
-For relayed withdrawals, the CLI warns if your chosen amount would leave a tiny remainder below the relayer minimum so you can adjust before stranding the relayed path for the leftover balance.
-
 ## Install
 
 ```bash
@@ -68,6 +66,12 @@ bun run build
 bun run start -- --help
 ```
 
+## Runtime Requirements
+
+- Supported runtime: Node 22.x, 24.x, and 25.x
+- Recommended dev/CI runtime: Node 25.x
+- Recommended Bun version for repo workflows: 1.3.11
+
 ## Commands
 
 | Command | Description | Wallet required? |
@@ -86,7 +90,7 @@ bun run start -- --help
 | `accounts` | List Pool Accounts with balances and approval status | Yes |
 | `history` | Chronological event log | Yes |
 | `sync` | Force-sync account state from onchain | Yes |
-| `completion` | Generate shell completions (bash/zsh/fish) | |
+| `completion` | Generate shell completions (bash/zsh/fish/powershell) | |
 
 All commands accept `--chain <name>` to override your default chain. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
 

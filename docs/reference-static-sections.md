@@ -101,18 +101,28 @@ privacy-pools --help
 npm unlink -g privacy-pools-cli
 ```
 
+### Runtime Requirements
+
+- Supported runtime: Node 22.x, 24.x, and 25.x
+- Recommended dev/CI runtime: Node 25.x
+- Recommended Bun version for repo workflows: 1.3.11
+
 ### Scripts
 
 ```bash
-bun run test              # fast default suite (unit/integration/fuzz/services)
-bun run test:ci           # full suite + conformance
+bun run test              # fast default suite (excludes packaged smoke)
+bun run test:ci           # local mirror of required CI checks
+bun run test:smoke        # packaged CLI smoke against a packed tarball
 bun run typecheck         # TypeScript type check (no emit)
 bun run circuits:provision # prefetch proof artifacts into the CLI home
-PP_ANVIL_E2E=1 bun run test:e2e:anvil # opt-in Sepolia-fork E2E
+bun run test:e2e:anvil    # full Sepolia-fork E2E
+bun run test:e2e:anvil:smoke # required happy-path smoke lane
 bun run test:fuzz         # fuzz tests (longer timeout)
 bun run test:stress       # stress test (120 rounds)
-bun run test:coverage     # test suite with coverage
-bun run test:conformance  # conformance tests (extended timeout)
+bun run test:coverage     # coverage guard for key source directories
+bun run test:conformance  # core conformance tests (extended timeout)
+bun run test:conformance:frontend # optional frontend parity (website access required)
+bun run test:conformance:all # core conformance + frontend parity
 ```
 
 Use `bun run test` / `bun run test:ci` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts.

@@ -4,6 +4,33 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.6.0] - 2026-03-20
+
+### Added
+
+- Added dedicated packaged-smoke, coverage, Anvil smoke, eval, and core-conformance lanes, with frontend parity kept as an informational check.
+- Added built-entrypoint and packed-tarball coverage so shipped installs are verified directly before release.
+
+### Changed
+
+- Reworked startup and discovery paths so `--version`, `--help`, `guide`, `capabilities`, and `describe` stay on lightweight fast paths while heavier command runtime code loads only when needed.
+- Tightened completion query handling, root discovery output, and update-check timing so read-only and agent-facing commands feel much faster without changing the CLI contract.
+- Adopted Node 25 as the development and CI baseline while supporting the published CLI on Node 22.x, 24.x, and 25.x.
+- Refreshed runtime and tooling dependencies, docs generation, and packaged validation to match the shipped build.
+
+### Fixed
+
+- Fixed bare `--format=csv` invocation so it falls back to the normal human welcome flow instead of exiting silently.
+- Fixed `status` and local account loading to degrade more gracefully when a cached account file is corrupt.
+- Fixed conformance and smoke coverage to use pinned upstream fixtures, live-source parity checks, and the actual packed tarball rather than the repo checkout.
+
+### Verification
+
+- `npm run test:ci`
+- `npm run docs:check`
+- `npx -y node@22.13.1 scripts/run-bun-tests.mjs ./test/integration/cli.packaged-smoke.integration.test.ts --timeout 180000`
+- `npm pack --dry-run`
+
 ## [1.5.0] - 2026-03-13
 
 ### Added
@@ -197,6 +224,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Enabled GitHub Actions CI/CD workflows for the repository.
 - Completed the initial packaging and release flow.
 
+[1.6.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.2.0...v1.3.0

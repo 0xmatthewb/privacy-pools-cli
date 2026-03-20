@@ -53,6 +53,23 @@ describe("agent-focused improvements", () => {
     expect(result.stderr.trim()).toBe("");
   });
 
+  test("describe accepts global flags after the command path", () => {
+    const result = runCli(["describe", "stats", "global", "--agent"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      command: string;
+      usage: string;
+      expectedLatencyClass: string;
+    }>(result.stdout);
+    expect(json.command).toBe("stats global");
+    expect(json.usage).toBe("stats global");
+    expect(json.expectedLatencyClass).toBe("medium");
+    expect(result.stderr.trim()).toBe("");
+  });
+
   test("describe in human mode writes summary to stderr only", () => {
     const result = runCli(["describe", "stats", "global"], {
       home: createTempHome(),
@@ -96,6 +113,36 @@ describe("agent-focused improvements", () => {
     expect(json.commandDetails["completion"]?.safeReadOnly).toBe(true);
     expect(json.safeReadOnlyCommands).toContain("guide");
     expect(json.safeReadOnlyCommands).toContain("completion");
+  });
+
+  test("capabilities accepts unrelated root flags without changing payload shape", () => {
+    const result = runCli(["capabilities", "--agent", "--chain", "mainnet"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      commands: Array<{ name: string }>;
+      commandDetails: Record<string, { command: string }>;
+    }>(result.stdout);
+    expect(json.commands.map((command) => command.name)).toContain("describe");
+    expect(json.commandDetails["capabilities"]?.command).toBe("capabilities");
+    expect(result.stderr.trim()).toBe("");
+  });
+
+  test("guide accepts unrelated root flags without changing payload shape", () => {
+    const result = runCli(["guide", "--agent", "--chain", "mainnet"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      mode: string;
+      help: string;
+    }>(result.stdout);
+    expect(json.mode).toBe("help");
+    expect(json.help).toContain("Privacy Pools: Quick Guide");
+    expect(result.stderr.trim()).toBe("");
   });
 
   test("init --mnemonic-stdin imports recovery phrase without leaking it", () => {

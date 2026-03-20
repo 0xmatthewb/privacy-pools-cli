@@ -1,46 +1,28 @@
 import type { Command, Option } from "commander";
 import { CHAIN_NAMES } from "../config/chains.js";
+import {
+  PUBLISHED_BINARY_NAMES,
+  type CompletionCommandSpec,
+  type CompletionOptionSpec,
+  type CompletionShell,
+} from "./completion-query.js";
 
-export const SUPPORTED_COMPLETION_SHELLS = [
-  "bash",
-  "zsh",
-  "fish",
-  "powershell",
-] as const;
-
-export type CompletionShell = (typeof SUPPORTED_COMPLETION_SHELLS)[number];
-
-const PUBLISHED_BINARY_NAMES = ["privacy-pools"] as const;
-
-interface CompletionOptionSpec {
-  names: string[];
-  takesValue: boolean;
-  values: string[];
-}
-
-interface CompletionCommandNode {
-  name: string;
-  options: CompletionOptionSpec[];
-  subcommands: Map<string, CompletionCommandNode>;
-}
+export {
+  detectCompletionShell,
+  isCompletionShell,
+  PUBLISHED_BINARY_NAMES,
+  queryCompletionCandidates,
+  STATIC_COMPLETION_SPEC,
+  SUPPORTED_COMPLETION_SHELLS,
+  type CompletionCommandSpec,
+  type CompletionOptionSpec,
+  type CompletionShell,
+} from "./completion-query.js";
 
 const INTERNAL_COMPLETION_OPTION_NAMES = new Set(["--query", "--cword"]);
 
 function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
-}
-
-export function isCompletionShell(value: string): value is CompletionShell {
-  return (SUPPORTED_COMPLETION_SHELLS as readonly string[]).includes(value);
-}
-
-export function detectCompletionShell(
-  envShell: string | undefined = process.env.SHELL
-): CompletionShell {
-  const raw = (envShell ?? "").toLowerCase();
-  if (raw.includes("zsh")) return "zsh";
-  if (raw.includes("fish")) return "fish";
-  return "bash";
 }
 
 function optionValues(option: Option): string[] {
@@ -62,12 +44,12 @@ function optionValues(option: Option): string[] {
 }
 
 function toOptionSpec(option: Option): CompletionOptionSpec | null {
-  // Keep internal completion plumbing flags out of suggestions.
   if (option.long && INTERNAL_COMPLETION_OPTION_NAMES.has(option.long)) {
     return null;
   }
+
   const names = [option.short, option.long].filter(
-    (name): name is string => typeof name === "string" && name.length > 0
+    (name): name is string => typeof name === "string" && name.length > 0,
   );
 
   if (names.length === 0) return null;
@@ -79,171 +61,30 @@ function toOptionSpec(option: Option): CompletionOptionSpec | null {
   };
 }
 
-function buildTree(command: Command): CompletionCommandNode {
+export function buildCompletionSpecFromCommand(
+  command: Command,
+): CompletionCommandSpec {
   const options = command.options
     .map(toOptionSpec)
     .filter((value): value is CompletionOptionSpec => value !== null);
-
-  const subcommands = new Map<string, CompletionCommandNode>();
-
-  for (const subcommand of command.commands) {
-    const node = buildTree(subcommand);
-    const names = [subcommand.name(), ...subcommand.aliases()].filter(
-      (name): name is string => typeof name === "string" && name.length > 0
-    );
-    for (const name of names) {
-      subcommands.set(name, node);
-    }
-  }
+  const subcommands = command.commands.map((subcommand) =>
+    buildCompletionSpecFromCommand(subcommand),
+  );
 
   return {
     name: command.name(),
+    aliases: command.aliases(),
     options,
     subcommands,
   };
 }
 
-function mergedOptions(
-  current: CompletionCommandNode,
-  root: CompletionCommandNode
-): CompletionOptionSpec[] {
-  const merged = new Map<string, CompletionOptionSpec>();
-  const lists =
-    current === root ? [current.options] : [root.options, current.options];
-
-  for (const list of lists) {
-    for (const option of list) {
-      const key = option.names.join("|");
-      if (!merged.has(key)) {
-        merged.set(key, option);
-      }
-    }
-  }
-
-  return Array.from(merged.values());
-}
-
-function findOption(
-  token: string,
-  current: CompletionCommandNode,
-  root: CompletionCommandNode
-): CompletionOptionSpec | undefined {
-  return mergedOptions(current, root).find((option) =>
-    option.names.includes(token)
-  );
-}
-
-function normalizeWords(
-  words: string[],
-  commandName: string,
-  acceptedCommandNames: readonly string[],
-): string[] {
-  if (words.length === 0) {
-    return [commandName];
-  }
-
-  if (acceptedCommandNames.includes(words[0] as (typeof acceptedCommandNames)[number])) {
-    return [commandName, ...words.slice(1)];
-  }
-
-  return [commandName, ...words];
-}
-
-function normalizeCword(cword: number | undefined, wordsLength: number): number {
-  if (!Number.isFinite(cword)) {
-    return Math.max(wordsLength - 1, 0);
-  }
-
-  const normalized = Math.trunc(cword as number);
-  return Math.max(0, Math.min(normalized, wordsLength));
-}
-
-function resolveContext(
-  root: CompletionCommandNode,
-  words: string[],
-  cword: number
-): {
-  current: CompletionCommandNode;
-  expectingValueFor?: CompletionOptionSpec;
-} {
-  let current = root;
-  let expectingValueFor: CompletionOptionSpec | undefined;
-
-  const boundary = Math.max(1, Math.min(cword, words.length));
-
-  for (let i = 1; i < boundary; i++) {
-    const token = words[i];
-
-    if (expectingValueFor) {
-      expectingValueFor = undefined;
-      continue;
-    }
-
-    if (token.startsWith("-")) {
-      const equalsIndex = token.indexOf("=");
-      const flag = equalsIndex >= 0 ? token.slice(0, equalsIndex) : token;
-      const option = findOption(flag, current, root);
-      if (option && option.takesValue && equalsIndex < 0) {
-        expectingValueFor = option;
-      }
-      continue;
-    }
-
-    const subcommand = current.subcommands.get(token);
-    if (subcommand) {
-      current = subcommand;
-    }
-  }
-
-  return { current, expectingValueFor };
-}
-
-function filterByPrefix(candidates: string[], prefix: string): string[] {
-  if (!prefix) return uniqueSorted(candidates);
-  return uniqueSorted(candidates.filter((candidate) => candidate.startsWith(prefix)));
-}
-
-export function queryCompletionCandidates(
-  rootCommand: Command,
-  wordsInput: string[],
-  cwordInput?: number
-): string[] {
-  const tree = buildTree(rootCommand);
-  const commandName = tree.name || "privacy-pools";
-  const acceptedCommandNames = uniqueSorted([commandName, ...PUBLISHED_BINARY_NAMES]);
-  const words = normalizeWords(wordsInput, commandName, acceptedCommandNames);
-  const cword = normalizeCword(cwordInput, words.length);
-  const currentToken = cword < words.length ? words[cword] ?? "" : "";
-
-  const { current, expectingValueFor } = resolveContext(tree, words, cword);
-
-  if (currentToken.startsWith("-") && currentToken.includes("=")) {
-    const equalsIndex = currentToken.indexOf("=");
-    const flag = currentToken.slice(0, equalsIndex);
-    const valuePrefix = currentToken.slice(equalsIndex + 1);
-    const option = findOption(flag, current, tree);
-    if (option && option.values.length > 0) {
-      return filterByPrefix(option.values, valuePrefix).map(
-        (value) => `${flag}=${value}`
-      );
-    }
-  }
-
-  if (expectingValueFor) {
-    if (expectingValueFor.values.length === 0) return [];
-    return filterByPrefix(expectingValueFor.values, currentToken);
-  }
-
-  const subcommands = Array.from(current.subcommands.keys());
-  const options = mergedOptions(current, tree).flatMap((option) => option.names);
-  const baseCandidates = [...subcommands, ...options];
-
-  return filterByPrefix(baseCandidates, currentToken);
-}
-
 function renderBashCompletion(commandNames: string[]): string {
   const registrations = commandNames
-    .map((commandName) => `complete -o default -F _privacy_pools_completion ${commandName}`)
+    .map(
+      (commandName) =>
+        `complete -o default -F _privacy_pools_completion ${commandName}`,
+    )
     .join("\n");
 
   return `# ${commandNames.join(", ")} bash completion
@@ -287,7 +128,10 @@ compdef _privacy_pools_completion ${zshNames}
 
 function renderFishCompletion(commandNames: string[]): string {
   const registrations = commandNames
-    .map((commandName) => `complete -c ${commandName} -f -a "(__fish_privacy_pools_complete)"`)
+    .map(
+      (commandName) =>
+        `complete -c ${commandName} -f -a "(__fish_privacy_pools_complete)"`,
+    )
     .join("\n");
 
   return `# ${commandNames.join(", ")} fish completion
@@ -327,7 +171,7 @@ function renderPowerShellCompletion(commandNames: string[]): string {
             [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
         }
     }
-}`
+}`,
     )
     .join("\n\n");
 
@@ -338,7 +182,7 @@ ${registrations}
 
 export function renderCompletionScript(
   shell: CompletionShell,
-  commandNames: string[] = [...PUBLISHED_BINARY_NAMES]
+  commandNames: string[] = [...PUBLISHED_BINARY_NAMES],
 ): string {
   if (shell === "bash") return renderBashCompletion(commandNames);
   if (shell === "zsh") return renderZshCompletion(commandNames);

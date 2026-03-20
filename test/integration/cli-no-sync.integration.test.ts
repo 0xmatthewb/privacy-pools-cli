@@ -4,8 +4,7 @@ import { join } from "node:path";
 import { CHAINS } from "../../src/config/chains.ts";
 import { serialize } from "../../src/services/account.ts";
 import {
-  createTempHome,
-  mustInitSeededHome,
+  createSeededHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
@@ -184,8 +183,7 @@ afterAll(() => {
 
 describe("accounts/history --no-sync", () => {
   test("accounts --no-sync succeeds from cached state when log RPC is unavailable", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     seedCachedAccount(home);
 
     const withoutFlag = runCli(
@@ -218,8 +216,7 @@ describe("accounts/history --no-sync", () => {
   }, 30_000);
 
   test("history --no-sync succeeds from cached state when log RPC is unavailable", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     seedCachedAccount(home);
 
     const withoutFlag = runCli(
@@ -250,8 +247,7 @@ describe("accounts/history --no-sync", () => {
   }, 30_000);
 
   test("accounts --no-sync --summary reports full cached status counts", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     seedDetailedCachedAccount(home);
 
     const result = runCli(
@@ -296,8 +292,7 @@ describe("accounts/history --no-sync", () => {
   }, 30_000);
 
   test("accounts --no-sync --pending-only filters cached pending approvals", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     seedDetailedCachedAccount(home);
 
     const result = runCli(
@@ -329,8 +324,7 @@ describe("accounts/history --no-sync", () => {
   }, 30_000);
 
   test("accounts --no-sync --pending-only aggregates mainnets by default and surfaces partial-failure warnings", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "mainnet");
+    const home = createSeededHome("mainnet");
     seedDetailedCachedAccount(home, mainnetChainConfig.id);
     seedDetailedCachedAccount(home, arbitrumChainConfig.id);
 
@@ -380,8 +374,7 @@ describe("accounts/history --no-sync", () => {
   }, 30_000);
 
   test("accounts --no-sync --all-chains --summary includes testnets and chain metadata", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "mainnet");
+    const home = createSeededHome("mainnet");
     for (const chainId of [
       mainnetChainConfig.id,
       arbitrumChainConfig.id,

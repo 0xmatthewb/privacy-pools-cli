@@ -102,6 +102,27 @@ describe("CLI command integration", () => {
     expect(typeof statusJson.rpcLive).toBe("boolean");
   });
 
+  test("status --no-check still succeeds when one account file is corrupt", () => {
+    const home = createTempHome();
+    mkdirSync(join(home, ".privacy-pools", "accounts"), { recursive: true });
+    writeFileSync(
+      join(home, ".privacy-pools", "accounts", "1.json"),
+      "{{not valid json",
+      "utf8",
+    );
+
+    const statusResult = runCli(["--json", "status", "--no-check"], { home });
+    expect(statusResult.status).toBe(0);
+
+    const statusJson = parseJsonOutput<{
+      success: boolean;
+      accountFiles: Array<{ chain: string; chainId: number }>;
+    }>(statusResult.stdout);
+
+    expect(statusJson.success).toBe(true);
+    expect(statusJson.accountFiles).toEqual([]);
+  });
+
   test("deposit without --asset in --yes mode fails with INPUT error", () => {
     const home = createTempHome();
     mustInitSeededHome(home);

@@ -1,106 +1,32 @@
 import { existsSync, readFileSync, writeFileSync, renameSync } from "fs";
 import { join } from "path";
-import { AccountService, DataService, type PoolInfo } from "@0xbow/privacy-pools-core-sdk";
+import {
+  AccountService,
+  DataService,
+  type PoolInfo,
+} from "@0xbow/privacy-pools-core-sdk";
 import type { Address } from "viem";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
 import { CLIError } from "../utils/errors.js";
 import { acquireProcessLock } from "../utils/lock.js";
-import { guardCriticalSection, releaseCriticalSection } from "../utils/critical-section.js";
+import {
+  guardCriticalSection,
+  releaseCriticalSection,
+} from "../utils/critical-section.js";
 import { warn, verbose as logVerbose } from "../utils/format.js";
-
-// BigInt + Map aware JSON serializer
-/** @internal Exported for testing only. */
-export function serialize(value: unknown): string {
-  return JSON.stringify(value, (_key, val) => {
-    if (typeof val === "bigint") {
-      return { __type: "bigint", value: val.toString() };
-    }
-    if (val instanceof Map) {
-      return { __type: "map", value: Array.from(val.entries()) };
-    }
-    return val;
-  }, 2);
-}
-
-// BigInt + Map aware JSON deserializer
-/** @internal Exported for testing only. */
-export function deserialize(raw: string): unknown {
-  return JSON.parse(raw, (_key, val) => {
-    if (val?.__type === "bigint") return BigInt(val.value);
-    if (val?.__type === "map") return new Map(val.value);
-    return val;
-  });
-}
-
-function getAccountFilePath(chainId: number): string {
-  return join(getAccountsDir(), `${chainId}.json`);
-}
-
-export function accountExists(chainId: number): boolean {
-  return existsSync(getAccountFilePath(chainId));
-}
-
-/**
- * Check whether the account file for a chain contains any deposits.
- *
- * `accountExists()` only checks whether the file is present, but the SDK
- * creates empty account files during `initializeAccountService()` even when
- * no deposits exist.  This function loads the file and inspects both the
- * `commitments` map (SDK runtime state) and the `poolAccounts` map (durable
- * historical source used by `history`, `pool-accounts`, and integration tests)
- * to determine if the user has actually deposited.
- *
- * Returns `false` when the file doesn't exist, is empty, or both maps have
- * zero entries.
- */
-export function accountHasDeposits(chainId: number): boolean {
-  const account = loadAccount(chainId);
-  if (!account) return false;
-
-  if (mapHasEntries(account.commitments)) return true;
-  if (mapHasEntries(account.poolAccounts)) return true;
-
-  return false;
-}
-
-/** Check if a value is a non-empty Map (deserialized or raw serialized form). */
-function mapHasEntries(value: unknown): boolean {
-  if (value instanceof Map) return value.size > 0;
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    (value as any).__type === "map" &&
-    Array.isArray((value as any).value)
-  ) {
-    return (value as any).value.length > 0;
-  }
-  return false;
-}
-
-export function loadAccount(chainId: number): any | null {
-  const path = getAccountFilePath(chainId);
-  if (!existsSync(path)) return null;
-
-  try {
-    const raw = readFileSync(path, "utf-8");
-    return deserialize(raw);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new CLIError(
-      `Account file is corrupt or unreadable: ${path}`,
-      "INPUT",
-      `Back up and remove the file, then run 'privacy-pools sync' to rebuild from onchain data. (${msg})`
-    );
-  }
-}
-
-export function saveAccount(chainId: number, account: any): void {
-  ensureConfigDir();
-  const path = getAccountFilePath(chainId);
-  const tmpPath = path + ".tmp";
-  writeFileSync(tmpPath, serialize(account), { encoding: "utf-8", mode: 0o600 });
-  renameSync(tmpPath, path);
-}
+import {
+  withSuppressedConsole,
+  withSuppressedConsoleSync,
+} from "../utils/console-guard.js";
+export {
+  accountExists,
+  accountHasDeposits,
+  deserialize,
+  loadAccount,
+  saveAccount,
+  serialize,
+} from "./account-storage.js";
+import { loadAccount, saveAccount } from "./account-storage.js";
 
 /**
  * Cast raw pool data to SDK PoolInfo (handles branded Hash type for scope)
@@ -127,7 +53,7 @@ export function toPoolInfo(pool: {
 //   1. `withSuppressedSdkStdout` — swap-and-restore guard around individual SDK
 //      calls.  Handles the common case where SDK work completes synchronously
 //      within the awaited promise.
-//   2. `installSdkConsoleGuard` — permanent no-op replacement of console methods.
+//   2. `installConsoleGuard` — permanent no-op replacement of console methods.
 //      Called once from the CLI entry point.  Catches deferred SDK callbacks
 //      (e.g. `setTimeout`-based retries) that fire after the swap-and-restore
 //      guard has already restored the originals.
@@ -135,67 +61,14 @@ export function toPoolInfo(pool: {
 // The CLI itself never uses console.* — all output goes through process.stderr.write
 // and process.stdout.write — so the permanent guard is safe.
 
-function silenceSdkConsole(): () => void {
-  const original = {
-    log: console.log,
-    info: console.info,
-    debug: console.debug,
-    warn: console.warn,
-    error: console.error,
-  };
-
-  console.log = () => {};
-  console.info = () => {};
-  console.debug = () => {};
-  console.warn = () => {};
-  console.error = () => {};
-
-  return () => {
-    console.log = original.log;
-    console.info = original.info;
-    console.debug = original.debug;
-    console.warn = original.warn;
-    console.error = original.error;
-  };
-}
-
 export async function withSuppressedSdkStdout<T>(
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
 ): Promise<T> {
-  const restore = silenceSdkConsole();
-  try {
-    return await fn();
-  } finally {
-    restore();
-  }
+  return withSuppressedConsole(fn);
 }
 
 export function withSuppressedSdkStdoutSync<T>(fn: () => T): T {
-  const restore = silenceSdkConsole();
-  try {
-    return fn();
-  } finally {
-    restore();
-  }
-}
-
-/**
- * Permanently suppress console.log/info/debug/warn/error for the lifetime of
- * the process.  Call once at CLI startup.  This catches deferred SDK logging
- * (e.g. retry callbacks via setTimeout) that escapes the per-call guards.
- *
- * Safe because the CLI routes all its own output through process.stderr.write /
- * process.stdout.write and never calls console.* directly.
- */
-let _guardInstalled = false;
-export function installSdkConsoleGuard(): void {
-  if (_guardInstalled) return;
-  _guardInstalled = true;
-  console.log = () => {};
-  console.info = () => {};
-  console.debug = () => {};
-  console.warn = () => {};
-  console.error = () => {};
+  return withSuppressedConsoleSync(fn);
 }
 
 export async function initializeAccountService(
@@ -213,14 +86,14 @@ export async function initializeAccountService(
   /** When true, suppress best-effort sync warnings to keep machine stderr clean */
   suppressWarnings: boolean = false,
   /** When true, treat sync/initialization failures as hard errors (fail-closed). */
-  strictSync: boolean = false
+  strictSync: boolean = false,
 ): Promise<AccountService> {
   // Try to load existing account state
   const savedAccount = loadAccount(chainId);
 
   if (savedAccount) {
     const service = await withSuppressedSdkStdout(
-      async () => new AccountService(dataService, { account: savedAccount })
+      async () => new AccountService(dataService, { account: savedAccount }),
     );
 
     // Sync to pick up any events that happened since last save
@@ -238,7 +111,7 @@ export async function initializeAccountService(
           syncFailures++;
           if (!suppressWarnings) {
             process.stderr.write(
-              `Warning: sync failed for pool ${pool.address}: ${err instanceof Error ? err.message : String(err)}\n`
+              `Warning: sync failed for pool ${pool.address}: ${err instanceof Error ? err.message : String(err)}\n`,
             );
           }
         }
@@ -247,7 +120,7 @@ export async function initializeAccountService(
         throw new CLIError(
           `Failed to sync account state for ${syncFailures} pool(s).`,
           "RPC",
-          "Check your RPC connectivity and retry."
+          "Check your RPC connectivity and retry.",
         );
       }
       // Caller is responsible for saving within a critical section guard.
@@ -258,19 +131,19 @@ export async function initializeAccountService(
 
   // Fresh initialization
   const accountService = await withSuppressedSdkStdout(
-    async () => new AccountService(dataService, { mnemonic })
+    async () => new AccountService(dataService, { mnemonic }),
   );
 
   // Initialize with events if pools are provided
   if (pools.length > 0) {
     try {
       const poolInfos = pools.map(toPoolInfo);
-      const result = await withSuppressedSdkStdout(
-        async () => AccountService.initializeWithEvents(
+      const result = await withSuppressedSdkStdout(async () =>
+        AccountService.initializeWithEvents(
           dataService,
           { mnemonic },
-          poolInfos
-        )
+          poolInfos,
+        ),
       );
 
       const initErrors = result.errors ?? [];
@@ -284,13 +157,13 @@ export async function initializeAccountService(
           throw new CLIError(
             `Failed to initialize account from onchain events for ${initErrors.length} pool(s). ${details}`,
             "RPC",
-            "Check your RPC connectivity and retry."
+            "Check your RPC connectivity and retry.",
           );
         }
 
         if (!suppressWarnings) {
           process.stderr.write(
-            `Warning: account initialization had partial failures for ${initErrors.length} pool(s): ${details}\n`
+            `Warning: account initialization had partial failures for ${initErrors.length} pool(s): ${details}\n`,
           );
         }
       }
@@ -303,12 +176,12 @@ export async function initializeAccountService(
         throw new CLIError(
           `Failed to initialize account from onchain events: ${err instanceof Error ? err.message : String(err)}`,
           "RPC",
-          "Check your RPC connectivity and retry."
+          "Check your RPC connectivity and retry.",
         );
       }
       if (!suppressWarnings) {
         process.stderr.write(
-          `Warning: fresh account initialization failed, using empty account: ${err instanceof Error ? err.message : String(err)}\n`
+          `Warning: fresh account initialization failed, using empty account: ${err instanceof Error ? err.message : String(err)}\n`,
         );
       }
     }
@@ -345,11 +218,10 @@ export function saveSyncMeta(chainId: number): void {
   ensureConfigDir();
   const path = getSyncMetaPath(chainId);
   const tmpPath = path + ".tmp";
-  writeFileSync(
-    tmpPath,
-    JSON.stringify({ lastSyncTime: Date.now() }),
-    { encoding: "utf-8", mode: 0o600 },
-  );
+  writeFileSync(tmpPath, JSON.stringify({ lastSyncTime: Date.now() }), {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
   renameSync(tmpPath, path);
 }
 

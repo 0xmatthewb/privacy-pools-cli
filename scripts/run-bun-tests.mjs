@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { readdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
 
 const runId = `${process.pid}-${Date.now()}`;
 const tempPrefixes = [
@@ -36,7 +36,81 @@ function cleanupRunTempDirs() {
   }
 }
 
-const result = spawnSync("bun", ["test", ...process.argv.slice(2)], {
+function collectTestFiles(pathArg) {
+  const absolute = resolve(pathArg);
+  const stat = statSync(absolute);
+  if (stat.isFile()) {
+    return [pathArg];
+  }
+
+  const files = [];
+  const queue = [absolute];
+  while (queue.length > 0) {
+    const current = queue.pop();
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const entryPath = join(current, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(entryPath);
+        continue;
+      }
+      if (entry.isFile() && entry.name.endsWith(".test.ts")) {
+        files.push(relative(process.cwd(), entryPath));
+      }
+    }
+  }
+
+  return files.sort();
+}
+
+const forwardedArgs = [];
+const excludedPaths = new Set();
+
+for (let i = 2; i < process.argv.length; i += 1) {
+  const token = process.argv[i];
+  if (token === "--exclude") {
+    const target = process.argv[i + 1];
+    if (!target) {
+      throw new Error("--exclude requires a path");
+    }
+    excludedPaths.add(resolve(target));
+    i += 1;
+    continue;
+  }
+  forwardedArgs.push(token);
+}
+
+// Bun's default 5s per-test timeout is too tight for our slower integration
+// cases when the full suite is contending for CPU or network resources.
+// Keep a higher default for reliability, while still allowing explicit
+// --timeout values in package scripts or ad hoc runs to override it.
+const hasExplicitTimeout = forwardedArgs.includes("--timeout");
+if (!hasExplicitTimeout) {
+  forwardedArgs.push("--timeout", "30000");
+}
+
+const bunArgs = excludedPaths.size === 0
+  ? forwardedArgs
+  : forwardedArgs.flatMap((token) => {
+      if (token.startsWith("-") || !existsSync(token)) {
+        return [token];
+      }
+
+      return collectTestFiles(token).filter((candidate) => {
+        return !excludedPaths.has(resolve(candidate));
+      });
+    });
+
+const hasExplicitTestTarget = bunArgs.some((token) => {
+  return !token.startsWith("-") && existsSync(resolve(token));
+});
+
+if (!hasExplicitTestTarget) {
+  throw new Error(
+    "No test files selected. Pass at least one test file or directory.",
+  );
+}
+
+const result = spawnSync("bun", ["test", ...bunArgs], {
   stdio: "inherit",
   env: {
     ...process.env,

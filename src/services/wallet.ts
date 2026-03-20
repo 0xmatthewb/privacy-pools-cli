@@ -5,7 +5,7 @@ import {
   privateKeyToAccount,
 } from "viem/accounts";
 import { validateMnemonic as bip39ValidateMnemonic } from "@scure/bip39";
-import { wordlist as bip39EnglishWordlist } from "@scure/bip39/wordlists/english";
+import { wordlist as bip39EnglishWordlist } from "@scure/bip39/wordlists/english.js";
 import { loadMnemonicFromFile, loadSignerKey } from "./config.js";
 import { CLIError } from "../utils/errors.js";
 import { withSuppressedSdkStdoutSync } from "./account.js";

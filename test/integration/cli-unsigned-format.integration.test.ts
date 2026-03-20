@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { runCli, createTempHome, mustInitSeededHome, parseJsonOutput } from "../helpers/cli.ts";
+import { createSeededHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
 
 const OFFLINE_POOL_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
@@ -8,8 +8,7 @@ const OFFLINE_POOL_ENV = {
 
 describe("--unsigned-format migration error", () => {
   test("deposit --unsigned-format returns INPUT migration error", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
@@ -26,8 +25,7 @@ describe("--unsigned-format migration error", () => {
   });
 
   test("withdraw --unsigned-format returns INPUT migration error", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     const result = runCli(
       [
         "--json",
@@ -58,8 +56,7 @@ describe("--unsigned-format migration error", () => {
   });
 
   test("ragequit --unsigned-format returns INPUT migration error", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
@@ -78,8 +75,7 @@ describe("--unsigned-format migration error", () => {
 
 describe("--unsigned tx format", () => {
   test("deposit --unsigned tx fails at pool resolution (not at flag parsing)", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
@@ -97,8 +93,7 @@ describe("--unsigned tx format", () => {
 
 describe("--json output includes operation field", () => {
   test("deposit --json error output has schemaVersion", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }

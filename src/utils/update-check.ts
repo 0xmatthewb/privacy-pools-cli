@@ -7,7 +7,7 @@
  *
  * Disabled via `PP_NO_UPDATE_CHECK=1`.
  *
- * Display: a single dim line shown only on the welcome screen and --help.
+ * Display: a single dim line shown only on the welcome screen.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
@@ -17,6 +17,7 @@ import { homedir } from "os";
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const PACKAGE_NAME = "privacy-pools-cli";
+const INSTALL_HINT_REPO = "github:0xmatthewb/privacy-pools-cli";
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const FETCH_TIMEOUT_MS = 5_000;
@@ -100,7 +101,10 @@ export function getUpdateNotice(currentVersion: string): string | null {
   if (age > CACHE_TTL_MS) return null;
   if (!isNewer(cache.latestVersion, currentVersion)) return null;
 
-  return `  Update available: ${currentVersion} \u2192 ${cache.latestVersion}  (npm i -g privacy-pools-cli)`;
+  return (
+    `  Update available: ${currentVersion} \u2192 ${cache.latestVersion}  ` +
+    `(npm i -g ${INSTALL_HINT_REPO}#v${cache.latestVersion})`
+  );
 }
 
 /**
