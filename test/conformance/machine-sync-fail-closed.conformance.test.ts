@@ -1,12 +1,22 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import { CLI_ROOT } from "../helpers/paths.ts";
-const accountsSource = readFileSync(`${CLI_ROOT}/src/commands/accounts.ts`, "utf8");
-const accountServiceSource = readFileSync(`${CLI_ROOT}/src/services/account.ts`, "utf8");
+const accountsSource = readFileSync(
+  `${CLI_ROOT}/src/commands/accounts.ts`,
+  "utf8",
+);
+const accountsShellSource = readFileSync(
+  `${CLI_ROOT}/src/command-shells/accounts.ts`,
+  "utf8",
+);
+const accountServiceSource = readFileSync(
+  `${CLI_ROOT}/src/services/account.ts`,
+  "utf8",
+);
 
 describe("machine sync fail-closed conformance", () => {
   test("accounts defaults to sync and delegates to syncAccountEvents", () => {
-    expect(accountsSource).toContain('.option("--no-sync"');
+    expect(accountsShellSource).toContain('.option("--no-sync"');
     expect(accountsSource).toContain("syncAccountEvents");
     expect(accountsSource).toContain('errorLabel: "Account"');
   });

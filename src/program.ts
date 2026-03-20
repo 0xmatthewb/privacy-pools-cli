@@ -1,16 +1,16 @@
 import { Command, Option } from "commander";
-import { createInitCommand } from "./commands/init.js";
-import { createStatusCommand } from "./commands/status.js";
-import { createPoolsCommand } from "./commands/pools.js";
-import { createActivityCommand } from "./commands/activity.js";
-import { createStatsCommand } from "./commands/stats.js";
-import { createDepositCommand } from "./commands/deposit.js";
-import { createWithdrawCommand } from "./commands/withdraw.js";
-import { createRagequitCommand } from "./commands/ragequit.js";
-import { createAccountsCommand } from "./commands/accounts.js";
-import { createSyncCommand } from "./commands/sync.js";
+import { createInitCommand } from "./command-shells/init.js";
+import { createStatusCommand } from "./command-shells/status.js";
+import { createPoolsCommand } from "./command-shells/pools.js";
+import { createActivityCommand } from "./command-shells/activity.js";
+import { createStatsCommand } from "./command-shells/stats.js";
+import { createDepositCommand } from "./command-shells/deposit.js";
+import { createWithdrawCommand } from "./command-shells/withdraw.js";
+import { createRagequitCommand } from "./command-shells/ragequit.js";
+import { createAccountsCommand } from "./command-shells/accounts.js";
+import { createSyncCommand } from "./command-shells/sync.js";
 import { createGuideCommand } from "./commands/guide.js";
-import { createHistoryCommand } from "./commands/history.js";
+import { createHistoryCommand } from "./command-shells/history.js";
 import { createCapabilitiesCommand } from "./commands/capabilities.js";
 import { createDescribeCommand } from "./commands/describe.js";
 import { createCompletionCommand } from "./commands/completion.js";
@@ -31,23 +31,26 @@ export function createRootProgram(version: string): Command {
   program
     .name("privacy-pools")
     .description(
-      "Privacy Pools: a compliant way to transact privately on Ethereum"
+      "Privacy Pools: a compliant way to transact privately on Ethereum",
     )
     .version(version)
     .option("-c, --chain <name>", globalFlagDescription("-c, --chain <name>"))
     .option("-j, --json", globalFlagDescription("-j, --json"))
     .addOption(
-      new Option("--format <format>", globalFlagDescription("--format <format>"))
-        .choices(["table", "csv", "json"])
+      new Option(
+        "--format <format>",
+        globalFlagDescription("--format <format>"),
+      ).choices(["table", "csv", "json"]),
     )
     .option("-y, --yes", globalFlagDescription("-y, --yes"));
 
   program.addOption(
-    new Option("-r, --rpc-url <url>", globalFlagDescription("-r, --rpc-url <url>")).hideHelp(),
+    new Option(
+      "-r, --rpc-url <url>",
+      globalFlagDescription("-r, --rpc-url <url>"),
+    ).hideHelp(),
   );
-  program.addOption(
-    new Option("--agent", globalFlagDescription("--agent")),
-  );
+  program.addOption(new Option("--agent", globalFlagDescription("--agent")));
   program.addOption(
     new Option("-q, --quiet", globalFlagDescription("-q, --quiet")).hideHelp(),
   );
@@ -55,10 +58,16 @@ export function createRootProgram(version: string): Command {
     new Option("--no-banner", globalFlagDescription("--no-banner")).hideHelp(),
   );
   program.addOption(
-    new Option("-v, --verbose", globalFlagDescription("-v, --verbose")).hideHelp(),
+    new Option(
+      "-v, --verbose",
+      globalFlagDescription("-v, --verbose"),
+    ).hideHelp(),
   );
   program.addOption(
-    new Option("--timeout <seconds>", globalFlagDescription("--timeout <seconds>")),
+    new Option(
+      "--timeout <seconds>",
+      globalFlagDescription("--timeout <seconds>"),
+    ),
   );
   program.addOption(
     new Option("--no-color", globalFlagDescription("--no-color")).hideHelp(),

@@ -1,9 +1,6 @@
-import { Command } from "commander";
+import type { Command } from "commander";
 import type { Address } from "viem";
-import type {
-  PoolAccount,
-  RagequitEvent,
-} from "@0xbow/privacy-pools-core-sdk";
+import type { PoolAccount, RagequitEvent } from "@0xbow/privacy-pools-core-sdk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
@@ -18,8 +15,6 @@ import { getPublicClient } from "../services/sdk.js";
 import { spinner, verbose } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, printError } from "../utils/errors.js";
-import { commandHelpText } from "../utils/help.js";
-import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
@@ -46,9 +41,11 @@ interface PoolLike {
   scope: bigint;
 }
 
+export { createHistoryCommand } from "../command-shells/history.js";
+
 export function buildHistoryEventsFromAccount(
   account: AccountLike | null | undefined,
-  pools: readonly PoolLike[]
+  pools: readonly PoolLike[],
 ): HistoryEvent[] {
   const events: HistoryEvent[] = [];
   const poolAccountsMap = account?.poolAccounts;
@@ -125,126 +122,122 @@ export function buildHistoryEventsFromAccount(
   return events;
 }
 
-export function createHistoryCommand(): Command {
-  const metadata = getCommandMetadata("history");
-  return new Command("history")
-    .description(metadata.description)
-    .option("--no-sync", "Use cached data (faster, but may be stale)")
-    .option("-n, --limit <n>", "Show last N events", "50")
-    .addHelpText("after", commandHelpText(metadata.help ?? {}))
-    .action(async (opts, cmd) => {
-      const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const mode = resolveGlobalMode(globalOpts);
-      const isVerbose = globalOpts?.verbose ?? false;
-      const ctx = createOutputContext(mode, isVerbose);
-      const silent = isSilent(ctx);
-      const parsedLimit = Number(opts.limit ?? 50);
-      if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
-        printError(
-          new CLIError(
-            `Invalid --limit value: ${opts.limit}.`,
-            "INPUT",
-            "--limit must be a positive integer."
-          ),
-          mode.isJson,
-        );
-        return;
-      }
-      const limit = parsedLimit;
+export async function handleHistoryCommand(
+  opts: { sync?: boolean; limit?: string },
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = cmd.parent?.opts() as GlobalOptions;
+  const mode = resolveGlobalMode(globalOpts);
+  const isVerbose = globalOpts?.verbose ?? false;
+  const ctx = createOutputContext(mode, isVerbose);
+  const silent = isSilent(ctx);
+  const parsedLimit = Number(opts.limit ?? 50);
+  if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
+    printError(
+      new CLIError(
+        `Invalid --limit value: ${opts.limit}.`,
+        "INPUT",
+        "--limit must be a positive integer.",
+      ),
+      mode.isJson,
+    );
+    return;
+  }
+  const limit = parsedLimit;
 
-      try {
-        const config = loadConfig();
-        const chainConfig = resolveChain(
-          globalOpts?.chain,
-          config.defaultChain
-        );
-        verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
+  try {
+    const config = loadConfig();
+    const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+    verbose(
+      `Chain: ${chainConfig.name} (${chainConfig.id})`,
+      isVerbose,
+      silent,
+    );
 
-        const mnemonic = loadMnemonic();
+    const mnemonic = loadMnemonic();
 
-        const spin = spinner("Loading history...", silent);
-        spin.start();
+    const spin = spinner("Loading history...", silent);
+    spin.start();
 
-        const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
-        verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
+    const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
+    verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
 
-        if (pools.length === 0) {
-          spin.stop();
-          renderHistoryNoPools(ctx, chainConfig.name);
-          return;
-        }
+    if (pools.length === 0) {
+      spin.stop();
+      renderHistoryNoPools(ctx, chainConfig.name);
+      return;
+    }
 
-        const poolInfos = pools.map((p) => ({
-          chainId: chainConfig.id,
-          address: p.pool as Address,
-          scope: p.scope,
-          deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
-        }));
+    const poolInfos = pools.map((p) => ({
+      chainId: chainConfig.id,
+      address: p.pool as Address,
+      scope: p.scope,
+      deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
+    }));
 
-        const dataService = await getDataService(
-          chainConfig,
-          pools[0].pool,
-          globalOpts?.rpcUrl
-        );
+    const dataService = await getDataService(
+      chainConfig,
+      pools[0].pool,
+      globalOpts?.rpcUrl,
+    );
 
-        const accountService = await initializeAccountService(
-          dataService,
-          mnemonic,
-          poolInfos,
-          chainConfig.id,
-          false,
-          silent,
-          true
-        );
+    const accountService = await initializeAccountService(
+      dataService,
+      mnemonic,
+      poolInfos,
+      chainConfig.id,
+      false,
+      silent,
+      true,
+    );
 
-        await withSpinnerProgress(
-          spin,
-          "Syncing",
-          () => syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-            skip: opts.sync === false,
-            force: false,
-            silent,
-            isJson: mode.isJson,
-            isVerbose,
-            errorLabel: "History",
-          }),
-        );
+    await withSpinnerProgress(spin, "Syncing", () =>
+      syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
+        skip: opts.sync === false,
+        force: false,
+        silent,
+        isJson: mode.isJson,
+        isVerbose,
+        errorLabel: "History",
+      }),
+    );
 
-        // Extract chronological events from local account state.
-        const events = buildHistoryEventsFromAccount(accountService.account, pools);
+    // Extract chronological events from local account state.
+    const events = buildHistoryEventsFromAccount(accountService.account, pools);
 
-        // Sort chronologically (newest first)
-        events.sort((a, b) => {
-          if (a.blockNumber > b.blockNumber) return -1;
-          if (a.blockNumber < b.blockNumber) return 1;
-          return 0;
-        });
-
-        const limited = events.slice(0, limit);
-
-        // Fetch current block for approximate relative timestamps (non-fatal).
-        let currentBlock: bigint | null = null;
-        try {
-          const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-          currentBlock = await publicClient.getBlockNumber();
-        } catch { /* non-fatal — fall back to block numbers */ }
-
-        spin.stop();
-
-        const poolByAddress = new Map(
-          pools.map((p) => [p.pool, { pool: p.pool, decimals: p.decimals }])
-        );
-
-        renderHistory(ctx, {
-          chain: chainConfig.name,
-          chainId: chainConfig.id,
-          events: limited,
-          poolByAddress,
-          explorerTxUrl,
-          currentBlock,
-        });
-      } catch (error) {
-        printError(error, mode.isJson);
-      }
+    // Sort chronologically (newest first)
+    events.sort((a, b) => {
+      if (a.blockNumber > b.blockNumber) return -1;
+      if (a.blockNumber < b.blockNumber) return 1;
+      return 0;
     });
+
+    const limited = events.slice(0, limit);
+
+    // Fetch current block for approximate relative timestamps (non-fatal).
+    let currentBlock: bigint | null = null;
+    try {
+      const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+      currentBlock = await publicClient.getBlockNumber();
+    } catch {
+      /* non-fatal — fall back to block numbers */
+    }
+
+    spin.stop();
+
+    const poolByAddress = new Map(
+      pools.map((p) => [p.pool, { pool: p.pool, decimals: p.decimals }]),
+    );
+
+    renderHistory(ctx, {
+      chain: chainConfig.name,
+      chainId: chainConfig.id,
+      events: limited,
+      poolByAddress,
+      explorerTxUrl,
+      currentBlock,
+    });
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
 }

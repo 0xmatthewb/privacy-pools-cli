@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import type { Command } from "commander";
 import type { Address } from "viem";
 import {
   getAllChainsWithOverrides,
@@ -25,11 +25,12 @@ import {
 import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
-import { commandHelpText } from "../utils/help.js";
-import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { buildAllPoolAccountRefs, collectActiveLabels } from "../utils/pool-accounts.js";
+import {
+  buildAllPoolAccountRefs,
+  collectActiveLabels,
+} from "../utils/pool-accounts.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
@@ -54,6 +55,8 @@ interface LoadedChainAccounts {
   warnings: AccountWarning[];
 }
 
+export { createAccountsCommand } from "../command-shells/accounts.js";
+
 function describeAccountsChainScope(allChains: boolean | undefined): string {
   return allChains ? "all chains" : "mainnet chains";
 }
@@ -64,7 +67,8 @@ function formatAccountsLoadingText(
   totalChains?: number,
 ): string {
   const baseText = `Loading My Pools across ${describeAccountsChainScope(allChains)}...`;
-  if (completedChains === undefined || totalChains === undefined) return baseText;
+  if (completedChains === undefined || totalChains === undefined)
+    return baseText;
   return `${baseText} (${completedChains}/${totalChains} complete)`;
 }
 
@@ -122,14 +126,27 @@ async function loadAccountsForChain(
   chainConfig: ChainConfig,
   ctx: ChainLoadContext,
 ): Promise<LoadedChainAccounts> {
-  const { opts, rpcUrl, spin, showPerChainProgress, silent, mode, isVerbose, mnemonic } = ctx;
+  const {
+    opts,
+    rpcUrl,
+    spin,
+    showPerChainProgress,
+    silent,
+    mode,
+    isVerbose,
+    mnemonic,
+  } = ctx;
   verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
 
   if (spin && showPerChainProgress) {
     spin.text = `Discovering pools on ${chainConfig.name}...`;
   }
   const pools = await listPools(chainConfig, rpcUrl);
-  verbose(`Discovered ${pools.length} pool(s) on ${chainConfig.name}`, isVerbose, silent);
+  verbose(
+    `Discovered ${pools.length} pool(s) on ${chainConfig.name}`,
+    isVerbose,
+    silent,
+  );
 
   if (pools.length === 0) {
     return { chainConfig, groups: [], warnings: [] };
@@ -151,11 +168,7 @@ async function loadAccountsForChain(
   if (spin && showPerChainProgress) {
     spin.text = `Initializing account state on ${chainConfig.name}...`;
   }
-  const dataService = await getDataService(
-    chainConfig,
-    pools[0].pool,
-    rpcUrl,
-  );
+  const dataService = await getDataService(chainConfig, pools[0].pool, rpcUrl);
   const accountService = await initializeAccountService(
     dataService,
     mnemonic,
@@ -166,14 +179,15 @@ async function loadAccountsForChain(
     true,
   );
 
-  const syncChain = () => syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-    skip: opts.sync === false,
-    force: false,
-    silent,
-    isJson: mode.isJson,
-    isVerbose,
-    errorLabel: "Account",
-  });
+  const syncChain = () =>
+    syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
+      skip: opts.sync === false,
+      force: false,
+      silent,
+      isJson: mode.isJson,
+      isVerbose,
+      errorLabel: "Account",
+    });
   if (spin && showPerChainProgress) {
     await withSpinnerProgress(
       spin,
@@ -199,13 +213,18 @@ async function loadAccountsForChain(
     spin.text = `Checking ASP approval status on ${chainConfig.name}...`;
   }
   const approvedLabelsByScope = new Map<string, Set<string> | null>();
-  const reviewStatusesByScope = new Map<string, LoadedAspDepositReviewState["reviewStatuses"]>();
+  const reviewStatusesByScope = new Map<
+    string,
+    LoadedAspDepositReviewState["reviewStatuses"]
+  >();
   let hasPartialAspReviewData = false;
   await Promise.all(
     sortedScopeStrings.map(async (scopeStr) => {
       const pool = poolByScope.get(scopeStr);
       if (pool) {
-        const labels = collectActiveLabels(spendable.get(BigInt(scopeStr)) ?? []);
+        const labels = collectActiveLabels(
+          spendable.get(BigInt(scopeStr)) ?? [],
+        );
         const aspReviewState = await loadAspDepositReviewState(
           chainConfig,
           pool.scope,
@@ -255,11 +274,13 @@ async function loadAccountsForChain(
   }
 
   const warnings: AccountWarning[] = hasPartialAspReviewData
-    ? [{
-        chain: chainConfig.name,
-        category: "ASP",
-        message: formatIncompleteAspReviewDataMessage("accounts"),
-      }]
+    ? [
+        {
+          chain: chainConfig.name,
+          category: "ASP",
+          message: formatIncompleteAspReviewDataMessage("accounts"),
+        },
+      ]
     : [];
 
   return { chainConfig, groups, warnings };
@@ -267,192 +288,190 @@ async function loadAccountsForChain(
 
 // ── Command ─────────────────────────────────────────────────────────────────
 
-export function createAccountsCommand(): Command {
-  const metadata = getCommandMetadata("accounts");
-  return new Command("accounts")
-    .description(metadata.description)
-    .option("--no-sync", "Use cached data (faster, but may be stale)")
-    .option("--all-chains", "Include testnet chains (mainnet chains shown by default)")
-    .option("--details", "Show additional details per Pool Account")
-    .option("--summary", "Show counts and balances only")
-    .option("--pending-only", "Show only pending ASP approvals")
-    .addHelpText("after", commandHelpText(metadata.help ?? {}))
-    .action(async (opts: AccountsCommandOptions, cmd) => {
-      const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const mode = resolveGlobalMode(globalOpts);
-      const isVerbose = globalOpts?.verbose ?? false;
-      const outCtx = createOutputContext(mode, isVerbose);
-      const silent = isSilent(outCtx);
+export async function handleAccountsCommand(
+  opts: AccountsCommandOptions,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = cmd.parent?.opts() as GlobalOptions;
+  const mode = resolveGlobalMode(globalOpts);
+  const isVerbose = globalOpts?.verbose ?? false;
+  const outCtx = createOutputContext(mode, isVerbose);
+  const silent = isSilent(outCtx);
 
-      try {
-        if (opts.summary && opts.pendingOnly) {
-          throw new CLIError(
-            "Cannot specify both --summary and --pending-only.",
-            "INPUT",
-            "Use one compact polling mode at a time.",
-          );
-        }
+  try {
+    if (opts.summary && opts.pendingOnly) {
+      throw new CLIError(
+        "Cannot specify both --summary and --pending-only.",
+        "INPUT",
+        "Use one compact polling mode at a time.",
+      );
+    }
 
-        if ((opts.summary || opts.pendingOnly) && opts.details) {
-          throw new CLIError(
-            "Compact account modes do not support --details.",
-            "INPUT",
-            "Remove --details when using --summary or --pending-only.",
-          );
-        }
+    if ((opts.summary || opts.pendingOnly) && opts.details) {
+      throw new CLIError(
+        "Compact account modes do not support --details.",
+        "INPUT",
+        "Remove --details when using --summary or --pending-only.",
+      );
+    }
 
-        const config = loadConfig();
-        const explicitChain = globalOpts?.chain;
-        const useMultiChain = opts.allChains || !explicitChain;
+    const config = loadConfig();
+    const explicitChain = globalOpts?.chain;
+    const useMultiChain = opts.allChains || !explicitChain;
 
-        if (useMultiChain && globalOpts?.rpcUrl) {
-          throw new CLIError(
-            "--rpc-url cannot be combined with multi-chain accounts queries.",
-            "INPUT",
-            "Use --chain <name> to target a single chain with --rpc-url.",
-          );
-        }
+    if (useMultiChain && globalOpts?.rpcUrl) {
+      throw new CLIError(
+        "--rpc-url cannot be combined with multi-chain accounts queries.",
+        "INPUT",
+        "Use --chain <name> to target a single chain with --rpc-url.",
+      );
+    }
 
-        const chainsToQuery = opts.allChains
-          ? getAllChainsWithOverrides()
-          : explicitChain
-            ? [resolveChain(explicitChain, config.defaultChain)]
-            : getDefaultReadOnlyChains();
+    const chainsToQuery = opts.allChains
+      ? getAllChainsWithOverrides()
+      : explicitChain
+        ? [resolveChain(explicitChain, config.defaultChain)]
+        : getDefaultReadOnlyChains();
 
-        const rootChain = explicitChain
-          ? chainsToQuery[0].name
-          : opts.allChains
-            ? MULTI_CHAIN_SCOPE_ALL_CHAINS
-            : MULTI_CHAIN_SCOPE_ALL_MAINNETS;
-        const queriedChains = useMultiChain ? chainsToQuery.map((chain) => chain.name) : undefined;
-        const mnemonic = loadMnemonic();
+    const rootChain = explicitChain
+      ? chainsToQuery[0].name
+      : opts.allChains
+        ? MULTI_CHAIN_SCOPE_ALL_CHAINS
+        : MULTI_CHAIN_SCOPE_ALL_MAINNETS;
+    const queriedChains = useMultiChain
+      ? chainsToQuery.map((chain) => chain.name)
+      : undefined;
+    const mnemonic = loadMnemonic();
 
-        const spin = spinner(
-          useMultiChain
-            ? formatAccountsLoadingText(opts.allChains)
-            : `Loading Pool Accounts on ${chainsToQuery[0].name}...`,
-          silent,
+    const spin = spinner(
+      useMultiChain
+        ? formatAccountsLoadingText(opts.allChains)
+        : `Loading Pool Accounts on ${chainsToQuery[0].name}...`,
+      silent,
+    );
+    spin.start();
+    const useParallelChainLoading = useMultiChain && chainsToQuery.length > 1;
+
+    const chainCtx: ChainLoadContext = {
+      opts,
+      rpcUrl: globalOpts?.rpcUrl,
+      spin,
+      showPerChainProgress: !useParallelChainLoading,
+      silent,
+      mode,
+      isVerbose,
+      mnemonic,
+    };
+
+    const loadedResults: LoadedChainAccounts[] = [];
+    const warnings: AccountWarning[] = [];
+    let firstError: unknown;
+
+    if (useParallelChainLoading) {
+      const totalChains = chainsToQuery.length;
+      let completedChains = 0;
+      let showAggregateProgress = false;
+      const updateAggregateProgress = () => {
+        if (!showAggregateProgress || silent) return;
+        spin.text = formatAccountsLoadingText(
+          opts.allChains,
+          completedChains,
+          totalChains,
         );
-        spin.start();
-        const useParallelChainLoading = useMultiChain && chainsToQuery.length > 1;
+      };
+      const progressTimer = setTimeout(() => {
+        showAggregateProgress = true;
+        updateAggregateProgress();
+      }, 3000);
 
-        const chainCtx: ChainLoadContext = {
-          opts,
-          rpcUrl: globalOpts?.rpcUrl,
-          spin,
-          showPerChainProgress: !useParallelChainLoading,
-          silent,
-          mode,
-          isVerbose,
-          mnemonic,
-        };
+      type ChainLoadOutcome =
+        | { chainConfig: ChainConfig; result: LoadedChainAccounts }
+        | { chainConfig: ChainConfig; error: unknown };
 
-        const loadedResults: LoadedChainAccounts[] = [];
-        const warnings: AccountWarning[] = [];
-        let firstError: unknown;
-
-        if (useParallelChainLoading) {
-          const totalChains = chainsToQuery.length;
-          let completedChains = 0;
-          let showAggregateProgress = false;
-          const updateAggregateProgress = () => {
-            if (!showAggregateProgress || silent) return;
-            spin.text = formatAccountsLoadingText(opts.allChains, completedChains, totalChains);
-          };
-          const progressTimer = setTimeout(() => {
-            showAggregateProgress = true;
-            updateAggregateProgress();
-          }, 3000);
-
-          type ChainLoadOutcome =
-            | { chainConfig: ChainConfig; result: LoadedChainAccounts }
-            | { chainConfig: ChainConfig; error: unknown };
-
-          // Preserve deterministic output order by iterating the Promise.all results
-          // in the same order as the input chain list, even though the work runs concurrently.
-          let outcomes: ChainLoadOutcome[] = [];
-          try {
-            outcomes = await Promise.all(
-              chainsToQuery.map(async (chainConfig) => {
-                try {
-                  const result = await loadAccountsForChain(chainConfig, chainCtx);
-                  return { chainConfig, result };
-                } catch (error) {
-                  return { chainConfig, error };
-                } finally {
-                  completedChains += 1;
-                  updateAggregateProgress();
-                }
-              }),
-            );
-          } finally {
-            clearTimeout(progressTimer);
-          }
-
-          for (const outcome of outcomes) {
-            if ("error" in outcome) {
-              if (firstError === undefined) firstError = outcome.error;
-              const classified = classifyError(outcome.error);
-              warnings.push({
-                chain: outcome.chainConfig.name,
-                category: classified.category,
-                message: classified.message,
-              });
-              continue;
-            }
-
-            warnings.push(...outcome.result.warnings);
-            loadedResults.push(outcome.result);
-          }
-        } else {
-          for (const chainConfig of chainsToQuery) {
+      // Preserve deterministic output order by iterating the Promise.all results
+      // in the same order as the input chain list, even though the work runs concurrently.
+      let outcomes: ChainLoadOutcome[] = [];
+      try {
+        outcomes = await Promise.all(
+          chainsToQuery.map(async (chainConfig) => {
             try {
               const result = await loadAccountsForChain(chainConfig, chainCtx);
-              warnings.push(...result.warnings);
-              loadedResults.push(result);
+              return { chainConfig, result };
             } catch (error) {
-              if (firstError === undefined) firstError = error;
-              const classified = classifyError(error);
-              warnings.push({
-                chain: chainConfig.name,
-                category: classified.category,
-                message: classified.message,
-              });
+              return { chainConfig, error };
+            } finally {
+              completedChains += 1;
+              updateAggregateProgress();
             }
-          }
-        }
-
-        spin.stop();
-
-        if (loadedResults.length === 0) {
-          throw firstError;
-        }
-
-        const groups = loadedResults.flatMap((result) => result.groups);
-        if (groups.length === 0) {
-          renderAccountsNoPools(outCtx, {
-            chain: rootChain,
-            allChains: opts.allChains || undefined,
-            chains: queriedChains,
-            warnings,
-            summary: !!opts.summary,
-            pendingOnly: !!opts.pendingOnly,
-          });
-          return;
-        }
-
-        renderAccounts(outCtx, {
-          chain: rootChain,
-          allChains: opts.allChains || undefined,
-          chains: queriedChains,
-          warnings,
-          groups,
-          showDetails: !!opts.details,
-          showSummary: !!opts.summary,
-          showPendingOnly: !!opts.pendingOnly,
-        });
-      } catch (error) {
-        printError(error, mode.isJson);
+          }),
+        );
+      } finally {
+        clearTimeout(progressTimer);
       }
+
+      for (const outcome of outcomes) {
+        if ("error" in outcome) {
+          if (firstError === undefined) firstError = outcome.error;
+          const classified = classifyError(outcome.error);
+          warnings.push({
+            chain: outcome.chainConfig.name,
+            category: classified.category,
+            message: classified.message,
+          });
+          continue;
+        }
+
+        warnings.push(...outcome.result.warnings);
+        loadedResults.push(outcome.result);
+      }
+    } else {
+      for (const chainConfig of chainsToQuery) {
+        try {
+          const result = await loadAccountsForChain(chainConfig, chainCtx);
+          warnings.push(...result.warnings);
+          loadedResults.push(result);
+        } catch (error) {
+          if (firstError === undefined) firstError = error;
+          const classified = classifyError(error);
+          warnings.push({
+            chain: chainConfig.name,
+            category: classified.category,
+            message: classified.message,
+          });
+        }
+      }
+    }
+
+    spin.stop();
+
+    if (loadedResults.length === 0) {
+      throw firstError;
+    }
+
+    const groups = loadedResults.flatMap((result) => result.groups);
+    if (groups.length === 0) {
+      renderAccountsNoPools(outCtx, {
+        chain: rootChain,
+        allChains: opts.allChains || undefined,
+        chains: queriedChains,
+        warnings,
+        summary: !!opts.summary,
+        pendingOnly: !!opts.pendingOnly,
+      });
+      return;
+    }
+
+    renderAccounts(outCtx, {
+      chain: rootChain,
+      allChains: opts.allChains || undefined,
+      chains: queriedChains,
+      warnings,
+      groups,
+      showDetails: !!opts.details,
+      showSummary: !!opts.summary,
+      showPendingOnly: !!opts.pendingOnly,
     });
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
 }

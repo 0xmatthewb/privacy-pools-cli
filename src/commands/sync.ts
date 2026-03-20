@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import type { Command } from "commander";
 import type { Address } from "viem";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
@@ -13,114 +13,111 @@ import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
 import { spinner, verbose } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
-import { commandHelpText } from "../utils/help.js";
-import { getCommandMetadata } from "../utils/command-metadata.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
 
-export function createSyncCommand(): Command {
-  const metadata = getCommandMetadata("sync");
-  return new Command("sync")
-    .description(metadata.description)
-    .option("-a, --asset <symbol|address>", "Sync only a single pool asset")
-    .addHelpText("after", commandHelpText(metadata.help ?? {}))
-    .action(async (opts, cmd) => {
-      const globalOpts = cmd.parent?.opts() as GlobalOptions;
-      const mode = resolveGlobalMode(globalOpts);
-      const isVerbose = globalOpts?.verbose ?? false;
-      const ctx = createOutputContext(mode, isVerbose);
-      const silent = isSilent(ctx);
+export { createSyncCommand } from "../command-shells/sync.js";
 
-      try {
-        const config = loadConfig();
-        const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
-        const mnemonic = loadMnemonic();
+export async function handleSyncCommand(
+  opts: { asset?: string },
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = cmd.parent?.opts() as GlobalOptions;
+  const mode = resolveGlobalMode(globalOpts);
+  const isVerbose = globalOpts?.verbose ?? false;
+  const ctx = createOutputContext(mode, isVerbose);
+  const silent = isSilent(ctx);
 
-        const spin = spinner("Resolving pools for sync...", silent);
-        spin.start();
+  try {
+    const config = loadConfig();
+    const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+    const mnemonic = loadMnemonic();
 
-        const pools = opts.asset
-          ? [await resolvePool(chainConfig, opts.asset, globalOpts?.rpcUrl)]
-          : await listPools(chainConfig, globalOpts?.rpcUrl);
+    const spin = spinner("Resolving pools for sync...", silent);
+    spin.start();
 
-        if (pools.length === 0) {
-          spin.stop();
-          renderSyncEmpty(ctx, chainConfig.name);
-          return;
-        }
+    const pools = opts.asset
+      ? [await resolvePool(chainConfig, opts.asset, globalOpts?.rpcUrl)]
+      : await listPools(chainConfig, globalOpts?.rpcUrl);
 
-        verbose(
-          `Syncing ${pools.length} pool(s): ${pools.map((p) => p.symbol).join(", ")}`,
-          isVerbose,
-          silent
-        );
+    if (pools.length === 0) {
+      spin.stop();
+      renderSyncEmpty(ctx, chainConfig.name);
+      return;
+    }
 
-        const poolInfos = pools.map((p) => ({
-          chainId: chainConfig.id,
-          address: p.pool as Address,
-          scope: p.scope,
-          deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
-        }));
+    verbose(
+      `Syncing ${pools.length} pool(s): ${pools.map((p) => p.symbol).join(", ")}`,
+      isVerbose,
+      silent,
+    );
 
-        const dataService = await getDataService(
-          chainConfig,
-          pools[0].pool,
-          globalOpts?.rpcUrl
-        );
+    const poolInfos = pools.map((p) => ({
+      chainId: chainConfig.id,
+      address: p.pool as Address,
+      scope: p.scope,
+      deploymentBlock: p.deploymentBlock ?? chainConfig.startBlock,
+    }));
 
-        // Get pre-sync spendable count so we can report the delta
-        const preSyncService = await initializeAccountService(
-          dataService,
-          mnemonic,
-          poolInfos,
-          chainConfig.id,
-          false,
+    const dataService = await getDataService(
+      chainConfig,
+      pools[0].pool,
+      globalOpts?.rpcUrl,
+    );
+
+    // Get pre-sync spendable count so we can report the delta
+    const preSyncService = await initializeAccountService(
+      dataService,
+      mnemonic,
+      poolInfos,
+      chainConfig.id,
+      false,
+      silent,
+      false,
+    );
+    const preSyncSpendable = withSuppressedSdkStdoutSync(() =>
+      preSyncService.getSpendableCommitments(),
+    );
+    const previousSpendableCount = Array.from(preSyncSpendable.values()).reduce(
+      (acc, list) => acc + list.length,
+      0,
+    );
+
+    await withSpinnerProgress(
+      spin,
+      "Syncing deposit/withdrawal/ragequit events",
+      () =>
+        syncAccountEvents(preSyncService, poolInfos, pools, chainConfig.id, {
+          skip: false,
+          force: true,
           silent,
-          false
-        );
-        const preSyncSpendable = withSuppressedSdkStdoutSync(() =>
-          preSyncService.getSpendableCommitments()
-        );
-        const previousSpendableCount = Array.from(preSyncSpendable.values()).reduce(
-          (acc, list) => acc + list.length,
-          0
-        );
+          isJson: mode.isJson,
+          isVerbose,
+          errorLabel: "Sync",
+        }),
+    );
 
-        await withSpinnerProgress(
-          spin,
-          "Syncing deposit/withdrawal/ragequit events",
-          () => syncAccountEvents(preSyncService, poolInfos, pools, chainConfig.id, {
-            skip: false,
-            force: true,
-            silent,
-            isJson: mode.isJson,
-            isVerbose,
-            errorLabel: "Sync",
-          }),
-        );
+    const spendable = withSuppressedSdkStdoutSync(() =>
+      preSyncService.getSpendableCommitments(),
+    );
+    const spendableCount = Array.from(spendable.values()).reduce(
+      (acc, list) => acc + list.length,
+      0,
+    );
 
-        const spendable = withSuppressedSdkStdoutSync(() =>
-          preSyncService.getSpendableCommitments()
-        );
-        const spendableCount = Array.from(spendable.values()).reduce(
-          (acc, list) => acc + list.length,
-          0
-        );
+    spin.succeed("Sync complete.");
 
-        spin.succeed("Sync complete.");
-
-        renderSyncComplete(ctx, {
-          chain: chainConfig.name,
-          syncedPools: pools.length,
-          syncedSymbols: pools.map((p) => p.symbol),
-          availablePoolAccounts: spendableCount,
-          previousAvailablePoolAccounts: previousSpendableCount,
-          chainOverridden: !!globalOpts?.chain,
-        });
-      } catch (error) {
-        printError(error, mode.isJson);
-      }
+    renderSyncComplete(ctx, {
+      chain: chainConfig.name,
+      syncedPools: pools.length,
+      syncedSymbols: pools.map((p) => p.symbol),
+      availablePoolAccounts: spendableCount,
+      previousAvailablePoolAccounts: previousSpendableCount,
+      chainOverridden: !!globalOpts?.chain,
     });
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
 }

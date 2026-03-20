@@ -1,0 +1,102 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+
+const CLI_ROOT = process.cwd();
+
+const HEAVY_COMMANDS = [
+  "init",
+  "pools",
+  "activity",
+  "stats",
+  "status",
+  "deposit",
+  "withdraw",
+  "ragequit",
+  "accounts",
+  "history",
+  "sync",
+] as const;
+
+const SHELL_FILES = [
+  "src/command-shells/init.ts",
+  "src/command-shells/pools.ts",
+  "src/command-shells/activity.ts",
+  "src/command-shells/stats.ts",
+  "src/command-shells/status.ts",
+  "src/command-shells/deposit.ts",
+  "src/command-shells/withdraw.ts",
+  "src/command-shells/ragequit.ts",
+  "src/command-shells/accounts.ts",
+  "src/command-shells/history.ts",
+  "src/command-shells/sync.ts",
+] as const;
+
+const BANNED_SHELL_IMPORT_PATTERNS = [
+  /from\s+["']@0xbow\/privacy-pools-core-sdk["']/,
+  /from\s+["']@inquirer\/prompts["']/,
+  /from\s+["']ora["']/,
+  /from\s+["']viem(?:\/accounts)?["']/,
+  /from\s+["']\.\.\/services\//,
+  /from\s+["']\.\.\/output\//,
+  /from\s+["']\.\.\/utils\/format\.js["']/,
+  /from\s+["']\.\.\/utils\/pool-accounts\.js["']/,
+  /from\s+["']\.\.\/utils\/preflight\.js["']/,
+  /from\s+["']\.\.\/utils\/proof-progress\.js["']/,
+  /from\s+["']\.\.\/utils\/public-activity\.js["']/,
+  /from\s+["']\.\.\/utils\/unsigned(?:-flows)?\.js["']/,
+] as const;
+
+function readSource(relPath: string): string {
+  return readFileSync(`${CLI_ROOT}/${relPath}`, "utf8");
+}
+
+describe("lazy startup conformance", () => {
+  test("root program imports heavy commands from shell modules", () => {
+    const source = readSource("src/program.ts");
+
+    for (const commandName of HEAVY_COMMANDS) {
+      expect(source).toContain(`./command-shells/${commandName}.js`);
+      expect(source).not.toContain(`./commands/${commandName}.js`);
+    }
+  });
+
+  test("shell modules stay free of heavy runtime imports", () => {
+    for (const relPath of SHELL_FILES) {
+      const source = readSource(relPath);
+      expect(source).toContain("createLazyAction");
+
+      for (const pattern of BANNED_SHELL_IMPORT_PATTERNS) {
+        expect(source).not.toMatch(pattern);
+      }
+    }
+  });
+
+  test("lazy-loaded runtime command handlers stay exported", () => {
+    const expectations: Array<[string, string[]]> = [
+      ["src/commands/init.ts", ["handleInitCommand"]],
+      ["src/commands/pools.ts", ["handlePoolsCommand"]],
+      ["src/commands/activity.ts", ["handleActivityCommand"]],
+      [
+        "src/commands/stats.ts",
+        ["handleGlobalStatsCommand", "handlePoolStatsCommand"],
+      ],
+      ["src/commands/status.ts", ["handleStatusCommand"]],
+      ["src/commands/deposit.ts", ["handleDepositCommand"]],
+      [
+        "src/commands/withdraw.ts",
+        ["handleWithdrawCommand", "handleWithdrawQuoteCommand"],
+      ],
+      ["src/commands/ragequit.ts", ["handleRagequitCommand"]],
+      ["src/commands/accounts.ts", ["handleAccountsCommand"]],
+      ["src/commands/history.ts", ["handleHistoryCommand"]],
+      ["src/commands/sync.ts", ["handleSyncCommand"]],
+    ];
+
+    for (const [relPath, handlerNames] of expectations) {
+      const source = readSource(relPath);
+      for (const handlerName of handlerNames) {
+        expect(source).toContain(`export async function ${handlerName}`);
+      }
+    }
+  });
+});
