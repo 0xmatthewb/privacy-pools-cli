@@ -9,11 +9,11 @@ import { createWithdrawCommand } from "./command-shells/withdraw.js";
 import { createRagequitCommand } from "./command-shells/ragequit.js";
 import { createAccountsCommand } from "./command-shells/accounts.js";
 import { createSyncCommand } from "./command-shells/sync.js";
-import { createGuideCommand } from "./commands/guide.js";
 import { createHistoryCommand } from "./command-shells/history.js";
-import { createCapabilitiesCommand } from "./commands/capabilities.js";
-import { createDescribeCommand } from "./commands/describe.js";
-import { createCompletionCommand } from "./commands/completion.js";
+import { createGuideCommand } from "./command-shells/guide.js";
+import { createCapabilitiesCommand } from "./command-shells/capabilities.js";
+import { createDescribeCommand } from "./command-shells/describe.js";
+import { createCompletionCommand } from "./command-shells/completion.js";
 import { rootHelpFooter } from "./utils/help.js";
 import { GLOBAL_FLAG_METADATA } from "./utils/command-metadata.js";
 

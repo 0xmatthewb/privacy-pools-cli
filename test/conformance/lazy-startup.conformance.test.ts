@@ -15,6 +15,10 @@ const HEAVY_COMMANDS = [
   "accounts",
   "history",
   "sync",
+  "guide",
+  "capabilities",
+  "describe",
+  "completion",
 ] as const;
 
 const SHELL_FILES = [
@@ -29,6 +33,10 @@ const SHELL_FILES = [
   "src/command-shells/accounts.ts",
   "src/command-shells/history.ts",
   "src/command-shells/sync.ts",
+  "src/command-shells/guide.ts",
+  "src/command-shells/capabilities.ts",
+  "src/command-shells/describe.ts",
+  "src/command-shells/completion.ts",
 ] as const;
 
 const BANNED_SHELL_IMPORT_PATTERNS = [
@@ -57,6 +65,7 @@ describe("lazy startup conformance", () => {
     expect(source).not.toContain("./services/account.js");
     expect(source).not.toContain('from "dotenv"');
     expect(source).toContain("installConsoleGuard");
+    expect(source).toContain('await import("./static-discovery.js")');
     expect(source).toContain('await import("./cli-main.js")');
   });
 
@@ -106,6 +115,10 @@ describe("lazy startup conformance", () => {
       ["src/commands/accounts.ts", ["handleAccountsCommand"]],
       ["src/commands/history.ts", ["handleHistoryCommand"]],
       ["src/commands/sync.ts", ["handleSyncCommand"]],
+      ["src/commands/guide.ts", ["handleGuideCommand"]],
+      ["src/commands/capabilities.ts", ["handleCapabilitiesCommand"]],
+      ["src/commands/describe.ts", ["handleDescribeCommand"]],
+      ["src/commands/completion.ts", ["handleCompletionCommand"]],
     ];
 
     for (const [relPath, handlerNames] of expectations) {

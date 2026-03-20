@@ -163,6 +163,21 @@ function mapCommanderError(error: unknown): CLIError | null {
   return null;
 }
 
+function shouldStartUpdateCheck(
+  firstCommandToken: string | undefined,
+  isMachineMode: boolean,
+  isQuiet: boolean,
+  isHelpLike: boolean,
+  isVersionLike: boolean,
+): boolean {
+  if (isMachineMode || isQuiet || isVersionLike) return false;
+  if (isHelpLike) return false;
+  if (STATIC_LOCAL_COMMANDS.has(firstCommandToken ?? "")) return false;
+  if (!process.stdout.isTTY || !process.stderr.isTTY) return false;
+  if (process.env.CI || process.env.CODESPACES) return false;
+  return true;
+}
+
 export async function runCli(
   pkg: CliPackageInfo,
   argv: string[] = process.argv.slice(2),
@@ -266,7 +281,19 @@ export async function runCli(
   }
 
   // Fire-and-forget update check — caches result for 24h, never blocks.
-  checkForUpdateInBackground();
+  // Restrict this to interactive human flows so automation, CI, and piped
+  // output do not pay even the small cache-read / network-start cost.
+  if (
+    shouldStartUpdateCheck(
+      firstCommandToken,
+      isMachineMode,
+      isQuiet,
+      isHelpLike,
+      isVersionLike,
+    )
+  ) {
+    checkForUpdateInBackground();
+  }
 
   try {
     await program.parseAsync();

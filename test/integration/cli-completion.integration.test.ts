@@ -140,6 +140,36 @@ describe("completion command", () => {
     expect(result.status).toBe(0);
   });
 
+  test("query mode supports JSON envelopes for agent tooling", () => {
+    const result = runCli(
+      [
+        "--json",
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "1",
+        "--",
+        "privacy-pools",
+      ],
+      { home: createTempHome() }
+    );
+
+    expect(result.status).toBe(0);
+    const parsed = parseJsonOutput<{
+      mode: string;
+      shell: string;
+      cword: number;
+      candidates: string[];
+    }>(result.stdout);
+    expect(parsed.mode).toBe("completion-query");
+    expect(parsed.shell).toBe("bash");
+    expect(parsed.cword).toBe(1);
+    expect(parsed.candidates).toContain("completion");
+    expect(parsed.candidates).toContain("--json");
+  });
+
   test("query mode suggests chain values after --chain", () => {
     const result = runCli(
       [

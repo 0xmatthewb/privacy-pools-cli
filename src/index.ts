@@ -44,6 +44,19 @@ const ROOT_OPTIONS_WITH_VALUE = new Set([
   "--timeout",
 ]);
 
+function allNonOptionTokens(args: string[]): string[] {
+  const tokens: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (!token.startsWith("-")) {
+      tokens.push(token);
+      continue;
+    }
+    if (ROOT_OPTIONS_WITH_VALUE.has(token)) i++;
+  }
+  return tokens;
+}
+
 function firstNonOptionToken(args: string[]): string | undefined {
   for (let i = 0; i < args.length; i++) {
     const token = args[i];
@@ -68,7 +81,16 @@ const isCsvMode = formatFlagValue === "csv";
 const isAgent = argv.includes("--agent");
 const isUnsigned = argv.includes("--unsigned");
 const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
+const isHelpLike =
+  argv.includes("--help") ||
+  hasShortFlag(argv, "h") ||
+  firstCommandToken === "help";
 const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
+const nonOptionTokens = allNonOptionTokens(argv);
+const isRootHelpInvocation =
+  isHelpLike &&
+  (nonOptionTokens.length === 0 ||
+    (nonOptionTokens.length === 1 && nonOptionTokens[0] === "help"));
 
 async function writeVersionOutput(): Promise<void> {
   if (isMachineMode) {
@@ -86,6 +108,30 @@ async function writeVersionOutput(): Promise<void> {
 if (isVersionLike && firstCommandToken === undefined) {
   await writeVersionOutput();
   process.exit(0);
+}
+
+if (isRootHelpInvocation) {
+  const { runStaticRootHelp } = await import("./static-discovery.js");
+  await runStaticRootHelp(pkg.version, isMachineMode);
+  process.exit(0);
+}
+
+if (!isHelpLike && !isVersionLike && firstCommandToken === "completion") {
+  const { runStaticCompletionQuery } = await import("./static-discovery.js");
+  if (await runStaticCompletionQuery(argv, pkg.version)) {
+    process.exit(0);
+  }
+}
+
+if (
+  !isHelpLike &&
+  !isVersionLike &&
+  (firstCommandToken === "capabilities" || firstCommandToken === "describe")
+) {
+  const { runStaticDiscoveryCommand } = await import("./static-discovery.js");
+  if (runStaticDiscoveryCommand(argv)) {
+    process.exit(0);
+  }
 }
 
 const { runCli } = await import("./cli-main.js");
