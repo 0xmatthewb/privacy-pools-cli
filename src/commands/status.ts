@@ -138,8 +138,13 @@ export async function handleStatusCommand(
     const { accountHasDeposits } =
       await import("../services/account-storage.js");
     for (const [name, chain] of Object.entries(CHAINS)) {
-      if (accountHasDeposits(chain.id)) {
+      try {
+        if (!accountHasDeposits(chain.id)) continue;
         result.accountFiles.push([name, chain.id]);
+      } catch {
+        // Keep status usable even if one chain-local cache file is corrupt.
+        // Other commands can still surface the targeted repair guidance when
+        // they actually need to load that account state.
       }
     }
 

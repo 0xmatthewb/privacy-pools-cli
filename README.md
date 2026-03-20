@@ -90,7 +90,7 @@ bun run start -- --help
 | `accounts` | List Pool Accounts with balances and approval status | Yes |
 | `history` | Chronological event log | Yes |
 | `sync` | Force-sync account state from onchain | Yes |
-| `completion` | Generate shell completions (bash/zsh/fish) | |
+| `completion` | Generate shell completions (bash/zsh/fish/powershell) | |
 
 All commands accept `--chain <name>` to override your default chain. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
 

@@ -223,12 +223,14 @@ export async function runCli(
   const isAgent = hasLongFlag(argv, "--agent");
   const isUnsigned = hasLongFlag(argv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
+  const isStructuredOutputMode = isJson || isUnsigned || isAgent;
   const isHelpLike =
     argv.includes("--help") ||
     hasShortFlag(argv, "h") ||
     firstCommandToken === "help";
   const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
-  const captureMachineOutput = isMachineMode && (isHelpLike || isVersionLike);
+  const captureMachineOutput =
+    isStructuredOutputMode && (isHelpLike || isVersionLike);
   const suppressBanner = argv.includes("--no-banner");
   const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
   const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
@@ -320,7 +322,7 @@ export async function runCli(
       checkForUpdateInBackground();
     }
     if (
-      isMachineMode &&
+      isStructuredOutputMode &&
       !isHelpLike &&
       !isVersionLike &&
       firstCommandToken === undefined
@@ -374,7 +376,7 @@ export async function runCli(
             help: machineCapturedOut.trimEnd(),
           });
         }
-      } else if (isMachineMode) {
+      } else if (isStructuredOutputMode) {
         if (commanderCode === "commander.version") {
           printJsonSuccess({
             mode: "version",
@@ -392,7 +394,7 @@ export async function runCli(
 
     const mapped = mapCommanderError(err);
     if (mapped) {
-      if (isMachineMode) {
+      if (isStructuredOutputMode) {
         printError(mapped, true);
         return;
       }
@@ -400,6 +402,6 @@ export async function runCli(
       return;
     }
 
-    printError(err, isMachineMode);
+    printError(err, isStructuredOutputMode);
   }
 }

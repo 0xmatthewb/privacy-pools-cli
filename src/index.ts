@@ -89,10 +89,9 @@ const isJson =
   hasLongFlag(argv, "--json") ||
   hasShortFlag(argv, "j") ||
   formatFlagValue === "json";
-const isCsvMode = formatFlagValue === "csv";
 const isAgent = hasLongFlag(argv, "--agent");
 const isUnsigned = hasLongFlag(argv, "--unsigned");
-const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
+const isStructuredOutputMode = isJson || isUnsigned || isAgent;
 const isHelpLike =
   argv.includes("--help") ||
   hasShortFlag(argv, "h") ||
@@ -105,7 +104,7 @@ const isRootHelpInvocation =
     (nonOptionTokens.length === 1 && nonOptionTokens[0] === "help"));
 
 async function writeVersionOutput(): Promise<void> {
-  if (isMachineMode) {
+  if (isStructuredOutputMode) {
     const { printJsonSuccess } = await import("./utils/json.js");
     printJsonSuccess({
       mode: "version",
@@ -124,7 +123,7 @@ if (isVersionLike && firstCommandToken === undefined) {
 
 if (isRootHelpInvocation) {
   const { runStaticRootHelp } = await import("./static-discovery.js");
-  await runStaticRootHelp(isMachineMode);
+  await runStaticRootHelp(isStructuredOutputMode);
   process.exit(0);
 }
 
