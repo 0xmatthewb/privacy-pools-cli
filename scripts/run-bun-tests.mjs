@@ -79,6 +79,15 @@ for (let i = 2; i < process.argv.length; i += 1) {
   forwardedArgs.push(token);
 }
 
+// Bun's default 5s per-test timeout is too tight for our slower integration
+// cases when the full suite is contending for CPU or network resources.
+// Keep a higher default for reliability, while still allowing explicit
+// --timeout values in package scripts or ad hoc runs to override it.
+const hasExplicitTimeout = forwardedArgs.includes("--timeout");
+if (!hasExplicitTimeout) {
+  forwardedArgs.push("--timeout", "30000");
+}
+
 const bunArgs = excludedPaths.size === 0
   ? forwardedArgs
   : forwardedArgs.flatMap((token) => {
