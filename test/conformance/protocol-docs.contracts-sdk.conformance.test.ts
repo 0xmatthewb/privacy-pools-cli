@@ -7,6 +7,8 @@
  * Source of truth (main branch):
  *   Core:     https://github.com/0xbow-io/privacy-pools-core
  *   Frontend: https://github.com/0xbow-io/privacy-pools-website
+ *
+ * @frontend-parity
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

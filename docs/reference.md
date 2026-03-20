@@ -531,7 +531,7 @@ npm unlink -g privacy-pools-cli
 ```bash
 bun run test              # fast default suite (excludes packaged smoke)
 bun run test:ci           # local mirror of required CI checks
-bun run test:smoke        # packaged CLI smoke against dist/
+bun run test:smoke        # packaged CLI smoke against a packed tarball
 bun run typecheck         # TypeScript type check (no emit)
 bun run circuits:provision # prefetch proof artifacts into the CLI home
 bun run test:e2e:anvil    # full Sepolia-fork E2E

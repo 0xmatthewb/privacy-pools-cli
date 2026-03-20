@@ -100,6 +100,16 @@ const bunArgs = excludedPaths.size === 0
       });
     });
 
+const hasExplicitTestTarget = bunArgs.some((token) => {
+  return !token.startsWith("-") && existsSync(resolve(token));
+});
+
+if (!hasExplicitTestTarget) {
+  throw new Error(
+    "No test files selected. Pass at least one test file or directory.",
+  );
+}
+
 const result = spawnSync("bun", ["test", ...bunArgs], {
   stdio: "inherit",
   env: {

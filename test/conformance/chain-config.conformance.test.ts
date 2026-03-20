@@ -2,6 +2,8 @@
  * Chain config conformance: cross-checks CLI's ASP/relayer service code
  * against the upstream frontend to ensure both hit the same API shapes,
  * and validates that all CLI chain configs are structurally sound.
+ *
+ * @frontend-parity
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
