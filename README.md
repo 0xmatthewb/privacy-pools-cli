@@ -47,8 +47,6 @@ Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Associati
 
 You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 
-For relayed withdrawals, the CLI warns if your chosen amount would leave a tiny remainder below the relayer minimum so you can adjust before stranding the relayed path for the leftover balance.
-
 ## Install
 
 ```bash
