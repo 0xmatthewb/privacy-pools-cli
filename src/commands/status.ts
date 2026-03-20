@@ -135,7 +135,8 @@ export async function handleStatusCommand(
     // Account files — only include chains where the user actually has deposits.
     // accountHasDeposits() inspects the commitments map inside the file,
     // not just file existence (the SDK creates empty files during init).
-    const { accountHasDeposits } = await import("../services/account.js");
+    const { accountHasDeposits } =
+      await import("../services/account-storage.js");
     for (const [name, chain] of Object.entries(CHAINS)) {
       if (accountHasDeposits(chain.id)) {
         result.accountFiles.push([name, chain.id]);
