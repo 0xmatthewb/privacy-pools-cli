@@ -33,20 +33,45 @@ function selectTests(mode) {
   }
 }
 
+function runSuite(testNames, env = process.env) {
+  const selected = testNames.map((name) => resolve(CONFORMANCE_DIR, name));
+
+  const result = spawnSync("node", [RUNNER, ...selected, "--timeout", "120000"], {
+    stdio: "inherit",
+    env,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (typeof result.status === "number") {
+    return result.status;
+  }
+
+  process.kill(process.pid, result.signal ?? "SIGTERM");
+}
+
 const mode = process.argv[2] || "core";
-const selected = selectTests(mode).map((name) => resolve(CONFORMANCE_DIR, name));
 
-const result = spawnSync("node", [RUNNER, ...selected, "--timeout", "120000"], {
-  stdio: "inherit",
-  env: process.env,
-});
+if (mode === "all") {
+  const coreStatus = runSuite(selectTests("core"));
+  if (coreStatus !== 0) {
+    process.exit(coreStatus);
+  }
 
-if (result.error) {
-  throw result.error;
+  const frontendStatus = runSuite(selectTests("frontend"), {
+    ...process.env,
+    CONFORMANCE_FETCH_LIVE: "1",
+  });
+  process.exit(frontendStatus);
 }
 
-if (typeof result.status === "number") {
-  process.exit(result.status);
+if (mode === "frontend") {
+  process.exit(runSuite(selectTests("frontend"), {
+    ...process.env,
+    CONFORMANCE_FETCH_LIVE: "1",
+  }));
 }
 
-process.kill(process.pid, result.signal ?? "SIGTERM");
+process.exit(runSuite(selectTests("core")));
