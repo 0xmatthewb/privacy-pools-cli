@@ -4,7 +4,7 @@ import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderCapabilities } from "../output/capabilities.js";
-import { buildCapabilitiesPayload } from "../utils/command-metadata.js";
+import { buildCapabilitiesPayload } from "../utils/command-discovery-metadata.js";
 
 export async function handleCapabilitiesCommand(
   _opts: unknown,

@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { join } from "path";
 import { homedir } from "os";
-import { styleCommanderHelp, welcomeScreen } from "./utils/help.js";
+import { styleCommanderHelp } from "./utils/root-help.js";
 import {
   checkForUpdateInBackground,
   getUpdateNotice,
@@ -354,6 +354,7 @@ export async function runCli(
             repository: normalizeRepositoryUrl(pkg.repository),
           });
         }
+        const { welcomeScreen } = await import("./utils/help.js");
         process.stdout.write(welcomeScreen() + "\n");
         const notice = getUpdateNotice(pkg.version);
         if (notice) process.stderr.write(chalk!.dim(notice) + "\n");

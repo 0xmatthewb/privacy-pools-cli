@@ -124,7 +124,7 @@ if (isVersionLike && firstCommandToken === undefined) {
 
 if (isRootHelpInvocation) {
   const { runStaticRootHelp } = await import("./static-discovery.js");
-  await runStaticRootHelp(pkg.version, isMachineMode);
+  await runStaticRootHelp(isMachineMode);
   process.exit(0);
 }
 

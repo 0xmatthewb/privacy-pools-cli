@@ -6,7 +6,7 @@ import {
   buildCommandDescriptor,
   listCommandPaths,
   resolveCommandPath,
-} from "../utils/command-metadata.js";
+} from "../utils/command-discovery-metadata.js";
 import { printError, CLIError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 

@@ -14,8 +14,8 @@ import { createGuideCommand } from "./command-shells/guide.js";
 import { createCapabilitiesCommand } from "./command-shells/capabilities.js";
 import { createDescribeCommand } from "./command-shells/describe.js";
 import { createCompletionCommand } from "./command-shells/completion.js";
-import { rootHelpFooter } from "./utils/help.js";
-import { GLOBAL_FLAG_METADATA } from "./utils/command-metadata.js";
+import { rootHelpFooter } from "./utils/root-help.js";
+import { GLOBAL_FLAG_METADATA } from "./utils/command-discovery-metadata.js";
 
 function globalFlagDescription(flag: string): string {
   const match = GLOBAL_FLAG_METADATA.find((entry) => entry.flag === flag);

@@ -76,6 +76,29 @@ describe("lazy startup conformance", () => {
     expect(source).toContain('await import("dotenv")');
   });
 
+  test("static discovery stays on the slim metadata module", () => {
+    const staticDiscovery = readSource("src/static-discovery.ts");
+    const capabilities = readSource("src/commands/capabilities.ts");
+    const describe = readSource("src/commands/describe.ts");
+    const program = readSource("src/program.ts");
+
+    expect(staticDiscovery).toContain("./utils/command-discovery-metadata.js");
+    expect(staticDiscovery).not.toContain("./utils/command-metadata.js");
+    expect(capabilities).toContain("../utils/command-discovery-metadata.js");
+    expect(capabilities).not.toContain("../utils/command-metadata.js");
+    expect(describe).toContain("../utils/command-discovery-metadata.js");
+    expect(describe).not.toContain("../utils/command-metadata.js");
+    expect(program).toContain("./utils/command-discovery-metadata.js");
+    expect(program).not.toContain("./utils/command-metadata.js");
+  });
+
+  test("static root help stays off the full command tree", () => {
+    const staticDiscovery = readSource("src/static-discovery.ts");
+
+    expect(staticDiscovery).toContain("./utils/root-help.js");
+    expect(staticDiscovery).not.toContain("./program.js");
+  });
+
   test("root program imports heavy commands from shell modules", () => {
     const source = readSource("src/program.ts");
 

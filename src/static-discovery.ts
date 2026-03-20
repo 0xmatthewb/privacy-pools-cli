@@ -41,7 +41,9 @@ function guardStaticCsvUnsupported(
 
 async function renderStaticCapabilities(globalOpts: GlobalOptions): Promise<void> {
   guardStaticCsvUnsupported(globalOpts, "capabilities");
-  const { buildCapabilitiesPayload } = await import("./utils/command-metadata.js");
+  const { buildCapabilitiesPayload } = await import(
+    "./utils/command-discovery-metadata.js"
+  );
   const payload = buildCapabilitiesPayload();
   const mode = resolveGlobalMode(globalOpts);
 
@@ -118,7 +120,7 @@ async function renderStaticDescribe(
     buildCommandDescriptor,
     listCommandPaths,
     resolveCommandPath,
-  } = await import("./utils/command-metadata.js");
+  } = await import("./utils/command-discovery-metadata.js");
   const commandPath = resolveCommandPath(commandTokens);
   if (!commandPath) {
     throw new CLIError(
@@ -548,23 +550,23 @@ export async function runStaticCompletionQuery(
   }
 }
 
-export async function runStaticRootHelp(
-  version: string,
-  isMachineMode: boolean,
-): Promise<void> {
-  const { createRootProgram } = await import("./program.js");
-  const { rootHelpFooter, styleCommanderHelp } = await import("./utils/help.js");
-  const program = createRootProgram(version);
-  const baseHelp = program.helpInformation().trimEnd();
-  const help = `${baseHelp}\n${rootHelpFooter()}`;
+export async function runStaticRootHelp(isMachineMode: boolean): Promise<void> {
+  const {
+    rootHelpBaseText,
+    rootHelpFooter,
+    rootHelpText,
+    styleCommanderHelp,
+  } = await import("./utils/root-help.js");
 
   if (isMachineMode) {
     printJsonSuccess({
       mode: "help",
-      help,
+      help: rootHelpText(),
     });
     return;
   }
 
-  process.stdout.write(`${styleCommanderHelp(baseHelp)}\n${rootHelpFooter()}\n`);
+  process.stdout.write(
+    `${styleCommanderHelp(rootHelpBaseText())}\n${rootHelpFooter()}\n`,
+  );
 }
