@@ -7,6 +7,7 @@ import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
   initializeAccountService,
+  needsLegacyAccountRebuild,
   syncAccountEvents,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
@@ -180,13 +181,15 @@ export async function handleHistoryCommand(
       pools[0].pool,
       globalOpts?.rpcUrl,
     );
+    const rebuildLegacyAccount =
+      opts.sync !== false && needsLegacyAccountRebuild(chainConfig.id);
 
     const accountService = await initializeAccountService(
       dataService,
       mnemonic,
       poolInfos,
       chainConfig.id,
-      false,
+      rebuildLegacyAccount,
       silent,
       true,
     );

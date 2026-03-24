@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { AccountService } from "@0xbow/privacy-pools-core-sdk";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CHAINS } from "../../src/config/chains.ts";
 import { serialize } from "../../src/services/account.ts";
 import {
+  TEST_MNEMONIC,
   createSeededHome,
   parseJsonOutput,
   runCli,
@@ -182,6 +184,87 @@ afterAll(() => {
 });
 
 describe("accounts/history --no-sync", () => {
+  test("sync-enabled refresh upgrades legacy cached state and restores history", async () => {
+    const home = createSeededHome("sepolia");
+    seedCachedAccount(home);
+    const seededAccount = new AccountService(
+      {} as ConstructorParameters<typeof AccountService>[0],
+      { mnemonic: TEST_MNEMONIC },
+    );
+    const { precommitment } = seededAccount.createDepositSecrets(mockScope, 0n);
+
+    const rebuildRpc = await launchSyncGateRpcServer({
+      chainId: sepoliaChainConfig.id,
+      entrypoint: sepoliaChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+      depositCommitment: 1n,
+      depositLabel: 2n,
+      depositValue: 3n,
+      depositPrecommitment: precommitment,
+    });
+
+    try {
+      const accountsResult = runCli(
+        ["--json", "--chain", "sepolia", "accounts"],
+        {
+          home,
+          timeoutMs: 20_000,
+          env: {
+            ...testEnv(),
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: rebuildRpc.url,
+          },
+        },
+      );
+
+      expect(accountsResult.status).toBe(0);
+      const accountsJson = parseJsonOutput<{
+        success: boolean;
+        accounts: Array<{ poolAccountId: string; value: string }>;
+      }>(accountsResult.stdout);
+      expect(accountsJson.success).toBe(true);
+      expect(accountsJson.accounts).toEqual([
+        expect.objectContaining({
+          poolAccountId: "PA-1",
+          value: "3",
+        }),
+      ]);
+
+      const historyResult = runCli(
+        ["--json", "--chain", "sepolia", "history"],
+        {
+          home,
+          timeoutMs: 20_000,
+          env: {
+            ...testEnv(),
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: rebuildRpc.url,
+          },
+        },
+      );
+      expect(historyResult.status).toBe(0);
+      const historyJson = parseJsonOutput<{
+        success: boolean;
+        events: unknown[];
+      }>(historyResult.stdout);
+      expect(historyJson.success).toBe(true);
+      expect(historyJson.events).toHaveLength(1);
+      expect(historyJson.events[0]).toEqual(expect.objectContaining({
+        type: "deposit",
+        poolAccountId: "PA-1",
+        value: "3",
+      }));
+
+      const accountFile = readFileSync(
+        join(home, ".privacy-pools", "accounts", `${sepoliaChainConfig.id}.json`),
+        "utf8",
+      );
+      expect(accountFile).toContain('"masterKeys"');
+      expect(accountFile).toContain('"__privacyPoolsCliAccountVersion": 2');
+    } finally {
+      killSyncGateRpcServer(rebuildRpc);
+    }
+  }, 30_000);
+
   test("accounts --no-sync succeeds from cached state when log RPC is unavailable", () => {
     const home = createSeededHome("sepolia");
     seedCachedAccount(home);

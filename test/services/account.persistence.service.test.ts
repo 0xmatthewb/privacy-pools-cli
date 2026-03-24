@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 import {
+  ACCOUNT_FILE_VERSION,
+  needsLegacyAccountRebuild,
   loadAccount,
   saveAccount,
   serialize,
@@ -125,6 +127,23 @@ describe("account persistence", () => {
     expect(result.m.get("a")).toBe(1);
   });
 
+  test("needsLegacyAccountRebuild detects versionless saved accounts", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({ poolAccounts: new Map() }),
+      "utf-8",
+    );
+
+    expect(needsLegacyAccountRebuild(11155111)).toBe(true);
+
+    saveAccount(11155111, { poolAccounts: new Map() });
+    expect(needsLegacyAccountRebuild(11155111)).toBe(false);
+  });
+
   /* ---------------------------------------------------------------- */
   /*  initializeAccountService — saved-account paths                   */
   /* ---------------------------------------------------------------- */
@@ -203,6 +222,58 @@ describe("account persistence", () => {
     } finally {
       process.stderr.write = origWrite;
     }
+  });
+
+  test("legacy saved account snapshots are rebuilt through initializeWithEvents", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({ poolAccounts: new Map() }),
+      "utf-8"
+    );
+
+    const rebuiltAccount = {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map(),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+    } as any;
+    const rebuiltService = new AccountService({} as any, {
+      account: rebuiltAccount,
+    });
+
+    let initializeCalls = 0;
+    AccountService.initializeWithEvents = (async (
+      dataService: any,
+      source: { mnemonic: string },
+    ) => {
+      initializeCalls++;
+      expect(dataService).toEqual({});
+      expect(source).toEqual({ mnemonic: MNEMONIC });
+      return {
+        account: rebuiltService,
+        errors: [],
+      } as any;
+    }) as typeof AccountService.initializeWithEvents;
+
+    const service = await initializeAccountService(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      true,
+      true,
+      true
+    );
+
+    expect(service).toBe(rebuiltService);
+    expect(initializeCalls).toBe(1);
+    expect(loadAccount(11155111)?.__privacyPoolsCliAccountVersion).toBe(
+      ACCOUNT_FILE_VERSION
+    );
   });
 
   test("saved account without forceSync skips sync and returns service directly", async () => {

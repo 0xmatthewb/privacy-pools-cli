@@ -12,6 +12,7 @@ import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
   initializeAccountService,
+  needsLegacyAccountRebuild,
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
@@ -169,12 +170,14 @@ async function loadAccountsForChain(
     spin.text = `Initializing account state on ${chainConfig.name}...`;
   }
   const dataService = await getDataService(chainConfig, pools[0].pool, rpcUrl);
+  const rebuildLegacyAccount =
+    opts.sync !== false && needsLegacyAccountRebuild(chainConfig.id);
   const accountService = await initializeAccountService(
     dataService,
     mnemonic,
     poolInfos,
     chainConfig.id,
-    false,
+    rebuildLegacyAccount,
     silent,
     true,
   );

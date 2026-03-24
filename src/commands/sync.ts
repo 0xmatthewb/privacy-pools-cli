@@ -6,6 +6,7 @@ import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
   initializeAccountService,
+  needsLegacyAccountRebuild,
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
@@ -66,6 +67,7 @@ export async function handleSyncCommand(
       pools[0].pool,
       globalOpts?.rpcUrl,
     );
+    const rebuildLegacyAccount = needsLegacyAccountRebuild(chainConfig.id);
 
     // Get pre-sync spendable count so we can report the delta
     const preSyncService = await initializeAccountService(
@@ -73,7 +75,7 @@ export async function handleSyncCommand(
       mnemonic,
       poolInfos,
       chainConfig.id,
-      false,
+      rebuildLegacyAccount,
       silent,
       false,
     );

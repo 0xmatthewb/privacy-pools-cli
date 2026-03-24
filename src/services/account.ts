@@ -19,6 +19,7 @@ import {
   withSuppressedConsoleSync,
 } from "../utils/console-guard.js";
 export {
+  ACCOUNT_FILE_VERSION,
   accountExists,
   accountHasDeposits,
   deserialize,
@@ -26,7 +27,11 @@ export {
   saveAccount,
   serialize,
 } from "./account-storage.js";
-import { loadAccount, saveAccount } from "./account-storage.js";
+import {
+  ACCOUNT_FILE_VERSION,
+  loadAccount,
+  saveAccount,
+} from "./account-storage.js";
 
 /**
  * Cast raw pool data to SDK PoolInfo (handles branded Hash type for scope)
@@ -71,6 +76,14 @@ export function withSuppressedSdkStdoutSync<T>(fn: () => T): T {
   return withSuppressedConsoleSync(fn);
 }
 
+export function needsLegacyAccountRebuild(chainId: number): boolean {
+  const savedAccount = loadAccount(chainId);
+  return (
+    savedAccount !== null &&
+    savedAccount?.__privacyPoolsCliAccountVersion !== ACCOUNT_FILE_VERSION
+  );
+}
+
 export async function initializeAccountService(
   dataService: DataService,
   mnemonic: string,
@@ -90,6 +103,59 @@ export async function initializeAccountService(
 ): Promise<AccountService> {
   // Try to load existing account state
   const savedAccount = loadAccount(chainId);
+  const hasCurrentAccountVersion =
+    savedAccount?.__privacyPoolsCliAccountVersion === ACCOUNT_FILE_VERSION;
+
+  if (savedAccount && pools.length > 0 && !hasCurrentAccountVersion && forceSync) {
+    try {
+      const poolInfos = pools.map(toPoolInfo);
+      const result = await withSuppressedSdkStdout(async () =>
+        AccountService.initializeWithEvents(
+          dataService,
+          { mnemonic },
+          poolInfos,
+        ),
+      );
+
+      const initErrors = result.errors ?? [];
+      if (initErrors.length > 0) {
+        const details = initErrors
+          .slice(0, 3)
+          .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
+          .join("; ");
+
+        if (strictSync) {
+          throw new CLIError(
+            `Failed to rebuild legacy account state from onchain events for ${initErrors.length} pool(s). ${details}`,
+            "RPC",
+            "Check your RPC connectivity and retry.",
+          );
+        }
+
+        if (!suppressWarnings) {
+          process.stderr.write(
+            `Warning: legacy account rebuild had partial failures for ${initErrors.length} pool(s): ${details}\n`,
+          );
+        }
+      }
+
+      saveAccount(chainId, result.account.account);
+      return result.account;
+    } catch (err) {
+      if (strictSync) {
+        throw new CLIError(
+          `Failed to rebuild legacy account state from onchain events: ${err instanceof Error ? err.message : String(err)}`,
+          "RPC",
+          "Check your RPC connectivity and retry.",
+        );
+      }
+      if (!suppressWarnings) {
+        process.stderr.write(
+          `Warning: legacy account rebuild failed, using saved account: ${err instanceof Error ? err.message : String(err)}\n`,
+        );
+      }
+    }
+  }
 
   if (savedAccount) {
     const service = await withSuppressedSdkStdout(
