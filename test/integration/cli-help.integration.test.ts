@@ -312,6 +312,16 @@ describe("CLI help and discovery", () => {
     expect(result.stderr.trim().startsWith("{")).toBe(false);
   });
 
+  test("command --format=csv --help stays human-readable", () => {
+    const result = runCli(["status", "--format=csv", "--help"], {
+      home: createTempHome(),
+    });
+    const combined = result.stdout + result.stderr;
+    expect(result.status).toBe(0);
+    expect(combined).toContain("Show configuration and check connection health");
+    expect(combined.trim().startsWith("{")).toBe(false);
+  });
+
   // --- Flag presence in command help ---
 
   test("deposit --help shows --dry-run and --unsigned options", () => {

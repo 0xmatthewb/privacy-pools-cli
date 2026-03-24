@@ -223,6 +223,7 @@ export async function runCli(
   const isUnsigned = hasLongFlag(argv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
   const isStructuredOutputMode = isJson || isUnsigned || isAgent;
+  const shouldStyleHelp = !isStructuredOutputMode;
   const isHelpLike =
     argv.includes("--help") ||
     hasShortFlag(argv, "h") ||
@@ -235,7 +236,7 @@ export async function runCli(
   const isWelcome =
     isWelcomeFlagOnlyInvocation(argv) && (!isMachineMode || isCsvMode);
   let machineCapturedOut = "";
-  const [chalk, dangerTone, styleCommanderHelp] = !isMachineMode
+  const [chalk, dangerTone, styleCommanderHelp] = shouldStyleHelp
     ? await Promise.all([
         import("chalk").then((mod) => mod.default),
         import("./utils/theme.js").then((mod) => mod.dangerTone),
@@ -250,7 +251,11 @@ export async function runCli(
     isWelcome,
   );
 
-  const program = createRootProgram(pkg.version);
+  const program = await createRootProgram(pkg.version, {
+    argv,
+    loadAllCommands: false,
+    styledHelp: shouldStyleHelp,
+  });
 
   if (!isMachineMode) {
     program.showSuggestionAfterError(true);

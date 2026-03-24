@@ -43,8 +43,8 @@ function normalizeCompletionSpec(
 }
 
 describe("completion spec conformance", () => {
-  test("static completion spec matches the live commander tree", () => {
-    const runtimeSpec = buildCompletionSpecFromCommand(createRootProgram("0.0.0"));
+  test("static completion spec matches the live commander tree", async () => {
+    const runtimeSpec = buildCompletionSpecFromCommand(await createRootProgram("0.0.0"));
 
     expect(normalizeCompletionSpec(STATIC_COMPLETION_SPEC)).toEqual(
       normalizeCompletionSpec(runtimeSpec),

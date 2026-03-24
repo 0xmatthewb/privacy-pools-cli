@@ -72,8 +72,8 @@ function extractDocumentSection(document: string, marker: string, orderedMarkers
 }
 
 describe("command metadata conformance", () => {
-  test("runtime command tree matches command metadata paths, descriptions, and aliases", () => {
-    const runtimeCommands = collectRuntimeCommands(createRootProgram("0.0.0"))
+  test("runtime command tree matches command metadata paths, descriptions, and aliases", async () => {
+    const runtimeCommands = collectRuntimeCommands(await createRootProgram("0.0.0"))
       .sort((left, right) => left.path.localeCompare(right.path));
 
     expect(runtimeCommands.map((entry) => entry.path)).toEqual([...COMMAND_PATHS].sort());
@@ -105,8 +105,8 @@ describe("command metadata conformance", () => {
     expect(payload.safeReadOnlyCommands).toContain("completion");
   });
 
-  test("root global flags match capabilities metadata", () => {
-    const rootOptions = collectRootOptions(createRootProgram("0.0.0"));
+  test("root global flags match capabilities metadata", async () => {
+    const rootOptions = collectRootOptions(await createRootProgram("0.0.0"));
     const metadata = [...GLOBAL_FLAG_METADATA].sort((left, right) => left.flag.localeCompare(right.flag));
 
     expect(rootOptions).toEqual(metadata);
