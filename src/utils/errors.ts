@@ -77,7 +77,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
   },
   PrecommitmentAlreadyUsed: {
     message: "This precommitment hash was already used in a previous deposit.",
-    hint: "Retry the deposit command to generate fresh deposit secrets.",
+    hint: "Run a new deposit to generate fresh secrets.",
     code: "CONTRACT_PRECOMMITMENT_ALREADY_USED",
   },
   OnlyOriginalDepositor: {
@@ -87,7 +87,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
   },
   NoRootsAvailable: {
     message: "Pool state is not ready for withdrawals yet.",
-    hint: "Wait for the withdrawal service to publish the first state root, then retry.",
+    hint: "Wait for the relayer to publish the first state root, then retry.",
     code: "CONTRACT_NO_ROOTS_AVAILABLE",
     retryable: true,
   },
@@ -202,7 +202,7 @@ export function classifyError(error: unknown): CLIError {
   return new CLIError(
     message,
     "UNKNOWN",
-    "If this persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues"
+    "If this persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues."
   );
 }
 
