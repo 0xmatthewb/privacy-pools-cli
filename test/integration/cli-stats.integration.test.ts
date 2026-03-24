@@ -146,10 +146,16 @@ describe("stats ASP-offline error envelopes", () => {
     const json = parseJsonOutput<{
       schemaVersion: string;
       success: boolean;
-      error: { category: string };
+      errorCode: string;
+      error: { category: string; code: string; hint: string; retryable: boolean };
     }>(result.stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+    expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
+    expect(json.error.category).toBe("RPC");
+    expect(json.error.hint).toContain("retry");
+    expect(json.error.retryable).toBe(true);
     expect(result.stderr.trim()).toBe("");
   });
 });
@@ -303,16 +309,18 @@ describe("stats error envelope completeness", () => {
         category: string;
         message: string;
         hint: string;
+        retryable: boolean;
       };
     }>(result.stdout);
 
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(false);
-    expect(typeof json.errorCode).toBe("string");
-    expect(typeof json.errorMessage).toBe("string");
-    expect(typeof json.error.code).toBe("string");
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toContain("--asset");
+    expect(json.error.code).toBe("INPUT_ERROR");
     expect(json.error.category).toBe("INPUT");
-    expect(typeof json.error.message).toBe("string");
-    expect(typeof json.error.hint).toBe("string");
+    expect(json.error.message).toContain("--asset");
+    expect(json.error.hint).toContain("privacy-pools stats pool --asset ETH");
+    expect(json.error.retryable).toBe(false);
   });
 });

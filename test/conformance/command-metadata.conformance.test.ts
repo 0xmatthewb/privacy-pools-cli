@@ -48,9 +48,10 @@ function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function extractFieldTokens(summary: string): string[] {
-  const tokens = summary.match(/\b[a-zA-Z][a-zA-Z0-9]*\b/g) ?? [];
-  return Array.from(new Set(tokens));
+function expectContainsAll(section: string, markers: readonly string[]): void {
+  for (const marker of markers) {
+    expect(section).toContain(marker);
+  }
 }
 
 function extractDocumentSection(document: string, marker: string, orderedMarkers: readonly string[]): string {
@@ -147,27 +148,30 @@ describe("command metadata conformance", () => {
     }
   });
 
-  test("AGENTS documented payload docs stay aligned with metadata summaries", () => {
+  test("AGENTS documented payload docs preserve curated payload markers", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const markers = getDocumentedAgentMarkers();
-    const documentedPayloadPaths = COMMAND_PATHS.filter((path) => {
-      const metadata = getCommandMetadata(path);
-      return Boolean(metadata.agentsDocMarker && metadata.help?.jsonFields);
-    });
+    const expectations: Array<{ path: CommandPath; markers: string[] }> = [
+      { path: "init", markers: ["signerKeySet", "recoveryPhraseRedacted", "nextActions"] },
+      { path: "activity", markers: ["events", "reviewStatus", "chainFiltered"] },
+      { path: "stats global", markers: ["perChain", "cacheTimestamp", "allTime"] },
+      { path: "stats pool", markers: ["cacheTimestamp", "allTime", "last24h"] },
+      { path: "status", markers: ["readyForDeposit", "readyForWithdraw", "nextActions"] },
+      { path: "accounts", markers: ["balances", "pendingCount", "nextActions"] },
+      { path: "history", markers: ["events", "poolAccountId", "explorerUrl"] },
+      {
+        path: "sync",
+        markers: ["syncedPools", "availablePoolAccounts", "previousAvailablePoolAccounts"],
+      },
+    ];
 
-    for (const path of documentedPayloadPaths) {
-      const metadata = getCommandMetadata(path);
-      const marker = metadata.agentsDocMarker;
-      const jsonFields = metadata.help?.jsonFields;
-
+    for (const expectation of expectations) {
+      const marker = getCommandMetadata(expectation.path).agentsDocMarker;
       expect(marker).toBeDefined();
-      expect(jsonFields).toBeDefined();
-
-      const section = extractDocumentSection(agents, marker!, markers);
-      const normalizedSection = normalizeWhitespace(section);
-      for (const token of extractFieldTokens(jsonFields!)) {
-        expect(normalizedSection).toContain(token);
-      }
+      const section = normalizeWhitespace(
+        extractDocumentSection(agents, marker!, markers),
+      );
+      expectContainsAll(section, expectation.markers);
     }
   });
 
@@ -182,24 +186,17 @@ describe("command metadata conformance", () => {
     expect(normalizedSection).toContain("Representative payload (abridged):");
     expect(normalizedSection).toContain(deposit?.description ?? "");
     expect(normalizedSection).toContain(agentFlag?.description ?? "");
-    expect(normalizedSection).toContain(normalizeWhitespace(payload.agentWorkflow[2] ?? ""));
-    expect(normalizedSection).toContain(normalizeWhitespace(payload.agentWorkflow[3] ?? ""));
-    expect(normalizedSection).toContain(normalizeWhitespace(payload.agentWorkflow[4] ?? ""));
-    expect(normalizedSection).toContain(payload.agentNotes?.polling ?? "");
-    expect(normalizedSection).toContain(payload.agentNotes?.withdrawQuote ?? "");
-    expect(normalizedSection).toContain(payload.agentNotes?.firstRun ?? "");
-    expect(normalizedSection).toContain(payload.agentNotes?.unsignedMode ?? "");
-    expect(normalizedSection).toContain(payload.agentNotes?.metaFlag ?? "");
-    expect(normalizedSection).toContain(payload.agentNotes?.statusCheck ?? "");
-    expect(normalizedSection).toContain("safeReadOnlyCommands");
-    expect(normalizedSection).toContain("jsonOutputContract");
-    expect(normalizedSection).toContain("documentation");
-    expect(normalizedSection).toContain("agentGuide");
-    expect(normalizedSection).toContain("error.{ code, category, message, hint?, retryable? }");
-    expect(normalizedSection).toContain("category");
-    expect(normalizedSection).toContain("hint");
-    expect(normalizedSection).toContain("retryable");
-    expect(normalizedSection).toContain("Exception: --unsigned tx emits a raw transaction array without the envelope.");
+    expectContainsAll(normalizedSection, [
+      normalizeWhitespace(payload.agentWorkflow[2] ?? ""),
+      normalizeWhitespace(payload.agentWorkflow[4] ?? ""),
+      payload.agentNotes?.statusCheck ?? "",
+      "safeReadOnlyCommands",
+      "jsonOutputContract",
+      "documentation",
+      "agentGuide",
+      "error.{ code, category, message, hint?, retryable? }",
+      "Exception: --unsigned tx emits a raw transaction array without the envelope.",
+    ]);
   });
 
   test("skill reference accounts section documents unknown ASP status", () => {

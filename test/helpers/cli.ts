@@ -25,6 +25,8 @@ export interface CliRunOptions {
   timeoutMs?: number;
   env?: Record<string, string | undefined>;
   input?: string;
+  cwd?: string;
+  binPath?: string;
 }
 
 export interface CliRunResult {
@@ -119,10 +121,11 @@ export function createSeededHome(chain: string = "mainnet"): string {
 export function runCli(args: string[], options: CliRunOptions = {}): CliRunResult {
   const home = options.home ?? createTempHome();
   const timeoutMs = options.timeoutMs ?? 20_000;
+  const cwd = options.cwd ?? CLI_CWD;
   const start = Date.now();
 
   const result = spawnSync("bun", ["src/index.ts", ...args], {
-    cwd: CLI_CWD,
+    cwd,
     env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,
@@ -157,10 +160,12 @@ export function runBuiltCli(
 ): CliRunResult {
   const home = options.home ?? createTempHome();
   const timeoutMs = options.timeoutMs ?? 20_000;
+  const cwd = options.cwd ?? CLI_CWD;
+  const binPath = options.binPath ?? "dist/index.js";
   const start = Date.now();
 
-  const result = spawnSync("node", ["dist/index.js", ...args], {
-    cwd: CLI_CWD,
+  const result = spawnSync("node", [binPath, ...args], {
+    cwd,
     env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,

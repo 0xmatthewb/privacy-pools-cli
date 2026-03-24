@@ -10,18 +10,15 @@
  * swallowing — not worth the mocking complexity).
  */
 
-import { describe, expect, test, beforeEach, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { describe, expect, test, beforeEach } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { createTrackedTempDir } from "../helpers/temp.ts";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-const homes: string[] = [];
-
 function freshHome(): string {
-  const home = mkdtempSync(join(tmpdir(), "pp-upd-test-"));
-  homes.push(home);
+  const home = createTrackedTempDir("pp-upd-test-");
   // Create the .privacy-pools dir inside (matches configDir() logic).
   mkdirSync(join(home, ".privacy-pools"), { recursive: true });
   return home;
@@ -51,14 +48,6 @@ async function importUpdateCheck(): Promise<{
   // Dynamic import with unique query string to bypass module cache.
   return import(`../../src/utils/update-check.ts?bust=${importCounter}`);
 }
-
-afterAll(() => {
-  for (const h of homes) {
-    try {
-      rmSync(h, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
-    } catch { /* best effort */ }
-  }
-});
 
 // ── PP_NO_UPDATE_CHECK=1 disables everything ────────────────────────────────
 

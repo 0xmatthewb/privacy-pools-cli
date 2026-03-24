@@ -617,84 +617,49 @@ describe("CLI command integration", () => {
     expect(json.recoveryPhraseRedacted).toBeUndefined();
   });
 
-  test("--json deposit is non-interactive and fails fast without --asset", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
+  test("--json transaction commands fail fast without prompting for a missing asset", () => {
+    const cases = [
+      {
+        name: "deposit",
+        args: ["--json", "deposit", "0.1"],
+        hiddenPrompt: "Select asset to deposit",
+      },
+      {
+        name: "withdraw",
+        args: ["--json", "withdraw", "0.1", "--direct"],
+        hiddenPrompt: "Select asset to withdraw",
+      },
+      {
+        name: "ragequit",
+        args: ["--json", "ragequit"],
+        hiddenPrompt: "Select asset pool for ragequit",
+      },
+      {
+        name: "exit",
+        args: ["--json", "exit"],
+        hiddenPrompt: "Select asset pool for ragequit",
+      },
+    ] as const;
 
-    const result = runCli(["--json", "deposit", "0.1"], {
-      home,
-      timeoutMs: 60_000,
-    });
-    expect(result.status).toBe(2);
-    expect(result.stderr).not.toContain("Select asset to deposit");
+    for (const testCase of cases) {
+      const home = createTempHome();
+      mustInitSeededHome(home, "sepolia");
 
-    const json = parseJsonOutput<{
-      success: boolean;
-      error: { category: string; message: string };
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("No asset specified");
-  });
+      const result = runCli(testCase.args, {
+        home,
+        timeoutMs: 60_000,
+      });
+      expect(result.status).toBe(2);
+      expect(result.stderr).not.toContain(testCase.hiddenPrompt);
 
-  test("--json withdraw is non-interactive and fails fast without --asset", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
-
-    const result = runCli(["--json", "withdraw", "0.1", "--direct"], {
-      home,
-      timeoutMs: 60_000,
-    });
-    expect(result.status).toBe(2);
-    expect(result.stderr).not.toContain("Select asset to withdraw");
-
-    const json = parseJsonOutput<{
-      success: boolean;
-      error: { category: string; message: string };
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("No asset specified");
-  });
-
-  test("--json ragequit is non-interactive and fails fast without --asset", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
-
-    const result = runCli(["--json", "ragequit"], {
-      home,
-      timeoutMs: 60_000,
-    });
-    expect(result.status).toBe(2);
-    expect(result.stderr).not.toContain("Select asset pool for ragequit");
-
-    const json = parseJsonOutput<{
-      success: boolean;
-      error: { category: string; message: string };
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("No asset specified");
-  });
-
-  test("--json exit is non-interactive and fails fast without --asset", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
-
-    const result = runCli(["--json", "exit"], {
-      home,
-      timeoutMs: 60_000,
-    });
-    expect(result.status).toBe(2);
-    expect(result.stderr).not.toContain("Select asset pool for ragequit");
-
-    const json = parseJsonOutput<{
-      success: boolean;
-      error: { category: string; message: string };
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("No asset specified");
+      const json = parseJsonOutput<{
+        success: boolean;
+        error: { category: string; message: string };
+      }>(result.stdout);
+      expect(json.success).toBe(false);
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.message).toContain("No asset specified");
+    }
   });
 
   test("withdraw rejects malformed --from-pa before network calls", () => {

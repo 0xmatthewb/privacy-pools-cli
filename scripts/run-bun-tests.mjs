@@ -4,24 +4,14 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 
 const runId = `${process.pid}-${Date.now()}`;
-const tempPrefixes = [
-  "pp-cli-test-",
-  "pp-smoke-dist-",
-  "pp-anvil-ragequit-",
-  "pp-anvil-withdraw-",
-  "pp-anvil-relayed-withdraw-",
-  "pp-anvil-ragequit-alt-modes-",
-  "pp-anvil-withdraw-alt-modes-",
-  "pp-test-",
-];
+const TEMP_PREFIX = "pp-";
 
 function cleanupRunTempDirs() {
   for (const entry of readdirSync(tmpdir(), { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
 
     const name = entry.name;
-    const matchesRun = tempPrefixes.some((prefix) => name.startsWith(`${prefix}${runId}-`));
-    if (!matchesRun) continue;
+    if (!name.startsWith(TEMP_PREFIX) || !name.includes(`${runId}-`)) continue;
 
     try {
       rmSync(join(tmpdir(), name), {

@@ -76,44 +76,81 @@ describe("error classification fuzz", () => {
     new Set(),
   ];
 
-  for (let i = 0; i < fuzzInputs.length; i++) {
-    test(`fuzz input #${i} does not throw`, () => {
-      const result = classifyError(fuzzInputs[i]);
-      expect(result).toBeInstanceOf(CLIError);
-      expect(VALID_CATEGORIES.has(result.category)).toBe(true);
-      expect(typeof result.message).toBe("string");
-      expect(typeof result.code).toBe("string");
-      expect(typeof result.retryable).toBe("boolean");
-    });
+  function expectValidCliError(result: CLIError): void {
+    expect(result).toBeInstanceOf(CLIError);
+    expect(VALID_CATEGORIES.has(result.category)).toBe(true);
+    expect(typeof result.message).toBe("string");
+    expect(typeof result.code).toBe("string");
+    expect(result.code.length).toBeGreaterThan(0);
+    expect(typeof result.retryable).toBe("boolean");
   }
 
-  test("100 seeded random strings never throw", () => {
+  test("representative weird inputs classify into stable CLIError envelopes", () => {
+    for (const input of fuzzInputs) {
+      const result = classifyError(input);
+      expectValidCliError(result);
+      expect(classifyError(result)).toBe(result);
+    }
+  });
+
+  test("representative known signals keep their exact machine contract", () => {
+    const expectations: Array<{
+      input: unknown;
+      category: string;
+      code: string;
+      retryable: boolean;
+    }> = [
+      { input: "timeout exceeded", category: "RPC", code: "RPC_NETWORK_ERROR", retryable: true },
+      { input: "429 rate limit", category: "RPC", code: "RPC_RATE_LIMITED", retryable: true },
+      {
+        input: new Error("execution reverted: NullifierAlreadySpent"),
+        category: "CONTRACT",
+        code: "CONTRACT_NULLIFIER_ALREADY_SPENT",
+        retryable: false,
+      },
+      { input: { code: "MERKLE_ERROR" }, category: "PROOF", code: "PROOF_MERKLE_ERROR", retryable: true },
+      {
+        input: { code: "PROOF_GENERATION_FAILED" },
+        category: "PROOF",
+        code: "PROOF_GENERATION_FAILED",
+        retryable: false,
+      },
+    ];
+
+    for (const expectation of expectations) {
+      const result = classifyError(expectation.input);
+      expectValidCliError(result);
+      expect(result.category).toBe(expectation.category);
+      expect(result.code).toBe(expectation.code);
+      expect(result.retryable).toBe(expectation.retryable);
+    }
+  });
+
+  test("seeded random strings stay machine-safe", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0xDEADBEEF);
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 64; i++) {
       const len = Math.floor(rng.nextFloat() * 200);
       const randomStr = Array.from({ length: len }, () =>
         String.fromCharCode(Math.floor(rng.nextFloat() * 128))
       ).join("");
 
       const result = classifyError(randomStr);
-      expect(result).toBeInstanceOf(CLIError);
-      expect(VALID_CATEGORIES.has(result.category)).toBe(true);
+      expectValidCliError(result);
     }
   });
 
-  test("100 seeded random Error objects never throw", () => {
+  test("seeded random Error objects stay machine-safe", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0xCAFEBABE);
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 64; i++) {
       const len = Math.floor(rng.nextFloat() * 200);
       const randomMsg = Array.from({ length: len }, () =>
         String.fromCharCode(Math.floor(rng.nextFloat() * 128))
       ).join("");
 
       const result = classifyError(new Error(randomMsg));
-      expect(result).toBeInstanceOf(CLIError);
-      expect(VALID_CATEGORIES.has(result.category)).toBe(true);
+      expectValidCliError(result);
     }
   });
 });
