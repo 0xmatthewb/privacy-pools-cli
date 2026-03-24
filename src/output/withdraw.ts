@@ -56,6 +56,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
 
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
+      operation: "withdraw",
       mode: data.withdrawMode,
       dryRun: true,
       amount: data.amount.toString(),
@@ -134,6 +135,23 @@ export interface WithdrawSuccessData {
 export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessData): void {
   guardCsvUnsupported(ctx, "withdraw");
 
+  const agentNextActions = [
+    createNextAction(
+      "accounts",
+      `Verify the updated balance for ${data.poolAccountId} after withdrawal.`,
+      "after_withdraw",
+      { options: { agent: true, chain: data.chain } },
+    ),
+  ];
+  const humanNextActions = [
+    createNextAction(
+      "accounts",
+      `Verify the updated balance for ${data.poolAccountId}.`,
+      "after_withdraw",
+      { options: data.chain ? { chain: data.chain } : undefined },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
       operation: "withdraw",
@@ -152,13 +170,13 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       remainingBalance: data.remainingBalance.toString(),
     };
     if (data.withdrawMode === "direct") {
-      payload.fee = null;
+      payload.feeBPS = null;
     } else {
       payload.feeBPS = data.feeBPS;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     }
     if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
-    printJsonSuccess(payload, false);
+    printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
   }
 
@@ -196,6 +214,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   } else {
     info(`Remaining in ${data.poolAccountId}: ${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`, silent);
   }
+  renderNextSteps(ctx, humanNextActions);
 }
 
 // ── Quote ────────────────────────────────────────────────────────────────────

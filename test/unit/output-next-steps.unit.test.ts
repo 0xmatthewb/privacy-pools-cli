@@ -427,20 +427,6 @@ describe("surfaces without next steps stay quiet", () => {
       },
     },
     {
-      name: "renderWithdrawSuccess",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderWithdrawSuccess(ctx, STUB_WITHDRAW));
-      },
-    },
-    {
-      name: "renderRagequitSuccess",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderRagequitSuccess(ctx, STUB_RAGEQUIT));
-      },
-    },
-    {
       name: "renderSyncComplete",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));

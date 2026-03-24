@@ -362,7 +362,9 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.scope).toBe("42");
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expect(json.nextActions[0].command).toBe("accounts");
+    expect(json.nextActions[0].when).toBe("after_ragequit");
     expect(stderr).toBe("");
   });
 
@@ -378,8 +380,7 @@ describe("renderRagequitSuccess parity", () => {
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    // No human next steps — checking accounts after ragequit is obvious
-    expect(stderr).not.toContain("Next steps:");
+    expect(stderr).toContain("Next steps:");
   });
 
   test("human mode: omits Explorer when explorerUrl is null", () => {
@@ -562,8 +563,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.blockNumber).toBe("12345");
     expect(json.amount).toBe("500000000000000000");
     expect(json.recipient).toBe("0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa");
-    expect(json.fee).toBeNull();
-    expect(json.feeBPS).toBeUndefined();
+    expect(json.feeBPS).toBeNull();
     expect(json.poolAddress).toBe("0x1111111111111111111111111111111111111111");
     expect(json.scope).toBe("42");
     expect(json.asset).toBe("ETH");
@@ -572,7 +572,9 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expect(json.nextActions[0].command).toBe("accounts");
+    expect(json.nextActions[0].when).toBe("after_withdraw");
     expect(stderr).toBe("");
   });
 
@@ -587,7 +589,8 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expect(json.nextActions[0].command).toBe("accounts");
     expect(stderr).toBe("");
   });
 
@@ -627,8 +630,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).not.toContain("Relayer fee:");
-    // No human next steps — checking accounts after withdraw is obvious
-    expect(stderr).not.toContain("Next steps:");
+    expect(stderr).toContain("Next steps:");
   });
 
   test("human mode (relayed): includes relayer fee", () => {
@@ -640,7 +642,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrew");
     expect(stderr).toContain("Relayer fee: 0.50%");
-    expect(stderr).not.toContain("Next steps:");
+    expect(stderr).toContain("Next steps:");
   });
 
   test("human mode (direct): shows remaining balance", () => {
