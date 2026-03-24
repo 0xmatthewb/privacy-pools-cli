@@ -446,7 +446,7 @@ printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 word2 ..." --
 
 When importing an existing recovery phrase or private key, neither `recoveryPhrase` nor `recoveryPhraseRedacted` is present.
 
-When importing an existing recovery phrase, the CLI reconstructs both current and legacy deterministic account derivations during sync so older Pool Accounts remain discoverable.
+When importing an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
 
 When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so restored Pool Accounts can be discovered across mainnets and testnets. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
 

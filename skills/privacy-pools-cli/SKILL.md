@@ -258,7 +258,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 
 **Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.
 
-When restoring an existing recovery phrase, the CLI reconstructs both current and legacy deterministic account derivations during sync so older Pool Accounts remain discoverable.
+When restoring an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
 
 In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `accounts --agent --all-chains`.
 

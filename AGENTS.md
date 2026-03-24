@@ -208,7 +208,7 @@ JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryP
 
 When `--show-mnemonic` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
 
-When importing an existing recovery phrase, the CLI reconstructs both current and legacy deterministic account derivations during sync so older Pool Accounts remain discoverable.
+When importing an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
 
 When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so agents can discover restored Pool Accounts across mainnets and testnets. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>` instead.
 
