@@ -552,11 +552,12 @@ For relayed withdrawals, the CLI also warns if the chosen amount would leave a p
     "eligible": 42,
     "total": 128,
     "percentage": 32.81
-  }
+  },
+  "nextActions": [{ "command": "accounts", "reason": "...", "when": "after_withdraw", "options": { "agent": true, "chain": "mainnet" } }]
 }
 ```
 
-**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, no `extraGas`, and human output includes a note that direct withdrawal links deposit and withdrawal onchain.
+**Success (direct):** same fields but `mode: "direct"`, `feeBPS: null`, no `extraGas`, and human output includes a note that direct withdrawal links deposit and withdrawal onchain.
 
 **Dry-run:**
 
@@ -646,7 +647,8 @@ privacy-pools exit ETH --from-pa PA-1 --agent
   "poolAddress": "0x...",
   "scope": "123...",
   "blockNumber": "22154000",
-  "explorerUrl": "https://etherscan.io/tx/0x..."
+  "explorerUrl": "https://etherscan.io/tx/0x...",
+  "nextActions": [{ "command": "accounts", "reason": "...", "when": "after_ragequit", "options": { "agent": true, "chain": "mainnet" } }]
 }
 ```
 

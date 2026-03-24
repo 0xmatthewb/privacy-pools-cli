@@ -251,9 +251,9 @@ privacy-pools withdraw 0.1 ETH --direct --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
-JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }`
+JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [...] }`
 
-JSON payload (direct): same but `mode: "direct"`, `fee: null`, no `feeBPS`. Human output includes a privacy note about direct withdrawals linking deposit and withdrawal onchain.
+JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`. Human output includes a privacy note about direct withdrawals linking deposit and withdrawal onchain.
 
 > **Note**: Direct withdrawals (`--direct`) are not privacy-preserving. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poi_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
 
@@ -285,7 +285,7 @@ privacy-pools exit ETH --from-pa PA-1 --agent
 privacy-pools ragequit ETH --from-pa PA-1 --agent   # same thing
 ```
 
-JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }`
+JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [...] }`
 
 #### `accounts`
 

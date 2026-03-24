@@ -213,7 +213,7 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet
 **Safety:** ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.
 **Safety:** Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
 
-**JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }`
+**JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
 ### `withdraw quote`
 
@@ -346,7 +346,7 @@ privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet
 
 **Safety:** Ragequit is public and irreversible and reveals the original deposit address onchain.
 
-**JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }`
+**JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
 ### `guide`
 
