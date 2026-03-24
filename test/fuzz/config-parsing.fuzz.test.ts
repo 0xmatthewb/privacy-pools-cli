@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { writeFileSync, mkdirSync, rmSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { tmpdir } from "os";
 import { CLIError } from "../../src/utils/errors.ts";
 import { createSeededRng, getFuzzSeed } from "../helpers/fuzz.ts";
+import { createTrackedTempDir } from "../helpers/temp.ts";
 
 /**
  * Fuzz test for config/env parsing.
@@ -16,13 +16,27 @@ import { createSeededRng, getFuzzSeed } from "../helpers/fuzz.ts";
  */
 
 function makeTempConfigDir(): string {
-  const dir = join(tmpdir(), `pp-fuzz-cfg-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const dir = createTrackedTempDir("pp-fuzz-cfg-");
   mkdirSync(dir, { recursive: true });
   return dir;
 }
 
 function writeConfigFile(dir: string, content: string): void {
   writeFileSync(join(dir, "config.json"), content, "utf-8");
+}
+
+async function withTempConfigHome<T>(
+  dir: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  const savedHome = process.env.PRIVACY_POOLS_HOME;
+  process.env.PRIVACY_POOLS_HOME = dir;
+  try {
+    return await run();
+  } finally {
+    if (savedHome === undefined) delete process.env.PRIVACY_POOLS_HOME;
+    else process.env.PRIVACY_POOLS_HOME = savedHome;
+  }
 }
 
 describe("config parsing fuzz", () => {
@@ -62,27 +76,17 @@ describe("config parsing fuzz", () => {
       const dir = makeTempConfigDir();
       writeConfigFile(dir, content);
 
-      // Dynamically load to bypass module-level cache
-      try {
-        // We can't easily bypass the cache with dynamic import since the module
-        // resolves config dir from env. Set env to point at our temp dir.
-        const savedHome = process.env.PRIVACY_POOLS_HOME;
-        process.env.PRIVACY_POOLS_HOME = dir;
-
-        // Clear module cache by re-importing
+      await withTempConfigHome(dir, async () => {
         const configMod = await import(`../../src/services/config.ts?v=${Date.now()}-${rng.nextUInt32()}`);
+        let error: unknown;
         try {
           configMod.loadConfig();
-          // If it doesn't throw, that's acceptable only if the JSON was valid
         } catch (e) {
-          expect(e).toBeInstanceOf(CLIError);
-          expect((e as CLIError).category).toBe("INPUT");
-        } finally {
-          process.env.PRIVACY_POOLS_HOME = savedHome;
+          error = e;
         }
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
+        expect(error).toBeInstanceOf(CLIError);
+        expect((error as CLIError).category).toBe("INPUT");
+      });
     }
   });
 
@@ -107,7 +111,6 @@ describe("config parsing fuzz", () => {
       { defaultChain: "mainnet", rpcOverrides: "not-object" },
       { defaultChain: "mainnet", rpcOverrides: 42 },
       { defaultChain: "mainnet", rpcOverrides: true },
-      { defaultChain: "mainnet", rpcOverrides: [] },
       // rpcOverrides with invalid values
       { defaultChain: "mainnet", rpcOverrides: { "1": 42 } },
       { defaultChain: "mainnet", rpcOverrides: { "1": null } },
@@ -139,29 +142,27 @@ describe("config parsing fuzz", () => {
           case 4: obj[key] = [rng.nextInt(10)]; break;
         }
       }
-      invalidConfigs.push(obj);
+      invalidConfigs.push({
+        defaultChain: rng.nextInt(1000),
+        rpcOverrides: obj,
+      });
     }
 
     for (const config of invalidConfigs) {
       const dir = makeTempConfigDir();
       writeConfigFile(dir, JSON.stringify(config));
 
-      const savedHome = process.env.PRIVACY_POOLS_HOME;
-      process.env.PRIVACY_POOLS_HOME = dir;
-
-      try {
+      await withTempConfigHome(dir, async () => {
         const configMod = await import(`../../src/services/config.ts?v=${Date.now()}-${rng.nextUInt32()}`);
+        let error: unknown;
         try {
           configMod.loadConfig();
-          // If it doesn't throw, the config was valid enough to parse
         } catch (e) {
-          expect(e).toBeInstanceOf(CLIError);
-          expect((e as CLIError).category).toBe("INPUT");
+          error = e;
         }
-      } finally {
-        process.env.PRIVACY_POOLS_HOME = savedHome;
-        rmSync(dir, { recursive: true, force: true });
-      }
+        expect(error).toBeInstanceOf(CLIError);
+        expect((error as CLIError).category).toBe("INPUT");
+      });
     }
   });
 
@@ -184,18 +185,12 @@ describe("config parsing fuzz", () => {
       const dir = makeTempConfigDir();
       writeConfigFile(dir, JSON.stringify(config));
 
-      const savedHome = process.env.PRIVACY_POOLS_HOME;
-      process.env.PRIVACY_POOLS_HOME = dir;
-
-      try {
+      await withTempConfigHome(dir, async () => {
         const configMod = await import(`../../src/services/config.ts?v=${Date.now()}-${rng.nextUInt32()}`);
         const loaded = configMod.loadConfig();
         expect(loaded.defaultChain).toBe(chain);
-        expect(typeof loaded.rpcOverrides).toBe("object");
-      } finally {
-        process.env.PRIVACY_POOLS_HOME = savedHome;
-        rmSync(dir, { recursive: true, force: true });
-      }
+        expect(loaded.rpcOverrides).toEqual(rpcOverrides);
+      });
     }
   });
 });

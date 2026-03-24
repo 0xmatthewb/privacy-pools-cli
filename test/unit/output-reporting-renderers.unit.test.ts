@@ -8,7 +8,8 @@ import { renderPoolsEmpty, renderPools, renderPoolDetail, poolToJson, type Pools
 import { renderAccountsNoPools, renderAccounts, type AccountPoolGroup } from "../../src/output/accounts.ts";
 import { renderHistoryNoPools, renderHistory } from "../../src/output/history.ts";
 import { CLIError } from "../../src/utils/errors.ts";
-import { makeMode, captureOutput } from "../helpers/output.ts";
+import { POA_PORTAL_URL } from "../../src/config/chains.ts";
+import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
 // ── Stub data ────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ describe("renderPoolsEmpty parity", () => {
     };
     const { stdout, stderr } = captureOutput(() => renderPoolsEmpty(ctx, data));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.pools).toEqual([]);
@@ -66,7 +67,7 @@ describe("renderPoolsEmpty parity", () => {
     };
     const { stdout } = captureOutput(() => renderPoolsEmpty(ctx, data));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.allChains).toBe(true);
     expect(json.chain).toBeUndefined();
   });
@@ -111,7 +112,7 @@ describe("renderPools parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() => renderPools(ctx, STUB_POOLS_DATA));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.pools.length).toBe(1);
@@ -200,7 +201,7 @@ describe("renderAccountsNoPools parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, { chain: "sepolia" }));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
     expect(json.accounts).toEqual([]);
     expect(stderr).toBe("");
@@ -212,7 +213,7 @@ describe("renderAccountsNoPools parity", () => {
       renderAccountsNoPools(ctx, { chain: "sepolia", summary: true }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.pendingCount).toBe(0);
     expect(json.approvedCount).toBe(0);
     expect(json.poiRequiredCount).toBe(0);
@@ -322,7 +323,7 @@ describe("renderAccounts parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.accounts.length).toBe(1);
@@ -368,7 +369,7 @@ describe("renderAccounts parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.accounts).toBeUndefined();
     expect(json.pendingCount).toBe(1);
     expect(json.approvedCount).toBe(0);
@@ -405,7 +406,7 @@ describe("renderAccounts parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.pendingCount).toBe(1);
     expect(json.accounts).toHaveLength(1);
     expect(json.accounts[0].aspStatus).toBe("pending");
@@ -433,7 +434,7 @@ describe("renderAccounts parity", () => {
     );
 
     expect(stderr).toContain("PoA Needed");
-    expect(stderr).toContain("tornado.0xbow.io");
+    expect(stderr).toContain(POA_PORTAL_URL);
   });
 
   test("human mode (detail): hides troubleshooting columns by default", () => {
@@ -576,7 +577,7 @@ describe("renderHistoryNoPools parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() => renderHistoryNoPools(ctx, "sepolia"));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
     expect(json.events).toEqual([]);
     expect(stderr).toBe("");
@@ -644,7 +645,7 @@ describe("renderHistory parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.events.length).toBe(2);
@@ -786,7 +787,7 @@ describe("renderPoolDetail parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
@@ -813,7 +814,7 @@ describe("renderPoolDetail parity", () => {
     const data: PoolDetailRenderData = { ...STUB_POOL_DETAIL_DATA, myPoolAccounts: null };
     const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.myFunds).toBeNull();
   });
 
@@ -826,7 +827,7 @@ describe("renderPoolDetail parity", () => {
     };
     const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.myFunds).toBeNull();
     expect(json.myFundsWarning).toBe("Could not load your wallet state right now: boom");
   });
@@ -839,7 +840,7 @@ describe("renderPoolDetail parity", () => {
     };
     const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.myFunds).toBeDefined();
     expect(json.myFundsWarning).toBe("Some ASP review data was unavailable or incomplete.");
   });
@@ -849,7 +850,7 @@ describe("renderPoolDetail parity", () => {
     const data: PoolDetailRenderData = { ...STUB_POOL_DETAIL_DATA, recentActivity: null };
     const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.recentActivity).toBeUndefined();
   });
 

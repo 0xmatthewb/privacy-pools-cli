@@ -1,4 +1,4 @@
-import { CHAINS, CHAIN_NAMES } from "../config/chains.js";
+import { CHAINS, CHAIN_NAMES, POA_PORTAL_URL } from "../config/chains.js";
 import type {
   CapabilitiesPayload,
   CommandLatencyClass,
@@ -83,9 +83,11 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       safetyNotes: [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
+        "Imported recovery phrases automatically recover older Pool Accounts during sync.",
       ],
       agentWorkflowNotes: [
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
+        "When importing an existing recovery phrase, nextActions points to accounts --agent --all-chains so restored Pool Accounts are discovered across mainnets and testnets.",
       ],
     },
     capabilities: {
@@ -322,12 +324,12 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       safetyNotes: [
         "Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.",
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.",
+        `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
-        "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.",
+        `Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if needed. Always preserve the same --chain scope for both polling and confirmation.`,
       ],
     },
     capabilities: {
@@ -364,13 +366,13 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
       ],
       jsonFields:
-        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }",
+        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
-        "direct: same fields but mode: \"direct\", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
+        "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
         "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
-        "--dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
+        "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -434,7 +436,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Ragequit is public and irreversible and reveals the original deposit address onchain.",
       ],
       jsonFields:
-        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }",
+        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
         "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
@@ -480,7 +482,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       agentWorkflowNotes: [
         "Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
-        "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit.",
+        `When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (${POA_PORTAL_URL}) before choosing withdraw or ragequit.`,
       ],
     },
     capabilities: {
@@ -604,7 +606,7 @@ const AGENT_WORKFLOW = [
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
+    `After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.`,
   withdrawQuote:
     "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
   firstRun:
@@ -621,7 +623,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   aspApprovalStatus: {
     values: ["approved", "pending", "poi_required", "declined", "unknown"],
     description:
-      "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poi_required' means Proof of Association (tornado.0xbow.io) is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.",
+      `ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poi_required' means Proof of Association (${POA_PORTAL_URL}) is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.`,
   },
   poolAccountStatus: {
     values: ["approved", "pending", "poi_required", "declined", "unknown", "spent", "exited"],

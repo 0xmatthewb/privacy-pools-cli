@@ -10,6 +10,8 @@ export interface ChainConfig {
   aspHost: string;
   relayerHost: string;
   isTestnet: boolean;
+  /** Average seconds per block for approximate time-ago display. */
+  avgBlockTimeSec: number;
 }
 
 export interface CLIConfig {

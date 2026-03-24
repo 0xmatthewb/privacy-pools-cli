@@ -1,43 +1,33 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import {
-  CLI_CWD,
   createTempHome,
   parseJsonOutput,
   runBuiltCli,
 } from "../helpers/cli.ts";
+import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+
+let builtWorkspaceRoot: string;
 
 beforeAll(() => {
-  const builtCliPath = join(CLI_CWD, "dist", "index.js");
-  if (existsSync(builtCliPath)) {
-    return;
-  }
-
-  const result = spawnSync("bun", ["run", "build"], {
-    cwd: CLI_CWD,
-    encoding: "utf8",
-    timeout: 120_000,
-  });
-
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to build dist for built-entrypoint tests:\n${result.stderr || result.stdout}`
-    );
-  }
-});
+  builtWorkspaceRoot = createBuiltWorkspaceSnapshot();
+}, 240_000);
 
 describe("built CLI entrypoint", () => {
+  const runBuiltSnapshotCli = (args: string[]) =>
+    runBuiltCli(args, {
+      home: createTempHome(),
+      cwd: builtWorkspaceRoot,
+    });
+
   test("--version returns a semantic version", () => {
-    const result = runBuiltCli(["--version"], { home: createTempHome() });
+    const result = runBuiltSnapshotCli(["--version"]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
     expect(result.stderr.trim()).toBe("");
   });
 
   test("--help returns human-readable usage on stdout", () => {
-    const result = runBuiltCli(["--help"], { home: createTempHome() });
+    const result = runBuiltSnapshotCli(["--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Usage:");
     expect(result.stdout).toContain("Explore (no wallet needed)");
@@ -45,9 +35,7 @@ describe("built CLI entrypoint", () => {
   });
 
   test("capabilities --agent returns a machine-readable discovery manifest", () => {
-    const result = runBuiltCli(["capabilities", "--agent"], {
-      home: createTempHome(),
-    });
+    const result = runBuiltSnapshotCli(["capabilities", "--agent"]);
     expect(result.status).toBe(0);
 
     const json = parseJsonOutput<{
@@ -64,9 +52,7 @@ describe("built CLI entrypoint", () => {
   });
 
   test("describe withdraw quote --agent returns the shipped descriptor", () => {
-    const result = runBuiltCli(["describe", "withdraw", "quote", "--agent"], {
-      home: createTempHome(),
-    });
+    const result = runBuiltSnapshotCli(["describe", "withdraw", "quote", "--agent"]);
     expect(result.status).toBe(0);
 
     const json = parseJsonOutput<{
@@ -84,7 +70,7 @@ describe("built CLI entrypoint", () => {
   });
 
   test("completion query works through the built entrypoint", () => {
-    const result = runBuiltCli(
+    const result = runBuiltSnapshotCli(
       [
         "--json",
         "completion",
@@ -95,8 +81,7 @@ describe("built CLI entrypoint", () => {
         "1",
         "--",
         "privacy-pools",
-      ],
-      { home: createTempHome() }
+      ]
     );
     expect(result.status).toBe(0);
 

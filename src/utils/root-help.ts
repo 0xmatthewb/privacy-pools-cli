@@ -1,5 +1,9 @@
 import chalk from "chalk";
 import { accent, accentBold, highlight, notice, subtle } from "./theme.js";
+import {
+  ROOT_HELP_FOOTER_ENTRIES,
+  rootHelpFooterPlain as rootHelpFooterPlainValue,
+} from "./root-help-footer.js";
 
 type Section = "options" | "commands" | "arguments" | null;
 
@@ -28,7 +32,12 @@ const ROOT_HELP_BASE_LINES = [
   "  --format <format>    Output format: table (default), csv, json (choices:",
   '                       "table", "csv", "json")',
   "  -y, --yes            Skip confirmation prompts",
+  "  -r, --rpc-url <url>  Override RPC URL",
   "  --agent              Machine-friendly mode (alias for --json --yes --quiet)",
+  "  -q, --quiet          Suppress non-essential stderr output",
+  "  -v, --verbose        Enable verbose/debug output",
+  "  --no-banner          Disable ASCII banner output",
+  "  --no-color           Disable colored output (also respects NO_COLOR env var)",
   "  --timeout <seconds>  Network/transaction timeout in seconds (default: 30)",
   "  -h, --help           display help for command",
   "",
@@ -51,14 +60,6 @@ const ROOT_HELP_BASE_LINES = [
   "  describe             Describe one command for runtime agent introspection",
   "  completion           Generate shell completion script",
   "  help                 display help for command",
-];
-
-const ROOT_HELP_FOOTER_LINES = [
-  "",
-  "  Get started:      privacy-pools init",
-  "  Full guide:       privacy-pools guide",
-  "  Command help:     privacy-pools <command> --help",
-  "  Agent discovery:  privacy-pools capabilities",
 ];
 
 function styleCmdLine(line: string): string {
@@ -208,16 +209,15 @@ export function rootHelpBaseText(): string {
 }
 
 export function rootHelpFooterPlain(): string {
-  return ROOT_HELP_FOOTER_LINES.join("\n");
+  return rootHelpFooterPlainValue();
 }
 
 export function rootHelpFooter(): string {
   return [
     "",
-    `  Get started:      ${accent("privacy-pools init")}`,
-    `  Full guide:       ${accent("privacy-pools guide")}`,
-    `  Command help:     ${accent("privacy-pools <command> --help")}`,
-    `  Agent discovery:  ${accent("privacy-pools capabilities")}`,
+    ...ROOT_HELP_FOOTER_ENTRIES.map(
+      ([label, command]) => `  ${label.padEnd(18)}${accent(command)}`,
+    ),
   ].join("\n");
 }
 

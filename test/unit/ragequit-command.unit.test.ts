@@ -6,6 +6,7 @@ import {
   formatRagequitPoolAccountChoice,
   getRagequitAdvisory,
 } from "../../src/commands/ragequit.ts";
+import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 
 function makePoolAccountRef(
   overrides: Partial<PoolAccountRef> = {},
@@ -86,7 +87,7 @@ describe("ragequit command helpers", () => {
     );
 
     expect(advisory).not.toBeNull();
-    expect(advisory?.message).toContain("tornado.0xbow.io");
+    expect(advisory?.message).toContain(POA_PORTAL_URL);
     expect(advisory?.message).toContain("private withdrawal");
   });
 

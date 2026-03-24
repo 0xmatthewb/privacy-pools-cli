@@ -20,7 +20,7 @@ import { renderAccounts, type AccountsRenderData } from "../../src/output/accoun
 import { renderPools, type PoolsRenderData, renderPoolDetail, type PoolDetailRenderData } from "../../src/output/pools.ts";
 import { renderSyncComplete, type SyncResult } from "../../src/output/sync.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
-import { makeMode, captureOutput } from "../helpers/output.ts";
+import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
 // ── formatNextActionCommand ─────────────────────────────────────────────────
 
@@ -212,7 +212,7 @@ const STUB_POOL_DETAIL: PoolDetailRenderData = {
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function getJsonNextActionCommands(stdout: string): string[] {
-  const json = JSON.parse(stdout.trim());
+  const json = parseCapturedJson(stdout);
   return (json.nextActions ?? []).map((a: { command: string }) => a.command);
 }
 
@@ -427,20 +427,6 @@ describe("surfaces without next steps stay quiet", () => {
       },
     },
     {
-      name: "renderWithdrawSuccess",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderWithdrawSuccess(ctx, STUB_WITHDRAW));
-      },
-    },
-    {
-      name: "renderRagequitSuccess",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderRagequitSuccess(ctx, STUB_RAGEQUIT));
-      },
-    },
-    {
       name: "renderSyncComplete",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
@@ -463,7 +449,7 @@ describe("surfaces without next steps stay quiet", () => {
 
 describe("emitted nextActions are fully runnable", () => {
   function getNextActions(stdout: string) {
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     return json.nextActions ?? [];
   }
 
@@ -529,7 +515,7 @@ describe("status next steps vary by account state", () => {
   function getJsonNextActions(result: StatusCheckResult) {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() => renderStatus(ctx, result));
-    return JSON.parse(stdout.trim()).nextActions;
+    return parseCapturedJson(stdout).nextActions;
   }
 
   test("ready + no accounts → pools only", () => {
@@ -599,7 +585,7 @@ describe("status chain-aware hasAccounts for next steps", () => {
   function getJsonNextActions(result: StatusCheckResult) {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() => renderStatus(ctx, result));
-    return JSON.parse(stdout.trim()).nextActions;
+    return parseCapturedJson(stdout).nextActions;
   }
 
   test("mainnet deposits + default chain → accounts in dashboard mode (no --chain)", () => {
@@ -801,7 +787,7 @@ describe("init next steps: new wallet vs restore", () => {
   function getJsonNextActions(data: InitRenderResult) {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() => renderInitResult(ctx, data));
-    return JSON.parse(stdout.trim()).nextActions;
+    return parseCapturedJson(stdout).nextActions;
   }
 
   function getHumanStderr(data: InitRenderResult): string {
@@ -878,7 +864,7 @@ describe("withdraw quote next-step recipient guard", () => {
   function getJsonNextActions(data: WithdrawQuoteData) {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() => renderWithdrawQuote(ctx, data));
-    return JSON.parse(stdout.trim()).nextActions;
+    return parseCapturedJson(stdout).nextActions;
   }
 
   function getHumanStderr(data: WithdrawQuoteData): string {

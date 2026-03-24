@@ -8,7 +8,9 @@
 
 import type { ResolvedGlobalMode } from "../../src/output/common.ts";
 
-export function makeMode(overrides: Partial<ResolvedGlobalMode> = {}): ResolvedGlobalMode {
+export function makeMode(
+  overrides: Partial<ResolvedGlobalMode> = {},
+): ResolvedGlobalMode {
   return {
     isAgent: false,
     isJson: false,
@@ -21,7 +23,10 @@ export function makeMode(overrides: Partial<ResolvedGlobalMode> = {}): ResolvedG
 }
 
 /** Capture stdout and stderr writes during `fn()`. */
-export function captureOutput(fn: () => void): { stdout: string; stderr: string } {
+export function captureOutput(fn: () => void): {
+  stdout: string;
+  stderr: string;
+} {
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
 
@@ -29,12 +34,16 @@ export function captureOutput(fn: () => void): { stdout: string; stderr: string 
   const origStderr = process.stderr.write;
 
   process.stdout.write = ((chunk: string | Uint8Array) => {
-    stdoutChunks.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
+    stdoutChunks.push(
+      typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk),
+    );
     return true;
   }) as typeof process.stdout.write;
 
   process.stderr.write = ((chunk: string | Uint8Array) => {
-    stderrChunks.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
+    stderrChunks.push(
+      typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk),
+    );
     return true;
   }) as typeof process.stderr.write;
 
@@ -46,4 +55,19 @@ export function captureOutput(fn: () => void): { stdout: string; stderr: string 
   }
 
   return { stdout: stdoutChunks.join(""), stderr: stderrChunks.join("") };
+}
+
+export function parseCapturedJson<T = any>(stdout: string): T {
+  return JSON.parse(stdout.trim()) as T;
+}
+
+export function captureJsonOutput<T = any>(
+  fn: () => void,
+): { json: T; stdout: string; stderr: string } {
+  const { stdout, stderr } = captureOutput(fn);
+  return {
+    json: parseCapturedJson<T>(stdout),
+    stdout,
+    stderr,
+  };
 }

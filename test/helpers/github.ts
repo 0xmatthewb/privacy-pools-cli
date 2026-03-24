@@ -13,8 +13,6 @@ import { resolve } from "node:path";
 import { CLI_ROOT } from "./paths.ts";
 
 const RAW_BASE = "https://raw.githubusercontent.com";
-/** Set CONFORMANCE_UPSTREAM_REF to a commit SHA for deterministic live fetches. */
-const BRANCH = process.env.CONFORMANCE_UPSTREAM_REF || "main";
 const FIXTURE_BASE = resolve(CLI_ROOT, "test", "fixtures", "upstream");
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -22,22 +20,25 @@ const GIT_TIMEOUT_MS = 30_000;
 
 export const CORE_REPO = "0xbow-io/privacy-pools-core";
 export const FRONTEND_REPO = "0xbow-io/privacy-pools-website";
-export const CORE_REPO_FIXTURE_REF =
-  "a80836a47451e662f127af17e11430ffa976c234";
+export const CORE_REPO_FIXTURE_REF = "a80836a47451e662f127af17e11430ffa976c234";
 
 const cache = new Map<string, string>();
 const checkoutCache = new Map<string, string>();
 let cleanupRegistered = false;
+
+function upstreamRefFor(repo: string): string {
+  return (
+    process.env.CONFORMANCE_UPSTREAM_REF ||
+    (repo === CORE_REPO ? CORE_REPO_FIXTURE_REF : "main")
+  );
+}
 
 function fixturePathFor(repo: string, path: string): string {
   const repoSlug = repo.replace(/\//g, "__");
   return resolve(FIXTURE_BASE, repoSlug, path);
 }
 
-export function readGitHubFixture(
-  repo: string,
-  path: string,
-): string | null {
+export function readGitHubFixture(repo: string, path: string): string | null {
   const fixturePath = fixturePathFor(repo, path);
   if (!existsSync(fixturePath)) {
     return null;
@@ -46,7 +47,8 @@ export function readGitHubFixture(
 }
 
 function readGitHubFileViaCheckout(repo: string, path: string): string {
-  const key = `${repo}@${BRANCH}`;
+  const ref = upstreamRefFor(repo);
+  const key = `${repo}@${ref}`;
   let checkoutDir = checkoutCache.get(key);
 
   if (!checkoutDir) {
@@ -57,18 +59,30 @@ function readGitHubFileViaCheckout(repo: string, path: string): string {
       stdio: "pipe",
       timeout: GIT_TIMEOUT_MS,
     });
-    execFileSync("git", ["-C", checkoutDir, "remote", "add", "origin", remote], {
-      stdio: "pipe",
-      timeout: GIT_TIMEOUT_MS,
-    });
-    execFileSync("git", ["-C", checkoutDir, "fetch", "--depth", "1", "origin", BRANCH], {
-      stdio: "pipe",
-      timeout: GIT_TIMEOUT_MS,
-    });
-    execFileSync("git", ["-C", checkoutDir, "checkout", "--detach", "-q", "FETCH_HEAD"], {
-      stdio: "pipe",
-      timeout: GIT_TIMEOUT_MS,
-    });
+    execFileSync(
+      "git",
+      ["-C", checkoutDir, "remote", "add", "origin", remote],
+      {
+        stdio: "pipe",
+        timeout: GIT_TIMEOUT_MS,
+      },
+    );
+    execFileSync(
+      "git",
+      ["-C", checkoutDir, "fetch", "--depth", "1", "origin", ref],
+      {
+        stdio: "pipe",
+        timeout: GIT_TIMEOUT_MS,
+      },
+    );
+    execFileSync(
+      "git",
+      ["-C", checkoutDir, "checkout", "--detach", "-q", "FETCH_HEAD"],
+      {
+        stdio: "pipe",
+        timeout: GIT_TIMEOUT_MS,
+      },
+    );
 
     checkoutCache.set(key, checkoutDir);
 
@@ -93,7 +107,7 @@ function readGitHubFileViaCheckout(repo: string, path: string): string {
 
   const filePath = resolve(checkoutDir, path);
   if (!existsSync(filePath)) {
-    throw new Error(`Git checkout missing ${repo}/${BRANCH}/${path}`);
+    throw new Error(`Git checkout missing ${repo}/${ref}/${path}`);
   }
 
   return readFileSync(filePath, "utf8");
@@ -113,16 +127,10 @@ export async function fetchGitHubFile(
       cache.set(key, fixture);
       return fixture;
     }
-
-    if (repo === CORE_REPO) {
-      throw new Error(
-        `Missing pinned upstream fixture for ${repo}/${path}. `
-        + "Add the file under test/fixtures/upstream or set CONFORMANCE_FETCH_LIVE=1."
-      );
-    }
   }
 
-  const url = `${RAW_BASE}/${repo}/${BRANCH}/${path}`;
+  const ref = upstreamRefFor(repo);
+  const url = `${RAW_BASE}/${repo}/${ref}/${path}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {

@@ -30,7 +30,12 @@ Options:
   --format <format>    Output format: table (default), csv, json (choices:
                        "table", "csv", "json")
   -y, --yes            Skip confirmation prompts
+  -r, --rpc-url <url>  Override RPC URL
   --agent              Machine-friendly mode (alias for --json --yes --quiet)
+  -q, --quiet          Suppress non-essential stderr output
+  -v, --verbose        Enable verbose/debug output
+  --no-banner          Disable ASCII banner output
+  --no-color           Disable colored output (also respects NO_COLOR env var)
   --timeout <seconds>  Network/transaction timeout in seconds (default: 30)
   -h, --help           display help for command
   Get started:      privacy-pools init
@@ -64,7 +69,9 @@ Privacy Pools uses two keys:
   Recovery phrase: keeps your deposits private (generated during init)
   Signer key:     pays gas and sends transactions (can be set later)
   These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.
-During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin. Circuit artifacts are provisioned automatically on first proof and cached under ~/.privacy-pools/circuits/.
+During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
+Imported recovery phrases automatically recover older Pool Accounts during sync.
+Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.
 Examples:
   privacy-pools init
   privacy-pools init --yes --default-chain mainnet
@@ -75,8 +82,10 @@ Examples:
   cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet
 Safety notes:
   The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
+  Imported recovery phrases automatically recover older Pool Accounts during sync.
 Agent workflow:
   When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.
+  When importing an existing recovery phrase, nextActions points to accounts --agent --all-chains so restored Pool Accounts are discovered across mainnets and testnets.
 JSON output (--json):
   { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }"
 `;
@@ -177,7 +186,7 @@ Options:
                                 submitting
   --ignore-unique-amount        Bypass the non-round amount privacy check
   -h, --help                    display help for command
-Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may download circuit files (~60s). Subsequent runs typically complete in 10-30s.
+Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may provision checksum-verified circuit artifacts (~60s). Subsequent runs typically complete in 10-30s.
 Non-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.
 Examples:
   privacy-pools deposit 0.1 ETH
@@ -240,12 +249,12 @@ Safety notes:
   ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.
   Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
 JSON output (--json):
-  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }
-  direct: same fields but mode: "direct", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.
+  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
+  direct: same fields but mode: "direct", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.
   quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
-  --dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }
+  --dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }
 Additional modes:
   --unsigned builds transaction payloads without submitting.
   --dry-run validates the operation without submitting it."
@@ -275,7 +284,7 @@ Prerequisites:
 Safety notes:
   Ragequit is public and irreversible and reveals the original deposit address onchain.
 JSON output (--json):
-  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }
+  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, chain, asset, amount, transactions[] }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }

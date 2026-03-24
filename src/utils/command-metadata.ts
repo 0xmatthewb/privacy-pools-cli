@@ -1,4 +1,5 @@
 import type { CommandHelpConfig } from "./help.js";
+import { POA_PORTAL_URL } from "../config/chains.js";
 import {
   COMMAND_PATHS,
   getCommandMetadata as getDiscoveryMetadata,
@@ -34,7 +35,9 @@ const COMMAND_HELP_OVERVIEWS: Partial<Record<CommandPath, string[]>> = {
     "  Signer key:     pays gas and sends transactions (can be set later)",
     "  These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.",
     "",
-    "During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin. Circuit artifacts are provisioned automatically on first proof and cached under ~/.privacy-pools/circuits/.",
+    "During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.",
+    "Imported recovery phrases automatically recover older Pool Accounts during sync.",
+    "Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.",
   ],
   pools: [
     "When no --chain is specified, shows all mainnet chains. Use --all-chains to include testnets. Pools are sorted by pool balance (highest first) by default. Pass a single asset symbol (e.g. 'pools ETH') for a detail view with your funds, recent activity, and pool stats.",
@@ -43,12 +46,12 @@ const COMMAND_HELP_OVERVIEWS: Partial<Record<CommandPath, string[]>> = {
     "Useful when a human or agent wants the runtime contract for one command without parsing long-form docs. Accepts spaced command paths like 'withdraw quote' and 'stats global'.",
   ],
   deposit: [
-    "Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may download circuit files (~60s). Subsequent runs typically complete in 10-30s.",
+    "Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may provision checksum-verified circuit artifacts (~60s). Subsequent runs typically complete in 10-30s.",
     "",
     "Non-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.",
   ],
   withdraw: [
-    "Withdraws funds from a Privacy Pool via a relayer (default, recommended) for enhanced privacy. The relayer pays gas on your behalf and takes a small fee, keeping your withdrawal address unlinkable to your deposit. ASP approval is required before withdrawal. If a deposit is poi_required, complete Proof of Association at tornado.0xbow.io first. If it is declined, the recovery path is ragequit. Proof generation may take 10-30s. Use 'withdraw quote' to check relayer fees first.",
+    `Withdraws funds from a Privacy Pool via a relayer (default, recommended) for enhanced privacy. The relayer pays gas on your behalf and takes a small fee, keeping your withdrawal address unlinkable to your deposit. ASP approval is required before withdrawal. If a deposit is poi_required, complete Proof of Association at ${POA_PORTAL_URL} first. If it is declined, the recovery path is ragequit. Proof generation may take 10-30s. Use 'withdraw quote' to check relayer fees first.`,
     "",
     "A --direct mode exists but is not recommended: it interacts with the pool contract directly, publicly linking your deposit and withdrawal addresses onchain. Prefer relayed withdrawals for privacy.",
     "",
@@ -62,7 +65,7 @@ const COMMAND_HELP_OVERVIEWS: Partial<Record<CommandPath, string[]>> = {
     "",
     "Pool Account statuses: approved, pending, poi_required, declined, unknown, spent (fully withdrawn), exited (exit/ragequit).",
     "",
-    "ASP statuses: approved (eligible for withdraw), pending (waiting for ASP), poi_required (complete Proof of Association at tornado.0xbow.io before withdraw), declined (cannot use withdraw; use ragequit), unknown.",
+    `ASP statuses: approved (eligible for withdraw), pending (waiting for ASP), poi_required (complete Proof of Association at ${POA_PORTAL_URL} before withdraw), declined (cannot use withdraw; use ragequit), unknown.`,
     "",
     "Compact modes --summary and --pending-only are intended for polling loops and do not support --details. When polling with --pending-only, Pool Accounts disappear from results when ASP review finishes. Re-run accounts without --pending-only to confirm whether the final status is approved, declined, or poi_required.",
   ],

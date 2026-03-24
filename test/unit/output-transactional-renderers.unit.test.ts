@@ -10,7 +10,7 @@ import { renderRagequitDryRun, renderRagequitSuccess, type RagequitDryRunData, t
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote, type WithdrawDryRunData, type WithdrawSuccessData, type WithdrawQuoteData } from "../../src/output/withdraw.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { CLIError } from "../../src/utils/errors.ts";
-import { makeMode, captureOutput } from "../helpers/output.ts";
+import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
 // ── renderInitResult parity ─────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ describe("renderInitResult parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.defaultChain).toBe("sepolia");
@@ -58,7 +58,7 @@ describe("renderInitResult parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.recoveryPhrase).toBe(mnemonic);
     expect(json.recoveryPhraseRedacted).toBeUndefined();
   });
@@ -74,7 +74,7 @@ describe("renderInitResult parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.recoveryPhrase).toBeUndefined();
     expect(json.recoveryPhraseRedacted).toBeUndefined();
     expect(json.defaultChain).toBe("mainnet");
@@ -136,7 +136,7 @@ describe("renderDepositDryRun parity", () => {
       renderDepositDryRun(ctx, STUB_DEPOSIT_DRY_RUN),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.dryRun).toBe(true);
@@ -157,7 +157,7 @@ describe("renderDepositDryRun parity", () => {
       renderDepositDryRun(ctx, { ...STUB_DEPOSIT_DRY_RUN, balanceSufficient: "unknown" }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.balanceSufficient).toBe("unknown");
   });
 
@@ -201,7 +201,7 @@ describe("renderDepositSuccess parity", () => {
       renderDepositSuccess(ctx, STUB_DEPOSIT_SUCCESS),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.operation).toBe("deposit");
@@ -233,7 +233,7 @@ describe("renderDepositSuccess parity", () => {
     const data = { ...STUB_DEPOSIT_SUCCESS, committedValue: undefined, label: undefined };
     const { stdout } = captureOutput(() => renderDepositSuccess(ctx, data));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.committedValue).toBeNull();
     expect(json.label).toBeNull();
   });
@@ -295,7 +295,7 @@ describe("renderRagequitDryRun parity", () => {
       renderRagequitDryRun(ctx, STUB_RAGEQUIT_DRY_RUN),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.dryRun).toBe(true);
@@ -348,7 +348,7 @@ describe("renderRagequitSuccess parity", () => {
       renderRagequitSuccess(ctx, STUB_RAGEQUIT_SUCCESS),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.operation).toBe("ragequit");
@@ -362,7 +362,9 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.scope).toBe("42");
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expect(json.nextActions[0].command).toBe("accounts");
+    expect(json.nextActions[0].when).toBe("after_ragequit");
     expect(stderr).toBe("");
   });
 
@@ -378,8 +380,7 @@ describe("renderRagequitSuccess parity", () => {
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    // No human next steps — checking accounts after ragequit is obvious
-    expect(stderr).not.toContain("Next steps:");
+    expect(stderr).toContain("Next steps:");
   });
 
   test("human mode: omits Explorer when explorerUrl is null", () => {
@@ -440,7 +441,7 @@ describe("renderWithdrawDryRun parity", () => {
       renderWithdrawDryRun(ctx, STUB_WITHDRAW_DRY_RUN_DIRECT),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.mode).toBe("direct");
@@ -465,7 +466,7 @@ describe("renderWithdrawDryRun parity", () => {
       renderWithdrawDryRun(ctx, STUB_WITHDRAW_DRY_RUN_RELAYED),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.mode).toBe("relayed");
     expect(json.dryRun).toBe(true);
     expect(json.feeBPS).toBe("50");
@@ -482,7 +483,7 @@ describe("renderWithdrawDryRun parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
   });
 
@@ -492,7 +493,7 @@ describe("renderWithdrawDryRun parity", () => {
       renderWithdrawDryRun(ctx, STUB_WITHDRAW_DRY_RUN_DIRECT),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.anonymitySet).toBeUndefined();
   });
 
@@ -553,7 +554,7 @@ describe("renderWithdrawSuccess parity", () => {
       renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_DIRECT),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
@@ -562,8 +563,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.blockNumber).toBe("12345");
     expect(json.amount).toBe("500000000000000000");
     expect(json.recipient).toBe("0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa");
-    expect(json.fee).toBeNull();
-    expect(json.feeBPS).toBeUndefined();
+    expect(json.feeBPS).toBeNull();
     expect(json.poolAddress).toBe("0x1111111111111111111111111111111111111111");
     expect(json.scope).toBe("42");
     expect(json.asset).toBe("ETH");
@@ -572,7 +572,9 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expect(json.nextActions[0].command).toBe("accounts");
+    expect(json.nextActions[0].when).toBe("after_withdraw");
     expect(stderr).toBe("");
   });
 
@@ -582,12 +584,13 @@ describe("renderWithdrawSuccess parity", () => {
       renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_RELAYED),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.mode).toBe("relayed");
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expect(json.nextActions[0].command).toBe("accounts");
     expect(stderr).toBe("");
   });
 
@@ -600,7 +603,7 @@ describe("renderWithdrawSuccess parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
   });
 
@@ -610,7 +613,7 @@ describe("renderWithdrawSuccess parity", () => {
       renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_DIRECT),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.anonymitySet).toBeUndefined();
   });
 
@@ -627,8 +630,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).not.toContain("Relayer fee:");
-    // No human next steps — checking accounts after withdraw is obvious
-    expect(stderr).not.toContain("Next steps:");
+    expect(stderr).toContain("Next steps:");
   });
 
   test("human mode (relayed): includes relayer fee", () => {
@@ -640,7 +642,7 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrew");
     expect(stderr).toContain("Relayer fee: 0.50%");
-    expect(stderr).not.toContain("Next steps:");
+    expect(stderr).toContain("Next steps:");
   });
 
   test("human mode (direct): shows remaining balance", () => {
@@ -756,7 +758,7 @@ describe("renderWithdrawQuote parity", () => {
       renderWithdrawQuote(ctx, STUB_WITHDRAW_QUOTE),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.mode).toBe("relayed-quote");
@@ -793,7 +795,7 @@ describe("renderWithdrawQuote parity", () => {
     const data = { ...STUB_WITHDRAW_QUOTE, recipient: null, quoteExpiresAt: null };
     const { stdout } = captureOutput(() => renderWithdrawQuote(ctx, data));
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     expect(json.recipient).toBeNull();
     expect(json.quoteExpiresAt).toBeNull();
   });
@@ -881,7 +883,7 @@ describe("renderWithdrawQuote parity", () => {
       renderWithdrawQuote(ctx, { ...STUB_WITHDRAW_QUOTE, quoteFeeBPS: "10100" }),
     );
 
-    const json = JSON.parse(stdout.trim());
+    const json = parseCapturedJson(stdout);
     // Agent still gets the action — they can decide for themselves
     expect(json.nextActions).toBeDefined();
     expect(json.nextActions.length).toBeGreaterThan(0);

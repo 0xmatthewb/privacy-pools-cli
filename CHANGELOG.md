@@ -4,6 +4,27 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.6.1] - 2026-03-24
+
+### Changed
+
+- Aligned the CLI with `@0xbow/privacy-pools-core-sdk` `1.2.0` recovery behavior so imported recovery phrases rebuild legacy saved accounts and keep older Pool Accounts discoverable.
+- Tightened startup, root help, and runtime discovery paths so `--help`, `capabilities`, `describe`, and machine-mode output stay lightweight while reflecting the live CLI contract accurately.
+- Hardened release validation so packaged installs, built entrypoints, docs generation, stress coverage, and forked-chain flows run against isolated snapshots and packed artifacts instead of the live checkout.
+
+### Fixed
+
+- Fixed versionless cached account snapshots and sync flows so legacy local state is rebuilt from onchain events instead of silently degrading.
+- Fixed relayed withdraw quote refresh handling, direct-withdraw and ragequit JSON contract drift, and chain-specific history time estimates on faster L2s.
+- Fixed root help flag visibility, packaged-smoke/build race conditions, docs-generation drift, and test harness isolation across temp homes, env boundaries, and packed builds.
+
+### Verification
+
+- `npm run test:all`
+- `npm run test:e2e:anvil`
+- `bun run docs:check`
+- `npm pack --dry-run`
+
 ## [1.6.0] - 2026-03-20
 
 ### Added
@@ -224,6 +245,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Enabled GitHub Actions CI/CD workflows for the repository.
 - Completed the initial packaging and release flow.
 
+[1.6.1]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.3.0...v1.4.0

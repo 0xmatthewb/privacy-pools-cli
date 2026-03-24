@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 
 const result = spawnSync(
   "bun",
-  ["test", "./test/fuzz/cli.stress-120-rounds.test.ts", "--timeout", "240000"],
+  ["test", "./test/stress/cli.stress-120-rounds.stress.ts", "--timeout", "240000"],
   {
     stdio: "inherit",
     env: {

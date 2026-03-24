@@ -446,6 +446,10 @@ printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 word2 ..." --
 
 When importing an existing recovery phrase or private key, neither `recoveryPhrase` nor `recoveryPhraseRedacted` is present.
 
+When importing an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
+
+When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so restored Pool Accounts can be discovered across mainnets and testnets. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
+
 Use only one stdin secret source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
 
 ### `deposit`
@@ -548,11 +552,12 @@ For relayed withdrawals, the CLI also warns if the chosen amount would leave a p
     "eligible": 42,
     "total": 128,
     "percentage": 32.81
-  }
+  },
+  "nextActions": [{ "command": "accounts", "reason": "...", "when": "after_withdraw", "options": { "agent": true, "chain": "mainnet" } }]
 }
 ```
 
-**Success (direct):** same fields but `mode: "direct"`, `fee: null` instead of `feeBPS`, no `extraGas`, and human output includes a note that direct withdrawal links deposit and withdrawal onchain.
+**Success (direct):** same fields but `mode: "direct"`, `feeBPS: null`, no `extraGas`, and human output includes a note that direct withdrawal links deposit and withdrawal onchain.
 
 **Dry-run:**
 
@@ -642,7 +647,8 @@ privacy-pools exit ETH --from-pa PA-1 --agent
   "poolAddress": "0x...",
   "scope": "123...",
   "blockNumber": "22154000",
-  "explorerUrl": "https://etherscan.io/tx/0x..."
+  "explorerUrl": "https://etherscan.io/tx/0x...",
+  "nextActions": [{ "command": "accounts", "reason": "...", "when": "after_ragequit", "options": { "agent": true, "chain": "mainnet" } }]
 }
 ```
 

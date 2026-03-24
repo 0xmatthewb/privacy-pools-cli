@@ -1,6 +1,6 @@
 ---
 name: privacy-pools-cli
-version: 1.6.0
+version: 1.6.1
 description: >
   Deposit, withdraw, and manage funds in Privacy Pools v1 on Ethereum, Arbitrum,
   and Optimism. Use when the user or agent needs to interact with Privacy Pools:
@@ -257,6 +257,10 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 ```
 
 **Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.
+
+When restoring an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
+
+In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `accounts --agent --all-chains`.
 
 In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when that tradeoff is intentional.
 

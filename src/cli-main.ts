@@ -1,7 +1,6 @@
 import type { Command } from "commander";
 import { join } from "path";
 import { homedir } from "os";
-import { styleCommanderHelp } from "./utils/root-help.js";
 import {
   checkForUpdateInBackground,
   getUpdateNotice,
@@ -224,6 +223,7 @@ export async function runCli(
   const isUnsigned = hasLongFlag(argv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
   const isStructuredOutputMode = isJson || isUnsigned || isAgent;
+  const shouldStyleHelp = !isStructuredOutputMode;
   const isHelpLike =
     argv.includes("--help") ||
     hasShortFlag(argv, "h") ||
@@ -236,12 +236,13 @@ export async function runCli(
   const isWelcome =
     isWelcomeFlagOnlyInvocation(argv) && (!isMachineMode || isCsvMode);
   let machineCapturedOut = "";
-  const [chalk, dangerTone] = !isMachineMode
+  const [chalk, dangerTone, styleCommanderHelp] = shouldStyleHelp
     ? await Promise.all([
         import("chalk").then((mod) => mod.default),
         import("./utils/theme.js").then((mod) => mod.dangerTone),
+        import("./utils/root-help.js").then((mod) => mod.styleCommanderHelp),
       ])
-    : [null, null];
+    : [null, null, null];
 
   await maybeLoadConfigEnv(
     firstCommandToken,
@@ -250,7 +251,11 @@ export async function runCli(
     isWelcome,
   );
 
-  const program = createRootProgram(pkg.version);
+  const program = await createRootProgram(pkg.version, {
+    argv,
+    loadAllCommands: false,
+    styledHelp: shouldStyleHelp,
+  });
 
   if (!isMachineMode) {
     program.showSuggestionAfterError(true);
@@ -269,7 +274,7 @@ export async function runCli(
         return;
       }
       if (isWelcome) return;
-      const styled = styleCommanderHelp(str);
+      const styled = styleCommanderHelp!(str);
       process.stdout.write(styled);
     },
     writeErr: (str: string) => {
@@ -290,10 +295,10 @@ export async function runCli(
       cmd.configureOutput({
         writeOut: (str: string) => {
           if (captureMachineOutput) {
-            machineCapturedOut += str;
-            return;
-          }
-          const styled = styleCommanderHelp(str);
+          machineCapturedOut += str;
+          return;
+        }
+          const styled = styleCommanderHelp ? styleCommanderHelp(str) : str;
           process.stdout.write(styled);
         },
         writeErr: () => {},

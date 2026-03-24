@@ -10,15 +10,36 @@
 import { describe, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createTempHome, runCli, parseJsonOutput } from "../helpers/cli.ts";
-
-const TEST_MNEMONIC = "test test test test test test test test test test test junk";
-const TEST_PRIVATE_KEY = "0x1111111111111111111111111111111111111111111111111111111111111111";
+import {
+  TEST_MNEMONIC,
+  createTempHome,
+  parseJsonOutput,
+  runCli,
+  writeTestSecretFiles,
+} from "../helpers/cli.ts";
 
 function writeTempFile(home: string, filename: string, content: string): string {
   const filePath = join(home, filename);
   writeFileSync(filePath, content, "utf-8");
   return filePath;
+}
+
+function runMnemonicFileInit(home: string, filePath: string) {
+  const { privateKeyPath } = writeTestSecretFiles(home);
+  return runCli(
+    [
+      "--json",
+      "init",
+      "--mnemonic-file",
+      filePath,
+      "--private-key-file",
+      privateKeyPath,
+      "--default-chain",
+      "sepolia",
+      "--yes",
+    ],
+    { home, timeoutMs: 60_000 },
+  );
 }
 
 describe("init --mnemonic-file with structured backup files", () => {
@@ -29,10 +50,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     const home = createTempHome();
     const filePath = writeTempFile(home, "raw.txt", TEST_MNEMONIC);
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).toBe(0);
     const json = parseJsonOutput(result.stdout);
     expect((json as any).success).toBe(true);
@@ -53,10 +71,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     ].join("\n");
     const filePath = writeTempFile(home, "cli-backup.txt", cliBackup);
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).toBe(0);
     const json = parseJsonOutput(result.stdout);
     expect((json as any).success).toBe(true);
@@ -79,10 +94,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     ].join("\n");
     const filePath = writeTempFile(home, "website-menu-backup.txt", websiteBackup);
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).toBe(0);
     const json = parseJsonOutput(result.stdout);
     expect((json as any).success).toBe(true);
@@ -105,10 +117,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     ].join("\n");
     const filePath = writeTempFile(home, "website-create-backup.txt", createHistoryBackup);
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).toBe(0);
     const json = parseJsonOutput(result.stdout);
     expect((json as any).success).toBe(true);
@@ -128,10 +137,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     ].join("\n");
     const filePath = writeTempFile(home, "bad-backup.txt", badContent);
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).not.toBe(0);
     const json = parseJsonOutput(result.stdout);
     expect((json as any).success).toBe(false);
@@ -144,10 +150,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     const home = createTempHome();
     const filePath = writeTempFile(home, "empty.txt", "");
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).not.toBe(0);
     const json = parseJsonOutput(result.stdout);
     expect((json as any).success).toBe(false);
@@ -163,10 +166,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     ].join("\n");
     const filePath = writeTempFile(home, "ambiguous.txt", ambiguous);
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).not.toBe(0);
     const json = parseJsonOutput(result.stdout);
     expect((json as any).success).toBe(false);
@@ -187,10 +187,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     ].join("\n");
     const filePath = writeTempFile(home, "cli-backup.txt", cliBackup);
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).toBe(0);
     // Mnemonic should NOT appear in stdout JSON (same security as --mnemonic flag)
     expect(result.stdout).not.toContain(TEST_MNEMONIC);
@@ -211,10 +208,7 @@ describe("init --mnemonic-file with structured backup files", () => {
     ].join("\r\n");
     const filePath = writeTempFile(home, "windows-backup.txt", cliBackup);
 
-    const result = runCli(
-      ["--json", "init", "--mnemonic-file", filePath, "--private-key", TEST_PRIVATE_KEY, "--default-chain", "sepolia", "--yes"],
-      { home, timeoutMs: 60_000 }
-    );
+    const result = runMnemonicFileInit(home, filePath);
     expect(result.status).toBe(0);
     const json = parseJsonOutput(result.stdout);
     expect((json as any).success).toBe(true);

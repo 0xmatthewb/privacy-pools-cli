@@ -550,14 +550,14 @@ export async function handleDepositCommand(
             saveAccount(chainConfig.id, accountService.account);
             saveSyncMeta(chainConfig.id);
           } catch (saveErr) {
-            if (!silent) {
-              process.stderr.write(
-                `\nWarning: deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`,
-              );
-              process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to update your local account state.\n",
-              );
-            }
+            warn(
+              `Deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`,
+              silent,
+            );
+            warn(
+              "Run 'privacy-pools sync' to update your local account state.",
+              silent,
+            );
           }
         }
       } finally {

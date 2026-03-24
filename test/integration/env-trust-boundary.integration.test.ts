@@ -19,6 +19,7 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { createSeededHome } from "../helpers/cli.ts";
 import { CLI_CWD } from "../helpers/cli.ts";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 
 describe(".env trust boundary", () => {
@@ -51,15 +52,14 @@ describe(".env trust boundary", () => {
       ["--no-env-file", join(CLI_CWD, "src/index.ts"), "--json", "status"],
       {
         cwd: poisonedCwd,
-        env: {
-          ...process.env,
+        env: buildChildProcessEnv({
           PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
           // Clear any inherited env vars that would mask the test.
           PRIVACY_POOLS_RPC_URL: undefined,
           PRIVACY_POOLS_RPC_URL_SEPOLIA: undefined,
           PRIVACY_POOLS_PRIVATE_KEY: undefined,
           PRIVACY_POOLS_ASP_HOST: undefined,
-        },
+        }),
         encoding: "utf8",
         timeout: 60_000,
       }
@@ -104,11 +104,10 @@ describe(".env trust boundary", () => {
       ["--no-env-file", join(CLI_CWD, "src/index.ts"), "--json", "status"],
       {
         cwd: CLI_CWD,
-        env: {
-          ...process.env,
+        env: buildChildProcessEnv({
           PRIVACY_POOLS_HOME: configDir,
           PRIVACY_POOLS_ASP_HOST: undefined,
-        },
+        }),
         encoding: "utf8",
         timeout: 60_000,
       }

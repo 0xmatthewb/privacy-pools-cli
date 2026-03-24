@@ -186,14 +186,15 @@
         "chain": "string",
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
-        "feeBPS": "string? (relayed mode only)",
+        "feeBPS": "null (direct mode) | string (relayed mode)",
         "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
-        "fee": "null? (direct mode only)",
         "remainingBalance": "decimal-string-wei",
-        "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)"
+        "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
+        "nextActions": "NextAction[]? (suggests accounts to verify updated balance)"
       },
       "variants": {
         "dryRun": {
+          "operation": "\"withdraw\"",
           "mode": "\"direct\"|\"relayed\"",
           "dryRun": true,
           "amount": "decimal-string-wei",
@@ -278,7 +279,8 @@
         "poolAddress": "0x-prefixed-address",
         "scope": "decimal-string",
         "blockNumber": "decimal-string",
-        "explorerUrl": "string|null"
+        "explorerUrl": "string|null",
+        "nextActions": "NextAction[]? (suggests accounts to verify status after ragequit)"
       },
       "variants": {
         "dryRun": {

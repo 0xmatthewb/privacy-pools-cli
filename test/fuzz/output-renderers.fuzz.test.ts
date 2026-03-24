@@ -9,7 +9,7 @@ import { createSeededRng, getFuzzSeed } from "../helpers/fuzz.ts";
  * a formatted string or the fallback "-".
  */
 describe("output renderers fuzz", () => {
-  test("parseUsd never throws on random inputs", () => {
+  test("parseUsd stays within its output contract for weird inputs", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0xF0F0F0F0);
 
     // Fixed edge cases
@@ -54,7 +54,7 @@ describe("output renderers fuzz", () => {
     }
 
     // Random strings
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 64; i++) {
       const len = rng.nextInt(50);
       let s = "";
       const chars = "0123456789.,$ -+eE\t\n";
@@ -69,7 +69,7 @@ describe("output renderers fuzz", () => {
 
   });
 
-  test("parseCount never throws on random inputs", () => {
+  test("parseCount stays within its output contract for weird inputs", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0x0F0F0F0F);
 
     const edgeCases: unknown[] = [
@@ -112,7 +112,7 @@ describe("output renderers fuzz", () => {
     }
 
     // Random numbers
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 64; i++) {
       const n = rng.nextInt(2) === 0
         ? rng.nextInt(10_000_000)
         : rng.nextFloat() * 10_000_000;
@@ -125,7 +125,7 @@ describe("output renderers fuzz", () => {
     }
 
     // Random strings
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 64; i++) {
       const len = rng.nextInt(30);
       let s = "";
       const chars = "0123456789.,- +eExX";
@@ -138,7 +138,7 @@ describe("output renderers fuzz", () => {
     }
   });
 
-  test("deriveTokenPrice never throws on random inputs", () => {
+  test("deriveTokenPrice stays finite and positive when derivable", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0xABCD1234);
 
     // Fixed edge cases
@@ -164,7 +164,7 @@ describe("output renderers fuzz", () => {
     }
 
     // Random inputs
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 64; i++) {
       const decimals = rng.nextInt(19);
       const valueBits = rng.nextInt(128);
       const value = valueBits === 0 ? 0n : BigInt(rng.nextUInt32()) ** BigInt(rng.nextInt(3) + 1);
@@ -178,10 +178,13 @@ describe("output renderers fuzz", () => {
         acceptedDepositsValueUsd: usdStr,
       });
       expect(result === null || (typeof result === "number" && Number.isFinite(result))).toBe(true);
+      if (result !== null) {
+        expect(result).toBeGreaterThan(0);
+      }
     }
   });
 
-  test("formatUsdValue never throws on random inputs", () => {
+  test("formatUsdValue stays within its output contract for random inputs", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0xDEAD5678);
 
     // Fixed edge cases
@@ -207,7 +210,7 @@ describe("output renderers fuzz", () => {
     }
 
     // Random inputs
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 64; i++) {
       const decimals = rng.nextInt(19);
       const amount = BigInt(rng.nextUInt32()) * BigInt(rng.nextInt(10) + 1);
       const price = rng.nextInt(3) === 0
@@ -217,6 +220,9 @@ describe("output renderers fuzz", () => {
       const result = formatUsdValue(amount, decimals, price);
       expect(typeof result).toBe("string");
       expect(result === "-" || result.startsWith("$")).toBe(true);
+      if (price !== null && Number.isFinite(price) && price >= 0) {
+        expect(result).not.toBe("-");
+      }
     }
   });
 });

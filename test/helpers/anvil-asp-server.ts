@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createPublicClient, http } from "viem";
 import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
+import { buildChildProcessEnv } from "./child-env.ts";
 
 export interface AnvilAspState {
   chainId: number;
@@ -177,10 +178,9 @@ export function launchAnvilAspServer(
 
   return new Promise((resolveLaunch, reject) => {
     const proc = spawn("bun", ["run", script], {
-      env: {
-        ...process.env,
+      env: buildChildProcessEnv({
         PP_ANVIL_ASP_STATE_FILE: stateFile,
-      },
+      }),
       stdio: ["ignore", "pipe", "ignore"],
     });
 

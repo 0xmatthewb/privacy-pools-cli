@@ -19,7 +19,7 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
-import { isTestnetChain } from "../config/chains.js";
+import { isTestnetChain, POA_PORTAL_URL } from "../config/chains.js";
 
 export interface DepositDryRunData {
   chain: string;
@@ -113,7 +113,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const humanNextActions = [
     createNextAction(
       "accounts",
-      `Check the final review status for ${data.poolAccountId}. Withdraw only after approval. If it is declined, use ragequit; if it needs Proof of Association, complete the PoA flow at tornado.0xbow.io first.`,
+      `Check the final review status for ${data.poolAccountId}. Withdraw only after approval. If it is declined, use ragequit; if it needs Proof of Association, complete the PoA flow at ${POA_PORTAL_URL} first.`,
       "after_deposit",
       {
         options:

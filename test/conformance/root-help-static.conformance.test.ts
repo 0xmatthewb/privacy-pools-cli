@@ -7,8 +7,8 @@ import {
 } from "../../src/utils/root-help.ts";
 
 describe("root help static conformance", () => {
-  test("static root help text matches the live commander root help", () => {
-    const program = createRootProgram("0.0.0");
+  test("static root help text matches the live commander root help", async () => {
+    const program = await createRootProgram("0.0.0");
     const liveBaseHelp = program.helpInformation().trimEnd();
 
     expect(rootHelpBaseText()).toBe(liveBaseHelp);

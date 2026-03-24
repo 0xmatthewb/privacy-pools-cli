@@ -50,6 +50,7 @@ export const CHAINS: Record<string, ChainConfig> = {
     aspHost: "https://api.0xbow.io",
     relayerHost: "https://fastrelay.xyz",
     isTestnet: false,
+    avgBlockTimeSec: 12,
   },
   arbitrum: {
     id: 42161,
@@ -60,6 +61,7 @@ export const CHAINS: Record<string, ChainConfig> = {
     aspHost: "https://api.0xbow.io",
     relayerHost: "https://fastrelay.xyz",
     isTestnet: false,
+    avgBlockTimeSec: 0.25,
   },
   optimism: {
     id: 10,
@@ -70,6 +72,7 @@ export const CHAINS: Record<string, ChainConfig> = {
     aspHost: "https://api.0xbow.io",
     relayerHost: "https://fastrelay.xyz",
     isTestnet: false,
+    avgBlockTimeSec: 2,
   },
   sepolia: {
     id: 11155111,
@@ -80,6 +83,7 @@ export const CHAINS: Record<string, ChainConfig> = {
     aspHost: "https://dw.0xbow.io",
     relayerHost: "https://testnet-relayer.privacypools.com",
     isTestnet: true,
+    avgBlockTimeSec: 12,
   },
   "op-sepolia": {
     id: 11155420,
@@ -90,6 +94,7 @@ export const CHAINS: Record<string, ChainConfig> = {
     aspHost: "https://dw.0xbow.io",
     relayerHost: "https://testnet-relayer.privacypools.com",
     isTestnet: true,
+    avgBlockTimeSec: 2,
   },
 };
 
@@ -132,6 +137,9 @@ export function getAllChainsWithOverrides(): ChainConfig[] {
 export function getDefaultReadOnlyChains(): ChainConfig[] {
   return MAINNET_CHAIN_NAMES.map((name) => resolveChainOverrides(CHAINS[name]));
 }
+
+/** Proof of Association portal host (referenced in user-facing messages). */
+export const POA_PORTAL_URL = "tornado.0xbow.io";
 
 export const NATIVE_ASSET_ADDRESS =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as const;

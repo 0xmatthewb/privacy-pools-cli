@@ -1,31 +1,136 @@
 import { Command, Option } from "commander";
-import { createInitCommand } from "./command-shells/init.js";
-import { createStatusCommand } from "./command-shells/status.js";
-import { createPoolsCommand } from "./command-shells/pools.js";
-import { createActivityCommand } from "./command-shells/activity.js";
-import { createStatsCommand } from "./command-shells/stats.js";
-import { createDepositCommand } from "./command-shells/deposit.js";
-import { createWithdrawCommand } from "./command-shells/withdraw.js";
-import { createRagequitCommand } from "./command-shells/ragequit.js";
-import { createAccountsCommand } from "./command-shells/accounts.js";
-import { createSyncCommand } from "./command-shells/sync.js";
-import { createHistoryCommand } from "./command-shells/history.js";
-import { createGuideCommand } from "./command-shells/guide.js";
-import { createCapabilitiesCommand } from "./command-shells/capabilities.js";
-import { createDescribeCommand } from "./command-shells/describe.js";
-import { createCompletionCommand } from "./command-shells/completion.js";
-import { rootHelpFooter } from "./utils/root-help.js";
-import { STATIC_GLOBAL_FLAG_METADATA } from "./utils/command-discovery-static.js";
+import {
+  rootHelpFooterPlain,
+  rootHelpFooterStyled,
+} from "./utils/root-help-footer.js";
+import { rootGlobalFlagDescription } from "./utils/root-global-flags.js";
 
-function globalFlagDescription(flag: string): string {
-  const match = STATIC_GLOBAL_FLAG_METADATA.find((entry) => entry.flag === flag);
-  if (!match) {
-    throw new Error(`Missing global flag metadata for '${flag}'.`);
+const ROOT_OPTIONS_WITH_VALUE = new Set([
+  "-c",
+  "--chain",
+  "--format",
+  "-r",
+  "--rpc-url",
+  "--timeout",
+]);
+
+const ROOT_COMMAND_NAMES = [
+  "init",
+  "pools",
+  "deposit",
+  "accounts",
+  "withdraw",
+  "ragequit",
+  "history",
+  "sync",
+  "status",
+  "activity",
+  "stats",
+  "guide",
+  "capabilities",
+  "describe",
+  "completion",
+] as const;
+
+type RootCommandName = (typeof ROOT_COMMAND_NAMES)[number];
+
+const ROOT_COMMAND_ALIASES: Record<string, RootCommandName> = {
+  exit: "ragequit",
+};
+
+const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
+  init: async () => (await import("./command-shells/init.js")).createInitCommand(),
+  pools: async () => (await import("./command-shells/pools.js")).createPoolsCommand(),
+  deposit: async () =>
+    (await import("./command-shells/deposit.js")).createDepositCommand(),
+  accounts: async () =>
+    (await import("./command-shells/accounts.js")).createAccountsCommand(),
+  withdraw: async () =>
+    (await import("./command-shells/withdraw.js")).createWithdrawCommand(),
+  ragequit: async () =>
+    (await import("./command-shells/ragequit.js")).createRagequitCommand(),
+  history: async () =>
+    (await import("./command-shells/history.js")).createHistoryCommand(),
+  sync: async () => (await import("./command-shells/sync.js")).createSyncCommand(),
+  status: async () =>
+    (await import("./command-shells/status.js")).createStatusCommand(),
+  activity: async () =>
+    (await import("./command-shells/activity.js")).createActivityCommand(),
+  stats: async () => (await import("./command-shells/stats.js")).createStatsCommand(),
+  guide: async () => (await import("./command-shells/guide.js")).createGuideCommand(),
+  capabilities: async () =>
+    (await import("./command-shells/capabilities.js")).createCapabilitiesCommand(),
+  describe: async () =>
+    (await import("./command-shells/describe.js")).createDescribeCommand(),
+  completion: async () =>
+    (await import("./command-shells/completion.js")).createCompletionCommand(),
+};
+
+function allNonOptionTokens(args: string[]): string[] {
+  const tokens: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (!token.startsWith("-")) {
+      tokens.push(token);
+      continue;
+    }
+    if (ROOT_OPTIONS_WITH_VALUE.has(token)) i++;
   }
-  return match.description;
+  return tokens;
 }
 
-export function createRootProgram(version: string): Command {
+function resolveRootCommandName(token: string | undefined): RootCommandName | null {
+  if (!token) return null;
+  if (token in ROOT_COMMAND_ALIASES) {
+    return ROOT_COMMAND_ALIASES[token];
+  }
+  return ROOT_COMMAND_NAMES.includes(token as RootCommandName)
+    ? (token as RootCommandName)
+    : null;
+}
+
+function resolveRootCommandsForInvocation(argv: string[] | undefined): RootCommandName[] {
+  if (!argv) return [...ROOT_COMMAND_NAMES];
+
+  const [firstToken, secondToken] = allNonOptionTokens(argv);
+  if (!firstToken) return [...ROOT_COMMAND_NAMES];
+
+  if (firstToken === "help") {
+    const helpTarget = resolveRootCommandName(secondToken);
+    return helpTarget ? [helpTarget] : [...ROOT_COMMAND_NAMES];
+  }
+
+  const requested = resolveRootCommandName(firstToken);
+  return requested ? [requested] : [...ROOT_COMMAND_NAMES];
+}
+
+async function addRootCommands(
+  program: Command,
+  commandNames: readonly RootCommandName[],
+): Promise<void> {
+  const commands = await Promise.all(
+    commandNames.map((name) => ROOT_COMMAND_LOADERS[name]()),
+  );
+  for (const command of commands) {
+    program.addCommand(command);
+  }
+}
+
+export interface CreateRootProgramOptions {
+  argv?: string[];
+  loadAllCommands?: boolean;
+  styledHelp?: boolean;
+}
+
+export async function createRootProgram(
+  version: string,
+  options: CreateRootProgramOptions = {},
+): Promise<Command> {
+  const {
+    argv,
+    loadAllCommands = true,
+    styledHelp = true,
+  } = options;
   const program = new Command();
 
   program
@@ -34,43 +139,56 @@ export function createRootProgram(version: string): Command {
       "Privacy Pools: a compliant way to transact privately on Ethereum",
     )
     .version(version)
-    .option("-c, --chain <name>", globalFlagDescription("-c, --chain <name>"))
-    .option("-j, --json", globalFlagDescription("-j, --json"))
+    .option(
+      "-c, --chain <name>",
+      rootGlobalFlagDescription("-c, --chain <name>"),
+    )
+    .option("-j, --json", rootGlobalFlagDescription("-j, --json"))
     .addOption(
       new Option(
         "--format <format>",
-        globalFlagDescription("--format <format>"),
+        rootGlobalFlagDescription("--format <format>"),
       ).choices(["table", "csv", "json"]),
     )
-    .option("-y, --yes", globalFlagDescription("-y, --yes"));
+    .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"));
 
+  // Registration order here determines the flag order in `--help` output.
+  // Keep it in sync with ROOT_HELP_BASE_LINES in src/utils/root-help.ts.
   program.addOption(
     new Option(
       "-r, --rpc-url <url>",
-      globalFlagDescription("-r, --rpc-url <url>"),
-    ).hideHelp(),
-  );
-  program.addOption(new Option("--agent", globalFlagDescription("--agent")));
-  program.addOption(
-    new Option("-q, --quiet", globalFlagDescription("-q, --quiet")).hideHelp(),
+      rootGlobalFlagDescription("-r, --rpc-url <url>"),
+    ),
   );
   program.addOption(
-    new Option("--no-banner", globalFlagDescription("--no-banner")).hideHelp(),
+    new Option("--agent", rootGlobalFlagDescription("--agent")),
+  );
+  program.addOption(
+    new Option("-q, --quiet", rootGlobalFlagDescription("-q, --quiet")),
   );
   program.addOption(
     new Option(
       "-v, --verbose",
-      globalFlagDescription("-v, --verbose"),
-    ).hideHelp(),
+      rootGlobalFlagDescription("-v, --verbose"),
+    ),
+  );
+  program.addOption(
+    new Option(
+      "--no-banner",
+      rootGlobalFlagDescription("--no-banner"),
+    ),
+  );
+  program.addOption(
+    new Option(
+      "--no-color",
+      rootGlobalFlagDescription("--no-color"),
+    ),
   );
   program.addOption(
     new Option(
       "--timeout <seconds>",
-      globalFlagDescription("--timeout <seconds>"),
+      rootGlobalFlagDescription("--timeout <seconds>"),
     ),
-  );
-  program.addOption(
-    new Option("--no-color", globalFlagDescription("--no-color")).hideHelp(),
   );
 
   program.configureHelp({
@@ -80,24 +198,16 @@ export function createRootProgram(version: string): Command {
     },
   });
 
-  program.addHelpText("after", rootHelpFooter());
+  program.addHelpText(
+    "after",
+    styledHelp ? await rootHelpFooterStyled() : rootHelpFooterPlain(),
+  );
   program.exitOverride();
 
-  program.addCommand(createInitCommand());
-  program.addCommand(createPoolsCommand());
-  program.addCommand(createDepositCommand());
-  program.addCommand(createAccountsCommand());
-  program.addCommand(createWithdrawCommand());
-  program.addCommand(createRagequitCommand());
-  program.addCommand(createHistoryCommand());
-  program.addCommand(createSyncCommand());
-  program.addCommand(createStatusCommand());
-  program.addCommand(createActivityCommand());
-  program.addCommand(createStatsCommand());
-  program.addCommand(createGuideCommand());
-  program.addCommand(createCapabilitiesCommand());
-  program.addCommand(createDescribeCommand());
-  program.addCommand(createCompletionCommand());
+  const commandNames = loadAllCommands
+    ? ROOT_COMMAND_NAMES
+    : resolveRootCommandsForInvocation(argv);
+  await addRootCommands(program, commandNames);
 
   return program;
 }

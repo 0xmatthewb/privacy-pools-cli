@@ -8,6 +8,9 @@
 
 import type { OutputContext } from "./common.js";
 import {
+  appendNextActions,
+  createNextAction,
+  renderNextSteps,
   printJsonSuccess,
   success,
   info,
@@ -85,9 +88,26 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
 export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessData): void {
   guardCsvUnsupported(ctx, "ragequit");
 
+  const agentNextActions = [
+    createNextAction(
+      "accounts",
+      `Verify the account status for ${data.poolAccountId} after ragequit.`,
+      "after_ragequit",
+      { options: { agent: true, chain: data.chain } },
+    ),
+  ];
+  const humanNextActions = [
+    createNextAction(
+      "accounts",
+      `Verify the account status for ${data.poolAccountId}.`,
+      "after_ragequit",
+      { options: data.chain ? { chain: data.chain } : undefined },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      {
+      appendNextActions({
         operation: "ragequit",
         txHash: data.txHash,
         amount: data.amount.toString(),
@@ -99,7 +119,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         scope: data.scope.toString(),
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
-      },
+      }, agentNextActions),
       false,
     );
     return;
@@ -115,4 +135,5 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
   }
+  renderNextSteps(ctx, humanNextActions);
 }

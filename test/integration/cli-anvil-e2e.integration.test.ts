@@ -18,7 +18,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
-import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
+import { CHAINS, NATIVE_ASSET_ADDRESS, POA_PORTAL_URL } from "../../src/config/chains.ts";
 import {
   createTempHome,
   mustInitSeededHome,
@@ -101,6 +101,13 @@ let circuitsDir = "";
 let baselineSnapshotId = "";
 let aspState: AnvilAspState | null = null;
 
+interface DepositedPoolAccount {
+  home: string;
+  poolAccountId: string;
+  txHash: `0x${string}`;
+  label: bigint;
+}
+
 function ensureEnabled(): void {
   if (!ANVIL_E2E_ENABLED) {
     throw new Error("PP_ANVIL_E2E must be set to 1 to run Anvil E2E tests");
@@ -137,22 +144,28 @@ function computeMerkleRoot(leaves: readonly string[]): bigint {
     throw new Error("Cannot compute a Merkle root for an empty leaf set");
   }
   const normalized = leaves.map((leaf) => BigInt(leaf));
-  const proof = generateMerkleProof(normalized, normalized[normalized.length - 1]);
+  const proof = generateMerkleProof(
+    normalized,
+    normalized[normalized.length - 1],
+  );
   return BigInt((proof as { root: bigint | string }).root);
 }
 
 async function fetchStateTreeLeaves(scope: bigint): Promise<string[]> {
-  const response = await fetch(`${chainConfig.aspHost}/${chainConfig.id}/public/mt-leaves`, {
-    headers: {
-      "X-Pool-Scope": scope.toString(),
+  const response = await fetch(
+    `${chainConfig.aspHost}/${chainConfig.id}/public/mt-leaves`,
+    {
+      headers: {
+        "X-Pool-Scope": scope.toString(),
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     throw new Error(`Failed to fetch ASP leaves: HTTP ${response.status}`);
   }
 
-  const payload = await response.json() as { stateTreeLeaves?: string[] };
+  const payload = (await response.json()) as { stateTreeLeaves?: string[] };
   if (!payload.stateTreeLeaves || payload.stateTreeLeaves.length === 0) {
     throw new Error("ASP returned an empty state tree");
   }
@@ -179,11 +192,11 @@ async function captureSnapshot(): Promise<{
   });
 
   const resolvedPoolAddress = (assetConfig as [string])[0] as `0x${string}`;
-  const scope = await client.readContract({
+  const scope = (await client.readContract({
     address: resolvedPoolAddress,
     abi: poolAbi,
     functionName: "SCOPE",
-  }) as bigint;
+  })) as bigint;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const stateLeaves = await fetchStateTreeLeaves(scope);
@@ -208,11 +221,13 @@ async function captureSnapshot(): Promise<{
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
 
-  throw new Error("Could not capture a consistent Sepolia ETH state-tree snapshot");
+  throw new Error(
+    "Could not capture a consistent Sepolia ETH state-tree snapshot",
+  );
 }
 
 async function assertForkSupportsHistoricalLogs(
-  pool: `0x${string}`
+  pool: `0x${string}`,
 ): Promise<void> {
   const response = await fetch(forkUrl, {
     method: "POST",
@@ -236,7 +251,7 @@ async function assertForkSupportsHistoricalLogs(
     error?: { message?: string };
   } | null = null;
   try {
-    payload = await response.json() as {
+    payload = (await response.json()) as {
       error?: { message?: string };
     };
   } catch {
@@ -250,14 +265,14 @@ async function assertForkSupportsHistoricalLogs(
   const message = payload?.error?.message?.trim() || `HTTP ${response.status}`;
   if (RANGE_LIMIT_PATTERNS.some((pattern) => message.includes(pattern))) {
     throw new Error(
-      `PP_ANVIL_FORK_URL (${forkUrl}) does not support the historical eth_getLogs `
-      + "range required by the Anvil E2E harness. "
-      + `Use a Sepolia RPC that supports deep log lookups, for example ${DEFAULT_ANVIL_FORK_URL}.`
+      `PP_ANVIL_FORK_URL (${forkUrl}) does not support the historical eth_getLogs ` +
+        "range required by the Anvil E2E harness. " +
+        `Use a Sepolia RPC that supports deep log lookups, for example ${DEFAULT_ANVIL_FORK_URL}.`,
     );
   }
 
   throw new Error(
-    `Failed to validate PP_ANVIL_FORK_URL (${forkUrl}) for Anvil E2E: ${message}`
+    `Failed to validate PP_ANVIL_FORK_URL (${forkUrl}) for Anvil E2E: ${message}`,
   );
 }
 
@@ -291,15 +306,56 @@ function cliEnv() {
   };
 }
 
+function createAnvilHome(prefix: string): string {
+  const home = createTempHome(prefix);
+  mustInitSeededHome(home, "sepolia");
+  return home;
+}
+
+function runAnvilCli(
+  home: string,
+  args: string[],
+  timeoutMs: number = 120_000,
+) {
+  return runCli(args, {
+    home,
+    timeoutMs,
+    env: cliEnv(),
+  });
+}
+
 function expectSuccessStatus(
   result: { status: number | null; stdout: string; stderr: string },
-  label: string
+  label: string,
 ): void {
   if (result.status !== 0) {
     throw new Error(
-      `${label} failed with exit ${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`
+      `${label} failed with exit ${result.status}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
     );
   }
+}
+
+function parseSuccessfulAgentResult<T>(
+  home: string,
+  args: string[],
+  label: string,
+  timeoutMs?: number,
+): T {
+  const result = runAnvilCli(home, args, timeoutMs);
+  expectSuccessStatus(result, label);
+  return parseJsonOutput<T>(result.stdout);
+}
+
+function appendInsertedStateTreeLeaf(commitment: bigint): void {
+  const currentState = requireAspState();
+  aspState = {
+    ...currentState,
+    insertedStateTreeLeaves: [
+      ...currentState.insertedStateTreeLeaves,
+      commitment.toString(),
+    ],
+  };
+  writeCurrentAspState();
 }
 
 async function resetFork(): Promise<void> {
@@ -315,7 +371,9 @@ async function decodeDeposit(txHash: `0x${string}`): Promise<{
   commitment: bigint;
   label: bigint;
 }> {
-  const receipt = await requireAnvilClient().getTransactionReceipt({ hash: txHash });
+  const receipt = await requireAnvilClient().getTransactionReceipt({
+    hash: txHash,
+  });
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== poolAddress.toLowerCase()) continue;
     try {
@@ -336,9 +394,11 @@ async function decodeDeposit(txHash: `0x${string}`): Promise<{
 }
 
 async function decodeWithdrawNewCommitment(
-  txHash: `0x${string}`
+  txHash: `0x${string}`,
 ): Promise<bigint> {
-  const receipt = await requireAnvilClient().getTransactionReceipt({ hash: txHash });
+  const receipt = await requireAnvilClient().getTransactionReceipt({
+    hash: txHash,
+  });
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== poolAddress.toLowerCase()) continue;
     try {
@@ -398,6 +458,59 @@ async function approveLabel(label: bigint): Promise<void> {
   writeCurrentAspState();
 }
 
+async function createDepositedPoolAccount(
+  prefix: string,
+): Promise<DepositedPoolAccount> {
+  const home = createAnvilHome(prefix);
+  const depositJson = parseSuccessfulAgentResult<{
+    success: boolean;
+    txHash: `0x${string}`;
+    poolAccountId: string;
+  }>(
+    home,
+    ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
+    "deposit",
+    180_000,
+  );
+  expect(depositJson.success).toBe(true);
+
+  const depositEvent = await decodeDeposit(depositJson.txHash);
+  appendInsertedStateTreeLeaf(depositEvent.commitment);
+
+  return {
+    home,
+    poolAccountId: depositJson.poolAccountId,
+    txHash: depositJson.txHash,
+    label: depositEvent.label,
+  };
+}
+
+async function createApprovedPoolAccount(
+  prefix: string,
+): Promise<DepositedPoolAccount> {
+  const deposit = await createDepositedPoolAccount(prefix);
+  await approveLabel(deposit.label);
+  return deposit;
+}
+
+async function createReviewedPoolAccount(
+  prefix: string,
+  reviewStatus: "declined" | "poi_required",
+): Promise<DepositedPoolAccount> {
+  const deposit = await createDepositedPoolAccount(prefix);
+  setLabelReviewStatus(deposit.label, reviewStatus);
+  return deposit;
+}
+
+function syncEthPool(home: string, label: string): void {
+  parseSuccessfulAgentResult(
+    home,
+    ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+    label,
+    120_000,
+  );
+}
+
 function setLabelReviewStatus(
   label: bigint,
   reviewStatus: "pending" | "declined" | "poi_required",
@@ -405,7 +518,9 @@ function setLabelReviewStatus(
   const labelString = label.toString();
   aspState = {
     ...requireAspState(),
-    approvedLabels: requireAspState().approvedLabels.filter((value) => value !== labelString),
+    approvedLabels: requireAspState().approvedLabels.filter(
+      (value) => value !== labelString,
+    ),
     reviewStatuses: {
       ...requireAspState().reviewStatuses,
       [labelString]: reviewStatus,
@@ -475,716 +590,550 @@ afterAll(() => {
 });
 
 describe("Anvil E2E", () => {
-  anvilTest("deposit -> sync -> accounts -> ragequit -> sync", async () => {
-    ensureEnabled();
+  describe("state transitions", () => {
+    anvilTest("deposit -> sync -> accounts -> ragequit -> sync", async () => {
+      ensureEnabled();
 
-    const home = createTempHome("pp-anvil-ragequit-");
-    mustInitSeededHome(home, "sepolia");
+      const deposit = await createDepositedPoolAccount("pp-anvil-ragequit-");
 
-    const depositResult = runCli(
-      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 180_000, env: cliEnv() }
-    );
-    expectSuccessStatus(depositResult, "deposit");
+      syncEthPool(deposit.home, "sync after deposit");
 
-    const depositJson = parseJsonOutput<{
-      success: boolean;
-      txHash: `0x${string}`;
-      poolAccountId: string;
-    }>(depositResult.stdout);
-    expect(depositJson.success).toBe(true);
+      const accountsBeforeJson = parseSuccessfulAgentResult<{
+        success: boolean;
+        accounts: Array<{
+          poolAccountId: string;
+          status: string;
+          aspStatus: string;
+        }>;
+      }>(
+        deposit.home,
+        ["--agent", "accounts", "--chain", "sepolia"],
+        "accounts before ragequit",
+      );
+      expect(accountsBeforeJson.success).toBe(true);
+      expect(accountsBeforeJson.accounts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            poolAccountId: deposit.poolAccountId,
+            status: "pending",
+            aspStatus: "pending",
+          }),
+        ]),
+      );
 
-    const depositEvent = await decodeDeposit(depositJson.txHash);
-    aspState = {
-      ...requireAspState(),
-      insertedStateTreeLeaves: [
-        ...requireAspState().insertedStateTreeLeaves,
-        depositEvent.commitment.toString(),
-      ],
-    };
-    writeCurrentAspState();
-
-    const syncResult = runCli(
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(syncResult, "sync after deposit");
-
-    const accountsBefore = runCli(
-      ["--agent", "accounts", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(accountsBefore, "accounts before ragequit");
-    const accountsBeforeJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string; status: string; aspStatus: string }>;
-    }>(accountsBefore.stdout);
-    expect(accountsBeforeJson.success).toBe(true);
-    expect(accountsBeforeJson.accounts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          poolAccountId: depositJson.poolAccountId,
-          status: "pending",
-          aspStatus: "pending",
-        }),
-      ])
-    );
-
-    const ragequitResult = runCli(
-      [
-        "--agent",
+      const ragequitJson = parseSuccessfulAgentResult<{ success: boolean }>(
+        deposit.home,
+        [
+          "--agent",
+          "ragequit",
+          "ETH",
+          "--from-pa",
+          deposit.poolAccountId,
+          "--chain",
+          "sepolia",
+        ],
         "ragequit",
-        "ETH",
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expectSuccessStatus(ragequitResult, "ragequit");
+        300_000,
+      );
+      expect(ragequitJson.success).toBe(true);
 
-    const ragequitJson = parseJsonOutput<{ success: boolean }>(ragequitResult.stdout);
-    expect(ragequitJson.success).toBe(true);
+      syncEthPool(deposit.home, "sync after ragequit");
 
-    const syncAfter = runCli(
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(syncAfter, "sync after ragequit");
-
-    const accountsAfter = runCli(
-      ["--agent", "accounts", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(accountsAfter, "accounts after ragequit");
-    const accountsAfterJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string; status: string }>;
-    }>(accountsAfter.stdout);
-    expect(accountsAfterJson.success).toBe(true);
-    expect(accountsAfterJson.accounts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          poolAccountId: depositJson.poolAccountId,
-          status: "exited",
-        }),
-      ])
-    );
-  });
-
-  anvilTest("deposit -> approve -> accounts -> withdraw --direct -> sync", async () => {
-    ensureEnabled();
-
-    const home = createTempHome("pp-anvil-withdraw-");
-    mustInitSeededHome(home, "sepolia");
-
-    const depositResult = runCli(
-      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 180_000, env: cliEnv() }
-    );
-    expectSuccessStatus(depositResult, "deposit");
-
-    const depositJson = parseJsonOutput<{
-      success: boolean;
-      txHash: `0x${string}`;
-      poolAccountId: string;
-    }>(depositResult.stdout);
-    expect(depositJson.success).toBe(true);
-
-    const depositEvent = await decodeDeposit(depositJson.txHash);
-    aspState = {
-      ...requireAspState(),
-      insertedStateTreeLeaves: [
-        ...requireAspState().insertedStateTreeLeaves,
-        depositEvent.commitment.toString(),
-      ],
-    };
-    writeCurrentAspState();
-
-    await approveLabel(depositEvent.label);
-
-    const accountsApproved = runCli(
-      ["--agent", "accounts", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(accountsApproved, "accounts after approval");
-    const accountsApprovedJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string; aspStatus: string }>;
-    }>(accountsApproved.stdout);
-    expect(accountsApprovedJson.success).toBe(true);
-    expect(accountsApprovedJson.accounts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          poolAccountId: depositJson.poolAccountId,
-          aspStatus: "approved",
-        }),
-      ])
-    );
-
-    const withdrawResult = runCli(
-      [
-        "--agent",
-        "withdraw",
-        "50%",
-        "ETH",
-        "--direct",
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expectSuccessStatus(withdrawResult, "direct withdraw");
-    expect(withdrawResult.stderr.trim()).toBe("");
-
-    const withdrawJson = parseJsonOutput<{
-      success: boolean;
-      mode: string;
-      txHash: `0x${string}`;
-    }>(withdrawResult.stdout);
-    expect(withdrawJson.success).toBe(true);
-    expect(withdrawJson.mode).toBe("direct");
-
-    const newCommitment = await decodeWithdrawNewCommitment(withdrawJson.txHash);
-    expect(newCommitment).toBeGreaterThan(0n);
-
-    const syncAfter = runCli(
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(syncAfter, "sync after direct withdraw");
-
-    const accountsAfter = runCli(
-      ["--agent", "accounts", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(accountsAfter, "accounts after direct withdraw");
-    const accountsAfterJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string; status: string }>;
-    }>(accountsAfter.stdout);
-    expect(accountsAfterJson.success).toBe(true);
-    expect(accountsAfterJson.accounts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          poolAccountId: depositJson.poolAccountId,
-          status: "approved",
-        }),
-      ])
-    );
-  });
-
-  anvilTest("deposit -> approve -> withdraw (relayed) -> sync", async () => {
-    ensureEnabled();
-
-    const home = createTempHome("pp-anvil-relayed-withdraw-");
-    mustInitSeededHome(home, "sepolia");
-
-    const depositResult = runCli(
-      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 180_000, env: cliEnv() }
-    );
-    expectSuccessStatus(depositResult, "deposit");
-
-    const depositJson = parseJsonOutput<{
-      success: boolean;
-      txHash: `0x${string}`;
-      poolAccountId: string;
-    }>(depositResult.stdout);
-    expect(depositJson.success).toBe(true);
-
-    const depositEvent = await decodeDeposit(depositJson.txHash);
-    aspState = {
-      ...requireAspState(),
-      insertedStateTreeLeaves: [
-        ...requireAspState().insertedStateTreeLeaves,
-        depositEvent.commitment.toString(),
-      ],
-    };
-    writeCurrentAspState();
-
-    await approveLabel(depositEvent.label);
-
-    const recipientBalanceBefore = await requireAnvilClient().getBalance({
-      address: relayedRecipient,
+      const accountsAfterJson = parseSuccessfulAgentResult<{
+        success: boolean;
+        accounts: Array<{ poolAccountId: string; status: string }>;
+      }>(
+        deposit.home,
+        ["--agent", "accounts", "--chain", "sepolia"],
+        "accounts after ragequit",
+      );
+      expect(accountsAfterJson.success).toBe(true);
+      expect(accountsAfterJson.accounts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            poolAccountId: deposit.poolAccountId,
+            status: "exited",
+          }),
+        ]),
+      );
     });
 
-    const withdrawResult = runCli(
-      [
-        "--agent",
-        "withdraw",
-        "50%",
-        "ETH",
-        "--to",
-        relayedRecipient,
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
+    anvilTest(
+      "deposit -> approve -> accounts -> withdraw --direct -> sync",
+      async () => {
+        ensureEnabled();
+
+        const deposit = await createApprovedPoolAccount("pp-anvil-withdraw-");
+
+        const accountsApprovedJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          accounts: Array<{ poolAccountId: string; aspStatus: string }>;
+        }>(
+          deposit.home,
+          ["--agent", "accounts", "--chain", "sepolia"],
+          "accounts after approval",
+        );
+        expect(accountsApprovedJson.success).toBe(true);
+        expect(accountsApprovedJson.accounts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              poolAccountId: deposit.poolAccountId,
+              aspStatus: "approved",
+            }),
+          ]),
+        );
+
+        const withdrawJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          mode: string;
+          txHash: `0x${string}`;
+        }>(
+          deposit.home,
+          [
+            "--agent",
+            "withdraw",
+            "50%",
+            "ETH",
+            "--direct",
+            "--from-pa",
+            deposit.poolAccountId,
+            "--chain",
+            "sepolia",
+          ],
+          "direct withdraw",
+          300_000,
+        );
+        expect(withdrawJson.success).toBe(true);
+        expect(withdrawJson.mode).toBe("direct");
+
+        const newCommitment = await decodeWithdrawNewCommitment(
+          withdrawJson.txHash,
+        );
+        expect(newCommitment).toBeGreaterThan(0n);
+
+        syncEthPool(deposit.home, "sync after direct withdraw");
+
+        const accountsAfterJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          accounts: Array<{ poolAccountId: string; status: string }>;
+        }>(
+          deposit.home,
+          ["--agent", "accounts", "--chain", "sepolia"],
+          "accounts after direct withdraw",
+        );
+        expect(accountsAfterJson.success).toBe(true);
+        expect(accountsAfterJson.accounts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              poolAccountId: deposit.poolAccountId,
+              status: "approved",
+            }),
+          ]),
+        );
+      },
     );
-    expectSuccessStatus(withdrawResult, "relayed withdraw");
-    expect(withdrawResult.stderr.trim()).toBe("");
 
-    const withdrawJson = parseJsonOutput<{
-      success: boolean;
-      mode: string;
-      txHash: `0x${string}`;
-    }>(withdrawResult.stdout);
-    expect(withdrawJson.success).toBe(true);
-    expect(withdrawJson.mode).toBe("relayed");
+    anvilTest("deposit -> approve -> withdraw (relayed) -> sync", async () => {
+      ensureEnabled();
 
-    const newCommitment = await decodeWithdrawNewCommitment(withdrawJson.txHash);
-    expect(newCommitment).toBeGreaterThan(0n);
+      const deposit = await createApprovedPoolAccount(
+        "pp-anvil-relayed-withdraw-",
+      );
 
-    const recipientBalanceAfter = await requireAnvilClient().getBalance({
-      address: relayedRecipient,
+      const recipientBalanceBefore = await requireAnvilClient().getBalance({
+        address: relayedRecipient,
+      });
+
+      const withdrawJson = parseSuccessfulAgentResult<{
+        success: boolean;
+        mode: string;
+        txHash: `0x${string}`;
+      }>(
+        deposit.home,
+        [
+          "--agent",
+          "withdraw",
+          "50%",
+          "ETH",
+          "--to",
+          relayedRecipient,
+          "--from-pa",
+          deposit.poolAccountId,
+          "--chain",
+          "sepolia",
+        ],
+        "relayed withdraw",
+        300_000,
+      );
+      expect(withdrawJson.success).toBe(true);
+      expect(withdrawJson.mode).toBe("relayed");
+
+      const newCommitment = await decodeWithdrawNewCommitment(
+        withdrawJson.txHash,
+      );
+      expect(newCommitment).toBeGreaterThan(0n);
+
+      const recipientBalanceAfter = await requireAnvilClient().getBalance({
+        address: relayedRecipient,
+      });
+      expect(recipientBalanceAfter).toBeGreaterThan(recipientBalanceBefore);
+
+      syncEthPool(deposit.home, "sync after relayed withdraw");
+
+      const accountsAfterJson = parseSuccessfulAgentResult<{
+        success: boolean;
+        accounts: Array<{
+          poolAccountId: string;
+          status: string;
+          aspStatus: string;
+        }>;
+      }>(
+        deposit.home,
+        ["--agent", "accounts", "--chain", "sepolia"],
+        "accounts after relayed withdraw",
+      );
+      expect(accountsAfterJson.success).toBe(true);
+      expect(accountsAfterJson.accounts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            poolAccountId: deposit.poolAccountId,
+            status: "approved",
+            aspStatus: "approved",
+          }),
+        ]),
+      );
     });
-    expect(recipientBalanceAfter).toBeGreaterThan(recipientBalanceBefore);
 
-    const syncAfter = runCli(
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(syncAfter, "sync after relayed withdraw");
+    anvilTest(
+      "deposit -> declined -> withdraw blocked -> ragequit succeeds",
+      async () => {
+        ensureEnabled();
 
-    const accountsAfter = runCli(
-      ["--agent", "accounts", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
+        const deposit = await createReviewedPoolAccount(
+          "pp-anvil-declined-",
+          "declined",
+        );
+
+        syncEthPool(deposit.home, "sync after declined deposit");
+
+        const accountsJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          accounts: Array<{
+            poolAccountId: string;
+            status: string;
+            aspStatus: string;
+          }>;
+        }>(
+          deposit.home,
+          ["--agent", "accounts", "--chain", "sepolia"],
+          "accounts after declined review",
+        );
+        expect(accountsJson.accounts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              poolAccountId: deposit.poolAccountId,
+              status: "declined",
+              aspStatus: "declined",
+            }),
+          ]),
+        );
+
+        const pendingOnlyJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          accounts: Array<{ poolAccountId: string }>;
+        }>(
+          deposit.home,
+          ["--agent", "accounts", "--pending-only", "--chain", "sepolia"],
+          "pending-only after declined review",
+        );
+        expect(pendingOnlyJson.accounts).not.toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ poolAccountId: deposit.poolAccountId }),
+          ]),
+        );
+
+        const withdrawResult = runAnvilCli(
+          deposit.home,
+          [
+            "--agent",
+            "withdraw",
+            "50%",
+            "ETH",
+            "--to",
+            relayedRecipient,
+            "--from-pa",
+            deposit.poolAccountId,
+            "--chain",
+            "sepolia",
+          ],
+          300_000,
+        );
+        expect(withdrawResult.status).toBe(4);
+        const withdrawJson = parseJsonOutput<{
+          success: boolean;
+          errorCode: string;
+          error: { hint?: string };
+        }>(withdrawResult.stdout);
+        expect(withdrawJson.success).toBe(false);
+        expect(withdrawJson.errorCode).toBe("ACCOUNT_NOT_APPROVED");
+        expect(withdrawJson.error.hint).toContain("declined");
+        expect(withdrawJson.error.hint).toContain("ragequit");
+
+        parseSuccessfulAgentResult(
+          deposit.home,
+          [
+            "--agent",
+            "ragequit",
+            "ETH",
+            "--from-pa",
+            deposit.poolAccountId,
+            "--chain",
+            "sepolia",
+          ],
+          "ragequit after declined review",
+          300_000,
+        );
+
+        syncEthPool(deposit.home, "sync after declined ragequit");
+
+        const accountsAfterJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          accounts: Array<{ poolAccountId: string; status: string }>;
+        }>(
+          deposit.home,
+          ["--agent", "accounts", "--chain", "sepolia"],
+          "accounts after declined ragequit",
+        );
+        expect(accountsAfterJson.accounts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              poolAccountId: deposit.poolAccountId,
+              status: "exited",
+            }),
+          ]),
+        );
+      },
     );
-    expectSuccessStatus(accountsAfter, "accounts after relayed withdraw");
-    const accountsAfterJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string; status: string; aspStatus: string }>;
-    }>(accountsAfter.stdout);
-    expect(accountsAfterJson.success).toBe(true);
-    expect(accountsAfterJson.accounts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          poolAccountId: depositJson.poolAccountId,
-          status: "approved",
-          aspStatus: "approved",
-        }),
-      ])
+
+    anvilTest(
+      "deposit -> poi_required -> direct withdraw blocked",
+      async () => {
+        ensureEnabled();
+
+        const deposit = await createReviewedPoolAccount(
+          "pp-anvil-poi-required-",
+          "poi_required",
+        );
+
+        syncEthPool(deposit.home, "sync after poi_required deposit");
+
+        const accountsJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          accounts: Array<{
+            poolAccountId: string;
+            status: string;
+            aspStatus: string;
+          }>;
+        }>(
+          deposit.home,
+          ["--agent", "accounts", "--chain", "sepolia"],
+          "accounts after poi_required review",
+        );
+        expect(accountsJson.accounts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              poolAccountId: deposit.poolAccountId,
+              status: "poi_required",
+              aspStatus: "poi_required",
+            }),
+          ]),
+        );
+
+        const pendingOnlyJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          accounts: Array<{ poolAccountId: string }>;
+        }>(
+          deposit.home,
+          ["--agent", "accounts", "--pending-only", "--chain", "sepolia"],
+          "pending-only after poi_required review",
+        );
+        expect(pendingOnlyJson.accounts).not.toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ poolAccountId: deposit.poolAccountId }),
+          ]),
+        );
+
+        const withdrawResult = runAnvilCli(
+          deposit.home,
+          [
+            "--agent",
+            "withdraw",
+            "50%",
+            "ETH",
+            "--direct",
+            "--from-pa",
+            deposit.poolAccountId,
+            "--chain",
+            "sepolia",
+          ],
+          300_000,
+        );
+        expect(withdrawResult.status).toBe(4);
+        const withdrawJson = parseJsonOutput<{
+          success: boolean;
+          errorCode: string;
+          error: { hint?: string };
+        }>(withdrawResult.stdout);
+        expect(withdrawJson.success).toBe(false);
+        expect(withdrawJson.errorCode).toBe("ACCOUNT_NOT_APPROVED");
+        expect(withdrawJson.error.hint).toContain("Proof of Association");
+        expect(withdrawJson.error.hint).toContain(POA_PORTAL_URL);
+      },
     );
   });
 
-  anvilTest("deposit -> declined -> withdraw blocked -> ragequit succeeds", async () => {
-    ensureEnabled();
+  describe("unsigned and dry-run journeys", () => {
+    anvilTest("deposit -> ragequit --unsigned and --dry-run", async () => {
+      ensureEnabled();
 
-    const home = createTempHome("pp-anvil-declined-");
-    mustInitSeededHome(home, "sepolia");
+      const deposit = await createDepositedPoolAccount(
+        "pp-anvil-ragequit-alt-modes-",
+      );
 
-    const depositResult = runCli(
-      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 180_000, env: cliEnv() }
+      const unsignedJson = parseSuccessfulAgentResult<{
+        success: boolean;
+        mode: string;
+        operation: string;
+        transactions: Array<{ to: string; data: string; chainId: number }>;
+      }>(
+        deposit.home,
+        [
+          "--agent",
+          "ragequit",
+          "ETH",
+          "--from-pa",
+          deposit.poolAccountId,
+          "--unsigned",
+          "--chain",
+          "sepolia",
+        ],
+        "ragequit unsigned",
+        300_000,
+      );
+      expect(unsignedJson.success).toBe(true);
+      expect(unsignedJson.mode).toBe("unsigned");
+      expect(unsignedJson.operation).toBe("ragequit");
+      expect(unsignedJson.transactions).toHaveLength(1);
+      expect(unsignedJson.transactions[0]?.to.toLowerCase()).toBe(
+        poolAddress.toLowerCase(),
+      );
+      expect(unsignedJson.transactions[0]?.chainId).toBe(chainConfig.id);
+
+      const dryRunJson = parseSuccessfulAgentResult<{
+        success: boolean;
+        operation: string;
+        dryRun: boolean;
+        proofPublicSignals: number;
+        poolAccountId: string;
+      }>(
+        deposit.home,
+        [
+          "--agent",
+          "ragequit",
+          "ETH",
+          "--from-pa",
+          deposit.poolAccountId,
+          "--dry-run",
+          "--chain",
+          "sepolia",
+        ],
+        "ragequit dry-run",
+        300_000,
+      );
+      expect(dryRunJson.success).toBe(true);
+      expect(dryRunJson.operation).toBe("ragequit");
+      expect(dryRunJson.dryRun).toBe(true);
+      expect(dryRunJson.poolAccountId).toBe(deposit.poolAccountId);
+      expect(dryRunJson.proofPublicSignals).toBeGreaterThan(0);
+    });
+
+    anvilTest(
+      "deposit -> approve -> withdraw --direct --unsigned and --dry-run",
+      async () => {
+        ensureEnabled();
+
+        const deposit = await createApprovedPoolAccount(
+          "pp-anvil-withdraw-alt-modes-",
+        );
+
+        const unsignedJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          mode: string;
+          operation: string;
+          withdrawMode: string;
+          poolAccountId: string;
+          transactions: Array<{ to: string; data: string; chainId: number }>;
+        }>(
+          deposit.home,
+          [
+            "--agent",
+            "withdraw",
+            "50%",
+            "ETH",
+            "--direct",
+            "--to",
+            relayedRecipient,
+            "--from-pa",
+            deposit.poolAccountId,
+            "--unsigned",
+            "--chain",
+            "sepolia",
+          ],
+          "withdraw unsigned",
+          300_000,
+        );
+        expect(unsignedJson.success).toBe(true);
+        expect(unsignedJson.mode).toBe("unsigned");
+        expect(unsignedJson.operation).toBe("withdraw");
+        expect(unsignedJson.withdrawMode).toBe("direct");
+        expect(unsignedJson.poolAccountId).toBe(deposit.poolAccountId);
+        expect(unsignedJson.transactions).toHaveLength(1);
+        expect(unsignedJson.transactions[0]?.to.toLowerCase()).toBe(
+          poolAddress.toLowerCase(),
+        );
+        expect(unsignedJson.transactions[0]?.chainId).toBe(chainConfig.id);
+
+        const dryRunJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          mode: string;
+          dryRun: boolean;
+          proofPublicSignals: number;
+          poolAccountId: string;
+        }>(
+          deposit.home,
+          [
+            "--agent",
+            "withdraw",
+            "50%",
+            "ETH",
+            "--direct",
+            "--to",
+            relayedRecipient,
+            "--from-pa",
+            deposit.poolAccountId,
+            "--dry-run",
+            "--chain",
+            "sepolia",
+          ],
+          "withdraw dry-run",
+          300_000,
+        );
+        expect(dryRunJson.success).toBe(true);
+        expect(dryRunJson.mode).toBe("direct");
+        expect(dryRunJson.dryRun).toBe(true);
+        expect(dryRunJson.poolAccountId).toBe(deposit.poolAccountId);
+        expect(dryRunJson.proofPublicSignals).toBeGreaterThan(0);
+      },
     );
-    expectSuccessStatus(depositResult, "deposit");
-
-    const depositJson = parseJsonOutput<{
-      success: boolean;
-      txHash: `0x${string}`;
-      poolAccountId: string;
-    }>(depositResult.stdout);
-    expect(depositJson.success).toBe(true);
-
-    const depositEvent = await decodeDeposit(depositJson.txHash);
-    aspState = {
-      ...requireAspState(),
-      insertedStateTreeLeaves: [
-        ...requireAspState().insertedStateTreeLeaves,
-        depositEvent.commitment.toString(),
-      ],
-    };
-    writeCurrentAspState();
-    setLabelReviewStatus(depositEvent.label, "declined");
-
-    const syncResult = runCli(
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(syncResult, "sync after declined deposit");
-
-    const accountsResult = runCli(
-      ["--agent", "accounts", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(accountsResult, "accounts after declined review");
-    const accountsJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string; status: string; aspStatus: string }>;
-    }>(accountsResult.stdout);
-    expect(accountsJson.accounts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          poolAccountId: depositJson.poolAccountId,
-          status: "declined",
-          aspStatus: "declined",
-        }),
-      ])
-    );
-
-    const pendingOnlyResult = runCli(
-      ["--agent", "accounts", "--pending-only", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(pendingOnlyResult, "pending-only after declined review");
-    const pendingOnlyJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string }>;
-    }>(pendingOnlyResult.stdout);
-    expect(pendingOnlyJson.accounts).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ poolAccountId: depositJson.poolAccountId }),
-      ])
-    );
-
-    const withdrawResult = runCli(
-      [
-        "--agent",
-        "withdraw",
-        "50%",
-        "ETH",
-        "--to",
-        relayedRecipient,
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expect(withdrawResult.status).toBe(4);
-    const withdrawJson = parseJsonOutput<{
-      success: boolean;
-      errorCode: string;
-      error: { hint?: string };
-    }>(withdrawResult.stdout);
-    expect(withdrawJson.success).toBe(false);
-    expect(withdrawJson.errorCode).toBe("ACCOUNT_NOT_APPROVED");
-    expect(withdrawJson.error.hint).toContain("declined");
-    expect(withdrawJson.error.hint).toContain("ragequit");
-
-    const ragequitResult = runCli(
-      [
-        "--agent",
-        "ragequit",
-        "ETH",
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expectSuccessStatus(ragequitResult, "ragequit after declined review");
-
-    const syncAfter = runCli(
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(syncAfter, "sync after declined ragequit");
-
-    const accountsAfter = runCli(
-      ["--agent", "accounts", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(accountsAfter, "accounts after declined ragequit");
-    const accountsAfterJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string; status: string }>;
-    }>(accountsAfter.stdout);
-    expect(accountsAfterJson.accounts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          poolAccountId: depositJson.poolAccountId,
-          status: "exited",
-        }),
-      ])
-    );
-  });
-
-  anvilTest("deposit -> poi_required -> direct withdraw blocked", async () => {
-    ensureEnabled();
-
-    const home = createTempHome("pp-anvil-poi-required-");
-    mustInitSeededHome(home, "sepolia");
-
-    const depositResult = runCli(
-      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 180_000, env: cliEnv() }
-    );
-    expectSuccessStatus(depositResult, "deposit");
-
-    const depositJson = parseJsonOutput<{
-      success: boolean;
-      txHash: `0x${string}`;
-      poolAccountId: string;
-    }>(depositResult.stdout);
-    expect(depositJson.success).toBe(true);
-
-    const depositEvent = await decodeDeposit(depositJson.txHash);
-    aspState = {
-      ...requireAspState(),
-      insertedStateTreeLeaves: [
-        ...requireAspState().insertedStateTreeLeaves,
-        depositEvent.commitment.toString(),
-      ],
-    };
-    writeCurrentAspState();
-    setLabelReviewStatus(depositEvent.label, "poi_required");
-
-    const syncResult = runCli(
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(syncResult, "sync after poi_required deposit");
-
-    const accountsResult = runCli(
-      ["--agent", "accounts", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(accountsResult, "accounts after poi_required review");
-    const accountsJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string; status: string; aspStatus: string }>;
-    }>(accountsResult.stdout);
-    expect(accountsJson.accounts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          poolAccountId: depositJson.poolAccountId,
-          status: "poi_required",
-          aspStatus: "poi_required",
-        }),
-      ])
-    );
-
-    const pendingOnlyResult = runCli(
-      ["--agent", "accounts", "--pending-only", "--chain", "sepolia"],
-      { home, timeoutMs: 120_000, env: cliEnv() }
-    );
-    expectSuccessStatus(pendingOnlyResult, "pending-only after poi_required review");
-    const pendingOnlyJson = parseJsonOutput<{
-      success: boolean;
-      accounts: Array<{ poolAccountId: string }>;
-    }>(pendingOnlyResult.stdout);
-    expect(pendingOnlyJson.accounts).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ poolAccountId: depositJson.poolAccountId }),
-      ])
-    );
-
-    const withdrawResult = runCli(
-      [
-        "--agent",
-        "withdraw",
-        "50%",
-        "ETH",
-        "--direct",
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expect(withdrawResult.status).toBe(4);
-    const withdrawJson = parseJsonOutput<{
-      success: boolean;
-      errorCode: string;
-      error: { hint?: string };
-    }>(withdrawResult.stdout);
-    expect(withdrawJson.success).toBe(false);
-    expect(withdrawJson.errorCode).toBe("ACCOUNT_NOT_APPROVED");
-    expect(withdrawJson.error.hint).toContain("Proof of Association");
-    expect(withdrawJson.error.hint).toContain("tornado.0xbow.io");
-  });
-
-  anvilTest("deposit -> ragequit --unsigned and --dry-run", async () => {
-    ensureEnabled();
-
-    const home = createTempHome("pp-anvil-ragequit-alt-modes-");
-    mustInitSeededHome(home, "sepolia");
-
-    const depositResult = runCli(
-      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 180_000, env: cliEnv() }
-    );
-    expectSuccessStatus(depositResult, "deposit");
-
-    const depositJson = parseJsonOutput<{
-      success: boolean;
-      txHash: `0x${string}`;
-      poolAccountId: string;
-    }>(depositResult.stdout);
-    expect(depositJson.success).toBe(true);
-
-    const depositEvent = await decodeDeposit(depositJson.txHash);
-    aspState = {
-      ...requireAspState(),
-      insertedStateTreeLeaves: [
-        ...requireAspState().insertedStateTreeLeaves,
-        depositEvent.commitment.toString(),
-      ],
-    };
-    writeCurrentAspState();
-
-    const unsignedResult = runCli(
-      [
-        "--agent",
-        "ragequit",
-        "ETH",
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--unsigned",
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expectSuccessStatus(unsignedResult, "ragequit unsigned");
-    const unsignedJson = parseJsonOutput<{
-      success: boolean;
-      mode: string;
-      operation: string;
-      transactions: Array<{ to: string; data: string; chainId: number }>;
-    }>(unsignedResult.stdout);
-    expect(unsignedJson.success).toBe(true);
-    expect(unsignedJson.mode).toBe("unsigned");
-    expect(unsignedJson.operation).toBe("ragequit");
-    expect(unsignedJson.transactions).toHaveLength(1);
-    expect(unsignedJson.transactions[0]?.to.toLowerCase()).toBe(poolAddress.toLowerCase());
-    expect(unsignedJson.transactions[0]?.chainId).toBe(chainConfig.id);
-
-    const dryRunResult = runCli(
-      [
-        "--agent",
-        "ragequit",
-        "ETH",
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--dry-run",
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expectSuccessStatus(dryRunResult, "ragequit dry-run");
-    const dryRunJson = parseJsonOutput<{
-      success: boolean;
-      operation: string;
-      dryRun: boolean;
-      proofPublicSignals: number;
-      poolAccountId: string;
-    }>(dryRunResult.stdout);
-    expect(dryRunJson.success).toBe(true);
-    expect(dryRunJson.operation).toBe("ragequit");
-    expect(dryRunJson.dryRun).toBe(true);
-    expect(dryRunJson.poolAccountId).toBe(depositJson.poolAccountId);
-    expect(dryRunJson.proofPublicSignals).toBeGreaterThan(0);
-  });
-
-  anvilTest("deposit -> approve -> withdraw --direct --unsigned and --dry-run", async () => {
-    ensureEnabled();
-
-    const home = createTempHome("pp-anvil-withdraw-alt-modes-");
-    mustInitSeededHome(home, "sepolia");
-
-    const depositResult = runCli(
-      ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
-      { home, timeoutMs: 180_000, env: cliEnv() }
-    );
-    expectSuccessStatus(depositResult, "deposit");
-
-    const depositJson = parseJsonOutput<{
-      success: boolean;
-      txHash: `0x${string}`;
-      poolAccountId: string;
-    }>(depositResult.stdout);
-    expect(depositJson.success).toBe(true);
-
-    const depositEvent = await decodeDeposit(depositJson.txHash);
-    aspState = {
-      ...requireAspState(),
-      insertedStateTreeLeaves: [
-        ...requireAspState().insertedStateTreeLeaves,
-        depositEvent.commitment.toString(),
-      ],
-    };
-    writeCurrentAspState();
-
-    await approveLabel(depositEvent.label);
-
-    const unsignedResult = runCli(
-      [
-        "--agent",
-        "withdraw",
-        "50%",
-        "ETH",
-        "--direct",
-        "--to",
-        relayedRecipient,
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--unsigned",
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expectSuccessStatus(unsignedResult, "withdraw unsigned");
-    expect(unsignedResult.stderr.trim()).toBe("");
-    const unsignedJson = parseJsonOutput<{
-      success: boolean;
-      mode: string;
-      operation: string;
-      withdrawMode: string;
-      poolAccountId: string;
-      transactions: Array<{ to: string; data: string; chainId: number }>;
-    }>(unsignedResult.stdout);
-    expect(unsignedJson.success).toBe(true);
-    expect(unsignedJson.mode).toBe("unsigned");
-    expect(unsignedJson.operation).toBe("withdraw");
-    expect(unsignedJson.withdrawMode).toBe("direct");
-    expect(unsignedJson.poolAccountId).toBe(depositJson.poolAccountId);
-    expect(unsignedJson.transactions).toHaveLength(1);
-    expect(unsignedJson.transactions[0]?.to.toLowerCase()).toBe(poolAddress.toLowerCase());
-    expect(unsignedJson.transactions[0]?.chainId).toBe(chainConfig.id);
-
-    const dryRunResult = runCli(
-      [
-        "--agent",
-        "withdraw",
-        "50%",
-        "ETH",
-        "--direct",
-        "--to",
-        relayedRecipient,
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--dry-run",
-        "--chain",
-        "sepolia",
-      ],
-      { home, timeoutMs: 300_000, env: cliEnv() }
-    );
-    expectSuccessStatus(dryRunResult, "withdraw dry-run");
-    expect(dryRunResult.stderr.trim()).toBe("");
-    const dryRunJson = parseJsonOutput<{
-      success: boolean;
-      mode: string;
-      dryRun: boolean;
-      proofPublicSignals: number;
-      poolAccountId: string;
-    }>(dryRunResult.stdout);
-    expect(dryRunJson.success).toBe(true);
-    expect(dryRunJson.mode).toBe("direct");
-    expect(dryRunJson.dryRun).toBe(true);
-    expect(dryRunJson.poolAccountId).toBe(depositJson.poolAccountId);
-    expect(dryRunJson.proofPublicSignals).toBeGreaterThan(0);
   });
 });

@@ -20,7 +20,6 @@ type CircuitName = "commitment" | "withdraw";
 type SdkInstall = {
   version: string;
   tag: string;
-  bundledArtifactsDir: string;
   managedArtifactsDir: string;
 };
 
@@ -85,7 +84,6 @@ function resolveSdkInstall(): SdkInstall {
   cachedSdkInstall = {
     version,
     tag,
-    bundledArtifactsDir: resolve(dirname(sdkEntry), "artifacts"),
     managedArtifactsDir: override
       ? resolve(override)
       : join(getConfigDir(), "circuits", tag),
@@ -218,19 +216,6 @@ export async function ensureCircuitArtifacts(): Promise<string> {
   if (cachedArtifactsDir) return cachedArtifactsDir;
 
   const install = resolveSdkInstall();
-  const envOverride = process.env.PRIVACY_POOLS_CIRCUITS_DIR?.trim();
-
-  if (!envOverride) {
-    const bundledInvalid = await invalidFiles(
-      install.bundledArtifactsDir,
-      install.tag
-    );
-    if (bundledInvalid.length === 0) {
-      cachedArtifactsDir = install.bundledArtifactsDir;
-      return cachedArtifactsDir;
-    }
-  }
-
   const targetDir = install.managedArtifactsDir;
   if ((await invalidFiles(targetDir, install.tag)).length === 0) {
     cachedArtifactsDir = targetDir;

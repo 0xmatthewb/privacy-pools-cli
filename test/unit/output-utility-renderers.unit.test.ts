@@ -5,23 +5,37 @@
 import { describe, expect, test } from "bun:test";
 import { createOutputContext } from "../../src/output/common.ts";
 import { renderGuide } from "../../src/output/guide.ts";
-import { renderCapabilities, type CapabilitiesPayload } from "../../src/output/capabilities.ts";
-import { renderCommandDescription, type DetailedCommandDescriptor } from "../../src/output/describe.ts";
-import { renderCompletionScript, renderCompletionQuery } from "../../src/output/completion.ts";
+import {
+  renderCapabilities,
+  type CapabilitiesPayload,
+} from "../../src/output/capabilities.ts";
+import {
+  renderCommandDescription,
+  type DetailedCommandDescriptor,
+} from "../../src/output/describe.ts";
+import {
+  renderCompletionScript,
+  renderCompletionQuery,
+} from "../../src/output/completion.ts";
 import { renderSyncEmpty, renderSyncComplete } from "../../src/output/sync.ts";
-import { renderStatus, type StatusCheckResult } from "../../src/output/status.ts";
+import {
+  renderStatus,
+  type StatusCheckResult,
+} from "../../src/output/status.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { CLIError } from "../../src/utils/errors.ts";
-import { makeMode, captureOutput } from "../helpers/output.ts";
+import {
+  makeMode,
+  captureJsonOutput,
+  captureOutput,
+} from "../helpers/output.ts";
 
 // ── renderGuide parity ──────────────────────────────────────────────────────
 
 describe("renderGuide parity", () => {
   test("JSON mode: emits guide envelope to stdout, nothing to stderr", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() => renderGuide(ctx));
-
-    const json = JSON.parse(stdout.trim());
+    const { json, stderr } = captureJsonOutput(() => renderGuide(ctx));
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.mode).toBe("help");
@@ -86,11 +100,9 @@ const STUB_DESCRIPTOR: DetailedCommandDescriptor =
 describe("renderCapabilities parity", () => {
   test("JSON mode: emits capabilities envelope to stdout", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() =>
+    const { json, stderr } = captureJsonOutput(() =>
       renderCapabilities(ctx, STUB_CAPABILITIES),
     );
-
-    const json = JSON.parse(stdout.trim());
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.commands).toEqual(STUB_CAPABILITIES.commands);
@@ -118,11 +130,9 @@ describe("renderCapabilities parity", () => {
 describe("renderCompletionScript parity", () => {
   test("JSON mode: emits completion-script envelope to stdout", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() =>
+    const { json, stderr } = captureJsonOutput(() =>
       renderCompletionScript(ctx, "bash", "# test script\n"),
     );
-
-    const json = JSON.parse(stdout.trim());
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.mode).toBe("completion-script");
@@ -156,11 +166,9 @@ describe("renderCompletionScript parity", () => {
 describe("renderCompletionQuery parity", () => {
   test("JSON mode: emits completion-query envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() =>
+    const { json, stderr } = captureJsonOutput(() =>
       renderCompletionQuery(ctx, "zsh", 2, ["deposit", "withdraw"]),
     );
-
-    const json = JSON.parse(stdout.trim());
     expect(json.mode).toBe("completion-query");
     expect(json.shell).toBe("zsh");
     expect(json.cword).toBe(2);
@@ -194,11 +202,9 @@ describe("renderCompletionQuery parity", () => {
 describe("renderCommandDescription parity", () => {
   test("JSON mode: emits descriptor envelope to stdout", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() =>
+    const { json, stderr } = captureJsonOutput(() =>
       renderCommandDescription(ctx, STUB_DESCRIPTOR),
     );
-
-    const json = JSON.parse(stdout.trim());
     expect(json.command).toBe("test-cmd");
     expect(json.flags).toEqual(["--flag"]);
     expect(stderr).toBe("");
@@ -223,11 +229,9 @@ describe("renderCommandDescription parity", () => {
 describe("renderSyncEmpty parity", () => {
   test("JSON mode: emits zero-pool envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() =>
+    const { json, stderr } = captureJsonOutput(() =>
       renderSyncEmpty(ctx, "sepolia"),
     );
-
-    const json = JSON.parse(stdout.trim());
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
@@ -252,7 +256,7 @@ describe("renderSyncEmpty parity", () => {
 describe("renderSyncComplete parity", () => {
   test("JSON mode: emits sync result envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() =>
+    const { json, stderr } = captureJsonOutput(() =>
       renderSyncComplete(ctx, {
         chain: "mainnet",
         syncedPools: 2,
@@ -261,7 +265,6 @@ describe("renderSyncComplete parity", () => {
       }),
     );
 
-    const json = JSON.parse(stdout.trim());
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.chain).toBe("mainnet");
@@ -322,9 +325,9 @@ const STUB_STATUS: StatusCheckResult = {
 describe("renderStatus parity", () => {
   test("JSON mode: emits status envelope to stdout", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
-
-    const json = JSON.parse(stdout.trim());
+    const { json, stderr } = captureJsonOutput(() =>
+      renderStatus(ctx, STUB_STATUS),
+    );
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.configExists).toBe(true);
@@ -332,7 +335,9 @@ describe("renderStatus parity", () => {
     expect(json.selectedChain).toBe("sepolia");
     expect(json.recoveryPhraseSet).toBe(true);
     expect(json.signerKeySet).toBe(true);
-    expect(json.signerAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
+    expect(json.signerAddress).toBe(
+      "0x1234567890abcdef1234567890abcdef12345678",
+    );
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
@@ -347,9 +352,7 @@ describe("renderStatus parity", () => {
   test("JSON mode: includes aspLive/rpcLive when present", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const result = { ...STUB_STATUS, aspLive: true, rpcLive: false };
-    const { stdout } = captureOutput(() => renderStatus(ctx, result));
-
-    const json = JSON.parse(stdout.trim());
+    const { json } = captureJsonOutput(() => renderStatus(ctx, result));
     expect(json.aspLive).toBe(true);
     expect(json.rpcLive).toBe(false);
   });
@@ -366,9 +369,7 @@ describe("renderStatus parity", () => {
       signerAddress: null,
       accountFiles: [],
     };
-    const { stdout } = captureOutput(() => renderStatus(ctx, result));
-
-    const json = JSON.parse(stdout.trim());
+    const { json } = captureJsonOutput(() => renderStatus(ctx, result));
     expect(json.nextActions).toEqual([
       {
         command: "init",
@@ -388,15 +389,14 @@ describe("renderStatus parity", () => {
       signerAddress: null,
       accountFiles: [],
     };
-    const { stdout } = captureOutput(() => renderStatus(ctx, result));
-
-    const json = JSON.parse(stdout.trim());
+    const { json } = captureJsonOutput(() => renderStatus(ctx, result));
     expect(json.readyForDeposit).toBe(false);
     expect(json.readyForUnsigned).toBe(true);
     expect(json.nextActions).toEqual([
       {
         command: "pools",
-        reason: "Browse pools in read-only mode. Configure a valid signer key before depositing.",
+        reason:
+          "Browse pools in read-only mode. Configure a valid signer key before depositing.",
         when: "status_unsigned_no_accounts",
         options: { agent: true, chain: "sepolia" },
       },
@@ -405,7 +405,9 @@ describe("renderStatus parity", () => {
 
   test("human mode: emits status text to stderr", () => {
     const ctx = createOutputContext(makeMode());
-    const { stdout, stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
+    const { stdout, stderr } = captureOutput(() =>
+      renderStatus(ctx, STUB_STATUS),
+    );
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Privacy Pools CLI Status");
@@ -432,7 +434,12 @@ describe("renderStatus parity", () => {
 
   test("human mode: shows unsigned-only readiness when no signer key", () => {
     const ctx = createOutputContext(makeMode());
-    const result = { ...STUB_STATUS, signerKeySet: false, signerKeyValid: false, signerAddress: null };
+    const result = {
+      ...STUB_STATUS,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+    };
     const { stderr } = captureOutput(() => renderStatus(ctx, result));
 
     expect(stderr).toContain("unsigned mode only");
@@ -441,7 +448,15 @@ describe("renderStatus parity", () => {
 
   test("human mode: shows not-ready when no config", () => {
     const ctx = createOutputContext(makeMode());
-    const result = { ...STUB_STATUS, configExists: false, configDir: null, recoveryPhraseSet: false, signerKeySet: false, signerKeyValid: false, signerAddress: null };
+    const result = {
+      ...STUB_STATUS,
+      configExists: false,
+      configDir: null,
+      recoveryPhraseSet: false,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+    };
     const { stderr } = captureOutput(() => renderStatus(ctx, result));
 
     expect(stderr).toContain("Not ready");
@@ -495,7 +510,9 @@ describe("CSV guard: utility renderers", () => {
 describe("renderSyncEmpty quiet mode", () => {
   test("quiet mode: emits nothing", () => {
     const ctx = createOutputContext(makeMode({ isQuiet: true }));
-    const { stdout, stderr } = captureOutput(() => renderSyncEmpty(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() =>
+      renderSyncEmpty(ctx, "sepolia"),
+    );
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");

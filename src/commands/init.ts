@@ -148,7 +148,7 @@ export async function handleInitCommand(
         fileContent = readFileSync(opts.mnemonicFile, "utf-8");
       } catch (err) {
         throw new CLIError(
-          `Could not read mnemonic file: ${opts.mnemonicFile}`,
+          `Could not read recovery phrase file: ${opts.mnemonicFile}`,
           "INPUT",
           err instanceof Error ? err.message : undefined,
         );

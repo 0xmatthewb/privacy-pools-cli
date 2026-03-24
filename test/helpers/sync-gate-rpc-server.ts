@@ -12,6 +12,7 @@ import {
   encodeFunctionResult,
   parseAbi,
 } from "viem";
+import { buildChildProcessEnv } from "./child-env.ts";
 
 const entrypointAbi = parseAbi([
   "function assetConfig(address asset) view returns (address pool, uint256 minimumDepositAmount, uint256 vettingFeeBPS, uint256 maxRelayFeeBPS)",
@@ -44,6 +45,10 @@ interface SyncGateRpcConfig {
   maxRelayFeeBPS?: bigint;
   minFromBlock?: bigint;
   validDepositLog?: boolean;
+  depositCommitment?: bigint;
+  depositLabel?: bigint;
+  depositValue?: bigint;
+  depositPrecommitment?: bigint;
 }
 
 export interface SyncGateRpcServer {
@@ -78,6 +83,18 @@ function parseConfigFromEnv(): SyncGateRpcConfig {
       ? BigInt(process.env.PP_SYNC_RPC_MIN_FROM_BLOCK)
       : undefined,
     validDepositLog: process.env.PP_SYNC_RPC_VALID_DEPOSIT_LOG === "true",
+    depositCommitment: process.env.PP_SYNC_RPC_DEPOSIT_COMMITMENT
+      ? BigInt(process.env.PP_SYNC_RPC_DEPOSIT_COMMITMENT)
+      : undefined,
+    depositLabel: process.env.PP_SYNC_RPC_DEPOSIT_LABEL
+      ? BigInt(process.env.PP_SYNC_RPC_DEPOSIT_LABEL)
+      : undefined,
+    depositValue: process.env.PP_SYNC_RPC_DEPOSIT_VALUE
+      ? BigInt(process.env.PP_SYNC_RPC_DEPOSIT_VALUE)
+      : undefined,
+    depositPrecommitment: process.env.PP_SYNC_RPC_DEPOSIT_PRECOMMITMENT
+      ? BigInt(process.env.PP_SYNC_RPC_DEPOSIT_PRECOMMITMENT)
+      : undefined,
   };
 }
 
@@ -256,6 +273,19 @@ async function route(
         }
 
         if (topic0 === depositTopic0?.toLowerCase()) {
+          const depositData = config.depositCommitment !== undefined
+            && config.depositLabel !== undefined
+            && config.depositValue !== undefined
+            && config.depositPrecommitment !== undefined
+            ? [
+              config.depositCommitment,
+              config.depositLabel,
+              config.depositValue,
+              config.depositPrecommitment,
+            ]
+            : config.validDepositLog
+              ? [1n, 2n, 3n, 4n]
+              : [1n, 0n, 1n, 0n];
           writeRpcResult(res, id, [{
             address: config.poolAddress,
             blockHash: `0x${"11".repeat(32)}`,
@@ -267,9 +297,7 @@ async function route(
                 { type: "uint256" },
                 { type: "uint256" },
               ],
-              config.validDepositLog
-                ? [1n, 2n, 3n, 4n]
-                : [1n, 0n, 1n, 0n]
+              depositData
             ),
             logIndex: "0x0",
             removed: false,
@@ -309,8 +337,7 @@ export function launchSyncGateRpcServer(
     const proc = spawn("bun", ["run", script], {
       stdio: ["ignore", "pipe", "ignore"],
       detached: false,
-      env: {
-        ...process.env,
+      env: buildChildProcessEnv({
         PP_SYNC_RPC_CHAIN_ID: String(config.chainId),
         PP_SYNC_RPC_ENTRYPOINT: config.entrypoint,
         PP_SYNC_RPC_POOL: config.poolAddress,
@@ -326,7 +353,11 @@ export function launchSyncGateRpcServer(
         PP_SYNC_RPC_MAX_RELAY_FEE_BPS: String(config.maxRelayFeeBPS ?? 300n),
         PP_SYNC_RPC_MIN_FROM_BLOCK: config.minFromBlock?.toString(),
         PP_SYNC_RPC_VALID_DEPOSIT_LOG: config.validDepositLog ? "true" : undefined,
-      },
+        PP_SYNC_RPC_DEPOSIT_COMMITMENT: config.depositCommitment?.toString(),
+        PP_SYNC_RPC_DEPOSIT_LABEL: config.depositLabel?.toString(),
+        PP_SYNC_RPC_DEPOSIT_VALUE: config.depositValue?.toString(),
+        PP_SYNC_RPC_DEPOSIT_PRECOMMITMENT: config.depositPrecommitment?.toString(),
+      }),
     });
 
     let output = "";

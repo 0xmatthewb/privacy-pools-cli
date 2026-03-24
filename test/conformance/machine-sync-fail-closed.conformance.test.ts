@@ -9,6 +9,14 @@ const accountsShellSource = readFileSync(
   `${CLI_ROOT}/src/command-shells/accounts.ts`,
   "utf8",
 );
+const historySource = readFileSync(
+  `${CLI_ROOT}/src/commands/history.ts`,
+  "utf8",
+);
+const syncSource = readFileSync(
+  `${CLI_ROOT}/src/commands/sync.ts`,
+  "utf8",
+);
 const accountServiceSource = readFileSync(
   `${CLI_ROOT}/src/services/account.ts`,
   "utf8",
@@ -39,5 +47,16 @@ describe("machine sync fail-closed conformance", () => {
     expect(savePos).toBeGreaterThan(guardPos);
     // Ensure the guard is close to the save call (within the same block)
     expect(savePos - guardPos).toBeLessThan(100);
+  });
+
+  test("read-only sync flows rebuild legacy saved accounts before refresh", () => {
+    expect(accountServiceSource).toContain("allowLegacyAccountRebuild");
+    expect(accountServiceSource).toContain("skipImmediateSync");
+    expect(accountsSource).toContain("initializeAccountServiceWithState");
+    expect(accountsSource).toContain("skip: opts.sync === false || skipImmediateSync");
+    expect(historySource).toContain("initializeAccountServiceWithState");
+    expect(historySource).toContain("skip: opts.sync === false || skipImmediateSync");
+    expect(syncSource).toContain("initializeAccountServiceWithState");
+    expect(syncSource).toContain("skip: skipImmediateSync");
   });
 });

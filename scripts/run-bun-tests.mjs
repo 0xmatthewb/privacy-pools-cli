@@ -4,24 +4,18 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 
 const runId = `${process.pid}-${Date.now()}`;
-const tempPrefixes = [
-  "pp-cli-test-",
-  "pp-smoke-dist-",
-  "pp-anvil-ragequit-",
-  "pp-anvil-withdraw-",
-  "pp-anvil-relayed-withdraw-",
-  "pp-anvil-ragequit-alt-modes-",
-  "pp-anvil-withdraw-alt-modes-",
-  "pp-test-",
-];
+const TEMP_PREFIX = "pp-";
+let cleanedUp = false;
 
 function cleanupRunTempDirs() {
+  if (cleanedUp) return;
+  cleanedUp = true;
+
   for (const entry of readdirSync(tmpdir(), { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
 
     const name = entry.name;
-    const matchesRun = tempPrefixes.some((prefix) => name.startsWith(`${prefix}${runId}-`));
-    if (!matchesRun) continue;
+    if (!name.startsWith(TEMP_PREFIX) || !name.includes(`${runId}-`)) continue;
 
     try {
       rmSync(join(tmpdir(), name), {
@@ -35,6 +29,16 @@ function cleanupRunTempDirs() {
     }
   }
 }
+
+function exitWithCleanup(code) {
+  cleanupRunTempDirs();
+  process.exit(code);
+}
+
+process.once("beforeExit", cleanupRunTempDirs);
+process.once("exit", cleanupRunTempDirs);
+process.once("SIGINT", () => exitWithCleanup(130));
+process.once("SIGTERM", () => exitWithCleanup(143));
 
 function collectTestFiles(pathArg) {
   const absolute = resolve(pathArg);
@@ -88,17 +92,18 @@ if (!hasExplicitTimeout) {
   forwardedArgs.push("--timeout", "30000");
 }
 
-const bunArgs = excludedPaths.size === 0
-  ? forwardedArgs
-  : forwardedArgs.flatMap((token) => {
-      if (token.startsWith("-") || !existsSync(token)) {
-        return [token];
-      }
+const bunArgs =
+  excludedPaths.size === 0
+    ? forwardedArgs
+    : forwardedArgs.flatMap((token) => {
+        if (token.startsWith("-") || !existsSync(token)) {
+          return [token];
+        }
 
-      return collectTestFiles(token).filter((candidate) => {
-        return !excludedPaths.has(resolve(candidate));
+        return collectTestFiles(token).filter((candidate) => {
+          return !excludedPaths.has(resolve(candidate));
+        });
       });
-    });
 
 const hasExplicitTestTarget = bunArgs.some((token) => {
   return !token.startsWith("-") && existsSync(resolve(token));
@@ -110,15 +115,18 @@ if (!hasExplicitTestTarget) {
   );
 }
 
-const result = spawnSync("bun", ["test", ...bunArgs], {
-  stdio: "inherit",
-  env: {
-    ...process.env,
-    PP_TEST_RUN_ID: runId,
-  },
-});
-
-cleanupRunTempDirs();
+let result;
+try {
+  result = spawnSync("bun", ["test", ...bunArgs], {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      PP_TEST_RUN_ID: runId,
+    },
+  });
+} finally {
+  cleanupRunTempDirs();
+}
 
 if (result.error) {
   throw result.error;

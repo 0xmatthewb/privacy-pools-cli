@@ -119,6 +119,18 @@ describe("wallet service", () => {
       expect(k1.masterNullifier).not.toEqual(k2.masterNullifier);
       expect(k1.masterSecret).not.toEqual(k2.masterSecret);
     });
+
+    test("matches bigint-based mnemonic derivation used by the fixed SDK", () => {
+      const mnemonic = "test test test test test test test test test test test junk";
+      const expected = {
+        masterNullifier:
+          20068762160393292801596226195912281868434195939362930533775271887246872084568n,
+        masterSecret:
+          4263194520628581151689140073493505946870598678660509318310629023735624352890n,
+      };
+
+      expect(getMasterKeys(mnemonic)).toEqual(expected);
+    });
   });
 
   describe("loadMnemonic", () => {

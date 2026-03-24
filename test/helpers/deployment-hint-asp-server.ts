@@ -5,6 +5,7 @@ import {
 } from "node:http";
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
+import { buildChildProcessEnv } from "./child-env.ts";
 
 interface DeploymentHintAspConfig {
   chainId: number;
@@ -101,13 +102,12 @@ export function launchDeploymentHintAspServer(
     const proc = spawn("bun", ["run", script], {
       stdio: ["ignore", "pipe", "ignore"],
       detached: false,
-      env: {
-        ...process.env,
+      env: buildChildProcessEnv({
         PP_DEPLOYMENT_HINT_ASP_CHAIN_ID: String(config.chainId),
         PP_DEPLOYMENT_HINT_ASP_ASSET: config.assetAddress,
         PP_DEPLOYMENT_HINT_ASP_SYMBOL: config.tokenSymbol,
         PP_DEPLOYMENT_HINT_ASP_SCOPE: config.scope.toString(),
-      },
+      }),
     });
 
     let output = "";

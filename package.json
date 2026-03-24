@@ -1,6 +1,6 @@
 {
   "name": "privacy-pools-cli",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "CLI for interacting with Privacy Pools v1",
   "type": "module",
   "bin": {
@@ -26,7 +26,7 @@
     "dev": "bun src/index.ts",
     "start": "node scripts/start-built-cli.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/run-bun-tests.mjs ./test/unit ./test/integration ./test/fuzz ./test/services --exclude ./test/integration/cli.packaged-smoke.integration.test.ts --exclude ./test/integration/cli-built-entrypoint.integration.test.ts && bun run build && node scripts/run-bun-tests.mjs ./test/integration/cli-built-entrypoint.integration.test.ts --timeout 120000",
+    "test": "node scripts/run-bun-tests.mjs ./test/unit ./test/integration ./test/fuzz ./test/services --exclude ./test/integration/cli.packaged-smoke.integration.test.ts --exclude ./test/integration/cli-built-entrypoint.integration.test.ts && node scripts/run-bun-tests.mjs ./test/integration/cli-built-entrypoint.integration.test.ts --timeout 240000",
     "test:ci": "npm test && npm run test:smoke && npm run test:coverage && npm run test:e2e:anvil:smoke && node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 && bun run build && node scripts/run-conformance-suite.mjs core",
     "test:all": "npm test && npm run test:smoke && node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 && bun run build && node scripts/run-conformance-suite.mjs all",
     "test:conformance": "bun run build && node scripts/run-conformance-suite.mjs core",
@@ -45,8 +45,9 @@
     "docs:check": "bun run build && node scripts/generate-reference.mjs --check"
   },
   "dependencies": {
-    "@0xbow/privacy-pools-core-sdk": "1.1.1",
+    "@0xbow/privacy-pools-core-sdk": "1.2.0",
     "@inquirer/prompts": "8.3.2",
+    "@inquirer/select": "5.1.2",
     "@scure/bip39": "2.0.1",
     "chalk": "5.6.2",
     "cli-table3": "0.6.5",

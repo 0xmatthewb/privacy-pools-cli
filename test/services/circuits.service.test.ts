@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   ensureCircuitArtifacts,
@@ -10,6 +9,7 @@ import {
   resetCircuitArtifactsCacheForTests,
 } from "../../src/services/circuits.ts";
 import sharedChecksumManifest from "../../src/services/circuit-checksums.js";
+import { createTrackedTempDir } from "../helpers/temp.ts";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_CIRCUITS_DIR = process.env.PRIVACY_POOLS_CIRCUITS_DIR;
@@ -48,7 +48,7 @@ function installTestChecksums(): void {
 }
 
 function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "pp-circuits-"));
+  const dir = createTrackedTempDir("pp-circuits-");
   TEMP_DIRS.push(dir);
   return dir;
 }
@@ -115,6 +115,28 @@ describe("circuits service", () => {
     globalThis.fetch = fetchMock as typeof fetch;
 
     await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(dir));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("reuses a complete managed cache directory without fetching", async () => {
+    const configHome = tempDir();
+    const managedDir = join(configHome, "circuits", installedSdkTag());
+    process.env.PRIVACY_POOLS_HOME = configHome;
+    delete process.env.PRIVACY_POOLS_CIRCUITS_DIR;
+    delete process.env.PRIVACY_POOLS_CONFIG_DIR;
+    installTestChecksums();
+    mkdirSync(managedDir, { recursive: true });
+
+    for (const filename of ALL_FILES) {
+      writeFileSync(join(managedDir, filename), TEST_BYTES);
+    }
+
+    const fetchMock = mock(() => {
+      throw new Error("fetch should not be called");
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(managedDir));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

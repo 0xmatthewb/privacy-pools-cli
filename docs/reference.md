@@ -15,7 +15,9 @@ Initialize wallet and configuration
 >   Recovery phrase: keeps your deposits private (generated during init)
 >   Signer key:     pays gas and sends transactions (can be set later)
 >   These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.
-> During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin. Circuit artifacts are provisioned automatically on first proof and cached under ~/.privacy-pools/circuits/.
+> During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
+> Imported recovery phrases automatically recover older Pool Accounts during sync.
+> Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.
 
 ```bash
 privacy-pools init
@@ -41,6 +43,7 @@ cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainn
 | `--force` | Overwrite existing configuration without prompting |
 
 **Safety:** The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
+**Safety:** Imported recovery phrases automatically recover older Pool Accounts during sync.
 
 **JSON output:** `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
@@ -146,7 +149,7 @@ Deposit into a pool
 
 **Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
-Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may download circuit files (~60s). Subsequent runs typically complete in 10-30s.
+Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may provision checksum-verified circuit artifacts (~60s). Subsequent runs typically complete in 10-30s.
 
 Non-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.
 
@@ -210,7 +213,7 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet
 **Safety:** ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.
 **Safety:** Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
 
-**JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }`
+**JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
 ### `withdraw quote`
 
@@ -343,7 +346,7 @@ privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet
 
 **Safety:** Ragequit is public and irreversible and reveals the original deposit address onchain.
 
-**JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }`
+**JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
 ### `guide`
 
@@ -464,7 +467,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PRIVACY_POOLS_PRIVATE_KEY` | Signer private key (takes precedence over `.signer` file) |
 | `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
-| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory |
+| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory (default: `~/.privacy-pools/circuits/v<sdk-version>`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |

@@ -3,6 +3,8 @@ import { join } from "path";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
 import { CLIError } from "../utils/errors.js";
 
+export const ACCOUNT_FILE_VERSION = 2;
+
 function getAccountFilePath(chainId: number): string {
   return join(getAccountsDir(), `${chainId}.json`);
 }
@@ -74,7 +76,14 @@ export function saveAccount(chainId: number, account: any): void {
   ensureConfigDir();
   const path = getAccountFilePath(chainId);
   const tmpPath = path + ".tmp";
-  writeFileSync(tmpPath, serialize(account), {
+  const storedAccount =
+    typeof account === "object" && account !== null
+      ? {
+          ...account,
+          __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+        }
+      : account;
+  writeFileSync(tmpPath, serialize(storedAccount), {
     encoding: "utf-8",
     mode: 0o600,
   });
