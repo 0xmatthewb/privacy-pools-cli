@@ -1,12 +1,11 @@
 /**
- * Transaction command pipeline integration tests.
+ * Transaction command offline-boundary integration tests.
  *
- * Tests deposit, withdraw, and ragequit commands as deep as possible
- * without a live chain.  With valid inputs and an offline ASP, each
- * command should progress through input parsing, amount validation, chain
- * selection, and flag handling — then fail at pool resolution with
- * category "ASP" / exit 4.  This proves the entire input pipeline works
- * and pins the exact failure stage so behavioral drift is caught.
+ * Tests deposit, withdraw, and ragequit command variants far enough to
+ * prove their accepted machine-mode flag combinations reach the shared
+ * pool-resolution boundary. These tests deliberately do NOT claim to
+ * cover dry-run / unsigned success behavior; those paths have dedicated
+ * tests elsewhere.
  *
  * True success-path tests (generating precommitments, building unsigned
  * tx payloads, submitting transactions) live in the Anvil suite, which
@@ -14,8 +13,9 @@
  *   1. `PP_ANVIL_E2E=1 bun run test:e2e:anvil` for the full suite
  *   2. `PP_ANVIL_E2E=1 bun run test:e2e:anvil:smoke` for the required CI lane
  *
- * This file still matters because it pins the offline failure boundary for
- * the default integration suite, while the Anvil lane covers the happy path.
+ * This file still matters because it pins the exact offline failure
+ * contract for the default integration suite, while the Anvil lane
+ * covers the happy path.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -30,18 +30,28 @@ const OFFLINE_ENV = {
   PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
 };
 
-// Helper: assert the command progressed past all input validation and
-// failed at pool resolution (ASP + RPC both unreachable), the expected offline stage.
+// Helper: assert the command accepted the provided flags and failed at the
+// shared pool-resolution boundary (ASP + RPC both unreachable).
 function expectPoolResolutionFailure(
-  result: { status: number | null },
-  json: { success: boolean; error?: { category: string } },
+  result: { status: number | null; stderr: string },
+  json: {
+    success: boolean;
+    errorCode?: string;
+    errorMessage?: string;
+    error?: { category: string; hint?: string; retryable?: boolean };
+  },
 ): void {
   expect(json.success).toBe(false);
   expect(json.error).toBeDefined();
   // With KNOWN_POOLS fallback (F-02), the CLI tries ASP → KNOWN_POOLS → RPC.
   // Both ASP and RPC are blocked, so pool resolution fails with RPC error.
+  expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+  expect(json.errorMessage).toContain('Built-in pool fallback also failed for "ETH" on sepolia.');
   expect(json.error!.category).toBe("RPC");
+  expect(json.error!.hint).toContain("Check your RPC URL");
+  expect(json.error!.retryable).toBe(true);
   expect(result.status).toBe(3);  // RPC = exit 3
+  expect(result.stderr.trim()).toBe("");
 }
 
 // ── deposit pipeline ─────────────────────────────────────────────────────────
@@ -75,16 +85,6 @@ describe("deposit command pipeline", () => {
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
     expect(json.errorMessage).toContain("--unsigned-format has been replaced");
-  });
-
-  test("deposit --dry-run rejects zero amount", () => {
-    const result = runCli(
-      ["--json", "deposit", "0", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
-      { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
-    );
-    expect(result.status).not.toBe(0);
-    const json = parseJsonOutput<{ success: boolean; error: { category: string } }>(result.stdout);
-    expect(json.success).toBe(false);
   });
 
   test("deposit --unsigned-format returns migration INPUT error", () => {
