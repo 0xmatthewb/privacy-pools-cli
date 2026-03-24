@@ -21,6 +21,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
+import { buildChildProcessEnv } from "./child-env.ts";
 
 // ── Canned response data ─────────────────────────────────────────────────────
 
@@ -227,6 +228,7 @@ export function launchFixtureServer(): Promise<FixtureServer> {
     const proc = spawn("bun", ["run", script], {
       stdio: ["ignore", "pipe", "ignore"],
       detached: false,
+      env: buildChildProcessEnv(),
     });
 
     let output = "";

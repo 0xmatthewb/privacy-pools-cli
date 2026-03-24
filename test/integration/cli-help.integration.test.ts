@@ -1,11 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import { createTempHome, runCli } from "../helpers/cli.ts";
 
+const staticCliCache = new Map<string, ReturnType<typeof runCli>>();
+
+function runStaticCli(args: string[], timeoutMs: number = 10_000) {
+  const key = JSON.stringify([args, timeoutMs]);
+  const cached = staticCliCache.get(key);
+  if (cached) return cached;
+
+  const result = runCli(args, { home: createTempHome(), timeoutMs });
+  staticCliCache.set(key, result);
+  return result;
+}
+
 describe("CLI help and discovery", () => {
   const BANNER_SENTINEL = ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
 
   test("root --help lists all commands", () => {
-    const result = runCli(["--help"], { home: createTempHome() });
+    const result = runStaticCli(["--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
     expect(result.stdout).not.toMatch(/\n\s+--quiet\s/);
@@ -36,7 +48,7 @@ describe("CLI help and discovery", () => {
   });
 
   test("root --version returns semantic version", () => {
-    const result = runCli(["--version"], { home: createTempHome() });
+    const result = runStaticCli(["--version"]);
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
     const lastLine = result.stdout.trim().split(/\n/g).pop();
@@ -63,7 +75,7 @@ describe("CLI help and discovery", () => {
 
   for (const [command, expected] of COMMAND_HELP_CASES) {
     test(`${command} --help renders command description`, () => {
-      const result = runCli([command, "--help"], { home: createTempHome() });
+      const result = runStaticCli([command, "--help"]);
       expect(result.status).toBe(0);
       expect(result.stdout).toContain(expected);
     });
@@ -76,7 +88,7 @@ describe("CLI help and discovery", () => {
   });
 
   test("withdraw quote --help renders subcommand description", () => {
-    const result = runCli(["withdraw", "quote", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["withdraw", "quote", "--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
     expect(result.stdout).toContain("Request relayer quote and limits");
@@ -217,7 +229,7 @@ describe("CLI help and discovery", () => {
   // --- JSON help/version envelopes ---
 
   test("--json --help returns JSON with mode help", () => {
-    const result = runCli(["--json", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["--json", "--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).not.toBe("");
     const parsed = JSON.parse(result.stdout.trim());
@@ -226,7 +238,7 @@ describe("CLI help and discovery", () => {
   });
 
   test("--format=json --help returns JSON with mode help", () => {
-    const result = runCli(["--format=json", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["--format=json", "--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).not.toBe("");
     const parsed = JSON.parse(result.stdout.trim());
@@ -235,7 +247,7 @@ describe("CLI help and discovery", () => {
   });
 
   test("-j --help returns JSON with mode help", () => {
-    const result = runCli(["-j", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["-j", "--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).not.toBe("");
     const parsed = JSON.parse(result.stdout.trim());
@@ -244,7 +256,7 @@ describe("CLI help and discovery", () => {
   });
 
   test("bundled short flags -jh return JSON help envelope", () => {
-    const result = runCli(["-jh"], { home: createTempHome() });
+    const result = runStaticCli(["-jh"]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).not.toBe("");
     const parsed = JSON.parse(result.stdout.trim());
@@ -253,7 +265,7 @@ describe("CLI help and discovery", () => {
   });
 
   test("--json --version returns JSON with mode version", () => {
-    const result = runCli(["--json", "--version"], { home: createTempHome() });
+    const result = runStaticCli(["--json", "--version"]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).not.toBe("");
     const parsed = JSON.parse(result.stdout.trim());
@@ -262,7 +274,7 @@ describe("CLI help and discovery", () => {
   });
 
   test("--format=json --version returns JSON with mode version", () => {
-    const result = runCli(["--format=json", "--version"], { home: createTempHome() });
+    const result = runStaticCli(["--format=json", "--version"]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).not.toBe("");
     const parsed = JSON.parse(result.stdout.trim());
@@ -280,14 +292,14 @@ describe("CLI help and discovery", () => {
   });
 
   test("--format=csv --help stays human-readable", () => {
-    const result = runCli(["--format=csv", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["--format=csv", "--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("privacy-pools");
     expect(result.stdout.trim().startsWith("{")).toBe(false);
   });
 
   test("--format=csv --version stays human-readable", () => {
-    const result = runCli(["--format=csv", "--version"], { home: createTempHome() });
+    const result = runStaticCli(["--format=csv", "--version"]);
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
@@ -303,14 +315,14 @@ describe("CLI help and discovery", () => {
   // --- Flag presence in command help ---
 
   test("deposit --help shows --dry-run and --unsigned options", () => {
-    const result = runCli(["deposit", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["deposit", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--dry-run");
     expect(combined).toContain("--unsigned");
   });
 
   test("withdraw --help shows --dry-run and short aliases", () => {
-    const result = runCli(["withdraw", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["withdraw", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--dry-run");
     expect(combined).toContain("-a, --asset");
@@ -319,28 +331,28 @@ describe("CLI help and discovery", () => {
   });
 
   test("ragequit --help shows --dry-run and --from-pa", () => {
-    const result = runCli(["ragequit", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["ragequit", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--dry-run");
     expect(combined).toContain("--from-pa");
   });
 
   test("exit --help resolves alias and shows exit options", () => {
-    const result = runCli(["exit", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["exit", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--from-pa");
     expect(combined).toContain("--dry-run");
   });
 
   test("status --help shows --check option", () => {
-    const result = runCli(["status", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["status", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--check");
     expect(combined).not.toContain("Agent unsigned");
   });
 
   test("accounts --help shows --details, --no-sync, --all-chains", () => {
-    const result = runCli(["accounts", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["accounts", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--all-chains");
     expect(combined).toContain("--details");
@@ -351,14 +363,14 @@ describe("CLI help and discovery", () => {
   });
 
   test("history --help shows --no-sync option", () => {
-    const result = runCli(["history", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["history", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("Show chronological event history");
     expect(combined).toContain("--no-sync");
   });
 
   test("pools --help shows read-only discovery flags", () => {
-    const result = runCli(["pools", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["pools", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("--all-chains");
     expect(combined).toContain("--search");
@@ -366,20 +378,20 @@ describe("CLI help and discovery", () => {
   });
 
   test("stats --help shows global and pool modes", () => {
-    const result = runCli(["stats", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["stats", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("global");
     expect(combined).toContain("pool");
   });
 
   test("capabilities --help renders command description", () => {
-    const result = runCli(["capabilities", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["capabilities", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("Describe CLI capabilities for agent discovery");
   });
 
   test("describe --help renders command description", () => {
-    const result = runCli(["describe", "--help"], { home: createTempHome() });
+    const result = runStaticCli(["describe", "--help"]);
     const combined = result.stdout + result.stderr;
     expect(combined).toContain("Describe one command for runtime agent introspection");
     expect(combined).toContain("<command...>");
@@ -421,33 +433,33 @@ const SNAPSHOT_COMMANDS = [
 
 describe("CLI --help snapshots", () => {
   test("root --help snapshot", () => {
-    const result = runCli(["--help"], { home: createTempHome(), timeoutMs: 10_000 });
+    const result = runStaticCli(["--help"]);
     expect(result.status).toBe(0);
     expect(normalizeHelp(result.stdout)).toMatchSnapshot();
   });
 
   for (const command of SNAPSHOT_COMMANDS) {
     test(`${command} --help snapshot`, () => {
-      const result = runCli([command, "--help"], { home: createTempHome(), timeoutMs: 10_000 });
+      const result = runStaticCli([command, "--help"]);
       expect(result.status).toBe(0);
       expect(normalizeHelp(result.stdout)).toMatchSnapshot();
     });
   }
 
   test("withdraw quote --help snapshot", () => {
-    const result = runCli(["withdraw", "quote", "--help"], { home: createTempHome(), timeoutMs: 10_000 });
+    const result = runStaticCli(["withdraw", "quote", "--help"]);
     expect(result.status).toBe(0);
     expect(normalizeHelp(result.stdout)).toMatchSnapshot();
   });
 
   test("stats global --help snapshot", () => {
-    const result = runCli(["stats", "global", "--help"], { home: createTempHome(), timeoutMs: 10_000 });
+    const result = runStaticCli(["stats", "global", "--help"]);
     expect(result.status).toBe(0);
     expect(normalizeHelp(result.stdout)).toMatchSnapshot();
   });
 
   test("stats pool --help snapshot", () => {
-    const result = runCli(["stats", "pool", "--help"], { home: createTempHome(), timeoutMs: 10_000 });
+    const result = runStaticCli(["stats", "pool", "--help"]);
     expect(result.status).toBe(0);
     expect(normalizeHelp(result.stdout)).toMatchSnapshot();
   });

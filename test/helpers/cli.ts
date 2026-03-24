@@ -11,11 +11,12 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "bun:test";
 import { CLI_ROOT } from "./paths.ts";
+import { buildChildProcessEnv } from "./child-env.ts";
 
 export const CLI_CWD = CLI_ROOT;
 
@@ -36,10 +37,23 @@ export interface CliRunResult {
   errorMessage?: string;
 }
 
+export interface TestSecretFiles {
+  secretsDir: string;
+  mnemonic: string;
+  privateKey: string;
+  mnemonicPath: string;
+  privateKeyPath: string;
+}
+
 const trackedTempHomes = new Set<string>();
 const retainedTempHomes = new Set<string>();
 const seededHomeTemplates = new Map<string, string>();
 const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
+
+export const TEST_MNEMONIC =
+  "test test test test test test test test test test test junk";
+export const TEST_PRIVATE_KEY =
+  "0x1111111111111111111111111111111111111111111111111111111111111111";
 
 function cleanupTrackedTempHomes(includeRetained: boolean = false): void {
   const remainingTracked = new Set<string>();
@@ -109,11 +123,10 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
 
   const result = spawnSync("bun", ["src/index.ts", ...args], {
     cwd: CLI_CWD,
-    env: {
-      ...process.env,
+    env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,
-    },
+    }),
     encoding: "utf8",
     input: options.input,
     timeout: timeoutMs,
@@ -148,11 +161,10 @@ export function runBuiltCli(
 
   const result = spawnSync("node", ["dist/index.js", ...args], {
     cwd: CLI_CWD,
-    env: {
-      ...process.env,
+    env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,
-    },
+    }),
     encoding: "utf8",
     input: options.input,
     timeout: timeoutMs,
@@ -197,24 +209,71 @@ export function parseJsonOutput<T = unknown>(stdout: string): T {
   }
 }
 
-export function initSeededHome(home: string, chain: string = "mainnet"): CliRunResult {
-  const mnemonic = "test test test test test test test test test test test junk";
-  const privateKey = "0x1111111111111111111111111111111111111111111111111111111111111111";
+interface BuildTestInitArgsOptions {
+  chain?: string;
+  mnemonic?: string;
+  privateKey?: string;
+  rpcUrl?: string;
+  force?: boolean;
+}
 
-  return runCli(
-    [
-      "--json",
-      "init",
-      "--mnemonic",
-      mnemonic,
-      "--private-key",
-      privateKey,
-      "--default-chain",
-      chain,
-      "--yes",
-    ],
-    { home, timeoutMs: 60_000 }
-  );
+export function writeTestSecretFiles(
+  home: string,
+  opts: Pick<BuildTestInitArgsOptions, "mnemonic" | "privateKey"> = {},
+): TestSecretFiles {
+  const mnemonic = opts.mnemonic ?? TEST_MNEMONIC;
+  const privateKey = opts.privateKey ?? TEST_PRIVATE_KEY;
+  const secretsDir = join(home, ".test-secrets");
+  mkdirSync(secretsDir, { recursive: true });
+
+  const mnemonicPath = join(secretsDir, "mnemonic.txt");
+  const privateKeyPath = join(secretsDir, "private-key.txt");
+  writeFileSync(mnemonicPath, `${mnemonic}\n`, { encoding: "utf8", mode: 0o600 });
+  writeFileSync(privateKeyPath, `${privateKey}\n`, { encoding: "utf8", mode: 0o600 });
+
+  return {
+    secretsDir,
+    mnemonic,
+    privateKey,
+    mnemonicPath,
+    privateKeyPath,
+  };
+}
+
+export function buildTestInitArgs(
+  home: string,
+  opts: BuildTestInitArgsOptions = {},
+): string[] {
+  const chain = opts.chain ?? "mainnet";
+  const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(home, opts);
+
+  const args = [
+    "--json",
+    "init",
+    "--mnemonic-file",
+    mnemonicPath,
+    "--private-key-file",
+    privateKeyPath,
+    "--default-chain",
+    chain,
+  ];
+
+  if (opts.rpcUrl) {
+    args.push("--rpc-url", opts.rpcUrl);
+  }
+  if (opts.force) {
+    args.push("--force");
+  }
+
+  args.push("--yes");
+  return args;
+}
+
+export function initSeededHome(home: string, chain: string = "mainnet"): CliRunResult {
+  return runCli(buildTestInitArgs(home, { chain }), {
+    home,
+    timeoutMs: 60_000,
+  });
 }
 
 /**

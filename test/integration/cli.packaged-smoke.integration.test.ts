@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import {
   CLI_CWD,
@@ -9,6 +9,7 @@ import {
   createTempHome,
   parseJsonOutput,
 } from "../helpers/cli.ts";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 
@@ -32,7 +33,12 @@ function packedFilePaths(): Set<string> {
   const pack = spawnSync(
     "npm",
     ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
-    { cwd: CLI_CWD, encoding: "utf8", timeout: 30_000 },
+    {
+      cwd: CLI_CWD,
+      encoding: "utf8",
+      timeout: 30_000,
+      env: buildChildProcessEnv(),
+    },
   );
   expect(pack.status).toBe(0);
   const output = `${pack.stdout}\n${pack.stderr}`.trim();
@@ -52,6 +58,39 @@ interface PackedArtifact {
   binPath: string;
 }
 
+function sourcePackageJson(): {
+  bin?: string | Record<string, string>;
+  dependencies?: Record<string, string>;
+} {
+  return JSON.parse(
+    readFileSync(join(CLI_CWD, "package.json"), "utf8"),
+  ) as {
+    bin?: string | Record<string, string>;
+    dependencies?: Record<string, string>;
+  };
+}
+
+function linkDeclaredProdDependencies(packageRoot: string): void {
+  const sourcePkg = sourcePackageJson();
+  const nodeModulesRoot = join(packageRoot, "node_modules");
+  mkdirSync(nodeModulesRoot, { recursive: true });
+
+  for (const depName of Object.keys(sourcePkg.dependencies ?? {})) {
+    const sourcePath = join(CLI_CWD, "node_modules", depName);
+    const targetPath = join(nodeModulesRoot, depName);
+
+    if (depName.startsWith("@")) {
+      mkdirSync(join(nodeModulesRoot, depName.split("/")[0]!), { recursive: true });
+    }
+
+    symlinkSync(
+      sourcePath,
+      targetPath,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+  }
+}
+
 function packAndExtractCli(): PackedArtifact {
   const packDir = createTrackedTempDir("pp-smoke-pack-");
   const extractDir = createTrackedTempDir("pp-smoke-extract-");
@@ -59,7 +98,13 @@ function packAndExtractCli(): PackedArtifact {
   const pack = spawnSync(
     "npm",
     ["pack", CLI_CWD, "--ignore-scripts", "--silent"],
-    { cwd: packDir, encoding: "utf8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024 },
+    {
+      cwd: packDir,
+      encoding: "utf8",
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: buildChildProcessEnv(),
+    },
   );
   expect(pack.status).toBe(0);
 
@@ -71,17 +116,15 @@ function packAndExtractCli(): PackedArtifact {
     encoding: "utf8",
     timeout: 120_000,
     maxBuffer: 10 * 1024 * 1024,
+    env: buildChildProcessEnv(),
   });
   expect(extract.status).toBe(0);
 
   const packageRoot = join(extractDir, "package");
-  // Reuse the repo's already-installed runtime deps so packaged smoke executes
-  // the packed artifact deterministically without adding registry/network flake.
-  symlinkSync(
-    join(CLI_CWD, "node_modules"),
-    join(packageRoot, "node_modules"),
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  // Keep smoke deterministic and offline by linking only declared prod deps.
+  // This still catches undeclared direct runtime imports that a full
+  // workspace node_modules symlink would mask.
+  linkDeclaredProdDependencies(packageRoot);
 
   const pkg = JSON.parse(
     readFileSync(join(packageRoot, "package.json"), "utf8"),
@@ -108,11 +151,10 @@ function runPackagedCli(
 
   const result = spawnSync("node", [packed.binPath, ...args], {
     cwd: packed.packageRoot,
-    env: {
-      ...process.env,
+    env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
       ...options.env,
-    },
+    }),
     encoding: "utf8",
     input: options.input,
     timeout: timeoutMs,
@@ -148,6 +190,7 @@ describe("packaged CLI smoke", () => {
         encoding: "utf8",
         timeout: 120_000,
         maxBuffer: 10 * 1024 * 1024,
+        env: buildChildProcessEnv(),
       });
       if (build.status !== 0) {
         throw new Error(
@@ -224,6 +267,39 @@ describe("packaged CLI smoke", () => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
       expect(json.commands.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("init happy path", () => {
+    test("init --agent --show-mnemonic succeeds from the packed artifact", () => {
+      const initHome = createTempHome("pp-smoke-init-");
+      const initResult = runSmokeCli(
+        ["--agent", "init", "--show-mnemonic", "--default-chain", "sepolia"],
+        { home: initHome, timeoutMs: 60_000 },
+      );
+      expect(initResult.status).toBe(0);
+      expect(initResult.stderr.trim()).toBe("");
+
+      const initJson = parseJsonOutput<{
+        success: boolean;
+        defaultChain: string;
+        recoveryPhrase?: string;
+      }>(initResult.stdout);
+      expect(initJson.success).toBe(true);
+      expect(initJson.defaultChain).toBe("sepolia");
+      expect(typeof initJson.recoveryPhrase).toBe("string");
+      expect(initJson.recoveryPhrase?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+
+      const statusResult = runSmokeCli(["--agent", "status"], { home: initHome });
+      expect(statusResult.status).toBe(0);
+      const statusJson = parseJsonOutput<{
+        success: boolean;
+        configExists: boolean;
+        recoveryPhraseSet: boolean;
+      }>(statusResult.stdout);
+      expect(statusJson.success).toBe(true);
+      expect(statusJson.configExists).toBe(true);
+      expect(statusJson.recoveryPhraseSet).toBe(true);
     });
   });
 
@@ -382,9 +458,7 @@ describe("packaged CLI smoke", () => {
     const filePaths = packedFilePaths();
     const packedCommandNames = packedBaseNames(filePaths, "dist/commands/");
     const packedOutputNames = packedBaseNames(filePaths, "dist/output/");
-    const sourcePkg = JSON.parse(
-      readFileSync(join(CLI_CWD, "package.json"), "utf8"),
-    ) as { bin?: unknown; dependencies?: unknown };
+    const sourcePkg = sourcePackageJson() as { bin?: unknown; dependencies?: unknown };
     const packedPkg = JSON.parse(
       readFileSync(join(packed.packageRoot, "package.json"), "utf8"),
     ) as { bin?: unknown; dependencies?: unknown };

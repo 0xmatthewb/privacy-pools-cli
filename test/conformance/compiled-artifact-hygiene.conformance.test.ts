@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 function compiledBaseNames(dir: string): Set<string> {
@@ -32,10 +33,9 @@ describe("compiled artifact hygiene", () => {
         cwd: CLI_ROOT,
         encoding: "utf8",
         timeout: 120_000,
-        env: {
-          ...process.env,
+        env: buildChildProcessEnv({
           PP_NO_UPDATE_CHECK: "1",
-        },
+        }),
       });
 
       if (build.status !== 0) {

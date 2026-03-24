@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
 import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { buildChildProcessEnv } from "./child-env.ts";
 
 export interface AnvilRelayerConfig {
   chainId: number;
@@ -222,10 +223,9 @@ export function launchAnvilRelayerServer(
 
   return new Promise((resolveLaunch, reject) => {
     const proc = spawn("bun", ["run", script], {
-      env: {
-        ...process.env,
+      env: buildChildProcessEnv({
         PP_ANVIL_RELAYER_CONFIG: JSON.stringify(config),
-      },
+      }),
       stdio: ["ignore", "pipe", "ignore"],
     });
 

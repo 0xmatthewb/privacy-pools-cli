@@ -1,8 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
+  TEST_MNEMONIC,
+  TEST_PRIVATE_KEY,
   createTempHome,
   parseJsonOutput,
   runCli,
+  writeTestSecretFiles,
 } from "../helpers/cli.ts";
 import {
   killFixtureServer,
@@ -10,8 +13,6 @@ import {
   type FixtureServer,
 } from "../helpers/fixture-server.ts";
 
-const TEST_MNEMONIC = "test test test test test test test test test test test junk";
-const TEST_PRIVATE_KEY = "1111111111111111111111111111111111111111111111111111111111111111";
 let fixture: FixtureServer;
 
 beforeAll(async () => {
@@ -146,19 +147,21 @@ describe("agent-focused improvements", () => {
   });
 
   test("init --mnemonic-stdin imports recovery phrase without leaking it", () => {
+    const home = createTempHome();
+    const { privateKeyPath } = writeTestSecretFiles(home);
     const result = runCli(
       [
         "--json",
         "init",
         "--mnemonic-stdin",
-        "--private-key",
-        `0x${TEST_PRIVATE_KEY}`,
+        "--private-key-file",
+        privateKeyPath,
         "--default-chain",
         "sepolia",
         "--yes",
       ],
       {
-        home: createTempHome(),
+        home,
         input: `${TEST_MNEMONIC}\n`,
         timeoutMs: 60_000,
       },
@@ -169,19 +172,21 @@ describe("agent-focused improvements", () => {
   });
 
   test("init --private-key-stdin imports signer key without leaking it", () => {
+    const home = createTempHome();
+    const { mnemonicPath } = writeTestSecretFiles(home);
     const result = runCli(
       [
         "--json",
         "init",
-        "--mnemonic",
-        TEST_MNEMONIC,
+        "--mnemonic-file",
+        mnemonicPath,
         "--private-key-stdin",
         "--default-chain",
         "sepolia",
         "--yes",
       ],
       {
-        home: createTempHome(),
+        home,
         input: `${TEST_PRIVATE_KEY}\n`,
         timeoutMs: 60_000,
       },
@@ -237,19 +242,21 @@ describe("agent-focused improvements", () => {
   });
 
   test("init rejects invalid private-key stdin", () => {
+    const home = createTempHome();
+    const { mnemonicPath } = writeTestSecretFiles(home);
     const result = runCli(
       [
         "--json",
         "init",
-        "--mnemonic",
-        TEST_MNEMONIC,
+        "--mnemonic-file",
+        mnemonicPath,
         "--private-key-stdin",
         "--default-chain",
         "sepolia",
         "--yes",
       ],
       {
-        home: createTempHome(),
+        home,
         input: "not-a-private-key\n",
         timeoutMs: 60_000,
       },
@@ -261,19 +268,21 @@ describe("agent-focused improvements", () => {
   });
 
   test("init rejects empty private-key stdin", () => {
+    const home = createTempHome();
+    const { mnemonicPath } = writeTestSecretFiles(home);
     const result = runCli(
       [
         "--json",
         "init",
-        "--mnemonic",
-        TEST_MNEMONIC,
+        "--mnemonic-file",
+        mnemonicPath,
         "--private-key-stdin",
         "--default-chain",
         "sepolia",
         "--yes",
       ],
       {
-        home: createTempHome(),
+        home,
         input: "",
         timeoutMs: 60_000,
       },

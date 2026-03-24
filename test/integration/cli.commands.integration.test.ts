@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createTempHome, initSeededHome, mustInitSeededHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
+import {
+  createTempHome,
+  initSeededHome,
+  mustInitSeededHome,
+  parseJsonOutput,
+  runCli,
+  writeTestSecretFiles,
+} from "../helpers/cli.ts";
 
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
@@ -779,17 +786,16 @@ describe("CLI command integration", () => {
 
   test("--agent implies JSON/non-interactive mode for init", () => {
     const home = createTempHome();
-    const mnemonic = "test test test test test test test test test test test junk";
-    const privateKey = "0x1111111111111111111111111111111111111111111111111111111111111111";
+    const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(home);
 
     const result = runCli(
       [
         "--agent",
         "init",
-        "--mnemonic",
-        mnemonic,
-        "--private-key",
-        privateKey,
+        "--mnemonic-file",
+        mnemonicPath,
+        "--private-key-file",
+        privateKeyPath,
         "--default-chain",
         "sepolia",
       ],

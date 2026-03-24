@@ -7,6 +7,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import {
+  buildTestInitArgs,
   createTempHome,
   parseJsonOutput,
   runCli,
@@ -31,16 +32,10 @@ const OFFLINE_ENV = {
 describe("config round-trip", () => {
   test("init persists default chain and status reads it back", () => {
     const home = createTempHome();
-    const init = runCli(
-      [
-        "--json", "init",
-        "--mnemonic", "test test test test test test test test test test test junk",
-        "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "--default-chain", "sepolia",
-        "--yes",
-      ],
-      { home, timeoutMs: 60_000 }
-    );
+    const init = runCli(buildTestInitArgs(home, { chain: "sepolia" }), {
+      home,
+      timeoutMs: 60_000,
+    });
     expect(init.status).toBe(0);
 
     // Status should reflect the configured default chain
@@ -58,16 +53,7 @@ describe("config round-trip", () => {
     const home2 = createTempHome();
 
     for (const [home, chain] of [[home1, "sepolia"], [home2, "mainnet"]] as const) {
-      runCli(
-        [
-          "--json", "init",
-          "--mnemonic", "test test test test test test test test test test test junk",
-          "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
-          "--default-chain", chain,
-          "--yes",
-        ],
-        { home, timeoutMs: 60_000 }
-      );
+      runCli(buildTestInitArgs(home, { chain }), { home, timeoutMs: 60_000 });
     }
 
     const s1 = parseJsonOutput<StatusJson>(
@@ -83,16 +69,10 @@ describe("config round-trip", () => {
 
   test("--chain flag overrides stored default chain", () => {
     const home = createTempHome();
-    runCli(
-      [
-        "--json", "init",
-        "--mnemonic", "test test test test test test test test test test test junk",
-        "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "--default-chain", "sepolia",
-        "--yes",
-      ],
-      { home, timeoutMs: 60_000 }
-    );
+    runCli(buildTestInitArgs(home, { chain: "sepolia" }), {
+      home,
+      timeoutMs: 60_000,
+    });
 
     // Verify default is sepolia
     const s1 = parseJsonOutput<StatusJson>(
@@ -114,27 +94,19 @@ describe("config round-trip", () => {
     const home = createTempHome();
 
     // First init with sepolia
-    runCli(
-      [
-        "--json", "init",
-        "--mnemonic", "test test test test test test test test test test test junk",
-        "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "--default-chain", "sepolia",
-        "--yes",
-      ],
-      { home, timeoutMs: 60_000 }
-    );
+    runCli(buildTestInitArgs(home, { chain: "sepolia" }), {
+      home,
+      timeoutMs: 60_000,
+    });
 
     // Re-init with mainnet (requires --force to overwrite)
     runCli(
-      [
-        "--json", "init",
-        "--mnemonic", "test test test test test test test test test test test junk",
-        "--private-key", "0x2222222222222222222222222222222222222222222222222222222222222222",
-        "--default-chain", "mainnet",
-        "--force",
-        "--yes",
-      ],
+      buildTestInitArgs(home, {
+        chain: "mainnet",
+        privateKey:
+          "0x2222222222222222222222222222222222222222222222222222222222222222",
+        force: true,
+      }),
       { home, timeoutMs: 60_000 }
     );
 

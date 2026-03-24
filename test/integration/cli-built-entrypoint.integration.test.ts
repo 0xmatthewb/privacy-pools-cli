@@ -8,6 +8,7 @@ import {
   parseJsonOutput,
   runBuiltCli,
 } from "../helpers/cli.ts";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 
 beforeAll(() => {
   const builtCliPath = join(CLI_CWD, "dist", "index.js");
@@ -19,6 +20,7 @@ beforeAll(() => {
     cwd: CLI_CWD,
     encoding: "utf8",
     timeout: 120_000,
+    env: buildChildProcessEnv(),
   });
 
   if (result.status !== 0) {

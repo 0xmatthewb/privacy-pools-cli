@@ -11,6 +11,7 @@
 
 import { describe, expect, test } from "bun:test";
 import {
+  buildTestInitArgs,
   createSeededHome,
   createTempHome,
   parseJsonOutput,
@@ -154,15 +155,10 @@ describe("JSON envelope structure snapshots", () => {
   });
 
   test("init --json success envelope shape", () => {
+    const home = createTempHome();
     const result = runCli(
-      [
-        "--json", "init",
-        "--mnemonic", "test test test test test test test test test test test junk",
-        "--private-key", "0x1111111111111111111111111111111111111111111111111111111111111111",
-        "--default-chain", "sepolia",
-        "--yes",
-      ],
-      { home: createTempHome(), timeoutMs: 30_000 },
+      buildTestInitArgs(home, { chain: "sepolia" }),
+      { home, timeoutMs: 30_000 },
     );
     expect(result.status).toBe(0);
 

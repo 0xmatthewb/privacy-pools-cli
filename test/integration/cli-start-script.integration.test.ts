@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { CLI_CWD } from "../helpers/cli.ts";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 
 function createCheckoutWithoutDist(): string {
   const checkoutDir = mkdtempSync(join(tmpdir(), "pp-start-script-"));
@@ -29,6 +30,7 @@ describe("start script", () => {
         cwd: checkoutDir,
         encoding: "utf8",
         timeout: 20_000,
+        env: buildChildProcessEnv(),
       });
 
       expect(result.status).toBe(1);

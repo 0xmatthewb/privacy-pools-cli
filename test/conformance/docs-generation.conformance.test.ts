@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 describe("docs generation drift detection", () => {
@@ -11,6 +12,7 @@ describe("docs generation drift detection", () => {
       const build = spawnSync("bun", ["run", "build"], {
         cwd: CLI_ROOT,
         timeout: 120_000,
+        env: buildChildProcessEnv(),
       });
 
       const buildStderr = build.stderr?.toString() ?? "";
@@ -24,6 +26,7 @@ describe("docs generation drift detection", () => {
     const result = spawnSync("node", ["scripts/generate-reference.mjs", "--check"], {
       cwd: CLI_ROOT,
       timeout: 30_000,
+      env: buildChildProcessEnv(),
     });
 
     const stderr = result.stderr?.toString() ?? "";

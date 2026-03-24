@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { buildChildProcessEnv } from "./child-env.ts";
 
 export interface AnvilInstance {
   proc: ChildProcess;
@@ -128,6 +129,7 @@ export async function launchAnvil(
 
   const proc = spawn(binary, args, {
     stdio: ["ignore", "ignore", "pipe"],
+    env: buildChildProcessEnv(),
   });
   const spawnFailure = new Promise<never>((_, reject) => {
     proc.once("error", reject);
