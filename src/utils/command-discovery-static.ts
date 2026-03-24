@@ -763,13 +763,13 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
         "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet"
       ],
-      "jsonFields": "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }",
+      "jsonFields": "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       "jsonVariants": [
-        "direct: same fields but mode: \"direct\", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
+        "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
         "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
-        "--dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
+        "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
       ],
       "safetyNotes": [
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.",
@@ -859,7 +859,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools ragequit ETH --dry-run --from-pa PA-1",
         "privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet"
       ],
-      "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }",
+      "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
         "--unsigned tx: [{ to, data, value, valueHex, chainId }]",

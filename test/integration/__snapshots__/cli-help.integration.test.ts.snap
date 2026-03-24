@@ -26,11 +26,11 @@ Privacy Pools: a compliant way to transact privately on Ethereum
 Options:
   -V, --version        output the version number
   -c, --chain <name>   Target chain (mainnet, arbitrum, optimism, ...)
-  -r, --rpc-url <url>  Override RPC URL
   -j, --json           Machine-readable JSON output on stdout
   --format <format>    Output format: table (default), csv, json (choices:
                        "table", "csv", "json")
   -y, --yes            Skip confirmation prompts
+  -r, --rpc-url <url>  Override RPC URL
   --agent              Machine-friendly mode (alias for --json --yes --quiet)
   -q, --quiet          Suppress non-essential stderr output
   -v, --verbose        Enable verbose/debug output
@@ -249,12 +249,12 @@ Safety notes:
   ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.
   Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
 JSON output (--json):
-  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage } }
-  direct: same fields but mode: "direct", fee: null instead of feeBPS, no extraGas, and human output explains the onchain link between deposit and withdrawal.
+  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
+  direct: same fields but mode: "direct", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.
   quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
-  --dry-run: { mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }
+  --dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }
 Additional modes:
   --unsigned builds transaction payloads without submitting.
   --dry-run validates the operation without submitting it."
@@ -284,7 +284,7 @@ Prerequisites:
 Safety notes:
   Ragequit is public and irreversible and reveals the original deposit address onchain.
 JSON output (--json):
-  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl }
+  { operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }
   --unsigned: { mode, operation, chain, asset, amount, transactions[] }
   --unsigned tx: [{ to, data, value, valueHex, chainId }]
   --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }

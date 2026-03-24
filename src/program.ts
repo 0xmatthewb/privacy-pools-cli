@@ -152,41 +152,43 @@ export async function createRootProgram(
     )
     .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"));
 
+  // Registration order here determines the flag order in `--help` output.
+  // Keep it in sync with ROOT_HELP_BASE_LINES in src/utils/root-help.ts.
   program.addOption(
     new Option(
       "-r, --rpc-url <url>",
       rootGlobalFlagDescription("-r, --rpc-url <url>"),
-    ).hideHelp(),
+    ),
   );
   program.addOption(
     new Option("--agent", rootGlobalFlagDescription("--agent")),
   );
   program.addOption(
-    new Option("-q, --quiet", rootGlobalFlagDescription("-q, --quiet")).hideHelp(),
-  );
-  program.addOption(
-    new Option(
-      "--no-banner",
-      rootGlobalFlagDescription("--no-banner"),
-    ).hideHelp(),
+    new Option("-q, --quiet", rootGlobalFlagDescription("-q, --quiet")),
   );
   program.addOption(
     new Option(
       "-v, --verbose",
       rootGlobalFlagDescription("-v, --verbose"),
-    ).hideHelp(),
+    ),
   );
   program.addOption(
     new Option(
-      "--timeout <seconds>",
-      rootGlobalFlagDescription("--timeout <seconds>"),
+      "--no-banner",
+      rootGlobalFlagDescription("--no-banner"),
     ),
   );
   program.addOption(
     new Option(
       "--no-color",
       rootGlobalFlagDescription("--no-color"),
-    ).hideHelp(),
+    ),
+  );
+  program.addOption(
+    new Option(
+      "--timeout <seconds>",
+      rootGlobalFlagDescription("--timeout <seconds>"),
+    ),
   );
 
   program.configureHelp({
