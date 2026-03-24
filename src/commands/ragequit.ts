@@ -25,7 +25,7 @@ import {
   loadAspDepositReviewState,
   normalizeDepositReviewStatuses,
 } from "../services/asp.js";
-import { explorerTxUrl } from "../config/chains.js";
+import { explorerTxUrl, POA_PORTAL_URL } from "../config/chains.js";
 import {
   spinner,
   stageHeader,
@@ -112,7 +112,7 @@ export function getRagequitAdvisory(
     case "poi_required":
       return {
         level: "info",
-        message: `${poolAccount.paId} needs Proof of Association before it can use withdraw. Complete the PoA flow at tornado.0xbow.io for a private withdrawal, or continue with ragequit for a public exit.`,
+        message: `${poolAccount.paId} needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL} for a private withdrawal, or continue with ragequit for a public exit.`,
       };
     case "declined":
       return {
@@ -699,25 +699,24 @@ export async function handleRagequitCommand(
           );
         } catch (err) {
           // Non-fatal: next sync will discover the ragequit event on-chain
-          if (!silent) {
-            process.stderr.write(
-              `Warning: failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will pick it up.\n`,
+          warn(
+              `Failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will pick it up.`,
+              silent,
             );
-          }
         }
 
         try {
           saveAccount(chainConfig.id, accountService.account);
           saveSyncMeta(chainConfig.id);
         } catch (err) {
-          if (!silent) {
-            process.stderr.write(
-              `Warning: ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}\n`,
+          warn(
+              `Ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}`,
+              silent,
             );
-            process.stderr.write(
-              "⚠ Run 'privacy-pools sync' to update your local account state.\n",
+            warn(
+              "Run 'privacy-pools sync' to update your local account state.",
+              silent,
             );
-          }
         }
       } finally {
         releaseCriticalSection();
