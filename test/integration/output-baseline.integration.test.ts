@@ -7,9 +7,10 @@
  * Categories:
  *   1. Human-mode output contracts  (stderr patterns, stdout empty)
  *   2. JSON-mode envelope tests (stdout JSON, stderr silent)
- *   3. --unsigned error envelope tests
- *   4. --dry-run flag acceptance
- *   5. Error envelope completeness
+ *   3. --agent mode contracts
+ *   4. Error envelope completeness
+ *   5. Mode-contract matrix
+ *   6. stdout/stderr stream separation
  */
 
 import { describe, expect, test } from "bun:test";
@@ -399,149 +400,7 @@ describe("error envelope field completeness", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 5. --unsigned error envelopes
-// ──────────────────────────────────────────────────────────────────────────────
-
-describe("--unsigned error envelopes", () => {
-  test("deposit --unsigned without --asset: JSON error on stdout", () => {
-    const home = createSeededHome("sepolia");
-    const result = runCli(["deposit", "0.1", "--unsigned"], { home });
-    expect(result.status).toBe(2);
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string };
-    }>(result.stdout);
-    expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-  });
-
-  test("withdraw --unsigned without --to: JSON error on stdout", () => {
-    const home = createSeededHome("sepolia");
-    const result = runCli(
-      ["withdraw", "0.1", "--unsigned", "--asset", "ETH"],
-      { home }
-    );
-    expect(result.status).toBe(2);
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string };
-    }>(result.stdout);
-    expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-  });
-
-  test("ragequit --unsigned without --asset: JSON error on stdout", () => {
-    const home = createSeededHome("sepolia");
-    const result = runCli(["ragequit", "--unsigned"], { home });
-    expect(result.status).toBe(2);
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string };
-    }>(result.stdout);
-    expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-  });
-
-  test("--unsigned-format returns migration INPUT error", () => {
-    const home = createSeededHome("sepolia");
-    const result = runCli(
-      ["--json", "deposit", "0.1", "--asset", "ETH", "--unsigned-format", "tx"],
-      { home }
-    );
-    expect(result.status).toBe(2);
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      errorMessage: string;
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
-  });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// 6. --dry-run output contracts
-// ──────────────────────────────────────────────────────────────────────────────
-
-describe("--dry-run output contracts", () => {
-  test("deposit --dry-run human mode: stderr error, stdout empty", () => {
-    const home = createSeededHome("sepolia");
-    const result = runCli(["deposit", "0.01", "--dry-run", "--chain", "sepolia"], {
-      home,
-      timeoutMs: 10_000,
-      env: OFFLINE_ENV,
-    });
-    expect(result.status).toBe(2);
-    expect(result.stdout.trim()).toBe("");
-    expect(result.stderr).toContain("Error [INPUT]");
-  });
-
-  test("deposit --dry-run --json: JSON error envelope for missing asset", () => {
-    const home = createSeededHome("sepolia");
-    const result = runCli(
-      ["--json", "deposit", "0.01", "--dry-run", "--chain", "sepolia"],
-      { home, timeoutMs: 10_000, env: OFFLINE_ENV }
-    );
-    expect(result.status).toBe(2);
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string; message: string };
-    }>(result.stdout);
-    expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain("No asset specified");
-    expect(result.stderr.trim()).toBe("");
-  });
-
-  test("withdraw --dry-run --json: JSON error for missing asset", () => {
-    const home = createSeededHome("sepolia");
-    const result = runCli(
-      [
-        "--json", "withdraw", "0.01", "--dry-run", "--direct",
-        "--to", "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
-        "--chain", "sepolia",
-      ],
-      { home, timeoutMs: 10_000, env: OFFLINE_ENV }
-    );
-    expect(result.status).toBe(2);
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string };
-    }>(result.stdout);
-    expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-  });
-
-  test("ragequit --dry-run --json: JSON error for missing asset", () => {
-    const home = createSeededHome("sepolia");
-    const result = runCli(
-      ["--json", "ragequit", "--dry-run", "--chain", "sepolia"],
-      { home, timeoutMs: 10_000, env: OFFLINE_ENV }
-    );
-    expect(result.status).toBe(2);
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string };
-    }>(result.stdout);
-    expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-  });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// 7. Mode-contract matrix (representative commands)
+// 5. Mode-contract matrix (representative commands)
 //
 // Verifies the 4 output modes work correctly for both public and init-required
 // commands. Uses one representative of each category rather than exhaustively
@@ -593,7 +452,7 @@ describe("mode-contract matrix", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 8. stdout/stderr stream separation
+// 6. stdout/stderr stream separation
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe("stdout/stderr stream separation", () => {

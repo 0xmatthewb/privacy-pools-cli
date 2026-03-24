@@ -6,15 +6,15 @@ import {
   runCli,
 } from "../helpers/cli.ts";
 
-const STRESS_ENABLED = process.env.PP_STRESS_ENABLED === "1";
-const stressTest = STRESS_ENABLED ? test : test.skip;
-
 /**
  * Hermetic offline env overrides.
  *
  * Forces all network-dependent paths (RPC, ASP, relayer) to connect
  * to a closed loopback port, so commands fail fast with structured
  * errors instead of hanging on real network I/O.
+ *
+ * This file lives outside the default suite on purpose. Run it explicitly
+ * with `npm run test:stress` when you want the longer deterministic audit.
  */
 const OFFLINE_ENV = {
   PP_RPC_URL: "http://127.0.0.1:9",
@@ -23,7 +23,7 @@ const OFFLINE_ENV = {
 };
 
 describe("CLI stress audit", () => {
-  stressTest(
+  test(
     "runs 120 deterministic rounds with parseable JSON outputs and correct error classification",
     () => {
     const home = createTempHome();

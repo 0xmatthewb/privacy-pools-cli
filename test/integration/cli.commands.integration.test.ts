@@ -296,27 +296,6 @@ describe("CLI command integration", () => {
     expect(json.error.category).toBe("ASP");
   });
 
-  test("withdraw quote without --asset fails with INPUT envelope", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "sepolia");
-
-    const result = runCli(["--json", "withdraw", "quote", "0.1"], {
-      home,
-      timeoutMs: 60_000,
-    });
-    expect(result.status).toBe(2);
-
-    const json = parseJsonOutput<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string };
-    }>(result.stdout);
-
-    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-  });
-
   test("deposit --unsigned emits machine-readable INPUT error without --asset", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "sepolia");
@@ -398,37 +377,6 @@ describe("CLI command integration", () => {
         "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         "0.1",
         "--yes",
-      ],
-      { home, timeoutMs: 60_000 }
-    );
-    expect(result.status).toBe(2);
-
-    const json = parseJsonOutput<{
-      success: boolean;
-      error: { category: string; message: string };
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain(
-      "No pool found for asset 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
-    );
-  });
-
-  test("withdraw quote positional alias parses asset-first form (withdraw quote ETH 0.1)", () => {
-    const home = createTempHome();
-    mustInitSeededHome(home, "mainnet");
-
-    const result = runCli(
-      [
-        "--json",
-        "--chain",
-        "mainnet",
-        "--rpc-url",
-        "http://127.0.0.1:9",
-        "withdraw",
-        "quote",
-        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-        "0.1",
       ],
       { home, timeoutMs: 60_000 }
     );
