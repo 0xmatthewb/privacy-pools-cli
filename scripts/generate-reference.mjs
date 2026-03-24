@@ -38,7 +38,7 @@ const {
 
 // ── Build Commander tree for flag descriptions ──
 
-const program = createRootProgram("0.0.0");
+const program = await createRootProgram("0.0.0");
 
 /** Build a name→Command map including subcommands (space-separated paths). */
 function buildCommandMap(cmd, prefix = "") {
