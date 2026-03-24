@@ -142,4 +142,44 @@ describe("withdrawal commitment selection", () => {
       expect(selected.commitment.value).toBe(5n);
     }
   });
+
+  test("treats all as approved when approvedLabels is undefined", () => {
+    const commitments = [
+      { label: 1n, value: 100n },
+      { label: 2n, value: 200n },
+    ];
+
+    const selected = selectBestWithdrawalCommitment(commitments, 100n, undefined);
+    expect(selected.kind).toBe("ok");
+    if (selected.kind === "ok") {
+      expect(selected.approvedEligibleCount).toBe(2);
+    }
+  });
+
+  test("returns unapproved with empty approvedLabels set", () => {
+    const commitments = [{ label: 1n, value: 100n }];
+
+    const selected = selectBestWithdrawalCommitment(
+      commitments,
+      100n,
+      new Set<bigint>(),
+    );
+    expect(selected.kind).toBe("unapproved");
+    if (selected.kind === "unapproved") {
+      expect(selected.eligibleCount).toBe(1);
+      expect(selected.approvedEligibleCount).toBe(0);
+    }
+  });
+
+  test("single commitment is selected when eligible", () => {
+    const selected = selectBestWithdrawalCommitment(
+      [{ label: 1n, value: 500n }],
+      500n,
+    );
+    expect(selected.kind).toBe("ok");
+    if (selected.kind === "ok") {
+      expect(selected.commitment.value).toBe(500n);
+      expect(selected.eligibleCount).toBe(1);
+    }
+  });
 });
