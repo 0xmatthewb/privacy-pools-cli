@@ -91,4 +91,4 @@ Defined in `src/config/chains.ts`: mainnet (1), arbitrum (42161), optimism (10),
 - Node ≥22 <26 required. Dev/CI baseline: Node 25.
 - Test files follow `<name>.<category>.test.ts` naming (e.g., `withdrawal.unit.test.ts`).
 - Error handling: throw `CLIError` with category, code, hint, and retryable fields.
-- Version references: CLI v1.6.0, SDK v1.2.0, JSON schema v1.5.0.
+- Version references: CLI v1.6.1, SDK v1.2.0, JSON schema v1.5.0.
