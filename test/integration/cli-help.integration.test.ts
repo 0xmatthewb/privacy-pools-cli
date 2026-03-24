@@ -20,9 +20,9 @@ describe("CLI help and discovery", () => {
     const result = runStaticCli(["--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain(BANNER_SENTINEL);
-    expect(result.stdout).not.toMatch(/\n\s+--quiet\s/);
-    expect(result.stdout).not.toMatch(/\n\s+--verbose\s/);
-    expect(result.stdout).not.toMatch(/\n\s+--no-banner\s/);
+    expect(result.stdout).toContain("--quiet");
+    expect(result.stdout).toContain("--verbose");
+    expect(result.stdout).toContain("--no-banner");
     expect(result.stdout).toContain("-c, --chain");
     expect(result.stdout).toContain("-j, --json");
     expect(result.stdout).toContain("-y, --yes");
