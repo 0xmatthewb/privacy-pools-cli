@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import {
   CLI_CWD,
@@ -11,6 +11,7 @@ import {
 } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
+import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 
 function packedBaseNames(paths: Set<string>, prefix: string): string[] {
@@ -29,12 +30,12 @@ function sourceBaseNames(dir: string): string[] {
     .sort();
 }
 
-function packedFilePaths(): Set<string> {
+function packedFilePaths(packRoot: string): Set<string> {
   const pack = spawnSync(
     "npm",
     ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
     {
-      cwd: CLI_CWD,
+      cwd: packRoot,
       encoding: "utf8",
       timeout: 30_000,
       env: buildChildProcessEnv(),
@@ -91,13 +92,13 @@ function linkDeclaredProdDependencies(packageRoot: string): void {
   }
 }
 
-function packAndExtractCli(): PackedArtifact {
+function packAndExtractCli(packRoot: string): PackedArtifact {
   const packDir = createTrackedTempDir("pp-smoke-pack-");
   const extractDir = createTrackedTempDir("pp-smoke-extract-");
 
   const pack = spawnSync(
     "npm",
-    ["pack", CLI_CWD, "--ignore-scripts", "--silent"],
+    ["pack", packRoot, "--ignore-scripts", "--silent"],
     {
       cwd: packDir,
       encoding: "utf8",
@@ -182,23 +183,11 @@ function runPackagedCli(
 describe("packaged CLI smoke", () => {
   let home: string;
   let packed: PackedArtifact;
+  let packRoot: string;
 
   beforeAll(() => {
-    if (!existsSync(`${CLI_CWD}/dist/index.js`)) {
-      const build = spawnSync("npm", ["run", "-s", "build"], {
-        cwd: CLI_CWD,
-        encoding: "utf8",
-        timeout: 120_000,
-        maxBuffer: 10 * 1024 * 1024,
-        env: buildChildProcessEnv(),
-      });
-      if (build.status !== 0) {
-        throw new Error(
-          `Build failed (exit ${build.status}):\n${build.stderr}\n${build.stdout}`,
-        );
-      }
-    }
-    packed = packAndExtractCli();
+    packRoot = createBuiltWorkspaceSnapshot();
+    packed = packAndExtractCli(packRoot);
     home = createTempHome("pp-smoke-dist-");
   }, 240_000);
 
@@ -455,7 +444,7 @@ describe("packaged CLI smoke", () => {
   // ── Packaged artifact ──────────────────────────────────────────────────────
 
   test("npm pack includes dist entry point and package.json without orphaned command/output artifacts", () => {
-    const filePaths = packedFilePaths();
+    const filePaths = packedFilePaths(packRoot);
     const packedCommandNames = packedBaseNames(filePaths, "dist/commands/");
     const packedOutputNames = packedBaseNames(filePaths, "dist/output/");
     const sourcePkg = sourcePackageJson() as { bin?: unknown; dependencies?: unknown };
@@ -473,7 +462,7 @@ describe("packaged CLI smoke", () => {
   }, 30_000);
 
   test("npm pack includes docs referenced by shipped docs and capabilities", () => {
-    const filePaths = packedFilePaths();
+    const filePaths = packedFilePaths(packRoot);
 
     expect(filePaths.has("AGENTS.md")).toBe(true);
     expect(filePaths.has("CHANGELOG.md")).toBe(true);
