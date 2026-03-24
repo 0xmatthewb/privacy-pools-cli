@@ -8,6 +8,7 @@ import { renderPoolsEmpty, renderPools, renderPoolDetail, poolToJson, type Pools
 import { renderAccountsNoPools, renderAccounts, type AccountPoolGroup } from "../../src/output/accounts.ts";
 import { renderHistoryNoPools, renderHistory } from "../../src/output/history.ts";
 import { CLIError } from "../../src/utils/errors.ts";
+import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
 // ── Stub data ────────────────────────────────────────────────────────────────
@@ -433,7 +434,7 @@ describe("renderAccounts parity", () => {
     );
 
     expect(stderr).toContain("PoA Needed");
-    expect(stderr).toContain("tornado.0xbow.io");
+    expect(stderr).toContain(POA_PORTAL_URL);
   });
 
   test("human mode (detail): hides troubleshooting columns by default", () => {

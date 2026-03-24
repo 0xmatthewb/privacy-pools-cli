@@ -28,7 +28,7 @@ import {
 } from "../utils/format.js";
 import { accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
-import { explorerTxUrl, isMultiChainScope } from "../config/chains.js";
+import { explorerTxUrl, isMultiChainScope, POA_PORTAL_URL } from "../config/chains.js";
 import {
   isActivePoolAccountStatus,
   renderAspApprovalStatus,
@@ -688,7 +688,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (!silent && hasPoiRequiredApprovals) {
     info(
-      "PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at tornado.0xbow.io, then re-check accounts. Ragequit remains available if you prefer a public exit to the original deposit address.",
+      `PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at ${POA_PORTAL_URL}, then re-check accounts. Ragequit remains available if you prefer a public exit to the original deposit address.`,
       silent,
     );
     process.stderr.write("\n");

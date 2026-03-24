@@ -1,4 +1,5 @@
 import type { CommandHelpConfig } from "./help.js";
+import { POA_PORTAL_URL } from "../config/chains.js";
 import {
   COMMAND_PATHS,
   getCommandMetadata as getDiscoveryMetadata,
@@ -50,7 +51,7 @@ const COMMAND_HELP_OVERVIEWS: Partial<Record<CommandPath, string[]>> = {
     "Non-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.",
   ],
   withdraw: [
-    "Withdraws funds from a Privacy Pool via a relayer (default, recommended) for enhanced privacy. The relayer pays gas on your behalf and takes a small fee, keeping your withdrawal address unlinkable to your deposit. ASP approval is required before withdrawal. If a deposit is poi_required, complete Proof of Association at tornado.0xbow.io first. If it is declined, the recovery path is ragequit. Proof generation may take 10-30s. Use 'withdraw quote' to check relayer fees first.",
+    `Withdraws funds from a Privacy Pool via a relayer (default, recommended) for enhanced privacy. The relayer pays gas on your behalf and takes a small fee, keeping your withdrawal address unlinkable to your deposit. ASP approval is required before withdrawal. If a deposit is poi_required, complete Proof of Association at ${POA_PORTAL_URL} first. If it is declined, the recovery path is ragequit. Proof generation may take 10-30s. Use 'withdraw quote' to check relayer fees first.`,
     "",
     "A --direct mode exists but is not recommended: it interacts with the pool contract directly, publicly linking your deposit and withdrawal addresses onchain. Prefer relayed withdrawals for privacy.",
     "",
@@ -64,7 +65,7 @@ const COMMAND_HELP_OVERVIEWS: Partial<Record<CommandPath, string[]>> = {
     "",
     "Pool Account statuses: approved, pending, poi_required, declined, unknown, spent (fully withdrawn), exited (exit/ragequit).",
     "",
-    "ASP statuses: approved (eligible for withdraw), pending (waiting for ASP), poi_required (complete Proof of Association at tornado.0xbow.io before withdraw), declined (cannot use withdraw; use ragequit), unknown.",
+    `ASP statuses: approved (eligible for withdraw), pending (waiting for ASP), poi_required (complete Proof of Association at ${POA_PORTAL_URL} before withdraw), declined (cannot use withdraw; use ragequit), unknown.`,
     "",
     "Compact modes --summary and --pending-only are intended for polling loops and do not support --details. When polling with --pending-only, Pool Accounts disappear from results when ASP review finishes. Re-run accounts without --pending-only to confirm whether the final status is approved, declined, or poi_required.",
   ],

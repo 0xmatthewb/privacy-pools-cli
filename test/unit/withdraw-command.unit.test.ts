@@ -7,6 +7,7 @@ import {
   validateRelayerQuoteForWithdrawal,
 } from "../../src/commands/withdraw.ts";
 import { CLIError } from "../../src/utils/errors.ts";
+import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 
 describe("getRelayedWithdrawalRemainderAdvisory", () => {
   test("returns null when no remainder remains", () => {
@@ -73,7 +74,7 @@ describe("formatApprovalResolutionHint", () => {
     });
 
     expect(hint).toContain("Proof of Association");
-    expect(hint).toContain("tornado.0xbow.io");
+    expect(hint).toContain(POA_PORTAL_URL);
     expect(hint).toContain("privacy-pools ragequit --chain mainnet --asset ETH --from-pa PA-2");
   });
 

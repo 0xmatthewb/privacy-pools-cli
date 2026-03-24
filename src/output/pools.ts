@@ -8,6 +8,7 @@
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
+import { POA_PORTAL_URL } from "../config/chains.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
@@ -390,7 +391,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     if (active.some((pa) => pa.status === "poi_required")) {
       process.stderr.write(
         chalk.dim(
-          "\n  PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at tornado.0xbow.io, then re-check accounts. Ragequit remains available if you prefer a public exit.\n",
+          `\n  PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at ${POA_PORTAL_URL}, then re-check accounts. Ragequit remains available if you prefer a public exit.\n`,
         ),
       );
     }

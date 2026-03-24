@@ -18,7 +18,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
-import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
+import { CHAINS, NATIVE_ASSET_ADDRESS, POA_PORTAL_URL } from "../../src/config/chains.ts";
 import {
   createTempHome,
   mustInitSeededHome,
@@ -987,7 +987,7 @@ describe("Anvil E2E", () => {
         expect(withdrawJson.success).toBe(false);
         expect(withdrawJson.errorCode).toBe("ACCOUNT_NOT_APPROVED");
         expect(withdrawJson.error.hint).toContain("Proof of Association");
-        expect(withdrawJson.error.hint).toContain("tornado.0xbow.io");
+        expect(withdrawJson.error.hint).toContain(POA_PORTAL_URL);
       },
     );
   });

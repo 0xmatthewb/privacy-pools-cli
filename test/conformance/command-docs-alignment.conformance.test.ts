@@ -6,6 +6,7 @@ import {
   getDocumentedAgentMarkers,
   type CommandPath,
 } from "../../src/utils/command-metadata.ts";
+import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 function normalizeWhitespace(value: string): string {
@@ -172,7 +173,7 @@ describe("command docs alignment", () => {
     const normalizedContract = normalizeWhitespace(contract);
 
     expect(depositNotes).toContain(
-      "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.",
+      `Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if needed. Always preserve the same --chain scope for both polling and confirmation.`,
     );
     expect(normalizedSkill).toContain(
       "privacy-pools accounts --agent --chain <chain> --pending-only",
