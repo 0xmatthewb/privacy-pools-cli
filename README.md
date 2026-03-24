@@ -47,7 +47,7 @@ Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Associati
 
 You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 
-If you're restoring an existing recovery phrase with `privacy-pools init --mnemonic ...`, the CLI reconstructs both current and legacy account derivations during sync so older Pool Accounts remain visible.
+If you're restoring an existing recovery phrase with `privacy-pools init --mnemonic ...`, sync automatically recovers older Pool Accounts so they remain visible.
 
 ## Install
 

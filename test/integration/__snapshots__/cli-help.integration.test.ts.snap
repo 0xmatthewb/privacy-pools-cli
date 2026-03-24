@@ -65,7 +65,7 @@ Privacy Pools uses two keys:
   Signer key:     pays gas and sends transactions (can be set later)
   These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.
 During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
-Imported recovery phrases reconstruct both current and legacy account derivations during sync so older Pool Accounts remain discoverable.
+Imported recovery phrases automatically recover older Pool Accounts during sync.
 Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.
 Examples:
   privacy-pools init
@@ -77,7 +77,7 @@ Examples:
   cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet
 Safety notes:
   The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
-  When importing an existing recovery phrase, the CLI reconstructs both current and legacy deterministic account derivations during sync so older Pool Accounts remain discoverable.
+  Imported recovery phrases automatically recover older Pool Accounts during sync.
 Agent workflow:
   When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.
   When importing an existing recovery phrase, nextActions points to accounts --agent --all-chains so restored Pool Accounts are discovered across mainnets and testnets.

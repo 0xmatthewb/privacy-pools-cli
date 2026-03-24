@@ -35,7 +35,7 @@ const COMMAND_HELP_OVERVIEWS: Partial<Record<CommandPath, string[]>> = {
     "  These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.",
     "",
     "During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.",
-    "Imported recovery phrases reconstruct both current and legacy account derivations during sync so older Pool Accounts remain discoverable.",
+    "Imported recovery phrases automatically recover older Pool Accounts during sync.",
     "Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.",
   ],
   pools: [

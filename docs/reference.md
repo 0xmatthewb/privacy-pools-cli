@@ -16,7 +16,7 @@ Initialize wallet and configuration
 >   Signer key:     pays gas and sends transactions (can be set later)
 >   These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.
 > During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
-> Imported recovery phrases reconstruct both current and legacy account derivations during sync so older Pool Accounts remain discoverable.
+> Imported recovery phrases automatically recover older Pool Accounts during sync.
 > Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.
 
 ```bash
@@ -43,7 +43,7 @@ cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainn
 | `--force` | Overwrite existing configuration without prompting |
 
 **Safety:** The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
-**Safety:** When importing an existing recovery phrase, the CLI reconstructs both current and legacy deterministic account derivations during sync so older Pool Accounts remain discoverable.
+**Safety:** Imported recovery phrases automatically recover older Pool Accounts during sync.
 
 **JSON output:** `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 

@@ -83,7 +83,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       safetyNotes: [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
-        "When importing an existing recovery phrase, the CLI reconstructs both current and legacy deterministic account derivations during sync so older Pool Accounts remain discoverable.",
+        "Imported recovery phrases automatically recover older Pool Accounts during sync.",
       ],
       agentWorkflowNotes: [
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
