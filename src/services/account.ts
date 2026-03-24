@@ -84,7 +84,24 @@ export function needsLegacyAccountRebuild(chainId: number): boolean {
   );
 }
 
-export async function initializeAccountService(
+export interface InitializeAccountServiceStateOptions {
+  allowLegacyAccountRebuild?: boolean;
+  forceSyncSavedAccount?: boolean;
+  suppressWarnings?: boolean;
+  strictSync?: boolean;
+}
+
+export interface InitializeAccountServiceState {
+  accountService: AccountService;
+  /**
+   * True when initialization already completed a full onchain refresh and
+   * stamped sync freshness, so callers can skip an immediate second pass.
+   */
+  skipImmediateSync: boolean;
+  rebuiltLegacyAccount: boolean;
+}
+
+export async function initializeAccountServiceWithState(
   dataService: DataService,
   mnemonic: string,
   pools: Array<{
@@ -94,19 +111,25 @@ export async function initializeAccountService(
     deploymentBlock: bigint;
   }>,
   chainId: number,
-  /** When true, sync events even for saved accounts to catch external changes */
-  forceSync: boolean = false,
-  /** When true, suppress best-effort sync warnings to keep machine stderr clean */
-  suppressWarnings: boolean = false,
-  /** When true, treat sync/initialization failures as hard errors (fail-closed). */
-  strictSync: boolean = false,
-): Promise<AccountService> {
+  options: InitializeAccountServiceStateOptions = {},
+): Promise<InitializeAccountServiceState> {
+  const {
+    allowLegacyAccountRebuild = false,
+    forceSyncSavedAccount = false,
+    suppressWarnings = false,
+    strictSync = false,
+  } = options;
   // Try to load existing account state
   const savedAccount = loadAccount(chainId);
   const hasCurrentAccountVersion =
     savedAccount?.__privacyPoolsCliAccountVersion === ACCOUNT_FILE_VERSION;
 
-  if (savedAccount && pools.length > 0 && !hasCurrentAccountVersion && forceSync) {
+  if (
+    savedAccount &&
+    pools.length > 0 &&
+    !hasCurrentAccountVersion &&
+    allowLegacyAccountRebuild
+  ) {
     try {
       const poolInfos = pools.map(toPoolInfo);
       const result = await withSuppressedSdkStdout(async () =>
@@ -139,8 +162,16 @@ export async function initializeAccountService(
         }
       }
 
+      const skipImmediateSync = initErrors.length === 0;
       saveAccount(chainId, result.account.account);
-      return result.account;
+      if (skipImmediateSync) {
+        saveSyncMeta(chainId);
+      }
+      return {
+        accountService: result.account,
+        skipImmediateSync,
+        rebuiltLegacyAccount: true,
+      };
     } catch (err) {
       if (strictSync) {
         throw new CLIError(
@@ -163,7 +194,7 @@ export async function initializeAccountService(
     );
 
     // Sync to pick up any events that happened since last save
-    if (forceSync && pools.length > 0) {
+    if (forceSyncSavedAccount && pools.length > 0) {
       let syncFailures = 0;
       for (const pool of pools) {
         const poolInfo = toPoolInfo(pool);
@@ -192,7 +223,11 @@ export async function initializeAccountService(
       // Caller is responsible for saving within a critical section guard.
     }
 
-    return service;
+    return {
+      accountService: service,
+      skipImmediateSync: false,
+      rebuiltLegacyAccount: false,
+    };
   }
 
   // Fresh initialization
@@ -234,9 +269,17 @@ export async function initializeAccountService(
         }
       }
 
+      const skipImmediateSync = initErrors.length === 0;
       // Save the initialized account
       saveAccount(chainId, result.account.account);
-      return result.account;
+      if (skipImmediateSync) {
+        saveSyncMeta(chainId);
+      }
+      return {
+        accountService: result.account,
+        skipImmediateSync,
+        rebuiltLegacyAccount: false,
+      };
     } catch (err) {
       if (strictSync) {
         throw new CLIError(
@@ -253,6 +296,42 @@ export async function initializeAccountService(
     }
   }
 
+  return {
+    accountService,
+    skipImmediateSync: false,
+    rebuiltLegacyAccount: false,
+  };
+}
+
+export async function initializeAccountService(
+  dataService: DataService,
+  mnemonic: string,
+  pools: Array<{
+    chainId: number;
+    address: Address;
+    scope: bigint;
+    deploymentBlock: bigint;
+  }>,
+  chainId: number,
+  /** When true, sync events even for saved accounts to catch external changes */
+  forceSync: boolean = false,
+  /** When true, suppress best-effort sync warnings to keep machine stderr clean */
+  suppressWarnings: boolean = false,
+  /** When true, treat sync/initialization failures as hard errors (fail-closed). */
+  strictSync: boolean = false,
+): Promise<AccountService> {
+  const { accountService } = await initializeAccountServiceWithState(
+    dataService,
+    mnemonic,
+    pools,
+    chainId,
+    {
+      allowLegacyAccountRebuild: forceSync,
+      forceSyncSavedAccount: forceSync,
+      suppressWarnings,
+      strictSync,
+    },
+  );
   return accountService;
 }
 

@@ -11,8 +11,7 @@ import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
-  initializeAccountService,
-  needsLegacyAccountRebuild,
+  initializeAccountServiceWithState,
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
@@ -170,21 +169,22 @@ async function loadAccountsForChain(
     spin.text = `Initializing account state on ${chainConfig.name}...`;
   }
   const dataService = await getDataService(chainConfig, pools[0].pool, rpcUrl);
-  const rebuildLegacyAccount =
-    opts.sync !== false && needsLegacyAccountRebuild(chainConfig.id);
-  const accountService = await initializeAccountService(
-    dataService,
-    mnemonic,
-    poolInfos,
-    chainConfig.id,
-    rebuildLegacyAccount,
-    silent,
-    true,
-  );
+  const { accountService, skipImmediateSync } =
+    await initializeAccountServiceWithState(
+      dataService,
+      mnemonic,
+      poolInfos,
+      chainConfig.id,
+      {
+        allowLegacyAccountRebuild: opts.sync !== false,
+        suppressWarnings: silent,
+        strictSync: true,
+      },
+    );
 
   const syncChain = () =>
     syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-      skip: opts.sync === false,
+      skip: opts.sync === false || skipImmediateSync,
       force: false,
       silent,
       isJson: mode.isJson,

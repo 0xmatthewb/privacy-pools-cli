@@ -88,7 +88,8 @@ describe("lazy startup conformance", () => {
     expect(capabilities).not.toContain("../utils/command-discovery-metadata.js");
     expect(describe).toContain("../utils/command-discovery-static.js");
     expect(describe).not.toContain("../utils/command-discovery-metadata.js");
-    expect(program).toContain("./utils/command-discovery-static.js");
+    expect(program).toContain("./utils/root-global-flags.js");
+    expect(program).not.toContain("./utils/command-discovery-static.js");
     expect(program).not.toContain("./utils/command-discovery-metadata.js");
   });
 

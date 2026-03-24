@@ -50,14 +50,13 @@ describe("machine sync fail-closed conformance", () => {
   });
 
   test("read-only sync flows rebuild legacy saved accounts before refresh", () => {
-    expect(accountsSource).toContain("needsLegacyAccountRebuild");
-    expect(accountsSource).toContain(
-      "opts.sync !== false && needsLegacyAccountRebuild",
-    );
-    expect(historySource).toContain("needsLegacyAccountRebuild");
-    expect(historySource).toContain(
-      "opts.sync !== false && needsLegacyAccountRebuild",
-    );
-    expect(syncSource).toContain("needsLegacyAccountRebuild(chainConfig.id)");
+    expect(accountServiceSource).toContain("allowLegacyAccountRebuild");
+    expect(accountServiceSource).toContain("skipImmediateSync");
+    expect(accountsSource).toContain("initializeAccountServiceWithState");
+    expect(accountsSource).toContain("skip: opts.sync === false || skipImmediateSync");
+    expect(historySource).toContain("initializeAccountServiceWithState");
+    expect(historySource).toContain("skip: opts.sync === false || skipImmediateSync");
+    expect(syncSource).toContain("initializeAccountServiceWithState");
+    expect(syncSource).toContain("skip: skipImmediateSync");
   });
 });

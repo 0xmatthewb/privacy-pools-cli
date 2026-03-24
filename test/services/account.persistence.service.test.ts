@@ -6,11 +6,13 @@ import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts
 import {
   ACCOUNT_FILE_VERSION,
   needsLegacyAccountRebuild,
+  isSyncFresh,
   loadAccount,
   saveAccount,
   serialize,
   deserialize,
   initializeAccountService,
+  initializeAccountServiceWithState,
 } from "../../src/services/account.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
@@ -259,21 +261,26 @@ describe("account persistence", () => {
       } as any;
     }) as typeof AccountService.initializeWithEvents;
 
-    const service = await initializeAccountService(
+    const result = await initializeAccountServiceWithState(
       {} as any,
       MNEMONIC,
       samplePool(),
       11155111,
-      true,
-      true,
-      true
+      {
+        allowLegacyAccountRebuild: true,
+        suppressWarnings: true,
+        strictSync: true,
+      }
     );
 
-    expect(service).toBe(rebuiltService);
+    expect(result.accountService).toBe(rebuiltService);
+    expect(result.rebuiltLegacyAccount).toBe(true);
+    expect(result.skipImmediateSync).toBe(true);
     expect(initializeCalls).toBe(1);
     expect(loadAccount(11155111)?.__privacyPoolsCliAccountVersion).toBe(
       ACCOUNT_FILE_VERSION
     );
+    expect(isSyncFresh(11155111)).toBe(true);
   });
 
   test("saved account without forceSync skips sync and returns service directly", async () => {

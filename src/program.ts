@@ -14,16 +14,8 @@ import { createGuideCommand } from "./command-shells/guide.js";
 import { createCapabilitiesCommand } from "./command-shells/capabilities.js";
 import { createDescribeCommand } from "./command-shells/describe.js";
 import { createCompletionCommand } from "./command-shells/completion.js";
-import { rootHelpFooter } from "./utils/root-help.js";
-import { STATIC_GLOBAL_FLAG_METADATA } from "./utils/command-discovery-static.js";
-
-function globalFlagDescription(flag: string): string {
-  const match = STATIC_GLOBAL_FLAG_METADATA.find((entry) => entry.flag === flag);
-  if (!match) {
-    throw new Error(`Missing global flag metadata for '${flag}'.`);
-  }
-  return match.description;
-}
+import { rootHelpFooter } from "./utils/root-help-footer.js";
+import { rootGlobalFlagDescription } from "./utils/root-global-flags.js";
 
 export function createRootProgram(version: string): Command {
   const program = new Command();
@@ -34,43 +26,54 @@ export function createRootProgram(version: string): Command {
       "Privacy Pools: a compliant way to transact privately on Ethereum",
     )
     .version(version)
-    .option("-c, --chain <name>", globalFlagDescription("-c, --chain <name>"))
-    .option("-j, --json", globalFlagDescription("-j, --json"))
+    .option(
+      "-c, --chain <name>",
+      rootGlobalFlagDescription("-c, --chain <name>"),
+    )
+    .option("-j, --json", rootGlobalFlagDescription("-j, --json"))
     .addOption(
       new Option(
         "--format <format>",
-        globalFlagDescription("--format <format>"),
+        rootGlobalFlagDescription("--format <format>"),
       ).choices(["table", "csv", "json"]),
     )
-    .option("-y, --yes", globalFlagDescription("-y, --yes"));
+    .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"));
 
   program.addOption(
     new Option(
       "-r, --rpc-url <url>",
-      globalFlagDescription("-r, --rpc-url <url>"),
+      rootGlobalFlagDescription("-r, --rpc-url <url>"),
     ).hideHelp(),
   );
-  program.addOption(new Option("--agent", globalFlagDescription("--agent")));
   program.addOption(
-    new Option("-q, --quiet", globalFlagDescription("-q, --quiet")).hideHelp(),
+    new Option("--agent", rootGlobalFlagDescription("--agent")),
   );
   program.addOption(
-    new Option("--no-banner", globalFlagDescription("--no-banner")).hideHelp(),
+    new Option("-q, --quiet", rootGlobalFlagDescription("-q, --quiet")).hideHelp(),
+  );
+  program.addOption(
+    new Option(
+      "--no-banner",
+      rootGlobalFlagDescription("--no-banner"),
+    ).hideHelp(),
   );
   program.addOption(
     new Option(
       "-v, --verbose",
-      globalFlagDescription("-v, --verbose"),
+      rootGlobalFlagDescription("-v, --verbose"),
     ).hideHelp(),
   );
   program.addOption(
     new Option(
       "--timeout <seconds>",
-      globalFlagDescription("--timeout <seconds>"),
+      rootGlobalFlagDescription("--timeout <seconds>"),
     ),
   );
   program.addOption(
-    new Option("--no-color", globalFlagDescription("--no-color")).hideHelp(),
+    new Option(
+      "--no-color",
+      rootGlobalFlagDescription("--no-color"),
+    ).hideHelp(),
   );
 
   program.configureHelp({

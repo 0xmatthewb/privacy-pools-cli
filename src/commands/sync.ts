@@ -5,8 +5,7 @@ import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
-  initializeAccountService,
-  needsLegacyAccountRebuild,
+  initializeAccountServiceWithState,
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
@@ -67,18 +66,19 @@ export async function handleSyncCommand(
       pools[0].pool,
       globalOpts?.rpcUrl,
     );
-    const rebuildLegacyAccount = needsLegacyAccountRebuild(chainConfig.id);
-
     // Get pre-sync spendable count so we can report the delta
-    const preSyncService = await initializeAccountService(
-      dataService,
-      mnemonic,
-      poolInfos,
-      chainConfig.id,
-      rebuildLegacyAccount,
-      silent,
-      false,
-    );
+    const { accountService: preSyncService, skipImmediateSync } =
+      await initializeAccountServiceWithState(
+        dataService,
+        mnemonic,
+        poolInfos,
+        chainConfig.id,
+        {
+          allowLegacyAccountRebuild: true,
+          suppressWarnings: silent,
+          strictSync: false,
+        },
+      );
     const preSyncSpendable = withSuppressedSdkStdoutSync(() =>
       preSyncService.getSpendableCommitments(),
     );
@@ -92,7 +92,7 @@ export async function handleSyncCommand(
       "Syncing deposit/withdrawal/ragequit events",
       () =>
         syncAccountEvents(preSyncService, poolInfos, pools, chainConfig.id, {
-          skip: false,
+          skip: skipImmediateSync,
           force: true,
           silent,
           isJson: mode.isJson,

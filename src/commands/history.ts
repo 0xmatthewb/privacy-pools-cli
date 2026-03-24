@@ -6,8 +6,7 @@ import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
-  initializeAccountService,
-  needsLegacyAccountRebuild,
+  initializeAccountServiceWithState,
   syncAccountEvents,
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
@@ -181,22 +180,22 @@ export async function handleHistoryCommand(
       pools[0].pool,
       globalOpts?.rpcUrl,
     );
-    const rebuildLegacyAccount =
-      opts.sync !== false && needsLegacyAccountRebuild(chainConfig.id);
-
-    const accountService = await initializeAccountService(
-      dataService,
-      mnemonic,
-      poolInfos,
-      chainConfig.id,
-      rebuildLegacyAccount,
-      silent,
-      true,
-    );
+    const { accountService, skipImmediateSync } =
+      await initializeAccountServiceWithState(
+        dataService,
+        mnemonic,
+        poolInfos,
+        chainConfig.id,
+        {
+          allowLegacyAccountRebuild: opts.sync !== false,
+          suppressWarnings: silent,
+          strictSync: true,
+        },
+      );
 
     await withSpinnerProgress(spin, "Syncing", () =>
       syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
-        skip: opts.sync === false,
+        skip: opts.sync === false || skipImmediateSync,
         force: false,
         silent,
         isJson: mode.isJson,
