@@ -45,7 +45,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PRIVACY_POOLS_PRIVATE_KEY` | Signer private key (takes precedence over `.signer` file) |
 | `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
-| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory |
+| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory (default: `~/.privacy-pools/circuits/v<sdk-version>`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |

@@ -208,6 +208,10 @@ JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryP
 
 When `--show-mnemonic` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
 
+When importing an existing recovery phrase, the CLI reconstructs both current and legacy deterministic account derivations during sync so older Pool Accounts remain discoverable.
+
+When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so agents can discover restored Pool Accounts across mainnets and testnets. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>` instead.
+
 > **CRITICAL**: When generating a new recovery phrase, always pass `--show-mnemonic` to capture it in JSON output. Without this flag, the recovery phrase is stored on disk but not returned. You cannot retrieve it later via the CLI. Losing the recovery phrase means losing access to all deposited funds.
 
 > **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
