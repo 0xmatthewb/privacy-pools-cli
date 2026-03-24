@@ -2,7 +2,8 @@
  * Lightweight ASP fixture HTTP server for integration tests.
  *
  * Returns canned responses for the ASP endpoints that read-only commands
- * (activity, stats, pools, status --check-asp) call.
+ * (activity, stats, pools, status --check-asp) call, plus a lightweight
+ * relayer fixture for withdraw quote integration tests.
  *
  * Because integration tests use spawnSync (which blocks the event loop),
  * the server MUST run in a separate process.  Use `launchFixtureServer()`
@@ -106,6 +107,69 @@ const SEPOLIA_ENTRYPOINT =
   "0x34a2068192b1297f2a7f85d7d8cde66f8f0921cb" as Address;
 const FIXTURE_POOL =
   "0x1234567890abcdef1234567890abcdef12345678" as Address;
+const FIXTURE_ASSET =
+  "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
+const FIXTURE_FEE_RECEIVER =
+  "0x00000000000000000000000000000000000000fE" as Address;
+const RELAYER_SECONDS_RECIPIENT =
+  "0x0000000000000000000000000000000000000001";
+const RELAYER_MALFORMED_FEE_RECIPIENT =
+  "0x0000000000000000000000000000000000000002";
+
+function buildRelayerQuote(request: {
+  amount: string;
+  asset: string;
+  extraGas: boolean;
+  recipient?: string;
+}) {
+  const normalizedRecipient = request.recipient?.toLowerCase();
+  if (normalizedRecipient === RELAYER_MALFORMED_FEE_RECIPIENT.toLowerCase()) {
+    return {
+      baseFeeBPS: "250",
+      feeBPS: "oops",
+      gasPrice: "1",
+      detail: {
+        relayTxCost: {
+          gas: "0",
+          eth: "0",
+        },
+      },
+      feeCommitment: {
+        expiration: 4_102_444_800_000,
+        withdrawalData: "0x1234",
+        asset: request.asset,
+        amount: request.amount,
+        extraGas: request.extraGas,
+        signedRelayerCommitment: "0x01",
+      },
+    };
+  }
+
+  const expiration =
+    normalizedRecipient === RELAYER_SECONDS_RECIPIENT.toLowerCase()
+      ? 4_102_444_800
+      : 4_102_444_800_000;
+
+  return {
+    baseFeeBPS: "250",
+    feeBPS: "250",
+    gasPrice: "1",
+    detail: {
+      relayTxCost: {
+        gas: "0",
+        eth: "0",
+      },
+    },
+    feeCommitment: {
+      expiration,
+      withdrawalData: "0x1234",
+      asset: request.asset,
+      amount: request.amount,
+      extraGas: request.extraGas,
+      signedRelayerCommitment: "0x01",
+    },
+  };
+}
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -118,6 +182,32 @@ function route(req: IncomingMessage, res: ServerResponse): void {
   const path = url.pathname;
 
   let body: unknown;
+
+  if (req.method === "GET" && path === "/relayer/details") {
+    const chainId = url.searchParams.get("chainId");
+    const assetAddress = url.searchParams.get("assetAddress");
+    if (
+      chainId !== "11155111"
+      || assetAddress?.toLowerCase() !== FIXTURE_ASSET.toLowerCase()
+    ) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        message: `Expected chainId=11155111 and assetAddress=${FIXTURE_ASSET}`,
+      }));
+      return;
+    }
+
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      chainId: 11155111,
+      feeBPS: "250",
+      minWithdrawAmount: "1000000000000000",
+      feeReceiverAddress: FIXTURE_FEE_RECEIVER,
+      assetAddress: FIXTURE_ASSET,
+      maxGasPrice: "1",
+    }));
+    return;
+  }
 
   if (path.match(/\/\d+\/public\/pools-stats$/)) {
     body = POOLS_STATS;
@@ -145,6 +235,32 @@ function route(req: IncomingMessage, res: ServerResponse): void {
   if (body !== undefined) {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(body));
+  } else if (req.method === "POST" && path === "/relayer/quote") {
+    let requestBody = "";
+    req.on("data", (chunk) => {
+      requestBody += chunk.toString();
+    });
+    req.on("end", () => {
+      const json = JSON.parse(requestBody || "{}");
+      if (
+        String(json.chainId) !== "11155111"
+        || String(json.asset).toLowerCase() !== FIXTURE_ASSET.toLowerCase()
+      ) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          message: `Expected quote body chainId=11155111 and asset=${FIXTURE_ASSET}`,
+        }));
+        return;
+      }
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(buildRelayerQuote({
+        amount: String(json.amount),
+        asset: String(json.asset),
+        extraGas: Boolean(json.extraGas),
+        recipient: typeof json.recipient === "string" ? json.recipient : undefined,
+      })));
+    });
   } else if (req.method === "POST") {
     let requestBody = "";
     req.on("data", (chunk) => {

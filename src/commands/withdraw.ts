@@ -72,7 +72,7 @@ import {
 import { explorerTxUrl, NATIVE_ASSET_ADDRESS } from "../config/chains.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
-import type { GlobalOptions, PoolStats } from "../types.js";
+import type { GlobalOptions, PoolStats, RelayerQuoteResponse } from "../types.js";
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import {
@@ -204,6 +204,92 @@ export function getRelayedWithdrawalRemainderAdvisory(params: {
     `which is below the relayer minimum (${formatAmount(minWithdrawAmount, decimals, assetSymbol)}). ` +
     "Withdraw less to keep a privately withdrawable remainder, use --all/100% to fully withdraw it, " +
     "or ragequit the remainder publicly later."
+  );
+}
+
+export function normalizeRelayerQuoteExpirationMs(expiration: number): number {
+  return expiration < 1e12 ? expiration * 1000 : expiration;
+}
+
+export function validateRelayerQuoteForWithdrawal(
+  quote: Pick<RelayerQuoteResponse, "feeBPS" | "feeCommitment">,
+  maxRelayFeeBPS: bigint | string,
+): {
+  quoteFeeBPS: bigint;
+  expirationMs: number;
+} {
+  if (!quote.feeCommitment) {
+    throw new CLIError(
+      "Relayer quote is missing required fee details.",
+      "RELAYER",
+      "The relayer may not support this asset/chain combination.",
+    );
+  }
+
+  let quoteFeeBPS: bigint;
+  try {
+    quoteFeeBPS = BigInt(quote.feeBPS);
+  } catch {
+    throw new CLIError(
+      "Relayer returned malformed feeBPS (expected integer string).",
+      "RELAYER",
+      "Request a fresh quote and retry.",
+    );
+  }
+
+  const maxFeeBPS = typeof maxRelayFeeBPS === "bigint"
+    ? maxRelayFeeBPS
+    : BigInt(maxRelayFeeBPS);
+  if (quoteFeeBPS > maxFeeBPS) {
+    throw new CLIError(
+      `Quoted relay fee (${formatBPS(quote.feeBPS)}) exceeds onchain maximum (${formatBPS(maxFeeBPS.toString())}).`,
+      "RELAYER",
+      "Try again later when fees are lower. If privacy is not a concern, --direct withdraws without a relayer but publicly links your deposit and withdrawal addresses.",
+    );
+  }
+
+  return {
+    quoteFeeBPS,
+    expirationMs: normalizeRelayerQuoteExpirationMs(
+      quote.feeCommitment.expiration,
+    ),
+  };
+}
+
+export async function refreshExpiredRelayerQuoteForWithdrawal(params: {
+  fetchQuote: () => Promise<RelayerQuoteResponse>;
+  maxRelayFeeBPS: bigint | string;
+  nowMs?: () => number;
+  maxAttempts?: number;
+}): Promise<{
+  quote: RelayerQuoteResponse;
+  quoteFeeBPS: bigint;
+  expirationMs: number;
+  attempts: number;
+}> {
+  const nowMs = params.nowMs ?? Date.now;
+  const maxAttempts = params.maxAttempts ?? 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const quote = await params.fetchQuote();
+    const { quoteFeeBPS, expirationMs } = validateRelayerQuoteForWithdrawal(
+      quote,
+      params.maxRelayFeeBPS,
+    );
+    if (nowMs() <= expirationMs) {
+      return {
+        quote,
+        quoteFeeBPS,
+        expirationMs,
+        attempts: attempt,
+      };
+    }
+  }
+
+  throw new CLIError(
+    "Relayer returned stale/expired quotes repeatedly.",
+    "RELAYER",
+    "Wait a moment and retry, or switch to another relayer.",
   );
 }
 
@@ -1176,69 +1262,21 @@ export async function handleWithdrawCommand(
 
         let quoteFeeBPS: bigint;
         let expirationMs: number;
-        const maxQuoteRefreshAttempts = 3;
-        let quoteRefreshAttempts = 0;
-
-        const readAndValidateQuote = (): {
-          quoteFeeBPS: bigint;
-          expirationMs: number;
-        } => {
-          if (!quote.feeCommitment) {
-            throw new CLIError(
-              "Relayer quote is missing required fee details.",
-              "RELAYER",
-              "The relayer may not support this asset/chain combination.",
-            );
-          }
-
-          let parsedFeeBPS: bigint;
-          try {
-            parsedFeeBPS = BigInt(quote.feeBPS);
-          } catch {
-            throw new CLIError(
-              "Relayer returned malformed feeBPS (expected integer string).",
-              "RELAYER",
-              "Request a fresh quote and retry.",
-            );
-          }
-
-          if (parsedFeeBPS > pool.maxRelayFeeBPS) {
-            throw new CLIError(
-              `Quoted relay fee (${formatBPS(quote.feeBPS)}) exceeds onchain maximum (${formatBPS(pool.maxRelayFeeBPS)}).`,
-              "RELAYER",
-              "Try again later when fees are lower. If privacy is not a concern, --direct withdraws without a relayer but publicly links your deposit and withdrawal addresses.",
-            );
-          }
-
-          // Relayer may return expiration in seconds (Unix) or ms - normalize.
-          const parsedExpirationMs =
-            quote.feeCommitment.expiration < 1e12
-              ? quote.feeCommitment.expiration * 1000
-              : quote.feeCommitment.expiration;
-
-          return {
-            quoteFeeBPS: parsedFeeBPS,
-            expirationMs: parsedExpirationMs,
-          };
-        };
 
         const fetchFreshQuote = async (reason: string): Promise<void> => {
-          quoteRefreshAttempts += 1;
-          if (quoteRefreshAttempts > maxQuoteRefreshAttempts) {
-            throw new CLIError(
-              "Relayer returned stale/expired quotes repeatedly.",
-              "RELAYER",
-              "Wait a moment and retry, or switch to another relayer.",
-            );
-          }
           spin.text = reason;
-          quote = await requestQuote(chainConfig, {
-            amount: withdrawalAmount,
-            asset: pool.asset,
-            extraGas: effectiveExtraGas,
-            recipient: recipientAddress,
+          const refreshed = await refreshExpiredRelayerQuoteForWithdrawal({
+            fetchQuote: () => requestQuote(chainConfig, {
+              amount: withdrawalAmount,
+              asset: pool.asset,
+              extraGas: effectiveExtraGas,
+              recipient: recipientAddress,
+            }),
+            maxRelayFeeBPS: pool.maxRelayFeeBPS,
           });
-          ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
+          quote = refreshed.quote;
+          quoteFeeBPS = refreshed.quoteFeeBPS;
+          expirationMs = refreshed.expirationMs;
           verbose(
             `Relayer quote refreshed: feeBPS=${quote.feeBPS} expiresAt=${new Date(expirationMs).toISOString()}`,
             isVerbose,
@@ -1246,7 +1284,10 @@ export async function handleWithdrawCommand(
           );
         };
 
-        ({ quoteFeeBPS, expirationMs } = readAndValidateQuote());
+        ({ quoteFeeBPS, expirationMs } = validateRelayerQuoteForWithdrawal(
+          quote,
+          pool.maxRelayFeeBPS,
+        ));
         verbose(
           `Quote expiration: ${new Date(expirationMs).toISOString()} (${expirationMs})`,
           isVerbose,
@@ -1340,13 +1381,6 @@ export async function handleWithdrawCommand(
           }
         } else if (Date.now() > expirationMs) {
           await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
-          if (Date.now() > expirationMs) {
-            throw new CLIError(
-              "Relayer returned an already expired quote.",
-              "RELAYER",
-              "Wait a moment and retry, or switch to another relayer.",
-            );
-          }
         }
 
         // Build relay withdrawal object
