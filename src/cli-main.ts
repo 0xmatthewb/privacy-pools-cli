@@ -298,7 +298,7 @@ export async function runCli(
           machineCapturedOut += str;
           return;
         }
-          const styled = styleCommanderHelp!(str);
+          const styled = styleCommanderHelp ? styleCommanderHelp(str) : str;
           process.stdout.write(styled);
         },
         writeErr: () => {},
