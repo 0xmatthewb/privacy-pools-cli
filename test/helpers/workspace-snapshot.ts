@@ -4,13 +4,14 @@ import { join } from "node:path";
 import { buildChildProcessEnv } from "./child-env.ts";
 import { CLI_ROOT } from "./paths.ts";
 import { createTrackedTempDir } from "./temp.ts";
+import { npmBin } from "./npm-bin.ts";
 
 interface WorkspaceSnapshotOptions {
   build?: boolean;
 }
 
 export function buildWorkspaceSnapshot(snapshotRoot: string): void {
-  const build = spawnSync("npm", ["run", "-s", "build"], {
+  const build = spawnSync(npmBin(), ["run", "-s", "build"], {
     cwd: snapshotRoot,
     encoding: "utf8",
     timeout: 120_000,

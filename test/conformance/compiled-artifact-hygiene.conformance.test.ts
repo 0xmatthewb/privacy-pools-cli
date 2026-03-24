@@ -3,6 +3,7 @@ import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
+import { npmBin } from "../helpers/npm-bin.ts";
 import { createWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
 
 function compiledBaseNames(dir: string): Set<string> {
@@ -30,7 +31,7 @@ describe("compiled artifact hygiene", () => {
     writeFileSync(join(snapshotRoot, "dist", "commands", "balance.js"), "export {};\n");
     writeFileSync(join(snapshotRoot, "dist", "output", "balance.js"), "export {};\n");
 
-    const build = spawnSync("npm", ["run", "-s", "build"], {
+    const build = spawnSync(npmBin(), ["run", "-s", "build"], {
       cwd: snapshotRoot,
       encoding: "utf8",
       timeout: 120_000,

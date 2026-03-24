@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { CLI_CWD } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
+import { npmBin } from "../helpers/npm-bin.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 
 function createCheckoutWithoutDist(): string {
@@ -24,7 +25,7 @@ function createCheckoutWithoutDist(): string {
 describe("start script", () => {
   test("prints a build hint when dist is missing", () => {
     const checkoutDir = createCheckoutWithoutDist();
-    const result = spawnSync("npm", ["run", "--silent", "start", "--", "--help"], {
+    const result = spawnSync(npmBin(), ["run", "--silent", "start", "--", "--help"], {
       cwd: checkoutDir,
       encoding: "utf8",
       timeout: 20_000,

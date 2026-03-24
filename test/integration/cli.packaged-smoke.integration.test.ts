@@ -10,6 +10,7 @@ import {
   parseJsonOutput,
 } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
+import { npmBin } from "../helpers/npm-bin.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
@@ -32,7 +33,7 @@ function sourceBaseNames(dir: string): string[] {
 
 function packedFilePaths(packRoot: string): Set<string> {
   const pack = spawnSync(
-    "npm",
+    npmBin(),
     ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
     {
       cwd: packRoot,
@@ -97,7 +98,7 @@ function packAndExtractCli(packRoot: string): PackedArtifact {
   const extractDir = createTrackedTempDir("pp-smoke-extract-");
 
   const pack = spawnSync(
-    "npm",
+    npmBin(),
     ["pack", packRoot, "--ignore-scripts", "--silent"],
     {
       cwd: packDir,
