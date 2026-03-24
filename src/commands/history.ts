@@ -238,6 +238,7 @@ export async function handleHistoryCommand(
       poolByAddress,
       explorerTxUrl,
       currentBlock,
+      avgBlockTimeSec: chainConfig.avgBlockTimeSec,
     });
   } catch (error) {
     printError(error, mode.isJson);

@@ -27,6 +27,8 @@ export interface HistoryRenderData {
   explorerTxUrl: (chainId: number, txHash: string) => string | null;
   /** Current block number for approximate relative timestamps. Null shows "-" instead. */
   currentBlock: bigint | null;
+  /** Average seconds per block for the target chain (default 12 for Ethereum L1). */
+  avgBlockTimeSec?: number;
 }
 
 // ── Renderers ────────────────────────────────────────────────────────────────
@@ -50,7 +52,7 @@ export function renderHistoryNoPools(ctx: OutputContext, chain: string): void {
  * Render history event listing.
  */
 export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void {
-  const { chain, chainId, events, poolByAddress, explorerTxUrl, currentBlock } = data;
+  const { chain, chainId, events, poolByAddress, explorerTxUrl, currentBlock, avgBlockTimeSec } = data;
 
   if (ctx.mode.isJson) {
     printJsonSuccess({
@@ -116,7 +118,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
         formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
         formatTxHash(e.txHash),
         currentBlock != null
-          ? formatApproxBlockTimeAgo(currentBlock, e.blockNumber)
+          ? formatApproxBlockTimeAgo(currentBlock, e.blockNumber, avgBlockTimeSec)
           : "-",
       ];
     }),
