@@ -44,7 +44,7 @@ concurrency:
 
 jobs:
   # -----------------------------------------------------------
-  # Stage 1: Run the full test suite to make sure the tag is safe
+  # Stage 1: Run the merge-readiness suite to make sure the tag is safe
   # -----------------------------------------------------------
   validate:
     name: validate
