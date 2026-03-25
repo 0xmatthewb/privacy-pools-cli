@@ -1869,7 +1869,11 @@ async function executeRelayedWithdrawalForFlow(params: {
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
-}): Promise<Pick<FlowSnapshot, "withdrawTxHash" | "withdrawBlockNumber" | "withdrawExplorerUrl">> {
+}): Promise<{
+  withdrawTxHash: string;
+  withdrawBlockNumber: string;
+  withdrawExplorerUrl: string | null;
+}> {
   const { snapshot, context, globalOpts, mode, isVerbose } = params;
   const silent = mode.isQuiet || mode.isJson;
   const { chainConfig, pool, accountService, publicClient, selectedPoolAccount } =
@@ -2207,7 +2211,9 @@ async function continueApprovedWorkflowWithdrawal(params: {
   const completed = clearLastError(
     attachWithdrawalResultToSnapshot(savedWithdrawing, {
       chainId: context.chainConfig.id,
-      ...withdrawalResult,
+      withdrawTxHash: withdrawalResult.withdrawTxHash,
+      withdrawBlockNumber: withdrawalResult.withdrawBlockNumber,
+      withdrawExplorerUrl: withdrawalResult.withdrawExplorerUrl,
     }),
   );
   const savedCompleted = await saveWorkflowSnapshotIfChangedWithLock(
@@ -2225,7 +2231,12 @@ async function executeRagequitForFlow(params: {
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
 }): Promise<
-  Pick<FlowSnapshot, "aspStatus" | "ragequitTxHash" | "ragequitBlockNumber" | "ragequitExplorerUrl">
+  {
+    aspStatus?: AspApprovalStatus;
+    ragequitTxHash: string;
+    ragequitBlockNumber: string;
+    ragequitExplorerUrl: string | null;
+  }
 > {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   const silent = mode.isQuiet || mode.isJson;
@@ -2987,7 +2998,10 @@ export async function ragequitWorkflow(
     const completed = clearLastError(
       attachRagequitResultToSnapshot(snapshot, {
         chainId: assertWorkflowChain(snapshot).id,
-        ...ragequitResult,
+        aspStatus: ragequitResult.aspStatus,
+        ragequitTxHash: ragequitResult.ragequitTxHash,
+        ragequitBlockNumber: ragequitResult.ragequitBlockNumber,
+        ragequitExplorerUrl: ragequitResult.ragequitExplorerUrl,
       }),
     );
     const savedCompleted = saveWorkflowSnapshotIfChanged(snapshot, completed);
