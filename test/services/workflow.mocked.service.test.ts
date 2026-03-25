@@ -1,0 +1,1536 @@
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
+import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  encodeAbiParameters,
+  encodeEventTopics,
+  parseAbi,
+  type Address,
+  type Hex,
+} from "viem";
+import { createTrackedTempDir } from "../helpers/temp.ts";
+
+const realConfig = await import("../../src/services/config.ts");
+const realFormat = await import("../../src/utils/format.ts");
+const realViemAccounts = await import("viem/accounts");
+
+const GLOBAL_SIGNER_PRIVATE_KEY =
+  "0x1111111111111111111111111111111111111111111111111111111111111111" as const;
+const MISMATCH_SIGNER_PRIVATE_KEY =
+  "0x2222222222222222222222222222222222222222222222222222222222222222" as const;
+const NEW_WALLET_PRIVATE_KEY =
+  "0x3333333333333333333333333333333333333333333333333333333333333333" as const;
+const GLOBAL_SIGNER_ADDRESS =
+  realViemAccounts.privateKeyToAccount(GLOBAL_SIGNER_PRIVATE_KEY).address;
+const MISMATCH_SIGNER_ADDRESS =
+  realViemAccounts.privateKeyToAccount(MISMATCH_SIGNER_PRIVATE_KEY).address;
+const NEW_WALLET_ADDRESS =
+  realViemAccounts.privateKeyToAccount(NEW_WALLET_PRIVATE_KEY).address;
+
+const depositEventAbi = parseAbi([
+  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
+]);
+
+interface MockState {
+  tempHome: string;
+  currentSignerPrivateKey: Hex | null;
+  onchainDepositor: Address;
+  loadPrivateKeyCalls: number;
+  pool: {
+    pool: Address;
+    scope: bigint;
+    asset: Address;
+    symbol: string;
+    decimals: number;
+    minimumDepositAmount: bigint;
+    vettingFeeBPS: bigint;
+    maxRelayFeeBPS: bigint;
+    deploymentBlock: bigint;
+  };
+  nativeBalance: bigint;
+  tokenBalance: bigint;
+  nativeBalanceSequence: bigint[] | null;
+  tokenBalanceSequence: bigint[] | null;
+  gasPrice: bigint;
+  gasPriceError: boolean;
+  aspUnavailable: boolean;
+  aspStatus: "approved" | "pending" | "declined" | "poi_required";
+  latestRoot: bigint;
+  aspMtRoot: bigint;
+  currentRoot: bigint;
+  commitmentHash: bigint;
+  label: bigint;
+  committedValue: bigint;
+  precommitmentHash: bigint;
+  poolAccountAvailable: boolean;
+  depositTxHash: Hex;
+  approvalTxHash: Hex;
+  relayTxHash: Hex;
+  ragequitTxHash: Hex;
+  feeReceiverAddress: Address;
+  minWithdrawAmount: bigint;
+  pendingReceiptMode: "success" | "pending" | "reverted";
+  pendingReceiptAvailableAfter: number;
+  getTransactionReceiptCalls: number;
+  requestQuoteCalls: Array<{ amount: bigint; asset: Address; extraGas: boolean; recipient: Address }>;
+  depositEthCalls: number;
+  depositErc20Calls: number;
+  approveErc20Calls: number;
+  depositEthFailuresRemaining: number;
+  depositErc20FailuresRemaining: number;
+  submitRagequitCalls: number;
+  addPoolAccountCalls: number;
+  addWithdrawalCommitmentCalls: number;
+  addRagequitCalls: number;
+}
+
+const state: MockState = {} as MockState;
+
+function makeTempHome(): string {
+  return createTrackedTempDir("pp-workflow-mocked-");
+}
+
+function useImmediateTimers(): () => void {
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = (((callback: Parameters<typeof setTimeout>[0], _delay?: number, ...args: unknown[]) => {
+    if (typeof callback === "function") {
+      callback(...args);
+    }
+    return 0 as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout);
+
+  return () => {
+    globalThis.setTimeout = originalSetTimeout;
+  };
+}
+
+async function withMutedStderr<T>(fn: () => Promise<T>): Promise<T> {
+  const originalWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((() => true) as typeof process.stderr.write);
+  try {
+    return await fn();
+  } finally {
+    process.stderr.write = originalWrite;
+  }
+}
+
+function makeDepositLog(depositor: Address) {
+  return {
+    address: state.pool.pool,
+    topics: encodeEventTopics({
+      abi: depositEventAbi,
+      eventName: "Deposited",
+      args: {
+        _depositor: depositor,
+      },
+    }),
+    data: encodeAbiParameters(
+      [
+        { name: "_commitment", type: "uint256" },
+        { name: "_label", type: "uint256" },
+        { name: "_value", type: "uint256" },
+        { name: "_precommitmentHash", type: "uint256" },
+      ],
+      [
+        state.commitmentHash,
+        state.label,
+        state.committedValue,
+        state.precommitmentHash,
+      ],
+    ),
+  };
+}
+
+function depositReceipt(depositor: Address) {
+  return {
+    status: "success" as const,
+    blockNumber: 101n,
+    logs: [makeDepositLog(depositor)],
+  };
+}
+
+function resetState(): void {
+  state.tempHome = makeTempHome();
+  state.currentSignerPrivateKey = GLOBAL_SIGNER_PRIVATE_KEY;
+  state.onchainDepositor = GLOBAL_SIGNER_ADDRESS;
+  state.loadPrivateKeyCalls = 0;
+  state.pool = {
+    pool: "0x5555555555555555555555555555555555555555",
+    scope: 9n,
+    asset: "0x0000000000000000000000000000000000000000",
+    symbol: "ETH",
+    decimals: 18,
+    minimumDepositAmount: 1n,
+    vettingFeeBPS: 50n,
+    maxRelayFeeBPS: 100n,
+    deploymentBlock: 0n,
+  };
+  state.nativeBalance = 10n ** 20n;
+  state.tokenBalance = 0n;
+  state.nativeBalanceSequence = null;
+  state.tokenBalanceSequence = null;
+  state.gasPrice = 10n ** 9n;
+  state.gasPriceError = false;
+  state.aspUnavailable = false;
+  state.aspStatus = "approved";
+  state.latestRoot = 77n;
+  state.aspMtRoot = 77n;
+  state.currentRoot = 88n;
+  state.commitmentHash = 88n;
+  state.label = 91n;
+  state.committedValue = 9950000000000000n;
+  state.precommitmentHash = 42n;
+  state.poolAccountAvailable = true;
+  state.depositTxHash =
+    "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  state.approvalTxHash =
+    "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  state.relayTxHash =
+    "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+  state.ragequitTxHash =
+    "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+  state.feeReceiverAddress = "0x6666666666666666666666666666666666666666";
+  state.minWithdrawAmount = 1n;
+  state.pendingReceiptMode = "success";
+  state.pendingReceiptAvailableAfter = 0;
+  state.getTransactionReceiptCalls = 0;
+  state.requestQuoteCalls = [];
+  state.depositEthCalls = 0;
+  state.depositErc20Calls = 0;
+  state.approveErc20Calls = 0;
+  state.depositEthFailuresRemaining = 0;
+  state.depositErc20FailuresRemaining = 0;
+  state.submitRagequitCalls = 0;
+  state.addPoolAccountCalls = 0;
+  state.addWithdrawalCommitmentCalls = 0;
+  state.addRagequitCalls = 0;
+}
+
+function nextBalance(sequence: bigint[] | null, fallback: bigint): bigint {
+  if (!sequence || sequence.length === 0) return fallback;
+  if (sequence.length === 1) return sequence[0];
+  return sequence.shift()!;
+}
+
+const loadPrivateKeyMock = mock(() => {
+  state.loadPrivateKeyCalls += 1;
+  if (!state.currentSignerPrivateKey) {
+    throw new Error("No signer key found.");
+  }
+  return state.currentSignerPrivateKey;
+});
+
+const loadMnemonicMock = mock(() => "test test test test test test test test test test test junk");
+
+const approveErc20Mock = mock(async () => {
+  state.approveErc20Calls += 1;
+  return { hash: state.approvalTxHash };
+});
+
+const depositEthMock = mock(async () => {
+  state.depositEthCalls += 1;
+  if (state.depositEthFailuresRemaining > 0) {
+    state.depositEthFailuresRemaining -= 1;
+    throw new Error("Simulated ETH deposit submission failure");
+  }
+  state.poolAccountAvailable = true;
+  return { hash: state.depositTxHash };
+});
+
+const depositErc20Mock = mock(async () => {
+  state.depositErc20Calls += 1;
+  if (state.depositErc20FailuresRemaining > 0) {
+    state.depositErc20FailuresRemaining -= 1;
+    throw new Error("Simulated ERC20 deposit submission failure");
+  }
+  state.poolAccountAvailable = true;
+  return { hash: state.depositTxHash };
+});
+
+const submitRagequitMock = mock(async () => {
+  state.submitRagequitCalls += 1;
+  return { hash: state.ragequitTxHash };
+});
+
+const fetchDepositReviewStatusesMock = mock(async () => {
+  if (state.aspUnavailable) {
+    throw new Error("ASP unavailable");
+  }
+  return state.aspStatus === "approved"
+    ? {}
+    : { [state.label.toString()]: state.aspStatus };
+});
+
+const fetchMerkleLeavesMock = mock(async () => {
+  if (state.aspUnavailable) {
+    throw new Error("ASP unavailable");
+  }
+  return {
+    aspLeaves: state.aspStatus === "approved" ? [state.label.toString()] : [],
+    stateTreeLeaves: [state.commitmentHash.toString()],
+  };
+});
+
+const fetchMerkleRootsMock = mock(async () => {
+  if (state.aspUnavailable) {
+    throw new Error("ASP unavailable");
+  }
+  return {
+    mtRoot: state.aspMtRoot.toString(),
+    onchainMtRoot: state.latestRoot.toString(),
+  };
+});
+
+const publicClient = {
+  getGasPrice: mock(async () => {
+    if (state.gasPriceError) {
+      throw new Error("gas price unavailable");
+    }
+    return state.gasPrice;
+  }),
+  getBalance: mock(async () =>
+    nextBalance(state.nativeBalanceSequence, state.nativeBalance),
+  ),
+  readContract: mock(async ({ functionName }: { functionName: string }) => {
+    switch (functionName) {
+      case "balanceOf":
+        return nextBalance(state.tokenBalanceSequence, state.tokenBalance);
+      case "currentRoot":
+        return state.currentRoot;
+      case "latestRoot":
+        return state.latestRoot;
+      case "depositors":
+        return state.onchainDepositor;
+      default:
+        return 0n;
+    }
+  }),
+  waitForTransactionReceipt: mock(async ({ hash }: { hash: Hex }) => {
+    if (hash === state.depositTxHash) {
+      const depositor =
+        state.pool.asset.toLowerCase() === "0x0000000000000000000000000000000000000000"
+          ? (state.currentSignerPrivateKey
+              ? realViemAccounts.privateKeyToAccount(state.currentSignerPrivateKey).address
+              : NEW_WALLET_ADDRESS)
+          : NEW_WALLET_ADDRESS;
+      return depositReceipt(depositor);
+    }
+    if (hash === state.relayTxHash) {
+      return {
+        status: "success" as const,
+        blockNumber: 202n,
+        logs: [],
+      };
+    }
+    if (hash === state.ragequitTxHash) {
+      return {
+        status: "success" as const,
+        blockNumber: 303n,
+        logs: [],
+      };
+    }
+    if (hash === state.approvalTxHash) {
+      return {
+        status: "success" as const,
+        blockNumber: 100n,
+        logs: [],
+      };
+    }
+    throw new Error(`Unexpected receipt lookup: ${hash}`);
+  }),
+  getTransactionReceipt: mock(async ({ hash }: { hash: Hex }) => {
+    if (hash !== state.depositTxHash) {
+      throw new Error(`Unknown tx: ${hash}`);
+    }
+    state.getTransactionReceiptCalls += 1;
+    if (state.pendingReceiptMode === "reverted") {
+      return {
+        status: "reverted" as const,
+        blockNumber: 101n,
+        logs: [],
+      };
+    }
+    if (state.getTransactionReceiptCalls <= state.pendingReceiptAvailableAfter) {
+      throw new Error("Transaction still pending");
+    }
+    return depositReceipt(NEW_WALLET_ADDRESS);
+  }),
+};
+
+const accountService = {
+  account: {},
+  createDepositSecrets: mock(() => ({
+    precommitment: state.precommitmentHash,
+    nullifier: 111n,
+    secret: 222n,
+  })),
+  addPoolAccount: mock(() => {
+    state.addPoolAccountCalls += 1;
+  }),
+  getSpendableCommitments: mock(() =>
+    new Map([[state.pool.scope, [selectedPoolAccount().commitment]]]),
+  ),
+  createWithdrawalSecrets: mock(() => ({
+    nullifier: 333n,
+    secret: 444n,
+  })),
+  addWithdrawalCommitment: mock(() => {
+    state.addWithdrawalCommitmentCalls += 1;
+  }),
+  addRagequitToAccount: mock(() => {
+    state.addRagequitCalls += 1;
+  }),
+};
+
+function selectedPoolAccount() {
+  return {
+    paNumber: 7,
+    paId: "PA-7",
+    status: "approved",
+    aspStatus: state.aspStatus,
+    asset: state.pool.symbol,
+    scope: state.pool.scope,
+    value: state.committedValue,
+    label: state.label,
+    txHash: state.depositTxHash,
+    blockNumber: 101n,
+    commitment: {
+      hash: state.commitmentHash,
+      label: state.label,
+      value: state.committedValue,
+      nullifier: 555n,
+      secret: 666n,
+    },
+  };
+}
+
+type WorkflowModuleType = typeof import("../../src/services/workflow.ts");
+let getWorkflowStatus: WorkflowModuleType["getWorkflowStatus"];
+let loadWorkflowSnapshot: WorkflowModuleType["loadWorkflowSnapshot"];
+let ragequitWorkflow: WorkflowModuleType["ragequitWorkflow"];
+let startWorkflow: WorkflowModuleType["startWorkflow"];
+let watchWorkflow: WorkflowModuleType["watchWorkflow"];
+
+async function installWorkflowMocks(): Promise<void> {
+  mock.module("../../src/services/config.ts", () => ({
+    ...realConfig,
+    loadConfig: () => ({
+      defaultChain: "sepolia",
+    }),
+  }));
+
+  mock.module("../../src/services/wallet.ts", () => ({
+    loadMnemonic: loadMnemonicMock,
+    loadPrivateKey: loadPrivateKeyMock,
+  }));
+
+  mock.module("../../src/services/pools.ts", () => ({
+    resolvePool: mock(async () => state.pool),
+  }));
+
+  mock.module("../../src/services/sdk.ts", () => ({
+    getPublicClient: mock(() => publicClient),
+    getDataService: mock(async () => ({ service: "data" })),
+  }));
+
+  mock.module("../../src/services/account.ts", () => ({
+    initializeAccountService: mock(async () => accountService),
+    saveAccount: mock(() => undefined),
+    saveSyncMeta: mock(() => undefined),
+    withSuppressedSdkStdoutSync: <T>(fn: () => T) => fn(),
+  }));
+
+  mock.module("../../src/services/asp.ts", () => ({
+    buildLoadedAspDepositReviewState: mock(() => ({
+      approvedLabels:
+        state.aspStatus === "approved" ? [state.label] : [],
+      reviewStatuses:
+        state.aspStatus === "approved"
+          ? {}
+          : { [state.label.toString()]: state.aspStatus },
+    })),
+    fetchDepositReviewStatuses: fetchDepositReviewStatusesMock,
+    fetchMerkleLeaves: fetchMerkleLeavesMock,
+    fetchMerkleRoots: fetchMerkleRootsMock,
+  }));
+
+  mock.module("../../src/services/contracts.ts", () => ({
+    approveERC20: approveErc20Mock,
+    depositERC20: depositErc20Mock,
+    depositETH: depositEthMock,
+    ragequit: submitRagequitMock,
+  }));
+
+  mock.module("../../src/services/proofs.ts", () => ({
+    proveCommitment: mock(async () => ({
+      proof: {
+        pi_a: [1n, 2n],
+        pi_b: [
+          [3n, 4n],
+          [5n, 6n],
+        ],
+        pi_c: [7n, 8n],
+      },
+      publicSignals: [9n, 10n, 11n, 12n],
+    })),
+    proveWithdrawal: mock(async () => ({
+      proof: {
+        pi_a: [1n, 2n],
+        pi_b: [
+          [3n, 4n],
+          [5n, 6n],
+        ],
+        pi_c: [7n, 8n],
+      },
+      publicSignals: [13n, 14n, 15n, 16n],
+    })),
+  }));
+
+  mock.module("../../src/services/relayer.ts", () => ({
+    getRelayerDetails: mock(async () => ({
+      feeReceiverAddress: state.feeReceiverAddress,
+      minWithdrawAmount: state.minWithdrawAmount.toString(),
+    })),
+    requestQuote: mock(async (_chain: unknown, args: { amount: bigint; asset: Address; extraGas: boolean; recipient: Address }) => {
+      state.requestQuoteCalls.push(args);
+      return {
+        feeBPS: "50",
+        feeCommitment: "0xfeed",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      };
+    }),
+    submitRelayRequest: mock(async () => ({
+      txHash: state.relayTxHash,
+    })),
+  }));
+
+  mock.module("../../src/utils/preflight.ts", () => ({
+    checkErc20Balance: mock(async () => undefined),
+    checkHasGas: mock(async () => undefined),
+    checkNativeBalance: mock(async () => undefined),
+  }));
+
+  mock.module("../../src/utils/proof-progress.ts", () => ({
+    withProofProgress: async (
+      _spin: unknown,
+      _label: string,
+      fn: () => Promise<unknown>,
+    ) => fn(),
+  }));
+
+  mock.module("../../src/utils/pool-accounts.ts", () => ({
+    buildAllPoolAccountRefs: mock(() =>
+      state.poolAccountAvailable ? [selectedPoolAccount()] : [],
+    ),
+    buildPoolAccountRefs: mock(() =>
+      state.poolAccountAvailable && state.aspStatus === "approved"
+        ? [selectedPoolAccount()]
+        : [],
+    ),
+    collectActiveLabels: mock(() => [state.label]),
+    getNextPoolAccountNumber: mock(() => 7),
+    poolAccountId: (paNumber: number) => `PA-${paNumber}`,
+  }));
+
+  mock.module("../../src/commands/withdraw.ts", () => ({
+    getRelayedWithdrawalRemainderAdvisory: mock(() => null),
+    refreshExpiredRelayerQuoteForWithdrawal: mock(async () => ({
+      quote: {
+        feeBPS: "50",
+        feeCommitment: "0xfeed",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      },
+      quoteFeeBPS: 50,
+      expirationMs: Date.now() + 60_000,
+    })),
+    validateRelayerQuoteForWithdrawal: mock(() => ({
+      quoteFeeBPS: 50,
+      expirationMs: Date.now() + 60_000,
+    })),
+  }));
+
+  mock.module("../../src/utils/format.ts", () => ({
+    ...realFormat,
+    info: () => undefined,
+    spinner: () => ({
+      text: "",
+      start() {},
+      stop() {},
+      succeed() {},
+      fail() {},
+    }),
+    stageHeader: () => undefined,
+    verbose: () => undefined,
+    warn: () => undefined,
+  }));
+
+  mock.module("viem/accounts", () => ({
+    ...realViemAccounts,
+    generatePrivateKey: () => NEW_WALLET_PRIVATE_KEY,
+  }));
+
+  const workflowModule = await import("../../src/services/workflow.ts?workflow-mocked");
+  ({
+    getWorkflowStatus,
+    loadWorkflowSnapshot,
+    ragequitWorkflow,
+    startWorkflow,
+    watchWorkflow,
+  } = workflowModule);
+}
+
+function writeWorkflowSnapshot(workflowId: string, patch: Record<string, unknown>) {
+  realConfig.ensureConfigDir();
+  const workflowsDir = realConfig.getWorkflowsDir();
+  const snapshot = {
+    schemaVersion: "1.5.0",
+    workflowId,
+    createdAt: "2026-03-24T12:00:00.000Z",
+    updatedAt: "2026-03-24T12:00:00.000Z",
+    phase: "depositing_publicly",
+    walletMode: "configured",
+    walletAddress: GLOBAL_SIGNER_ADDRESS,
+    chain: "sepolia",
+    asset: state.pool.symbol,
+    depositAmount: state.pool.decimals === 6 ? "100000000" : "10000000000000000",
+    recipient: "0x7777777777777777777777777777777777777777",
+    poolAccountId: "PA-7",
+    poolAccountNumber: 7,
+    depositTxHash: state.depositTxHash,
+    depositBlockNumber: null,
+    depositExplorerUrl: "https://example.test/deposit",
+    committedValue: state.committedValue.toString(),
+    aspStatus: "pending",
+    ...patch,
+  };
+  writeFileSync(join(workflowsDir, `${workflowId}.json`), JSON.stringify(snapshot, null, 2), "utf8");
+}
+
+function writeWorkflowSecret(workflowId: string): void {
+  realConfig.ensureConfigDir();
+  writeFileSync(
+    join(realConfig.getWorkflowSecretsDir(), `${workflowId}.json`),
+    JSON.stringify(
+      {
+        schemaVersion: "1.5.0",
+        workflowId,
+        chain: "sepolia",
+        walletAddress: NEW_WALLET_ADDRESS,
+        privateKey: NEW_WALLET_PRIVATE_KEY,
+        createdAt: "2026-03-24T12:00:00.000Z",
+        backupConfirmedAt: "2026-03-24T12:00:01.000Z",
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+}
+
+describe("workflow service mocked coverage", () => {
+  beforeAll(async () => {
+    await installWorkflowMocks();
+  });
+
+  afterAll(() => {
+    mock.restore();
+  });
+
+  beforeEach(() => {
+    resetState();
+    process.env.PRIVACY_POOLS_HOME = state.tempHome;
+  });
+
+  afterEach(() => {
+    delete process.env.PRIVACY_POOLS_HOME;
+    rmSync(state.tempHome, { recursive: true, force: true });
+  });
+
+  test("configured flow start binds the original signer address into the saved workflow", async () => {
+    const snapshot = await startWorkflow({
+      amountInput: "0.01",
+      assetInput: "ETH",
+      recipient: "0x7777777777777777777777777777777777777777",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+      watch: false,
+    });
+
+    expect(snapshot.walletMode).toBe("configured");
+    expect(snapshot.walletAddress).toBe(GLOBAL_SIGNER_ADDRESS);
+    expect(snapshot.phase).toBe("awaiting_asp");
+    expect(loadWorkflowSnapshot(snapshot.workflowId).walletAddress).toBe(
+      GLOBAL_SIGNER_ADDRESS,
+    );
+  });
+
+  test("new-wallet flows require --export-new-wallet in machine mode", async () => {
+    await expect(
+      startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("Non-interactive workflow wallets require --export-new-wallet");
+  });
+
+  test("new-wallet setup does not write secrets or backups before readiness checks pass", async () => {
+    state.gasPriceError = true;
+    const backupPath = join(state.tempHome, "workflow-wallet.txt");
+
+    await expect(
+      startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        exportNewWallet: backupPath,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("Could not estimate the workflow wallet gas reserve");
+
+    expect(existsSync(backupPath)).toBe(false);
+    const secretsDir = realConfig.getWorkflowSecretsDir();
+    expect(
+      existsSync(secretsDir) ? readdirSync(secretsDir) : [],
+    ).toHaveLength(0);
+  });
+
+  test("new-wallet ERC20 flow completes with extra gas enabled and no global signer", async () => {
+    state.currentSignerPrivateKey = null;
+    state.pool = {
+      ...state.pool,
+      asset: "0x8888888888888888888888888888888888888888",
+      symbol: "USDC",
+      decimals: 6,
+    };
+    state.tokenBalance = 100000000n;
+    state.nativeBalance = 10n ** 18n;
+
+    const backupPath = join(state.tempHome, "workflow-wallet.txt");
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        exportNewWallet: backupPath,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      });
+
+      expect(snapshot.phase).toBe("completed");
+      expect(snapshot.walletMode).toBe("new_wallet");
+      expect(snapshot.walletAddress).toBe(NEW_WALLET_ADDRESS);
+      expect(snapshot.requiredTokenFunding).toBe("100000000");
+      expect(state.loadPrivateKeyCalls).toBe(0);
+      expect(state.approveErc20Calls).toBe(1);
+      expect(state.depositErc20Calls).toBe(1);
+      expect(state.requestQuoteCalls.at(-1)?.extraGas).toBe(true);
+      expect(readFileSync(backupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
+      expect(statSync(backupPath).mode & 0o777).toBe(0o600);
+      expect(
+        existsSync(
+          join(realConfig.getWorkflowSecretsDir(), `${snapshot.workflowId}.json`),
+        ),
+      ).toBe(false);
+    } finally {
+      restoreTimers();
+    }
+  });
+
+  test("watchWorkflow does not re-submit a pending public deposit", async () => {
+    state.pendingReceiptAvailableAfter = 1;
+    state.aspStatus = "declined";
+    writeWorkflowSnapshot("wf-pending", {
+      phase: "depositing_publicly",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositTxHash: state.depositTxHash,
+      depositBlockNumber: null,
+    });
+
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await watchWorkflow({
+        workflowId: "wf-pending",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      });
+
+      expect(snapshot.phase).toBe("paused_declined");
+      expect(state.depositEthCalls).toBe(0);
+      expect(state.depositErc20Calls).toBe(0);
+      expect(state.getTransactionReceiptCalls).toBe(1);
+      expect(getWorkflowStatus({ workflowId: "wf-pending" }).depositBlockNumber).toBe("101");
+    } finally {
+      restoreTimers();
+    }
+  });
+
+  test("watchWorkflow pauses configured flows when the ASP declines them", async () => {
+    state.aspStatus = "declined";
+    writeWorkflowSnapshot("wf-declined", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-declined",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("paused_declined");
+    expect(snapshot.aspStatus).toBe("declined");
+    expect(state.requestQuoteCalls).toHaveLength(0);
+  });
+
+  test("watchWorkflow pauses flows that require Proof of Association", async () => {
+    state.aspStatus = "poi_required";
+    writeWorkflowSnapshot("wf-poi", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-poi",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("paused_poi_required");
+    expect(snapshot.aspStatus).toBe("poi_required");
+    expect(state.requestQuoteCalls).toHaveLength(0);
+  });
+
+  test("watchWorkflow stops when the saved workflow no longer matches the Pool Account state", async () => {
+    writeWorkflowSnapshot("wf-mismatch", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+      committedValue: "1",
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-mismatch",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("stopped_external");
+    expect(snapshot.workflowId).toBe("wf-mismatch");
+    expect(state.requestQuoteCalls).toHaveLength(0);
+  });
+
+  test("configured flow ragequit fails fast when the signer no longer matches the original depositor", async () => {
+    writeWorkflowSnapshot("wf-ragequit", {
+      phase: "paused_declined",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+    state.currentSignerPrivateKey = MISMATCH_SIGNER_PRIVATE_KEY;
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-ragequit",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow(
+      `Configured signer ${MISMATCH_SIGNER_ADDRESS} does not match the original depositor ${GLOBAL_SIGNER_ADDRESS}.`,
+    );
+  });
+
+  test("configured flow ragequit succeeds with the original signer", async () => {
+    writeWorkflowSnapshot("wf-configured-ragequit", {
+      phase: "paused_declined",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+    state.currentSignerPrivateKey = GLOBAL_SIGNER_PRIVATE_KEY;
+
+    const snapshot = await ragequitWorkflow({
+      workflowId: "wf-configured-ragequit",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("completed_public_recovery");
+    expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
+    expect(state.loadPrivateKeyCalls).toBe(1);
+    expect(state.submitRagequitCalls).toBe(1);
+    expect(state.addRagequitCalls).toBe(1);
+  });
+
+  test("configured flow ragequit does not depend on ASP availability", async () => {
+    writeWorkflowSnapshot("wf-configured-ragequit-no-asp", {
+      phase: "paused_declined",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+    state.aspUnavailable = true;
+
+    const snapshot = await ragequitWorkflow({
+      workflowId: "wf-configured-ragequit-no-asp",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("completed_public_recovery");
+    expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
+  });
+
+  test("new-wallet ragequit succeeds with the stored workflow secret", async () => {
+    writeWorkflowSecret("wf-new-wallet-ragequit");
+    writeWorkflowSnapshot("wf-new-wallet-ragequit", {
+      phase: "paused_declined",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+    state.currentSignerPrivateKey = null;
+    state.onchainDepositor = NEW_WALLET_ADDRESS;
+
+    const snapshot = await ragequitWorkflow({
+      workflowId: "wf-new-wallet-ragequit",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("completed_public_recovery");
+    expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
+    expect(state.submitRagequitCalls).toBe(1);
+    expect(state.addRagequitCalls).toBe(1);
+    expect(
+      existsSync(
+        join(realConfig.getWorkflowSecretsDir(), "wf-new-wallet-ragequit.json"),
+      ),
+    ).toBe(false);
+  });
+
+  test("saved new-wallet workflows wait for funding and then complete once balances arrive", async () => {
+    writeWorkflowSecret("wf-funded-later");
+    state.pool = {
+      ...state.pool,
+      asset: "0x8888888888888888888888888888888888888888",
+      symbol: "USDC",
+      decimals: 6,
+    };
+    state.nativeBalanceSequence = [0n, 10n ** 18n, 10n ** 18n];
+    state.tokenBalanceSequence = [0n, 100000000n, 100000000n];
+
+    writeWorkflowSnapshot("wf-funded-later", {
+      phase: "awaiting_funding",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositTxHash: null,
+      depositBlockNumber: null,
+      depositExplorerUrl: null,
+      requiredNativeFunding: "1000000000000000",
+      requiredTokenFunding: "100000000",
+      aspStatus: undefined,
+    });
+
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await watchWorkflow({
+        workflowId: "wf-funded-later",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      });
+
+      expect(snapshot.phase).toBe("completed");
+      expect(state.depositErc20Calls).toBe(1);
+      expect(state.approveErc20Calls).toBe(1);
+      expect(getWorkflowStatus({ workflowId: "wf-funded-later" }).withdrawTxHash).toBe(
+        state.relayTxHash,
+      );
+    } finally {
+      restoreTimers();
+    }
+  });
+
+  test("watchWorkflow retries a new-wallet deposit after a submission failure before any tx hash is saved", async () => {
+    writeWorkflowSecret("wf-retry-submit");
+    state.pool = {
+      ...state.pool,
+      asset: "0x8888888888888888888888888888888888888888",
+      symbol: "USDC",
+      decimals: 6,
+    };
+    state.nativeBalance = 10n ** 18n;
+    state.tokenBalance = 100000000n;
+    state.depositErc20FailuresRemaining = 1;
+    state.poolAccountAvailable = false;
+
+    writeWorkflowSnapshot("wf-retry-submit", {
+      phase: "awaiting_funding",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositTxHash: null,
+      depositBlockNumber: null,
+      depositExplorerUrl: null,
+      requiredNativeFunding: "1000000000000000",
+      requiredTokenFunding: "100000000",
+      aspStatus: undefined,
+    });
+
+    const restoreTimers = useImmediateTimers();
+    try {
+      await expect(
+        watchWorkflow({
+          workflowId: "wf-retry-submit",
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: true,
+            isJson: true,
+            isCsv: false,
+            isQuiet: true,
+            format: "json",
+            skipPrompts: true,
+          },
+          isVerbose: false,
+        }),
+      ).rejects.toThrow("Simulated ERC20 deposit submission failure");
+
+      const failedSnapshot = getWorkflowStatus({ workflowId: "wf-retry-submit" });
+      expect(failedSnapshot.phase).toBe("depositing_publicly");
+      expect(failedSnapshot.depositTxHash).toBeNull();
+      expect(failedSnapshot.lastError?.step).toBe("deposit");
+      expect(state.depositErc20Calls).toBe(1);
+
+      const retriedSnapshot = await watchWorkflow({
+        workflowId: "wf-retry-submit",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      });
+
+      expect(retriedSnapshot.phase).toBe("completed");
+      expect(retriedSnapshot.depositTxHash).toBe(state.depositTxHash);
+      expect(retriedSnapshot.lastError).toBeUndefined();
+      expect(state.depositErc20Calls).toBe(2);
+    } finally {
+      restoreTimers();
+    }
+  });
+
+  test("watchWorkflow saves a withdraw lastError when the relayer minimum blocks the flow", async () => {
+    state.minWithdrawAmount = state.committedValue + 1n;
+    writeWorkflowSnapshot("wf-relayer-min", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "approved",
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-relayer-min",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Workflow amount is below the relayer minimum");
+
+    const snapshot = getWorkflowStatus({ workflowId: "wf-relayer-min" });
+    expect(snapshot.lastError?.step).toBe("withdraw");
+    expect(snapshot.lastError?.errorMessage).toContain("below the relayer minimum");
+  });
+
+  test("watchWorkflow fails closed when ASP roots are mid-update", async () => {
+    state.aspMtRoot = state.latestRoot - 1n;
+    writeWorkflowSnapshot("wf-asp-updating", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "approved",
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-asp-updating",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Withdrawal service data is still updating");
+
+    expect(getWorkflowStatus({ workflowId: "wf-asp-updating" }).lastError?.step).toBe(
+      "inspect_approval",
+    );
+  });
+
+  test("watchWorkflow retries after a reverted pending deposit and then completes", async () => {
+    state.pendingReceiptMode = "reverted";
+    state.pool = {
+      ...state.pool,
+      asset: "0x8888888888888888888888888888888888888888",
+      symbol: "USDC",
+      decimals: 6,
+    };
+    state.tokenBalance = 100000000n;
+    state.nativeBalance = 10n ** 18n;
+
+    writeWorkflowSnapshot("wf-reverted-pending", {
+      phase: "depositing_publicly",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositTxHash: state.depositTxHash,
+      depositBlockNumber: null,
+      depositExplorerUrl: "https://example.test/deposit",
+      requiredNativeFunding: "1000000000000000",
+      requiredTokenFunding: "100000000",
+      aspStatus: undefined,
+    });
+    writeWorkflowSecret("wf-reverted-pending");
+
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await watchWorkflow({
+        workflowId: "wf-reverted-pending",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      });
+
+      expect(snapshot.phase).toBe("completed");
+      expect(state.approveErc20Calls).toBe(1);
+      expect(state.depositErc20Calls).toBe(1);
+      expect(getWorkflowStatus({ workflowId: "wf-reverted-pending" }).depositBlockNumber).toBe(
+        "101",
+      );
+    } finally {
+      restoreTimers();
+    }
+  });
+
+  test("watchWorkflow rebinds the saved Pool Account using the deposit label when numbering drifts", async () => {
+    writeWorkflowSnapshot("wf-label-rebind", {
+      phase: "awaiting_asp",
+      poolAccountId: "PA-99",
+      poolAccountNumber: 99,
+      depositTxHash:
+        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      depositLabel: state.label.toString(),
+      depositBlockNumber: "101",
+      aspStatus: "approved",
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-label-rebind",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("completed");
+    expect(snapshot.poolAccountNumber).toBe(7);
+    expect(snapshot.poolAccountId).toBe("PA-7");
+    expect(snapshot.depositTxHash).toBe(state.depositTxHash);
+  });
+
+  test("interactive configured flows confirm the manual signer path before saving the workflow", async () => {
+    mock.module("@inquirer/prompts", () => ({
+      confirm: async () => true,
+      input: async () => join(state.tempHome, "unused-wallet.txt"),
+      select: async () => "copied",
+    }));
+
+    const snapshot = await startWorkflow({
+      amountInput: "0.01",
+      assetInput: "ETH",
+      recipient: "0x7777777777777777777777777777777777777777",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: false,
+        isJson: false,
+        isCsv: false,
+        isQuiet: false,
+        format: "table",
+        skipPrompts: false,
+      },
+      isVerbose: false,
+      watch: false,
+    });
+
+    expect(snapshot.phase).toBe("awaiting_asp");
+    expect(snapshot.walletMode).toBe("configured");
+    expect(snapshot.walletAddress).toBe(GLOBAL_SIGNER_ADDRESS);
+    expect(snapshot.depositTxHash).toBe(state.depositTxHash);
+  });
+
+  test("interactive configured flows can cancel on the non-round amount privacy warning", async () => {
+    mock.module("@inquirer/prompts", () => ({
+      confirm: async () => false,
+      input: async () => join(state.tempHome, "unused-wallet.txt"),
+      select: async () => "copied",
+    }));
+
+    await expect(
+      startWorkflow({
+        amountInput: "0.011",
+        assetInput: "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: false,
+          isJson: false,
+          isCsv: false,
+          isQuiet: false,
+          format: "table",
+          skipPrompts: false,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("Flow cancelled.");
+
+    expect(state.depositEthCalls).toBe(0);
+    expect(state.depositErc20Calls).toBe(0);
+  });
+
+  test("interactive new-wallet flows can confirm backup and complete", async () => {
+    mock.module("@inquirer/prompts", () => ({
+      confirm: async () => true,
+      input: async () => join(state.tempHome, "ignored-wallet.txt"),
+      select: async () => "copied",
+    }));
+    state.currentSignerPrivateKey = null;
+    state.pool = {
+      ...state.pool,
+      asset: "0x8888888888888888888888888888888888888888",
+      symbol: "USDC",
+      decimals: 6,
+    };
+    state.tokenBalance = 100000000n;
+    state.nativeBalance = 10n ** 18n;
+
+    const backupPath = join(state.tempHome, "interactive-wallet.txt");
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await withMutedStderr(() => startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        exportNewWallet: backupPath,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: false,
+          isJson: false,
+          isCsv: false,
+          isQuiet: true,
+          format: "table",
+          skipPrompts: false,
+        },
+        isVerbose: false,
+        watch: false,
+      }));
+
+      expect(snapshot.phase).toBe("completed");
+      expect(snapshot.backupConfirmed).toBe(true);
+      expect(readFileSync(backupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
+    } finally {
+      restoreTimers();
+    }
+  });
+
+  test("interactive new-wallet flows can choose a backup file path and complete", async () => {
+    const promptedBackupPath = join(state.tempHome, "prompted-wallet.txt");
+    mock.module("@inquirer/prompts", () => ({
+      confirm: async () => true,
+      input: async () => promptedBackupPath,
+      select: async () => "file",
+    }));
+    state.currentSignerPrivateKey = null;
+    state.pool = {
+      ...state.pool,
+      asset: "0x8888888888888888888888888888888888888888",
+      symbol: "USDC",
+      decimals: 6,
+    };
+    state.tokenBalance = 100000000n;
+    state.nativeBalance = 10n ** 18n;
+
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await withMutedStderr(() => startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: false,
+          isJson: false,
+          isCsv: false,
+          isQuiet: true,
+          format: "table",
+          skipPrompts: false,
+        },
+        isVerbose: false,
+        watch: false,
+      }));
+
+      expect(snapshot.phase).toBe("completed");
+      expect(readFileSync(promptedBackupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
+    } finally {
+      restoreTimers();
+    }
+  });
+
+  test("interactive new-wallet flows stop when backup confirmation is declined", async () => {
+    mock.module("@inquirer/prompts", () => ({
+      confirm: async () => false,
+      input: async () => join(state.tempHome, "unused-wallet.txt"),
+      select: async () => "copied",
+    }));
+    state.currentSignerPrivateKey = null;
+
+    await expect(
+      withMutedStderr(() => startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: false,
+          isJson: false,
+          isCsv: false,
+          isQuiet: true,
+          format: "table",
+          skipPrompts: false,
+        },
+        isVerbose: false,
+        watch: false,
+      })),
+    ).rejects.toThrow("You must confirm that the workflow wallet is backed up.");
+  });
+
+  test("ragequitWorkflow rejects workflows that have not deposited publicly yet", async () => {
+    writeWorkflowSnapshot("wf-no-deposit", {
+      phase: "awaiting_funding",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositTxHash: null,
+      depositBlockNumber: null,
+      depositExplorerUrl: null,
+      aspStatus: undefined,
+    });
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-no-deposit",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("This workflow has not deposited publicly yet.");
+  });
+
+  test("ragequitWorkflow rejects workflows that are already terminal", async () => {
+    writeWorkflowSnapshot("wf-terminal", {
+      phase: "completed_public_recovery",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-terminal",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("This workflow is already terminal.");
+  });
+});
