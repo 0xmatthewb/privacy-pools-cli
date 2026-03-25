@@ -1174,6 +1174,88 @@ function clearPendingDepositFromSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
   );
 }
 
+function attachPendingWithdrawalToSnapshot(
+  snapshot: FlowSnapshot,
+  chainId: number,
+  withdrawTxHash: Hex,
+): FlowSnapshot {
+  return normalizeWorkflowSnapshot(
+    clearLastError(
+      updateSnapshot(snapshot, {
+        phase: "withdrawing",
+        withdrawTxHash,
+        withdrawBlockNumber: null,
+        withdrawExplorerUrl: explorerTxUrl(chainId, withdrawTxHash),
+      }),
+    ),
+  );
+}
+
+function attachWithdrawalResultToSnapshot(
+  snapshot: FlowSnapshot,
+  result: {
+    chainId: number;
+    withdrawTxHash: string;
+    withdrawBlockNumber: bigint | string;
+    withdrawExplorerUrl?: string | null;
+  },
+): FlowSnapshot {
+  return normalizeWorkflowSnapshot(
+    clearLastError(
+      updateSnapshot(snapshot, {
+        phase: "completed",
+        aspStatus: "approved",
+        withdrawTxHash: result.withdrawTxHash,
+        withdrawBlockNumber: result.withdrawBlockNumber.toString(),
+        withdrawExplorerUrl:
+          result.withdrawExplorerUrl ??
+          explorerTxUrl(result.chainId, result.withdrawTxHash),
+      }),
+    ),
+  );
+}
+
+function attachPendingRagequitToSnapshot(
+  snapshot: FlowSnapshot,
+  chainId: number,
+  ragequitTxHash: Hex,
+): FlowSnapshot {
+  return normalizeWorkflowSnapshot(
+    clearLastError(
+      updateSnapshot(snapshot, {
+        ragequitTxHash,
+        ragequitBlockNumber: null,
+        ragequitExplorerUrl: explorerTxUrl(chainId, ragequitTxHash),
+      }),
+    ),
+  );
+}
+
+function attachRagequitResultToSnapshot(
+  snapshot: FlowSnapshot,
+  result: {
+    chainId: number;
+    aspStatus?: AspApprovalStatus;
+    ragequitTxHash: string;
+    ragequitBlockNumber: bigint | string;
+    ragequitExplorerUrl?: string | null;
+  },
+): FlowSnapshot {
+  return normalizeWorkflowSnapshot(
+    clearLastError(
+      updateSnapshot(snapshot, {
+        phase: "completed_public_recovery",
+        aspStatus: result.aspStatus ?? snapshot.aspStatus,
+        ragequitTxHash: result.ragequitTxHash,
+        ragequitBlockNumber: result.ragequitBlockNumber.toString(),
+        ragequitExplorerUrl:
+          result.ragequitExplorerUrl ??
+          explorerTxUrl(result.chainId, result.ragequitTxHash),
+      }),
+    ),
+  );
+}
+
 async function readFlowFundingState(params: {
   snapshot: FlowSnapshot;
   pool: WorkflowPool;
@@ -1330,6 +1412,229 @@ async function reconcilePendingDepositReceipt(params: {
 
 function buildSavedWorkflowRecoveryCommand(snapshot: FlowSnapshot): string {
   return `privacy-pools flow ragequit ${snapshot.workflowId}`;
+}
+
+async function refreshWorkflowAccountStateFromChain(params: {
+  snapshot: FlowSnapshot;
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  globalOpts?: GlobalOptions;
+  silent: boolean;
+  isVerbose: boolean;
+}): Promise<void> {
+  const { snapshot, chainConfig, pool, globalOpts, silent, isVerbose } = params;
+
+  try {
+    const mnemonic = loadMnemonic();
+    const dataService = await getDataService(
+      chainConfig,
+      pool.pool,
+      globalOpts?.rpcUrl,
+    );
+    await initializeAccountService(
+      dataService,
+      mnemonic,
+      [
+        {
+          chainId: chainConfig.id,
+          address: pool.pool,
+          scope: pool.scope,
+          deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
+        },
+      ],
+      chainConfig.id,
+      true,
+      silent,
+      true,
+    );
+  } catch (error) {
+    warn(
+      `Workflow transaction confirmed onchain but local account reconciliation needs a manual refresh: ${error instanceof Error ? error.message : String(error)}`,
+      silent,
+    );
+    warn(
+      `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' to refresh the local account cache.`,
+      silent,
+    );
+    verbose(
+      `Workflow account refresh failed after confirmation for ${snapshot.workflowId}.`,
+      isVerbose,
+      silent,
+    );
+  }
+}
+
+async function reconcilePendingWithdrawalReceipt(params: {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}): Promise<FlowSnapshot | null> {
+  const { snapshot, globalOpts, mode, isVerbose } = params;
+  if (!snapshot.withdrawTxHash || snapshot.withdrawBlockNumber) {
+    return null;
+  }
+
+  const silent = mode.isQuiet || mode.isJson;
+  const chainConfig = assertWorkflowChain(snapshot);
+  const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
+  const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+
+  let receipt: Awaited<
+    ReturnType<ReturnType<typeof getPublicClient>["getTransactionReceipt"]>
+  > | null = null;
+  try {
+    receipt = await publicClient.getTransactionReceipt({
+      hash: snapshot.withdrawTxHash as `0x${string}`,
+    });
+  } catch {
+    return null;
+  }
+
+  if (receipt.status !== "success") {
+    throw new CLIError(
+      `Previously submitted workflow withdrawal reverted: ${snapshot.withdrawTxHash}`,
+      "CONTRACT",
+      "Inspect the relay transaction on a block explorer before retrying 'privacy-pools flow watch'.",
+    );
+  }
+
+  await refreshWorkflowAccountStateFromChain({
+    snapshot,
+    chainConfig,
+    pool,
+    globalOpts,
+    silent,
+    isVerbose,
+  });
+
+  return attachWithdrawalResultToSnapshot(snapshot, {
+    chainId: chainConfig.id,
+    withdrawTxHash: snapshot.withdrawTxHash,
+    withdrawBlockNumber: receipt.blockNumber,
+    withdrawExplorerUrl:
+      snapshot.withdrawExplorerUrl ??
+      explorerTxUrl(chainConfig.id, snapshot.withdrawTxHash),
+  });
+}
+
+async function reconcilePendingRagequitReceipt(params: {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}): Promise<FlowSnapshot | null> {
+  const { snapshot, globalOpts, mode, isVerbose } = params;
+  if (!snapshot.ragequitTxHash || snapshot.ragequitBlockNumber) {
+    return null;
+  }
+
+  const silent = mode.isQuiet || mode.isJson;
+  const chainConfig = assertWorkflowChain(snapshot);
+  const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
+  const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+
+  let receipt: Awaited<
+    ReturnType<ReturnType<typeof getPublicClient>["getTransactionReceipt"]>
+  > | null = null;
+  try {
+    receipt = await publicClient.getTransactionReceipt({
+      hash: snapshot.ragequitTxHash as `0x${string}`,
+    });
+  } catch {
+    return null;
+  }
+
+  if (receipt.status !== "success") {
+    throw new CLIError(
+      `Previously submitted workflow ragequit reverted: ${snapshot.ragequitTxHash}`,
+      "CONTRACT",
+      "Inspect the exit transaction on a block explorer before retrying 'privacy-pools flow ragequit'.",
+    );
+  }
+
+  await refreshWorkflowAccountStateFromChain({
+    snapshot,
+    chainConfig,
+    pool,
+    globalOpts,
+    silent,
+    isVerbose,
+  });
+
+  return attachRagequitResultToSnapshot(snapshot, {
+    chainId: chainConfig.id,
+    aspStatus: snapshot.aspStatus,
+    ragequitTxHash: snapshot.ragequitTxHash,
+    ragequitBlockNumber: receipt.blockNumber,
+    ragequitExplorerUrl:
+      snapshot.ragequitExplorerUrl ??
+      explorerTxUrl(chainConfig.id, snapshot.ragequitTxHash),
+  });
+}
+
+async function awaitPendingRagequitReceipt(params: {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}): Promise<FlowSnapshot> {
+  const immediate = await reconcilePendingRagequitReceipt(params);
+  if (immediate) {
+    return immediate;
+  }
+
+  const { snapshot, globalOpts, mode, isVerbose } = params;
+  if (!snapshot.ragequitTxHash) {
+    throw new CLIError(
+      "This workflow does not have a pending public recovery transaction.",
+      "INPUT",
+      "Run 'privacy-pools flow ragequit' to submit the recovery transaction first.",
+    );
+  }
+
+  const silent = mode.isQuiet || mode.isJson;
+  const chainConfig = assertWorkflowChain(snapshot);
+  const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
+  const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+
+  const receipt = await publicClient.waitForTransactionReceipt({
+    hash: snapshot.ragequitTxHash as `0x${string}`,
+    timeout: getConfirmationTimeoutMs(),
+  }).catch(() => {
+    throw new CLIError(
+      "Timed out waiting for workflow ragequit confirmation.",
+      "RPC",
+      `Tx ${snapshot.ragequitTxHash} may still confirm. Run 'privacy-pools flow status ${snapshot.workflowId}' to inspect the saved workflow and retry later.`,
+    );
+  });
+
+  if (receipt.status !== "success") {
+    throw new CLIError(
+      `Workflow ragequit transaction reverted: ${snapshot.ragequitTxHash}`,
+      "CONTRACT",
+      "Check the transaction on a block explorer for details.",
+    );
+  }
+
+  await refreshWorkflowAccountStateFromChain({
+    snapshot,
+    chainConfig,
+    pool,
+    globalOpts,
+    silent,
+    isVerbose,
+  });
+
+  return attachRagequitResultToSnapshot(snapshot, {
+    chainId: chainConfig.id,
+    aspStatus: snapshot.aspStatus,
+    ragequitTxHash: snapshot.ragequitTxHash,
+    ragequitBlockNumber: receipt.blockNumber,
+    ragequitExplorerUrl:
+      snapshot.ragequitExplorerUrl ??
+      explorerTxUrl(chainConfig.id, snapshot.ragequitTxHash),
+  });
 }
 
 async function inspectFundingAndDeposit(params: {
@@ -1752,6 +2057,15 @@ async function executeRelayedWithdrawalForFlow(params: {
     feeCommitment: quote.feeCommitment,
   });
 
+  await saveWorkflowSnapshotIfChangedWithLock(
+    snapshot,
+    attachPendingWithdrawalToSnapshot(
+      snapshot,
+      chainConfig.id,
+      relayResult.txHash as Hex,
+    ),
+  );
+
   withdrawSpin.text = "Waiting for relay transaction confirmation...";
   const receipt = await publicClient.waitForTransactionReceipt({
     hash: relayResult.txHash as `0x${string}`,
@@ -1819,6 +2133,25 @@ async function continueApprovedWorkflowWithdrawal(params: {
   isVerbose: boolean;
 }): Promise<ApprovalInspectionResult> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
+  const reconciledPending = await reconcilePendingWithdrawalReceipt({
+    snapshot,
+    globalOpts,
+    mode,
+    isVerbose,
+  });
+  if (reconciledPending) {
+    const savedCompleted = await saveWorkflowSnapshotIfChangedWithLock(
+      snapshot,
+      reconciledPending,
+    );
+    cleanupTerminalWorkflowSecret(savedCompleted);
+    return { snapshot: savedCompleted, continueWatching: false };
+  }
+
+  if (snapshot.withdrawTxHash && !snapshot.withdrawBlockNumber) {
+    return { snapshot, continueWatching: true };
+  }
+
   const silent = mode.isQuiet || mode.isJson;
   const context = await loadWorkflowPoolAccountContext(
     snapshot,
@@ -1872,9 +2205,8 @@ async function continueApprovedWorkflowWithdrawal(params: {
   });
 
   const completed = clearLastError(
-    updateSnapshot(savedWithdrawing, {
-      phase: "completed",
-      aspStatus: "approved",
+    attachWithdrawalResultToSnapshot(savedWithdrawing, {
+      chainId: context.chainConfig.id,
       ...withdrawalResult,
     }),
   );
@@ -1979,6 +2311,11 @@ async function executeRagequitForFlow(params: {
     signerPrivateKey,
   );
 
+  await saveWorkflowSnapshotIfChangedWithLock(
+    snapshot,
+    attachPendingRagequitToSnapshot(snapshot, chainConfig.id, tx.hash as Hex),
+  );
+
   ragequitSpin.text = "Waiting for confirmation...";
   const receipt = await publicClient.waitForTransactionReceipt({
     hash: tx.hash as `0x${string}`,
@@ -2051,6 +2388,26 @@ async function inspectAndAdvanceFlow(params: {
   isVerbose: boolean;
 }): Promise<ApprovalInspectionResult> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
+  const reconciledRagequit = await reconcilePendingRagequitReceipt({
+    snapshot,
+    globalOpts,
+    mode,
+    isVerbose,
+  });
+  if (reconciledRagequit) {
+    return {
+      snapshot: saveWorkflowSnapshotIfChanged(snapshot, reconciledRagequit),
+      continueWatching: false,
+    };
+  }
+
+  if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
+    return {
+      snapshot,
+      continueWatching: false,
+    };
+  }
+
   const silent = mode.isQuiet || mode.isJson;
 
   if (snapshot.phase === "awaiting_funding" || snapshot.phase === "depositing_publicly") {
@@ -2512,23 +2869,14 @@ export async function watchWorkflow(
     }
 
     try {
-      const result =
-        snapshot.phase === "approved_ready_to_withdraw" ||
-        snapshot.phase === "withdrawing"
-          ? await inspectAndAdvanceFlow({
-              snapshot,
-              globalOpts,
-              mode,
-              isVerbose,
-            })
-          : await withProcessLock(async () =>
-              inspectAndAdvanceFlow({
-                snapshot,
-                globalOpts,
-                mode,
-                isVerbose,
-              }),
-            );
+      const result = await withProcessLock(async () =>
+        inspectAndAdvanceFlow({
+          snapshot,
+          globalOpts,
+          mode,
+          isVerbose,
+        }),
+      );
 
       if (!result.continueWatching) {
         return result.snapshot;
@@ -2590,28 +2938,46 @@ export async function ragequitWorkflow(
   params: RagequitFlowParams,
 ): Promise<FlowSnapshot> {
   const workflowId = resolveWorkflowId(params.workflowId);
-  const snapshot = loadWorkflowSnapshot(workflowId);
-  if (!snapshot.depositTxHash || !snapshot.poolAccountId || !snapshot.poolAccountNumber) {
-    throw new CLIError(
-      "This workflow has not deposited publicly yet.",
-      "INPUT",
-      "Wait for the funding/deposit step to finish before using 'privacy-pools flow ragequit'.",
-    );
-  }
-  if (
-    snapshot.phase === "completed" ||
-    snapshot.phase === "completed_public_recovery" ||
-    snapshot.phase === "stopped_external"
-  ) {
-    throw new CLIError(
-      "This workflow is already terminal.",
-      "INPUT",
-      "Run 'privacy-pools flow status' to inspect the saved workflow instead of trying to ragequit it again.",
-    );
-  }
-
   const releaseLock = acquireProcessLock();
   try {
+    const snapshot = loadWorkflowSnapshot(workflowId);
+    if (!snapshot.depositTxHash || !snapshot.poolAccountId || !snapshot.poolAccountNumber) {
+      throw new CLIError(
+        "This workflow has not deposited publicly yet.",
+        "INPUT",
+        "Wait for the funding/deposit step to finish before using 'privacy-pools flow ragequit'.",
+      );
+    }
+    if (
+      snapshot.phase === "completed" ||
+      snapshot.phase === "completed_public_recovery" ||
+      snapshot.phase === "stopped_external"
+    ) {
+      throw new CLIError(
+        "This workflow is already terminal.",
+        "INPUT",
+        "Run 'privacy-pools flow status' to inspect the saved workflow instead of trying to ragequit it again.",
+      );
+    }
+    if (snapshot.withdrawTxHash && !snapshot.withdrawBlockNumber) {
+      throw new CLIError(
+        "A relayed withdrawal is already in flight for this workflow.",
+        "INPUT",
+        "Wait for it to settle, then re-run 'privacy-pools flow watch' or 'privacy-pools flow status' instead of starting a public recovery now.",
+      );
+    }
+    if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
+      const completed = await awaitPendingRagequitReceipt({
+        snapshot,
+        globalOpts: params.globalOpts,
+        mode: params.mode,
+        isVerbose: params.isVerbose,
+      });
+      const savedCompleted = saveWorkflowSnapshotIfChanged(snapshot, completed);
+      cleanupTerminalWorkflowSecret(savedCompleted);
+      return savedCompleted;
+    }
+
     const ragequitResult = await executeRagequitForFlow({
       snapshot,
       globalOpts: params.globalOpts,
@@ -2619,8 +2985,8 @@ export async function ragequitWorkflow(
       isVerbose: params.isVerbose,
     });
     const completed = clearLastError(
-      updateSnapshot(snapshot, {
-        phase: "completed_public_recovery",
+      attachRagequitResultToSnapshot(snapshot, {
+        chainId: assertWorkflowChain(snapshot).id,
         ...ragequitResult,
       }),
     );

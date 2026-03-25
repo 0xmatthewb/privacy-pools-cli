@@ -134,7 +134,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       usage: "flow",
       flags: ["start <amount> <asset> --to <address>", "watch [workflowId|latest]", "status [workflowId|latest]", "ragequit [workflowId|latest]"],
       agentFlags: "start <amount> <asset> --to <address> --agent (or: watch/status/ragequit --agent)",
-      requiresInit: true,
+      requiresInit: false,
       expectedLatencyClass: "slow",
     },
     safeReadOnly: true,
@@ -158,6 +158,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
       safetyNotes: [
         "The deposit is still public and reviewed by the ASP before private withdrawal is possible.",
+        "In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.",
         "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
         "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.",
       ],
@@ -178,7 +179,8 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     description: "Poll ASP approval and withdraw privately when ready",
     help: {
       overview: [
-        "Re-checks a saved workflow using the same protocol realities as the frontend: funding wait, public deposit, pending review, PoA-required, declined, and approved are all real branches.",
+        "Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, paused_poi_required, paused_declined, and stopped_external.",
+        "The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus.",
         "Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.",
       ],
       examples: [
@@ -224,7 +226,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       usage: "flow status [workflowId|latest]",
       flags: ["[workflowId|latest]"],
       agentFlags: "--agent [workflowId|latest]",
-      requiresInit: true,
+      requiresInit: false,
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
@@ -234,7 +236,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Uses the saved workflow context to perform the public recovery path without changing any manual commands.",
-        "For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it uses the normal signer key.",
+        "For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.",
       ],
       examples: [
         "privacy-pools flow ragequit",
@@ -246,6 +248,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
       safetyNotes: [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
+        "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
       ],
     },
     capabilities: {

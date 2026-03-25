@@ -44,6 +44,20 @@ function phaseLabel(phase: FlowPhase): string {
 }
 
 function buildAgentNextActions(snapshot: FlowSnapshot) {
+  if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
+    return [
+      createNextAction(
+        "flow ragequit",
+        "A public recovery transaction was already submitted. Re-run flow ragequit to wait for confirmation.",
+        "flow_public_recovery_pending",
+        {
+          args: [snapshot.workflowId],
+          options: { agent: true },
+        },
+      ),
+    ];
+  }
+
   switch (snapshot.phase) {
     case "awaiting_funding":
     case "awaiting_asp":
@@ -82,6 +96,19 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
 }
 
 function buildHumanNextActions(snapshot: FlowSnapshot) {
+  if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
+    return [
+      createNextAction(
+        "flow ragequit",
+        "A public recovery transaction was already submitted, so re-run ragequit to wait for confirmation.",
+        "flow_public_recovery_pending",
+        {
+          args: [snapshot.workflowId],
+        },
+      ),
+    ];
+  }
+
   switch (snapshot.phase) {
     case "awaiting_funding":
     case "awaiting_asp":
@@ -178,21 +205,9 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       `Workflow ${data.snapshot.workflowId} completed on the public recovery path.`,
       silent,
     );
-  } else if (data.action === "start") {
-    if (data.snapshot.phase === "awaiting_funding" && data.snapshot.walletAddress) {
-      success(
-        `Workflow ${data.snapshot.workflowId} started with a dedicated wallet at ${data.snapshot.walletAddress}.`,
-        silent,
-      );
-    } else {
-      success(
-        `Flow started for ${data.snapshot.poolAccountId}. The deposit is public now; the private withdrawal will run after ASP approval.`,
-        silent,
-      );
-    }
-  } else if (data.action === "ragequit") {
-    success(
-      `Workflow ${data.snapshot.workflowId} recovered funds publicly from ${data.snapshot.poolAccountId}.`,
+  } else if (data.snapshot.ragequitTxHash && !data.snapshot.ragequitBlockNumber) {
+    info(
+      `Workflow ${data.snapshot.workflowId} already submitted the public recovery transaction and is waiting for confirmation.`,
       silent,
     );
   } else if (data.snapshot.phase === "paused_declined") {
@@ -208,6 +223,23 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   } else if (data.snapshot.phase === "stopped_external") {
     warn(
       `${data.snapshot.poolAccountId} changed outside this saved workflow, so the easy path stopped without taking further action.`,
+      silent,
+    );
+  } else if (data.action === "start") {
+    if (data.snapshot.phase === "awaiting_funding" && data.snapshot.walletAddress) {
+      success(
+        `Workflow ${data.snapshot.workflowId} started with a dedicated wallet at ${data.snapshot.walletAddress}.`,
+        silent,
+      );
+    } else {
+      success(
+        `Flow started for ${data.snapshot.poolAccountId}. The deposit is public now; the private withdrawal will run after ASP approval.`,
+        silent,
+      );
+    }
+  } else if (data.action === "ragequit") {
+    success(
+      `Workflow ${data.snapshot.workflowId} recovered funds publicly from ${data.snapshot.poolAccountId}.`,
       silent,
     );
   } else {
