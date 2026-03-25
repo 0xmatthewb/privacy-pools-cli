@@ -102,6 +102,28 @@ describe("workflow service", () => {
     expect(status.aspStatus).toBe("declined");
   });
 
+  test("getWorkflowStatus accepts explicit latest", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    writeWorkflow(
+      home,
+      sampleWorkflow("wf-1", { updatedAt: "2026-03-24T12:00:00.000Z" }),
+    );
+    writeWorkflow(
+      home,
+      sampleWorkflow("wf-2", {
+        phase: "awaiting_funding",
+        updatedAt: "2026-03-24T12:10:00.000Z",
+        walletMode: "new_wallet",
+      }),
+    );
+
+    const status = getWorkflowStatus({ workflowId: "latest" });
+    expect(status.workflowId).toBe("wf-2");
+    expect(status.phase).toBe("awaiting_funding");
+  });
+
   test("loadWorkflowSnapshot throws INPUT CLIError for corrupt files", () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;

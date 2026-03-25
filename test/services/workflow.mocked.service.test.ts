@@ -348,6 +348,20 @@ const publicClient = {
     throw new Error(`Unexpected receipt lookup: ${hash}`);
   }),
   getTransactionReceipt: mock(async ({ hash }: { hash: Hex }) => {
+    if (hash === state.relayTxHash) {
+      return {
+        status: "success" as const,
+        blockNumber: 202n,
+        logs: [],
+      };
+    }
+    if (hash === state.ragequitTxHash) {
+      return {
+        status: "success" as const,
+        blockNumber: 303n,
+        logs: [],
+      };
+    }
     if (hash !== state.depositTxHash) {
       throw new Error(`Unknown tx: ${hash}`);
     }
@@ -788,6 +802,35 @@ describe("workflow service mocked coverage", () => {
     }
   });
 
+  test("configured flow start --watch completes the approved path", async () => {
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await startWorkflow({
+        amountInput: "0.01",
+        assetInput: "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: true,
+      });
+
+      expect(snapshot.phase).toBe("completed");
+      expect(snapshot.withdrawTxHash).toBe(state.relayTxHash);
+      expect(state.depositEthCalls).toBe(1);
+      expect(state.requestQuoteCalls).toHaveLength(1);
+    } finally {
+      restoreTimers();
+    }
+  });
+
   test("watchWorkflow does not re-submit a pending public deposit", async () => {
     state.pendingReceiptAvailableAfter = 1;
     state.aspStatus = "declined";
@@ -1032,6 +1075,40 @@ describe("workflow service mocked coverage", () => {
         join(realConfig.getWorkflowSecretsDir(), "wf-new-wallet-ragequit.json"),
       ),
     ).toBe(false);
+  });
+
+  test("ragequitWorkflow accepts explicit latest and waits on the saved public recovery tx", async () => {
+    writeWorkflowSnapshot("wf-ragequit-older", {
+      phase: "paused_declined",
+      aspStatus: "declined",
+      updatedAt: "2026-03-24T12:00:00.000Z",
+    });
+    writeWorkflowSnapshot("wf-ragequit-latest", {
+      phase: "paused_declined",
+      aspStatus: "declined",
+      ragequitTxHash: state.ragequitTxHash,
+      ragequitBlockNumber: null,
+      updatedAt: "2026-03-24T12:10:00.000Z",
+    });
+
+    const snapshot = await ragequitWorkflow({
+      workflowId: "latest",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.workflowId).toBe("wf-ragequit-latest");
+    expect(snapshot.phase).toBe("completed_public_recovery");
+    expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
+    expect(state.submitRagequitCalls).toBe(0);
   });
 
   test("saved new-wallet workflows wait for funding and then complete once balances arrive", async () => {
@@ -1299,6 +1376,41 @@ describe("workflow service mocked coverage", () => {
     expect(snapshot.poolAccountNumber).toBe(7);
     expect(snapshot.poolAccountId).toBe("PA-7");
     expect(snapshot.depositTxHash).toBe(state.depositTxHash);
+  });
+
+  test("watchWorkflow accepts explicit latest and resumes a submitted relayed withdrawal", async () => {
+    writeWorkflowSnapshot("wf-watch-older", {
+      phase: "awaiting_asp",
+      aspStatus: "pending",
+      updatedAt: "2026-03-24T12:00:00.000Z",
+    });
+    writeWorkflowSnapshot("wf-watch-latest", {
+      phase: "withdrawing",
+      aspStatus: "approved",
+      withdrawTxHash: state.relayTxHash,
+      withdrawBlockNumber: null,
+      updatedAt: "2026-03-24T12:10:00.000Z",
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "latest",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.workflowId).toBe("wf-watch-latest");
+    expect(snapshot.phase).toBe("completed");
+    expect(snapshot.withdrawTxHash).toBe(state.relayTxHash);
+    expect(state.requestQuoteCalls).toHaveLength(0);
+    expect(state.addWithdrawalCommitmentCalls).toBe(0);
   });
 
   test("interactive configured flows confirm the manual signer path before saving the workflow", async () => {

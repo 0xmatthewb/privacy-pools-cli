@@ -131,6 +131,56 @@ describe("flow command", () => {
     ]);
   });
 
+  test("flow status latest resolves the newest saved workflow", () => {
+    const home = createTempHome();
+    writeWorkflow(home, {
+      schemaVersion: "1.5.0",
+      workflowId: "wf-older",
+      createdAt: "2026-03-24T12:00:00.000Z",
+      updatedAt: "2026-03-24T12:00:00.000Z",
+      phase: "awaiting_asp",
+      chain: "sepolia",
+      asset: "ETH",
+      depositAmount: "10000000000000000",
+      recipient: "0x4444444444444444444444444444444444444444",
+    });
+    writeWorkflow(home, {
+      schemaVersion: "1.5.0",
+      workflowId: "wf-latest",
+      createdAt: "2026-03-24T12:05:00.000Z",
+      updatedAt: "2026-03-24T12:10:00.000Z",
+      phase: "paused_declined",
+      chain: "sepolia",
+      asset: "ETH",
+      depositAmount: "10000000000000000",
+      recipient: "0x4444444444444444444444444444444444444444",
+      poolAccountId: "PA-1",
+      poolAccountNumber: 1,
+      depositTxHash:
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      depositBlockNumber: "12345",
+      depositExplorerUrl: "https://example.test/deposit",
+      committedValue: "9950000000000000",
+      aspStatus: "declined",
+    });
+
+    const result = runCli(["--json", "flow", "status", "latest"], {
+      home,
+      timeoutMs: 10_000,
+    });
+
+    expect(result.status).toBe(0);
+    const json = parseJsonOutput<{
+      success: boolean;
+      workflowId: string;
+      phase: string;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
+    expect(json.workflowId).toBe("wf-latest");
+    expect(json.phase).toBe("paused_declined");
+  });
+
   test("capabilities and describe expose the flow commands", () => {
     const home = createTempHome();
     const capabilitiesResult = runCli(["--json", "capabilities"], {

@@ -126,6 +126,44 @@ describe("renderFlowResult", () => {
     expect(stderr).not.toContain("Next steps:");
   });
 
+  test("human mode does not print the happy-path start message for declined starts", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "start",
+        snapshot: sampleSnapshot({
+          phase: "paused_declined",
+          aspStatus: "declined",
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("was declined by the ASP");
+    expect(stderr).not.toContain(
+      "the private withdrawal will run after ASP approval",
+    );
+  });
+
+  test("human mode reports submitted public recovery transactions clearly", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "paused_declined",
+          aspStatus: "declined",
+          ragequitTxHash:
+            "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          ragequitBlockNumber: null,
+          ragequitExplorerUrl: "https://example.test/ragequit",
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("already submitted the public recovery transaction");
+    expect(stderr).toContain("privacy-pools flow ragequit wf-123");
+  });
+
   test("JSON mode includes funding guidance for awaiting_funding workflows", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>

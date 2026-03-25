@@ -38,6 +38,7 @@ const COMMAND_SURFACE_TESTS = [
 
 const thresholds = [
   { label: "services", prefix: "src/services/", min: 77 },
+  { label: "workflow-engine", prefix: "src/services/workflow.ts", min: 70 },
   { label: "utils", prefix: "src/utils/", min: 84 },
   { label: "output", prefix: "src/output/", min: 85 },
   { label: "config", prefix: "src/config/", min: 95 },
