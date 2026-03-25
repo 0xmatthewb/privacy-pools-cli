@@ -10,6 +10,8 @@ const smokePattern = [
   "deposit -> sync -> accounts -> ragequit -> sync",
   "deposit -> approve -> accounts -> withdraw --direct -> sync",
   "deposit -> approve -> withdraw \\(relayed\\) -> sync",
+  "flow start -> approved watch -> completed",
+  "flow start --new-wallet supports ERC20 funding and completes",
 ].join("|");
 
 const result = spawnSync(

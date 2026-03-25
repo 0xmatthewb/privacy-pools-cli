@@ -6,8 +6,7 @@ import {
   expect,
   test,
 } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
   createPublicClient,
@@ -16,6 +15,7 @@ import {
   http,
   parseAbi,
 } from "viem";
+import { spawn } from "node:child_process";
 import { privateKeyToAccount } from "viem/accounts";
 import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
 import { CHAINS, NATIVE_ASSET_ADDRESS, POA_PORTAL_URL } from "../../src/config/chains.ts";
@@ -25,6 +25,12 @@ import {
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
+import {
+  interruptChildProcess,
+  terminateChildProcess,
+  waitForChildProcessResult,
+} from "../helpers/process.ts";
+import { createTrackedTempDir } from "../helpers/temp.ts";
 import {
   launchAnvil,
   killAnvil,
@@ -47,6 +53,7 @@ import {
   launchAnvilRelayerServer,
   type AnvilRelayerServer,
 } from "../helpers/anvil-relayer-server.ts";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 
 const ANVIL_E2E_ENABLED = process.env.PP_ANVIL_E2E === "1";
 const anvilTest = ANVIL_E2E_ENABLED ? test : test.skip;
@@ -105,6 +112,14 @@ interface DepositedPoolAccount {
   home: string;
   poolAccountId: string;
   txHash: `0x${string}`;
+  label: bigint;
+}
+
+interface StartedFlowWorkflow {
+  home: string;
+  workflowId: string;
+  poolAccountId: string;
+  depositTxHash: `0x${string}`;
   label: bigint;
 }
 
@@ -346,6 +361,75 @@ function parseSuccessfulAgentResult<T>(
   return parseJsonOutput<T>(result.stdout);
 }
 
+async function waitForCondition<T>(
+  label: string,
+  fn: () => T | null | undefined | Promise<T | null | undefined>,
+  timeoutMs: number = 60_000,
+  intervalMs: number = 250,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = await fn();
+    if (value !== null && value !== undefined) {
+      return value;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
+function loadWorkflowSnapshotFromHome(
+  home: string,
+  workflowId: string,
+): Record<string, unknown> {
+  return JSON.parse(
+    readFileSync(
+      join(home, ".privacy-pools", "workflows", `${workflowId}.json`),
+      "utf8",
+    ),
+  ) as Record<string, unknown>;
+}
+
+async function waitForLatestWorkflowSnapshot(
+  home: string,
+  phase: string,
+  timeoutMs: number = 60_000,
+): Promise<Record<string, unknown>> {
+  return waitForCondition(
+    `workflow phase ${phase}`,
+    () => {
+      const workflowDir = join(home, ".privacy-pools", "workflows");
+      let files: string[];
+      try {
+        files = readdirSync(workflowDir).filter((entry) => entry.endsWith(".json"));
+      } catch {
+        return null;
+      }
+      if (files.length === 0) return null;
+      const workflowId = files[0].replace(/\.json$/, "");
+      const snapshot = loadWorkflowSnapshotFromHome(home, workflowId);
+      return snapshot.phase === phase ? snapshot : null;
+    },
+    timeoutMs,
+  );
+}
+
+function parseWorkflowWalletBackup(filePath: string): {
+  walletAddress: `0x${string}`;
+  privateKey: `0x${string}`;
+} {
+  const content = readFileSync(filePath, "utf8");
+  const walletAddress = content.match(/Wallet Address:\s*(0x[a-fA-F0-9]{40})/)?.[1];
+  const privateKey = content.match(/Private Key:\s*(0x[a-fA-F0-9]{64})/)?.[1];
+  if (!walletAddress || !privateKey) {
+    throw new Error(`Could not parse workflow wallet backup at ${filePath}`);
+  }
+  return {
+    walletAddress: walletAddress as `0x${string}`,
+    privateKey: privateKey as `0x${string}`,
+  };
+}
+
 function appendInsertedStateTreeLeaf(commitment: bigint): void {
   const currentState = requireAspState();
   aspState = {
@@ -502,6 +586,49 @@ async function createReviewedPoolAccount(
   return deposit;
 }
 
+async function startFlowWorkflow(
+  prefix: string,
+): Promise<StartedFlowWorkflow> {
+  const home = createAnvilHome(prefix);
+  const flowJson = parseSuccessfulAgentResult<{
+    success: boolean;
+    mode: string;
+    action: string;
+    workflowId: string;
+    poolAccountId: string;
+    depositTxHash: `0x${string}`;
+  }>(
+    home,
+    [
+      "--agent",
+      "flow",
+      "start",
+      "0.01",
+      "ETH",
+      "--to",
+      relayedRecipient,
+      "--chain",
+      "sepolia",
+    ],
+    "flow start",
+    180_000,
+  );
+  expect(flowJson.success).toBe(true);
+  expect(flowJson.mode).toBe("flow");
+  expect(flowJson.action).toBe("start");
+
+  const depositEvent = await decodeDeposit(flowJson.depositTxHash);
+  appendInsertedStateTreeLeaf(depositEvent.commitment);
+
+  return {
+    home,
+    workflowId: flowJson.workflowId,
+    poolAccountId: flowJson.poolAccountId,
+    depositTxHash: flowJson.depositTxHash,
+    label: depositEvent.label,
+  };
+}
+
 function syncEthPool(home: string, label: string): void {
   parseSuccessfulAgentResult(
     home,
@@ -553,7 +680,7 @@ beforeAll(async () => {
   await setBalance(anvil.url, aspPostman, 10n ** 20n);
   await setBalance(anvil.url, relayerAddress, 10n ** 20n);
 
-  const stateDir = mkdtempSync(join(tmpdir(), "pp-anvil-asp-"));
+  const stateDir = createTrackedTempDir("pp-anvil-asp-");
   aspStateFile = join(stateDir, "state.json");
   circuitsDir = join(stateDir, "circuits");
   writeFileSync(join(stateDir, ".keep"), "", "utf8");
@@ -579,10 +706,10 @@ beforeEach(async () => {
   await resetFork();
 });
 
-afterAll(() => {
-  if (relayerServer) killAnvilRelayerServer(relayerServer);
-  if (aspServer) killAnvilAspServer(aspServer);
-  if (anvil) killAnvil(anvil);
+afterAll(async () => {
+  if (relayerServer) await killAnvilRelayerServer(relayerServer);
+  if (aspServer) await killAnvilAspServer(aspServer);
+  if (anvil) await killAnvil(anvil);
 
   if (aspStateFile) {
     rmSync(dirname(aspStateFile), { recursive: true, force: true });
@@ -1133,6 +1260,499 @@ describe("Anvil E2E", () => {
         expect(dryRunJson.dryRun).toBe(true);
         expect(dryRunJson.poolAccountId).toBe(deposit.poolAccountId);
         expect(dryRunJson.proofPublicSignals).toBeGreaterThan(0);
+      },
+    );
+  });
+
+  describe("flow journeys", () => {
+    anvilTest(
+      "flow start --new-wallet -> funding -> approved -> completed",
+      async () => {
+        ensureEnabled();
+
+        const home = createAnvilHome("pp-anvil-flow-new-wallet-eth-");
+        const exportPath = join(home, "flow-wallet.txt");
+        const recipientBalanceBefore = await requireAnvilClient().getBalance({
+          address: relayedRecipient,
+        });
+
+        const child = spawn(
+          "bun",
+          [
+            "src/index.ts",
+            "--agent",
+            "flow",
+            "start",
+            "0.01",
+            "ETH",
+            "--to",
+            relayedRecipient,
+            "--new-wallet",
+            "--export-new-wallet",
+            exportPath,
+            "--chain",
+            "sepolia",
+          ],
+          {
+            cwd: process.cwd(),
+            env: buildChildProcessEnv({
+              PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+              ...cliEnv(),
+            }),
+            stdio: ["ignore", "pipe", "pipe"],
+          },
+        );
+
+        try {
+          const awaitingFunding = await waitForLatestWorkflowSnapshot(
+            home,
+            "awaiting_funding",
+          );
+          expect(awaitingFunding.walletMode).toBe("new_wallet");
+          expect(awaitingFunding.backupConfirmed).toBe(true);
+          expect(awaitingFunding.requiredNativeFunding).toMatch(/^\d+$/);
+
+          const backup = await waitForCondition(
+            "workflow wallet backup",
+            () => {
+              try {
+                return parseWorkflowWalletBackup(exportPath);
+              } catch {
+                return null;
+              }
+            },
+          );
+          expect(awaitingFunding.walletAddress).toBe(backup.walletAddress);
+
+          await setBalance(
+            requireAnvil().url,
+            awaitingFunding.walletAddress as string,
+            BigInt(awaitingFunding.requiredNativeFunding as string),
+          );
+
+          const awaitingAsp = await waitForCondition(
+            "new-wallet deposit",
+            () => {
+              const snapshot = loadWorkflowSnapshotFromHome(
+                home,
+                awaitingFunding.workflowId as string,
+              );
+              return snapshot.phase === "awaiting_asp" && snapshot.depositTxHash
+                ? snapshot
+                : null;
+            },
+            180_000,
+            1_000,
+          );
+
+          const depositEvent = await decodeDeposit(
+            awaitingAsp.depositTxHash as `0x${string}`,
+          );
+          appendInsertedStateTreeLeaf(depositEvent.commitment);
+          await approveLabel(depositEvent.label);
+
+          const childResult = await waitForChildProcessResult(child, 300_000);
+          expect(childResult.code).toBe(0);
+          const json = parseJsonOutput<{
+            success: boolean;
+            mode: string;
+            action: string;
+            phase: string;
+            workflowId: string;
+            walletMode: string;
+            withdrawTxHash: string;
+          }>(childResult.stdout);
+          expect(json.success).toBe(true);
+          expect(json.mode).toBe("flow");
+          expect(json.action).toBe("start");
+          expect(json.phase).toBe("completed");
+          expect(json.workflowId).toBe(awaitingFunding.workflowId);
+          expect(json.walletMode).toBe("new_wallet");
+          expect(json.withdrawTxHash).toMatch(/^0x[0-9a-f]{64}$/);
+
+          const recipientBalanceAfter = await requireAnvilClient().getBalance({
+            address: relayedRecipient,
+          });
+          expect(recipientBalanceAfter).toBeGreaterThan(recipientBalanceBefore);
+        } finally {
+          await terminateChildProcess(child);
+        }
+      },
+    );
+
+    anvilTest(
+      "flow start -> approved watch -> completed",
+      async () => {
+        ensureEnabled();
+
+        const workflow = await startFlowWorkflow("pp-anvil-flow-approved-");
+
+        const statusJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          mode: string;
+          phase: string;
+          workflowId: string;
+        }>(
+          workflow.home,
+          ["--agent", "flow", "status", workflow.workflowId],
+          "flow status before approval",
+        );
+        expect(statusJson.success).toBe(true);
+        expect(statusJson.mode).toBe("flow");
+        expect(statusJson.phase).toBe("awaiting_asp");
+
+        await approveLabel(workflow.label);
+
+        const recipientBalanceBefore = await requireAnvilClient().getBalance({
+          address: relayedRecipient,
+        });
+
+        const watchJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          mode: string;
+          action: string;
+          phase: string;
+          workflowId: string;
+          withdrawTxHash: `0x${string}`;
+        }>(
+          workflow.home,
+          ["--agent", "flow", "watch", workflow.workflowId],
+          "flow watch after approval",
+          300_000,
+        );
+        expect(watchJson.success).toBe(true);
+        expect(watchJson.mode).toBe("flow");
+        expect(watchJson.action).toBe("watch");
+        expect(watchJson.phase).toBe("completed");
+        expect(watchJson.withdrawTxHash).toMatch(/^0x[0-9a-f]{64}$/);
+
+        const recipientBalanceAfter = await requireAnvilClient().getBalance({
+          address: relayedRecipient,
+        });
+        expect(recipientBalanceAfter).toBeGreaterThan(recipientBalanceBefore);
+      },
+    );
+
+    anvilTest(
+      "flow start -> declined watch pauses and surfaces ragequit",
+      async () => {
+        ensureEnabled();
+
+        const workflow = await startFlowWorkflow("pp-anvil-flow-declined-");
+        setLabelReviewStatus(workflow.label, "declined");
+
+        const watchJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          phase: string;
+          aspStatus: string;
+          nextActions: Array<{ command: string; options?: Record<string, string> }>;
+        }>(
+          workflow.home,
+          ["--agent", "flow", "watch", workflow.workflowId],
+          "flow watch declined",
+          180_000,
+        );
+        expect(watchJson.success).toBe(true);
+        expect(watchJson.phase).toBe("paused_declined");
+        expect(watchJson.aspStatus).toBe("declined");
+        expect(watchJson.nextActions).toEqual([
+          {
+            command: "flow ragequit",
+            reason:
+              "This workflow was declined. flow ragequit is the canonical saved-workflow recovery path.",
+            when: "flow_declined",
+            args: [workflow.workflowId],
+            options: { agent: true },
+          },
+        ]);
+      },
+    );
+
+    anvilTest(
+      "flow start --new-wallet -> declined -> flow ragequit succeeds",
+      async () => {
+        ensureEnabled();
+
+        const home = createAnvilHome("pp-anvil-flow-new-wallet-declined-");
+        const exportPath = join(home, "flow-wallet.txt");
+        const child = spawn(
+          "bun",
+          [
+            "src/index.ts",
+            "--agent",
+            "flow",
+            "start",
+            "0.01",
+            "ETH",
+            "--to",
+            relayedRecipient,
+            "--new-wallet",
+            "--export-new-wallet",
+            exportPath,
+            "--chain",
+            "sepolia",
+          ],
+          {
+            cwd: process.cwd(),
+            env: buildChildProcessEnv({
+              PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+              ...cliEnv(),
+            }),
+            stdio: ["ignore", "pipe", "pipe"],
+          },
+        );
+
+        try {
+          const awaitingFunding = await waitForLatestWorkflowSnapshot(
+            home,
+            "awaiting_funding",
+          );
+          await setBalance(
+            requireAnvil().url,
+            awaitingFunding.walletAddress as string,
+            BigInt(awaitingFunding.requiredNativeFunding as string),
+          );
+
+          const awaitingAsp = await waitForCondition(
+            "declined new-wallet deposit",
+            () => {
+              const snapshot = loadWorkflowSnapshotFromHome(
+                home,
+                awaitingFunding.workflowId as string,
+              );
+              return snapshot.phase === "awaiting_asp" && snapshot.depositTxHash
+                ? snapshot
+                : null;
+            },
+            180_000,
+            1_000,
+          );
+
+          const depositEvent = await decodeDeposit(
+            awaitingAsp.depositTxHash as `0x${string}`,
+          );
+          appendInsertedStateTreeLeaf(depositEvent.commitment);
+          setLabelReviewStatus(depositEvent.label, "declined");
+
+          const declinedChild = await waitForChildProcessResult(child, 180_000);
+          expect(declinedChild.code).toBe(0);
+          const pausedJson = parseJsonOutput<{
+            success: boolean;
+            workflowId: string;
+            phase: string;
+            nextActions: Array<{ command: string; args?: string[] }>;
+          }>(declinedChild.stdout);
+          expect(pausedJson.success).toBe(true);
+          expect(pausedJson.phase).toBe("paused_declined");
+          expect(pausedJson.nextActions[0]?.command).toBe("flow ragequit");
+          expect(pausedJson.nextActions[0]?.args).toEqual([
+            awaitingFunding.workflowId as string,
+          ]);
+
+          const ragequitJson = parseSuccessfulAgentResult<{
+            success: boolean;
+            action: string;
+            phase: string;
+            ragequitTxHash: string;
+          }>(
+            home,
+            ["--agent", "flow", "ragequit", awaitingFunding.workflowId as string],
+            "flow ragequit new-wallet declined",
+            300_000,
+          );
+          expect(ragequitJson.success).toBe(true);
+          expect(ragequitJson.action).toBe("ragequit");
+          expect(ragequitJson.phase).toBe("completed_public_recovery");
+          expect(ragequitJson.ragequitTxHash).toMatch(/^0x[0-9a-f]{64}$/);
+        } finally {
+          await terminateChildProcess(child);
+        }
+      },
+    );
+
+    anvilTest(
+      "flow start -> poi_required watch pauses without withdrawing",
+      async () => {
+        ensureEnabled();
+
+        const workflow = await startFlowWorkflow(
+          "pp-anvil-flow-poi-required-",
+        );
+        setLabelReviewStatus(workflow.label, "poi_required");
+
+        const recipientBalanceBefore = await requireAnvilClient().getBalance({
+          address: relayedRecipient,
+        });
+
+        const watchJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          phase: string;
+          aspStatus: string;
+          withdrawTxHash?: string | null;
+          nextActions: Array<{ command: string }>;
+        }>(
+          workflow.home,
+          ["--agent", "flow", "watch", workflow.workflowId],
+          "flow watch poi_required",
+          180_000,
+        );
+        expect(watchJson.success).toBe(true);
+        expect(watchJson.phase).toBe("paused_poi_required");
+        expect(watchJson.aspStatus).toBe("poi_required");
+        expect(watchJson.withdrawTxHash ?? null).toBeNull();
+        expect(watchJson.nextActions).toEqual([
+          {
+            command: "flow watch",
+            reason:
+              "Re-check this workflow after completing Proof of Association externally.",
+            when: "flow_resume",
+            args: [workflow.workflowId],
+            options: { agent: true },
+          },
+        ]);
+
+        const recipientBalanceAfter = await requireAnvilClient().getBalance({
+          address: relayedRecipient,
+        });
+        expect(recipientBalanceAfter).toBe(recipientBalanceBefore);
+      },
+    );
+
+    anvilTest(
+      "flow start -> external ragequit before watch -> stopped_external",
+      async () => {
+        ensureEnabled();
+
+        const workflow = await startFlowWorkflow(
+          "pp-anvil-flow-stopped-external-",
+        );
+
+        parseSuccessfulAgentResult(
+          workflow.home,
+          [
+            "--agent",
+            "ragequit",
+            "ETH",
+            "--from-pa",
+            workflow.poolAccountId,
+            "--chain",
+            "sepolia",
+          ],
+          "manual ragequit before flow watch",
+          300_000,
+        );
+
+        const watchJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          phase: string;
+        }>(
+          workflow.home,
+          ["--agent", "flow", "watch", workflow.workflowId],
+          "flow watch stopped external",
+          180_000,
+        );
+        expect(watchJson.success).toBe(true);
+        expect(watchJson.phase).toBe("stopped_external");
+      },
+    );
+
+    anvilTest(
+      "flow watch detaches on interrupt without corrupting the saved workflow",
+      async () => {
+        ensureEnabled();
+
+        const workflow = await startFlowWorkflow("pp-anvil-flow-interrupt-");
+        const child = spawn(
+          "bun",
+          ["src/index.ts", "--agent", "flow", "watch", workflow.workflowId],
+          {
+            cwd: process.cwd(),
+            env: buildChildProcessEnv({
+              PRIVACY_POOLS_HOME: join(workflow.home, ".privacy-pools"),
+              ...cliEnv(),
+            }),
+            stdio: "ignore",
+          },
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        await interruptChildProcess(child);
+
+        const statusJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          phase: string;
+          workflowId: string;
+        }>(
+          workflow.home,
+          ["--agent", "flow", "status", workflow.workflowId],
+          "flow status after interrupt",
+          60_000,
+        );
+        expect(statusJson.success).toBe(true);
+        expect(statusJson.workflowId).toBe(workflow.workflowId);
+        expect(statusJson.phase).toBe("awaiting_asp");
+      },
+    );
+
+    anvilTest(
+      "flow start --new-wallet detaches on interrupt during funding wait",
+      async () => {
+        ensureEnabled();
+
+        const home = createAnvilHome("pp-anvil-flow-new-wallet-interrupt-");
+        const exportPath = join(home, "flow-wallet.txt");
+        const child = spawn(
+          "bun",
+          [
+            "src/index.ts",
+            "--agent",
+            "flow",
+            "start",
+            "0.01",
+            "ETH",
+            "--to",
+            relayedRecipient,
+            "--new-wallet",
+            "--export-new-wallet",
+            exportPath,
+            "--chain",
+            "sepolia",
+          ],
+          {
+            cwd: process.cwd(),
+            env: buildChildProcessEnv({
+              PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+              ...cliEnv(),
+            }),
+            stdio: "ignore",
+          },
+        );
+
+        const awaitingFunding = await waitForLatestWorkflowSnapshot(
+          home,
+          "awaiting_funding",
+        );
+        expect(awaitingFunding.workflowId).toBeTruthy();
+
+        await interruptChildProcess(child);
+
+        const statusJson = parseSuccessfulAgentResult<{
+          success: boolean;
+          workflowId: string;
+          phase: string;
+          walletMode: string;
+          backupConfirmed: boolean;
+        }>(
+          home,
+          ["--agent", "flow", "status", awaitingFunding.workflowId as string],
+          "flow status after new-wallet interrupt",
+          60_000,
+        );
+        expect(statusJson.success).toBe(true);
+        expect(statusJson.workflowId).toBe(awaitingFunding.workflowId);
+        expect(statusJson.phase).toBe("awaiting_funding");
+        expect(statusJson.walletMode).toBe("new_wallet");
+        expect(statusJson.backupConfirmed).toBe(true);
       },
     );
   });

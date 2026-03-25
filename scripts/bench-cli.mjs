@@ -38,6 +38,11 @@ const COMMANDS = [
     args: ["capabilities", "--agent"],
     env: {},
   },
+  {
+    label: "flow --help",
+    args: ["flow", "--help"],
+    env: {},
+  },
 ];
 
 function printUsageAndExit(exitCode = 0) {
