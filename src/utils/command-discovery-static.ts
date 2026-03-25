@@ -68,7 +68,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "ragequit [workflowId|latest]"
       ],
       "agentFlags": "start <amount> <asset> --to <address> --agent (or: watch/status/ragequit --agent)",
-      "requiresInit": true,
+      "requiresInit": false,
       "expectedLatencyClass": "slow"
     },
     {
@@ -104,7 +104,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "[workflowId|latest]"
       ],
       "agentFlags": "--agent [workflowId|latest]",
-      "requiresInit": true,
+      "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
     {
@@ -412,7 +412,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent",
         "--timeout <seconds>"
       ],
-      "requiresInit": true,
+      "requiresInit": false,
       "expectedLatencyClass": "slow",
       "safeReadOnly": true,
       "prerequisites": [
@@ -473,6 +473,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "The deposit is still public and reviewed by the ASP before private withdrawal is possible.",
+        "In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.",
         "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
         "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode."
       ],
@@ -548,7 +549,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent",
         "--timeout <seconds>"
       ],
-      "requiresInit": true,
+      "requiresInit": false,
       "expectedLatencyClass": "fast",
       "safeReadOnly": true,
       "prerequisites": [
@@ -601,7 +602,8 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
       "jsonVariants": [],
       "safetyNotes": [
-        "This is a public recovery path. It exits to the original deposit address and does not preserve privacy."
+        "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
+        "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,

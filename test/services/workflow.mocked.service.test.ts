@@ -823,8 +823,8 @@ describe("workflow service mocked coverage", () => {
       });
 
       expect(snapshot.phase).toBe("completed");
+      expect(snapshot.depositTxHash).toBe(state.depositTxHash);
       expect(snapshot.withdrawTxHash).toBe(state.relayTxHash);
-      expect(state.depositEthCalls).toBe(1);
       expect(state.requestQuoteCalls).toHaveLength(1);
     } finally {
       restoreTimers();

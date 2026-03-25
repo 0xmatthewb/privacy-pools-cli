@@ -85,6 +85,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 | `--watch` | Keep watching this workflow until it reaches a terminal state |
 
 **Safety:** The deposit is still public and reviewed by the ASP before private withdrawal is possible.
+**Safety:** In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.
 **Safety:** Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.
 **Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
 
@@ -96,7 +97,7 @@ Poll ASP approval and withdraw privately when ready
 
 **Usage:** `privacy-pools flow watch [workflowId] [options]`
 
-Re-checks a saved workflow using the same protocol realities as the frontend: funding wait, public deposit, pending review, PoA-required, declined, and approved are all real branches. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.
+Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.
 
 ```bash
 privacy-pools flow watch
@@ -130,7 +131,7 @@ Recover a saved workflow publicly via ragequit
 
 **Usage:** `privacy-pools flow ragequit [workflowId] [options]`
 
-Uses the saved workflow context to perform the public recovery path without changing any manual commands. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it uses the normal signer key.
+Uses the saved workflow context to perform the public recovery path without changing any manual commands. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
 
 ```bash
 privacy-pools flow ragequit
@@ -139,6 +140,7 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 ```
 
 **Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
+**Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.
 
 **JSON output:** `{ mode: "flow", action: "ragequit", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
 
