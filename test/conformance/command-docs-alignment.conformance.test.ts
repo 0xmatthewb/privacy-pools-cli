@@ -78,13 +78,19 @@ describe("command docs alignment", () => {
     const payload = buildCapabilitiesPayload();
     const deposit = payload.commands.find((command) => command.name === "deposit");
     const agentFlag = payload.globalFlags.find((flag) => flag.flag === "--agent");
+    const flowWorkflowStep =
+      payload.agentWorkflow.find((step) => step.includes("flow start")) ?? "";
+    const manualPollingStep =
+      payload.agentWorkflow.find((step) =>
+        step.includes("accounts --agent --chain <chain> --pending-only"),
+      ) ?? "";
 
     expect(normalizedSection).toContain("Representative payload (abridged):");
     expect(normalizedSection).toContain(deposit?.description ?? "");
     expect(normalizedSection).toContain(agentFlag?.description ?? "");
     expectContainsAll(normalizedSection, [
-      normalizeWhitespace(payload.agentWorkflow[2] ?? ""),
-      normalizeWhitespace(payload.agentWorkflow[4] ?? ""),
+      normalizeWhitespace(flowWorkflowStep),
+      normalizeWhitespace(manualPollingStep),
       payload.agentNotes?.statusCheck ?? "",
       "safeReadOnlyCommands",
       "jsonOutputContract",
@@ -189,7 +195,11 @@ describe("command docs alignment", () => {
     const payload = buildCapabilitiesPayload();
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const normalizedAgents = normalizeWhitespace(agents);
-    const normalizedWorkflowStep = normalizeWhitespace(payload.agentWorkflow[4] ?? "");
+    const normalizedWorkflowStep = normalizeWhitespace(
+      payload.agentWorkflow.find((step) =>
+        step.includes("accounts --agent --chain <chain> --pending-only"),
+      ) ?? "",
+    );
     const statusCheck = payload.agentNotes?.statusCheck ?? "";
 
     expect(normalizedWorkflowStep).toContain("accounts --agent --chain <chain> --pending-only");

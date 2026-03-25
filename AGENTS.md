@@ -21,9 +21,14 @@ privacy-pools describe withdraw quote --agent
 # Browse pools (no wallet needed)
 privacy-pools pools --agent
 
-# Full workflow
+# Easy workflow
 privacy-pools status --agent
 privacy-pools init --agent --default-chain mainnet --show-mnemonic
+privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
+privacy-pools flow watch latest --agent
+privacy-pools flow ragequit latest --agent    # saved-workflow public recovery if declined
+
+# Manual workflow
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools withdraw 0.1 ETH --to 0xRecipient --agent
@@ -54,14 +59,16 @@ Before running wallet-dependent commands, verify setup:
 privacy-pools status --agent
 ```
 
-Check `recoveryPhraseSet: true` and `signerKeySet: true`. If `signerKeySet: false`, set `PRIVACY_POOLS_PRIVATE_KEY` in the agent's environment before running transaction commands.
+Check `recoveryPhraseSet: true`. Most transaction commands also require `signerKeySet: true`; if `signerKeySet: false`, set `PRIVACY_POOLS_PRIVATE_KEY` in the agent's environment before running transaction commands.
+
+Exception: `flow start --new-wallet` creates and uses a dedicated per-workflow wallet, so it can begin without a configured global signer key as long as the recovery phrase is present.
 
 ## Human + Agent Workflow
 
 When a human delegates CLI operations to an agent:
 
 1. **Human** runs `privacy-pools init` interactively (securely stores recovery phrase and signer key)
-2. **Human** sets `PRIVACY_POOLS_PRIVATE_KEY` env var in the agent's environment
+2. **Human** sets `PRIVACY_POOLS_PRIVATE_KEY` env var in the agent's environment, unless the agent will use `flow start --new-wallet`
 3. **Agent** uses `--agent` flag for all operations
 4. **Agent** runs `privacy-pools status --agent` to verify setup before transacting
 5. **Human** reviews transaction results
@@ -219,6 +226,31 @@ When `init` imports an existing recovery phrase, `nextActions` points to `accoun
 Use only one secret stdin source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
 
 Proof commands provision circuit artifacts automatically on first use (~60s one-time), caching them under `~/.privacy-pools/circuits/v<sdk-version>` by default and verifying them against the shipped checksum manifest before use. Set `PRIVACY_POOLS_CIRCUITS_DIR` to use a pre-provisioned directory.
+
+#### `flow`
+
+Persisted easy-path workflow that compresses the normal deposit -> ASP review -> relayed private withdrawal journey without changing any manual commands.
+
+```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
+privacy-pools flow start 0.1 ETH --to 0xRecipient --watch --agent
+privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet --export-new-wallet ./flow-wallet.txt --agent
+privacy-pools flow watch latest --agent
+privacy-pools flow status latest --agent
+privacy-pools flow ragequit latest --agent
+```
+
+`flow start` performs the public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. The saved workflow always withdraws the full remaining balance of that same Pool Account at execution time.
+
+With `--new-wallet`, the CLI generates a dedicated workflow wallet for that one flow. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in the same wallet. In non-interactive mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow begins.
+
+`flow watch` re-checks the saved workflow and advances it using the same real branches as the frontend and protocol: `awaiting_funding`, `depositing_publicly`, `pending`, `approved`, `declined`, and `poi_required`. When the Pool Account is approved, `flow watch` performs the relayed private withdrawal automatically. If it is `declined`, the workflow pauses and surfaces `flow ragequit` as the canonical recovery path. If it is `poi_required`, the workflow pauses until Proof of Association is completed externally.
+
+`flow ragequit` performs the public recovery path for a saved workflow. For `walletMode = "new_wallet"` it uses the stored workflow wallet key. For `walletMode = "configured"` it uses the normal configured signer.
+
+JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "ragequit", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+
+Paused workflow states are successful command results, not CLI errors. `Ctrl-C` during `flow watch` detaches cleanly without deleting the saved workflow. For ERC20 relayed withdrawals inside `flow`, the CLI requests extra gas by default, matching `withdraw`.
 
 #### `deposit`
 

@@ -2,6 +2,69 @@
 
 Detailed payload spec, JSON output shapes, and unsigned transaction format for agent integration.
 
+## Easy-path workflow
+
+The CLI ships a persisted happy-path workflow under `flow`:
+
+```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
+privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet --export-new-wallet ./flow-wallet.txt --agent
+privacy-pools flow watch latest --agent
+privacy-pools flow status latest --agent
+privacy-pools flow ragequit latest --agent
+```
+
+`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. With `--new-wallet`, the CLI generates a dedicated workflow wallet, requires a backup before proceeding, and waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in that same wallet. `flow watch` re-checks the saved workflow using the real protocol branches (`awaiting_funding`, `depositing_publicly`, `pending`, `approved`, `declined`, `poi_required`) and automatically performs the relayed withdrawal once approved. `flow status` reads the persisted workflow snapshot without mutating it. `flow ragequit` performs the saved-workflow public recovery path.
+
+Flow JSON payloads share this shape:
+
+```json
+{
+  "schemaVersion": "1.5.0",
+  "success": true,
+  "mode": "flow",
+  "action": "start",
+  "workflowId": "123e4567-e89b-12d3-a456-426614174000",
+  "phase": "awaiting_funding",
+  "walletMode": "new_wallet",
+  "walletAddress": "0x...",
+  "requiredNativeFunding": "3500000000000000",
+  "requiredTokenFunding": "100000000",
+  "backupConfirmed": true,
+  "chain": "mainnet",
+  "asset": "USDC",
+  "depositAmount": "100000000",
+  "recipient": "0x...",
+  "nextActions": [
+    {
+      "command": "flow watch",
+      "reason": "Resume this saved workflow and continue toward the private withdrawal.",
+      "when": "flow_resume",
+      "args": ["123e4567-e89b-12d3-a456-426614174000"],
+      "options": { "agent": true },
+      "runnable": true
+    }
+  ]
+}
+```
+
+Possible `phase` values:
+
+- `awaiting_funding`
+- `depositing_publicly`
+- `awaiting_asp`
+- `approved_ready_to_withdraw`
+- `withdrawing`
+- `completed`
+- `completed_public_recovery`
+- `paused_poi_required`
+- `paused_declined`
+- `stopped_external`
+
+Paused workflow states are successful command results, not CLI errors. Declined workflows surface `flow ragequit` as the canonical saved-workflow recovery path. Manual commands remain available for advanced control.
+
+---
+
 ## Unsigned payload spec
 
 All `--unsigned` output targets the chain specified by `--chain` (default: `mainnet`, chain ID 1).
@@ -339,9 +402,12 @@ Representative payload (abridged):
     "1. privacy-pools status --agent",
     "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
     "3. privacy-pools pools --agent --chain <chain>",
-    "4. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>",
-    "5. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
-    "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
+    "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
+    "5. privacy-pools flow watch [workflowId|latest] --agent",
+    "6. privacy-pools flow ragequit [workflowId|latest] --agent  (if the saved workflow is declined)",
+    "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
+    "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
+    "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
   ],
   "agentNotes": {
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",

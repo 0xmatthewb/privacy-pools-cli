@@ -4,9 +4,9 @@ version: 1.6.1
 description: >
   Deposit, withdraw, and manage funds in Privacy Pools v1 on Ethereum, Arbitrum,
   and Optimism. Use when the user or agent needs to interact with Privacy Pools:
-  browsing pools, depositing, withdrawing, checking accounts and balances,
-  building unsigned transaction payloads for external signers, or querying
-  on-chain activity.
+  browsing pools, running the easy-path flow, depositing, withdrawing, checking
+  accounts and balances, building unsigned transaction payloads for external
+  signers, or querying on-chain activity.
 author: matthewb
 permissions:
   - filesystem:read
@@ -43,6 +43,11 @@ Install from GitHub: `npm i -g github:0xmatthewb/privacy-pools-cli` or `bun add 
 | Discover capabilities | `privacy-pools capabilities --agent` | No wallet needed |
 | Describe one command | `privacy-pools describe withdraw quote --agent` | No wallet needed |
 | Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-mnemonic` | One-time setup |
+| Start easy flow | `privacy-pools flow start 0.1 ETH --to 0x... --agent` | Deposit now, save later private withdrawal |
+| Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet and waits for token funding plus ETH gas |
+| Watch easy flow | `privacy-pools flow watch latest --agent` | Wait for approval and withdraw privately when ready |
+| Check easy flow | `privacy-pools flow status latest --agent` | Inspect the saved workflow snapshot |
+| Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined saved workflow |
 | Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
 | Check accounts | `privacy-pools accounts --agent` | Dashboard view across all mainnet chains by default |
@@ -250,10 +255,22 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 1. privacy-pools capabilities --agent                                   # Discover all commands
 2. privacy-pools status --agent                                         # Check setup and health
 3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
-4. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
-5. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
-6. privacy-pools accounts --agent --chain <chain> --pending-only        # Approved entries disappear; confirm with accounts --agent --chain <chain>
-7. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw
+4. privacy-pools flow start 0.1 ETH --to <addr> --agent                 # Easy path: deposit now, save later withdrawal
+5. privacy-pools flow watch latest --agent                              # Resume the saved workflow until it reaches a terminal state
+6. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined
+```
+
+The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient once approved.
+
+`flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow, requires a backup before continuing, and then waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts.
+
+Manual path remains available when you need custom Pool Account selection, partial withdrawals, direct withdrawals, unsigned payloads, or dry-runs:
+
+```
+1. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
+2. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
+3. privacy-pools accounts --agent --chain <chain> --pending-only        # Approved entries disappear; confirm with accounts --agent --chain <chain>
+4. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw
 ```
 
 **Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.
@@ -276,7 +293,7 @@ Recommended retry strategy:
 - `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
 - `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent` first, then retry.
 - `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR`: wait 30-60s and retry.
-- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, the recovery path is `ragequit`.
+- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
 
 ---
 

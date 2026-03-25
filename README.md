@@ -32,18 +32,26 @@ privacy-pools pools
 ```
 
 ```bash
-# 3. Deposit into a pool
+# 3. Easy path: deposit now, save the later private withdrawal, and resume when ready
+privacy-pools flow start 0.1 ETH --to 0xRecipient...
+privacy-pools flow watch                     # or pass --watch to flow start
+privacy-pools flow status latest            # inspect the saved workflow later
+privacy-pools flow ragequit latest          # public recovery path if the saved workflow is declined
+
+# 4. Manual path: deposit into a pool
 privacy-pools deposit 0.1 ETH
 
-# 4. Wait for ASP approval (most < 1 hour, up to 7 days)
+# 5. Wait for ASP approval (most < 1 hour, up to 7 days)
 privacy-pools accounts --chain mainnet --pending-only   # poll while the deposit remains pending
 privacy-pools accounts --chain mainnet                  # confirm approved vs declined vs PoA-needed before next step
 
-# 5. Withdraw privately to any address
+# 6. Withdraw privately to any address
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 ```
 
-Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Association Set Provider (ASP) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit. If a deposit is marked `poi_required`, complete Proof of Association before withdrawing privately. If it is declined, the recovery path is `ragequit`, which exits publicly to your deposit address.
+`flow start` is the compressed easy path: it performs the normal public deposit, saves a local workflow, and later `flow watch` will privately withdraw the full remaining balance of that same Pool Account to the saved recipient once the ASP approves it. With `--new-wallet`, the CLI can generate a dedicated workflow wallet, require a backup before proceeding, and then continue automatically once that wallet is funded. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet.
+
+Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Association Set Provider (ASP) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit. If a deposit is marked `poi_required`, complete Proof of Association before withdrawing privately. If it is declined, the manual recovery path is `ragequit`, which exits publicly to your deposit address. For saved easy-path workflows, the canonical recovery command is `privacy-pools flow ragequit <workflowId>`. Manual commands remain available when you need custom Pool Account selection, partial withdrawals, direct withdrawals, unsigned payloads, or dry-runs.
 
 You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 
@@ -86,6 +94,7 @@ bun run start -- --help
 | `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
 | `init` | Set up wallet and config (run once) | |
+| `flow` | Easy-path deposit now, withdraw later workflow | Yes |
 | `deposit` | Deposit into a pool | Yes |
 | `withdraw` | Withdraw from a pool (relayed or direct) | Yes |
 | `ragequit` | Emergency exit without ASP approval (alias: `exit`) | Yes |
@@ -101,10 +110,16 @@ All commands accept `--chain <name>` to override your default chain. For detaile
 Pass `--agent` (shorthand for `--json --yes --quiet`) for structured JSON on stdout, no prompts, no banners:
 
 ```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent
+privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt --agent
+privacy-pools flow watch latest --agent
+privacy-pools flow ragequit latest --agent
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 ```
+
+`flow` is the persisted easy path for demos and common happy-path usage. `--new-wallet` stays scoped to `flow` only; it does not change the manual command surfaces. The manual commands above remain unchanged for advanced control.
 
 Every response is wrapped in a versioned envelope:
 

@@ -47,6 +47,101 @@ cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainn
 
 **JSON output:** `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
+### `flow`
+
+Run the easy-path deposit-to-withdraw workflow
+
+Adds a persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands. Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.
+
+```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient...
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch
+privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt
+privacy-pools flow watch
+privacy-pools flow status latest
+privacy-pools flow ragequit latest
+```
+
+### `flow start`
+
+Deposit now and save a later private withdrawal workflow
+
+**Usage:** `privacy-pools flow start <amount> <asset> [options]`
+
+This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always withdraws the full remaining balance from the newly created Pool Account, and it never auto-ragequits.
+
+```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient...
+privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet
+privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
+```
+
+| Flag | Description |
+|------|-------------|
+| `-t, --to <address>` | Recipient address for the later private withdrawal |
+| `--new-wallet` | Create and use a dedicated wallet for this workflow |
+| `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing |
+| `--watch` | Keep watching this workflow until it reaches a terminal state |
+
+**Safety:** The deposit is still public and reviewed by the ASP before private withdrawal is possible.
+**Safety:** Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.
+**Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
+
+**JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+
+### `flow watch`
+
+Poll ASP approval and withdraw privately when ready
+
+**Usage:** `privacy-pools flow watch [workflowId] [options]`
+
+Re-checks a saved workflow using the same protocol realities as the frontend: funding wait, public deposit, pending review, PoA-required, declined, and approved are all real branches. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.
+
+```bash
+privacy-pools flow watch
+privacy-pools flow watch latest --agent
+privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000
+```
+
+**Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical recovery path, and PoA-required workflows pause until the external Proof of Association step is completed.
+
+**JSON output:** `{ mode: "flow", action: "watch", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+
+### `flow status`
+
+Show the saved easy-path workflow state
+
+**Usage:** `privacy-pools flow status [workflowId] [options]`
+
+Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action.
+
+```bash
+privacy-pools flow status
+privacy-pools flow status latest --agent
+privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000
+```
+
+**JSON output:** `{ mode: "flow", action: "status", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+
+### `flow ragequit`
+
+Recover a saved workflow publicly via ragequit
+
+**Usage:** `privacy-pools flow ragequit [workflowId] [options]`
+
+Uses the saved workflow context to perform the public recovery path without changing any manual commands. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it uses the normal signer key.
+
+```bash
+privacy-pools flow ragequit
+privacy-pools flow ragequit latest --agent
+privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
+```
+
+**Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
+
+**JSON output:** `{ mode: "flow", action: "ragequit", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+
 ### `pools`
 
 List available pools and assets
