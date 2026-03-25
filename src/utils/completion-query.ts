@@ -118,6 +118,21 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--skip-circuits"),
         ],
       }),
+      completionCommand("flow", {
+        subcommands: [
+          completionCommand("start", {
+            options: [
+              completionOption("-t, --to <address>"),
+              completionOption("--watch"),
+              completionOption("--new-wallet"),
+              completionOption("--export-new-wallet <path>"),
+            ],
+          }),
+          completionCommand("watch"),
+          completionCommand("status"),
+          completionCommand("ragequit"),
+        ],
+      }),
       completionCommand("pools", {
         options: [
           completionOption("--all-chains"),

@@ -12,7 +12,7 @@ const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
 /* ── Root-level command groups (order determines display order) ── */
 
 const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities", "describe"];
-const TRANSACT_ORDER = ["init", "deposit", "withdraw", "ragequit", "accounts", "history", "sync"];
+const TRANSACT_ORDER = ["init", "flow", "deposit", "withdraw", "ragequit", "accounts", "history", "sync"];
 const TOOLING_ORDER = ["completion"];
 const EXPLORE_SET = new Set(EXPLORE_ORDER);
 const TRANSACT_SET = new Set(TRANSACT_ORDER);
@@ -43,6 +43,7 @@ const ROOT_HELP_BASE_LINES = [
   "",
   "Commands:",
   "  init                 Initialize wallet and configuration",
+  "  flow                 Run the easy-path deposit-to-withdraw workflow",
   "  pools                List available pools and assets",
   "  deposit              Deposit into a pool",
   "  accounts             List your Pool Accounts (individual deposit lineages)",

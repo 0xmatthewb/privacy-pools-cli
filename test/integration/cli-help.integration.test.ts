@@ -34,6 +34,7 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("pools");
     expect(result.stdout).toContain("activity");
     expect(result.stdout).toContain("stats");
+    expect(result.stdout).toContain("flow");
     expect(result.stdout).toContain("deposit");
     expect(result.stdout).toContain("withdraw");
     expect(result.stdout).toContain("ragequit");
@@ -57,6 +58,7 @@ describe("CLI help and discovery", () => {
 
   const COMMAND_HELP_CASES = [
     ["init", "Initialize wallet and configuration"],
+    ["flow", "Run the easy-path deposit-to-withdraw workflow"],
     ["status", "Show configuration and check connection health"],
     ["pools", "List available pools and assets"],
     ["activity", "Show public activity feed"],
@@ -101,6 +103,9 @@ describe("CLI help and discovery", () => {
     // Guide outputs to stderr and includes structural sections
     expect(result.stderr).toContain("Quick Start");
     expect(result.stderr).toContain("Workflow");
+    expect(result.stderr).toContain("flow ragequit");
+    expect(result.stderr).toContain("--new-wallet");
+    expect(result.stderr).toContain("--export-new-wallet <path>");
   });
 
   test("--no-banner suppresses banner during normal command execution", () => {
@@ -425,6 +430,7 @@ function normalizeHelp(text: string): string {
 
 const SNAPSHOT_COMMANDS = [
   "init",
+  "flow",
   "status",
   "pools",
   "activity",
@@ -470,6 +476,30 @@ describe("CLI --help snapshots", () => {
 
   test("stats pool --help snapshot", () => {
     const result = runStaticCli(["stats", "pool", "--help"]);
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+
+  test("flow start --help snapshot", () => {
+    const result = runStaticCli(["flow", "start", "--help"]);
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+
+  test("flow watch --help snapshot", () => {
+    const result = runStaticCli(["flow", "watch", "--help"]);
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+
+  test("flow status --help snapshot", () => {
+    const result = runStaticCli(["flow", "status", "--help"]);
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+
+  test("flow ragequit --help snapshot", () => {
+    const result = runStaticCli(["flow", "ragequit", "--help"]);
     expect(result.status).toBe(0);
     expect(normalizeHelp(result.stdout)).toMatchSnapshot();
   });

@@ -4,6 +4,11 @@ import type { CapabilitiesPayload } from "../types.js";
 
 export const STATIC_COMMAND_PATHS = [
   "init",
+  "flow",
+  "flow start",
+  "flow watch",
+  "flow status",
+  "flow ragequit",
   "pools",
   "activity",
   "stats",
@@ -51,6 +56,67 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlags": "--agent --default-chain <chain> --show-mnemonic",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "flow",
+      "description": "Run the easy-path deposit-to-withdraw workflow",
+      "usage": "flow",
+      "flags": [
+        "start <amount> <asset> --to <address>",
+        "watch [workflowId|latest]",
+        "status [workflowId|latest]",
+        "ragequit [workflowId|latest]"
+      ],
+      "agentFlags": "start <amount> <asset> --to <address> --agent (or: watch/status/ragequit --agent)",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "flow start",
+      "description": "Deposit now and save a later private withdrawal workflow",
+      "usage": "flow start <amount> <asset> --to <address>",
+      "flags": [
+        "--to <address>",
+        "--watch",
+        "--new-wallet",
+        "--export-new-wallet <path>"
+      ],
+      "agentFlags": "--agent --to <address> [--watch] [--new-wallet] [--export-new-wallet <path>]",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "flow watch",
+      "description": "Poll ASP approval and withdraw privately when ready",
+      "usage": "flow watch [workflowId|latest]",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "agentFlags": "--agent [workflowId|latest]",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "flow status",
+      "description": "Show the saved easy-path workflow state",
+      "usage": "flow status [workflowId|latest]",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "agentFlags": "--agent [workflowId|latest]",
+      "requiresInit": true,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "flow ragequit",
+      "description": "Recover a saved workflow publicly via ragequit",
+      "usage": "flow ragequit [workflowId|latest]",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "agentFlags": "--agent [workflowId|latest]",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
     },
     {
       "name": "pools",
@@ -321,6 +387,225 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
         "When importing an existing recovery phrase, nextActions points to accounts --agent --all-chains so restored Pool Accounts are discovered across mainnets and testnets."
       ]
+    },
+    "flow": {
+      "command": "flow",
+      "description": "Run the easy-path deposit-to-withdraw workflow",
+      "aliases": [],
+      "usage": "flow",
+      "flags": [
+        "start <amount> <asset> --to <address>",
+        "watch [workflowId|latest]",
+        "status [workflowId|latest]",
+        "ragequit [workflowId|latest]"
+      ],
+      "globalFlags": [
+        "-j, --json",
+        "--format <format>",
+        "-y, --yes",
+        "-c, --chain <name>",
+        "-r, --rpc-url <url>",
+        "-q, --quiet",
+        "-v, --verbose",
+        "--no-banner",
+        "--no-color",
+        "--agent",
+        "--timeout <seconds>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": true,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch",
+        "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
+        "privacy-pools flow watch",
+        "privacy-pools flow status latest",
+        "privacy-pools flow ragequit latest"
+      ],
+      "jsonFields": null,
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "flow start": {
+      "command": "flow start",
+      "description": "Deposit now and save a later private withdrawal workflow",
+      "aliases": [],
+      "usage": "flow start <amount> <asset> --to <address>",
+      "flags": [
+        "--to <address>",
+        "--watch",
+        "--new-wallet",
+        "--export-new-wallet <path>"
+      ],
+      "globalFlags": [
+        "-j, --json",
+        "--format <format>",
+        "-y, --yes",
+        "-c, --chain <name>",
+        "-r, --rpc-url <url>",
+        "-q, --quiet",
+        "-v, --verbose",
+        "--no-banner",
+        "--no-color",
+        "--agent",
+        "--timeout <seconds>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": false,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+        "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet",
+        "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent"
+      ],
+      "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "The deposit is still public and reviewed by the ASP before private withdrawal is possible.",
+        "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
+        "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
+        "Use --watch to stay attached on configured-wallet workflows; otherwise the workflow is persisted locally and flow watch <workflowId> is the canonical resume path."
+      ]
+    },
+    "flow watch": {
+      "command": "flow watch",
+      "description": "Poll ASP approval and withdraw privately when ready",
+      "aliases": [],
+      "usage": "flow watch [workflowId|latest]",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "globalFlags": [
+        "-j, --json",
+        "--format <format>",
+        "-y, --yes",
+        "-c, --chain <name>",
+        "-r, --rpc-url <url>",
+        "-q, --quiet",
+        "-v, --verbose",
+        "--no-banner",
+        "--no-color",
+        "--agent",
+        "--timeout <seconds>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": false,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools flow watch",
+        "privacy-pools flow watch latest --agent",
+        "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
+      ],
+      "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical recovery path, and PoA-required workflows pause until the external Proof of Association step is completed."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "New-wallet workflows wait for funding automatically. ERC20 workflows require both the token amount and a native ETH gas reserve in the generated wallet before the public deposit can proceed.",
+        "When the saved Pool Account is approved, flow watch performs the relayed private withdrawal automatically using the saved recipient and the full remaining balance of that same Pool Account."
+      ]
+    },
+    "flow status": {
+      "command": "flow status",
+      "description": "Show the saved easy-path workflow state",
+      "aliases": [],
+      "usage": "flow status [workflowId|latest]",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "globalFlags": [
+        "-j, --json",
+        "--format <format>",
+        "-y, --yes",
+        "-c, --chain <name>",
+        "-r, --rpc-url <url>",
+        "-q, --quiet",
+        "-v, --verbose",
+        "--no-banner",
+        "--no-color",
+        "--agent",
+        "--timeout <seconds>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools flow status",
+        "privacy-pools flow status latest --agent",
+        "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000"
+      ],
+      "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "flow ragequit": {
+      "command": "flow ragequit",
+      "description": "Recover a saved workflow publicly via ragequit",
+      "aliases": [],
+      "usage": "flow ragequit [workflowId|latest]",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "globalFlags": [
+        "-j, --json",
+        "--format <format>",
+        "-y, --yes",
+        "-c, --chain <name>",
+        "-r, --rpc-url <url>",
+        "-q, --quiet",
+        "-v, --verbose",
+        "--no-banner",
+        "--no-color",
+        "--agent",
+        "--timeout <seconds>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": false,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools flow ragequit",
+        "privacy-pools flow ragequit latest --agent",
+        "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
+      ],
+      "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "This is a public recovery path. It exits to the original deposit address and does not preserve privacy."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
     },
     "pools": {
       "command": "pools",
@@ -1096,9 +1381,12 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "1. privacy-pools status --agent",
     "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
     "3. privacy-pools pools --agent --chain <chain>",
-    "4. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>",
-    "5. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
-    "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
+    "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
+    "5. privacy-pools flow watch [workflowId|latest] --agent",
+    "6. privacy-pools flow ragequit [workflowId|latest] --agent  (if the saved workflow is declined)",
+    "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
+    "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
+    "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
   ],
   "agentNotes": {
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
@@ -1190,6 +1478,8 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     }
   ],
   "safeReadOnlyCommands": [
+    "flow",
+    "flow status",
     "pools",
     "activity",
     "stats",

@@ -137,6 +137,7 @@ describe("barrel re-exports", () => {
     "renderInitResult",
     "renderDepositDryRun",
     "renderDepositSuccess",
+    "renderFlowResult",
     "renderRagequitDryRun",
     "renderRagequitSuccess",
     // Withdraw renderers
