@@ -72,6 +72,25 @@ describe("acquireProcessLock", () => {
     r2();
   });
 
+  test("nested acquire keeps the lock file until the outer release", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const lockPath = join(home, ".lock");
+
+    const outerRelease = acquireProcessLock();
+    const innerRelease = acquireProcessLock();
+
+    expect(existsSync(lockPath)).toBe(true);
+    expect(readFileSync(lockPath, "utf-8").trim()).toBe(String(process.pid));
+
+    innerRelease();
+    expect(existsSync(lockPath)).toBe(true);
+    expect(readFileSync(lockPath, "utf-8").trim()).toBe(String(process.pid));
+
+    outerRelease();
+    expect(existsSync(lockPath)).toBe(false);
+  });
+
   test("corrupt lock file (non-numeric) is treated as stale", () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
