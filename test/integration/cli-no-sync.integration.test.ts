@@ -176,11 +176,11 @@ beforeAll(async () => {
   };
 });
 
-afterAll(() => {
+afterAll(async () => {
   for (const server of Object.values(rpcServers)) {
-    killSyncGateRpcServer(server);
+    await killSyncGateRpcServer(server);
   }
-  killFixtureServer(fixture);
+  await killFixtureServer(fixture);
 });
 
 describe("accounts/history --no-sync", () => {
@@ -261,7 +261,7 @@ describe("accounts/history --no-sync", () => {
       expect(accountFile).toContain('"masterKeys"');
       expect(accountFile).toContain('"__privacyPoolsCliAccountVersion": 2');
     } finally {
-      killSyncGateRpcServer(rebuildRpc);
+      await killSyncGateRpcServer(rebuildRpc);
     }
   }, 30_000);
 

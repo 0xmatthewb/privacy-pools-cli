@@ -6,6 +6,7 @@ import {
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
 import { buildChildProcessEnv } from "./child-env.ts";
+import { terminateChildProcess } from "./process.ts";
 
 interface DeploymentHintAspConfig {
   chainId: number;
@@ -122,6 +123,14 @@ export function launchDeploymentHintAspServer(
       if (match) {
         clearTimeout(timeout);
         const port = Number(match[1]);
+        proc.stdout?.removeAllListeners("data");
+        proc.stdout?.destroy();
+        proc.unref();
+        process.once("exit", () => {
+          if (proc.exitCode === null && proc.signalCode === null) {
+            proc.kill();
+          }
+        });
         resolvePromise({ proc, port, url: `http://127.0.0.1:${port}` });
       }
     });
@@ -138,8 +147,10 @@ export function launchDeploymentHintAspServer(
   });
 }
 
-export function killDeploymentHintAspServer(server: DeploymentHintAspServer): void {
-  server.proc.kill();
+export async function killDeploymentHintAspServer(
+  server: DeploymentHintAspServer
+): Promise<void> {
+  await terminateChildProcess(server.proc);
 }
 
 if (import.meta.main) {

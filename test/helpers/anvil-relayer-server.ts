@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { buildChildProcessEnv } from "./child-env.ts";
+import { terminateChildProcess } from "./process.ts";
 
 export interface AnvilRelayerConfig {
   chainId: number;
@@ -15,6 +16,10 @@ export interface AnvilRelayerConfig {
   feeBPS: string;
   minWithdrawAmount: string;
   maxGasPrice: string;
+  quoteSequence?: Array<{
+    feeBPS?: string;
+    expirationOffsetMs?: number;
+  }>;
 }
 
 export interface AnvilRelayerServer {
@@ -29,15 +34,23 @@ const entrypointRelayAbi = parseAbi([
 
 function buildQuoteBody(
   config: AnvilRelayerConfig,
+  quoteRequestIndex: number,
   request: {
     amount: string;
     asset: string;
     extraGas: boolean;
   }
 ) {
+  const quoteStep =
+    config.quoteSequence?.[
+      Math.min(quoteRequestIndex, config.quoteSequence.length - 1)
+    ] ?? null;
+  const feeBPS = quoteStep?.feeBPS ?? config.feeBPS;
+  const expirationOffsetMs = quoteStep?.expirationOffsetMs ?? 10 * 60 * 1000;
+
   return {
-    baseFeeBPS: config.feeBPS,
-    feeBPS: config.feeBPS,
+    baseFeeBPS: feeBPS,
+    feeBPS,
     gasPrice: "1",
     detail: {
       relayTxCost: {
@@ -46,7 +59,7 @@ function buildQuoteBody(
       },
     },
     feeCommitment: {
-      expiration: Date.now() + 10 * 60 * 1000,
+      expiration: Date.now() + expirationOffsetMs,
       withdrawalData: "0x1234",
       asset: request.asset,
       amount: request.amount,
@@ -94,9 +107,18 @@ function toSolidityProof(body: {
 async function route(
   req: IncomingMessage,
   res: ServerResponse,
-  config: AnvilRelayerConfig
+  config: AnvilRelayerConfig,
+  state: { quoteRequests: number },
 ): Promise<void> {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
+
+  if (req.method === "GET" && url.pathname === "/__state") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      quoteRequests: state.quoteRequests,
+    }));
+    return;
+  }
 
   if (req.method === "GET" && url.pathname === "/relayer/details") {
     const requestedChainId = url.searchParams.get("chainId");
@@ -150,11 +172,17 @@ async function route(
     }
 
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(buildQuoteBody(config, {
-      amount: String(body.amount),
-      asset: String(body.asset),
-      extraGas: Boolean(body.extraGas),
-    })));
+    const quoteBody = buildQuoteBody(
+      config,
+      state.quoteRequests,
+      {
+        amount: String(body.amount),
+        asset: String(body.asset),
+        extraGas: Boolean(body.extraGas),
+      },
+    );
+    state.quoteRequests += 1;
+    res.end(JSON.stringify(quoteBody));
     return;
   }
 
@@ -241,6 +269,14 @@ export function launchAnvilRelayerServer(
       if (match) {
         clearTimeout(timeout);
         const port = Number(match[1]);
+        proc.stdout?.removeAllListeners("data");
+        proc.stdout?.destroy();
+        proc.unref();
+        process.once("exit", () => {
+          if (proc.exitCode === null && proc.signalCode === null) {
+            proc.kill();
+          }
+        });
         resolveLaunch({ proc, port, url: `http://127.0.0.1:${port}` });
       }
     });
@@ -257,8 +293,8 @@ export function launchAnvilRelayerServer(
   });
 }
 
-export function killAnvilRelayerServer(server: AnvilRelayerServer): void {
-  server.proc.kill();
+export async function killAnvilRelayerServer(server: AnvilRelayerServer): Promise<void> {
+  await terminateChildProcess(server.proc);
 }
 
 if (import.meta.main) {
@@ -268,8 +304,9 @@ if (import.meta.main) {
   }
 
   const config = JSON.parse(rawConfig) as AnvilRelayerConfig;
+  const state = { quoteRequests: 0 };
   const server = createServer((req, res) => {
-    route(req, res, config).catch((error) => {
+    route(req, res, config, state).catch((error) => {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
         message: error instanceof Error ? error.message : String(error),

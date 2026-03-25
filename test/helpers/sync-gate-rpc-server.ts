@@ -13,6 +13,7 @@ import {
   parseAbi,
 } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
+import { terminateChildProcess } from "./process.ts";
 
 const entrypointAbi = parseAbi([
   "function assetConfig(address asset) view returns (address pool, uint256 minimumDepositAmount, uint256 vettingFeeBPS, uint256 maxRelayFeeBPS)",
@@ -372,6 +373,14 @@ export function launchSyncGateRpcServer(
       if (match) {
         clearTimeout(timeout);
         const port = Number(match[1]);
+        proc.stdout?.removeAllListeners("data");
+        proc.stdout?.destroy();
+        proc.unref();
+        process.once("exit", () => {
+          if (proc.exitCode === null && proc.signalCode === null) {
+            proc.kill();
+          }
+        });
         resolvePromise({ proc, port, url: `http://127.0.0.1:${port}` });
       }
     });
@@ -388,8 +397,10 @@ export function launchSyncGateRpcServer(
   });
 }
 
-export function killSyncGateRpcServer(server: SyncGateRpcServer): void {
-  server.proc.kill();
+export async function killSyncGateRpcServer(
+  server: SyncGateRpcServer
+): Promise<void> {
+  await terminateChildProcess(server.proc);
 }
 
 if (import.meta.main) {

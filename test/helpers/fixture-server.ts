@@ -23,6 +23,7 @@ import { resolve } from "node:path";
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
+import { terminateChildProcess } from "./process.ts";
 
 // ── Canned response data ─────────────────────────────────────────────────────
 
@@ -359,6 +360,14 @@ export function launchFixtureServer(): Promise<FixtureServer> {
       if (match) {
         clearTimeout(timeout);
         const port = Number(match[1]);
+        proc.stdout?.removeAllListeners("data");
+        proc.stdout?.destroy();
+        proc.unref();
+        process.once("exit", () => {
+          if (proc.exitCode === null && proc.signalCode === null) {
+            proc.kill();
+          }
+        });
         resolve({ proc, port, url: `http://127.0.0.1:${port}` });
       }
     });
@@ -378,8 +387,8 @@ export function launchFixtureServer(): Promise<FixtureServer> {
 /**
  * Stop a fixture server launched by `launchFixtureServer`.
  */
-export function killFixtureServer(fixture: FixtureServer): void {
-  fixture.proc.kill();
+export async function killFixtureServer(fixture: FixtureServer): Promise<void> {
+  await terminateChildProcess(fixture.proc);
 }
 
 // ── Direct execution: start server and print port ────────────────────────────

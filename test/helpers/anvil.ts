@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { buildChildProcessEnv } from "./child-env.ts";
+import { terminateChildProcess } from "./process.ts";
 
 export interface AnvilInstance {
   proc: ChildProcess;
@@ -166,11 +167,20 @@ export async function launchAnvil(
     throw error;
   }
 
+  proc.stderr?.removeAllListeners("data");
+  proc.stderr?.destroy();
+  proc.unref();
+  process.once("exit", () => {
+    if (proc.exitCode === null && proc.signalCode === null) {
+      proc.kill();
+    }
+  });
+
   return { proc, port, url };
 }
 
-export function killAnvil(anvil: AnvilInstance): void {
-  anvil.proc.kill();
+export async function killAnvil(anvil: AnvilInstance): Promise<void> {
+  await terminateChildProcess(anvil.proc);
 }
 
 export async function setBalance(

@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { createPublicClient, http } from "viem";
 import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
 import { buildChildProcessEnv } from "./child-env.ts";
+import { terminateChildProcess } from "./process.ts";
 
 export interface AnvilAspState {
   chainId: number;
@@ -196,6 +197,14 @@ export function launchAnvilAspServer(
       if (match) {
         clearTimeout(timeout);
         const port = Number(match[1]);
+        proc.stdout?.removeAllListeners("data");
+        proc.stdout?.destroy();
+        proc.unref();
+        process.once("exit", () => {
+          if (proc.exitCode === null && proc.signalCode === null) {
+            proc.kill();
+          }
+        });
         resolveLaunch({ proc, port, url: `http://127.0.0.1:${port}` });
       }
     });
@@ -212,8 +221,8 @@ export function launchAnvilAspServer(
   });
 }
 
-export function killAnvilAspServer(server: AnvilAspServer): void {
-  server.proc.kill();
+export async function killAnvilAspServer(server: AnvilAspServer): Promise<void> {
+  await terminateChildProcess(server.proc);
 }
 
 if (import.meta.main) {
