@@ -242,11 +242,13 @@ privacy-pools flow ragequit latest --agent
 
 `flow start` performs the public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. The saved workflow always withdraws the full remaining balance of that same Pool Account at execution time.
 
+Like `deposit`, `flow start` rejects non-round amounts by default in machine modes because unique amounts can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy tradeoff.
+
 With `--new-wallet`, the CLI generates a dedicated workflow wallet for that one flow. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in the same wallet. In non-interactive mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow begins.
 
-`flow watch` re-checks the saved workflow and advances it using the same real branches as the frontend and protocol: `awaiting_funding`, `depositing_publicly`, `pending`, `approved`, `declined`, and `poi_required`. When the Pool Account is approved, `flow watch` performs the relayed private withdrawal automatically. If it is `declined`, the workflow pauses and surfaces `flow ragequit` as the canonical recovery path. If it is `poi_required`, the workflow pauses until Proof of Association is completed externally.
+`flow watch` re-checks the saved workflow and advances it using the same real branches as the frontend and protocol. Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `paused_declined`, `paused_poi_required`, and `stopped_external`. Deposit review state remains available separately in `aspStatus`. When the Pool Account is approved, `flow watch` performs the relayed private withdrawal automatically. If it is `declined`, the workflow pauses and surfaces `flow ragequit` as the canonical recovery path. If it is `poi_required`, the workflow pauses until Proof of Association is completed externally.
 
-`flow ragequit` performs the public recovery path for a saved workflow. For `walletMode = "new_wallet"` it uses the stored workflow wallet key. For `walletMode = "configured"` it uses the normal configured signer.
+`flow ragequit` performs the public recovery path for a saved workflow. For `walletMode = "new_wallet"` it uses the stored workflow wallet key. For `walletMode = "configured"` it must use the original depositor signer that created the saved workflow.
 
 JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "ragequit", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
 
