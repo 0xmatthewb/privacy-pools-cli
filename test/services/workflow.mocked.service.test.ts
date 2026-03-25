@@ -20,6 +20,7 @@ import {
 import { createTrackedTempDir } from "../helpers/temp.ts";
 
 const realConfig = await import("../../src/services/config.ts");
+const realChains = await import("../../src/config/chains.ts");
 const realFormat = await import("../../src/utils/format.ts");
 const realViemAccounts = await import("viem/accounts");
 
@@ -166,7 +167,7 @@ function resetState(): void {
   state.pool = {
     pool: "0x5555555555555555555555555555555555555555",
     scope: 9n,
-    asset: "0x0000000000000000000000000000000000000000",
+    asset: realChains.NATIVE_ASSET_ADDRESS,
     symbol: "ETH",
     decimals: 18,
     minimumDepositAmount: 1n,
@@ -825,6 +826,7 @@ describe("workflow service mocked coverage", () => {
       expect(snapshot.phase).toBe("completed");
       expect(snapshot.depositTxHash).toBe(state.depositTxHash);
       expect(snapshot.withdrawTxHash).toBe(state.relayTxHash);
+      expect(state.depositEthCalls).toBe(1);
       expect(state.requestQuoteCalls).toHaveLength(1);
     } finally {
       restoreTimers();
@@ -1111,6 +1113,39 @@ describe("workflow service mocked coverage", () => {
     expect(state.submitRagequitCalls).toBe(0);
   });
 
+  test("watchWorkflow clears new-wallet secrets after a saved public recovery confirms", async () => {
+    writeWorkflowSecret("wf-ragequit-watch");
+    writeWorkflowSnapshot("wf-ragequit-watch", {
+      phase: "paused_poi_required",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      aspStatus: "poi_required",
+      ragequitTxHash: state.ragequitTxHash,
+      ragequitBlockNumber: null,
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-ragequit-watch",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("completed_public_recovery");
+    expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
+    expect(state.submitRagequitCalls).toBe(0);
+    expect(
+      existsSync(join(realConfig.getWorkflowSecretsDir(), "wf-ragequit-watch.json")),
+    ).toBe(false);
+  });
+
   test("saved new-wallet workflows wait for funding and then complete once balances arrive", async () => {
     writeWorkflowSecret("wf-funded-later");
     state.pool = {
@@ -1295,7 +1330,7 @@ describe("workflow service mocked coverage", () => {
     );
   });
 
-  test("watchWorkflow retries after a reverted pending deposit and then completes", async () => {
+  test("watchWorkflow fails closed when a saved deposit receipt shows a revert", async () => {
     state.pendingReceiptMode = "reverted";
     state.pool = {
       ...state.pool,
@@ -1321,26 +1356,31 @@ describe("workflow service mocked coverage", () => {
 
     const restoreTimers = useImmediateTimers();
     try {
-      const snapshot = await watchWorkflow({
-        workflowId: "wf-reverted-pending",
-        globalOpts: { chain: "sepolia" },
-        mode: {
-          isAgent: true,
-          isJson: true,
-          isCsv: false,
-          isQuiet: true,
-          format: "json",
-          skipPrompts: true,
-        },
-        isVerbose: false,
-      });
+      await expect(
+        watchWorkflow({
+          workflowId: "wf-reverted-pending",
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: true,
+            isJson: true,
+            isCsv: false,
+            isQuiet: true,
+            format: "json",
+            skipPrompts: true,
+          },
+          isVerbose: false,
+        }),
+      ).rejects.toThrow("Previously submitted workflow deposit reverted");
 
-      expect(snapshot.phase).toBe("completed");
-      expect(state.approveErc20Calls).toBe(1);
-      expect(state.depositErc20Calls).toBe(1);
-      expect(getWorkflowStatus({ workflowId: "wf-reverted-pending" }).depositBlockNumber).toBe(
-        "101",
-      );
+      const failedSnapshot = getWorkflowStatus({ workflowId: "wf-reverted-pending" });
+      expect(failedSnapshot.phase).toBe("depositing_publicly");
+      expect(failedSnapshot.depositTxHash).toBe(state.depositTxHash);
+      expect(failedSnapshot.depositBlockNumber).toBeNull();
+      expect(failedSnapshot.lastError?.step).toBe("deposit");
+      expect(failedSnapshot.lastError?.errorMessage).toContain("deposit reverted");
+      expect(state.approveErc20Calls).toBe(0);
+      expect(state.depositErc20Calls).toBe(0);
+      expect(state.getTransactionReceiptCalls).toBe(1);
     } finally {
       restoreTimers();
     }

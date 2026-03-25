@@ -16,6 +16,7 @@ function sampleSnapshot(
     phase: "awaiting_asp",
     chain: "sepolia",
     asset: "ETH",
+    assetDecimals: 18,
     depositAmount: "10000000000000000",
     recipient: "0x4444444444444444444444444444444444444444",
     poolAccountId: "PA-1",
@@ -124,6 +125,37 @@ describe("renderFlowResult", () => {
 
     expect(stderr).toContain("Flow completed");
     expect(stderr).not.toContain("Next steps:");
+  });
+
+  test("human mode formats saved funding and committed amounts", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "awaiting_funding",
+          asset: "USDC",
+          assetDecimals: 6,
+          depositAmount: "100000000",
+          requiredTokenFunding: "100000000",
+          requiredNativeFunding: "100000000000000000",
+          committedValue: "99500000",
+          walletMode: "new_wallet",
+          walletAddress: "0x5555555555555555555555555555555555555555",
+          poolAccountId: null,
+          poolAccountNumber: null,
+          depositTxHash: null,
+          depositBlockNumber: null,
+          depositExplorerUrl: null,
+          aspStatus: undefined,
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("Deposit amount: 100 USDC");
+    expect(stderr).toContain("Required token funding: 100 USDC");
+    expect(stderr).toContain("Required native funding: 0.1 ETH");
+    expect(stderr).toContain("Committed value: 99.5 USDC");
   });
 
   test("human mode does not print the happy-path start message for declined starts", () => {

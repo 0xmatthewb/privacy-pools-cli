@@ -1,5 +1,6 @@
 import { POA_PORTAL_URL } from "../config/chains.js";
 import type { FlowPhase, FlowSnapshot } from "../services/workflow.js";
+import { displayDecimals, formatAmount } from "../utils/format.js";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -16,6 +17,27 @@ import {
 export interface FlowRenderData {
   action: "start" | "watch" | "status" | "ragequit";
   snapshot: FlowSnapshot;
+}
+
+function formatFlowAssetAmount(
+  rawAmount: string | null | undefined,
+  snapshot: FlowSnapshot,
+): string | null {
+  if (!rawAmount) return null;
+  if (typeof snapshot.assetDecimals !== "number") {
+    return rawAmount;
+  }
+  return formatAmount(
+    BigInt(rawAmount),
+    snapshot.assetDecimals,
+    snapshot.asset,
+    displayDecimals(snapshot.assetDecimals),
+  );
+}
+
+function formatFlowNativeFunding(rawAmount: string | null | undefined): string | null {
+  if (!rawAmount) return null;
+  return formatAmount(BigInt(rawAmount), 18, "ETH", displayDecimals(18));
 }
 
 function phaseLabel(phase: FlowPhase): string {
@@ -268,16 +290,33 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   if (data.snapshot.poolAccountId) {
     info(`Pool Account: ${data.snapshot.poolAccountId}`, silent);
   }
-  info(`Deposit amount: ${data.snapshot.depositAmount}`, silent);
-  if (data.snapshot.requiredTokenFunding) {
-    info(`Required token funding: ${data.snapshot.requiredTokenFunding}`, silent);
+  const depositAmount = formatFlowAssetAmount(
+    data.snapshot.depositAmount,
+    data.snapshot,
+  );
+  if (depositAmount) {
+    info(`Deposit amount: ${depositAmount}`, silent);
   }
-  if (data.snapshot.requiredNativeFunding) {
-    info(`Required native funding: ${data.snapshot.requiredNativeFunding}`, silent);
+  const requiredTokenFunding = formatFlowAssetAmount(
+    data.snapshot.requiredTokenFunding,
+    data.snapshot,
+  );
+  if (requiredTokenFunding) {
+    info(`Required token funding: ${requiredTokenFunding}`, silent);
+  }
+  const requiredNativeFunding = formatFlowNativeFunding(
+    data.snapshot.requiredNativeFunding,
+  );
+  if (requiredNativeFunding) {
+    info(`Required native funding: ${requiredNativeFunding}`, silent);
   }
   info(`Backup confirmed: ${data.snapshot.backupConfirmed ? "yes" : "no"}`, silent);
-  if (data.snapshot.committedValue) {
-    info(`Committed value: ${data.snapshot.committedValue}`, silent);
+  const committedValue = formatFlowAssetAmount(
+    data.snapshot.committedValue,
+    data.snapshot,
+  );
+  if (committedValue) {
+    info(`Committed value: ${committedValue}`, silent);
   }
   if (data.snapshot.depositTxHash) {
     info(`Deposit tx: ${data.snapshot.depositTxHash}`, silent);

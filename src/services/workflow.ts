@@ -186,6 +186,7 @@ export interface FlowSnapshot {
   phase: FlowPhase;
   walletMode?: FlowWalletMode;
   walletAddress?: string | null;
+  assetDecimals?: number | null;
   requiredNativeFunding?: string | null;
   requiredTokenFunding?: string | null;
   backupConfirmed?: boolean;
@@ -485,6 +486,7 @@ function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
     ...snapshot,
     walletMode: snapshot.walletMode ?? "configured",
     walletAddress: snapshot.walletAddress ?? null,
+    assetDecimals: snapshot.assetDecimals ?? null,
     requiredNativeFunding: snapshot.requiredNativeFunding ?? null,
     requiredTokenFunding: snapshot.requiredTokenFunding ?? null,
     backupConfirmed: snapshot.backupConfirmed ?? false,
@@ -1081,6 +1083,7 @@ function createInitialSnapshot(params: {
   workflowId?: string;
   walletMode?: FlowWalletMode;
   walletAddress?: Address | null;
+  assetDecimals?: number | null;
   requiredNativeFunding?: bigint | null;
   requiredTokenFunding?: bigint | null;
   backupConfirmed?: boolean;
@@ -1106,6 +1109,7 @@ function createInitialSnapshot(params: {
     phase: params.phase ?? "awaiting_asp",
     walletMode: params.walletMode ?? "configured",
     walletAddress: params.walletAddress ?? null,
+    assetDecimals: params.assetDecimals ?? null,
     requiredNativeFunding: params.requiredNativeFunding?.toString() ?? null,
     requiredTokenFunding: params.requiredTokenFunding?.toString() ?? null,
     backupConfirmed: params.backupConfirmed ?? false,
@@ -1155,20 +1159,6 @@ function attachPendingDepositToSnapshot(
         phase: "depositing_publicly",
         depositTxHash: pending.depositTxHash,
         depositExplorerUrl: pending.depositExplorerUrl,
-      }),
-    ),
-  );
-}
-
-function clearPendingDepositFromSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
-  return normalizeWorkflowSnapshot(
-    clearLastError(
-      updateSnapshot(snapshot, {
-        phase: "awaiting_funding",
-        depositTxHash: null,
-        depositBlockNumber: null,
-        depositExplorerUrl: null,
-        depositLabel: null,
       }),
     ),
   );
@@ -1363,7 +1353,11 @@ async function reconcilePendingDepositReceipt(params: {
   }
 
   if (receipt.status !== "success") {
-    return clearPendingDepositFromSnapshot(snapshot);
+    throw new CLIError(
+      `Previously submitted workflow deposit reverted: ${snapshot.depositTxHash}`,
+      "CONTRACT",
+      "Inspect the deposit transaction on a block explorer before retrying. Do not re-run 'privacy-pools flow watch' expecting this same deposit to succeed.",
+    );
   }
 
   let depositLabel: bigint | undefined;
@@ -2406,8 +2400,13 @@ async function inspectAndAdvanceFlow(params: {
     isVerbose,
   });
   if (reconciledRagequit) {
+    const savedCompleted = await saveWorkflowSnapshotIfChangedWithLock(
+      snapshot,
+      reconciledRagequit,
+    );
+    cleanupTerminalWorkflowSecret(savedCompleted);
     return {
-      snapshot: saveWorkflowSnapshotIfChanged(snapshot, reconciledRagequit),
+      snapshot: savedCompleted,
       continueWatching: false,
     };
   }
@@ -2672,6 +2671,7 @@ async function setupNewWalletWorkflow(params: {
       phase: "awaiting_funding",
       chain: chainConfig.name,
       asset: pool.symbol,
+      assetDecimals: pool.decimals,
       depositAmount: amount,
       recipient,
       poolAccountNumber: nextPoolAccount.poolAccountNumber,
@@ -2832,6 +2832,7 @@ export async function startWorkflow(
             walletAddress: privateKeyToAccount(loadPrivateKey()).address,
             chain: depositResult.chain,
             asset: depositResult.asset,
+            assetDecimals: pool.decimals,
             depositAmount: depositResult.amount,
             recipient: validatedRecipient,
             poolAccountNumber: depositResult.poolAccountNumber,
