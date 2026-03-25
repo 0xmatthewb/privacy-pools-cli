@@ -179,7 +179,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     description: "Poll ASP approval and withdraw privately when ready",
     help: {
       overview: [
-        "Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, paused_poi_required, paused_declined, and stopped_external.",
+        "Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external.",
         "The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus.",
         "Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.",
       ],
@@ -751,6 +751,42 @@ export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] = [
   { flag: "--timeout <seconds>", description: "Network/transaction timeout in seconds (default: 30)" },
 ];
 
+const CSV_GLOBAL_FLAG = "--format <format>";
+const CHAIN_GLOBAL_FLAG = "-c, --chain <name>";
+
+const CSV_SUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>([
+  "pools",
+  "activity",
+  "stats",
+  "stats global",
+  "stats pool",
+  "accounts",
+  "history",
+]);
+
+const CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>([
+  "stats",
+  "stats global",
+]);
+
+function supportedGlobalFlagMetadata(path: CommandPath): GlobalFlagMetadata[] {
+  return GLOBAL_FLAG_METADATA.filter((entry) => {
+    if (
+      entry.flag === CSV_GLOBAL_FLAG &&
+      !CSV_SUPPORTED_DESCRIPTOR_COMMANDS.has(path)
+    ) {
+      return false;
+    }
+    if (
+      entry.flag === CHAIN_GLOBAL_FLAG &&
+      CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS.has(path)
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
 const AGENT_WORKFLOW = [
   "1. privacy-pools status --agent",
   "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
@@ -826,7 +862,7 @@ function descriptorSeed(path: CommandPath): CommandDescriptorSeed {
     aliases: metadata.aliases ?? [],
     usage: capabilities.usage ?? path,
     flags: capabilities.flags ?? [],
-    globalFlags: GLOBAL_FLAG_METADATA.map(({ flag }) => flag),
+    globalFlags: supportedGlobalFlagMetadata(path).map(({ flag }) => flag),
     requiresInit: capabilities.requiresInit,
     expectedLatencyClass: capabilities.expectedLatencyClass ?? "fast",
     safeReadOnly: metadata.safeReadOnly ?? false,

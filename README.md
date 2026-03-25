@@ -103,7 +103,7 @@ bun run start -- --help
 | `sync` | Force-sync account state from onchain | Yes |
 | `completion` | Generate shell completions (bash/zsh/fish/powershell) | |
 
-All commands accept `--chain <name>` to override your default chain. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
+Most commands accept `--chain <name>` to override your default chain. `stats global` is the exception because it is always cross-chain. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
 
 ## Agent / Machine Mode
 

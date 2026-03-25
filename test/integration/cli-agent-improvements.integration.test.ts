@@ -68,6 +68,7 @@ describe("agent-focused improvements", () => {
     expect(json.command).toBe("stats global");
     expect(json.usage).toBe("stats global");
     expect(json.expectedLatencyClass).toBe("medium");
+    expect(json.globalFlags).not.toContain("-c, --chain <name>");
     expect(result.stderr.trim()).toBe("");
   });
 
@@ -102,7 +103,12 @@ describe("agent-focused improvements", () => {
 
     const json = parseJsonOutput<{
       commands: Array<{ name: string }>;
-      commandDetails: Record<string, { command: string; flags: string[]; safeReadOnly: boolean }>;
+      commandDetails: Record<string, {
+        command: string;
+        flags: string[];
+        globalFlags: string[];
+        safeReadOnly: boolean;
+      }>;
       safeReadOnlyCommands: string[];
     }>(result.stdout);
     expect(json.commands.map((command) => command.name)).toContain("stats global");
@@ -110,6 +116,9 @@ describe("agent-focused improvements", () => {
     expect(json.commands.map((command) => command.name)).toContain("describe");
     expect(json.commandDetails["accounts"]?.flags).toContain("--summary");
     expect(json.commandDetails["describe"]?.command).toBe("describe");
+    expect(json.commandDetails["stats global"]?.globalFlags).not.toContain("-c, --chain <name>");
+    expect(json.commandDetails["guide"]?.globalFlags).not.toContain("--format <format>");
+    expect(json.commandDetails["capabilities"]?.globalFlags).not.toContain("--format <format>");
     expect(json.commandDetails["guide"]?.safeReadOnly).toBe(true);
     expect(json.commandDetails["completion"]?.safeReadOnly).toBe(true);
     expect(json.safeReadOnlyCommands).toContain("guide");

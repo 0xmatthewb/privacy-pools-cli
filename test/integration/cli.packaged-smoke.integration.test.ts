@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   CLI_CWD,
@@ -181,6 +181,16 @@ function runPackagedCli(
   };
 }
 
+function writeWorkflow(home: string, workflow: Record<string, unknown>): void {
+  const workflowDir = join(home, ".privacy-pools", "workflows");
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(
+    join(workflowDir, `${workflow.workflowId as string}.json`),
+    JSON.stringify(workflow, null, 2),
+    "utf8",
+  );
+}
+
 describe("packaged CLI smoke", () => {
   let home: string;
   let packed: PackedArtifact;
@@ -336,6 +346,116 @@ describe("packaged CLI smoke", () => {
       expect(json.success).toBe(false);
       expect(json.errorCode).toBe("INPUT_ERROR");
       expect(json.error.category).toBe("INPUT");
+    });
+
+    test("flow start --agent without --to: INPUT_ERROR exit 2", () => {
+      const result = runSmokeCli(["--agent", "flow", "start", "0.1", "ETH"], { home });
+      expect(result.status).toBe(2);
+      expect(result.stderr.trim()).toBe("");
+      const json = parseJsonOutput<{
+        success: boolean;
+        errorCode: string;
+        error: { category: string };
+      }>(result.stdout);
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.error.category).toBe("INPUT");
+    });
+  });
+
+  describe("saved flow smoke", () => {
+    test("flow status latest --agent reads the saved workflow from the packed artifact", () => {
+      const flowHome = createTempHome("pp-smoke-flow-status-");
+      writeWorkflow(flowHome, {
+        schemaVersion: "1.5.0",
+        workflowId: "wf-latest",
+        createdAt: "2026-03-24T12:00:00.000Z",
+        updatedAt: "2026-03-24T12:05:00.000Z",
+        phase: "paused_declined",
+        chain: "sepolia",
+        asset: "ETH",
+        assetDecimals: 18,
+        depositAmount: "10000000000000000",
+        recipient: "0x4444444444444444444444444444444444444444",
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        depositTxHash:
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        depositBlockNumber: "12345",
+        depositExplorerUrl: "https://example.test/deposit",
+        committedValue: "9950000000000000",
+        aspStatus: "declined",
+      });
+
+      const result = runSmokeCli(["--agent", "flow", "status", "latest"], {
+        home: flowHome,
+      });
+      expect(result.status).toBe(0);
+      expect(result.stderr.trim()).toBe("");
+
+      const json = parseJsonOutput<{
+        success: boolean;
+        mode: string;
+        action: string;
+        workflowId: string;
+        phase: string;
+      }>(result.stdout);
+      expect(json.success).toBe(true);
+      expect(json.mode).toBe("flow");
+      expect(json.action).toBe("status");
+      expect(json.workflowId).toBe("wf-latest");
+      expect(json.phase).toBe("paused_declined");
+    });
+
+    test("flow watch latest --agent resolves the newest saved workflow", () => {
+      const flowHome = createTempHome("pp-smoke-flow-watch-");
+      writeWorkflow(flowHome, {
+        schemaVersion: "1.5.0",
+        workflowId: "wf-older",
+        createdAt: "2026-03-24T12:00:00.000Z",
+        updatedAt: "2026-03-24T12:00:00.000Z",
+        phase: "completed",
+        chain: "sepolia",
+        asset: "ETH",
+        assetDecimals: 18,
+        depositAmount: "10000000000000000",
+        recipient: "0x4444444444444444444444444444444444444444",
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+      });
+      writeWorkflow(flowHome, {
+        schemaVersion: "1.5.0",
+        workflowId: "wf-latest",
+        createdAt: "2026-03-24T12:00:00.000Z",
+        updatedAt: "2026-03-24T12:10:00.000Z",
+        phase: "completed",
+        chain: "sepolia",
+        asset: "ETH",
+        assetDecimals: 18,
+        depositAmount: "10000000000000000",
+        recipient: "0x4444444444444444444444444444444444444444",
+        poolAccountId: "PA-2",
+        poolAccountNumber: 2,
+        withdrawTxHash:
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        withdrawBlockNumber: "12399",
+        withdrawExplorerUrl: "https://example.test/withdraw",
+      });
+
+      const result = runSmokeCli(["--agent", "flow", "watch", "latest"], {
+        home: flowHome,
+      });
+      expect(result.status).toBe(0);
+      expect(result.stderr.trim()).toBe("");
+
+      const json = parseJsonOutput<{
+        success: boolean;
+        workflowId: string;
+        phase: string;
+      }>(result.stdout);
+      expect(json.success).toBe(true);
+      expect(json.workflowId).toBe("wf-latest");
+      expect(json.phase).toBe("completed");
     });
   });
 

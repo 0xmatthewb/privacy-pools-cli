@@ -271,8 +271,9 @@ Manual path remains available when you need custom Pool Account selection, parti
 ```
 1. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
 2. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
-3. privacy-pools accounts --agent --chain <chain> --pending-only        # Approved entries disappear; confirm with accounts --agent --chain <chain>
-4. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw
+3. privacy-pools accounts --agent --chain <chain> --pending-only        # Poll while pending; reviewed entries disappear from this view
+4. privacy-pools accounts --agent --chain <chain>                       # Confirm approved vs declined vs poi_required
+5. privacy-pools withdraw --all ETH --to <addr> --agent                 # Withdraw the full approved remainder
 ```
 
 **Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.

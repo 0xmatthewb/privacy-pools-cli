@@ -5,7 +5,7 @@
 #   - Manually via the "Run workflow" button (you type an existing tag)
 #
 # WHAT does it do?  (three sequential stages)
-#   1. validate  — runs the same merge-readiness suite as `npm run test:ci`
+#   1. validate  — runs the release-readiness suite as `npm run test:release`
 #                  to make sure the tagged code is healthy.
 #   2. package   — creates an npm tarball (.tgz) of the CLI.
 #   3. release   — attaches the tarball to a GitHub Release page so
@@ -76,8 +76,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run merge-readiness suite
-        run: npm run test:ci
+      - name: Run release-readiness suite
+        run: npm run test:release
 
   # -----------------------------------------------------------
   # Stage 2: Create the distributable npm package

@@ -542,7 +542,7 @@ Arguments:
   workflowId  Saved workflow id (defaults to latest)
 Options:
   -h, --help  display help for command
-Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, paused_poi_required, paused_declined, and stopped_external.
+Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external.
 The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus.
 Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.
 Examples:
