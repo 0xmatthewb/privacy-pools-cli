@@ -33,7 +33,6 @@ export async function handleSyncCommand(
   try {
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
-    const mnemonic = loadMnemonic();
 
     const spin = spinner("Resolving pools for sync...", silent);
     spin.start();
@@ -47,6 +46,8 @@ export async function handleSyncCommand(
       renderSyncEmpty(ctx, chainConfig.name);
       return;
     }
+
+    const mnemonic = loadMnemonic();
 
     verbose(
       `Syncing ${pools.length} pool(s): ${pools.map((p) => p.symbol).join(", ")}`,
