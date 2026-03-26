@@ -9,9 +9,9 @@ This repository uses a Bun-aligned test architecture. The important constraint i
   - Prefer direct imports and semantic assertions over snapshots.
 - `test/services/`
   - Source-level coverage for SDK, ASP, relayer, workflow, circuit, and persistence services.
-  - Use strict mocks around outbound boundaries and fail closed on unexpected calls.
+  - Use strict outbound stub registries around RPC, ASP, relayer, and child-process boundaries and fail closed on unexpected or unused calls.
 - `test/acceptance/`
-  - Typed CLI journey tests built on `test/acceptance/framework.ts`.
+  - Typed CLI journey tests built on `test/acceptance/framework.ts` and `test/helpers/test-world.ts`.
   - These are the primary home for broad subprocess-driven command contracts such as stream separation, JSON envelopes, fail-closed UX, and filesystem side effects.
 - `test/integration/`
   - Hand-written subprocess suites that still cover built/package/runtime boundaries, cross-platform concerns, environment trust boundaries, and cases not yet migrated to acceptance.
@@ -37,6 +37,19 @@ Rules:
 - `mock.restore()` and `mock.clearAllMocks()` clean up spies/functions only. They do not fully undo `mock.module()`.
 - Do not try to "fix" a documented isolated suite by adding more restore calls unless the suite genuinely stops replacing shared modules.
 
+Current default isolated suites:
+
+- `contracts-service`
+- `proofs-service`
+- `workflow-mocked`
+- `workflow-internal`
+- `init-interactive`
+
+Current coverage-only isolated suites:
+
+- `workflow-service`
+- `bootstrap-runtime`
+
 When to use preload:
 
 - Only when a suite must install a mock before the first import side effect.
@@ -54,6 +67,13 @@ Prefer assertions that protect user-facing or agent-facing contracts:
 - filesystem/home side effects
 - fail-closed behavior on partial state or partial network failure
 - unsigned transaction payloads (`to`, `data`, `value`, `chainId`, ordering, descriptions)
+
+Shared helpers live in:
+
+- `test/helpers/contract-assertions.ts`
+- `test/helpers/unsigned-assertions.ts`
+- `test/helpers/strict-stubs.ts`
+- `test/helpers/test-world.ts`
 
 Avoid low-value tests that mostly pin implementation trivia:
 
@@ -109,3 +129,8 @@ If a target is missed:
 
 - prefer acceptance migration, exact-file CI sharding, and affected-path selection
 - do not weaken assertions or lower coverage thresholds to get speed back
+
+CI notes:
+
+- `scripts/ci/test-shards.mjs` uses `scripts/ci/test-shard-weights.json` for deterministic runtime-aware shard balancing.
+- `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).

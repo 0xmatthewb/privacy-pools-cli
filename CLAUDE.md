@@ -27,6 +27,7 @@ bun run test:coverage          # hybrid coverage guard (same thresholds as above
 bun run test:evals             # agent eval suite (timeout 120s)
 bun run test:e2e:anvil         # full anvil e2e (requires local anvil)
 bun run test:e2e:anvil:smoke   # anvil smoke subset
+bun run test:flake             # randomized non-e2e pass + targeted reruns
 bun run test:stress            # stress test (120 rounds)
 bun run test:ci                # full CI pipeline
 ```
@@ -36,6 +37,13 @@ bun run test:ci                # full CI pipeline
 `bunfig.toml` provides Bun-native test defaults such as `coverageSkipTestFiles`, but the repository still treats `scripts/check-coverage.mjs` as the authoritative coverage gate because Bun coverage alone does not count unloaded executable source files.
 
 Process isolation is intentional here. Bun runs test files in a shared process by default, and `mock.module()` is not safely reversible in-process. If a suite remains listed as isolated in `scripts/test-suite-manifest.mjs`, treat that as a documented containment boundary, not a smell to “fix” with more `mock.restore()` calls.
+
+The preferred test harness primitives are:
+- `test/helpers/test-world.ts` for temp home/env/process lifecycle
+- `test/helpers/contract-assertions.ts` for JSON envelope, nextActions, and stream-boundary checks
+- `test/helpers/strict-stubs.ts` for fail-closed outbound expectations
+
+Default isolated suites are intentionally limited to `contracts-service`, `proofs-service`, `workflow-mocked`, `workflow-internal`, and `init-interactive`. Coverage-only isolation additionally keeps `workflow-service` and `bootstrap-runtime` out of the shared batch.
 
 To run a single test file: `node scripts/run-bun-tests.mjs ./test/unit/some-file.unit.test.ts`
 

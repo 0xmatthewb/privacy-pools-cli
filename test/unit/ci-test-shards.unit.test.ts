@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildFileShards,
   collectLinuxCoreTestFiles,
+  resolveFileWeight,
 } from "../../scripts/ci/lib.mjs";
 
 describe("ci test shards", () => {
@@ -39,5 +40,11 @@ describe("ci test shards", () => {
     expect(shards).toHaveLength(3);
     expect(new Set(covered)).toEqual(new Set(files));
     expect(covered).toHaveLength(files.length);
+  });
+
+  test("configured shard weights override raw file length for known heavy suites", () => {
+    expect(resolveFileWeight("./test/unit/withdraw-command-handler.unit.test.ts")).toBe(
+      180,
+    );
   });
 });

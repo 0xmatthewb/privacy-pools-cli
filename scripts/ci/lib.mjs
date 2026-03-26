@@ -10,6 +10,10 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..", "..");
+const SHARD_WEIGHT_MANIFEST = resolve(
+  ROOT,
+  "scripts/ci/test-shard-weights.json",
+);
 
 const JOB_RULES = {
   "linux-core": [
@@ -123,6 +127,15 @@ const JOB_RULES = {
     "bun.lock",
     ".github/workflows/full-anvil.yml",
     ".github/workflows/release.yml",
+  ],
+  "flake-core": [
+    "src/",
+    "test/",
+    "scripts/",
+    "package.json",
+    "bun.lock",
+    "bunfig.toml",
+    ".github/workflows/flake.yml",
   ],
 };
 
@@ -263,7 +276,34 @@ export function collectLinuxCoreTestFiles(rootDir = ROOT) {
   return uniqueSorted([...mainFiles, ...isolatedFiles]);
 }
 
-function fileWeight(filePath, rootDir = ROOT) {
+let cachedShardWeights;
+
+function loadShardWeights() {
+  if (cachedShardWeights !== undefined) {
+    return cachedShardWeights;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(SHARD_WEIGHT_MANIFEST, "utf8"));
+    cachedShardWeights = Object.fromEntries(
+      Object.entries(parsed).map(([filePath, weight]) => [
+        normalizePath(filePath),
+        Number(weight),
+      ]),
+    );
+  } catch {
+    cachedShardWeights = {};
+  }
+
+  return cachedShardWeights;
+}
+
+export function resolveFileWeight(filePath, rootDir = ROOT) {
+  const configuredWeight = loadShardWeights()[normalizePath(filePath)];
+  if (Number.isFinite(configuredWeight) && configuredWeight > 0) {
+    return configuredWeight;
+  }
+
   const absolutePath = resolve(rootDir, filePath);
   const contents = readFileSync(absolutePath, "utf8");
   return contents.split("\n").length;
@@ -274,7 +314,7 @@ export function buildFileShards(files, count, rootDir = ROOT) {
   const weighted = uniqueSorted(files)
     .map((filePath) => ({
       filePath,
-      weight: fileWeight(filePath, rootDir),
+      weight: resolveFileWeight(filePath, rootDir),
     }))
     .sort((left, right) => {
       if (right.weight !== left.weight) return right.weight - left.weight;

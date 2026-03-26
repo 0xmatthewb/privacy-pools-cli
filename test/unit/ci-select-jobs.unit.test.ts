@@ -34,4 +34,15 @@ describe("ci job selection", () => {
     expect(decision.shouldRun).toBe(true);
     expect(decision.reason).toContain("push runs the full test matrix");
   });
+
+  test("flake lane follows the same changed-path filtering on pull requests", () => {
+    const decision = evaluateJobSelection({
+      job: "flake-core",
+      eventName: "pull_request",
+      changedFiles: ["src/commands/withdraw.ts"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("src/commands/withdraw.ts");
+  });
 });

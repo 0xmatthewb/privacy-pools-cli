@@ -1,0 +1,14 @@
+{
+  "./test/services/workflow.mocked.service.test.ts": 420,
+  "./test/services/workflow.service.test.ts": 320,
+  "./test/services/workflow.internal.service.test.ts": 360,
+  "./test/services/contracts.service.test.ts": 240,
+  "./test/services/proofs.service.test.ts": 180,
+  "./test/unit/bootstrap-runtime.unit.test.ts": 160,
+  "./test/unit/withdraw-command-handler.unit.test.ts": 180,
+  "./test/unit/deposit-command-handler.unit.test.ts": 110,
+  "./test/unit/ragequit-command-handler.unit.test.ts": 110,
+  "./test/unit/account-readonly-command-handlers.unit.test.ts": 120,
+  "./test/acceptance/flow.acceptance.test.ts": 100,
+  "./test/acceptance/no-sync.acceptance.test.ts": 90
+}
