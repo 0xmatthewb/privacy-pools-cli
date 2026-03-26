@@ -51,33 +51,10 @@ function sourceBaseNames(dir: string): string[] {
     .sort();
 }
 
-function packedFilePaths(packRoot: string): Set<string> {
-  const pack = spawnSync(
-    npmBin(),
-    ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
-    {
-      cwd: packRoot,
-      encoding: "utf8",
-      timeout: 30_000,
-      env: buildChildProcessEnv(),
-    },
-  );
-  expect(pack.status).toBe(0);
-  const output = `${pack.stdout}\n${pack.stderr}`.trim();
-  const jsonStart = output.indexOf("[");
-  const jsonEnd = output.lastIndexOf("]");
-  expect(jsonStart).toBeGreaterThanOrEqual(0);
-  expect(jsonEnd).toBeGreaterThan(jsonStart);
-
-  const manifest = JSON.parse(output.slice(jsonStart, jsonEnd + 1)) as Array<{
-    files?: Array<{ path?: string }>;
-  }>;
-  return new Set((manifest[0]?.files ?? []).map((entry) => entry.path));
-}
-
 interface PackedArtifact {
   packageRoot: string;
   binPath: string;
+  filePaths: Set<string>;
 }
 
 function sourcePackageJson(): {
@@ -148,6 +125,21 @@ function packAndExtractCli(packRoot: string): PackedArtifact {
   // workspace node_modules symlink would mask.
   linkDeclaredProdDependencies(packageRoot);
 
+  const listedFiles = spawnSync("tar", ["-tzf", tarballPath], {
+    encoding: "utf8",
+    timeout: 120_000,
+    maxBuffer: 10 * 1024 * 1024,
+    env: buildChildProcessEnv(),
+  });
+  expect(listedFiles.status).toBe(0);
+  const filePaths = new Set(
+    listedFiles.stdout
+      .trim()
+      .split(/\r?\n/g)
+      .filter((entry) => entry.length > 0)
+      .map((entry) => entry.replace(/^package\//, "")),
+  );
+
   const pkg = JSON.parse(
     readFileSync(join(packageRoot, "package.json"), "utf8"),
   ) as { bin?: string | Record<string, string> };
@@ -159,6 +151,7 @@ function packAndExtractCli(packRoot: string): PackedArtifact {
   return {
     packageRoot,
     binPath: join(packageRoot, binEntry!),
+    filePaths,
   };
 }
 
@@ -267,11 +260,10 @@ async function waitForLatestWorkflowSnapshot(
 describe("packaged CLI smoke", () => {
   let home: string;
   let packed: PackedArtifact;
-  let packRoot: string;
   let syncGateRpc: SyncGateRpcServer | null = null;
 
   beforeAll(async () => {
-    packRoot = createBuiltWorkspaceSnapshot();
+    const packRoot = createBuiltWorkspaceSnapshot();
     packed = packAndExtractCli(packRoot);
     home = createTempHome("pp-smoke-dist-");
     syncGateRpc = await launchSyncGateRpcServer({
@@ -729,17 +721,16 @@ describe("packaged CLI smoke", () => {
   // ── Packaged artifact ──────────────────────────────────────────────────────
 
   test("npm pack includes dist entry point and package.json without orphaned command/output artifacts", () => {
-    const filePaths = packedFilePaths(packRoot);
-    const packedCommandNames = packedBaseNames(filePaths, "dist/commands/");
-    const packedOutputNames = packedBaseNames(filePaths, "dist/output/");
+    const packedCommandNames = packedBaseNames(packed.filePaths, "dist/commands/");
+    const packedOutputNames = packedBaseNames(packed.filePaths, "dist/output/");
     const sourcePkg = sourcePackageJson() as { bin?: unknown; dependencies?: unknown };
     const packedPkg = JSON.parse(
       readFileSync(join(packed.packageRoot, "package.json"), "utf8"),
     ) as { bin?: unknown; dependencies?: unknown };
 
-    expect(filePaths.has("dist/index.js")).toBe(true);
-    expect(filePaths.has("package.json")).toBe(true);
-    expect(filePaths.has("scripts/start-built-cli.mjs")).toBe(true);
+    expect(packed.filePaths.has("dist/index.js")).toBe(true);
+    expect(packed.filePaths.has("package.json")).toBe(true);
+    expect(packed.filePaths.has("scripts/start-built-cli.mjs")).toBe(true);
     expect(packedCommandNames).toEqual(sourceBaseNames("src/commands"));
     expect(packedOutputNames).toEqual(sourceBaseNames("src/output"));
     expect(packedPkg.bin).toEqual(sourcePkg.bin);
@@ -747,13 +738,11 @@ describe("packaged CLI smoke", () => {
   }, 30_000);
 
   test("npm pack includes docs referenced by shipped docs and capabilities", () => {
-    const filePaths = packedFilePaths(packRoot);
-
-    expect(filePaths.has("AGENTS.md")).toBe(true);
-    expect(filePaths.has("CHANGELOG.md")).toBe(true);
-    expect(filePaths.has("docs/reference.md")).toBe(true);
-    expect(filePaths.has("skills/privacy-pools-cli/SKILL.md")).toBe(true);
-    expect(filePaths.has("skills/privacy-pools-cli/reference.md")).toBe(true);
+    expect(packed.filePaths.has("AGENTS.md")).toBe(true);
+    expect(packed.filePaths.has("CHANGELOG.md")).toBe(true);
+    expect(packed.filePaths.has("docs/reference.md")).toBe(true);
+    expect(packed.filePaths.has("skills/privacy-pools-cli/SKILL.md")).toBe(true);
+    expect(packed.filePaths.has("skills/privacy-pools-cli/reference.md")).toBe(true);
 
     const capabilities = runSmokeCli(["--agent", "capabilities"], { home });
     expect(capabilities.status).toBe(0);
@@ -765,8 +754,8 @@ describe("packaged CLI smoke", () => {
       };
     }>(capabilities.stdout);
 
-    expect(filePaths.has(json.documentation?.reference ?? "")).toBe(true);
-    expect(filePaths.has(json.documentation?.agentGuide ?? "")).toBe(true);
-    expect(filePaths.has(json.documentation?.changelog ?? "")).toBe(true);
+    expect(packed.filePaths.has(json.documentation?.reference ?? "")).toBe(true);
+    expect(packed.filePaths.has(json.documentation?.agentGuide ?? "")).toBe(true);
+    expect(packed.filePaths.has(json.documentation?.changelog ?? "")).toBe(true);
   }, 30_000);
 }, 300_000);
