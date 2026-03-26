@@ -844,23 +844,14 @@ function sleep(ms: number): Promise<void> {
 }
 
 function classifyFlowMutation(current: FlowSnapshot, poolAccount: PoolAccountRef | undefined): FlowPhase | null {
-  if (!poolAccount) {
-    return "stopped_external";
-  }
+  const externallyChanged =
+    !poolAccount ||
+    poolAccount.status === "spent" ||
+    poolAccount.status === "exited" ||
+    (current.committedValue && poolAccount.value.toString() !== current.committedValue) ||
+    (current.depositLabel && poolAccount.label.toString() !== current.depositLabel);
 
-  if (poolAccount.status === "spent" || poolAccount.status === "exited") {
-    return "stopped_external";
-  }
-
-  if (current.committedValue && poolAccount.value.toString() !== current.committedValue) {
-    return "stopped_external";
-  }
-
-  if (current.depositLabel && poolAccount.label.toString() !== current.depositLabel) {
-    return "stopped_external";
-  }
-
-  return null;
+  return externallyChanged ? "stopped_external" : null;
 }
 
 function saveMutatedWorkflowSnapshot(
@@ -2778,7 +2769,7 @@ async function setupNewWalletWorkflow(params: {
         message: "How would you like to back up this workflow wallet?",
         choices: [
           { name: "Save to file (recommended)", value: "file" },
-          { name: "I've already copied it", value: "copied" },
+          { name: "I'll back it up manually", value: "copied" },
         ],
       });
 

@@ -511,8 +511,8 @@ Options:
                               workflow
   --export-new-wallet <path>  Export the generated workflow wallet backup before
                               continuing (requires --new-wallet)
-  --watch                     Keep watching this workflow until it reaches a
-                              terminal state
+  --watch                     Keep watching this workflow until it finishes or
+                              pauses
   -h, --help                  display help for command
 This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient.
 With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve.

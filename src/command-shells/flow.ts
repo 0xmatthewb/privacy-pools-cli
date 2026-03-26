@@ -22,7 +22,7 @@ export function createFlowCommand(): Command {
     .option("-t, --to <address>", "Recipient address for the later private withdrawal")
     .option("--new-wallet", "Create and use a dedicated wallet for this workflow")
     .option("--export-new-wallet <path>", "Export the generated workflow wallet backup before continuing (requires --new-wallet)")
-    .option("--watch", "Keep watching this workflow until it reaches a terminal state")
+    .option("--watch", "Keep watching this workflow until it finishes or pauses")
     .addHelpText("after", commandHelpText(startMetadata.help ?? {}))
     .action(
       createLazyAction(

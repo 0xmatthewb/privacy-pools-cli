@@ -27,17 +27,25 @@ function formatFlowAssetAmount(
   if (typeof snapshot.assetDecimals !== "number") {
     return rawAmount;
   }
-  return formatAmount(
-    BigInt(rawAmount),
-    snapshot.assetDecimals,
-    snapshot.asset,
-    displayDecimals(snapshot.assetDecimals),
-  );
+  try {
+    return formatAmount(
+      BigInt(rawAmount),
+      snapshot.assetDecimals,
+      snapshot.asset,
+      displayDecimals(snapshot.assetDecimals),
+    );
+  } catch {
+    return rawAmount;
+  }
 }
 
 function formatFlowNativeFunding(rawAmount: string | null | undefined): string | null {
   if (!rawAmount) return null;
-  return formatAmount(BigInt(rawAmount), 18, "ETH", displayDecimals(18));
+  try {
+    return formatAmount(BigInt(rawAmount), 18, "ETH", displayDecimals(18));
+  } catch {
+    return rawAmount;
+  }
 }
 
 function phaseLabel(phase: FlowPhase): string {
@@ -62,6 +70,8 @@ function phaseLabel(phase: FlowPhase): string {
       return "Paused: declined";
     case "stopped_external":
       return "Stopped: account changed externally";
+    default:
+      return phase;
   }
 }
 

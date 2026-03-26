@@ -158,6 +158,37 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("Committed value: 99.5 USDC");
   });
 
+  test("human mode falls back to raw stored amounts when snapshot values are corrupt", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "awaiting_funding",
+          asset: "USDC",
+          assetDecimals: 6,
+          depositAmount: "not-a-bigint",
+          requiredTokenFunding: "still-not-a-bigint",
+          requiredNativeFunding: "bad-native-value",
+          committedValue: "also-bad",
+          walletMode: "new_wallet",
+          walletAddress: "0x5555555555555555555555555555555555555555",
+          poolAccountId: null,
+          poolAccountNumber: null,
+          depositTxHash: null,
+          depositBlockNumber: null,
+          depositExplorerUrl: null,
+          aspStatus: undefined,
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("Deposit amount: not-a-bigint");
+    expect(stderr).toContain("Required token funding: still-not-a-bigint");
+    expect(stderr).toContain("Required native funding: bad-native-value");
+    expect(stderr).toContain("Committed value: also-bad");
+  });
+
   test("human mode does not print the happy-path start message for declined starts", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
@@ -250,5 +281,20 @@ describe("renderFlowResult", () => {
 
     const json = parseCapturedJson(stdout);
     expect(json.depositLabel).toBeUndefined();
+  });
+
+  test("human mode falls back to the raw phase label for unknown snapshots", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "mystery_phase" as FlowSnapshot["phase"],
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("Workflow wf-123 is mystery_phase.");
+    expect(stderr).toContain("Phase: mystery_phase");
   });
 });
