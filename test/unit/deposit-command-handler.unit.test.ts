@@ -9,25 +9,18 @@ import {
 import type { Command } from "commander";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
-  saveConfig,
-  saveMnemonicToFile,
-  saveSignerKey,
-} from "../../src/services/config.ts";
-import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
+  expectStderrOnlyContains,
 } from "../helpers/output.ts";
 import {
   captureModuleExports,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
-import {
-  cleanupTrackedTempDirs,
-  createTrackedTempDir,
-} from "../helpers/temp.ts";
 import { expectUnsignedTransactions } from "../helpers/unsigned-assertions.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -144,8 +137,7 @@ const confirmPromptMock = mock(async () => true);
 const selectPromptMock = mock(async () => "ETH");
 
 let handleDepositCommand: typeof import("../../src/commands/deposit.ts").handleDepositCommand;
-
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+let world: TestWorld;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -159,19 +151,10 @@ function useIsolatedHome(options: {
   defaultChain?: string;
   withSigner?: boolean;
 } = {}): string {
-  const home = createTrackedTempDir("pp-deposit-handler-");
-  process.env.PRIVACY_POOLS_HOME = home;
-  saveConfig({
+  return world.seedConfigHome({
     defaultChain: options.defaultChain ?? "mainnet",
-    rpcOverrides: {},
+    withSigner: options.withSigner ?? false,
   });
-  saveMnemonicToFile(
-    "test test test test test test test test test test test junk",
-  );
-  if (options.withSigner) {
-    saveSignerKey("0x" + "11".repeat(32));
-  }
-  return home;
 }
 
 async function loadDepositCommandHandler(): Promise<void> {
@@ -230,15 +213,10 @@ async function loadDepositCommandHandler(): Promise<void> {
 
 afterEach(() => {
   restoreModuleImplementations(DEPOSIT_HANDLER_MODULE_RESTORES);
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
-  }
-  cleanupTrackedTempDirs();
 });
 
 beforeEach(() => {
+  world = createTestWorld({ prefix: "pp-deposit-handler-" });
   mock.restore();
   saveAccountMock.mockClear();
   saveSyncMetaMock.mockClear();
@@ -306,6 +284,10 @@ beforeEach(() => {
   }));
 });
 
+afterEach(async () => {
+  await world?.teardown();
+});
+
 beforeEach(async () => {
   await loadDepositCommandHandler();
 });
@@ -345,7 +327,7 @@ describe("deposit command handler", () => {
     expect(selectPromptMock).toHaveBeenCalled();
     expect(approveERC20Mock).toHaveBeenCalledTimes(1);
     expect(depositERC20Mock).toHaveBeenCalledTimes(1);
-    expect(stderr).toContain("Deposit confirmed");
+    expectStderrOnlyContains({ stdout: "", stderr }, ["Deposit confirmed"]);
   });
 
   test("fails cleanly for humans when no pools are available to choose from", async () => {
@@ -604,8 +586,10 @@ describe("deposit command handler", () => {
       ),
     );
 
-    expect(stderr).toContain("may reduce your privacy");
-    expect(stderr).toContain("Deposit cancelled");
+    expectStderrOnlyContains({ stdout: "", stderr }, [
+      "may reduce your privacy",
+      "Deposit cancelled",
+    ]);
     expect(depositETHMock).not.toHaveBeenCalled();
   });
 
@@ -622,8 +606,10 @@ describe("deposit command handler", () => {
       ),
     );
 
-    expect(stderr).toContain("Vetting fee");
-    expect(stderr).toContain("Deposit cancelled");
+    expectStderrOnlyContains({ stdout: "", stderr }, [
+      "Vetting fee",
+      "Deposit cancelled",
+    ]);
     expect(depositETHMock).not.toHaveBeenCalled();
   });
 
@@ -705,8 +691,10 @@ describe("deposit command handler", () => {
       ),
     );
 
-    expect(stderr).toContain("failed to save locally");
-    expect(stderr).toContain("Run 'privacy-pools sync'");
-    expect(stderr).toContain("Deposit confirmed");
+    expectStderrOnlyContains({ stdout: "", stderr }, [
+      "failed to save locally",
+      "Run 'privacy-pools sync'",
+      "Deposit confirmed",
+    ]);
   });
 });

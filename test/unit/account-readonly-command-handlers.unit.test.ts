@@ -9,20 +9,14 @@ import {
 import type { Command } from "commander";
 import {
   captureModuleExports,
+  installModuleMocks,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
-import {
-  saveConfig,
-  saveMnemonicToFile,
-} from "../../src/services/config.ts";
 import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
 } from "../helpers/output.ts";
-import {
-  cleanupTrackedTempDirs,
-  createTrackedTempDir,
-} from "../helpers/temp.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -163,8 +157,7 @@ let handleAccountsCommand: typeof import("../../src/commands/accounts.ts").handl
 let handleHistoryCommand: typeof import("../../src/commands/history.ts").handleHistoryCommand;
 let handleSyncCommand: typeof import("../../src/commands/sync.ts").handleSyncCommand;
 let handleMigrateStatusCommand: typeof import("../../src/commands/migrate.ts").handleMigrateStatusCommand;
-
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+let world: TestWorld;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -185,58 +178,53 @@ function fakeNestedCommand(globalOpts: Record<string, unknown> = {}): Command {
 }
 
 function useIsolatedHome(defaultChain: string = "mainnet"): string {
-  const home = createTrackedTempDir("pp-account-readonly-handler-");
-  process.env.PRIVACY_POOLS_HOME = home;
-  saveConfig({
+  return world.seedConfigHome({
     defaultChain,
-    rpcOverrides: {},
   });
-  saveMnemonicToFile(
-    "test test test test test test test test test test test junk",
-  );
-  return home;
 }
 
 async function loadReadonlyHandlers(): Promise<void> {
-  mock.module("../../src/services/account.ts", () => ({
-    ...realAccount,
-    initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
-    syncAccountEvents: syncAccountEventsMock,
-    withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
-    withSuppressedSdkStdout: withSuppressedSdkStdoutMock,
-  }));
-  mock.module("../../src/services/sdk.ts", () => ({
-    ...realSdk,
-    getDataService: getDataServiceMock,
-    getPublicClient: getPublicClientMock,
-  }));
-  mock.module("../../src/services/pools.ts", () => ({
-    ...realPools,
-    listPools: listPoolsMock,
-    resolvePool: resolvePoolMock,
-    listKnownPoolsFromRegistry: listKnownPoolsFromRegistryMock,
-  }));
-  mock.module("../../src/services/asp.ts", () => ({
-    loadAspDepositReviewState: loadAspDepositReviewStateMock,
-    formatIncompleteAspReviewDataMessage: () =>
-      "ASP review data is incomplete.",
-    hasIncompleteDepositReviewData: () => false,
-  }));
-  mock.module("../../src/utils/pool-accounts.ts", () => ({
-    ...realPoolAccounts,
-    buildAllPoolAccountRefs: buildAllPoolAccountRefsMock,
-    collectActiveLabels: collectActiveLabelsMock,
-  }));
-  mock.module("../../src/services/migration.ts", () => ({
-    buildMigrationChainReadinessFromLegacyAccount:
-      buildMigrationChainReadinessFromLegacyAccountMock,
-  }));
-  mock.module("@0xbow/privacy-pools-core-sdk", () => ({
-    ...realSdkPackage,
-    AccountService: {
-      initializeWithEvents: initializeWithEventsMock,
-    },
-  }));
+  installModuleMocks([
+    ["../../src/services/account.ts", () => ({
+      ...realAccount,
+      initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
+      syncAccountEvents: syncAccountEventsMock,
+      withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
+      withSuppressedSdkStdout: withSuppressedSdkStdoutMock,
+    })],
+    ["../../src/services/sdk.ts", () => ({
+      ...realSdk,
+      getDataService: getDataServiceMock,
+      getPublicClient: getPublicClientMock,
+    })],
+    ["../../src/services/pools.ts", () => ({
+      ...realPools,
+      listPools: listPoolsMock,
+      resolvePool: resolvePoolMock,
+      listKnownPoolsFromRegistry: listKnownPoolsFromRegistryMock,
+    })],
+    ["../../src/services/asp.ts", () => ({
+      loadAspDepositReviewState: loadAspDepositReviewStateMock,
+      formatIncompleteAspReviewDataMessage: () =>
+        "ASP review data is incomplete.",
+      hasIncompleteDepositReviewData: () => false,
+    })],
+    ["../../src/utils/pool-accounts.ts", () => ({
+      ...realPoolAccounts,
+      buildAllPoolAccountRefs: buildAllPoolAccountRefsMock,
+      collectActiveLabels: collectActiveLabelsMock,
+    })],
+    ["../../src/services/migration.ts", () => ({
+      buildMigrationChainReadinessFromLegacyAccount:
+        buildMigrationChainReadinessFromLegacyAccountMock,
+    })],
+    ["@0xbow/privacy-pools-core-sdk", () => ({
+      ...realSdkPackage,
+      AccountService: {
+        initializeWithEvents: initializeWithEventsMock,
+      },
+    })],
+  ]);
 
   ({ handleAccountsCommand } = await import(
     "../../src/commands/accounts.ts"
@@ -254,15 +242,10 @@ async function loadReadonlyHandlers(): Promise<void> {
 
 afterEach(() => {
   restoreModuleImplementations(READONLY_HANDLER_MODULE_RESTORES);
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
-  }
-  cleanupTrackedTempDirs();
 });
 
 beforeEach(() => {
+  world = createTestWorld({ prefix: "pp-account-readonly-handler-" });
   mock.restore();
   initializeAccountServiceWithStateMock.mockImplementation(async () => ({
     accountService: {
@@ -360,6 +343,10 @@ beforeEach(() => {
 
 beforeEach(async () => {
   await loadReadonlyHandlers();
+});
+
+afterEach(async () => {
+  await world?.teardown();
 });
 
 describe("account read-only command handlers", () => {

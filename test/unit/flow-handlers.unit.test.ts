@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
 import {
   captureModuleExports,
+  installModuleMocks,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
 
@@ -59,28 +60,30 @@ let handleFlowStatusCommand: typeof import("../../src/commands/flow.ts").handleF
 let handleFlowRagequitCommand: typeof import("../../src/commands/flow.ts").handleFlowRagequitCommand;
 
 async function loadFlowHandlers(): Promise<void> {
-  mock.module("../../src/output/common.ts", () => ({
-    ...realOutputCommon,
-    createOutputContext: createOutputContextMock,
-  }));
-  mock.module("../../src/output/flow.ts", () => ({
-    renderFlowResult: renderFlowResultMock,
-  }));
-  mock.module("../../src/services/workflow.ts", () => ({
-    FlowCancelledError: MockFlowCancelledError,
-    getWorkflowStatus: getWorkflowStatusMock,
-    ragequitWorkflow: ragequitWorkflowMock,
-    startWorkflow: startWorkflowMock,
-    watchWorkflow: watchWorkflowMock,
-  }));
-  mock.module("../../src/utils/mode.ts", () => ({
-    ...realMode,
-    resolveGlobalMode: resolveGlobalModeMock,
-  }));
-  mock.module("../../src/utils/errors.ts", () => ({
-    ...realErrors,
-    printError: printErrorMock,
-  }));
+  installModuleMocks([
+    ["../../src/output/common.ts", () => ({
+      ...realOutputCommon,
+      createOutputContext: createOutputContextMock,
+    })],
+    ["../../src/output/flow.ts", () => ({
+      renderFlowResult: renderFlowResultMock,
+    })],
+    ["../../src/services/workflow.ts", () => ({
+      FlowCancelledError: MockFlowCancelledError,
+      getWorkflowStatus: getWorkflowStatusMock,
+      ragequitWorkflow: ragequitWorkflowMock,
+      startWorkflow: startWorkflowMock,
+      watchWorkflow: watchWorkflowMock,
+    })],
+    ["../../src/utils/mode.ts", () => ({
+      ...realMode,
+      resolveGlobalMode: resolveGlobalModeMock,
+    })],
+    ["../../src/utils/errors.ts", () => ({
+      ...realErrors,
+      printError: printErrorMock,
+    })],
+  ]);
 
   const flowModule = await import("../../src/commands/flow.ts");
   ({

@@ -1,8 +1,15 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { ChildProcess } from "node:child_process";
 import { dirname, join } from "node:path";
+import {
+  saveConfig,
+  saveMnemonicToFile,
+  saveSignerKey,
+} from "../../src/services/config.ts";
 import type { CliRunOptions, CliRunResult } from "./cli.ts";
 import {
+  TEST_MNEMONIC,
+  TEST_PRIVATE_KEY,
   createTempHome,
   mustInitSeededHome,
   runBuiltCli,
@@ -12,11 +19,22 @@ import { terminateChildProcess } from "./process.ts";
 
 export interface TestWorld {
   readonly home: string;
+  readonly configHome: string;
   readonly cwd: string;
   env: Record<string, string | undefined>;
   lastResult: CliRunResult | null;
   seedHome(chain?: string): void;
   setEnv(env: Record<string, string | undefined>): void;
+  setProcessEnv(env: Record<string, string | undefined>): void;
+  useConfigHome(env?: Record<string, string | undefined>): string;
+  seedConfigHome(options?: {
+    defaultChain?: string;
+    withMnemonic?: boolean;
+    withSigner?: boolean;
+    mnemonic?: string;
+    signerKey?: string;
+    rpcOverrides?: Record<number, string>;
+  }): string;
   pathFor(relativePath: string): string;
   writeFile(relativePath: string, content: string): string;
   runCli(
@@ -38,11 +56,29 @@ export function createTestWorld(
   } = {},
 ): TestWorld {
   const home = createTempHome(options.prefix ?? "pp-test-world-");
+  const configHome = join(home, ".privacy-pools");
   const cwd = options.cwd ?? process.cwd();
   const trackedChildren = new Set<ChildProcess>();
+  const originalProcessEnv = new Map<string, string | undefined>();
+
+  function setProcessEnvValues(env: Record<string, string | undefined>): void {
+    for (const [key, value] of Object.entries(env)) {
+      if (!originalProcessEnv.has(key)) {
+        originalProcessEnv.set(key, process.env[key]);
+      }
+
+      if (value === undefined) {
+        delete process.env[key];
+        continue;
+      }
+
+      process.env[key] = value;
+    }
+  }
 
   const world: TestWorld = {
     home,
+    configHome,
     cwd,
     env: {},
     lastResult: null,
@@ -54,6 +90,38 @@ export function createTestWorld(
         ...world.env,
         ...env,
       };
+    },
+    setProcessEnv(env) {
+      setProcessEnvValues(env);
+    },
+    useConfigHome(env = {}) {
+      setProcessEnvValues({
+        PRIVACY_POOLS_HOME: configHome,
+        PRIVACY_POOLS_CONFIG_DIR: undefined,
+        ...env,
+      });
+      return configHome;
+    },
+    seedConfigHome({
+      defaultChain = "mainnet",
+      withMnemonic = true,
+      withSigner = false,
+      mnemonic = TEST_MNEMONIC,
+      signerKey = TEST_PRIVATE_KEY,
+      rpcOverrides = {},
+    } = {}) {
+      world.useConfigHome();
+      saveConfig({
+        defaultChain,
+        rpcOverrides,
+      });
+      if (withMnemonic) {
+        saveMnemonicToFile(mnemonic);
+      }
+      if (withSigner) {
+        saveSignerKey(signerKey);
+      }
+      return configHome;
     },
     pathFor(relativePath: string) {
       return join(home, relativePath);
@@ -100,6 +168,14 @@ export function createTestWorld(
         trackedChildren.delete(proc);
         await terminateChildProcess(proc).catch(() => undefined);
       }
+      for (const [key, value] of originalProcessEnv.entries()) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+      originalProcessEnv.clear();
     },
   };
 

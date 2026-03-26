@@ -9,11 +9,6 @@ import {
 import type { Command } from "commander";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
-  saveConfig,
-  saveMnemonicToFile,
-  saveSignerKey,
-} from "../../src/services/config.ts";
-import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
@@ -24,13 +19,10 @@ import {
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
 import {
-  cleanupTrackedTempDirs,
-  createTrackedTempDir,
-} from "../helpers/temp.ts";
-import {
   expectPrintedRawTransactions,
   expectUnsignedTransactions,
 } from "../helpers/unsigned-assertions.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -273,8 +265,7 @@ const selectPromptMock = mock(async () => 1);
 
 let handleWithdrawCommand: typeof import("../../src/commands/withdraw.ts").handleWithdrawCommand;
 let handleWithdrawQuoteCommand: typeof import("../../src/commands/withdraw.ts").handleWithdrawQuoteCommand;
-
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+let world: TestWorld;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -302,19 +293,10 @@ function useIsolatedHome(options: {
   defaultChain?: string;
   withSigner?: boolean;
 } = {}): string {
-  const home = createTrackedTempDir("pp-withdraw-handler-");
-  process.env.PRIVACY_POOLS_HOME = home;
-  saveConfig({
+  return world.seedConfigHome({
     defaultChain: options.defaultChain ?? "mainnet",
-    rpcOverrides: {},
+    withSigner: options.withSigner ?? false,
   });
-  saveMnemonicToFile(
-    "test test test test test test test test test test test junk",
-  );
-  if (options.withSigner) {
-    saveSignerKey("0x" + "11".repeat(32));
-  }
-  return home;
 }
 
 async function loadWithdrawCommandHandlers(): Promise<void> {
@@ -398,15 +380,10 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
 
 afterEach(() => {
   restoreModuleImplementations(WITHDRAW_HANDLER_MODULE_RESTORES);
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
-  }
-  cleanupTrackedTempDirs();
 });
 
 beforeEach(() => {
+  world = createTestWorld({ prefix: "pp-withdraw-handler-" });
   mock.restore();
   initializeAccountServiceMock.mockClear();
   getDataServiceMock.mockClear();
@@ -579,6 +556,10 @@ beforeEach(() => {
   }));
   stringifyBigIntsMock.mockImplementation((value: unknown) => value);
   printRawTransactionsMock.mockImplementation(() => undefined);
+});
+
+afterEach(async () => {
+  await world?.teardown();
 });
 
 beforeEach(async () => {

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
 import {
   captureModuleExports,
+  installModuleMocks,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
 
@@ -130,77 +131,80 @@ let handleHistoryCommand: typeof import("../../src/commands/history.ts").handleH
 let handleSyncCommand: typeof import("../../src/commands/sync.ts").handleSyncCommand;
 
 async function loadAccountErrorHandlers(): Promise<void> {
-  mock.module("../../src/utils/validation.ts", () => ({
-    resolveChain: () => chainConfig,
-  }));
-  mock.module("../../src/services/config.ts", () => ({
-    loadConfig: () => config,
-  }));
-  mock.module("../../src/services/wallet.ts", () => ({
-    ...realWallet,
-    loadMnemonic: () => "test test test test test test test test test test test junk",
-  }));
-  mock.module("../../src/services/sdk.ts", () => ({
-    ...realSdk,
-    getDataService: async () => ({}),
-    getPublicClient: () => ({
-      getTransactionReceipt: async () => null,
-    }),
-  }));
-  mock.module("../../src/services/pools.ts", () => ({
-    ...realPools,
-    listPools: async () => [pool],
-    resolvePool: async () => pool,
-  }));
-  mock.module("../../src/services/account.ts", () => ({
-    ...realAccount,
-    initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
-    syncAccountEvents: syncAccountEventsMock,
-    withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
-  }));
-  mock.module("../../src/services/asp.ts", () => ({
-    ...realAsp,
-    formatIncompleteAspReviewDataMessage: () => "",
-    hasIncompleteDepositReviewData: () => false,
-    loadAspDepositReviewState: async () => ({
-      approvedLabels: new Set<string>(),
-      reviewStatuses: new Map<string, string>(),
-      hasIncompleteReviewData: false,
-    }),
-  }));
-  mock.module("../../src/utils/format.ts", () => ({
-    spinner: spinnerMock,
-    verbose: verboseMock,
-    deriveTokenPrice: deriveTokenPriceMock,
-  }));
-  mock.module("../../src/utils/proof-progress.ts", () => ({
-    withSpinnerProgress: withSpinnerProgressMock,
-  }));
-  mock.module("../../src/output/common.ts", () => ({
-    ...realOutputCommon,
-    createOutputContext: createOutputContextMock,
-    isSilent: () => true,
-  }));
-  mock.module("../../src/output/accounts.ts", () => ({
-    renderAccountsNoPools: renderAccountsNoPoolsMock,
-    renderAccounts: renderAccountsMock,
-  }));
-  mock.module("../../src/output/history.ts", () => ({
-    renderHistoryNoPools: renderHistoryNoPoolsMock,
-    renderHistory: renderHistoryMock,
-  }));
-  mock.module("../../src/output/sync.ts", () => ({
-    renderSyncEmpty: renderSyncEmptyMock,
-    renderSyncComplete: renderSyncCompleteMock,
-  }));
-  mock.module("../../src/utils/errors.ts", () => ({
-    ...realErrors,
-    printError: printErrorMock,
-  }));
-  mock.module("../../src/utils/mode.ts", () => ({
-    ...realMode,
-    resolveGlobalMode: resolveGlobalModeMock,
-  }));
+  installModuleMocks([
+    ["../../src/utils/validation.ts", () => ({
+      resolveChain: () => chainConfig,
+    })],
+    ["../../src/services/config.ts", () => ({
+      loadConfig: () => config,
+    })],
+    ["../../src/services/wallet.ts", () => ({
+      ...realWallet,
+      loadMnemonic: () =>
+        "test test test test test test test test test test test junk",
+    })],
+    ["../../src/services/sdk.ts", () => ({
+      ...realSdk,
+      getDataService: async () => ({}),
+      getPublicClient: () => ({
+        getTransactionReceipt: async () => null,
+      }),
+    })],
+    ["../../src/services/pools.ts", () => ({
+      ...realPools,
+      listPools: async () => [pool],
+      resolvePool: async () => pool,
+    })],
+    ["../../src/services/account.ts", () => ({
+      ...realAccount,
+      initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
+      syncAccountEvents: syncAccountEventsMock,
+      withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
+    })],
+    ["../../src/services/asp.ts", () => ({
+      ...realAsp,
+      formatIncompleteAspReviewDataMessage: () => "",
+      hasIncompleteDepositReviewData: () => false,
+      loadAspDepositReviewState: async () => ({
+        approvedLabels: new Set<string>(),
+        reviewStatuses: new Map<string, string>(),
+        hasIncompleteReviewData: false,
+      }),
+    })],
+    ["../../src/utils/format.ts", () => ({
+      spinner: spinnerMock,
+      verbose: verboseMock,
+      deriveTokenPrice: deriveTokenPriceMock,
+    })],
+    ["../../src/utils/proof-progress.ts", () => ({
+      withSpinnerProgress: withSpinnerProgressMock,
+    })],
+    ["../../src/output/common.ts", () => ({
+      ...realOutputCommon,
+      createOutputContext: createOutputContextMock,
+      isSilent: () => true,
+    })],
+    ["../../src/output/accounts.ts", () => ({
+      renderAccountsNoPools: renderAccountsNoPoolsMock,
+      renderAccounts: renderAccountsMock,
+    })],
+    ["../../src/output/history.ts", () => ({
+      renderHistoryNoPools: renderHistoryNoPoolsMock,
+      renderHistory: renderHistoryMock,
+    })],
+    ["../../src/output/sync.ts", () => ({
+      renderSyncEmpty: renderSyncEmptyMock,
+      renderSyncComplete: renderSyncCompleteMock,
+    })],
+    ["../../src/utils/errors.ts", () => ({
+      ...realErrors,
+      printError: printErrorMock,
+    })],
+    ["../../src/utils/mode.ts", () => ({
+      ...realMode,
+      resolveGlobalMode: resolveGlobalModeMock,
+    })],
+  ]);
 
   ({ handleAccountsCommand } = await import(
     `../../src/commands/accounts.ts?account-handler-errors=${Date.now()}`

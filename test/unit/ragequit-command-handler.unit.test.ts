@@ -8,11 +8,6 @@ import {
 } from "bun:test";
 import type { Command } from "commander";
 import {
-  saveConfig,
-  saveMnemonicToFile,
-  saveSignerKey,
-} from "../../src/services/config.ts";
-import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
@@ -22,15 +17,12 @@ import {
   captureModuleExports,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
-import {
-  cleanupTrackedTempDirs,
-  createTrackedTempDir,
-} from "../helpers/temp.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import {
   expectPrintedRawTransactions,
   expectUnsignedTransactions,
 } from "../helpers/unsigned-assertions.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -172,8 +164,7 @@ const confirmPromptMock = mock(async () => true);
 const selectPromptMock = mock(async () => 1);
 
 let handleRagequitCommand: typeof import("../../src/commands/ragequit.ts").handleRagequitCommand;
-
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+let world: TestWorld;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -187,19 +178,10 @@ function useIsolatedHome(options: {
   defaultChain?: string;
   withSigner?: boolean;
 } = {}): string {
-  const home = createTrackedTempDir("pp-ragequit-handler-");
-  process.env.PRIVACY_POOLS_HOME = home;
-  saveConfig({
+  return world.seedConfigHome({
     defaultChain: options.defaultChain ?? "mainnet",
-    rpcOverrides: {},
+    withSigner: options.withSigner ?? false,
   });
-  saveMnemonicToFile(
-    "test test test test test test test test test test test junk",
-  );
-  if (options.withSigner) {
-    saveSignerKey("0x" + "11".repeat(32));
-  }
-  return home;
 }
 
 async function loadRagequitCommandHandler(): Promise<void> {
@@ -277,15 +259,10 @@ async function loadRagequitCommandHandler(): Promise<void> {
 
 afterEach(() => {
   restoreModuleImplementations(RAGEQUIT_HANDLER_MODULE_RESTORES);
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
-  }
-  cleanupTrackedTempDirs();
 });
 
 beforeEach(() => {
+  world = createTestWorld({ prefix: "pp-ragequit-handler-" });
   mock.restore();
   initializeAccountServiceMock.mockClear();
   getDataServiceMock.mockClear();
@@ -370,6 +347,10 @@ beforeEach(() => {
       blockNumber: 987n,
     }),
   }));
+});
+
+afterEach(async () => {
+  await world?.teardown();
 });
 
 beforeEach(async () => {

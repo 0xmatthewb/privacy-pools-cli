@@ -7,9 +7,9 @@ import {
   test,
 } from "bun:test";
 import type { Command } from "commander";
-import { saveConfig } from "../../src/services/config.ts";
 import {
   captureModuleExports,
+  installModuleMocks,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
 import {
@@ -17,10 +17,7 @@ import {
   captureAsyncJsonOutputAllowExit,
 } from "../helpers/output.ts";
 import { CLIError } from "../../src/utils/errors.ts";
-import {
-  cleanupTrackedTempDirs,
-  createTrackedTempDir,
-} from "../helpers/temp.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const realPoolAccounts = captureModuleExports(
   await import("../../src/utils/pool-accounts.ts"),
@@ -111,8 +108,7 @@ const collectActiveLabelsMock = mock(() => []);
 
 let handlePoolsCommand: typeof import("../../src/commands/pools.ts").handlePoolsCommand;
 let formatPoolDetailMyFundsWarning: typeof import("../../src/commands/pools.ts").formatPoolDetailMyFundsWarning;
-
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+let world: TestWorld;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -123,42 +119,42 @@ function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
 }
 
 function useIsolatedHome(defaultChain = "mainnet"): void {
-  const home = createTrackedTempDir("pp-pools-handler-");
-  process.env.PRIVACY_POOLS_HOME = home;
-  saveConfig({
+  world.seedConfigHome({
     defaultChain,
-    rpcOverrides: {},
   });
 }
 
 async function loadPoolsHandlers(): Promise<void> {
-  mock.module("../../src/services/wallet.ts", () => ({
-    ...realWallet,
-    loadMnemonic: loadMnemonicMock,
-  }));
-  mock.module("../../src/services/sdk.ts", () => ({
-    ...realSdk,
-    getDataService: getDataServiceMock,
-  }));
-  mock.module("../../src/services/account.ts", () => ({
-    initializeAccountService: initializeAccountServiceMock,
-    withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
-  }));
-  mock.module("../../src/services/pools.ts", () => ({
-    ...realPools,
-    listPools: listPoolsMock,
-    resolvePool: resolvePoolMock,
-  }));
-  mock.module("../../src/services/asp.ts", () => ({
-    fetchPoolEvents: fetchPoolEventsMock,
-    loadAspDepositReviewState: loadAspDepositReviewStateMock,
-    formatIncompleteAspReviewDataMessage: () => "ASP review data is incomplete.",
-  }));
-  mock.module("../../src/utils/pool-accounts.ts", () => ({
-    ...realPoolAccounts,
-    buildPoolAccountRefs: buildPoolAccountRefsMock,
-    collectActiveLabels: collectActiveLabelsMock,
-  }));
+  installModuleMocks([
+    ["../../src/services/wallet.ts", () => ({
+      ...realWallet,
+      loadMnemonic: loadMnemonicMock,
+    })],
+    ["../../src/services/sdk.ts", () => ({
+      ...realSdk,
+      getDataService: getDataServiceMock,
+    })],
+    ["../../src/services/account.ts", () => ({
+      initializeAccountService: initializeAccountServiceMock,
+      withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
+    })],
+    ["../../src/services/pools.ts", () => ({
+      ...realPools,
+      listPools: listPoolsMock,
+      resolvePool: resolvePoolMock,
+    })],
+    ["../../src/services/asp.ts", () => ({
+      fetchPoolEvents: fetchPoolEventsMock,
+      loadAspDepositReviewState: loadAspDepositReviewStateMock,
+      formatIncompleteAspReviewDataMessage: () =>
+        "ASP review data is incomplete.",
+    })],
+    ["../../src/utils/pool-accounts.ts", () => ({
+      ...realPoolAccounts,
+      buildPoolAccountRefs: buildPoolAccountRefsMock,
+      collectActiveLabels: collectActiveLabelsMock,
+    })],
+  ]);
 
   ({
     handlePoolsCommand,
@@ -168,15 +164,10 @@ async function loadPoolsHandlers(): Promise<void> {
 
 afterEach(() => {
   restoreModuleImplementations(POOLS_HANDLER_MODULE_RESTORES);
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
-  }
-  cleanupTrackedTempDirs();
 });
 
 beforeEach(() => {
+  world = createTestWorld({ prefix: "pp-pools-handler-" });
   mock.restore();
   listPoolsMock.mockImplementation(async () => [POOL, USDC_POOL]);
   resolvePoolMock.mockImplementation(async (_chainConfig: unknown, asset: string) =>
@@ -214,6 +205,10 @@ beforeEach(() => {
 
 beforeEach(async () => {
   await loadPoolsHandlers();
+});
+
+afterEach(async () => {
+  await world?.teardown();
 });
 
 describe("pools command handler", () => {
