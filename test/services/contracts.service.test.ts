@@ -419,7 +419,8 @@ describe("contracts service", () => {
 
     await expect(
       depositETH(chain, 1n, 1n, rpcServerUrl, TEST_PRIVATE_KEY)
-    ).rejects.toThrow();
+    ).rejects.toThrow("NullifierAlreadySpent");
+    expect(capturedCalls.some((entry) => entry.method === "eth_sendRawTransaction")).toBe(false);
   });
 
   test("passes rpcOverride and privateKeyOverride through", async () => {

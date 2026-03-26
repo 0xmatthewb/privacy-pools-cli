@@ -9,6 +9,7 @@ import {
   test,
 } from "bun:test";
 import type { Command } from "commander";
+import { CHAINS } from "../../src/config/chains.ts";
 import {
   saveConfig,
   saveMnemonicToFile,
@@ -526,6 +527,15 @@ describe("withdraw command handler", () => {
     expect(json.withdrawMode).toBe("direct");
     expect(json.transactions).toHaveLength(1);
     expect(json.poolAccountId).toBe("PA-1");
+    expect(json.transactions[0]).toEqual(
+      expect.objectContaining({
+        chainId: 1,
+        from: null,
+        to: ETH_POOL.pool,
+        value: "0",
+        description: "Direct withdraw from Privacy Pool",
+      }),
+    );
   });
 
   test("builds an unsigned relayed withdrawal with the relayer request envelope", async () => {
@@ -557,6 +567,15 @@ describe("withdraw command handler", () => {
       }),
     );
     expect(json.transactions).toHaveLength(1);
+    expect(json.transactions[0]).toEqual(
+      expect.objectContaining({
+        chainId: 1,
+        from: null,
+        to: CHAINS.mainnet.entrypoint,
+        value: "0",
+        description: "Relay withdrawal through Entrypoint",
+      }),
+    );
   });
 
   test("prints raw unsigned relayed withdrawal transactions when --unsigned tx is requested", async () => {
@@ -578,6 +597,14 @@ describe("withdraw command handler", () => {
     expect(stderr).toBe("");
     expect(printRawTransactionsMock).toHaveBeenCalledTimes(1);
     expect(submitRelayRequestMock).not.toHaveBeenCalled();
+    expect(printRawTransactionsMock.mock.calls[0]?.[0]).toEqual([
+      expect.objectContaining({
+        chainId: 1,
+        to: CHAINS.mainnet.entrypoint,
+        value: "0",
+        description: "Relay withdrawal through Entrypoint",
+      }),
+    ]);
   });
 
   test("prints raw unsigned transactions when --unsigned tx is requested", async () => {
@@ -599,6 +626,14 @@ describe("withdraw command handler", () => {
     expect(stdout).toBe("");
     expect(stderr).toBe("");
     expect(printRawTransactionsMock).toHaveBeenCalledTimes(1);
+    expect(printRawTransactionsMock.mock.calls[0]?.[0]).toEqual([
+      expect.objectContaining({
+        chainId: 1,
+        to: ETH_POOL.pool,
+        value: "0",
+        description: "Direct withdraw from Privacy Pool",
+      }),
+    ]);
   });
 
   test("submits a relayed withdrawal and persists the updated commitment state", async () => {

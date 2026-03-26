@@ -3520,27 +3520,33 @@ describe("workflow service mocked coverage", () => {
     const backupPath = join(state.tempHome, "interactive-wallet.txt");
     const restoreTimers = useImmediateTimers();
     try {
-      const snapshot = await withMutedStderr(() => startWorkflow({
-        amountInput: "100",
-        assetInput: "USDC",
-        recipient: "0x7777777777777777777777777777777777777777",
-        newWallet: true,
-        exportNewWallet: backupPath,
-        globalOpts: { chain: "sepolia" },
-        mode: {
-          isAgent: false,
-          isJson: false,
-          isCsv: false,
-          isQuiet: true,
-          format: "table",
-          skipPrompts: false,
-        },
-        isVerbose: false,
-        watch: false,
-      }));
+      let snapshot: Awaited<ReturnType<typeof startWorkflow>> | null = null;
+      const { stdout, stderr } = await captureAsyncOutput(async () => {
+        snapshot = await startWorkflow({
+          amountInput: "100",
+          assetInput: "USDC",
+          recipient: "0x7777777777777777777777777777777777777777",
+          newWallet: true,
+          exportNewWallet: backupPath,
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: false,
+            isJson: false,
+            isCsv: false,
+            isQuiet: true,
+            format: "table",
+            skipPrompts: false,
+          },
+          isVerbose: false,
+          watch: false,
+        });
+      });
 
-      expect(snapshot.phase).toBe("completed");
-      expect(snapshot.backupConfirmed).toBe(true);
+      expect(stdout).toBe("");
+      expect(stderr.trim()).toBe("");
+      expect(snapshot).not.toBeNull();
+      expect(snapshot!.phase).toBe("completed");
+      expect(snapshot!.backupConfirmed).toBe(true);
       expect(readFileSync(backupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
     } finally {
       restoreTimers();
@@ -3562,25 +3568,31 @@ describe("workflow service mocked coverage", () => {
 
     const restoreTimers = useImmediateTimers();
     try {
-      const snapshot = await withMutedStderr(() => startWorkflow({
-        amountInput: "100",
-        assetInput: "USDC",
-        recipient: "0x7777777777777777777777777777777777777777",
-        newWallet: true,
-        globalOpts: { chain: "sepolia" },
-        mode: {
-          isAgent: false,
-          isJson: false,
-          isCsv: false,
-          isQuiet: true,
-          format: "table",
-          skipPrompts: false,
-        },
-        isVerbose: false,
-        watch: false,
-      }));
+      let snapshot: Awaited<ReturnType<typeof startWorkflow>> | null = null;
+      const { stdout, stderr } = await captureAsyncOutput(async () => {
+        snapshot = await startWorkflow({
+          amountInput: "100",
+          assetInput: "USDC",
+          recipient: "0x7777777777777777777777777777777777777777",
+          newWallet: true,
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: false,
+            isJson: false,
+            isCsv: false,
+            isQuiet: true,
+            format: "table",
+            skipPrompts: false,
+          },
+          isVerbose: false,
+          watch: false,
+        });
+      });
 
-      expect(snapshot.phase).toBe("completed");
+      expect(stdout).toBe("");
+      expect(stderr.trim()).toBe("");
+      expect(snapshot).not.toBeNull();
+      expect(snapshot!.phase).toBe("completed");
       expect(readFileSync(promptedBackupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
     } finally {
       restoreTimers();
@@ -3637,25 +3649,30 @@ describe("workflow service mocked coverage", () => {
     setPromptResponses({ confirm: false });
     state.currentSignerPrivateKey = null;
 
-    await expect(
-      withMutedStderr(() => startWorkflow({
-        amountInput: "100",
-        assetInput: "USDC",
-        recipient: "0x7777777777777777777777777777777777777777",
-        newWallet: true,
-        globalOpts: { chain: "sepolia" },
-        mode: {
-          isAgent: false,
-          isJson: false,
-          isCsv: false,
-          isQuiet: true,
-          format: "table",
-          skipPrompts: false,
-        },
-        isVerbose: false,
-        watch: false,
-      })),
-    ).rejects.toThrow("You must confirm that the workflow wallet is backed up.");
+    const { stdout, stderr } = await captureAsyncOutput(async () => {
+      await expect(
+        startWorkflow({
+          amountInput: "100",
+          assetInput: "USDC",
+          recipient: "0x7777777777777777777777777777777777777777",
+          newWallet: true,
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: false,
+            isJson: false,
+            isCsv: false,
+            isQuiet: true,
+            format: "table",
+            skipPrompts: false,
+          },
+          isVerbose: false,
+          watch: false,
+        }),
+      ).rejects.toThrow("You must confirm that the workflow wallet is backed up.");
+    });
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Private key:");
+    expect(stderr).toContain(NEW_WALLET_PRIVATE_KEY);
   });
 
   test("ragequitWorkflow rejects workflows that have not deposited publicly yet", async () => {

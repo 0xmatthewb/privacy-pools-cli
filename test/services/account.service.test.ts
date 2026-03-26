@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
-import { initializeAccountService } from "../../src/services/account.ts";
+import {
+  initializeAccountService,
+  loadAccount,
+  loadSyncMeta,
+} from "../../src/services/account.ts";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
@@ -97,5 +101,8 @@ describe("account service strict sync behavior", () => {
 
     expect(service).toBeDefined();
     expect(service).toBeInstanceOf(AccountService);
+    expect(service.account.poolAccounts.size).toBe(0);
+    expect(loadAccount(11155111)).toBeNull();
+    expect(loadSyncMeta(11155111)).toBeNull();
   });
 });

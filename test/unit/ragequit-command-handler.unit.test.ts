@@ -339,6 +339,15 @@ describe("ragequit command handler", () => {
     expect(json.operation).toBe("ragequit");
     expect(json.transactions).toHaveLength(1);
     expect(json.poolAccountId).toBe("PA-1");
+    expect(json.transactions[0]).toEqual(
+      expect.objectContaining({
+        chainId: 1,
+        from: null,
+        to: ETH_POOL.pool,
+        value: "0",
+        description: "Ragequit from Privacy Pool",
+      }),
+    );
   });
 
   test("prints raw unsigned transactions when --unsigned tx is requested", async () => {
@@ -358,6 +367,14 @@ describe("ragequit command handler", () => {
     expect(stdout).toBe("");
     expect(stderr).toBe("");
     expect(printRawTransactionsMock).toHaveBeenCalledTimes(1);
+    expect(printRawTransactionsMock.mock.calls[0]?.[0]).toEqual([
+      expect.objectContaining({
+        chainId: 1,
+        to: ETH_POOL.pool,
+        value: "0",
+        description: "Ragequit from Privacy Pool",
+      }),
+    ]);
   });
 
   test("supports the deprecated --commitment selector without requiring --from-pa", async () => {

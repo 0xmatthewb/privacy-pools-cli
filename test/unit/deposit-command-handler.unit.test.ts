@@ -9,6 +9,7 @@ import {
   test,
 } from "bun:test";
 import type { Command } from "commander";
+import { CHAINS } from "../../src/config/chains.ts";
 import {
   saveConfig,
   saveMnemonicToFile,
@@ -352,6 +353,27 @@ describe("deposit command handler", () => {
     expect(json.asset).toBe("USDC");
     expect(json.transactions).toHaveLength(2);
     expect(json.precommitment).toBe("777");
+    expect(json.transactions).toEqual([
+      expect.objectContaining({
+        chainId: 1,
+        from: null,
+        to: USDC_POOL.asset,
+        value: "0",
+        description: "Approve ERC-20 allowance for Entrypoint",
+      }),
+      expect.objectContaining({
+        chainId: 1,
+        from: null,
+        to: CHAINS.mainnet.entrypoint,
+      }),
+    ]);
+    expect(json.transactions[1]).toEqual(
+      expect.objectContaining({
+        to: CHAINS.mainnet.entrypoint,
+        value: "0",
+        description: "Deposit USDC into Privacy Pool",
+      }),
+    );
   });
 
   test("prints raw unsigned transactions when --unsigned tx is requested", async () => {
@@ -369,6 +391,20 @@ describe("deposit command handler", () => {
 
     const transactions = JSON.parse(stdout) as Array<Record<string, unknown>>;
     expect(transactions).toHaveLength(2);
+    expect(transactions).toEqual([
+      expect.objectContaining({
+        chainId: 1,
+        to: USDC_POOL.asset,
+        value: "0",
+        description: "Approve ERC-20 allowance for Entrypoint",
+      }),
+      expect.objectContaining({
+        chainId: 1,
+        to: CHAINS.mainnet.entrypoint,
+        value: "0",
+        description: "Deposit USDC into Privacy Pool",
+      }),
+    ]);
     expect(stderr).toBe("");
   });
 
