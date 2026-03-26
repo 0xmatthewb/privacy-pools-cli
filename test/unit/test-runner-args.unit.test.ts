@@ -2,13 +2,18 @@ import { describe, expect, test } from "bun:test";
 import {
   annotateArgs,
   expandPathArgsWithExcludes,
+  groupTargetsByIsolation,
   hasExplicitTestTarget,
   hasExplicitTimeoutArg,
+  splitExplicitTargets,
 } from "../../scripts/test-runner-args.mjs";
+import { DEFAULT_TEST_ISOLATED_SUITES } from "../../scripts/test-suite-manifest.mjs";
 
 const ROOT = process.cwd();
 const PRELOAD_HELPER = "./test/helpers/temp.ts";
 const TEST_FILE = "./test/unit/mode.timeout.unit.test.ts";
+const ISOLATED_BOOTSTRAP_TEST = "./test/unit/bootstrap-runtime.unit.test.ts";
+const ISOLATED_CLI_MAIN_TEST = "./test/unit/cli-main.coverage.unit.test.ts";
 
 describe("test runner arg helpers", () => {
   test("hasExplicitTimeoutArg detects inline and split timeout flags", () => {
@@ -21,6 +26,15 @@ describe("test runner arg helpers", () => {
   test("hasExplicitTestTarget ignores values consumed by Bun flags", () => {
     expect(
       hasExplicitTestTarget(["--preload", PRELOAD_HELPER, "--timeout=1"], ROOT),
+    ).toBe(false);
+    expect(
+      hasExplicitTestTarget(
+        ["--coverage-reporter", "lcov", "--timeout=1"],
+        ROOT,
+      ),
+    ).toBe(false);
+    expect(
+      hasExplicitTestTarget(["--exclude", TEST_FILE, "--timeout=1"], ROOT),
     ).toBe(false);
     expect(
       hasExplicitTestTarget(["--preload", PRELOAD_HELPER, TEST_FILE], ROOT),
@@ -49,6 +63,54 @@ describe("test runner arg helpers", () => {
       "--preload",
       PRELOAD_HELPER,
       `EXPANDED:${TEST_FILE}`,
+    ]);
+  });
+
+  test("splitExplicitTargets preserves shared args and expands explicit test files", () => {
+    const split = splitExplicitTargets(
+      [
+        "--coverage-reporter",
+        "lcov",
+        "--exclude",
+        TEST_FILE,
+        ISOLATED_BOOTSTRAP_TEST,
+        ISOLATED_CLI_MAIN_TEST,
+      ],
+      (pathArg) => [pathArg],
+      ROOT,
+    );
+
+    expect(split.sharedArgs).toEqual([
+      "--coverage-reporter",
+      "lcov",
+      "--exclude",
+      TEST_FILE,
+    ]);
+    expect(split.targetFiles).toEqual([
+      ISOLATED_BOOTSTRAP_TEST,
+      ISOLATED_CLI_MAIN_TEST,
+    ]);
+  });
+
+  test("groupTargetsByIsolation routes isolated targets into manifest-defined suites", () => {
+    const grouped = groupTargetsByIsolation(
+      [
+        TEST_FILE,
+        ISOLATED_BOOTSTRAP_TEST,
+        ISOLATED_CLI_MAIN_TEST,
+      ],
+      DEFAULT_TEST_ISOLATED_SUITES,
+      ROOT,
+    );
+
+    expect(grouped.mainTargets).toEqual([TEST_FILE]);
+    expect(grouped.isolatedGroups.map((suite) => suite.label)).toEqual([
+      "bootstrap-runtime",
+      "cli-main-coverage",
+    ]);
+    expect(grouped.isolatedGroups.map((suite) => suite.tests)).toEqual([
+      [ISOLATED_BOOTSTRAP_TEST],
+      [ISOLATED_CLI_MAIN_TEST],
     ]);
   });
 });

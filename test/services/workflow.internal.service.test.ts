@@ -770,6 +770,7 @@ describe("workflow internal helpers", () => {
     });
 
     expect(result).not.toBeNull();
+    expect(captured.stdout).toBe("");
     expect(captured.stderr).toContain("Private key:");
     expect(captured.stderr).toMatch(/Private key:\s*0x[a-f0-9]{64}/i);
     expect(result!.snapshot.phase).toBe("awaiting_funding");

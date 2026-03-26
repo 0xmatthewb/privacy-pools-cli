@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 const FLAGS_WITH_VALUES = new Set([
   "--bail",
   "--coverage-dir",
+  "--coverage-reporter",
+  "--exclude",
   "--filter",
   "--max-concurrency",
   "--preload",
@@ -67,4 +69,75 @@ export function expandPathArgsWithExcludes(
       return !excludedPaths.has(resolve(rootDir, candidate));
     });
   });
+}
+
+export function splitExplicitTargets(
+  args,
+  collectTestFiles,
+  rootDir = process.cwd(),
+) {
+  const sharedArgs = [];
+  const targetFiles = [];
+  const seenTargets = new Set();
+
+  for (const { token, consumedAsValue } of annotateArgs(args)) {
+    if (
+      consumedAsValue ||
+      token.startsWith("-") ||
+      !existsSync(resolve(rootDir, token))
+    ) {
+      sharedArgs.push(token);
+      continue;
+    }
+
+    for (const candidate of collectTestFiles(token)) {
+      const resolvedCandidate = resolve(rootDir, candidate);
+      if (seenTargets.has(resolvedCandidate)) continue;
+      seenTargets.add(resolvedCandidate);
+      targetFiles.push(candidate);
+    }
+  }
+
+  return {
+    sharedArgs,
+    targetFiles,
+  };
+}
+
+export function groupTargetsByIsolation(
+  targetFiles,
+  isolatedSuites,
+  rootDir = process.cwd(),
+) {
+  const suiteByResolvedTest = new Map();
+  for (const suite of isolatedSuites) {
+    for (const testPath of suite.tests) {
+      suiteByResolvedTest.set(resolve(rootDir, testPath), suite);
+    }
+  }
+
+  const mainTargets = [];
+  const groupedSuites = new Map();
+
+  for (const targetFile of targetFiles) {
+    const suite = suiteByResolvedTest.get(resolve(rootDir, targetFile));
+    if (!suite) {
+      mainTargets.push(targetFile);
+      continue;
+    }
+
+    const existing = groupedSuites.get(suite.label) ?? {
+      ...suite,
+      tests: [],
+    };
+    existing.tests.push(targetFile);
+    groupedSuites.set(suite.label, existing);
+  }
+
+  return {
+    mainTargets,
+    isolatedGroups: isolatedSuites
+      .map((suite) => groupedSuites.get(suite.label))
+      .filter(Boolean),
+  };
 }
