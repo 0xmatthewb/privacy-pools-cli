@@ -283,6 +283,23 @@ describe("loadConfig JSON validation errors", () => {
     writeTestConfig(home, JSON.stringify({ defaultChain: "mainnet", rpcOverrides: { abc: "http://x" } }));
     expect(() => loadConfig()).toThrow("invalid chain key");
   });
+
+  test("scopes cached config to the active home override", () => {
+    const homeA = isolatedHome();
+    const homeB = isolatedHome();
+
+    writeTestConfig(homeA, JSON.stringify({ defaultChain: "mainnet", rpcOverrides: {} }));
+    expect(loadConfig()).toEqual({
+      defaultChain: "mainnet",
+      rpcOverrides: {},
+    });
+
+    writeTestConfig(homeB, JSON.stringify({ defaultChain: "sepolia", rpcOverrides: {} }));
+    expect(loadConfig()).toEqual({
+      defaultChain: "sepolia",
+      rpcOverrides: {},
+    });
+  });
 });
 
 // ── loadSignerKey precedence ─────────────────────────────────────────────────

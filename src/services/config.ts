@@ -89,11 +89,14 @@ export function mnemonicExists(): boolean {
 }
 
 let _cachedConfig: CLIConfig | null = null;
+let _cachedConfigPath: string | null = null;
 
 export function loadConfig(): CLIConfig {
-  if (_cachedConfig) return _cachedConfig;
-
   const configFile = getConfigFilePath();
+  if (_cachedConfig && _cachedConfigPath === configFile) {
+    return _cachedConfig;
+  }
+
   if (!existsSync(configFile)) {
     return { defaultChain: "mainnet", rpcOverrides: {} };
   }
@@ -163,11 +166,13 @@ export function loadConfig(): CLIConfig {
   }
 
   _cachedConfig = { defaultChain, rpcOverrides };
+  _cachedConfigPath = configFile;
   return _cachedConfig;
 }
 
 export function saveConfig(config: CLIConfig): void {
   _cachedConfig = null; // Invalidate cache on write
+  _cachedConfigPath = null;
   ensureConfigDir();
   const path = getConfigFilePath();
   const tmpPath = path + ".tmp";
