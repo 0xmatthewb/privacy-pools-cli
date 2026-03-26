@@ -51,11 +51,11 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 
 ### How it works
 
-`flow start` deposits into a pool and saves a local workflow. Once 0xbow's Association Set Provider (ASP) approves it, `flow watch` privately withdraws the full balance to the saved recipient — no onchain link between deposit and withdrawal. Most approvals happen within an hour; some take up to 7 days.
+`flow start` deposits into a pool and saves a local workflow. Once 0xbow's Association Set Provider (ASP) approves it, `flow watch` privately withdraws the full balance to the saved recipient with no onchain link between deposit and withdrawal. Most approvals happen within an hour; some take up to 7 days.
 
 With `--new-wallet`, the CLI generates a dedicated wallet for the workflow, asks you to back it up, then waits for you to fund it before continuing. Useful for one-off flows where you don't want to use your main signer.
 
-Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP reviews. You can always recover your funds, even without approval — `ragequit` exits publicly to your original deposit address. For saved workflows, use `flow ragequit`.
+Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP reviews. You can always recover your funds, even without approval. `ragequit` exits publicly to your original deposit address, and `flow ragequit` does the same for saved workflows.
 
 The manual commands (`deposit`, `accounts`, `withdraw`) remain available when you need partial withdrawals, custom Pool Account selection, unsigned payloads, or dry-runs. See [docs/reference.md](docs/reference.md) for details.
 
