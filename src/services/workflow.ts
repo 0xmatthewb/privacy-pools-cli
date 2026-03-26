@@ -148,6 +148,7 @@ const FLOW_GAS_NATIVE_DEPOSIT = 250_000n;
 const FLOW_GAS_ERC20_APPROVAL = 100_000n;
 const FLOW_GAS_ERC20_DEPOSIT = 275_000n;
 const FLOW_GAS_RAGEQUIT = 325_000n;
+const WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE = "WORKFLOW_DEPOSIT_CHECKPOINT_FAILED";
 
 export type FlowPhase =
   | "awaiting_funding"
@@ -566,7 +567,6 @@ function isTerminalFlowPhase(phase: FlowPhase): boolean {
   return (
     phase === "completed" ||
     phase === "completed_public_recovery" ||
-    phase === "paused_declined" ||
     phase === "stopped_external"
   );
 }
@@ -621,20 +621,38 @@ export function loadWorkflowSnapshot(workflowId: string): FlowSnapshot {
   return parseWorkflowSnapshot(readFileSync(filePath, "utf-8"), filePath);
 }
 
-function listWorkflowSnapshots(): FlowSnapshot[] {
+function listWorkflowSnapshots(): {
+  snapshots: FlowSnapshot[];
+  invalidFiles: string[];
+} {
   const dir = getWorkflowsDir();
-  if (!existsSync(dir)) return [];
+  if (!existsSync(dir)) {
+    return {
+      snapshots: [],
+      invalidFiles: [],
+    };
+  }
 
-  return readdirSync(dir)
-    .filter((entry) => entry.endsWith(".json"))
-    .map((entry) => {
-      const filePath = join(dir, entry);
-      return parseWorkflowSnapshot(readFileSync(filePath, "utf-8"), filePath);
-    });
+  const snapshots: FlowSnapshot[] = [];
+  const invalidFiles: string[] = [];
+  for (const entry of readdirSync(dir).filter((name) => name.endsWith(".json"))) {
+    const filePath = join(dir, entry);
+    try {
+      snapshots.push(parseWorkflowSnapshot(readFileSync(filePath, "utf-8"), filePath));
+    } catch {
+      invalidFiles.push(filePath);
+    }
+  }
+
+  return {
+    snapshots,
+    invalidFiles,
+  };
 }
 
 export function resolveLatestWorkflowId(): string {
-  const latest = listWorkflowSnapshots()
+  const { snapshots, invalidFiles } = listWorkflowSnapshots();
+  const latest = snapshots
     .sort((left, right) => {
       const leftTime = Date.parse(left.updatedAt || left.createdAt);
       const rightTime = Date.parse(right.updatedAt || right.createdAt);
@@ -642,6 +660,13 @@ export function resolveLatestWorkflowId(): string {
     })[0];
 
   if (!latest) {
+    if (invalidFiles.length > 0) {
+      throw new CLIError(
+        "No readable saved workflows found.",
+        "INPUT",
+        "Remove or fix corrupt workflow files, or start a new workflow with 'privacy-pools flow start <amount> <asset> --to <address>'.",
+      );
+    }
     throw new CLIError(
       "No saved workflows found.",
       "INPUT",
@@ -730,6 +755,24 @@ function classifyFlowMutation(current: FlowSnapshot, poolAccount: PoolAccountRef
   }
 
   return null;
+}
+
+function saveMutatedWorkflowSnapshot(
+  snapshot: FlowSnapshot,
+  poolAccount: PoolAccountRef,
+): FlowSnapshot | null {
+  const mutationPhase = classifyFlowMutation(snapshot, poolAccount);
+  if (!mutationPhase) {
+    return null;
+  }
+
+  const stopped = clearLastError(
+    updateSnapshot(snapshot, {
+      phase: mutationPhase,
+      aspStatus: poolAccount.aspStatus,
+    }),
+  );
+  return saveWorkflowSnapshotIfChanged(snapshot, stopped);
 }
 
 function buildFlowLastError(step: string, error: unknown): FlowLastError {
@@ -1641,67 +1684,92 @@ async function inspectFundingAndDeposit(params: {
   const silent = mode.isQuiet || mode.isJson;
   const chainConfig = assertWorkflowChain(snapshot);
   const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
+  let currentSnapshot = snapshot;
 
-  if (snapshot.phase === "depositing_publicly") {
-    const pendingReceipt = await reconcilePendingDepositReceipt({
-      snapshot,
-      chainConfig,
-      pool,
-      globalOpts,
-    });
-    if (pendingReceipt) {
-      return {
-        snapshot: saveWorkflowSnapshotIfChanged(snapshot, pendingReceipt),
-        continueWatching: true,
-      };
+  if (currentSnapshot.phase === "depositing_publicly") {
+    if (!currentSnapshot.depositTxHash) {
+      const cleanSubmissionFailure =
+        currentSnapshot.lastError?.step === "deposit" &&
+        currentSnapshot.lastError.errorCode !== WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE;
+      if (cleanSubmissionFailure) {
+        currentSnapshot = saveWorkflowSnapshotIfChanged(
+          currentSnapshot,
+          clearLastError(
+            updateSnapshot(currentSnapshot, {
+              phase: "awaiting_funding",
+            }),
+          ),
+        );
+      } else {
+        throw new CLIError(
+          "This workflow may have submitted a public deposit, but the transaction hash was not checkpointed locally.",
+          "INPUT",
+          `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
+        );
+      }
     }
 
-    const reconciled = await reconcileDepositingSnapshot(snapshot, globalOpts, silent);
-    if (reconciled) {
-      return {
-        snapshot: saveWorkflowSnapshotIfChanged(snapshot, reconciled),
-        continueWatching: true,
-      };
-    }
+    if (currentSnapshot.depositTxHash) {
+      const pendingReceipt = await reconcilePendingDepositReceipt({
+        snapshot: currentSnapshot,
+        chainConfig,
+        pool,
+        globalOpts,
+      });
+      if (pendingReceipt) {
+        return {
+          snapshot: saveWorkflowSnapshotIfChanged(currentSnapshot, pendingReceipt),
+          continueWatching: true,
+        };
+      }
 
-    if (snapshot.depositTxHash && !snapshot.depositBlockNumber) {
-      const waitingForMining = clearLastError(
-        updateSnapshot(snapshot, {
-          phase: "depositing_publicly",
-        }),
-      );
-      return {
-        snapshot: saveWorkflowSnapshotIfChanged(snapshot, waitingForMining),
-        continueWatching: true,
-      };
+      const reconciled = await reconcileDepositingSnapshot(currentSnapshot, globalOpts, silent);
+      if (reconciled) {
+        return {
+          snapshot: saveWorkflowSnapshotIfChanged(currentSnapshot, reconciled),
+          continueWatching: true,
+        };
+      }
+
+      if (currentSnapshot.depositTxHash && !currentSnapshot.depositBlockNumber) {
+        const waitingForMining = clearLastError(
+          updateSnapshot(currentSnapshot, {
+            phase: "depositing_publicly",
+          }),
+        );
+        return {
+          snapshot: saveWorkflowSnapshotIfChanged(currentSnapshot, waitingForMining),
+          continueWatching: true,
+        };
+      }
     }
   }
 
   const fundingState = await readFlowFundingState({
-    snapshot,
+    snapshot: currentSnapshot,
     pool,
     globalOpts,
   });
 
   if (!fundingState.nativeSatisfied || !fundingState.tokenSatisfied) {
     const awaitingFunding = clearLastError(
-      updateSnapshot(snapshot, {
+      updateSnapshot(currentSnapshot, {
         phase: "awaiting_funding",
       }),
     );
     return {
-      snapshot: saveWorkflowSnapshotIfChanged(snapshot, awaitingFunding),
+      snapshot: saveWorkflowSnapshotIfChanged(currentSnapshot, awaitingFunding),
       continueWatching: true,
     };
   }
 
-  const privateKey = getFlowSignerPrivateKey(snapshot);
+  const privateKey = getFlowSignerPrivateKey(currentSnapshot);
   const depositing = clearLastError(
-    updateSnapshot(snapshot, {
+    updateSnapshot(currentSnapshot, {
       phase: "depositing_publicly",
     }),
   );
-  const savedDepositing = saveWorkflowSnapshotIfChanged(snapshot, depositing);
+  const savedDepositing = saveWorkflowSnapshotIfChanged(currentSnapshot, depositing);
 
   const depositResult = await executeDepositForFlow({
     chainConfig,
@@ -1709,10 +1777,19 @@ async function inspectFundingAndDeposit(params: {
     amount: BigInt(snapshot.depositAmount),
     privateKeyOverride: privateKey,
     onDepositSubmitted: (pending) => {
-      saveWorkflowSnapshotIfChanged(
-        savedDepositing,
-        attachPendingDepositToSnapshot(savedDepositing, pending),
-      );
+      try {
+        saveWorkflowSnapshotIfChanged(
+          savedDepositing,
+          attachPendingDepositToSnapshot(savedDepositing, pending),
+        );
+      } catch {
+        throw new CLIError(
+          "Public deposit was submitted, but the workflow could not checkpoint it locally.",
+          "INPUT",
+          `Tx ${pending.depositTxHash} may still confirm. Run 'privacy-pools sync --chain ${currentSnapshot.chain} --asset ${currentSnapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
+          WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE,
+        );
+      }
     },
     globalOpts,
     mode,
@@ -2441,24 +2518,20 @@ async function inspectAndAdvanceFlow(params: {
     });
   }
 
+  const requireAspData = snapshot.phase !== "paused_declined";
   const context = await loadWorkflowPoolAccountContext(
     snapshot,
     globalOpts,
     silent,
+    requireAspData,
   );
-  const mutationPhase = classifyFlowMutation(
+  const mutatedSnapshot = saveMutatedWorkflowSnapshot(
     snapshot,
     context.selectedPoolAccount,
   );
-  if (mutationPhase) {
-    const stopped = clearLastError(
-      updateSnapshot(snapshot, {
-        phase: mutationPhase,
-        aspStatus: context.selectedPoolAccount.aspStatus,
-      }),
-    );
+  if (mutatedSnapshot) {
     return {
-      snapshot: saveWorkflowSnapshotIfChanged(snapshot, stopped),
+      snapshot: mutatedSnapshot,
       continueWatching: false,
     };
   }
@@ -2469,6 +2542,12 @@ async function inspectAndAdvanceFlow(params: {
     context.selectedPoolAccount,
   );
   const savedAligned = saveWorkflowSnapshotIfChanged(snapshot, alignedSnapshot);
+  if (snapshot.phase === "paused_declined") {
+    return {
+      snapshot: saveWorkflowSnapshotIfChanged(savedAligned, clearLastError(savedAligned)),
+      continueWatching: false,
+    };
+  }
 
   const aspStatus = context.selectedPoolAccount.aspStatus;
   if (aspStatus === "declined") {
@@ -2953,6 +3032,7 @@ export async function ragequitWorkflow(
   const releaseLock = acquireProcessLock();
   try {
     const snapshot = loadWorkflowSnapshot(workflowId);
+    const silent = params.mode.isQuiet || params.mode.isJson;
     if (!snapshot.depositTxHash || !snapshot.poolAccountId || !snapshot.poolAccountNumber) {
       throw new CLIError(
         "This workflow has not deposited publicly yet.",
@@ -2988,6 +3068,21 @@ export async function ragequitWorkflow(
       const savedCompleted = saveWorkflowSnapshotIfChanged(snapshot, completed);
       cleanupTerminalWorkflowSecret(savedCompleted);
       return savedCompleted;
+    }
+
+    const mutationContext = await loadWorkflowPoolAccountContext(
+      snapshot,
+      params.globalOpts,
+      silent,
+      false,
+    );
+    const mutatedSnapshot = saveMutatedWorkflowSnapshot(
+      snapshot,
+      mutationContext.selectedPoolAccount,
+    );
+    if (mutatedSnapshot) {
+      cleanupTerminalWorkflowSecret(mutatedSnapshot);
+      return mutatedSnapshot;
     }
 
     const ragequitResult = await executeRagequitForFlow({

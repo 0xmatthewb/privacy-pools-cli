@@ -79,6 +79,19 @@ describe("workflow service", () => {
     expect(resolveLatestWorkflowId()).toBe("newer");
   });
 
+  test("resolveLatestWorkflowId ignores corrupt workflow files when valid snapshots remain", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    writeWorkflow(
+      home,
+      sampleWorkflow("valid-latest", { updatedAt: "2026-03-24T12:05:00.000Z" }),
+    );
+    writeFileSync(join(home, "workflows", "broken.json"), "{not valid json", "utf-8");
+
+    expect(resolveLatestWorkflowId()).toBe("valid-latest");
+  });
+
   test("getWorkflowStatus defaults to latest", () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
@@ -152,6 +165,22 @@ describe("workflow service", () => {
       const cliError = error as CLIError;
       expect(cliError.category).toBe("INPUT");
       expect(cliError.message).toContain("No saved workflows found");
+    }
+  });
+
+  test("resolveLatestWorkflowId throws a targeted error when all workflow files are corrupt", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    writeFileSync(join(home, "workflows", "broken.json"), "{not valid json", "utf-8");
+
+    try {
+      resolveLatestWorkflowId();
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CLIError);
+      const cliError = error as CLIError;
+      expect(cliError.category).toBe("INPUT");
+      expect(cliError.message).toContain("No readable saved workflows found");
     }
   });
 

@@ -8,7 +8,14 @@ import {
   mock,
   test,
 } from "bun:test";
-import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import {
   encodeAbiParameters,
@@ -73,6 +80,8 @@ interface MockState {
   committedValue: bigint;
   precommitmentHash: bigint;
   poolAccountAvailable: boolean;
+  poolAccountAvailableAfterReceiptChecks: number | null;
+  poolAccountStatus: "approved" | "spent" | "exited";
   depositTxHash: Hex;
   approvalTxHash: Hex;
   relayTxHash: Hex;
@@ -191,6 +200,8 @@ function resetState(): void {
   state.committedValue = 9950000000000000n;
   state.precommitmentHash = 42n;
   state.poolAccountAvailable = true;
+  state.poolAccountAvailableAfterReceiptChecks = null;
+  state.poolAccountStatus = "approved";
   state.depositTxHash =
     "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   state.approvalTxHash =
@@ -410,7 +421,7 @@ function selectedPoolAccount() {
   return {
     paNumber: 7,
     paId: "PA-7",
-    status: "approved",
+    status: state.poolAccountStatus,
     aspStatus: state.aspStatus,
     asset: state.pool.symbol,
     scope: state.pool.scope,
@@ -426,6 +437,13 @@ function selectedPoolAccount() {
       secret: 666n,
     },
   };
+}
+
+function isPoolAccountCurrentlyAvailable(): boolean {
+  if (state.poolAccountAvailableAfterReceiptChecks === null) {
+    return state.poolAccountAvailable;
+  }
+  return state.getTransactionReceiptCalls > state.poolAccountAvailableAfterReceiptChecks;
 }
 
 type WorkflowModuleType = typeof import("../../src/services/workflow.ts");
@@ -544,10 +562,12 @@ async function installWorkflowMocks(): Promise<void> {
 
   mock.module("../../src/utils/pool-accounts.ts", () => ({
     buildAllPoolAccountRefs: mock(() =>
-      state.poolAccountAvailable ? [selectedPoolAccount()] : [],
+      isPoolAccountCurrentlyAvailable() ? [selectedPoolAccount()] : [],
     ),
     buildPoolAccountRefs: mock(() =>
-      state.poolAccountAvailable && state.aspStatus === "approved"
+      isPoolAccountCurrentlyAvailable() &&
+      state.poolAccountStatus === "approved" &&
+      state.aspStatus === "approved"
         ? [selectedPoolAccount()]
         : [],
     ),
@@ -870,6 +890,161 @@ describe("workflow service mocked coverage", () => {
     }
   });
 
+  test("watchWorkflow fails closed when a saved deposit may have been submitted without a persisted tx hash", async () => {
+    writeWorkflowSecret("wf-ambiguous-deposit");
+    writeWorkflowSnapshot("wf-ambiguous-deposit", {
+      phase: "depositing_publicly",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositTxHash: null,
+      depositBlockNumber: null,
+      depositExplorerUrl: null,
+      requiredNativeFunding: "1000000000000000",
+      requiredTokenFunding: null,
+      aspStatus: undefined,
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-ambiguous-deposit",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("transaction hash was not checkpointed locally");
+
+    const failedSnapshot = getWorkflowStatus({ workflowId: "wf-ambiguous-deposit" });
+    expect(failedSnapshot.phase).toBe("depositing_publicly");
+    expect(failedSnapshot.depositTxHash).toBeNull();
+    expect(failedSnapshot.lastError?.step).toBe("deposit");
+    expect(state.depositEthCalls).toBe(0);
+    expect(state.depositErc20Calls).toBe(0);
+  });
+
+  test("watchWorkflow does not retry after a checkpoint failure without a saved tx hash", async () => {
+    writeWorkflowSecret("wf-checkpoint-failed");
+    writeWorkflowSnapshot("wf-checkpoint-failed", {
+      phase: "depositing_publicly",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositTxHash: null,
+      depositBlockNumber: null,
+      depositExplorerUrl: null,
+      requiredNativeFunding: "1000000000000000",
+      requiredTokenFunding: null,
+      aspStatus: undefined,
+      lastError: {
+        step: "deposit",
+        errorCode: "WORKFLOW_DEPOSIT_CHECKPOINT_FAILED",
+        errorMessage: "Public deposit was submitted, but the workflow could not checkpoint it locally.",
+        retryable: false,
+        at: "2026-03-24T12:00:00.000Z",
+      },
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-checkpoint-failed",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("transaction hash was not checkpointed locally");
+
+    expect(state.depositEthCalls).toBe(0);
+    expect(state.depositErc20Calls).toBe(0);
+  });
+
+  test("watchWorkflow reattaches a confirmed pending deposit before continuing", async () => {
+    state.pendingReceiptAvailableAfter = 0;
+    state.aspStatus = "declined";
+    writeWorkflowSnapshot("wf-pending-confirmed", {
+      phase: "depositing_publicly",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositTxHash: state.depositTxHash,
+      depositBlockNumber: null,
+    });
+
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await watchWorkflow({
+        workflowId: "wf-pending-confirmed",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      });
+
+      expect(snapshot.phase).toBe("paused_declined");
+      expect(snapshot.depositBlockNumber).toBe("101");
+      expect(state.depositEthCalls).toBe(0);
+      expect(state.depositErc20Calls).toBe(0);
+      expect(state.getTransactionReceiptCalls).toBe(1);
+    } finally {
+      restoreTimers();
+    }
+  });
+
+  test("watchWorkflow keeps waiting for mining until the submitted deposit is indexed", async () => {
+    state.pendingReceiptAvailableAfter = 1;
+    state.poolAccountAvailable = false;
+    state.poolAccountAvailableAfterReceiptChecks = 1;
+    state.aspStatus = "declined";
+    writeWorkflowSnapshot("wf-pending-mining", {
+      phase: "depositing_publicly",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositTxHash: state.depositTxHash,
+      depositBlockNumber: null,
+    });
+
+    const restoreTimers = useImmediateTimers();
+    try {
+      const snapshot = await watchWorkflow({
+        workflowId: "wf-pending-mining",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      });
+
+      expect(snapshot.phase).toBe("paused_declined");
+      expect(snapshot.depositBlockNumber).toBe("101");
+      expect(state.depositEthCalls).toBe(0);
+      expect(state.depositErc20Calls).toBe(0);
+      expect(state.getTransactionReceiptCalls).toBe(2);
+    } finally {
+      restoreTimers();
+    }
+  });
+
   test("watchWorkflow pauses configured flows when the ASP declines them", async () => {
     state.aspStatus = "declined";
     writeWorkflowSnapshot("wf-declined", {
@@ -954,6 +1129,64 @@ describe("workflow service mocked coverage", () => {
     expect(state.requestQuoteCalls).toHaveLength(0);
   });
 
+  test("watchWorkflow reconciles paused declined workflows after manual recovery", async () => {
+    state.poolAccountStatus = "exited";
+    writeWorkflowSnapshot("wf-declined-external-ragequit", {
+      phase: "paused_declined",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-declined-external-ragequit",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("stopped_external");
+    expect(state.requestQuoteCalls).toHaveLength(0);
+  });
+
+  test("watchWorkflow keeps paused declined workflows readable during ASP outages", async () => {
+    state.aspStatus = "declined";
+    state.aspUnavailable = true;
+    writeWorkflowSnapshot("wf-declined-asp-outage", {
+      phase: "paused_declined",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-declined-asp-outage",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("paused_declined");
+    expect(snapshot.aspStatus).toBe("declined");
+    expect(state.requestQuoteCalls).toHaveLength(0);
+  });
+
   test("configured flow ragequit fails fast when the signer no longer matches the original depositor", async () => {
     writeWorkflowSnapshot("wf-ragequit", {
       phase: "paused_declined",
@@ -1012,6 +1245,35 @@ describe("workflow service mocked coverage", () => {
     expect(state.loadPrivateKeyCalls).toBe(1);
     expect(state.submitRagequitCalls).toBe(1);
     expect(state.addRagequitCalls).toBe(1);
+  });
+
+  test("configured flow ragequit reconciles workflows already recovered manually", async () => {
+    state.poolAccountStatus = "exited";
+    writeWorkflowSnapshot("wf-configured-ragequit-external", {
+      phase: "paused_declined",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+
+    const snapshot = await ragequitWorkflow({
+      workflowId: "wf-configured-ragequit-external",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("stopped_external");
+    expect(state.submitRagequitCalls).toBe(0);
+    expect(state.addRagequitCalls).toBe(0);
   });
 
   test("configured flow ragequit does not depend on ASP availability", async () => {
