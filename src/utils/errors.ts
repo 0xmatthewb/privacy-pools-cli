@@ -65,6 +65,18 @@ export function accountMigrationRequiredError(
   );
 }
 
+export function accountWebsiteRecoveryRequiredError(
+  hint: string = "Review this account in the Privacy Pools website first. Legacy declined deposits cannot be restored safely in the CLI and may require website-based public recovery instead of migration.",
+): CLIError {
+  return new CLIError(
+    "Legacy pre-upgrade Pool Accounts require website-based recovery before the CLI can safely restore this account.",
+    "INPUT",
+    hint,
+    "ACCOUNT_MIGRATION_REQUIRED",
+    false,
+  );
+}
+
 const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: string; retryable?: boolean }> = {
   NullifierAlreadySpent: {
     message: "This Pool Account has already been withdrawn.",

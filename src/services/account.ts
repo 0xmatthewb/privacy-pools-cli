@@ -9,7 +9,11 @@ import type { Address } from "viem";
 import { CHAINS, resolveChainOverrides } from "../config/chains.js";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
 import { fetchDepositReviewStatuses } from "./asp.js";
-import { CLIError, accountMigrationRequiredError } from "../utils/errors.js";
+import {
+  CLIError,
+  accountMigrationRequiredError,
+  accountWebsiteRecoveryRequiredError,
+} from "../utils/errors.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
   guardCriticalSection,
@@ -269,7 +273,7 @@ async function assertNoLegacyMigrationRequired(
 
   const declinedLabels = await loadDeclinedLegacyLabels(chainId, candidates);
   if (!hasUnmigratedLegacyCommitments(candidates, declinedLabels)) {
-    throw accountMigrationRequiredError(
+    throw accountWebsiteRecoveryRequiredError(
       "Review this account in the Privacy Pools website first. Legacy declined deposits cannot be restored safely in the CLI and may require website-based public recovery instead of migration.",
     );
   }

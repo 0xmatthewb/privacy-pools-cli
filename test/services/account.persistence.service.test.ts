@@ -21,6 +21,7 @@ import { CLIError } from "../../src/utils/errors.ts";
 const MNEMONIC = "test test test test test test test test test test test junk";
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_INIT_WITH_EVENTS = AccountService.initializeWithEvents;
+const ORIGINAL_FETCH = global.fetch;
 
 function isolatedHome(): string {
   const home = createTrackedTempDir("pp-account-persist-test-");
@@ -84,6 +85,7 @@ function makeLegacyAccount(overrides: Partial<{
 describe("account persistence", () => {
   afterEach(() => {
     AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
+    global.fetch = ORIGINAL_FETCH;
     if (ORIGINAL_HOME === undefined) {
       delete process.env.PRIVACY_POOLS_HOME;
     } else {
@@ -486,6 +488,55 @@ describe("account persistence", () => {
     });
 
     expect(loadAccount(11155111)?.__privacyPoolsCliAccountVersion).toBeUndefined();
+    expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("fresh mnemonic restore surfaces website recovery guidance for declined-only legacy deposits", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          { label: "11", reviewStatus: "declined" },
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      )) as typeof global.fetch;
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: makeLegacyAccount(),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          suppressWarnings: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      code: "ACCOUNT_MIGRATION_REQUIRED",
+      message: expect.stringContaining("website-based recovery"),
+      hint: expect.stringContaining("public recovery"),
+    });
+
+    expect(loadAccount(11155111)).toBeNull();
     expect(loadSyncMeta(11155111)).toBeNull();
   });
 

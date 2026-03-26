@@ -241,6 +241,39 @@ describe("status and init integration", () => {
 });
 
 describe("init machine-mode behavior", () => {
+  test("--json init rejects valid recovery phrases that are not 12 or 24 words", () => {
+    const home = createTempHome();
+    const result = runCli(
+      [
+        "--json",
+        "init",
+        "--mnemonic",
+        "morning world loop ankle vehicle coach cradle curious image position write tuition enemy permit bone",
+        "--private-key",
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "--default-chain",
+        "sepolia",
+        "--yes",
+      ],
+      {
+        home,
+        timeoutMs: 60_000,
+      },
+    );
+
+    expect(result.status).toBe(2);
+    const json = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      error: { category: string; message: string; hint?: string };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.message).toContain("Invalid recovery phrase");
+    expect(json.error.hint).toContain("12 or 24 words");
+  });
+
   test("--json init is non-interactive without --yes", () => {
     const home = createTempHome();
     const result = runCli(["--json", "init"], {

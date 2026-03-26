@@ -150,6 +150,16 @@ describe("command docs alignment", () => {
     expect(normalizedReference).toContain("privacy-pools describe stats global --agent");
   });
 
+  test("README restore guidance stays aligned with the init recovery contract", () => {
+    const readme = readFileSync(`${CLI_ROOT}/README.md`, "utf8");
+    const normalizedReadme = normalizeWhitespace(readme);
+
+    expect(normalizedReadme).toContain(
+      "Imported recovery phrases must be 12 or 24 words.",
+    );
+    expect(normalizedReadme).toContain("website-based public recovery");
+  });
+
   test("AGENTS preflight guidance uses the same signer readiness contract as status metadata", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const section = extractDocumentSection(agents, "## Preflight Check", [

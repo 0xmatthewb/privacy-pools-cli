@@ -55,9 +55,9 @@ Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Associati
 
 You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 
-New CLI-generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
+New CLI-generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases must be 12 or 24 words.
 
-If you're restoring an existing recovery phrase with `privacy-pools init --mnemonic ...`, the CLI will check for Pool Accounts on sync. Legacy pre-upgrade accounts may require migration in the Privacy Pools website before the CLI can restore them safely.
+If you're restoring an existing recovery phrase with `privacy-pools init --mnemonic ...`, the CLI will check for Pool Accounts on sync. Legacy pre-upgrade accounts may require migration or, for declined legacy deposits, website-based public recovery in the Privacy Pools website before the CLI can restore them safely.
 
 ## Install
 

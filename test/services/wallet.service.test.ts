@@ -13,6 +13,13 @@ import {
 import { CLIError } from "../../src/utils/errors.ts";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
+const VALID_15_WORD_MNEMONIC =
+  "morning world loop ankle vehicle coach cradle curious image position write tuition enemy permit bone";
+const VALID_18_WORD_MNEMONIC =
+  "peanut clever wing prize mom meadow kitten manage quick scout cram often slot fever attack party radar question";
+const VALID_21_WORD_MNEMONIC =
+  "warfare ship flee wave warfare scorpion joke surprise great minor local alone obvious ecology brown nature fog harvest put stove picnic";
+
 afterEach(() => {
   cleanupTrackedTempDirs();
 });
@@ -66,6 +73,12 @@ describe("wallet service", () => {
 
     test("rejects too few words", () => {
       expect(validateMnemonic("test test test")).toBe(false);
+    });
+
+    test("rejects valid BIP-39 mnemonics that are not 12 or 24 words", () => {
+      expect(validateMnemonic(VALID_15_WORD_MNEMONIC)).toBe(false);
+      expect(validateMnemonic(VALID_18_WORD_MNEMONIC)).toBe(false);
+      expect(validateMnemonic(VALID_21_WORD_MNEMONIC)).toBe(false);
     });
   });
 

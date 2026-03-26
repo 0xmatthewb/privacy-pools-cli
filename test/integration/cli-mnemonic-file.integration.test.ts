@@ -43,6 +43,21 @@ function runMnemonicFileInit(home: string, filePath: string) {
 }
 
 describe("init --mnemonic-file with structured backup files", () => {
+  test("fails for valid BIP-39 mnemonics with unsupported word counts", () => {
+    const home = createTempHome();
+    const filePath = writeTempFile(
+      home,
+      "valid-15-word.txt",
+      "morning world loop ankle vehicle coach cradle curious image position write tuition enemy permit bone",
+    );
+
+    const result = runMnemonicFileInit(home, filePath);
+    expect(result.status).not.toBe(0);
+    const json = parseJsonOutput(result.stdout);
+    expect((json as any).success).toBe(false);
+    expect((json as any).errorMessage).toContain("No valid recovery phrase found");
+  });
+
 
   // ── Raw mnemonic (baseline, website Welcome.tsx format) ────────────────
 
