@@ -99,6 +99,13 @@ describe("command docs alignment", () => {
       "error.{ code, category, message, hint?, retryable? }",
       "Exception: --unsigned tx emits a raw transaction array without the envelope.",
     ]);
+
+    const safeReadOnlyCommands = normalizedSection.match(
+      /"safeReadOnlyCommands": \[(.*?)\]/,
+    )?.[1];
+    expect(safeReadOnlyCommands).toBeDefined();
+    expect(safeReadOnlyCommands).not.toContain('"flow"');
+    expect(safeReadOnlyCommands).toContain('"flow status"');
   });
 
   test("skill reference accounts section documents unknown ASP status", () => {
