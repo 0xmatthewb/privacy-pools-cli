@@ -19,7 +19,10 @@ import {
 import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
 import { privateKeyToAccount } from "viem/accounts";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
-import { resetCircuitArtifactsCacheForTests } from "../../src/services/circuits.ts";
+import {
+  ensureCircuitArtifacts,
+  resetCircuitArtifactsCacheForTests,
+} from "../../src/services/circuits.ts";
 import {
   loadWorkflowSnapshot,
   startWorkflow,
@@ -109,6 +112,8 @@ const ORIGINAL_ENV = {
   PRIVACY_POOLS_RELAYER_HOST: process.env.PRIVACY_POOLS_RELAYER_HOST,
   PRIVACY_POOLS_CIRCUITS_DIR: process.env.PRIVACY_POOLS_CIRCUITS_DIR,
 };
+const SHARED_CIRCUITS_DIR =
+  process.env.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim() || null;
 
 function restoreEnv(
   key: keyof typeof ORIGINAL_ENV,
@@ -472,9 +477,12 @@ describe("workflow service on Anvil", () => {
 
     stateDir = createTrackedTempDir("pp-workflow-service-anvil-");
     aspStateFile = join(stateDir, "state.json");
-    circuitsDir = join(stateDir, "circuits");
+    circuitsDir = SHARED_CIRCUITS_DIR || join(stateDir, "circuits");
     writeFileSync(join(stateDir, ".keep"), "", "utf8");
     await resetAspState();
+    process.env.PRIVACY_POOLS_CIRCUITS_DIR = circuitsDir;
+    await ensureCircuitArtifacts();
+    resetCircuitArtifactsCacheForTests();
 
     aspServer = await launchAnvilAspServer(aspStateFile);
     relayerServer = await launchAnvilRelayerServer(buildRelayerConfig());

@@ -31,6 +31,35 @@ function detectStaticCompletionShell(
   return "bash";
 }
 
+function fallbackJsonModeFromArgv(argv: string[]): boolean {
+  let formatValue: string | null = null;
+
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+
+    if (token === "--json" || token === "--agent") return true;
+
+    if (token === "-j") return true;
+
+    if (/^-[A-Za-z]+$/.test(token) && !token.startsWith("--")) {
+      if (token.includes("j")) return true;
+      continue;
+    }
+
+    if (token === "--format") {
+      formatValue = i + 1 < argv.length ? (argv[i + 1] ?? null) : null;
+      i++;
+      continue;
+    }
+
+    if (token.startsWith("--format=")) {
+      formatValue = token.slice("--format=".length);
+    }
+  }
+
+  return formatValue?.toLowerCase() === "json";
+}
+
 function isQuietMode(globalOpts: GlobalOptions): boolean {
   const mode = resolveGlobalMode(globalOpts);
   return mode.isQuiet || mode.isJson || mode.isCsv;
@@ -558,7 +587,10 @@ export async function runStaticCompletionQuery(
     }
     return true;
   } catch (error) {
-    printError(error, resolveGlobalMode(parsed?.globalOpts).isJson);
+    printError(
+      error,
+      parsed ? resolveGlobalMode(parsed.globalOpts).isJson : fallbackJsonModeFromArgv(argv),
+    );
     return true;
   }
 }

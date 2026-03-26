@@ -111,6 +111,8 @@ let aspStateFile = "";
 let circuitsDir = "";
 let baselineSnapshotId = "";
 let aspState: AnvilAspState | null = null;
+const SHARED_CIRCUITS_DIR =
+  process.env.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim() || null;
 
 interface DepositedPoolAccount {
   home: string;
@@ -650,7 +652,7 @@ beforeAll(async () => {
 
   const stateDir = createTrackedTempDir("pp-anvil-asp-");
   aspStateFile = join(stateDir, "state.json");
-  circuitsDir = join(stateDir, "circuits");
+  circuitsDir = SHARED_CIRCUITS_DIR || join(stateDir, "circuits");
   writeFileSync(join(stateDir, ".keep"), "", "utf8");
   await resetAspState();
 

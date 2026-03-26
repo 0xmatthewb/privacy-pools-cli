@@ -114,6 +114,17 @@ let baselineSnapshotId = "";
 let aspState: AnvilAspState | null = null;
 let stateDir = "";
 let usdcMasterMinter: `0x${string}`;
+let circuitsDir = "";
+
+const ORIGINAL_ENV = {
+  PRIVACY_POOLS_HOME: process.env.PRIVACY_POOLS_HOME,
+  PRIVACY_POOLS_RPC_URL_SEPOLIA: process.env.PRIVACY_POOLS_RPC_URL_SEPOLIA,
+  PRIVACY_POOLS_ASP_HOST: process.env.PRIVACY_POOLS_ASP_HOST,
+  PRIVACY_POOLS_RELAYER_HOST: process.env.PRIVACY_POOLS_RELAYER_HOST,
+  PRIVACY_POOLS_CIRCUITS_DIR: process.env.PRIVACY_POOLS_CIRCUITS_DIR,
+};
+const SHARED_CIRCUITS_DIR =
+  process.env.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim() || null;
 
 function requireAnvil(): AnvilInstance {
   if (!anvil) throw new Error("Anvil is not running");
@@ -138,6 +149,17 @@ function requireRelayerServer(): AnvilRelayerServer {
 function requireAspState(): AnvilAspState {
   if (!aspState) throw new Error("ASP state is not initialized");
   return aspState;
+}
+
+function restoreEnv(
+  key: keyof typeof ORIGINAL_ENV,
+): void {
+  const originalValue = ORIGINAL_ENV[key];
+  if (originalValue === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = originalValue;
+  }
 }
 
 function computeMerkleRoot(leaves: readonly string[]): bigint {
@@ -297,6 +319,7 @@ function cliEnv() {
     PRIVACY_POOLS_RPC_URL_SEPOLIA: requireAnvil().url,
     PRIVACY_POOLS_ASP_HOST: requireAspServer().url,
     PRIVACY_POOLS_RELAYER_HOST: requireRelayerServer().url,
+    PRIVACY_POOLS_CIRCUITS_DIR: circuitsDir,
   };
 }
 
@@ -429,6 +452,7 @@ describe("flow --new-wallet USDC journey", () => {
 
     stateDir = createTrackedTempDir("pp-flow-new-wallet-usdc-");
     aspStateFile = join(stateDir, "asp-state.json");
+    circuitsDir = SHARED_CIRCUITS_DIR || join(stateDir, "circuits");
     await resetAspState();
 
     aspServer = await launchAnvilAspServer(aspStateFile);
@@ -463,10 +487,11 @@ describe("flow --new-wallet USDC journey", () => {
   });
 
   afterEach(() => {
-    delete process.env.PRIVACY_POOLS_HOME;
-    delete process.env.PRIVACY_POOLS_RPC_URL_SEPOLIA;
-    delete process.env.PRIVACY_POOLS_ASP_HOST;
-    delete process.env.PRIVACY_POOLS_RELAYER_HOST;
+    restoreEnv("PRIVACY_POOLS_HOME");
+    restoreEnv("PRIVACY_POOLS_RPC_URL_SEPOLIA");
+    restoreEnv("PRIVACY_POOLS_ASP_HOST");
+    restoreEnv("PRIVACY_POOLS_RELAYER_HOST");
+    restoreEnv("PRIVACY_POOLS_CIRCUITS_DIR");
   });
 
   afterAll(async () => {

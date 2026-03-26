@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { dirname, resolve } from "node:path";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -23,24 +25,36 @@ const TEST_FILES = [
 ];
 
 const extraArgs = process.argv.slice(2);
+const sharedCircuitsDir = mkdtempSync(join(tmpdir(), "pp-anvil-circuits-"));
 
-const result = spawnSync(
-  "node",
-  [
-    RUNNER,
-    ...TEST_FILES,
-    "--timeout",
-    "600000",
-    ...extraArgs,
-  ],
-  {
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      PP_ANVIL_E2E: "1",
-    },
-  }
-);
+let result;
+try {
+  result = spawnSync(
+    "node",
+    [
+      RUNNER,
+      ...TEST_FILES,
+      "--timeout",
+      "600000",
+      ...extraArgs,
+    ],
+    {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        PP_ANVIL_E2E: "1",
+        PP_ANVIL_SHARED_CIRCUITS_DIR: sharedCircuitsDir,
+      },
+    }
+  );
+} finally {
+  rmSync(sharedCircuitsDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 3,
+    retryDelay: 50,
+  });
+}
 
 if (result.error) {
   throw result.error;

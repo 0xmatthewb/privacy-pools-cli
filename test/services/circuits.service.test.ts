@@ -156,6 +156,43 @@ describe("circuits service", () => {
     });
   });
 
+  test("retries transient artifact download failures before succeeding", async () => {
+    const dir = tempDir();
+    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
+    installTestChecksums();
+
+    let attempts = 0;
+    globalThis.fetch = mock(() => {
+      attempts += 1;
+      if (attempts <= 2) {
+        return Promise.resolve(new Response("busy", { status: 429 }));
+      }
+      return Promise.resolve(new Response(TEST_BYTES, { status: 200 }));
+    }) as typeof fetch;
+
+    await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(dir));
+    expect(attempts).toBe(ALL_FILES.length + 2);
+  });
+
+  test("does not retry permanent artifact download failures", async () => {
+    const dir = tempDir();
+    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
+    installTestChecksums();
+
+    let attempts = 0;
+    globalThis.fetch = mock(() => {
+      attempts += 1;
+      return Promise.resolve(new Response("missing", { status: 404 }));
+    }) as typeof fetch;
+
+    await expect(ensureCircuitArtifacts()).rejects.toMatchObject({
+      name: "CLIError",
+      category: "PROOF",
+      code: "PROOF_GENERATION_FAILED",
+    });
+    expect(attempts).toBe(1);
+  });
+
   test("rejects checksum mismatches for downloaded artifacts", async () => {
     const dir = tempDir();
     process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
