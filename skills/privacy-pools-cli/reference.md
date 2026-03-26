@@ -974,13 +974,16 @@ All errors in JSON mode:
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED` | CONTRACT | No | Duplicate precommitment, retry deposit |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | Wrong signer for exit |
 | `CONTRACT_NOT_YET_RAGEQUITTEABLE` | CONTRACT | Yes | Pool Account cannot be exited yet |
+| `CONTRACT_MAX_TREE_DEPTH_REACHED` | CONTRACT | No | Pool has reached max deposit capacity |
 | `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool not ready, wait and retry |
 | `CONTRACT_MINIMUM_DEPOSIT_AMOUNT` | CONTRACT | No | Deposit amount is below the pool minimum |
+| `CONTRACT_INVALID_DEPOSIT_VALUE` | CONTRACT | No | Deposit amount is too large |
 | `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No | Withdrawal amount is invalid |
 | `CONTRACT_POOL_NOT_FOUND` | CONTRACT | No | Requested pool is unavailable on this chain |
 | `CONTRACT_POOL_IS_DEAD` | CONTRACT | No | Pool no longer accepts activity |
 | `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` | CONTRACT | Yes | Relayer fee exceeds pool maximum |
 | `CONTRACT_INVALID_TREE_DEPTH` | CONTRACT | No | Proof inputs do not match pool tree depth |
+| `CONTRACT_NATIVE_ASSET_TRANSFER_FAILED` | CONTRACT | No | Native asset transfer to the destination failed |
 | `CONTRACT_INSUFFICIENT_FUNDS` | CONTRACT | No | Wallet lacks ETH for amount + gas |
 | `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | Nonce conflict; pending tx may be stuck |
 | `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | Legacy pre-upgrade account must be migrated in the website before CLI restore/sync |

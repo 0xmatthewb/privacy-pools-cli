@@ -143,6 +143,11 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     code: "CONTRACT_NOT_YET_RAGEQUITTEABLE",
     retryable: true,
   },
+  MaxTreeDepthReached: {
+    message: "This pool cannot accept more deposits right now.",
+    hint: "Choose another pool or asset, or retry later after the protocol expands pool capacity.",
+    code: "CONTRACT_MAX_TREE_DEPTH_REACHED",
+  },
   NoRootsAvailable: {
     message: "Pool state is not ready for withdrawals yet.",
     hint: "Wait for the relayer to publish the first state root, then retry.",
@@ -153,6 +158,11 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "Deposit amount is below the pool minimum.",
     hint: "Increase the amount to meet the pool minimum shown by 'privacy-pools pools' or the deposit validation output, then retry.",
     code: "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
+  },
+  InvalidDepositValue: {
+    message: "Deposit amount is too large for this pool.",
+    hint: "Reduce the deposit amount and retry with a smaller value.",
+    code: "CONTRACT_INVALID_DEPOSIT_VALUE",
   },
   InvalidWithdrawalAmount: {
     message: "Withdrawal amount is invalid for this Pool Account.",
@@ -179,6 +189,16 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "The proof inputs do not match this pool's tree configuration.",
     hint: "Run 'privacy-pools sync' and retry once. If it persists, update the CLI before trying again.",
     code: "CONTRACT_INVALID_TREE_DEPTH",
+  },
+  NativeAssetTransferFailed: {
+    message: "Native asset transfer failed during settlement.",
+    hint: "The destination address may not be able to receive native ETH. Retry with another recipient or a standard EOA that can accept native ETH.",
+    code: "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED",
+  },
+  FailedToSendNativeAsset: {
+    message: "Native asset transfer failed during settlement.",
+    hint: "The destination address may not be able to receive native ETH. Retry with another recipient or a standard EOA that can accept native ETH.",
+    code: "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED",
   },
 };
 

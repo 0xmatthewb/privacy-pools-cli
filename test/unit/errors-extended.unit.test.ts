@@ -78,6 +78,11 @@ describe("classifyError - contract revert completeness", () => {
       retryable: true,
     },
     {
+      name: "MaxTreeDepthReached",
+      code: "CONTRACT_MAX_TREE_DEPTH_REACHED",
+      retryable: false,
+    },
+    {
       name: "NoRootsAvailable",
       code: "CONTRACT_NO_ROOTS_AVAILABLE",
       retryable: true,
@@ -85,6 +90,11 @@ describe("classifyError - contract revert completeness", () => {
     {
       name: "MinimumDepositAmount",
       code: "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
+      retryable: false,
+    },
+    {
+      name: "InvalidDepositValue",
+      code: "CONTRACT_INVALID_DEPOSIT_VALUE",
       retryable: false,
     },
     {
@@ -110,6 +120,16 @@ describe("classifyError - contract revert completeness", () => {
     {
       name: "InvalidTreeDepth",
       code: "CONTRACT_INVALID_TREE_DEPTH",
+      retryable: false,
+    },
+    {
+      name: "NativeAssetTransferFailed",
+      code: "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED",
+      retryable: false,
+    },
+    {
+      name: "FailedToSendNativeAsset",
+      code: "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED",
       retryable: false,
     },
   ];

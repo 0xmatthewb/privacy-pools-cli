@@ -13,6 +13,7 @@ function summarize(
     requiresWebsiteRecovery: boolean;
     reviewStatusComplete: boolean;
   }>,
+  additionalUnresolvedChainIds: number[] = [],
 ): MigrationStatusSummaryState {
   return summarizeMigrationStatusState(
     overrides.map((entry) => ({
@@ -33,6 +34,7 @@ function summarize(
       requiresWebsiteRecovery: entry.requiresWebsiteRecovery,
       scopes: [],
     })),
+    additionalUnresolvedChainIds,
   );
 }
 
@@ -115,5 +117,28 @@ describe("summarizeMigrationStatusState", () => {
     expect(result.requiresWebsiteRecovery).toBe(false);
     expect(result.isFullyMigrated).toBe(true);
     expect(result.readinessResolved).toBe(true);
+  });
+
+  test("treats failed queried chains as unresolved even when loaded chains are clean", () => {
+    const result = summarize(
+      [
+        {
+          chainId: 1,
+          expectedLegacyCommitments: 0,
+          status: "no_legacy",
+          requiresMigration: false,
+          requiresWebsiteRecovery: false,
+          reviewStatusComplete: true,
+        },
+      ],
+      [42161],
+    );
+
+    expect(result.requiredChainIds).toEqual([]);
+    expect(result.requiresMigration).toBe(false);
+    expect(result.requiresWebsiteRecovery).toBe(false);
+    expect(result.isFullyMigrated).toBe(false);
+    expect(result.readinessResolved).toBe(false);
+    expect(result.unresolvedChainIds).toEqual([42161]);
   });
 });

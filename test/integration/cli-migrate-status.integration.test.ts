@@ -22,11 +22,16 @@ import {
 } from "../helpers/sync-gate-rpc-server.ts";
 
 const sepoliaChainConfig = CHAINS.sepolia;
+const mainnetChainConfig = CHAINS.mainnet;
+const optimismChainConfig = CHAINS.optimism;
+const arbitrumChainConfig = CHAINS.arbitrum;
 const mockPoolAddress = "0x1234567890abcdef1234567890abcdef12345678" as const;
 const mockScope = 12345n;
 
 let fixture: FixtureServer;
 let rpcServer: SyncGateRpcServer;
+let mainnetRpcServer: SyncGateRpcServer;
+let optimismRpcServer: SyncGateRpcServer;
 
 function deriveLegacyDepositPrecommitment(
   mnemonic: string,
@@ -63,11 +68,31 @@ beforeAll(async () => {
       0n,
     ),
   });
+  mainnetRpcServer = await launchSyncGateRpcServer({
+    chainId: mainnetChainConfig.id,
+    entrypoint: mainnetChainConfig.entrypoint,
+    poolAddress: mockPoolAddress,
+    scope: mockScope,
+    validDepositLog: true,
+  });
+  optimismRpcServer = await launchSyncGateRpcServer({
+    chainId: optimismChainConfig.id,
+    entrypoint: optimismChainConfig.entrypoint,
+    poolAddress: mockPoolAddress,
+    scope: mockScope,
+    validDepositLog: true,
+  });
 }, 240_000);
 
 afterAll(async () => {
   if (rpcServer) {
     await killSyncGateRpcServer(rpcServer);
+  }
+  if (mainnetRpcServer) {
+    await killSyncGateRpcServer(mainnetRpcServer);
+  }
+  if (optimismRpcServer) {
+    await killSyncGateRpcServer(optimismRpcServer);
   }
   if (fixture) {
     await killFixtureServer(fixture);
@@ -252,5 +277,97 @@ describe("migrate status", () => {
         }),
       ]),
     );
+  }, 60_000);
+
+  test("treats multi-chain query failures as unresolved instead of fully resolved", () => {
+    const home = createTempHome();
+    const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(home);
+
+    const initResult = runCli(
+      [
+        "--json",
+        "init",
+        "--mnemonic-file",
+        mnemonicPath,
+        "--private-key-file",
+        privateKeyPath,
+        "--default-chain",
+        "mainnet",
+        "--yes",
+      ],
+      {
+        home,
+        timeoutMs: 60_000,
+      },
+    );
+    expect(initResult.status).toBe(0);
+
+    const result = runCli(
+      ["--json", "migrate", "status"],
+      {
+        home,
+        timeoutMs: 30_000,
+        env: {
+          PRIVACY_POOLS_ASP_HOST: fixture.url,
+          PRIVACY_POOLS_RPC_URL_ETHEREUM: mainnetRpcServer.url,
+          PRIVACY_POOLS_RPC_URL_ARBITRUM: "http://127.0.0.1:9",
+          PRIVACY_POOLS_RPC_URL_OPTIMISM: optimismRpcServer.url,
+        },
+      },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stderr.trim()).toBe("");
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      chain: string;
+      chains?: string[];
+      status: string;
+      requiresMigration: boolean;
+      isFullyMigrated: boolean;
+      readinessResolved: boolean;
+      unresolvedChainIds: number[];
+      warnings?: Array<{
+        chain: string;
+        category: string;
+        message: string;
+      }>;
+      chainReadiness: Array<{
+        chain: string;
+        reviewStatusComplete: boolean;
+      }>;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
+    expect(json.chain).toBe("all-mainnets");
+    expect(json.chains).toEqual(["mainnet", "arbitrum", "optimism"]);
+    expect(json.status).toBe("review_incomplete");
+    expect(json.isFullyMigrated).toBe(false);
+    expect(json.readinessResolved).toBe(false);
+    expect(json.unresolvedChainIds).toContain(arbitrumChainConfig.id);
+    expect(json.chainReadiness).toEqual([
+      expect.objectContaining({
+        chain: "mainnet",
+        reviewStatusComplete: true,
+      }),
+      expect.objectContaining({
+        chain: "optimism",
+        reviewStatusComplete: true,
+      }),
+    ]);
+    expect(json.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          chain: "arbitrum",
+          category: "RPC",
+        }),
+        expect.objectContaining({
+          category: "COVERAGE",
+          message: expect.stringContaining("supported by the CLI"),
+        }),
+      ]),
+    );
+    expect(json.requiresMigration).toBe(false);
   }, 60_000);
 });

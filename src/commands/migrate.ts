@@ -82,8 +82,12 @@ function summarizeInitErrors(
 
 function normalizeTopLevelMigrationStatus(
   chainReadiness: readonly MigrationChainRenderData[],
+  unresolvedChainIds: readonly number[] = [],
 ): MigrationStatusSummary {
-  if (chainReadiness.some((entry) => !entry.reviewStatusComplete)) {
+  if (
+    unresolvedChainIds.length > 0
+    || chainReadiness.some((entry) => !entry.reviewStatusComplete)
+  ) {
     return "review_incomplete";
   }
   if (chainReadiness.some((entry) => entry.requiresMigration)) {
@@ -110,27 +114,44 @@ export interface MigrationStatusSummaryState {
   readinessResolved: boolean;
 }
 
+function dedupeSortedChainIds(chainIds: readonly number[]): number[] {
+  return [...new Set(chainIds)].sort((a, b) => a - b);
+}
+
 export function summarizeMigrationStatusState(
   chainReadiness: readonly MigrationChainRenderData[],
+  additionalUnresolvedChainIds: readonly number[] = [],
 ): MigrationStatusSummaryState {
-  const requiredChainIds = chainReadiness
-    .filter((entry) => entry.expectedLegacyCommitments > 0)
-    .map((entry) => entry.chainId);
-  const migratedChainIds = chainReadiness
-    .filter(
-      (entry) =>
-        entry.expectedLegacyCommitments > 0 && entry.status === "fully_migrated",
-    )
-    .map((entry) => entry.chainId);
-  const missingChainIds = chainReadiness
-    .filter((entry) => entry.requiresMigration)
-    .map((entry) => entry.chainId);
-  const websiteRecoveryChainIds = chainReadiness
-    .filter((entry) => entry.requiresWebsiteRecovery)
-    .map((entry) => entry.chainId);
-  const unresolvedChainIds = chainReadiness
-    .filter((entry) => !entry.reviewStatusComplete)
-    .map((entry) => entry.chainId);
+  const requiredChainIds = dedupeSortedChainIds(
+    chainReadiness
+      .filter((entry) => entry.expectedLegacyCommitments > 0)
+      .map((entry) => entry.chainId),
+  );
+  const migratedChainIds = dedupeSortedChainIds(
+    chainReadiness
+      .filter(
+        (entry) =>
+          entry.expectedLegacyCommitments > 0
+          && entry.status === "fully_migrated",
+      )
+      .map((entry) => entry.chainId),
+  );
+  const missingChainIds = dedupeSortedChainIds(
+    chainReadiness
+      .filter((entry) => entry.requiresMigration)
+      .map((entry) => entry.chainId),
+  );
+  const websiteRecoveryChainIds = dedupeSortedChainIds(
+    chainReadiness
+      .filter((entry) => entry.requiresWebsiteRecovery)
+      .map((entry) => entry.chainId),
+  );
+  const unresolvedChainIds = dedupeSortedChainIds([
+    ...chainReadiness
+      .filter((entry) => !entry.reviewStatusComplete)
+      .map((entry) => entry.chainId),
+    ...additionalUnresolvedChainIds,
+  ]);
   const readinessResolved = unresolvedChainIds.length === 0;
   const requiresMigration = missingChainIds.length > 0;
   const requiresWebsiteRecovery = websiteRecoveryChainIds.length > 0;
@@ -281,6 +302,7 @@ export async function handleMigrateStatusCommand(
 
     const chainReadiness: MigrationChainRenderData[] = [];
     const warnings: MigrationWarning[] = [];
+    const failedChainIds: number[] = [];
     let firstError: unknown;
 
     if (useMultiChain && chainsToQuery.length > 1) {
@@ -331,6 +353,7 @@ export async function handleMigrateStatusCommand(
       for (const outcome of outcomes) {
         if ("error" in outcome) {
           if (firstError === undefined) firstError = outcome.error;
+          failedChainIds.push(outcome.chainConfig.id);
           const classified = classifyError(outcome.error);
           warnings.push({
             chain: outcome.chainConfig.name,
@@ -393,7 +416,7 @@ export async function handleMigrateStatusCommand(
 
     chainReadiness.sort((a, b) => a.chainId - b.chainId);
     warnings.push(createCoverageLimitationWarning(rootChain));
-    const summary = summarizeMigrationStatusState(chainReadiness);
+    const summary = summarizeMigrationStatusState(chainReadiness, failedChainIds);
 
     const renderData: MigrationRenderData = {
       mode: "migration-status",
@@ -401,7 +424,10 @@ export async function handleMigrateStatusCommand(
       ...(opts.allChains ? { allChains: true } : {}),
       ...(queriedChains ? { chains: queriedChains } : {}),
       ...(warnings.length > 0 ? { warnings } : {}),
-      status: normalizeTopLevelMigrationStatus(chainReadiness),
+      status: normalizeTopLevelMigrationStatus(
+        chainReadiness,
+        summary.unresolvedChainIds,
+      ),
       requiresMigration: summary.requiresMigration,
       requiresWebsiteRecovery: summary.requiresWebsiteRecovery,
       isFullyMigrated: summary.isFullyMigrated,
