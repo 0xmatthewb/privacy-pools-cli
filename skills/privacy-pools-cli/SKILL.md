@@ -20,6 +20,7 @@ triggers:
   - pattern: privacy pool accounts
   - pattern: privacy pool ragequit
   - pattern: privacy pool exit
+  - pattern: privacy pool flow
   - pattern: unsigned deposit
   - pattern: unsigned withdraw
   - pattern: compliant withdrawal
