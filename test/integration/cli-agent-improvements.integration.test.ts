@@ -117,8 +117,8 @@ describe("agent-focused improvements", () => {
     expect(json.commandDetails["accounts"]?.flags).toContain("--summary");
     expect(json.commandDetails["describe"]?.command).toBe("describe");
     expect(json.commandDetails["stats global"]?.globalFlags).not.toContain("-c, --chain <name>");
-    expect(json.commandDetails["guide"]?.globalFlags).not.toContain("--format <format>");
-    expect(json.commandDetails["capabilities"]?.globalFlags).not.toContain("--format <format>");
+    expect(json.commandDetails["guide"]?.globalFlags).toContain("--format <format>");
+    expect(json.commandDetails["capabilities"]?.globalFlags).toContain("--format <format>");
     expect(json.commandDetails["guide"]?.safeReadOnly).toBe(true);
     expect(json.commandDetails["completion"]?.safeReadOnly).toBe(true);
     expect(json.safeReadOnlyCommands).toContain("guide");

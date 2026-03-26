@@ -17,7 +17,8 @@ Privacy Pools: a compliant way to transact privately on Ethereum
   deposit              Deposit into a pool
   accounts             List your Pool Accounts (individual deposit lineages)
                        with balances
-  migrate              Inspect legacy migration readiness on supported chains
+  migrate              Inspect legacy migration readiness on CLI-supported
+                       chains
   withdraw             Withdraw from a pool
   ragequit|exit        Publicly withdraw funds to your deposit address
   history              Show chronological event history (deposits, withdrawals,

@@ -129,6 +129,7 @@ describe("command docs alignment", () => {
       "CONTRACT_UNKNOWN_STATE_ROOT",
       "CONTRACT_CONTEXT_MISMATCH",
       "CONTRACT_INVALID_COMMITMENT",
+      "CONTRACT_NOT_YET_RAGEQUITTEABLE",
       "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
       "CONTRACT_INVALID_WITHDRAWAL_AMOUNT",
       "CONTRACT_POOL_NOT_FOUND",
@@ -137,6 +138,7 @@ describe("command docs alignment", () => {
       "CONTRACT_INVALID_TREE_DEPTH",
       "ACCOUNT_MIGRATION_REQUIRED",
       "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
+      "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE",
     ];
 
     for (const code of requiredCodes) {
@@ -438,6 +440,34 @@ describe("command docs alignment", () => {
     expect(normalizedReference).toContain("CONTRACT_INSUFFICIENT_FUNDS");
     expect(normalizedReference).toContain("CONTRACT_NONCE_ERROR");
     expect(normalizedReference).toContain("ACCOUNT_NOT_APPROVED");
+  });
+
+  test("reference and skill docs list the full supported env-var override surface", () => {
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+
+    const requiredMarkers = [
+      "PRIVACY_POOLS_RPC_URL",
+      "PP_RPC_URL",
+      "PRIVACY_POOLS_ASP_HOST",
+      "PP_ASP_HOST",
+      "PRIVACY_POOLS_RELAYER_HOST",
+      "PP_RELAYER_HOST",
+      "PRIVACY_POOLS_RPC_URL_<CHAIN>",
+      "PRIVACY_POOLS_ASP_HOST_<CHAIN>",
+      "PRIVACY_POOLS_RELAYER_HOST_<CHAIN>",
+      "PP_RPC_URL_<CHAIN>",
+      "PP_ASP_HOST_<CHAIN>",
+      "PP_RELAYER_HOST_<CHAIN>",
+      "PRIVACY_POOLS_CONFIG_DIR",
+    ];
+
+    for (const marker of requiredMarkers) {
+      expect(reference).toContain(marker);
+      expect(skill).toContain(marker);
+      expect(skillReference).toContain(marker);
+    }
   });
 
   test("published docs do not contain malformed privacy-pools command examples", () => {

@@ -909,8 +909,17 @@ privacy-pools sync --agent [--asset <symbol>]
 | `PRIVACY_POOLS_PRIVATE_KEY` | Ethereum private key (alternative to init wizard) |
 | `PRIVACY_POOLS_HOME` | Override config directory (default: `~/.privacy-pools`) |
 | `PRIVACY_POOLS_CONFIG_DIR` | Alias for `PRIVACY_POOLS_HOME` |
+| `PRIVACY_POOLS_RPC_URL` | Override RPC URL for all chains |
+| `PP_RPC_URL` | Alias for `PRIVACY_POOLS_RPC_URL` |
+| `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
+| `PP_ASP_HOST` | Alias for `PRIVACY_POOLS_ASP_HOST` |
+| `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
+| `PP_RELAYER_HOST` | Alias for `PRIVACY_POOLS_RELAYER_HOST` |
+| `PRIVACY_POOLS_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PRIVACY_POOLS_RPC_URL_ARBITRUM`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
+| `PRIVACY_POOLS_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PRIVACY_POOLS_ASP_HOST_SEPOLIA`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
+| `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
@@ -964,6 +973,7 @@ All errors in JSON mode:
 | `CONTRACT_INVALID_COMMITMENT` | CONTRACT | No | Selected Pool Account is no longer valid |
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED` | CONTRACT | No | Duplicate precommitment, retry deposit |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | Wrong signer for exit |
+| `CONTRACT_NOT_YET_RAGEQUITTEABLE` | CONTRACT | Yes | Pool Account cannot be exited yet |
 | `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool not ready, wait and retry |
 | `CONTRACT_MINIMUM_DEPOSIT_AMOUNT` | CONTRACT | No | Deposit amount is below the pool minimum |
 | `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No | Withdrawal amount is invalid |
@@ -975,6 +985,7 @@ All errors in JSON mode:
 | `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | Nonce conflict; pending tx may be stuck |
 | `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | Legacy pre-upgrade account must be migrated in the website before CLI restore/sync |
 | `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | INPUT | No | Legacy declined deposits require website-based recovery before CLI restore/sync |
+| `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | Legacy ASP review data is incomplete; retry before acting on restore/sync |
 | `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
 | `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error |
 
@@ -996,12 +1007,13 @@ All errors in JSON mode:
 When `retryable: true`:
 1. `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
 2. `CONTRACT_INCORRECT_ASP_ROOT` / `CONTRACT_UNKNOWN_STATE_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent`, then retry.
-3. `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR` / `CONTRACT_RELAY_FEE_GREATER_THAN_MAX`: wait 30-60s or request a fresh quote, then retry.
+3. `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR` / `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` / `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry.
 
 When `retryable: false`:
 4. `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
 5. `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
-6. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+6. `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
+7. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ---
 

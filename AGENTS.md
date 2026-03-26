@@ -540,6 +540,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `CONTRACT_INVALID_COMMITMENT`        | CONTRACT | No        | Selected Pool Account is no longer valid    |
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED`| CONTRACT | No        | Duplicate precommitment, retry deposit      |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`   | CONTRACT | No        | Wrong signer for exit                       |
+| `CONTRACT_NOT_YET_RAGEQUITTEABLE`    | CONTRACT | Yes       | Pool Account cannot be exited yet           |
 | `CONTRACT_NO_ROOTS_AVAILABLE`        | CONTRACT | Yes       | Pool not ready, wait and retry              |
 | `CONTRACT_MINIMUM_DEPOSIT_AMOUNT`    | CONTRACT | No        | Deposit amount is below the pool minimum    |
 | `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No        | Withdrawal amount is invalid                |
@@ -551,6 +552,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `CONTRACT_NONCE_ERROR`               | CONTRACT | Yes       | Nonce conflict; pending tx may be stuck     |
 | `ACCOUNT_MIGRATION_REQUIRED`         | INPUT    | No        | Legacy pre-upgrade account must be migrated in the website before CLI restore/sync |
 | `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`  | INPUT    | No        | Legacy declined deposits require website-based recovery before CLI restore/sync |
+| `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`| ASP      | Yes       | Legacy ASP review data is incomplete; retry before acting on restore/sync |
 | `ACCOUNT_NOT_APPROVED`               | ASP      | No        | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
 | `UNKNOWN_ERROR`                      | UNKNOWN  | No        | Unexpected error                            |
 
@@ -573,13 +575,14 @@ When `retryable: true` is present in the error response:
 
 1. For `RPC_NETWORK_ERROR`, `RPC_RATE_LIMITED`, or `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
 2. For `CONTRACT_INCORRECT_ASP_ROOT`, `CONTRACT_UNKNOWN_STATE_ROOT`, or `PROOF_MERKLE_ERROR`: run `sync --agent` first, then retry the original command
-3. For `CONTRACT_NO_ROOTS_AVAILABLE`, `CONTRACT_NONCE_ERROR`, or `CONTRACT_RELAY_FEE_GREATER_THAN_MAX`: wait 30-60s or request a fresh quote, then retry
+3. For `CONTRACT_NO_ROOTS_AVAILABLE`, `CONTRACT_NONCE_ERROR`, `CONTRACT_RELAY_FEE_GREATER_THAN_MAX`, or `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry
 
 When `retryable: false` (non-retryable):
 
 4. For `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
 5. For `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
-6. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+6. For `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
+7. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ## Supported Chains
 

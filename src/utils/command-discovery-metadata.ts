@@ -821,18 +821,7 @@ export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] = [
   { flag: "--timeout <seconds>", description: "Network/transaction timeout in seconds (default: 30)" },
 ];
 
-const CSV_GLOBAL_FLAG = "--format <format>";
 const CHAIN_GLOBAL_FLAG = "-c, --chain <name>";
-
-const CSV_SUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>([
-  "pools",
-  "activity",
-  "stats",
-  "stats global",
-  "stats pool",
-  "accounts",
-  "history",
-]);
 
 const CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>([
   "stats",
@@ -841,12 +830,6 @@ const CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>([
 
 function supportedGlobalFlagMetadata(path: CommandPath): GlobalFlagMetadata[] {
   return GLOBAL_FLAG_METADATA.filter((entry) => {
-    if (
-      entry.flag === CSV_GLOBAL_FLAG &&
-      !CSV_SUPPORTED_DESCRIPTOR_COMMANDS.has(path)
-    ) {
-      return false;
-    }
     if (
       entry.flag === CHAIN_GLOBAL_FLAG &&
       CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS.has(path)

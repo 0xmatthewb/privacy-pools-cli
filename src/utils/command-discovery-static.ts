@@ -375,6 +375,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -425,6 +426,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -469,6 +471,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -517,6 +520,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -561,6 +565,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -599,6 +604,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -836,6 +842,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -872,6 +879,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -907,6 +915,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -941,6 +950,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -979,6 +989,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -1038,6 +1049,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -1091,6 +1103,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -1135,6 +1148,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -1234,6 +1248,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -1272,6 +1287,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -1357,6 +1373,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
@@ -1396,6 +1413,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--format <format>",
         "-y, --yes",
         "-c, --chain <name>",
         "-r, --rpc-url <url>",
