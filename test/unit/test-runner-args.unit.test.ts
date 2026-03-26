@@ -12,8 +12,9 @@ import { DEFAULT_TEST_ISOLATED_SUITES } from "../../scripts/test-suite-manifest.
 const ROOT = process.cwd();
 const PRELOAD_HELPER = "./test/helpers/temp.ts";
 const TEST_FILE = "./test/unit/mode.timeout.unit.test.ts";
-const ISOLATED_BOOTSTRAP_TEST = "./test/unit/bootstrap-runtime.unit.test.ts";
-const ISOLATED_CLI_MAIN_TEST = "./test/unit/cli-main.coverage.unit.test.ts";
+const ISOLATED_PROOFS_TEST = "./test/services/proofs.service.test.ts";
+const ISOLATED_WORKFLOW_INTERNAL_TEST =
+  "./test/services/workflow.internal.service.test.ts";
 
 describe("test runner arg helpers", () => {
   test("hasExplicitTimeoutArg detects inline and split timeout flags", () => {
@@ -73,8 +74,8 @@ describe("test runner arg helpers", () => {
         "lcov",
         "--exclude",
         TEST_FILE,
-        ISOLATED_BOOTSTRAP_TEST,
-        ISOLATED_CLI_MAIN_TEST,
+        ISOLATED_PROOFS_TEST,
+        ISOLATED_WORKFLOW_INTERNAL_TEST,
       ],
       (pathArg) => [pathArg],
       ROOT,
@@ -87,8 +88,8 @@ describe("test runner arg helpers", () => {
       TEST_FILE,
     ]);
     expect(split.targetFiles).toEqual([
-      ISOLATED_BOOTSTRAP_TEST,
-      ISOLATED_CLI_MAIN_TEST,
+      ISOLATED_PROOFS_TEST,
+      ISOLATED_WORKFLOW_INTERNAL_TEST,
     ]);
   });
 
@@ -96,8 +97,8 @@ describe("test runner arg helpers", () => {
     const grouped = groupTargetsByIsolation(
       [
         TEST_FILE,
-        ISOLATED_BOOTSTRAP_TEST,
-        ISOLATED_CLI_MAIN_TEST,
+        ISOLATED_PROOFS_TEST,
+        ISOLATED_WORKFLOW_INTERNAL_TEST,
       ],
       DEFAULT_TEST_ISOLATED_SUITES,
       ROOT,
@@ -105,12 +106,20 @@ describe("test runner arg helpers", () => {
 
     expect(grouped.mainTargets).toEqual([TEST_FILE]);
     expect(grouped.isolatedGroups.map((suite) => suite.label)).toEqual([
-      "bootstrap-runtime",
-      "cli-main-coverage",
+      "proofs-service",
+      "workflow-internal",
     ]);
     expect(grouped.isolatedGroups.map((suite) => suite.tests)).toEqual([
-      [ISOLATED_BOOTSTRAP_TEST],
-      [ISOLATED_CLI_MAIN_TEST],
+      [ISOLATED_PROOFS_TEST],
+      [ISOLATED_WORKFLOW_INTERNAL_TEST],
     ]);
+  });
+
+  test("remaining isolated suites document a concrete isolation reason", () => {
+    expect(DEFAULT_TEST_ISOLATED_SUITES.length).toBeGreaterThan(0);
+    for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
+      expect(typeof suite.reason).toBe("string");
+      expect(suite.reason?.trim().length).toBeGreaterThan(0);
+    }
   });
 });

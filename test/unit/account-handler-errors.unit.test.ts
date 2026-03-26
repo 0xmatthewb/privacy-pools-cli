@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
 
 const realErrors = await import("../../src/utils/errors.ts");
@@ -73,29 +73,7 @@ let handleAccountsCommand: typeof import("../../src/commands/accounts.ts").handl
 let handleHistoryCommand: typeof import("../../src/commands/history.ts").handleHistoryCommand;
 let handleSyncCommand: typeof import("../../src/commands/sync.ts").handleSyncCommand;
 
-function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
-  return {
-    parent: {
-      opts: () => globalOpts,
-    },
-  } as unknown as Command;
-}
-
-function clearMockCalls(fn: {
-  mock?: {
-    calls?: unknown[];
-    results?: unknown[];
-    contexts?: unknown[];
-    instances?: unknown[];
-  };
-}): void {
-  fn.mock?.calls?.splice(0);
-  fn.mock?.results?.splice(0);
-  fn.mock?.contexts?.splice(0);
-  fn.mock?.instances?.splice(0);
-}
-
-beforeAll(async () => {
+async function loadAccountErrorHandlers(): Promise<void> {
   mock.module("../../src/utils/validation.ts", () => ({
     resolveChain: () => chainConfig,
   }));
@@ -165,17 +143,46 @@ beforeAll(async () => {
     resolveGlobalMode: resolveGlobalModeMock,
   }));
 
-  ({ handleAccountsCommand } = await import("../../src/commands/accounts.ts?account-handler-errors"));
-  ({ handleHistoryCommand } = await import("../../src/commands/history.ts?account-handler-errors"));
-  ({ handleSyncCommand } = await import("../../src/commands/sync.ts?account-handler-errors"));
-});
+  ({ handleAccountsCommand } = await import(
+    `../../src/commands/accounts.ts?account-handler-errors=${Date.now()}`
+  ));
+  ({ handleHistoryCommand } = await import(
+    `../../src/commands/history.ts?account-handler-errors=${Date.now()}`
+  ));
+  ({ handleSyncCommand } = await import(
+    `../../src/commands/sync.ts?account-handler-errors=${Date.now()}`
+  ));
+}
 
-afterAll(() => {
+function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
+  return {
+    parent: {
+      opts: () => globalOpts,
+    },
+  } as unknown as Command;
+}
+
+function clearMockCalls(fn: {
+  mock?: {
+    calls?: unknown[];
+    results?: unknown[];
+    contexts?: unknown[];
+    instances?: unknown[];
+  };
+}): void {
+  fn.mock?.calls?.splice(0);
+  fn.mock?.results?.splice(0);
+  fn.mock?.contexts?.splice(0);
+  fn.mock?.instances?.splice(0);
+}
+
+afterEach(() => {
   mock.restore();
 });
 
 describe("account command error boundaries", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    mock.restore();
     clearMockCalls(initializeAccountServiceWithStateMock);
     clearMockCalls(syncAccountEventsMock);
     clearMockCalls(withSuppressedSdkStdoutSyncMock);
@@ -202,6 +209,8 @@ describe("account command error boundaries", () => {
       rebuiltLegacyAccount: false,
     }));
     syncAccountEventsMock.mockImplementation(async () => false);
+
+    await loadAccountErrorHandlers();
   });
 
   test("accounts prints ACCOUNT_MIGRATION_REQUIRED in JSON mode", async () => {

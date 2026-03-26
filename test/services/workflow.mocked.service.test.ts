@@ -25,7 +25,10 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { captureAsyncOutput } from "../helpers/output.ts";
+import {
+  captureAsyncOutput,
+  expectSilentOutput,
+} from "../helpers/output.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 
 const realConfig = await import("../../src/services/config.ts");
@@ -169,16 +172,6 @@ function useImmediateTimers(): () => void {
   return () => {
     globalThis.setTimeout = originalSetTimeout;
   };
-}
-
-async function withMutedStderr<T>(fn: () => Promise<T>): Promise<T> {
-  const originalWrite = process.stderr.write.bind(process.stderr);
-  process.stderr.write = ((() => true) as typeof process.stderr.write);
-  try {
-    return await fn();
-  } finally {
-    process.stderr.write = originalWrite;
-  }
 }
 
 function makeDepositLog(depositor: Address) {
@@ -1321,8 +1314,9 @@ describe("workflow service mocked coverage", () => {
       throw new Error("disk full");
     });
 
-    const snapshot = await withMutedStderr(() =>
-      startWorkflow({
+    let snapshot!: Awaited<ReturnType<typeof startWorkflow>>;
+    const output = await captureAsyncOutput(async () => {
+      snapshot = await startWorkflow({
         amountInput: "0.01",
         assetInput: "ETH",
         recipient: "0x7777777777777777777777777777777777777777",
@@ -1337,9 +1331,10 @@ describe("workflow service mocked coverage", () => {
         },
         isVerbose: false,
         watch: false,
-      }),
-    );
+      });
+    });
 
+    expectSilentOutput(output);
     expect(snapshot.phase).toBe("awaiting_asp");
     expect(snapshot.depositTxHash).toBe(state.depositTxHash);
     expect(state.addPoolAccountCalls).toBe(1);
@@ -2057,8 +2052,9 @@ describe("workflow service mocked coverage", () => {
       throw new Error("disk full");
     });
 
-    const snapshot = await withMutedStderr(() =>
-      ragequitWorkflow({
+    let snapshot!: Awaited<ReturnType<typeof ragequitWorkflow>>;
+    const output = await captureAsyncOutput(async () => {
+      snapshot = await ragequitWorkflow({
         workflowId: "wf-configured-ragequit-save-warning",
         globalOpts: { chain: "sepolia" },
         mode: {
@@ -2070,9 +2066,10 @@ describe("workflow service mocked coverage", () => {
           skipPrompts: true,
         },
         isVerbose: false,
-      }),
-    );
+      });
+    });
 
+    expectSilentOutput(output);
     expect(snapshot.phase).toBe("completed_public_recovery");
     expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
     expect(saveAccountMock).toHaveBeenCalled();
@@ -2464,8 +2461,9 @@ describe("workflow service mocked coverage", () => {
       ragequitBlockNumber: null,
     });
 
-    const snapshot = await withMutedStderr(() =>
-      watchWorkflow({
+    let snapshot!: Awaited<ReturnType<typeof watchWorkflow>>;
+    const output = await captureAsyncOutput(async () => {
+      snapshot = await watchWorkflow({
         workflowId: "wf-ragequit-refresh-warning",
         globalOpts: { chain: "sepolia" },
         mode: {
@@ -2477,9 +2475,10 @@ describe("workflow service mocked coverage", () => {
           skipPrompts: true,
         },
         isVerbose: false,
-      }),
-    );
+      });
+    });
 
+    expectSilentOutput(output);
     expect(snapshot.phase).toBe("completed_public_recovery");
     expect(snapshot.ragequitBlockNumber).toBe("303");
     expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
@@ -3067,8 +3066,9 @@ describe("workflow service mocked coverage", () => {
       aspStatus: "approved",
     });
 
-    const snapshot = await withMutedStderr(() =>
-      watchWorkflow({
+    let snapshot!: Awaited<ReturnType<typeof watchWorkflow>>;
+    const output = await captureAsyncOutput(async () => {
+      snapshot = await watchWorkflow({
         workflowId: "wf-withdraw-save-warning",
         globalOpts: { chain: "sepolia" },
         mode: {
@@ -3080,9 +3080,10 @@ describe("workflow service mocked coverage", () => {
           skipPrompts: true,
         },
         isVerbose: false,
-      }),
-    );
+      });
+    });
 
+    expectSilentOutput(output);
     expect(snapshot.phase).toBe("completed");
     expect(snapshot.withdrawTxHash).toBe(state.relayTxHash);
     expect(saveAccountMock).toHaveBeenCalled();
@@ -3315,8 +3316,9 @@ describe("workflow service mocked coverage", () => {
       withdrawBlockNumber: null,
     });
 
-    const snapshot = await withMutedStderr(() =>
-      watchWorkflow({
+    let snapshot!: Awaited<ReturnType<typeof watchWorkflow>>;
+    const output = await captureAsyncOutput(async () => {
+      snapshot = await watchWorkflow({
         workflowId: "wf-withdraw-refresh-warning",
         globalOpts: { chain: "sepolia" },
         mode: {
@@ -3328,9 +3330,10 @@ describe("workflow service mocked coverage", () => {
           skipPrompts: true,
         },
         isVerbose: false,
-      }),
-    );
+      });
+    });
 
+    expectSilentOutput(output);
     expect(snapshot.phase).toBe("completed");
     expect(snapshot.withdrawBlockNumber).toBe("202");
     expect(snapshot.withdrawTxHash).toBe(state.relayTxHash);

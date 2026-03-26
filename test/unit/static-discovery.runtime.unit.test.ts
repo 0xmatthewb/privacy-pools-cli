@@ -191,6 +191,48 @@ describe("static discovery runtime", () => {
     expect(stderr).toBe("");
   });
 
+  test("accepts split-value and quiet boolean root flags for static discovery commands", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand([
+        "--json",
+        "--yes",
+        "--verbose",
+        "--no-banner",
+        "--no-color",
+        "--chain",
+        "mainnet",
+        "--rpc-url",
+        "http://127.0.0.1:8545",
+        "--timeout",
+        "9",
+        "capabilities",
+      ]),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.commands.some((entry: { name: string }) => entry.name === "capabilities")).toBe(
+      true,
+    );
+    expect(stderr).toBe("");
+  });
+
+  test("accepts exact short flags and rejects short help/version probes as non-static discovery", async () => {
+    const jsonResult = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand(["-j", "-v", "-y", "capabilities"]),
+    );
+    expect(jsonResult.json.success).toBe(true);
+    expect(jsonResult.stderr).toBe("");
+
+    for (const argv of [["-h"], ["-V"]] as const) {
+      const { stdout, stderr } = await captureAsyncOutput(async () => {
+        const handled = await runStaticDiscoveryCommand([...argv]);
+        expect(handled).toBe(false);
+      });
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+    }
+  });
+
   test("returns completion candidates in JSON mode", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       runStaticCompletionQuery([
@@ -358,6 +400,25 @@ describe("static discovery runtime", () => {
       expect(json.error.message).toContain("Unsupported shell");
       expect(stderr).toBe("");
     }
+  });
+
+  test("falls back to human error rendering when short bundles do not request JSON", async () => {
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(async () => {
+      const handled = await runStaticCompletionQuery([
+        "-qy",
+        "completion",
+        "--query",
+        "--shell",
+        "elvish",
+        "--",
+        "privacy-pools",
+      ]);
+      expect(handled).toBe(true);
+    });
+
+    expect(exitCode).toBe(2);
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Unsupported shell 'elvish'");
   });
 
   test("reports invalid completion cword values in JSON mode", async () => {

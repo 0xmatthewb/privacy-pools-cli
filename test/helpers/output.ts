@@ -6,6 +6,7 @@
  *   - captureOutput(): intercept stdout/stderr writes during a function call
  */
 
+import { expect } from "bun:test";
 import type { ResolvedGlobalMode } from "../../src/output/common.ts";
 
 const textDecoder = new TextDecoder();
@@ -196,4 +197,26 @@ export async function captureAsyncJsonOutputAllowExit<T = any>(
     stderr,
     exitCode,
   };
+}
+
+export function expectNoStdout(captured: { stdout: string }): void {
+  expect(captured.stdout).toBe("");
+}
+
+export function expectSilentOutput(captured: {
+  stdout: string;
+  stderr: string;
+}): void {
+  expect(captured.stdout).toBe("");
+  expect(captured.stderr).toBe("");
+}
+
+export function expectStderrOnlyContains(
+  captured: { stdout: string; stderr: string },
+  expectedFragments: readonly string[],
+): void {
+  expect(captured.stdout).toBe("");
+  for (const fragment of expectedFragments) {
+    expect(captured.stderr).toContain(fragment);
+  }
 }

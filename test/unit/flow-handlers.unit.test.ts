@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
 
 const realErrors = await import("../../src/utils/errors.ts");
@@ -36,27 +36,7 @@ let handleFlowWatchCommand: typeof import("../../src/commands/flow.ts").handleFl
 let handleFlowStatusCommand: typeof import("../../src/commands/flow.ts").handleFlowStatusCommand;
 let handleFlowRagequitCommand: typeof import("../../src/commands/flow.ts").handleFlowRagequitCommand;
 
-function fakeCommand(globalOpts: Record<string, unknown>): Command {
-  return {
-    optsWithGlobals: () => globalOpts,
-  } as unknown as Command;
-}
-
-function clearMockCalls(fn: {
-  mock?: {
-    calls?: unknown[];
-    results?: unknown[];
-    contexts?: unknown[];
-    instances?: unknown[];
-  };
-}): void {
-  fn.mock?.calls?.splice(0);
-  fn.mock?.results?.splice(0);
-  fn.mock?.contexts?.splice(0);
-  fn.mock?.instances?.splice(0);
-}
-
-beforeAll(async () => {
+async function loadFlowHandlers(): Promise<void> {
   mock.module("../../src/output/common.ts", () => ({
     ...realOutputCommon,
     createOutputContext: createOutputContextMock,
@@ -80,21 +60,42 @@ beforeAll(async () => {
     printError: printErrorMock,
   }));
 
-  const flowModule = await import("../../src/commands/flow.ts?flow-handlers");
+  const flowModule = await import("../../src/commands/flow.ts");
   ({
     handleFlowStartCommand,
     handleFlowWatchCommand,
     handleFlowStatusCommand,
     handleFlowRagequitCommand,
   } = flowModule);
-});
+}
 
-afterAll(() => {
+function fakeCommand(globalOpts: Record<string, unknown>): Command {
+  return {
+    optsWithGlobals: () => globalOpts,
+  } as unknown as Command;
+}
+
+function clearMockCalls(fn: {
+  mock?: {
+    calls?: unknown[];
+    results?: unknown[];
+    contexts?: unknown[];
+    instances?: unknown[];
+  };
+}): void {
+  fn.mock?.calls?.splice(0);
+  fn.mock?.results?.splice(0);
+  fn.mock?.contexts?.splice(0);
+  fn.mock?.instances?.splice(0);
+}
+
+afterEach(() => {
   mock.restore();
 });
 
 describe("flow command handlers", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    mock.restore();
     clearMockCalls(createOutputContextMock);
     clearMockCalls(renderFlowResultMock);
     clearMockCalls(startWorkflowMock);
@@ -103,6 +104,8 @@ describe("flow command handlers", () => {
     clearMockCalls(ragequitWorkflowMock);
     clearMockCalls(resolveGlobalModeMock);
     clearMockCalls(printErrorMock);
+
+    await loadFlowHandlers();
   });
 
   test("start forwards workflow options and renders the result", async () => {
@@ -239,6 +242,35 @@ describe("flow command handlers", () => {
     });
   });
 
+  test("watch converts flow cancellation into a structured INPUT error in JSON mode", async () => {
+    watchWorkflowMock.mockImplementationOnce(async () => {
+      throw new MockFlowCancelledError("Flow cancelled.");
+    });
+
+    await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true }));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
+      "Flow cancelled.",
+    );
+    expect(isJson).toBe(true);
+  });
+
+  test("watch forwards non-cancellation failures to printError", async () => {
+    const boom = new Error("watch exploded");
+    watchWorkflowMock.mockImplementationOnce(async () => {
+      throw boom;
+    });
+
+    await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true }));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledWith(boom, true);
+  });
+
   test("status loads the snapshot and renders the status action", async () => {
     const cmd = fakeCommand({ quiet: true });
 
@@ -249,6 +281,18 @@ describe("flow command handlers", () => {
       action: "status",
       snapshot: statusSnapshot,
     });
+  });
+
+  test("status forwards lookup failures through printError", async () => {
+    const boom = new Error("status exploded");
+    getWorkflowStatusMock.mockImplementationOnce(() => {
+      throw boom;
+    });
+
+    await handleFlowStatusCommand("wf-status", undefined, fakeCommand({ json: true }));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledWith(boom, true);
   });
 
   test("ragequit delegates to the workflow service and renders recovery output", async () => {
@@ -266,5 +310,16 @@ describe("flow command handlers", () => {
       action: "ragequit",
       snapshot: ragequitSnapshot,
     });
+  });
+
+  test("ragequit swallows flow cancellation in human mode", async () => {
+    ragequitWorkflowMock.mockImplementationOnce(async () => {
+      throw new MockFlowCancelledError("Flow cancelled.");
+    });
+
+    await handleFlowRagequitCommand("wf-ragequit", undefined, fakeCommand({}));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).not.toHaveBeenCalled();
   });
 });

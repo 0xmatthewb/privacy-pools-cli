@@ -11,6 +11,22 @@ import * as realHelp from "../../src/utils/help.ts";
 const ORIGINAL_ARGV = [...process.argv];
 const ORIGINAL_NO_COLOR = process.env.NO_COLOR;
 const ORIGINAL_PRIVACY_POOLS_HOME = process.env.PRIVACY_POOLS_HOME;
+const ORIGINAL_PRIVACY_POOLS_CONFIG_DIR = process.env.PRIVACY_POOLS_CONFIG_DIR;
+const ORIGINAL_CI = process.env.CI;
+const ORIGINAL_CODESPACES = process.env.CODESPACES;
+const ORIGINAL_STDOUT_IS_TTY = process.stdout.isTTY;
+const ORIGINAL_STDERR_IS_TTY = process.stderr.isTTY;
+
+function setTty(stdoutIsTty: boolean, stderrIsTty = stdoutIsTty): void {
+  Object.defineProperty(process.stdout, "isTTY", {
+    configurable: true,
+    value: stdoutIsTty,
+  });
+  Object.defineProperty(process.stderr, "isTTY", {
+    configurable: true,
+    value: stderrIsTty,
+  });
+}
 
 function makeCommanderExit(code: string) {
   const error = new Error(code) as Error & { code: string };
@@ -20,15 +36,36 @@ function makeCommanderExit(code: string) {
 
 function makeProgram(
   parseAsyncFactory: (program: {
-    configuredOutput: { writeOut?: (value: string) => void };
+    configuredOutput: {
+      writeOut?: (value: string) => void;
+      writeErr?: (value: string) => void;
+      outputError?: (
+        value: string,
+        write: (value: string) => void,
+      ) => void;
+    };
   }) => () => Promise<void>,
 ) {
   const program = {
-    configuredOutput: {} as { writeOut?: (value: string) => void },
+    configuredOutput: {} as {
+      writeOut?: (value: string) => void;
+      writeErr?: (value: string) => void;
+      outputError?: (
+        value: string,
+        write: (value: string) => void,
+      ) => void;
+    },
     commands: [],
     showSuggestionAfterError() {},
     showHelpAfterError() {},
-    configureOutput(output: { writeOut?: (value: string) => void }) {
+    configureOutput(output: {
+      writeOut?: (value: string) => void;
+      writeErr?: (value: string) => void;
+      outputError?: (
+        value: string,
+        write: (value: string) => void,
+      ) => void;
+    }) {
       this.configuredOutput = output;
     },
     exitOverride() {},
@@ -55,264 +92,26 @@ afterEach(() => {
   } else {
     process.env.PRIVACY_POOLS_HOME = ORIGINAL_PRIVACY_POOLS_HOME;
   }
+  if (ORIGINAL_PRIVACY_POOLS_CONFIG_DIR === undefined) {
+    delete process.env.PRIVACY_POOLS_CONFIG_DIR;
+  } else {
+    process.env.PRIVACY_POOLS_CONFIG_DIR = ORIGINAL_PRIVACY_POOLS_CONFIG_DIR;
+  }
+  if (ORIGINAL_CI === undefined) {
+    delete process.env.CI;
+  } else {
+    process.env.CI = ORIGINAL_CI;
+  }
+  if (ORIGINAL_CODESPACES === undefined) {
+    delete process.env.CODESPACES;
+  } else {
+    process.env.CODESPACES = ORIGINAL_CODESPACES;
+  }
+  setTty(Boolean(ORIGINAL_STDOUT_IS_TTY), Boolean(ORIGINAL_STDERR_IS_TTY));
   mock.restore();
 });
 
 describe("bootstrap runtime coverage", () => {
-  test("runStaticRootHelp emits the machine help envelope", async () => {
-    const { runStaticRootHelp } = await import(
-      "../../src/static-discovery.ts?static-root-help"
-    );
-    const { json, stderr } = await captureAsyncJsonOutput(() =>
-      runStaticRootHelp(true),
-    );
-
-    expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
-    expect(json.help).toContain("Usage: privacy-pools");
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticDiscoveryCommand serves capabilities in agent mode", async () => {
-    const { runStaticDiscoveryCommand } = await import(
-      "../../src/static-discovery.ts?static-capabilities"
-    );
-    const { json, stderr } = await captureAsyncJsonOutput(() =>
-      runStaticDiscoveryCommand(["capabilities", "--agent"]),
-    );
-
-    expect(json.success).toBe(true);
-    expect(json.commands).toEqual(expect.any(Array));
-    expect(json.commands.some((entry: { name: string }) => entry.name === "flow")).toBe(true);
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticDiscoveryCommand renders the guide in human mode", async () => {
-    const { runStaticDiscoveryCommand } = await import(
-      "../../src/static-discovery.ts?static-guide-human"
-    );
-    const { stdout, stderr } = await captureAsyncOutput(async () => {
-      const handled = await runStaticDiscoveryCommand(["guide"]);
-      expect(handled).toBe(true);
-    });
-
-    expect(stdout).toBe("");
-    expect(stderr).toContain("Privacy Pools: Quick Guide");
-    expect(stderr).toContain("migrate status");
-  });
-
-  test("runStaticDiscoveryCommand renders describe output in human mode", async () => {
-    const { runStaticDiscoveryCommand } = await import(
-      "../../src/static-discovery.ts?static-describe-human"
-    );
-    const { stdout, stderr } = await captureAsyncOutput(async () => {
-      const handled = await runStaticDiscoveryCommand(["describe", "withdraw", "quote"]);
-      expect(handled).toBe(true);
-    });
-
-    expect(stdout).toBe("");
-    expect(stderr).toContain("Command: withdraw quote");
-    expect(stderr).toContain("JSON fields:");
-  });
-
-  test("runStaticDiscoveryCommand returns structured errors for invalid describe paths", async () => {
-    const { runStaticDiscoveryCommand } = await import(
-      "../../src/static-discovery.ts?static-describe-error"
-    );
-    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(async () => {
-      const handled = await runStaticDiscoveryCommand([
-        "--json",
-        "describe",
-        "not-a-command",
-      ]);
-      expect(handled).toBe(true);
-    });
-
-    expect(exitCode).toBe(2);
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message).toContain("Unknown command path");
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticDiscoveryCommand rejects csv mode for static commands", async () => {
-    const { runStaticDiscoveryCommand } = await import(
-      "../../src/static-discovery.ts?static-guide-csv"
-    );
-    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(async () => {
-      const handled = await runStaticDiscoveryCommand([
-        "--format",
-        "csv",
-        "guide",
-      ]);
-      expect(handled).toBe(true);
-    });
-
-    expect(exitCode).toBe(2);
-    expect(stdout).toBe("");
-    expect(stderr).toContain("--format csv is not supported for 'guide'");
-  });
-
-  test("runStaticDiscoveryCommand returns false for non-static commands", async () => {
-    const { runStaticDiscoveryCommand } = await import(
-      "../../src/static-discovery.ts?static-false"
-    );
-    const { stdout, stderr } = await captureAsyncOutput(async () => {
-      const handled = await runStaticDiscoveryCommand(["status"]);
-      expect(handled).toBe(false);
-    });
-
-    expect(stdout).toBe("");
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticCompletionQuery returns completion candidates in JSON mode", async () => {
-    const { runStaticCompletionQuery } = await import(
-      "../../src/static-discovery.ts?static-completion"
-    );
-    const { json, stderr } = await captureAsyncJsonOutput(() =>
-      runStaticCompletionQuery([
-        "--json",
-        "completion",
-        "--query",
-        "--shell",
-        "bash",
-        "--cword",
-        "1",
-        "--",
-        "privacy-pools",
-        "flo",
-      ]),
-    );
-
-    expect(json.success).toBe(true);
-    expect(json.mode).toBe("completion-query");
-    expect(json.candidates).toContain("flow");
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticCompletionQuery renders human completion candidates", async () => {
-    const { runStaticCompletionQuery } = await import(
-      "../../src/static-discovery.ts?static-completion-human"
-    );
-    const { stdout, stderr } = await captureAsyncOutput(async () => {
-      const handled = await runStaticCompletionQuery([
-        "completion",
-        "--query",
-        "--shell",
-        "bash",
-        "--cword",
-        "1",
-        "--",
-        "privacy-pools",
-        "flo",
-      ]);
-      expect(handled).toBe(true);
-    });
-
-    expect(stdout.trim().split("\n")).toContain("flow");
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticCompletionQuery reports invalid shells in JSON mode", async () => {
-    const { runStaticCompletionQuery } = await import(
-      "../../src/static-discovery.ts?static-completion-invalid-shell"
-    );
-    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(async () => {
-      const handled = await runStaticCompletionQuery([
-        "--json",
-        "completion",
-        "--query",
-        "--shell",
-        "elvish",
-        "--",
-        "privacy-pools",
-      ]);
-      expect(handled).toBe(true);
-    });
-
-    expect(exitCode).toBe(2);
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message).toContain("Unsupported shell");
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticCompletionQuery reports invalid cword values in JSON mode", async () => {
-    const { runStaticCompletionQuery } = await import(
-      "../../src/static-discovery.ts?static-completion-invalid-cword"
-    );
-    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(async () => {
-      const handled = await runStaticCompletionQuery([
-        "--json",
-        "completion",
-        "--query",
-        "--shell",
-        "bash",
-        "--cword",
-        "-1",
-        "--",
-        "privacy-pools",
-      ]);
-      expect(handled).toBe(true);
-    });
-
-    expect(exitCode).toBe(2);
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message).toContain("Invalid --cword value");
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticCompletionQuery rejects csv output mode", async () => {
-    const { runStaticCompletionQuery } = await import(
-      "../../src/static-discovery.ts?static-completion-csv"
-    );
-    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(async () => {
-      const handled = await runStaticCompletionQuery([
-        "--format",
-        "csv",
-        "completion",
-        "--query",
-        "--shell",
-        "bash",
-        "--",
-        "privacy-pools",
-      ]);
-      expect(handled).toBe(true);
-    });
-
-    expect(exitCode).toBe(2);
-    expect(stdout).toBe("");
-    expect(stderr).toContain("--format csv is not supported for 'completion'");
-  });
-
-  test("runStaticCompletionQuery returns false when no query invocation is present", async () => {
-    const { runStaticCompletionQuery } = await import(
-      "../../src/static-discovery.ts?static-completion-false"
-    );
-    const { stdout, stderr } = await captureAsyncOutput(async () => {
-      const handled = await runStaticCompletionQuery(["completion", "bash"]);
-      expect(handled).toBe(false);
-    });
-
-    expect(stdout).toBe("");
-    expect(stderr).toBe("");
-  });
-
-  test("runStaticRootHelp writes styled human help to stdout", async () => {
-    const { runStaticRootHelp } = await import(
-      "../../src/static-discovery.ts?static-root-help-human"
-    );
-    const { stdout, stderr } = await captureAsyncOutput(() =>
-      runStaticRootHelp(false),
-    );
-
-    expect(stdout).toContain("Usage: privacy-pools");
-    expect(stdout).toContain("Get started:");
-    expect(stderr).toBe("");
-  });
-
   test("runCli prints the welcome screen and banner for bare invocation", async () => {
     const program = makeProgram(() => async () => {
       throw makeCommanderExit("commander.helpDisplayed");
@@ -488,6 +287,37 @@ describe("bootstrap runtime coverage", () => {
     expect(printBannerMock).not.toHaveBeenCalled();
   });
 
+  test("runCli styles human help output and commander errors for subcommands", async () => {
+    const program = makeProgram((configuredProgram) => async () => {
+      configuredProgram.configuredOutput.writeOut?.("help body");
+      configuredProgram.configuredOutput.writeErr?.("stderr note");
+      configuredProgram.configuredOutput.outputError?.(
+        "danger body",
+        (value: string) => configuredProgram.configuredOutput.writeErr?.(value),
+      );
+      throw makeCommanderExit("commander.help");
+    });
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+    mock.module("../../src/utils/root-help.ts", () => ({
+      styleCommanderHelp: (value: string) => `styled:${value}`,
+    }));
+    mock.module("../../src/utils/theme.ts", () => ({
+      dangerTone: (value: string) => `danger:${value}`,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?human-help-styling");
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      runCli({ version: "1.2.3" }, ["status", "--help"]),
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("styled:help body");
+    expect(stderr).toContain("stderr note");
+    expect(stderr).toContain("danger:danger body");
+  });
+
   test("runCli loads config-home dotenv for runtime commands", async () => {
     const dotenvConfigMock = mock(() => undefined);
     const program = makeProgram(() => async () => undefined);
@@ -507,6 +337,26 @@ describe("bootstrap runtime coverage", () => {
     });
   });
 
+  test("runCli loads config-home dotenv from PRIVACY_POOLS_CONFIG_DIR when home is unset", async () => {
+    const dotenvConfigMock = mock(() => undefined);
+    const program = makeProgram(() => async () => undefined);
+    delete process.env.PRIVACY_POOLS_HOME;
+    process.env.PRIVACY_POOLS_CONFIG_DIR = "/tmp/privacy-pools-config";
+    mock.module("dotenv", () => ({
+      config: dotenvConfigMock,
+    }));
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?dotenv-config-dir");
+    await captureAsyncOutput(() => runCli({ version: "1.2.3" }, ["status"]));
+
+    expect(dotenvConfigMock).toHaveBeenCalledWith({
+      path: "/tmp/privacy-pools-config/.env",
+    });
+  });
+
   test("runCli skips config-home dotenv for static local commands", async () => {
     const dotenvConfigMock = mock(() => undefined);
     const program = makeProgram(() => async () => undefined);
@@ -522,6 +372,222 @@ describe("bootstrap runtime coverage", () => {
     await captureAsyncOutput(() => runCli({ version: "1.2.3" }, ["guide"]));
 
     expect(dotenvConfigMock).not.toHaveBeenCalled();
+  });
+
+  test("runCli starts the background update check for interactive runtime commands", async () => {
+    const checkForUpdateInBackgroundMock = mock(() => undefined);
+    const getUpdateNoticeMock = mock(() => null);
+    const program = makeProgram(() => async () => undefined);
+    setTty(true);
+
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+    mock.module("../../src/utils/update-check.ts", () => ({
+      checkForUpdateInBackground: checkForUpdateInBackgroundMock,
+      getUpdateNotice: getUpdateNoticeMock,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?update-check-runtime");
+    await captureAsyncOutput(() => runCli({ version: "1.2.3" }, ["status"]));
+
+    expect(checkForUpdateInBackgroundMock).toHaveBeenCalledTimes(1);
+    expect(getUpdateNoticeMock).not.toHaveBeenCalled();
+  });
+
+  test("runCli keeps static local commands out of the background update path", async () => {
+    const checkForUpdateInBackgroundMock = mock(() => undefined);
+    const program = makeProgram(() => async () => undefined);
+    setTty(true);
+
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+    mock.module("../../src/utils/update-check.ts", () => ({
+      checkForUpdateInBackground: checkForUpdateInBackgroundMock,
+      getUpdateNotice: () => null,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?update-check-static-local");
+    await captureAsyncOutput(() => runCli({ version: "1.2.3" }, ["guide"]));
+
+    expect(checkForUpdateInBackgroundMock).not.toHaveBeenCalled();
+  });
+
+  test("runCli suppresses the background update check in CI mode", async () => {
+    const checkForUpdateInBackgroundMock = mock(() => undefined);
+    const program = makeProgram(() => async () => undefined);
+    process.env.CI = "1";
+    setTty(true);
+
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+    mock.module("../../src/utils/update-check.ts", () => ({
+      checkForUpdateInBackground: checkForUpdateInBackgroundMock,
+      getUpdateNotice: () => null,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?update-check-ci");
+    await captureAsyncOutput(() => runCli({ version: "1.2.3" }, ["status"]));
+
+    expect(checkForUpdateInBackgroundMock).not.toHaveBeenCalled();
+  });
+
+  test("runCli applies machine-mode output overrides recursively", async () => {
+    function makeTrackedCommand() {
+      return {
+        configuredOutput: {} as {
+          writeOut?: (value: string) => void;
+          writeErr?: (value: string) => void;
+          outputError?: (
+            value: string,
+            write: (value: string) => void,
+          ) => void;
+        },
+        commands: [] as Array<any>,
+        suggestionArgs: [] as boolean[],
+        helpArgs: [] as Array<string | boolean>,
+        configureOutput(output: {
+          writeOut?: (value: string) => void;
+          writeErr?: (value: string) => void;
+          outputError?: (
+            value: string,
+            write: (value: string) => void,
+          ) => void;
+        }) {
+          this.configuredOutput = output;
+        },
+        showSuggestionAfterError(value: boolean) {
+          this.suggestionArgs.push(value);
+        },
+        showHelpAfterError(value: string | boolean) {
+          this.helpArgs.push(value);
+        },
+        exitOverride: mock(() => undefined),
+      };
+    }
+
+    const child = makeTrackedCommand();
+    const program = makeProgram((configuredProgram) => async () => {
+      configuredProgram.configuredOutput.writeOut?.("machine body");
+      configuredProgram.configuredOutput.writeErr?.("suppressed warning");
+    }) as ReturnType<typeof makeProgram> & {
+      commands: Array<any>;
+      suggestionArgs: boolean[];
+      helpArgs: Array<string | boolean>;
+      exitOverride: ReturnType<typeof mock>;
+    };
+    Object.assign(program, makeTrackedCommand());
+    program.commands = [child];
+
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?machine-recursion");
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      runCli({ version: "1.2.3" }, ["--json", "status"]),
+    );
+
+    expect(stdout).toContain("machine body");
+    expect(stderr).toBe("");
+    expect(program.suggestionArgs).toContain(false);
+    expect(program.helpArgs).toContain(false);
+    expect(program.exitOverride).toHaveBeenCalledTimes(1);
+    expect(child.suggestionArgs).toContain(false);
+    expect(child.helpArgs).toContain(false);
+    expect(child.exitOverride).toHaveBeenCalledTimes(1);
+  });
+
+  test("runCli welcome output includes the current update notice for interactive users", async () => {
+    const program = makeProgram(() => async () => {
+      throw makeCommanderExit("commander.helpDisplayed");
+    });
+    const printBannerMock = mock(async () => undefined);
+    const checkForUpdateInBackgroundMock = mock(() => undefined);
+    setTty(true);
+
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+    mock.module("../../src/utils/banner.ts", () => ({
+      printBanner: printBannerMock,
+    }));
+    mock.module("../../src/utils/help.ts", () => ({
+      ...realHelp,
+      welcomeScreen: () => "welcome body",
+    }));
+    mock.module("../../src/utils/update-check.ts", () => ({
+      checkForUpdateInBackground: checkForUpdateInBackgroundMock,
+      getUpdateNotice: () => "new version available",
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?welcome-update-notice");
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      runCli({ version: "1.2.3", repository: "https://github.com/example/repo" }, []),
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("welcome body");
+    expect(stderr).toContain("new version available");
+    expect(printBannerMock).toHaveBeenCalledTimes(1);
+    expect(checkForUpdateInBackgroundMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("runCli supports bundled short flags for quiet welcome invocations", async () => {
+    const { runCli } = await import("../../src/cli-main.ts?quiet-short-bundle");
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      runCli(
+        { version: "1.2.3", repository: "https://github.com/example/repo" },
+        ["-qy", "--timeout=5", "--chain=mainnet"],
+      ),
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  });
+
+  test("runCli accepts both inline and split --format json for bare root help", async () => {
+    const inlineCli = await import("../../src/cli-main.ts?format-inline-json-help");
+    const inline = await captureAsyncJsonOutputAllowExit(() =>
+      inlineCli.runCli({ version: "1.2.3" }, ["--format=json"]),
+    );
+    expect(inline.exitCode).toBe(0);
+    expect(inline.json.success).toBe(true);
+    expect(inline.json.mode).toBe("help");
+    expect(inline.stderr).toBe("");
+
+    const splitCli = await import("../../src/cli-main.ts?format-split-json-help");
+    const split = await captureAsyncJsonOutputAllowExit(() =>
+      splitCli.runCli({ version: "1.2.3" }, ["--format", "json"]),
+    );
+    expect(split.exitCode).toBe(0);
+    expect(split.json.success).toBe(true);
+    expect(split.json.mode).toBe("help");
+    expect(split.stderr).toBe("");
+  });
+
+  test("runCli captures structured subcommand help for unsigned invocations", async () => {
+    const program = makeProgram((configuredProgram) => async () => {
+      configuredProgram.configuredOutput.writeOut?.("unsigned help");
+      throw makeCommanderExit("commander.help");
+    });
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?unsigned-help-runtime");
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      runCli({ version: "1.2.3" }, ["--unsigned", "withdraw", "--help"]),
+    );
+
+    expect(exitCode).toBe(0);
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("help");
+    expect(json.help).toBe("unsigned help");
+    expect(stderr).toBe("");
   });
 
   test("index routes root help through the static discovery fast path", async () => {
@@ -554,6 +620,251 @@ describe("bootstrap runtime coverage", () => {
     expect(installConsoleGuardMock).toHaveBeenCalledTimes(1);
     expect(runStaticRootHelpMock).toHaveBeenCalledWith(false);
     expect(runCliMock).not.toHaveBeenCalled();
+  });
+
+  test("index serves structured root help through the static fast path", async () => {
+    const runStaticRootHelpMock = mock(async () => undefined);
+    const runCliMock = mock(async () => undefined);
+
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticRootHelp: runStaticRootHelpMock,
+      runStaticCompletionQuery: async () => false,
+      runStaticDiscoveryCommand: async () => false,
+    }));
+    mock.module("../../src/cli-main.ts", () => ({
+      runCli: runCliMock,
+    }));
+
+    process.argv = ["node", "privacy-pools", "--json", "--help"];
+
+    const { exitCode } = await captureAsyncOutputAllowExit(async () => {
+      await import(`../../src/index.ts?root-help-structured=${Date.now()}`);
+    });
+
+    expect(exitCode).toBe(0);
+    expect(runStaticRootHelpMock).toHaveBeenCalledWith(true);
+    expect(runCliMock).not.toHaveBeenCalled();
+  });
+
+  test("index routes completion queries through the static completion fast path", async () => {
+    const runStaticRootHelpMock = mock(async () => undefined);
+    const runStaticCompletionQueryMock = mock(async () => true);
+    const runStaticDiscoveryCommandMock = mock(async () => false);
+    const runCliMock = mock(async () => undefined);
+
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticRootHelp: runStaticRootHelpMock,
+      runStaticCompletionQuery: runStaticCompletionQueryMock,
+      runStaticDiscoveryCommand: runStaticDiscoveryCommandMock,
+    }));
+    mock.module("../../src/cli-main.ts", () => ({
+      runCli: runCliMock,
+    }));
+
+    process.argv = ["node", "privacy-pools", "completion", "--query", "--words", "privacy-pools st"];
+
+    const { exitCode } = await captureAsyncOutputAllowExit(async () => {
+      await import(`../../src/index.ts?completion-fast-path=${Date.now()}`);
+    });
+
+    expect(exitCode).toBe(0);
+    expect(runStaticCompletionQueryMock).toHaveBeenCalledWith([
+      "completion",
+      "--query",
+      "--words",
+      "privacy-pools st",
+    ]);
+    expect(runCliMock).not.toHaveBeenCalled();
+    expect(runStaticDiscoveryCommandMock).not.toHaveBeenCalled();
+    expect(runStaticRootHelpMock).not.toHaveBeenCalled();
+  });
+
+  test("index falls back to runCli when the completion fast path declines the argv", async () => {
+    const runCliMock = mock(async () => undefined);
+
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticRootHelp: async () => undefined,
+      runStaticCompletionQuery: async () => false,
+      runStaticDiscoveryCommand: async () => false,
+    }));
+    mock.module("../../src/cli-main.ts", () => ({
+      runCli: runCliMock,
+    }));
+
+    process.argv = [
+      "node",
+      "privacy-pools",
+      "completion",
+      "--query",
+      "--words",
+      "privacy-pools st",
+    ];
+
+    await captureAsyncOutput(async () => {
+      await import(`../../src/index.ts?completion-fallthrough=${Date.now()}`);
+    });
+
+    expect(runCliMock).toHaveBeenCalledWith(
+      expect.objectContaining({ version: expect.any(String) }),
+      ["completion", "--query", "--words", "privacy-pools st"],
+    );
+  });
+
+  test("index routes guide through the static discovery command fast path", async () => {
+    const runStaticCompletionQueryMock = mock(async () => false);
+    const runStaticDiscoveryCommandMock = mock(async () => true);
+    const runCliMock = mock(async () => undefined);
+
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticRootHelp: async () => undefined,
+      runStaticCompletionQuery: runStaticCompletionQueryMock,
+      runStaticDiscoveryCommand: runStaticDiscoveryCommandMock,
+    }));
+    mock.module("../../src/cli-main.ts", () => ({
+      runCli: runCliMock,
+    }));
+
+    process.argv = ["node", "privacy-pools", "guide", "--json"];
+
+    const { exitCode } = await captureAsyncOutputAllowExit(async () => {
+      await import(`../../src/index.ts?discovery-fast-path=${Date.now()}`);
+    });
+
+    expect(exitCode).toBe(0);
+    expect(runStaticCompletionQueryMock).not.toHaveBeenCalled();
+    expect(runStaticDiscoveryCommandMock).toHaveBeenCalledWith(["guide", "--json"]);
+    expect(runCliMock).not.toHaveBeenCalled();
+  });
+
+  test("index falls back to runCli when the static discovery fast path declines", async () => {
+    const runCliMock = mock(async () => undefined);
+
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticRootHelp: async () => undefined,
+      runStaticCompletionQuery: async () => false,
+      runStaticDiscoveryCommand: async () => false,
+    }));
+    mock.module("../../src/cli-main.ts", () => ({
+      runCli: runCliMock,
+    }));
+
+    process.argv = ["node", "privacy-pools", "guide", "--json"];
+
+    await captureAsyncOutput(async () => {
+      await import(`../../src/index.ts?discovery-fallthrough=${Date.now()}`);
+    });
+
+    expect(runCliMock).toHaveBeenCalledWith(
+      expect.objectContaining({ version: expect.any(String) }),
+      ["guide", "--json"],
+    );
+  });
+
+  test("index serves the root version fast path in human and structured modes", async () => {
+    process.argv = ["node", "privacy-pools", "-V"];
+    const human = await captureAsyncOutputAllowExit(async () => {
+      await import(`../../src/index.ts?version-human-fast-path=${Date.now()}`);
+    });
+
+    expect(human.exitCode).toBe(0);
+    expect(human.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+    expect(human.stderr).toBe("");
+
+    process.argv = ["node", "privacy-pools", "--format=json", "--version"];
+    const structured = await captureAsyncJsonOutputAllowExit(async () => {
+      await import(`../../src/index.ts?version-json-fast-path=${Date.now()}`);
+    });
+
+    expect(structured.exitCode).toBe(0);
+    expect(structured.json.success).toBe(true);
+    expect(structured.json.mode).toBe("version");
+    expect(structured.json.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(structured.stderr).toBe("");
+  });
+
+  test("index routes root help after skipping root option values", async () => {
+    const runStaticRootHelpMock = mock(async () => undefined);
+    const runCliMock = mock(async () => undefined);
+
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticRootHelp: runStaticRootHelpMock,
+      runStaticCompletionQuery: async () => false,
+      runStaticDiscoveryCommand: async () => false,
+    }));
+    mock.module("../../src/cli-main.ts", () => ({
+      runCli: runCliMock,
+    }));
+
+    process.argv = ["node", "privacy-pools", "--chain", "mainnet", "help"];
+
+    const { exitCode } = await captureAsyncOutputAllowExit(async () => {
+      await import(`../../src/index.ts?root-help-after-root-option=${Date.now()}`);
+    });
+
+    expect(exitCode).toBe(0);
+    expect(runStaticRootHelpMock).toHaveBeenCalledWith(false);
+    expect(runCliMock).not.toHaveBeenCalled();
+  });
+
+  test("index routes structured root help when --format json is split across tokens", async () => {
+    const runStaticRootHelpMock = mock(async () => undefined);
+    const runCliMock = mock(async () => undefined);
+
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticRootHelp: runStaticRootHelpMock,
+      runStaticCompletionQuery: async () => false,
+      runStaticDiscoveryCommand: async () => false,
+    }));
+    mock.module("../../src/cli-main.ts", () => ({
+      runCli: runCliMock,
+    }));
+
+    process.argv = ["node", "privacy-pools", "--format", "json", "help"];
+
+    const { exitCode } = await captureAsyncOutputAllowExit(async () => {
+      await import(`../../src/index.ts?root-help-format-split=${Date.now()}`);
+    });
+
+    expect(exitCode).toBe(0);
+    expect(runStaticRootHelpMock).toHaveBeenCalledWith(true);
+    expect(runCliMock).not.toHaveBeenCalled();
+  });
+
+  test("index serves the structured root version fast path for agent mode", async () => {
+    process.argv = ["node", "privacy-pools", "--agent", "--version"];
+
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(
+      async () => {
+        await import(`../../src/index.ts?version-agent-fast-path=${Date.now()}`);
+      },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("version");
+    expect(String(json.version)).toMatch(/^\d+\.\d+\.\d+/);
+    expect(stderr).toBe("");
+  });
+
+  test("index sets NO_COLOR before delegating to the full cli path", async () => {
+    const runCliMock = mock(async () => {
+      expect(process.env.NO_COLOR).toBe("1");
+    });
+
+    mock.module("../../src/cli-main.ts", () => ({
+      runCli: runCliMock,
+    }));
+
+    process.argv = ["node", "privacy-pools", "--no-color", "status"];
+
+    await captureAsyncOutput(async () => {
+      await import(`../../src/index.ts?no-color-delegation=${Date.now()}`);
+    });
+
+    expect(runCliMock).toHaveBeenCalledWith(
+      expect.objectContaining({ version: expect.any(String) }),
+      ["--no-color", "status"],
+    );
   });
 
   test("index delegates non-fast invocations to runCli", async () => {

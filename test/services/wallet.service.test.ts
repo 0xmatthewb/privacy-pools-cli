@@ -221,6 +221,8 @@ describe("wallet service", () => {
         }
         if (origKey !== undefined) {
           process.env.PRIVACY_POOLS_PRIVATE_KEY = origKey;
+        } else {
+          delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
         }
       }
     });

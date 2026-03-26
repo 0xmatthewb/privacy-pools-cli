@@ -41,8 +41,6 @@ export const ACCOUNT_READONLY_HANDLERS_TEST =
   "./test/unit/account-readonly-command-handlers.unit.test.ts";
 export const BOOTSTRAP_RUNTIME_TEST =
   "./test/unit/bootstrap-runtime.unit.test.ts";
-export const CLI_MAIN_COVERAGE_TEST =
-  "./test/unit/cli-main.coverage.unit.test.ts";
 export const INIT_INTERACTIVE_TEST =
   "./test/unit/init-command-interactive.unit.test.ts";
 export const DEPOSIT_HANDLER_TEST =
@@ -75,6 +73,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "bun still reuses mocked wallet and sdk modules from this suite across later imports under the shared module cache",
   },
   {
     label: "proofs-service",
@@ -82,6 +82,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "mocks snarkjs and circuit provisioning modules across the proof stack",
   },
   {
     label: "workflow-mocked",
@@ -89,6 +91,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "installs a broad workflow mock graph spanning prompts, relayer, contracts, and sdk services",
   },
   {
     label: "workflow-service",
@@ -96,6 +100,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    reason:
+      "coverage instrumentation still makes the large workflow service suite memory-heavy",
   },
   {
     label: "workflow-internal",
@@ -103,20 +109,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
-  },
-  {
-    label: "account-sync-meta",
-    tests: [ACCOUNT_SYNC_META_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
-  },
-  {
-    label: "flow-handlers",
-    tests: [FLOW_HANDLERS_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    reason:
+      "installs deep workflow-internal mocks that still collide under Bun's shared module state",
   },
   {
     label: "account-handler-errors",
@@ -124,6 +118,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "even with per-test restore, Bun still reuses mocked output/common and account modules across later imports in the shared main batch",
   },
   {
     label: "account-readonly-handlers",
@@ -131,20 +127,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
-  },
-  {
-    label: "bootstrap-runtime",
-    tests: [BOOTSTRAP_RUNTIME_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
-  },
-  {
-    label: "cli-main-coverage",
-    tests: [CLI_MAIN_COVERAGE_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    reason:
+      "mocks shared account, sdk, pools, and migration modules that still leak under Bun's shared module cache",
   },
   {
     label: "init-interactive",
@@ -152,6 +136,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "replaces the prompt module globally and still collides with other prompt-driven suites",
   },
   {
     label: "deposit-handler",
@@ -159,6 +145,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "mocks shared deposit dependencies across account, contracts, and viem modules",
   },
   {
     label: "withdraw-handler",
@@ -166,6 +154,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "mocks shared withdraw dependencies across prompts, proofs, relayer, and contracts modules",
   },
   {
     label: "ragequit-handler",
@@ -173,6 +163,8 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "mocks shared ragequit dependencies across proofs, contracts, and account modules",
   },
   {
     label: "pools-handler",
@@ -180,13 +172,26 @@ export const ISOLATED_SUITES = [
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    reason:
+      "mocks shared pool discovery and wallet-state modules that still overlap with other read-only handlers",
   },
   {
-    label: "built-entrypoint",
-    tests: [BUILT_ENTRYPOINT_TEST],
-    timeoutMs: 240_000,
+    label: "flow-handlers",
+    tests: [FLOW_HANDLERS_TEST],
+    timeoutMs: 120_000,
     isolateInDefaultTest: true,
-    isolateInCoverage: false,
+    isolateInCoverage: true,
+    reason:
+      "even with per-test restore, Bun still reuses mocked workflow and output modules across later shared-batch imports",
+  },
+  {
+    label: "bootstrap-runtime",
+    tests: [BOOTSTRAP_RUNTIME_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    reason:
+      "index and cli bootstrap tests still leak mocked help, static-discovery, and cli-main modules across later imports under Bun's shared module cache",
   },
 ];
 

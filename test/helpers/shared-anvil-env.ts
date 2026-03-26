@@ -51,13 +51,16 @@ export function loadSharedAnvilEnv(): SharedAnvilEnv {
 
 export function sharedAnvilCliEnv(env: SharedAnvilEnv): Record<string, string> {
   const suffix = env.chainName.replace(/[^a-z0-9]/gi, "_").toUpperCase();
+  const sharedEnvFile = process.env.PP_ANVIL_SHARED_ENV_FILE?.trim();
   return {
+    PP_ANVIL_E2E: "1",
+    ...(sharedEnvFile
+      ? { PP_ANVIL_SHARED_ENV_FILE: resolve(sharedEnvFile) }
+      : {}),
     [`PRIVACY_POOLS_RPC_URL_${suffix}`]: env.rpcUrl,
     PRIVACY_POOLS_ASP_HOST: env.aspUrl,
     PRIVACY_POOLS_RELAYER_HOST: env.relayerUrl,
     PRIVACY_POOLS_CIRCUITS_DIR: env.circuitsDir,
-    [`PP_TEST_ENTRYPOINT_${suffix}`]: env.entrypoint,
-    [`PP_TEST_START_BLOCK_${suffix}`]: String(env.startBlock),
   };
 }
 

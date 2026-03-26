@@ -118,6 +118,15 @@ function dedupeSortedChainIds(chainIds: readonly number[]): number[] {
   return [...new Set(chainIds)].sort((a, b) => a - b);
 }
 
+export const migrateCommandTestInternals = {
+  createCoverageLimitationWarning,
+  formatMigrationLoadingText,
+  formatIncompleteMigrationReviewWarning,
+  summarizeInitErrors,
+  normalizeTopLevelMigrationStatus,
+  dedupeSortedChainIds,
+};
+
 export function summarizeMigrationStatusState(
   chainReadiness: readonly MigrationChainRenderData[],
   additionalUnresolvedChainIds: readonly number[] = [],

@@ -25,6 +25,10 @@ import {
   createTrackedTempDir,
 } from "../helpers/temp.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
+import {
+  expectPrintedRawTransactions,
+  expectUnsignedTransactions,
+} from "../helpers/unsigned-assertions.ts";
 
 const realAccount = await import("../../src/services/account.ts");
 
@@ -337,17 +341,16 @@ describe("ragequit command handler", () => {
     expect(json.success).toBe(true);
     expect(json.mode).toBe("unsigned");
     expect(json.operation).toBe("ragequit");
-    expect(json.transactions).toHaveLength(1);
     expect(json.poolAccountId).toBe("PA-1");
-    expect(json.transactions[0]).toEqual(
-      expect.objectContaining({
+    expectUnsignedTransactions(json.transactions, [
+      {
         chainId: 1,
         from: null,
         to: ETH_POOL.pool,
         value: "0",
         description: "Ragequit from Privacy Pool",
-      }),
-    );
+      },
+    ]);
   });
 
   test("prints raw unsigned transactions when --unsigned tx is requested", async () => {
@@ -366,14 +369,13 @@ describe("ragequit command handler", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
-    expect(printRawTransactionsMock).toHaveBeenCalledTimes(1);
-    expect(printRawTransactionsMock.mock.calls[0]?.[0]).toEqual([
-      expect.objectContaining({
+    expectPrintedRawTransactions(printRawTransactionsMock, [
+      {
         chainId: 1,
         to: ETH_POOL.pool,
         value: "0",
         description: "Ragequit from Privacy Pool",
-      }),
+      },
     ]);
   });
 

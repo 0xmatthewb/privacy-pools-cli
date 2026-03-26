@@ -7,17 +7,10 @@ import {
 } from "viem/chains";
 import type { Address } from "viem";
 import type { ChainConfig } from "../types.js";
+import { resolveSharedAnvilChainOverride } from "./test-chain-overrides.js";
 
 function normalizedChainEnvSuffix(chainName: string): string {
   return chainName.replace(/[^a-z0-9]/gi, "_").toUpperCase();
-}
-
-function resolveTestOverride(
-  field: "ENTRYPOINT" | "START_BLOCK",
-  chainName: string,
-): string | undefined {
-  const chainSuffix = normalizedChainEnvSuffix(chainName);
-  return process.env[`PP_TEST_${field}_${chainSuffix}`]?.trim() || undefined;
 }
 
 function resolveHostOverride(
@@ -40,25 +33,19 @@ function resolveHostOverride(
 export function resolveChainOverrides(config: ChainConfig): ChainConfig {
   const aspHostOverride = resolveHostOverride("ASP_HOST", config.name);
   const relayerHostOverride = resolveHostOverride("RELAYER_HOST", config.name);
-  const entrypointOverride = resolveTestOverride("ENTRYPOINT", config.name);
-  const startBlockOverride = resolveTestOverride("START_BLOCK", config.name);
+  const sharedAnvilOverride = resolveSharedAnvilChainOverride(config);
   if (
     !aspHostOverride
     && !relayerHostOverride
-    && !entrypointOverride
-    && !startBlockOverride
+    && !sharedAnvilOverride
   ) {
     return config;
   }
 
-  const parsedStartBlock = startBlockOverride
-    ? BigInt(startBlockOverride)
-    : config.startBlock;
   return {
     ...config,
-    // Internal test-only hook for self-contained local Anvil harnesses.
-    entrypoint: (entrypointOverride ?? config.entrypoint) as Address,
-    startBlock: parsedStartBlock,
+    entrypoint: (sharedAnvilOverride?.entrypoint ?? config.entrypoint) as Address,
+    startBlock: sharedAnvilOverride?.startBlock ?? config.startBlock,
     aspHost: aspHostOverride ?? config.aspHost,
     relayerHost: relayerHostOverride ?? config.relayerHost,
   };

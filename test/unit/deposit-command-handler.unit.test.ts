@@ -25,6 +25,7 @@ import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
+import { expectUnsignedTransactions } from "../helpers/unsigned-assertions.ts";
 
 const realAccount = await import("../../src/services/account.ts");
 const realViem = await import("viem");
@@ -351,29 +352,23 @@ describe("deposit command handler", () => {
     expect(json.mode).toBe("unsigned");
     expect(json.operation).toBe("deposit");
     expect(json.asset).toBe("USDC");
-    expect(json.transactions).toHaveLength(2);
     expect(json.precommitment).toBe("777");
-    expect(json.transactions).toEqual([
-      expect.objectContaining({
+    expectUnsignedTransactions(json.transactions, [
+      {
         chainId: 1,
         from: null,
         to: USDC_POOL.asset,
         value: "0",
         description: "Approve ERC-20 allowance for Entrypoint",
-      }),
-      expect.objectContaining({
+      },
+      {
         chainId: 1,
         from: null,
         to: CHAINS.mainnet.entrypoint,
-      }),
-    ]);
-    expect(json.transactions[1]).toEqual(
-      expect.objectContaining({
-        to: CHAINS.mainnet.entrypoint,
         value: "0",
         description: "Deposit USDC into Privacy Pool",
-      }),
-    );
+      },
+    ]);
   });
 
   test("prints raw unsigned transactions when --unsigned tx is requested", async () => {
@@ -390,20 +385,19 @@ describe("deposit command handler", () => {
     );
 
     const transactions = JSON.parse(stdout) as Array<Record<string, unknown>>;
-    expect(transactions).toHaveLength(2);
-    expect(transactions).toEqual([
-      expect.objectContaining({
+    expectUnsignedTransactions(transactions, [
+      {
         chainId: 1,
         to: USDC_POOL.asset,
         value: "0",
         description: "Approve ERC-20 allowance for Entrypoint",
-      }),
-      expect.objectContaining({
+      },
+      {
         chainId: 1,
         to: CHAINS.mainnet.entrypoint,
         value: "0",
         description: "Deposit USDC into Privacy Pool",
-      }),
+      },
     ]);
     expect(stderr).toBe("");
   });

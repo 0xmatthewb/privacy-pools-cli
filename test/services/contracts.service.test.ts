@@ -1,4 +1,5 @@
 import {
+  beforeAll,
   afterAll,
   afterEach,
   beforeEach,
@@ -23,6 +24,10 @@ import {
   privacyPoolRagequitAbi,
   privacyPoolWithdrawAbi,
 } from "../../src/utils/unsigned-flows.ts";
+import {
+  installModuleMocks,
+  restoreModuleMocks,
+} from "../helpers/module-mocks.ts";
 
 let simulateShouldRevert = false;
 let simulateRevertReason = "";
@@ -123,27 +128,11 @@ const realMode = await import("../../src/utils/mode.ts");
 const getHealthyRpcUrlMock = mock(async (_chainId: number, _override?: string) => rpcServerUrl);
 const loadPrivateKeyMock = mock(() => TEST_PRIVATE_KEY);
 
-mock.module("../../src/services/wallet.ts", () => ({
-  ...realWallet,
-  loadPrivateKey: loadPrivateKeyMock,
-}));
-
-mock.module("../../src/services/sdk.ts", () => ({
-  ...realSdk,
-  getHealthyRpcUrl: getHealthyRpcUrlMock,
-}));
-
-mock.module("../../src/utils/mode.ts", () => ({
-  ...realMode,
-}));
-
-const {
-  approveERC20,
-  depositETH,
-  depositERC20,
-  ragequit,
-  withdrawDirect,
-} = await import("../../src/services/contracts.ts");
+let approveERC20: typeof import("../../src/services/contracts.ts").approveERC20;
+let depositETH: typeof import("../../src/services/contracts.ts").depositETH;
+let depositERC20: typeof import("../../src/services/contracts.ts").depositERC20;
+let ragequit: typeof import("../../src/services/contracts.ts").ragequit;
+let withdrawDirect: typeof import("../../src/services/contracts.ts").withdrawDirect;
 
 const chain = CHAINS.mainnet;
 
@@ -221,6 +210,39 @@ function expectSubmittedContractWrite(params: {
 }
 
 describe("contracts service", () => {
+  beforeAll(async () => {
+    installModuleMocks([
+      [
+        "../../src/services/wallet.ts",
+        () => ({
+          ...realWallet,
+          loadPrivateKey: loadPrivateKeyMock,
+        }),
+      ],
+      [
+        "../../src/services/sdk.ts",
+        () => ({
+          ...realSdk,
+          getHealthyRpcUrl: getHealthyRpcUrlMock,
+        }),
+      ],
+      [
+        "../../src/utils/mode.ts",
+        () => ({
+          ...realMode,
+        }),
+      ],
+    ]);
+
+    ({
+      approveERC20,
+      depositETH,
+      depositERC20,
+      ragequit,
+      withdrawDirect,
+    } = await import("../../src/services/contracts.ts?contracts-service"));
+  });
+
   beforeEach(async () => {
     capturedCalls = [];
     simulateShouldRevert = false;
@@ -244,7 +266,7 @@ describe("contracts service", () => {
   });
 
   afterAll(() => {
-    mock.restore();
+    restoreModuleMocks();
   });
 
   test("approveERC20 simulates and submits the transaction", async () => {

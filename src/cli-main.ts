@@ -411,3 +411,14 @@ export async function runCli(
     printError(err, isStructuredOutputMode);
   }
 }
+
+export const cliMainTestInternals = {
+  normalizeRepositoryUrl,
+  hasShortFlag,
+  readLongOptionValue,
+  isWelcomeShortFlagBundle,
+  firstNonOptionToken,
+  isWelcomeFlagOnlyInvocation,
+  mapCommanderError,
+  shouldStartUpdateCheck,
+};

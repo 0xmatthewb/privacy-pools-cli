@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  migrateCommandTestInternals,
   summarizeMigrationStatusState,
   type MigrationStatusSummaryState,
 } from "../../src/commands/migrate.ts";
@@ -140,5 +141,94 @@ describe("summarizeMigrationStatusState", () => {
     expect(result.isFullyMigrated).toBe(false);
     expect(result.readinessResolved).toBe(false);
     expect(result.unresolvedChainIds).toEqual([42161]);
+  });
+});
+
+describe("migrate command internal helpers", () => {
+  test("format helpers keep the loading and warning copy stable", () => {
+    expect(
+      migrateCommandTestInternals.formatMigrationLoadingText(false),
+    ).toBe("Checking legacy migration readiness across mainnet chains...");
+    expect(
+      migrateCommandTestInternals.formatMigrationLoadingText(true, 2, 3),
+    ).toBe(
+      "Checking legacy migration readiness across all chains... (2/3 complete)",
+    );
+    expect(
+      migrateCommandTestInternals.createCoverageLimitationWarning("mainnet"),
+    ).toEqual(
+      expect.objectContaining({
+        chain: "mainnet",
+        category: "COVERAGE",
+      }),
+    );
+    expect(
+      migrateCommandTestInternals.formatIncompleteMigrationReviewWarning(
+        "optimism",
+      ),
+    ).toContain("optimism");
+  });
+
+  test("summary helpers keep top-level migration readiness deterministic", () => {
+    expect(
+      migrateCommandTestInternals.normalizeTopLevelMigrationStatus(
+        [
+          {
+            chain: "mainnet",
+            chainId: 1,
+            status: "fully_migrated",
+            candidateLegacyCommitments: 1,
+            expectedLegacyCommitments: 1,
+            migratedCommitments: 1,
+            legacyMasterSeedNullifiedCount: 1,
+            hasPostMigrationCommitments: true,
+            isMigrated: true,
+            legacySpendableCommitments: 0,
+            upgradedSpendableCommitments: 1,
+            declinedLegacyCommitments: 0,
+            reviewStatusComplete: true,
+            requiresMigration: false,
+            requiresWebsiteRecovery: false,
+            scopes: [],
+          },
+        ],
+        [10],
+      ),
+    ).toBe("review_incomplete");
+
+    expect(
+      migrateCommandTestInternals.normalizeTopLevelMigrationStatus([
+        {
+          chain: "optimism",
+          chainId: 10,
+          status: "website_recovery_required",
+          candidateLegacyCommitments: 0,
+          expectedLegacyCommitments: 0,
+          migratedCommitments: 0,
+          legacyMasterSeedNullifiedCount: 0,
+          hasPostMigrationCommitments: false,
+          isMigrated: false,
+          legacySpendableCommitments: 0,
+          upgradedSpendableCommitments: 0,
+          declinedLegacyCommitments: 1,
+          reviewStatusComplete: true,
+          requiresMigration: false,
+          requiresWebsiteRecovery: true,
+          scopes: [],
+        },
+      ]),
+    ).toBe("website_recovery_required");
+
+    expect(
+      migrateCommandTestInternals.summarizeInitErrors([
+        { scope: 1n, reason: "one" },
+        { scope: 2n, reason: "two" },
+        { scope: 3n, reason: "three" },
+        { scope: 4n, reason: "four" },
+      ]),
+    ).toBe("scope 1: one; scope 2: two; scope 3: three");
+    expect(
+      migrateCommandTestInternals.dedupeSortedChainIds([10, 1, 10, 42161]),
+    ).toEqual([1, 10, 42161]);
   });
 });

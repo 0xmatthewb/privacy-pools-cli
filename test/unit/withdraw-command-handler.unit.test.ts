@@ -25,6 +25,10 @@ import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
+import {
+  expectPrintedRawTransactions,
+  expectUnsignedTransactions,
+} from "../helpers/unsigned-assertions.ts";
 
 const realAccount = await import("../../src/services/account.ts");
 const realSdkPackage = await import("@0xbow/privacy-pools-core-sdk");
@@ -525,17 +529,16 @@ describe("withdraw command handler", () => {
     expect(json.success).toBe(true);
     expect(json.mode).toBe("unsigned");
     expect(json.withdrawMode).toBe("direct");
-    expect(json.transactions).toHaveLength(1);
     expect(json.poolAccountId).toBe("PA-1");
-    expect(json.transactions[0]).toEqual(
-      expect.objectContaining({
+    expectUnsignedTransactions(json.transactions, [
+      {
         chainId: 1,
         from: null,
         to: ETH_POOL.pool,
         value: "0",
         description: "Direct withdraw from Privacy Pool",
-      }),
-    );
+      },
+    ]);
   });
 
   test("builds an unsigned relayed withdrawal with the relayer request envelope", async () => {
@@ -566,16 +569,15 @@ describe("withdraw command handler", () => {
         }),
       }),
     );
-    expect(json.transactions).toHaveLength(1);
-    expect(json.transactions[0]).toEqual(
-      expect.objectContaining({
+    expectUnsignedTransactions(json.transactions, [
+      {
         chainId: 1,
         from: null,
         to: CHAINS.mainnet.entrypoint,
         value: "0",
         description: "Relay withdrawal through Entrypoint",
-      }),
-    );
+      },
+    ]);
   });
 
   test("prints raw unsigned relayed withdrawal transactions when --unsigned tx is requested", async () => {
@@ -595,15 +597,14 @@ describe("withdraw command handler", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
-    expect(printRawTransactionsMock).toHaveBeenCalledTimes(1);
     expect(submitRelayRequestMock).not.toHaveBeenCalled();
-    expect(printRawTransactionsMock.mock.calls[0]?.[0]).toEqual([
-      expect.objectContaining({
+    expectPrintedRawTransactions(printRawTransactionsMock, [
+      {
         chainId: 1,
         to: CHAINS.mainnet.entrypoint,
         value: "0",
         description: "Relay withdrawal through Entrypoint",
-      }),
+      },
     ]);
   });
 
@@ -625,14 +626,13 @@ describe("withdraw command handler", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
-    expect(printRawTransactionsMock).toHaveBeenCalledTimes(1);
-    expect(printRawTransactionsMock.mock.calls[0]?.[0]).toEqual([
-      expect.objectContaining({
+    expectPrintedRawTransactions(printRawTransactionsMock, [
+      {
         chainId: 1,
         to: ETH_POOL.pool,
         value: "0",
         description: "Direct withdraw from Privacy Pool",
-      }),
+      },
     ]);
   });
 
