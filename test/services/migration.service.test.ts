@@ -85,7 +85,7 @@ describe("migration service", () => {
     expect(readiness.legacySpendableCommitments).toBe(1);
     expect(readiness.declinedLegacyCommitments).toBe(1);
     expect(readiness.requiresMigration).toBe(true);
-    expect(readiness.requiresWebsiteRecovery).toBe(false);
+    expect(readiness.requiresWebsiteRecovery).toBe(true);
   });
 
   test("surfaces declined-only legacy accounts as website recovery", async () => {

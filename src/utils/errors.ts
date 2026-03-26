@@ -77,6 +77,18 @@ export function accountWebsiteRecoveryRequiredError(
   );
 }
 
+export function accountMigrationReviewIncompleteError(
+  hint: string = "Legacy ASP review data is temporarily unavailable. Retry this command or run 'privacy-pools migrate status' once ASP connectivity is healthy before acting on this account.",
+): CLIError {
+  return new CLIError(
+    "The CLI could not safely determine whether legacy website migration or recovery is required because legacy ASP review data is incomplete.",
+    "ASP",
+    hint,
+    "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE",
+    true,
+  );
+}
+
 const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: string; retryable?: boolean }> = {
   NullifierAlreadySpent: {
     message: "This Pool Account has already been withdrawn.",
@@ -124,6 +136,12 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "Only the original depositor can exit this Pool Account.",
     hint: "Use the same signer address that made the deposit.",
     code: "CONTRACT_ONLY_ORIGINAL_DEPOSITOR",
+  },
+  NotYetRagequitteable: {
+    message: "This Pool Account cannot be exited yet.",
+    hint: "Wait for the deposit to become ragequitteable onchain, then retry the public recovery path.",
+    code: "CONTRACT_NOT_YET_RAGEQUITTEABLE",
+    retryable: true,
   },
   NoRootsAvailable: {
     message: "Pool state is not ready for withdrawals yet.",

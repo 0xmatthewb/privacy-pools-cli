@@ -333,6 +333,14 @@ describe("account persistence", () => {
   test("fresh mnemonic restore fails closed when SDK reports unmigrated legacy commitments", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([{ label: "11", reviewStatus: "approved" }]),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      )) as typeof global.fetch;
 
     AccountService.initializeWithEvents = (async () => ({
       account: new AccountService({} as any, {
@@ -366,9 +374,57 @@ describe("account persistence", () => {
     expect(loadSyncMeta(11155111)).toBeNull();
   });
 
+  test("fresh mnemonic restore fails with a retryable review-incomplete error when legacy ASP review data is unavailable", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    global.fetch = (async () => {
+      throw new Error("asp unavailable");
+    }) as typeof global.fetch;
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: makeLegacyAccount(),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          suppressWarnings: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "ASP",
+      code: "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE",
+      retryable: true,
+    });
+
+    expect(loadAccount(11155111)).toBeNull();
+    expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
   test("stale saved snapshots are rebuilt before the migration gate runs", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([{ label: "11", reviewStatus: "approved" }]),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      )) as typeof global.fetch;
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -450,6 +506,14 @@ describe("account persistence", () => {
   test("legacy account rebuild fails closed when SDK reports unmigrated legacy commitments", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([{ label: "11", reviewStatus: "approved" }]),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      )) as typeof global.fetch;
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -658,7 +722,7 @@ describe("account persistence", () => {
     expect(loadSyncMeta(11155111)).toBeNull();
   });
 
-  test("partial sync does not persist a mixed snapshot", async () => {
+  test("partial sync fails closed and does not persist a mixed snapshot", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
 
@@ -676,22 +740,26 @@ describe("account persistence", () => {
       getRagequitEvents: async () => undefined,
     } as unknown as AccountService;
 
-    const didSync = await syncAccountEvents(
-      accountService,
-      samplePool(),
-      [{ pool: samplePool()[0].address, symbol: "ETH" }],
-      11155111,
-      {
-        skip: false,
-        force: true,
-        silent: true,
-        isJson: false,
-        isVerbose: false,
-        errorLabel: "Sync",
-      },
-    );
+    await expect(
+      syncAccountEvents(
+        accountService,
+        samplePool(),
+        [{ pool: samplePool()[0].address, symbol: "ETH" }],
+        11155111,
+        {
+          skip: false,
+          force: true,
+          silent: true,
+          isJson: false,
+          isVerbose: false,
+          errorLabel: "Sync",
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "RPC",
+      retryable: true,
+    });
 
-    expect(didSync).toBe(true);
     expect(loadAccount(11155111)).toBeNull();
     expect(loadSyncMeta(11155111)).toBeNull();
   });

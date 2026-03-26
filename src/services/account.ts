@@ -10,6 +10,7 @@ import { getAccountsDir, ensureConfigDir } from "./config.js";
 import {
   CLIError,
   accountMigrationRequiredError,
+  accountMigrationReviewIncompleteError,
   accountWebsiteRecoveryRequiredError,
 } from "../utils/errors.js";
 import {
@@ -145,6 +146,12 @@ async function assertNoLegacyMigrationRequired(
     );
   }
 
+  if (readiness.status === "review_incomplete") {
+    throw accountMigrationReviewIncompleteError(
+      "Legacy ASP review data is temporarily unavailable. Retry this command or run 'privacy-pools migrate status' after ASP connectivity recovers before acting on this account.",
+    );
+  }
+
   throw accountMigrationRequiredError();
 }
 
@@ -177,11 +184,12 @@ function buildPartialInitializationState(
   };
 }
 
-function isLegacyWebsiteActionRequiredError(error: unknown): boolean {
+function isLegacyRestoreBlockingError(error: unknown): boolean {
   return (
     error instanceof CLIError &&
     (error.code === "ACCOUNT_MIGRATION_REQUIRED" ||
-      error.code === "ACCOUNT_WEBSITE_RECOVERY_REQUIRED")
+      error.code === "ACCOUNT_WEBSITE_RECOVERY_REQUIRED" ||
+      error.code === "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE")
   );
 }
 
@@ -254,7 +262,7 @@ export async function initializeAccountServiceWithState(
         rebuiltLegacyAccount: true,
       };
     } catch (err) {
-      if (isLegacyWebsiteActionRequiredError(err)) {
+      if (isLegacyRestoreBlockingError(err)) {
         throw err;
       }
       if (strictSync) {
@@ -361,7 +369,7 @@ export async function initializeAccountServiceWithState(
         rebuiltLegacyAccount: false,
       };
     } catch (err) {
-      if (isLegacyWebsiteActionRequiredError(err)) {
+      if (isLegacyRestoreBlockingError(err)) {
         throw err;
       }
       if (strictSync) {
@@ -522,18 +530,14 @@ export async function syncAccountEvents(
     }
   }
 
-  if (syncFailures > 0 && opts.isJson) {
+  if (syncFailures > 0) {
     throw new CLIError(
       `${opts.errorLabel} sync failed for ${syncFailures} pool(s).`,
       "RPC",
       "Retry with a healthy RPC before using this data.",
+      undefined,
+      true,
     );
-  }
-
-  if (syncFailures > 0) {
-    // Keep partial in-memory progress for the current invocation, but never
-    // persist a mixed snapshot that could hide legacy-account or sync gaps.
-    return true;
   }
 
   const releaseLock = acquireProcessLock();

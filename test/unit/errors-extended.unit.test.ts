@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   classifyError,
   CLIError,
+  accountMigrationReviewIncompleteError,
   accountWebsiteRecoveryRequiredError,
   defaultErrorCode,
   printError,
@@ -70,6 +71,11 @@ describe("classifyError - contract revert completeness", () => {
       name: "OnlyOriginalDepositor",
       code: "CONTRACT_ONLY_ORIGINAL_DEPOSITOR",
       retryable: false,
+    },
+    {
+      name: "NotYetRagequitteable",
+      code: "CONTRACT_NOT_YET_RAGEQUITTEABLE",
+      retryable: true,
     },
     {
       name: "NoRootsAvailable",
@@ -275,6 +281,14 @@ describe("website recovery errors", () => {
     expect(err.category).toBe("INPUT");
     expect(err.code).toBe("ACCOUNT_WEBSITE_RECOVERY_REQUIRED");
     expect(err.message).toContain("website-based recovery");
+  });
+
+  test("uses a retryable machine code for incomplete legacy review state", () => {
+    const err = accountMigrationReviewIncompleteError();
+    expect(err.category).toBe("ASP");
+    expect(err.code).toBe("ACCOUNT_MIGRATION_REVIEW_INCOMPLETE");
+    expect(err.retryable).toBe(true);
+    expect(err.message).toContain("could not safely determine");
   });
 });
 

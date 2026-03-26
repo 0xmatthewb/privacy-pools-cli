@@ -189,14 +189,13 @@ export function buildMigrationChainReadiness(
     migratedCommitments >= expectedLegacyCommitments;
   const requiresMigration =
     expectedLegacyCommitments > 0 && !isMigrated;
-  const requiresWebsiteRecovery =
-    expectedLegacyCommitments === 0 && declinedLegacyCommitments > 0;
+  const requiresWebsiteRecovery = declinedLegacyCommitments > 0;
   const scopes = [...new Set(
     candidates.map((candidate) => candidate.scope.toString()),
   )];
 
   let status: MigrationChainStatus = "no_legacy";
-  if (requiresWebsiteRecovery) {
+  if (expectedLegacyCommitments === 0 && requiresWebsiteRecovery) {
     status = "website_recovery_required";
   } else if (expectedLegacyCommitments > 0 && migratedCommitments === 0) {
     status = "migration_required";

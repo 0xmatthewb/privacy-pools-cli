@@ -250,6 +250,22 @@ describe("account command error boundaries", () => {
     expect(isJson).toBe(true);
   });
 
+  test("accounts prints ACCOUNT_MIGRATION_REVIEW_INCOMPLETE in JSON mode", async () => {
+    initializeAccountServiceWithStateMock.mockImplementationOnce(async () => {
+      throw realErrors.accountMigrationReviewIncompleteError();
+    });
+
+    await handleAccountsCommand({}, fakeCommand({ json: true, chain: "sepolia" }));
+
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).code).toBe(
+      "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE",
+    );
+    expect(isJson).toBe(true);
+  });
+
   test("sync prints ACCOUNT_MIGRATION_REQUIRED in JSON mode", async () => {
     initializeAccountServiceWithStateMock.mockImplementationOnce(async () => {
       throw realErrors.accountMigrationRequiredError();
@@ -264,6 +280,23 @@ describe("account command error boundaries", () => {
       "ACCOUNT_MIGRATION_REQUIRED",
     );
     expect(isJson).toBe(true);
+  });
+
+  test("sync prints RPC error and skips success rendering when event sync fails", async () => {
+    syncAccountEventsMock.mockImplementationOnce(async () => {
+      throw new realErrors.CLIError(
+        "Sync sync failed for 1 pool(s).",
+        "RPC",
+        "Retry with a healthy RPC before using this data.",
+        "RPC_ERROR",
+        true,
+      );
+    });
+
+    await handleSyncCommand({}, fakeCommand({ chain: "sepolia" }));
+
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    expect(renderSyncCompleteMock).not.toHaveBeenCalled();
   });
 
   test("sync requests strict initialization before running event sync", async () => {

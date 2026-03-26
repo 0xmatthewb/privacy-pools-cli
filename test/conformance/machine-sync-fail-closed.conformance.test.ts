@@ -29,16 +29,16 @@ describe("machine sync fail-closed conformance", () => {
     expect(accountsSource).toContain('errorLabel: "Account"');
   });
 
-  test("syncAccountEvents fails closed in JSON mode on partial sync errors", () => {
-    expect(accountServiceSource).toContain("syncFailures > 0 && opts.isJson");
+  test("syncAccountEvents fails closed on partial sync errors", () => {
     expect(accountServiceSource).toContain("sync failed for");
     expect(accountServiceSource).toContain("isSyncFresh");
     expect(accountServiceSource).toContain("saveSyncMeta");
+    expect(accountServiceSource).toContain("Retry with a healthy RPC before using this data.");
   });
 
   test("partial sync failures skip account persistence entirely", () => {
     const partialFailureGuard = accountServiceSource.indexOf(
-      "if (syncFailures > 0) {\n    // Keep partial in-memory progress for the current invocation, but never\n    // persist a mixed snapshot that could hide legacy-account or sync gaps.\n    return true;\n  }",
+      "if (syncFailures > 0) {\n    throw new CLIError(",
     );
     const saveAccountPos = accountServiceSource.indexOf(
       "saveAccount(chainId, accountService.account)",

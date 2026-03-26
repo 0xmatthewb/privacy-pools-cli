@@ -78,6 +78,26 @@ describe("summarizeMigrationStatusState", () => {
     expect(result.readinessResolved).toBe(true);
   });
 
+  test("tracks mixed migration and website recovery requirements separately", () => {
+    const result = summarize([
+      {
+        chainId: 10,
+        expectedLegacyCommitments: 2,
+        status: "partially_migrated",
+        requiresMigration: true,
+        requiresWebsiteRecovery: true,
+        reviewStatusComplete: true,
+      },
+    ]);
+
+    expect(result.requiredChainIds).toEqual([10]);
+    expect(result.missingChainIds).toEqual([10]);
+    expect(result.websiteRecoveryChainIds).toEqual([10]);
+    expect(result.requiresMigration).toBe(true);
+    expect(result.requiresWebsiteRecovery).toBe(true);
+    expect(result.isFullyMigrated).toBe(false);
+  });
+
   test("treats no-legacy accounts as resolved and fully migrated", () => {
     const result = summarize([
       {
