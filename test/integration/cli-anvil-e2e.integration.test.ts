@@ -6,7 +6,7 @@ import {
   expect,
   test,
 } from "bun:test";
-import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
   createPublicClient,
@@ -30,6 +30,10 @@ import {
   terminateChildProcess,
   waitForChildProcessResult,
 } from "../helpers/process.ts";
+import {
+  readWorkflowSnapshot,
+  waitForWorkflowSnapshotPhase,
+} from "../helpers/workflow-snapshot.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import {
   launchAnvil,
@@ -376,42 +380,6 @@ async function waitForCondition<T>(
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   throw new Error(`Timed out waiting for ${label}`);
-}
-
-function loadWorkflowSnapshotFromHome(
-  home: string,
-  workflowId: string,
-): Record<string, unknown> {
-  return JSON.parse(
-    readFileSync(
-      join(home, ".privacy-pools", "workflows", `${workflowId}.json`),
-      "utf8",
-    ),
-  ) as Record<string, unknown>;
-}
-
-async function waitForLatestWorkflowSnapshot(
-  home: string,
-  phase: string,
-  timeoutMs: number = 60_000,
-): Promise<Record<string, unknown>> {
-  return waitForCondition(
-    `workflow phase ${phase}`,
-    () => {
-      const workflowDir = join(home, ".privacy-pools", "workflows");
-      let files: string[];
-      try {
-        files = readdirSync(workflowDir).filter((entry) => entry.endsWith(".json"));
-      } catch {
-        return null;
-      }
-      if (files.length === 0) return null;
-      const workflowId = files[0].replace(/\.json$/, "");
-      const snapshot = loadWorkflowSnapshotFromHome(home, workflowId);
-      return snapshot.phase === phase ? snapshot : null;
-    },
-    timeoutMs,
-  );
 }
 
 function parseWorkflowWalletBackup(filePath: string): {
@@ -1304,7 +1272,7 @@ describe("Anvil E2E", () => {
         );
 
         try {
-          const awaitingFunding = await waitForLatestWorkflowSnapshot(
+          const awaitingFunding = await waitForWorkflowSnapshotPhase(
             home,
             "awaiting_funding",
           );
@@ -1333,10 +1301,7 @@ describe("Anvil E2E", () => {
           const awaitingAsp = await waitForCondition(
             "new-wallet deposit",
             () => {
-              const snapshot = loadWorkflowSnapshotFromHome(
-                home,
-                awaitingFunding.workflowId as string,
-              );
+              const snapshot = readWorkflowSnapshot(home, awaitingFunding.workflowId as string);
               return snapshot.phase === "awaiting_asp" && snapshot.depositTxHash
                 ? snapshot
                 : null;
@@ -1503,7 +1468,7 @@ describe("Anvil E2E", () => {
         );
 
         try {
-          const awaitingFunding = await waitForLatestWorkflowSnapshot(
+          const awaitingFunding = await waitForWorkflowSnapshotPhase(
             home,
             "awaiting_funding",
           );
@@ -1516,10 +1481,7 @@ describe("Anvil E2E", () => {
           const awaitingAsp = await waitForCondition(
             "declined new-wallet deposit",
             () => {
-              const snapshot = loadWorkflowSnapshotFromHome(
-                home,
-                awaitingFunding.workflowId as string,
-              );
+              const snapshot = readWorkflowSnapshot(home, awaitingFunding.workflowId as string);
               return snapshot.phase === "awaiting_asp" && snapshot.depositTxHash
                 ? snapshot
                 : null;
@@ -1728,7 +1690,7 @@ describe("Anvil E2E", () => {
           },
         );
 
-        const awaitingFunding = await waitForLatestWorkflowSnapshot(
+        const awaitingFunding = await waitForWorkflowSnapshotPhase(
           home,
           "awaiting_funding",
         );

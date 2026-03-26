@@ -29,6 +29,7 @@ import {
   interruptChildProcess,
   terminateChildProcess,
 } from "../helpers/process.ts";
+import { waitForWorkflowSnapshotPhase } from "../helpers/workflow-snapshot.ts";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 
@@ -88,6 +89,23 @@ function linkDeclaredProdDependencies(packageRoot: string): void {
       process.platform === "win32" ? "junction" : "dir",
     );
   }
+}
+
+async function waitForCondition<T>(
+  label: string,
+  fn: () => T | null | undefined | Promise<T | null | undefined>,
+  timeoutMs: number = 15_000,
+  intervalMs: number = 100,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = await fn();
+    if (value !== null && value !== undefined) {
+      return value;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error(`Timed out waiting for ${label}`);
 }
 
 function packAndExtractCli(packRoot: string): PackedArtifact {
@@ -200,59 +218,6 @@ function writeWorkflow(home: string, workflow: Record<string, unknown>): void {
     join(workflowDir, `${workflow.workflowId as string}.json`),
     JSON.stringify(workflow, null, 2),
     "utf8",
-  );
-}
-
-async function waitForCondition<T>(
-  label: string,
-  fn: () => T | null | undefined | Promise<T | null | undefined>,
-  timeoutMs: number = 15_000,
-  intervalMs: number = 100,
-): Promise<T> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const value = await fn();
-    if (value !== null && value !== undefined) {
-      return value;
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  throw new Error(`Timed out waiting for ${label}`);
-}
-
-function loadLatestWorkflowSnapshot(home: string): Record<string, unknown> | null {
-  const workflowDir = join(home, ".privacy-pools", "workflows");
-  let files: string[];
-  try {
-    files = readdirSync(workflowDir)
-      .filter((entry) => entry.endsWith(".json"))
-      .sort();
-  } catch {
-    return null;
-  }
-
-  const latestFile = files.at(-1);
-  if (!latestFile) {
-    return null;
-  }
-
-  return JSON.parse(
-    readFileSync(join(workflowDir, latestFile), "utf8"),
-  ) as Record<string, unknown>;
-}
-
-async function waitForLatestWorkflowSnapshot(
-  home: string,
-  phase: string,
-  timeoutMs: number = 15_000,
-): Promise<Record<string, unknown>> {
-  return waitForCondition(
-    `workflow phase ${phase}`,
-    () => {
-      const snapshot = loadLatestWorkflowSnapshot(home);
-      return snapshot?.phase === phase ? snapshot : null;
-    },
-    timeoutMs,
   );
 }
 
@@ -485,7 +450,7 @@ describe("packaged CLI smoke", () => {
       );
 
       try {
-        const snapshot = await waitForLatestWorkflowSnapshot(flowHome, "awaiting_funding");
+        const snapshot = await waitForWorkflowSnapshotPhase(flowHome, "awaiting_funding");
         const backupText = await waitForCondition(
           "workflow wallet backup",
           () => (existsSync(exportPath) ? readFileSync(exportPath, "utf8") : null),

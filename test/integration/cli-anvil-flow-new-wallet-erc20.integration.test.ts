@@ -7,7 +7,7 @@ import {
   expect,
   test,
 } from "bun:test";
-import { readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import {
@@ -26,6 +26,10 @@ import {
   terminateChildProcess,
   waitForChildProcessResult,
 } from "../helpers/process.ts";
+import {
+  readWorkflowSnapshot,
+  waitForWorkflowSnapshotPhase,
+} from "../helpers/workflow-snapshot.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import {
   impersonateAccount,
@@ -292,16 +296,20 @@ function createAnvilHome(prefix: string): string {
   return home;
 }
 
-function loadWorkflowSnapshotFromHome(
-  home: string,
-  workflowId: string,
-): Record<string, unknown> {
-  return JSON.parse(
-    readFileSync(
-      join(home, ".privacy-pools", "workflows", `${workflowId}.json`),
-      "utf8",
-    ),
-  ) as Record<string, unknown>;
+function parseWorkflowWalletBackup(filePath: string): {
+  walletAddress: `0x${string}`;
+  privateKey: `0x${string}`;
+} {
+  const content = readFileSync(filePath, "utf8");
+  const walletAddress = content.match(/Wallet Address:\s*(0x[a-fA-F0-9]{40})/)?.[1];
+  const privateKey = content.match(/Private Key:\s*(0x[a-fA-F0-9]{64})/)?.[1];
+  if (!walletAddress || !privateKey) {
+    throw new Error(`Could not parse workflow wallet backup at ${filePath}`);
+  }
+  return {
+    walletAddress: walletAddress as `0x${string}`,
+    privateKey: privateKey as `0x${string}`,
+  };
 }
 
 async function waitForCondition<T>(
@@ -319,46 +327,6 @@ async function waitForCondition<T>(
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   throw new Error(`Timed out waiting for ${label}`);
-}
-
-async function waitForLatestWorkflowSnapshot(
-  home: string,
-  phase: string,
-  timeoutMs: number = 60_000,
-): Promise<Record<string, unknown>> {
-  return waitForCondition(
-    `workflow phase ${phase}`,
-    () => {
-      const workflowDir = join(home, ".privacy-pools", "workflows");
-      let files: string[];
-      try {
-        files = readdirSync(workflowDir).filter((entry) => entry.endsWith(".json"));
-      } catch {
-        return null;
-      }
-      if (files.length === 0) return null;
-      const workflowId = files[0].replace(/\.json$/, "");
-      const snapshot = loadWorkflowSnapshotFromHome(home, workflowId);
-      return snapshot.phase === phase ? snapshot : null;
-    },
-    timeoutMs,
-  );
-}
-
-function parseWorkflowWalletBackup(filePath: string): {
-  walletAddress: `0x${string}`;
-  privateKey: `0x${string}`;
-} {
-  const content = readFileSync(filePath, "utf8");
-  const walletAddress = content.match(/Wallet Address:\s*(0x[a-fA-F0-9]{40})/)?.[1];
-  const privateKey = content.match(/Private Key:\s*(0x[a-fA-F0-9]{64})/)?.[1];
-  if (!walletAddress || !privateKey) {
-    throw new Error(`Could not parse workflow wallet backup at ${filePath}`);
-  }
-  return {
-    walletAddress: walletAddress as `0x${string}`,
-    privateKey: privateKey as `0x${string}`,
-  };
 }
 
 async function decodeDeposit(txHash: `0x${string}`): Promise<{
@@ -504,7 +472,7 @@ describe("flow --new-wallet ERC20 journeys", () => {
     );
 
     try {
-      const awaitingFunding = await waitForLatestWorkflowSnapshot(home, "awaiting_funding");
+      const awaitingFunding = await waitForWorkflowSnapshotPhase(home, "awaiting_funding");
       expect(awaitingFunding.walletMode).toBe("new_wallet");
       expect(awaitingFunding.requiredNativeFunding).toMatch(/^\d+$/);
       expect(awaitingFunding.requiredTokenFunding).toMatch(/^\d+$/);
@@ -527,10 +495,7 @@ describe("flow --new-wallet ERC20 journeys", () => {
       const awaitingAsp = await waitForCondition(
         "ERC20 new-wallet deposit",
         () => {
-          const snapshot = loadWorkflowSnapshotFromHome(
-            home,
-            awaitingFunding.workflowId as string,
-          );
+          const snapshot = readWorkflowSnapshot(home, awaitingFunding.workflowId as string);
           return snapshot.phase === "awaiting_asp" && snapshot.depositTxHash
             ? snapshot
             : null;
@@ -674,7 +639,7 @@ describe("flow --new-wallet ERC20 journeys", () => {
     );
 
     try {
-      const awaitingFunding = await waitForLatestWorkflowSnapshot(home, "awaiting_funding");
+      const awaitingFunding = await waitForWorkflowSnapshotPhase(home, "awaiting_funding");
       await setBalance(
         requireAnvil().url,
         awaitingFunding.walletAddress as string,
