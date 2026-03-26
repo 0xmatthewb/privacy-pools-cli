@@ -57,11 +57,13 @@ interface LoadedChainAccounts {
 
 export { createAccountsCommand } from "../command-shells/accounts.js";
 
-function describeAccountsChainScope(allChains: boolean | undefined): string {
+export function describeAccountsChainScope(
+  allChains: boolean | undefined,
+): string {
   return allChains ? "all chains" : "mainnet chains";
 }
 
-function formatAccountsLoadingText(
+export function formatAccountsLoadingText(
   allChains: boolean | undefined,
   completedChains?: number,
   totalChains?: number,

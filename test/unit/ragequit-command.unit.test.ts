@@ -100,6 +100,14 @@ describe("ragequit command helpers", () => {
     expect(advisory?.message).toContain("only recovery path");
   });
 
+  test("unknown advisory stays silent", () => {
+    expect(
+      getRagequitAdvisory(
+        makePoolAccountRef({ status: "unknown", aspStatus: "unknown" }),
+      ),
+    ).toBeNull();
+  });
+
   test("hydrates ragequit Pool Account statuses from ASP review data", () => {
     const scope = 444n;
     const approved = commitment(10n, 101n, 100n);

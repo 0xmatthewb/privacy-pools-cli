@@ -137,7 +137,7 @@ interface WithdrawQuoteCommandOptions {
 
 export { createWithdrawCommand } from "../command-shells/withdraw.js";
 
-function getEligibleUnapprovedStatuses(
+export function getEligibleUnapprovedStatuses(
   poolAccounts: readonly PoolAccountRef[],
   withdrawalAmount: bigint,
 ): WithdrawReviewStatus[] {

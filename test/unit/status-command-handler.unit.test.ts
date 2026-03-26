@@ -1,0 +1,119 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import type { Command } from "commander";
+import { handleStatusCommand } from "../../src/commands/status.ts";
+import {
+  saveConfig,
+  saveMnemonicToFile,
+  saveSignerKey,
+} from "../../src/services/config.ts";
+import { saveAccount } from "../../src/services/account-storage.ts";
+import {
+  captureAsyncJsonOutput,
+  captureAsyncOutput,
+} from "../helpers/output.ts";
+import {
+  cleanupTrackedTempDirs,
+  createTrackedTempDir,
+} from "../helpers/temp.ts";
+
+const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+
+function fakeCommand(
+  globalOpts: Record<string, unknown> = {},
+): Command {
+  return {
+    parent: {
+      opts: () => globalOpts,
+    },
+  } as unknown as Command;
+}
+
+function useIsolatedHome(): string {
+  const home = createTrackedTempDir("pp-status-handler-test-");
+  process.env.PRIVACY_POOLS_HOME = home;
+  return home;
+}
+
+afterEach(() => {
+  if (ORIGINAL_HOME === undefined) {
+    delete process.env.PRIVACY_POOLS_HOME;
+  } else {
+    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  }
+  cleanupTrackedTempDirs();
+});
+
+describe("status command handler", () => {
+  test("reports an uninitialized setup without selecting a chain", async () => {
+    useIsolatedHome();
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleStatusCommand({}, fakeCommand({ json: true })),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.configExists).toBe(false);
+    expect(json.selectedChain).toBeNull();
+    expect(json.recoveryPhraseSet).toBe(false);
+    expect(json.readyForDeposit).toBe(false);
+    expect(json.readyForUnsigned).toBe(false);
+    expect(json.nextActions[0].command).toBe("init");
+    expect(stderr).toBe("");
+  });
+
+  test("reports configured state and skips health checks when --check=false", async () => {
+    const home = useIsolatedHome();
+    saveConfig({
+      defaultChain: "sepolia",
+      rpcOverrides: { 11155111: "https://rpc.example.invalid" },
+    });
+    saveMnemonicToFile(
+      "test test test test test test test test test test test junk",
+    );
+    saveSignerKey("0x" + "44".repeat(32));
+    saveAccount(11155111, {
+      poolAccounts: new Map([[1n, [{ label: 11n, value: 1n }]]]),
+    });
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleStatusCommand(
+        { check: false },
+        fakeCommand({ json: true, chain: "sepolia" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.configExists).toBe(true);
+    expect(json.configDir).toBe(home);
+    expect(json.defaultChain).toBe("sepolia");
+    expect(json.selectedChain).toBe("sepolia");
+    expect(json.rpcUrl).toBe("https://rpc.example.invalid");
+    expect(json.rpcIsCustom).toBe(true);
+    expect(json.recoveryPhraseSet).toBe(true);
+    expect(json.signerKeySet).toBe(true);
+    expect(json.signerKeyValid).toBe(true);
+    expect(json.readyForDeposit).toBe(true);
+    expect(json.readyForUnsigned).toBe(true);
+    expect(json.accountFiles).toEqual([
+      { chain: "sepolia", chainId: 11155111 },
+    ]);
+    expect(json.healthChecksEnabled).toBeUndefined();
+    expect(json.rpcLive).toBeUndefined();
+    expect(json.aspLive).toBeUndefined();
+    expect(json.nextActions[0].command).toBe("accounts");
+    expect(stderr).toBe("");
+  });
+
+  test("prints a human-readable summary when not in JSON mode", async () => {
+    useIsolatedHome();
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleStatusCommand({}, fakeCommand()),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Privacy Pools CLI Status");
+    expect(stderr).toContain("Config not found");
+    expect(stderr).toContain("Run 'privacy-pools init'");
+  });
+});

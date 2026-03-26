@@ -1,0 +1,834 @@
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
+import type { Command } from "commander";
+import {
+  saveConfig,
+  saveMnemonicToFile,
+  saveSignerKey,
+} from "../../src/services/config.ts";
+import {
+  captureAsyncJsonOutput,
+  captureAsyncJsonOutputAllowExit,
+  captureAsyncOutput,
+  captureAsyncOutputAllowExit,
+} from "../helpers/output.ts";
+import {
+  cleanupTrackedTempDirs,
+  createTrackedTempDir,
+} from "../helpers/temp.ts";
+import { POA_PORTAL_URL } from "../../src/config/chains.ts";
+
+const realAccount = await import("../../src/services/account.ts");
+
+const ETH_POOL = {
+  symbol: "ETH",
+  pool: "0x1111111111111111111111111111111111111111",
+  asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  scope: 1n,
+  decimals: 18,
+  deploymentBlock: 1n,
+};
+
+const APPROVED_POOL_ACCOUNT = {
+  paNumber: 1,
+  paId: "PA-1",
+  status: "approved",
+  aspStatus: "approved",
+  commitment: {
+    hash: 501n,
+    label: 601n,
+    value: 1000000000000000000n,
+    nullifier: 701n,
+    secret: 801n,
+    blockNumber: 123n,
+    txHash: "0x" + "aa".repeat(32),
+  },
+  label: 601n,
+  value: 1000000000000000000n,
+  blockNumber: 123n,
+  txHash: "0x" + "aa".repeat(32),
+};
+
+const initializeAccountServiceMock = mock(async () => ({
+  account: { poolAccounts: new Map() },
+  getSpendableCommitments: () =>
+    new Map([[1n, [APPROVED_POOL_ACCOUNT.commitment]]]),
+  addRagequitToAccount: mock(() => undefined),
+}));
+const saveAccountMock = mock(() => undefined);
+const saveSyncMetaMock = mock(() => undefined);
+const withSuppressedSdkStdoutSyncMock = mock(<T>(fn: () => T): T => fn());
+const getDataServiceMock = mock(async () => ({}));
+const getPublicClientMock = mock(() => ({
+  readContract: async () => "0x19E7E376E7C213B7E7E7E46CC70A5DD086DAFF2A",
+  waitForTransactionReceipt: async () => ({
+    status: "success",
+    blockNumber: 987n,
+  }),
+}));
+const resolvePoolMock = mock(async () => ETH_POOL);
+const listPoolsMock = mock(async () => [ETH_POOL]);
+const proveCommitmentMock = mock(async () => ({
+  proof: {
+    pi_a: ["0", "0", "1"],
+    pi_b: [
+      ["0", "0"],
+      ["0", "0"],
+      ["1", "0"],
+    ],
+    pi_c: ["0", "0", "1"],
+  },
+  publicSignals: [1n, 2n, 3n, 4n],
+}));
+const ragequitMock = mock(async () => ({
+  hash: "0x" + "12".repeat(32),
+}));
+const buildAllPoolAccountRefsMock = mock(() => [APPROVED_POOL_ACCOUNT]);
+const buildPoolAccountRefsMock = mock(() => [APPROVED_POOL_ACCOUNT]);
+const collectActiveLabelsMock = mock(() => ["601"]);
+const describeUnavailablePoolAccountMock = mock(() => null);
+const getUnknownPoolAccountErrorMock = mock(() => ({
+  message: "Unknown Pool Account.",
+  hint: "Choose a valid Pool Account.",
+}));
+const parsePoolAccountSelectorMock = mock((raw: string) => {
+  const match = raw.match(/\d+/);
+  return match ? Number(match[0]) : null;
+});
+const poolAccountIdMock = mock((paNumber: number) => `PA-${paNumber}`);
+const checkHasGasMock = mock(async () => undefined);
+const acquireProcessLockMock = mock(() => () => undefined);
+const guardCriticalSectionMock = mock(() => undefined);
+const releaseCriticalSectionMock = mock(() => undefined);
+const toRagequitSolidityProofMock = mock(() => ({
+  pA: [0n, 0n],
+  pB: [
+    [0n, 0n],
+    [0n, 0n],
+  ],
+  pC: [0n, 0n],
+  pubSignals: [0n, 0n, 0n, 0n],
+}));
+const printRawTransactionsMock = mock(() => undefined);
+const confirmPromptMock = mock(async () => true);
+const selectPromptMock = mock(async () => 1);
+
+let handleRagequitCommand: typeof import("../../src/commands/ragequit.ts").handleRagequitCommand;
+
+const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+
+function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
+  return {
+    parent: {
+      opts: () => globalOpts,
+    },
+  } as unknown as Command;
+}
+
+function useIsolatedHome(options: {
+  defaultChain?: string;
+  withSigner?: boolean;
+} = {}): string {
+  const home = createTrackedTempDir("pp-ragequit-handler-");
+  process.env.PRIVACY_POOLS_HOME = home;
+  saveConfig({
+    defaultChain: options.defaultChain ?? "mainnet",
+    rpcOverrides: {},
+  });
+  saveMnemonicToFile(
+    "test test test test test test test test test test test junk",
+  );
+  if (options.withSigner) {
+    saveSignerKey("0x" + "11".repeat(32));
+  }
+  return home;
+}
+
+beforeAll(async () => {
+  mock.module("@inquirer/prompts", () => ({
+    confirm: confirmPromptMock,
+    select: selectPromptMock,
+  }));
+  mock.module("../../src/services/account.ts", () => ({
+    ...realAccount,
+    initializeAccountService: initializeAccountServiceMock,
+    saveAccount: saveAccountMock,
+    saveSyncMeta: saveSyncMetaMock,
+    withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
+  }));
+  mock.module("../../src/services/sdk.ts", () => ({
+    getDataService: getDataServiceMock,
+    getPublicClient: getPublicClientMock,
+  }));
+  mock.module("../../src/services/pools.ts", () => ({
+    resolvePool: resolvePoolMock,
+    listPools: listPoolsMock,
+  }));
+  mock.module("../../src/services/asp.ts", () => ({
+    formatIncompleteAspReviewDataMessage: () =>
+      `Review data unavailable. Complete PoA at ${POA_PORTAL_URL}.`,
+    loadAspDepositReviewState: async () => ({
+      approvedLabels: new Set<string>(["601"]),
+      rawReviewStatuses: new Map<string, string>([["601", "approved"]]),
+      reviewStatuses: new Map<string, string>([["601", "approved"]]),
+      hasIncompleteReviewData: false,
+    }),
+    normalizeDepositReviewStatuses: (statuses: ReadonlyMap<string, string>) =>
+      statuses,
+  }));
+  mock.module("../../src/services/proofs.ts", () => ({
+    proveCommitment: proveCommitmentMock,
+  }));
+  mock.module("../../src/services/contracts.ts", () => ({
+    ragequit: ragequitMock,
+  }));
+  mock.module("../../src/utils/pool-accounts.ts", () => ({
+    buildAllPoolAccountRefs: buildAllPoolAccountRefsMock,
+    buildPoolAccountRefs: buildPoolAccountRefsMock,
+    collectActiveLabels: collectActiveLabelsMock,
+    describeUnavailablePoolAccount: describeUnavailablePoolAccountMock,
+    getUnknownPoolAccountError: getUnknownPoolAccountErrorMock,
+    parsePoolAccountSelector: parsePoolAccountSelectorMock,
+    poolAccountId: poolAccountIdMock,
+  }));
+  mock.module("../../src/utils/preflight.ts", () => ({
+    checkHasGas: checkHasGasMock,
+  }));
+  mock.module("../../src/utils/lock.ts", () => ({
+    acquireProcessLock: acquireProcessLockMock,
+  }));
+  mock.module("../../src/utils/critical-section.ts", () => ({
+    guardCriticalSection: guardCriticalSectionMock,
+    releaseCriticalSection: releaseCriticalSectionMock,
+  }));
+  mock.module("../../src/utils/unsigned.ts", () => ({
+    printRawTransactions: printRawTransactionsMock,
+    toRagequitSolidityProof: toRagequitSolidityProofMock,
+  }));
+
+  ({ handleRagequitCommand } = await import(
+    "../../src/commands/ragequit.ts?ragequit-handler-tests"
+  ));
+});
+
+afterAll(() => {
+  mock.restore();
+});
+
+afterEach(() => {
+  if (ORIGINAL_HOME === undefined) {
+    delete process.env.PRIVACY_POOLS_HOME;
+  } else {
+    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  }
+  cleanupTrackedTempDirs();
+});
+
+beforeEach(() => {
+  initializeAccountServiceMock.mockClear();
+  getPublicClientMock.mockClear();
+  resolvePoolMock.mockClear();
+  listPoolsMock.mockClear();
+  saveAccountMock.mockClear();
+  saveSyncMetaMock.mockClear();
+  ragequitMock.mockClear();
+  printRawTransactionsMock.mockClear();
+  confirmPromptMock.mockClear();
+  selectPromptMock.mockClear();
+  buildAllPoolAccountRefsMock.mockClear();
+  buildPoolAccountRefsMock.mockClear();
+  describeUnavailablePoolAccountMock.mockClear();
+  getUnknownPoolAccountErrorMock.mockClear();
+  parsePoolAccountSelectorMock.mockClear();
+  confirmPromptMock.mockImplementation(async () => true);
+  selectPromptMock.mockImplementation(async () => 1);
+  initializeAccountServiceMock.mockImplementation(async () => ({
+    account: { poolAccounts: new Map() },
+    getSpendableCommitments: () =>
+      new Map([[1n, [APPROVED_POOL_ACCOUNT.commitment]]]),
+    addRagequitToAccount: mock(() => undefined),
+  }));
+  resolvePoolMock.mockImplementation(async () => ETH_POOL);
+  listPoolsMock.mockImplementation(async () => [ETH_POOL]);
+  buildAllPoolAccountRefsMock.mockImplementation(() => [APPROVED_POOL_ACCOUNT]);
+  buildPoolAccountRefsMock.mockImplementation(() => [APPROVED_POOL_ACCOUNT]);
+  describeUnavailablePoolAccountMock.mockImplementation(() => null);
+  getUnknownPoolAccountErrorMock.mockImplementation(() => ({
+    message: "Unknown Pool Account.",
+    hint: "Choose a valid Pool Account.",
+  }));
+  parsePoolAccountSelectorMock.mockImplementation((raw: string) => {
+    const match = raw.match(/\d+/);
+    return match ? Number(match[0]) : null;
+  });
+  getPublicClientMock.mockImplementation(() => ({
+    readContract: async () => "0x19E7E376E7C213B7E7E7E46CC70A5DD086DAFF2A",
+    waitForTransactionReceipt: async () => ({
+      status: "success",
+      blockNumber: 987n,
+    }),
+  }));
+});
+
+describe("ragequit command handler", () => {
+  test("rejects malformed --from-pa selectors before loading account state", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "banana",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("Invalid --from-pa");
+    expect(exitCode).toBe(2);
+  });
+
+  test("renders a JSON dry-run for a selected Pool Account", async () => {
+    useIsolatedHome();
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          dryRun: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("ragequit");
+    expect(json.dryRun).toBe(true);
+    expect(json.poolAccountId).toBe("PA-1");
+    expect(json.proofPublicSignals).toBe(4);
+  });
+
+  test("builds an unsigned ragequit transaction in JSON mode", async () => {
+    useIsolatedHome();
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("unsigned");
+    expect(json.operation).toBe("ragequit");
+    expect(json.transactions).toHaveLength(1);
+    expect(json.poolAccountId).toBe("PA-1");
+  });
+
+  test("prints raw unsigned transactions when --unsigned tx is requested", async () => {
+    useIsolatedHome();
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          unsigned: "tx",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(printRawTransactionsMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("supports the deprecated --commitment selector without requiring --from-pa", async () => {
+    useIsolatedHome();
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          commitment: "0",
+          dryRun: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("ragequit");
+    expect(json.poolAccountId).toBe("PA-1");
+  });
+
+  test("submits a signed ragequit and persists the local account update", async () => {
+    useIsolatedHome({ withSigner: true });
+    const addRagequitToAccountMock = mock(() => undefined);
+    initializeAccountServiceMock.mockImplementationOnce(async () => ({
+      account: { poolAccounts: new Map() },
+      getSpendableCommitments: () =>
+        new Map([[1n, [APPROVED_POOL_ACCOUNT.commitment]]]),
+      addRagequitToAccount: addRagequitToAccountMock,
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("ragequit");
+    expect(json.txHash).toBe("0x" + "12".repeat(32));
+    expect(addRagequitToAccountMock).toHaveBeenCalledTimes(1);
+    expect(saveAccountMock).toHaveBeenCalledTimes(1);
+    expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("fails closed when --from-pa and --commitment are combined", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          commitment: "0",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Cannot use --from-pa and --commitment together",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails closed when no Pool Accounts remain spendable in the selected pool", async () => {
+    useIsolatedHome();
+    initializeAccountServiceMock.mockImplementationOnce(async () => ({
+      account: { poolAccounts: new Map() },
+      getSpendableCommitments: () => new Map([[1n, []]]),
+      addRagequitToAccount: mock(() => undefined),
+    }));
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => []);
+    buildPoolAccountRefsMock.mockImplementationOnce(() => []);
+    collectActiveLabelsMock.mockImplementationOnce(() => []);
+
+    const { stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          dryRun: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain(
+      "No available Pool Accounts found for exit",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects signers that are not the original depositor before submission", async () => {
+    useIsolatedHome({ withSigner: true });
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => [APPROVED_POOL_ACCOUNT]);
+    buildPoolAccountRefsMock.mockImplementationOnce(() => [APPROVED_POOL_ACCOUNT]);
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async () => "0x9999999999999999999999999999999999999999",
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 987n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "is not the original depositor",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("lets humans select a Pool Account and cancel before public recovery", async () => {
+    useIsolatedHome({ withSigner: true });
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(selectPromptMock).toHaveBeenCalledTimes(1);
+    expect(confirmPromptMock).toHaveBeenCalledTimes(1);
+    expect(stderr).toContain("withdrawing funds publicly");
+    expect(stderr).toContain("Ragequit cancelled.");
+    expect(ragequitMock).not.toHaveBeenCalled();
+  });
+
+  test("shows declined-account human guidance before recovery", async () => {
+    useIsolatedHome({ withSigner: true });
+    const declinedPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      status: "declined",
+      aspStatus: "declined",
+    };
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => [declinedPoolAccount]);
+    buildPoolAccountRefsMock.mockImplementationOnce(() => [declinedPoolAccount]);
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("only recovery path");
+    expect(stderr).toContain("Ragequit cancelled.");
+  });
+
+  test("requires explicit Pool Account selection in machine mode", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        { unsigned: true },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Must specify --from-pa",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects the deprecated --unsigned-format flag with a targeted INPUT error", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          unsignedFormat: "tx" as "tx",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "replaced by --unsigned [format]",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects unsupported unsigned output formats before building proofs", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          unsigned: "raw" as "raw",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      'Unsupported unsigned format: "raw"',
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("requires an asset in machine mode when none is provided", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        undefined,
+        { unsigned: true, fromPa: "PA-1" },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("No asset specified");
+    expect(exitCode).toBe(2);
+  });
+
+  test("lets humans choose an asset interactively when none is provided", async () => {
+    useIsolatedHome({ withSigner: true });
+    listPoolsMock.mockImplementation(async () => [ETH_POOL]);
+    selectPromptMock.mockImplementationOnce(async () => "ETH");
+    selectPromptMock.mockImplementationOnce(async () => 1);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        undefined,
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(selectPromptMock).toHaveBeenCalledTimes(2);
+    expect(ragequitMock).toHaveBeenCalledTimes(1);
+    expect(stderr).toContain("Exit confirmed");
+  });
+
+  test("fails cleanly for humans when no pools are available to choose from", async () => {
+    useIsolatedHome({ withSigner: true });
+    listPoolsMock.mockImplementation(async () => []);
+
+    const { stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleRagequitCommand(
+        undefined,
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("No pools found on mainnet");
+    expect(ragequitMock).not.toHaveBeenCalled();
+    expect(exitCode).toBe(2);
+  });
+
+  test("surfaces a targeted error when a requested Pool Account is unknown", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-9",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("Unknown Pool Account");
+    expect(exitCode).toBe(2);
+  });
+
+  test("surfaces unavailable historical Pool Accounts through a targeted INPUT error", async () => {
+    useIsolatedHome();
+    buildPoolAccountRefsMock.mockImplementation(() => []);
+    describeUnavailablePoolAccountMock.mockImplementation(() =>
+      "PA-1 has already been exited.",
+    );
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "already been exited",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects deprecated commitment indexes that are out of range", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          commitment: "99",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("Invalid commitment index");
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails closed when waiting for ragequit confirmation times out", async () => {
+    useIsolatedHome({ withSigner: true });
+    getPublicClientMock.mockImplementation(() => ({
+      readContract: async () => "0x19E7E376E7C213B7E7E7E46CC70A5DD086DAFF2A",
+      waitForTransactionReceipt: async () => {
+        throw new Error("timeout");
+      },
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("RPC_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Timed out waiting for ragequit confirmation",
+    );
+    expect(exitCode).toBe(3);
+  });
+
+  test("fails closed when the ragequit transaction reverts onchain", async () => {
+    useIsolatedHome({ withSigner: true });
+    getPublicClientMock.mockImplementation(() => ({
+      readContract: async () => "0x19E7E376E7C213B7E7E7E46CC70A5DD086DAFF2A",
+      waitForTransactionReceipt: async () => ({
+        status: "reverted",
+        blockNumber: 987n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("CONTRACT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Ragequit transaction reverted",
+    );
+    expect(exitCode).toBe(7);
+  });
+
+  test("continues when local ragequit event recording fails", async () => {
+    useIsolatedHome({ withSigner: true });
+    initializeAccountServiceMock.mockImplementation(async () => ({
+      account: { poolAccounts: new Map() },
+      getSpendableCommitments: () =>
+        new Map([[1n, [APPROVED_POOL_ACCOUNT.commitment]]]),
+      addRagequitToAccount: mock(() => {
+        throw new Error("event write failed");
+      }),
+    }));
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        { fromPa: "PA-1" },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Failed to record ragequit locally");
+    expect(stderr).toContain("Exit confirmed");
+  });
+
+  test("continues when saving local ragequit state fails after confirmation", async () => {
+    useIsolatedHome({ withSigner: true });
+    saveAccountMock.mockImplementation(() => {
+      throw new Error("disk full");
+    });
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        { fromPa: "PA-1" },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("failed to save local state");
+    expect(stderr).toContain("Run 'privacy-pools sync'");
+    expect(stderr).toContain("Exit confirmed");
+  });
+
+  test("continues when onchain depositor preverification is unavailable", async () => {
+    useIsolatedHome({ withSigner: true });
+    getPublicClientMock.mockImplementation(() => ({
+      readContract: async () => {
+        throw new Error("rpc unavailable");
+      },
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 987n,
+      }),
+    }));
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        { fromPa: "PA-1" },
+        fakeCommand({ chain: "mainnet", verbose: true }),
+      ),
+    );
+
+    expect(stderr).toContain("Exit confirmed");
+  });
+});

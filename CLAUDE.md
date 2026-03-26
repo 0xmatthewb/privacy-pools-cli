@@ -22,7 +22,7 @@ bun run test:smoke             # packaged-smoke integration (timeout 180s)
 bun run test:fuzz              # fuzz suite (timeout 120s)
 bun run test:conformance       # build + conformance core suite
 bun run test:conformance:all   # build + all conformance suites
-bun run test:coverage          # coverage enforcement (services/utils/output ≥85%, config ≥95%)
+bun run test:coverage          # hybrid coverage guard (overall src/services/commands/utils/output/shells/bootstrap ≥85%, workflow.ts ≥85%, config ≥95%)
 bun run test:evals             # agent eval suite (timeout 120s)
 bun run test:e2e:anvil         # full anvil e2e (requires local anvil)
 bun run test:e2e:anvil:smoke   # anvil smoke subset

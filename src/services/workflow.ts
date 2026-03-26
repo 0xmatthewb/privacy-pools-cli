@@ -310,7 +310,7 @@ interface PendingDepositSnapshotData {
   depositExplorerUrl: string | null;
 }
 
-function pickWorkflowPoolAccount(
+export function pickWorkflowPoolAccount(
   snapshot: FlowSnapshot,
   poolAccounts: readonly PoolAccountRef[],
 ): PoolAccountRef | undefined {
@@ -334,7 +334,7 @@ function pickWorkflowPoolAccount(
   );
 }
 
-function alignSnapshotToPoolAccount(
+export function alignSnapshotToPoolAccount(
   snapshot: FlowSnapshot,
   chainId: number,
   poolAccount: PoolAccountRef,
@@ -380,7 +380,7 @@ function writePrivateJsonFile(filePath: string, payload: unknown): void {
   }
 }
 
-function writePrivateTextFile(filePath: string, content: string): void {
+export function writePrivateTextFile(filePath: string, content: string): void {
   const tmpPath = `${filePath}.tmp`;
   try {
     writeFileSync(tmpPath, content, { encoding: "utf-8", mode: 0o600 });
@@ -406,7 +406,7 @@ function writePrivateTextFile(filePath: string, content: string): void {
   }
 }
 
-function validateWorkflowWalletBackupPath(filePath: string): string {
+export function validateWorkflowWalletBackupPath(filePath: string): string {
   const normalizedPath = filePath.trim();
   if (!normalizedPath) {
     throw new CLIError(
@@ -483,7 +483,7 @@ function persistWorkflowSnapshot(snapshot: FlowSnapshot): void {
   writePrivateJsonFile(getWorkflowFilePath(snapshot.workflowId), snapshot);
 }
 
-function saveWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
+export function saveWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
   guardCriticalSection();
   try {
     persistWorkflowSnapshot(snapshot);
@@ -493,7 +493,9 @@ function saveWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
   return snapshot;
 }
 
-function saveWorkflowSecretRecord(record: FlowSecretRecord): FlowSecretRecord {
+export function saveWorkflowSecretRecord(
+  record: FlowSecretRecord,
+): FlowSecretRecord {
   guardCriticalSection();
   try {
     ensureWorkflowDir();
@@ -504,7 +506,7 @@ function saveWorkflowSecretRecord(record: FlowSecretRecord): FlowSecretRecord {
   return record;
 }
 
-function deleteWorkflowSecretRecord(workflowId: string): void {
+export function deleteWorkflowSecretRecord(workflowId: string): void {
   const filePath = getWorkflowSecretFilePath(workflowId);
   if (!existsSync(filePath)) return;
   try {
@@ -514,7 +516,7 @@ function deleteWorkflowSecretRecord(workflowId: string): void {
   }
 }
 
-function loadWorkflowSecretRecord(workflowId: string): FlowSecretRecord {
+export function loadWorkflowSecretRecord(workflowId: string): FlowSecretRecord {
   const filePath = getWorkflowSecretFilePath(workflowId);
   if (!existsSync(filePath)) {
     throw new CLIError(
@@ -552,7 +554,7 @@ function loadWorkflowSecretRecord(workflowId: string): FlowSecretRecord {
   return parsed as FlowSecretRecord;
 }
 
-function buildWorkflowWalletBackup(record: FlowSecretRecord): string {
+export function buildWorkflowWalletBackup(record: FlowSecretRecord): string {
   return [
     "Privacy Pools Flow Wallet",
     "",
@@ -574,7 +576,7 @@ function isNewWalletFlow(snapshot: FlowSnapshot): boolean {
   return (snapshot.walletMode ?? "configured") === "new_wallet";
 }
 
-function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
+export function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
   return {
     ...snapshot,
     walletMode: snapshot.walletMode ?? "configured",
@@ -604,7 +606,7 @@ function comparableWorkflowSnapshot(snapshot: FlowSnapshot): Record<string, unkn
   return rest;
 }
 
-function sameWorkflowSnapshotState(
+export function sameWorkflowSnapshotState(
   left: FlowSnapshot,
   right: FlowSnapshot,
 ): boolean {
@@ -614,7 +616,7 @@ function sameWorkflowSnapshotState(
   );
 }
 
-function saveWorkflowSnapshotIfChanged(
+export function saveWorkflowSnapshotIfChanged(
   previous: FlowSnapshot,
   next: FlowSnapshot,
 ): FlowSnapshot {
@@ -636,7 +638,7 @@ async function saveWorkflowSnapshotIfChangedWithLock(
   return withProcessLock(async () => saveWorkflowSnapshot(normalizedNext));
 }
 
-function cleanupTerminalWorkflowSecret(snapshot: FlowSnapshot): void {
+export function cleanupTerminalWorkflowSecret(snapshot: FlowSnapshot): void {
   if (
     isNewWalletFlow(snapshot) &&
     (snapshot.phase === "completed" ||
@@ -655,7 +657,7 @@ async function withProcessLock<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-function isTerminalFlowPhase(phase: FlowPhase): boolean {
+export function isTerminalFlowPhase(phase: FlowPhase): boolean {
   return (
     phase === "completed" ||
     phase === "completed_public_recovery" ||
@@ -780,7 +782,7 @@ function workflowNow(): string {
   return new Date().toISOString();
 }
 
-function updateSnapshot(
+export function updateSnapshot(
   snapshot: FlowSnapshot,
   patch: Partial<FlowSnapshot>,
 ): FlowSnapshot {
@@ -791,7 +793,7 @@ function updateSnapshot(
   };
 }
 
-function clearLastError(snapshot: FlowSnapshot): FlowSnapshot {
+export function clearLastError(snapshot: FlowSnapshot): FlowSnapshot {
   if (!snapshot.lastError) return snapshot;
   const { lastError: _lastError, ...rest } = snapshot;
   return {
@@ -800,7 +802,9 @@ function clearLastError(snapshot: FlowSnapshot): FlowSnapshot {
   };
 }
 
-function isDepositCheckpointFailure(lastError: FlowLastError | undefined): boolean {
+export function isDepositCheckpointFailure(
+  lastError: FlowLastError | undefined,
+): boolean {
   if (!lastError || lastError.step !== "deposit") {
     return false;
   }
@@ -814,7 +818,7 @@ function isDepositCheckpointFailure(lastError: FlowLastError | undefined): boole
   );
 }
 
-function nextPollDelayMs(
+export function nextPollDelayMs(
   currentDelayMs: number,
   phase: FlowPhase,
 ): number {
@@ -825,13 +829,13 @@ function nextPollDelayMs(
   return Math.min(currentDelayMs * 2, maxDelay);
 }
 
-function initialPollDelayMs(phase: FlowPhase): number {
+export function initialPollDelayMs(phase: FlowPhase): number {
   return phase === "awaiting_funding" || phase === "depositing_publicly"
     ? FLOW_FUNDING_POLL_INITIAL_MS
     : FLOW_POLL_INITIAL_MS;
 }
 
-function humanPollDelayLabel(ms: number): string {
+export function humanPollDelayLabel(ms: number): string {
   if (ms % 60_000 === 0) {
     const minutes = ms / 60_000;
     return `${minutes} minute${minutes === 1 ? "" : "s"}`;
@@ -843,7 +847,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function classifyFlowMutation(current: FlowSnapshot, poolAccount: PoolAccountRef | undefined): FlowPhase | null {
+export function classifyFlowMutation(
+  current: FlowSnapshot,
+  poolAccount: PoolAccountRef | undefined,
+): FlowPhase | null {
   const externallyChanged =
     !poolAccount ||
     poolAccount.status === "spent" ||
@@ -872,7 +879,10 @@ function saveMutatedWorkflowSnapshot(
   return saveWorkflowSnapshotIfChanged(snapshot, stopped);
 }
 
-function buildFlowLastError(step: string, error: unknown): FlowLastError {
+export function buildFlowLastError(
+  step: string,
+  error: unknown,
+): FlowLastError {
   const classified = classifyError(error);
   return {
     step,
@@ -887,18 +897,18 @@ function validateFlowRecipient(value: string): Address {
   return validateAddress(value, "Recipient") as Address;
 }
 
-function getFlowSignerPrivateKey(snapshot: FlowSnapshot): Hex {
+export function getFlowSignerPrivateKey(snapshot: FlowSnapshot): Hex {
   if (isNewWalletFlow(snapshot)) {
     return loadWorkflowSecretRecord(snapshot.workflowId).privateKey;
   }
   return loadPrivateKey();
 }
 
-function getFlowSignerAddress(snapshot: FlowSnapshot): Address {
+export function getFlowSignerAddress(snapshot: FlowSnapshot): Address {
   return privateKeyToAccount(getFlowSignerPrivateKey(snapshot)).address;
 }
 
-async function getFlowFundingRequirements(params: {
+export async function getFlowFundingRequirements(params: {
   chainConfig: ReturnType<typeof resolveChain>;
   pool: WorkflowPool;
   amount: bigint;
@@ -936,7 +946,7 @@ async function getFlowFundingRequirements(params: {
   };
 }
 
-async function getNextFlowPoolAccountRef(params: {
+export async function getNextFlowPoolAccountRef(params: {
   chainConfig: ReturnType<typeof resolveChain>;
   pool: WorkflowPool;
   globalOpts?: GlobalOptions;
@@ -1219,7 +1229,7 @@ async function executeDepositForFlow(params: {
   });
 }
 
-function createInitialSnapshot(params: {
+export function createInitialSnapshot(params: {
   workflowId?: string;
   walletMode?: FlowWalletMode;
   walletAddress?: Address | null;
@@ -1268,7 +1278,7 @@ function createInitialSnapshot(params: {
   });
 }
 
-function attachDepositResultToSnapshot(
+export function attachDepositResultToSnapshot(
   snapshot: FlowSnapshot,
   result: DepositExecutionResult,
 ): FlowSnapshot {
@@ -1289,7 +1299,7 @@ function attachDepositResultToSnapshot(
   );
 }
 
-function attachPendingDepositToSnapshot(
+export function attachPendingDepositToSnapshot(
   snapshot: FlowSnapshot,
   pending: PendingDepositSnapshotData,
 ): FlowSnapshot {
@@ -1304,7 +1314,7 @@ function attachPendingDepositToSnapshot(
   );
 }
 
-function attachPendingWithdrawalToSnapshot(
+export function attachPendingWithdrawalToSnapshot(
   snapshot: FlowSnapshot,
   chainId: number,
   withdrawTxHash: Hex,
@@ -1321,7 +1331,7 @@ function attachPendingWithdrawalToSnapshot(
   );
 }
 
-function attachWithdrawalResultToSnapshot(
+export function attachWithdrawalResultToSnapshot(
   snapshot: FlowSnapshot,
   result: {
     chainId: number;
@@ -1345,7 +1355,7 @@ function attachWithdrawalResultToSnapshot(
   );
 }
 
-function attachPendingRagequitToSnapshot(
+export function attachPendingRagequitToSnapshot(
   snapshot: FlowSnapshot,
   chainId: number,
   ragequitTxHash: Hex,
@@ -1361,7 +1371,7 @@ function attachPendingRagequitToSnapshot(
   );
 }
 
-function attachRagequitResultToSnapshot(
+export function attachRagequitResultToSnapshot(
   snapshot: FlowSnapshot,
   result: {
     chainId: number;
@@ -1386,7 +1396,7 @@ function attachRagequitResultToSnapshot(
   );
 }
 
-async function readFlowFundingState(params: {
+export async function readFlowFundingState(params: {
   snapshot: FlowSnapshot;
   pool: WorkflowPool;
   globalOpts?: GlobalOptions;
@@ -1468,7 +1478,7 @@ async function reconcileDepositingSnapshot(
   }
 }
 
-async function reconcilePendingDepositReceipt(params: {
+export async function reconcilePendingDepositReceipt(params: {
   snapshot: FlowSnapshot;
   chainConfig: ReturnType<typeof resolveChain>;
   pool: WorkflowPool;
@@ -1544,11 +1554,11 @@ async function reconcilePendingDepositReceipt(params: {
   });
 }
 
-function buildSavedWorkflowRecoveryCommand(snapshot: FlowSnapshot): string {
+export function buildSavedWorkflowRecoveryCommand(snapshot: FlowSnapshot): string {
   return `privacy-pools flow ragequit ${snapshot.workflowId}`;
 }
 
-async function refreshWorkflowAccountStateFromChain(params: {
+export async function refreshWorkflowAccountStateFromChain(params: {
   snapshot: FlowSnapshot;
   chainConfig: ReturnType<typeof resolveChain>;
   pool: WorkflowPool;
@@ -1598,7 +1608,7 @@ async function refreshWorkflowAccountStateFromChain(params: {
   }
 }
 
-async function reconcilePendingWithdrawalReceipt(params: {
+export async function reconcilePendingWithdrawalReceipt(params: {
   snapshot: FlowSnapshot;
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
@@ -1652,7 +1662,7 @@ async function reconcilePendingWithdrawalReceipt(params: {
   });
 }
 
-async function reconcilePendingRagequitReceipt(params: {
+export async function reconcilePendingRagequitReceipt(params: {
   snapshot: FlowSnapshot;
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
@@ -1771,7 +1781,7 @@ async function awaitPendingRagequitReceipt(params: {
   });
 }
 
-async function inspectFundingAndDeposit(params: {
+export async function inspectFundingAndDeposit(params: {
   snapshot: FlowSnapshot;
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
@@ -1907,7 +1917,7 @@ function assertWorkflowChain(snapshot: FlowSnapshot): ReturnType<typeof resolveC
   return resolveChain(snapshot.chain);
 }
 
-async function loadWorkflowPoolAccountContext(
+export async function loadWorkflowPoolAccountContext(
   snapshot: FlowSnapshot,
   globalOpts: GlobalOptions | undefined,
   silent: boolean,
@@ -2031,7 +2041,7 @@ async function loadWorkflowPoolAccountContext(
   };
 }
 
-async function executeRelayedWithdrawalForFlow(params: {
+export async function executeRelayedWithdrawalForFlow(params: {
   snapshot: FlowSnapshot;
   context: WorkflowPoolAccountContext;
   globalOpts?: GlobalOptions;
@@ -2298,7 +2308,7 @@ async function executeRelayedWithdrawalForFlow(params: {
   };
 }
 
-async function continueApprovedWorkflowWithdrawal(params: {
+export async function continueApprovedWorkflowWithdrawal(params: {
   snapshot: FlowSnapshot;
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
@@ -2700,7 +2710,7 @@ async function inspectAndAdvanceFlow(params: {
   };
 }
 
-async function setupNewWalletWorkflow(params: {
+export async function setupNewWalletWorkflow(params: {
   workflowId: string;
   chainConfig: ReturnType<typeof resolveChain>;
   pool: WorkflowPool;
