@@ -91,14 +91,13 @@ function linkDeclaredProdDependencies(packageRoot: string): void {
 }
 
 function packAndExtractCli(packRoot: string): PackedArtifact {
-  const packDir = createTrackedTempDir("pp-smoke-pack-");
   const extractDir = createTrackedTempDir("pp-smoke-extract-");
 
   const pack = spawnSync(
     npmBin(),
-    ["pack", packRoot, "--ignore-scripts", "--silent"],
+    ["pack", "--ignore-scripts", "--silent"],
     {
-      cwd: packDir,
+      cwd: packRoot,
       encoding: "utf8",
       timeout: 120_000,
       maxBuffer: 10 * 1024 * 1024,
@@ -110,7 +109,7 @@ function packAndExtractCli(packRoot: string): PackedArtifact {
   const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
   expect(tarballName).toBeTruthy();
 
-  const tarballPath = join(packDir, tarballName!);
+  const tarballPath = join(packRoot, tarballName!);
   const extract = spawnSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
     encoding: "utf8",
     timeout: 120_000,
