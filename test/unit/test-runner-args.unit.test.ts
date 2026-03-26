@@ -133,6 +133,7 @@ describe("test runner arg helpers", () => {
       "workflow-mocked",
       "workflow-internal",
       "init-interactive",
+      "bootstrap-runtime",
     ]);
   });
 

@@ -240,10 +240,10 @@ export const ISOLATED_SUITES = [
     label: "bootstrap-runtime",
     tests: [BOOTSTRAP_RUNTIME_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: false,
+    isolateInDefaultTest: true,
     isolateInCoverage: true,
     reason:
-      "the default lane now restores bootstrap modules cleanly, but coverage instrumentation still makes this runtime-heavy suite cheaper to isolate",
+      "mock.module() interception of cli-main transitive imports is not safely reversible in-process across Bun versions",
   },
 ];
 
