@@ -158,6 +158,15 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--pending-only"),
         ],
       }),
+      completionCommand("migrate", {
+        subcommands: [
+          completionCommand("status", {
+            options: [
+              completionOption("--all-chains"),
+            ],
+          }),
+        ],
+      }),
       completionCommand("withdraw", {
         options: [
           completionOption("-t, --to <address>"),

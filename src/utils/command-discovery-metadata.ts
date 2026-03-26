@@ -27,6 +27,8 @@ export type CommandPath =
   | "withdraw quote"
   | "ragequit"
   | "accounts"
+  | "migrate"
+  | "migrate status"
   | "history"
   | "sync"
   | "completion";
@@ -653,6 +655,64 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
 
     agentsDocMarker: "#### `accounts`",
   },
+  migrate: {
+    description: "Inspect legacy migration readiness on CLI-supported chains",
+    help: {
+      overview: [
+        "Read-only command for legacy pre-upgrade accounts on chains currently supported by the CLI. It rebuilds the legacy account view from the installed SDK plus current onchain events, then reports whether the Privacy Pools website migration flow or website-based recovery is needed.",
+        "The CLI does not submit legacy migrations. Use the Privacy Pools website for actual migration or website-based recovery.",
+      ],
+      examples: [
+        "privacy-pools migrate status",
+        "privacy-pools migrate status --chain mainnet",
+        "privacy-pools migrate status --all-chains --agent",
+      ],
+      prerequisites: "init",
+    },
+    capabilities: {
+      usage: "migrate",
+      flags: ["status [--all-chains]"],
+      agentFlags: "status --agent [--all-chains]",
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: true,
+  },
+  "migrate status": {
+    description: "Show legacy migration readiness on CLI-supported chains",
+    help: {
+      overview: [
+        "Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead.",
+        "Without --chain, migrate status checks all mainnet chains by default. Use --all-chains to include testnets.",
+      ],
+      examples: [
+        "privacy-pools migrate status",
+        "privacy-pools migrate status --chain mainnet",
+        "privacy-pools migrate status --all-chains --agent",
+      ],
+      prerequisites: "init",
+      jsonFields:
+        "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }",
+      safetyNotes: [
+        "This command is read-only. It never submits migration transactions and does not persist rebuilt account state.",
+        "When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.",
+        "This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website.",
+      ],
+      agentWorkflowNotes: [
+        "Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery.",
+      ],
+    },
+    capabilities: {
+      usage: "migrate status",
+      flags: ["--all-chains"],
+      agentFlags: "--agent [--all-chains]",
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: true,
+
+    agentsDocMarker: "#### `migrate status`",
+  },
   history: {
     description: "Show chronological event history (deposits, withdrawals, ragequits)",
     help: {
@@ -736,6 +796,8 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "withdraw",
   "withdraw quote",
   "accounts",
+  "migrate",
+  "migrate status",
   "history",
   "sync",
   "status",

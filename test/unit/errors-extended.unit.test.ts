@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   classifyError,
   CLIError,
+  accountWebsiteRecoveryRequiredError,
   defaultErrorCode,
   printError,
 } from "../../src/utils/errors.ts";
@@ -41,6 +42,11 @@ describe("classifyError - contract revert completeness", () => {
       retryable: true,
     },
     {
+      name: "ContextMismatch",
+      code: "CONTRACT_CONTEXT_MISMATCH",
+      retryable: false,
+    },
+    {
       name: "InvalidProcessooor",
       code: "CONTRACT_INVALID_PROCESSOOOR",
       retryable: false,
@@ -53,6 +59,11 @@ describe("classifyError - contract revert completeness", () => {
     {
       name: "PrecommitmentAlreadyUsed",
       code: "CONTRACT_PRECOMMITMENT_ALREADY_USED",
+      retryable: false,
+    },
+    {
+      name: "InvalidCommitment",
+      code: "CONTRACT_INVALID_COMMITMENT",
       retryable: false,
     },
     {
@@ -71,8 +82,28 @@ describe("classifyError - contract revert completeness", () => {
       retryable: false,
     },
     {
+      name: "InvalidWithdrawalAmount",
+      code: "CONTRACT_INVALID_WITHDRAWAL_AMOUNT",
+      retryable: false,
+    },
+    {
+      name: "PoolNotFound",
+      code: "CONTRACT_POOL_NOT_FOUND",
+      retryable: false,
+    },
+    {
       name: "PoolIsDead",
       code: "CONTRACT_POOL_IS_DEAD",
+      retryable: false,
+    },
+    {
+      name: "RelayFeeGreaterThanMax",
+      code: "CONTRACT_RELAY_FEE_GREATER_THAN_MAX",
+      retryable: true,
+    },
+    {
+      name: "InvalidTreeDepth",
+      code: "CONTRACT_INVALID_TREE_DEPTH",
       retryable: false,
     },
   ];
@@ -235,6 +266,15 @@ describe("CLIError constructor", () => {
   test("hint is optional", () => {
     const err = new CLIError("msg", "INPUT");
     expect(err.hint).toBeUndefined();
+  });
+});
+
+describe("website recovery errors", () => {
+  test("uses a distinct machine code for website-based recovery", () => {
+    const err = accountWebsiteRecoveryRequiredError();
+    expect(err.category).toBe("INPUT");
+    expect(err.code).toBe("ACCOUNT_WEBSITE_RECOVERY_REQUIRED");
+    expect(err.message).toContain("website-based recovery");
   });
 });
 

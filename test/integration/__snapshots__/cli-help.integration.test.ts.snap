@@ -15,10 +15,11 @@ Privacy Pools: a compliant way to transact privately on Ethereum
   init                 Initialize wallet and configuration
   flow                 Run the easy-path deposit-to-withdraw workflow
   deposit              Deposit into a pool
-  withdraw             Withdraw from a pool
-  ragequit|exit        Publicly withdraw funds to your deposit address
   accounts             List your Pool Accounts (individual deposit lineages)
                        with balances
+  migrate              Inspect legacy migration readiness on supported chains
+  withdraw             Withdraw from a pool
+  ragequit|exit        Publicly withdraw funds to your deposit address
   history              Show chronological event history (deposits, withdrawals,
                        ragequits)
   sync                 Force-sync local account state from onchain events
@@ -357,6 +358,24 @@ JSON output (--json):
   --pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }"
 `;
 
+exports[`CLI --help snapshots migrate --help snapshot 1`] = `
+"Usage: privacy-pools migrate [options] [command]
+Inspect legacy migration readiness on CLI-supported chains
+Options:
+  -h, --help        display help for command
+Commands:
+  status [options]  Show legacy migration readiness on CLI-supported chains
+  help [command]    display help for command
+Read-only command for legacy pre-upgrade accounts on chains currently supported by the CLI. It rebuilds the legacy account view from the installed SDK plus current onchain events, then reports whether the Privacy Pools website migration flow or website-based recovery is needed.
+The CLI does not submit legacy migrations. Use the Privacy Pools website for actual migration or website-based recovery.
+Examples:
+  privacy-pools migrate status
+  privacy-pools migrate status --chain mainnet
+  privacy-pools migrate status --all-chains --agent
+Prerequisites:
+  Requires: init"
+`;
+
 exports[`CLI --help snapshots history --help snapshot 1`] = `
 "Usage: privacy-pools history [options]
 Show chronological event history (deposits, withdrawals, ragequits)
@@ -605,4 +624,28 @@ Safety notes:
   Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.
 JSON output (--json):
   { mode: "flow", action: "ragequit", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }"
+`;
+
+exports[`CLI --help snapshots migrate status --help snapshot 1`] = `
+"Usage: privacy-pools migrate status [options]
+Show legacy migration readiness on CLI-supported chains
+Options:
+  --all-chains  Include testnet chains (mainnet chains shown by default)
+  -h, --help    display help for command
+Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead.
+Without --chain, migrate status checks all mainnet chains by default. Use --all-chains to include testnets.
+Examples:
+  privacy-pools migrate status
+  privacy-pools migrate status --chain mainnet
+  privacy-pools migrate status --all-chains --agent
+Prerequisites:
+  Requires: init
+Safety notes:
+  This command is read-only. It never submits migration transactions and does not persist rebuilt account state.
+  When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.
+  This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website.
+Agent workflow:
+  Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery.
+JSON output (--json):
+  { mode: "migration-status", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }"
 `;

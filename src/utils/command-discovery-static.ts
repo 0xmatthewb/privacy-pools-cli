@@ -23,6 +23,8 @@ export const STATIC_COMMAND_PATHS = [
   "withdraw quote",
   "ragequit",
   "accounts",
+  "migrate",
+  "migrate status",
   "history",
   "sync",
   "completion"
@@ -244,6 +246,28 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pending-only"
       ],
       "agentFlags": "--agent",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "migrate",
+      "description": "Inspect legacy migration readiness on CLI-supported chains",
+      "usage": "migrate",
+      "flags": [
+        "status [--all-chains]"
+      ],
+      "agentFlags": "status --agent [--all-chains]",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "migrate status",
+      "description": "Show legacy migration readiness on CLI-supported chains",
+      "usage": "migrate status",
+      "flags": [
+        "--all-chains"
+      ],
+      "agentFlags": "--agent [--all-chains]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1200,6 +1224,88 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit."
       ]
     },
+    "migrate": {
+      "command": "migrate",
+      "description": "Inspect legacy migration readiness on CLI-supported chains",
+      "aliases": [],
+      "usage": "migrate",
+      "flags": [
+        "status [--all-chains]"
+      ],
+      "globalFlags": [
+        "-j, --json",
+        "-y, --yes",
+        "-c, --chain <name>",
+        "-r, --rpc-url <url>",
+        "-q, --quiet",
+        "-v, --verbose",
+        "--no-banner",
+        "--no-color",
+        "--agent",
+        "--timeout <seconds>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": true,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools migrate status",
+        "privacy-pools migrate status --chain mainnet",
+        "privacy-pools migrate status --all-chains --agent"
+      ],
+      "jsonFields": null,
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "migrate status": {
+      "command": "migrate status",
+      "description": "Show legacy migration readiness on CLI-supported chains",
+      "aliases": [],
+      "usage": "migrate status",
+      "flags": [
+        "--all-chains"
+      ],
+      "globalFlags": [
+        "-j, --json",
+        "-y, --yes",
+        "-c, --chain <name>",
+        "-r, --rpc-url <url>",
+        "-q, --quiet",
+        "-v, --verbose",
+        "--no-banner",
+        "--no-color",
+        "--agent",
+        "--timeout <seconds>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": true,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools migrate status",
+        "privacy-pools migrate status --chain mainnet",
+        "privacy-pools migrate status --all-chains --agent"
+      ],
+      "jsonFields": "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "This command is read-only. It never submits migration transactions and does not persist rebuilt account state.",
+        "When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.",
+        "This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery."
+      ]
+    },
     "history": {
       "command": "history",
       "description": "Show chronological event history (deposits, withdrawals, ragequits)",
@@ -1475,6 +1581,8 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "capabilities",
     "describe",
     "guide",
+    "migrate",
+    "migrate status",
     "completion"
   ],
   "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",

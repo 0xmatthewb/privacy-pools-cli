@@ -3,6 +3,8 @@ import type { Command } from "commander";
 
 const realErrors = await import("../../src/utils/errors.ts");
 const realMode = await import("../../src/utils/mode.ts");
+const realAccount = await import("../../src/services/account.ts");
+const realAsp = await import("../../src/services/asp.ts");
 
 const chainConfig = {
   id: 11155111,
@@ -113,11 +115,13 @@ beforeAll(async () => {
     resolvePool: async () => pool,
   }));
   mock.module("../../src/services/account.ts", () => ({
+    ...realAccount,
     initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
     syncAccountEvents: syncAccountEventsMock,
     withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
   }));
   mock.module("../../src/services/asp.ts", () => ({
+    ...realAsp,
     formatIncompleteAspReviewDataMessage: () => "",
     hasIncompleteDepositReviewData: () => false,
     loadAspDepositReviewState: async () => ({
@@ -226,6 +230,22 @@ describe("account command error boundaries", () => {
     expect(error).toBeInstanceOf(realErrors.CLIError);
     expect((error as InstanceType<typeof realErrors.CLIError>).code).toBe(
       "ACCOUNT_MIGRATION_REQUIRED",
+    );
+    expect(isJson).toBe(true);
+  });
+
+  test("accounts prints ACCOUNT_WEBSITE_RECOVERY_REQUIRED in JSON mode", async () => {
+    initializeAccountServiceWithStateMock.mockImplementationOnce(async () => {
+      throw realErrors.accountWebsiteRecoveryRequiredError();
+    });
+
+    await handleAccountsCommand({}, fakeCommand({ json: true, chain: "sepolia" }));
+
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).code).toBe(
+      "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
     );
     expect(isJson).toBe(true);
   });

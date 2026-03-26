@@ -66,6 +66,13 @@ export {
   type AccountsRenderData,
 } from "./accounts.js";
 export {
+  renderMigrationStatus,
+  type MigrationWarning,
+  type MigrationChainRenderData,
+  type MigrationRenderData,
+  type MigrationStatusSummary,
+} from "./migrate.js";
+export {
   renderHistoryNoPools,
   renderHistory,
   type HistoryPoolInfo,

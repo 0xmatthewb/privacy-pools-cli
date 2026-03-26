@@ -26,6 +26,7 @@ const MIGRATED_COMMANDS = [
   "src/commands/guide.ts",
   "src/commands/history.ts",
   "src/commands/init.ts",
+  "src/commands/migrate.ts",
   "src/commands/pools.ts",
   "src/commands/ragequit.ts",
   "src/commands/stats.ts",

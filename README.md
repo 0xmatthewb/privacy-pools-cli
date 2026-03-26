@@ -59,6 +59,8 @@ New CLI-generated recovery phrases use 24 words (256-bit entropy). Imported reco
 
 If you're restoring an existing recovery phrase with `privacy-pools init --mnemonic ...`, the CLI will check for Pool Accounts on sync. Legacy pre-upgrade accounts may require migration or, for declined legacy deposits, website-based public recovery in the Privacy Pools website before the CLI can restore them safely.
 
+Use `privacy-pools migrate status --all-chains` for a read-only check of that legacy website migration or recovery readiness on CLI-supported chains. The CLI does not submit migration transactions, and beta or website-only migration surfaces should still be reviewed in the Privacy Pools website.
+
 ## Install
 
 ```bash
@@ -101,6 +103,7 @@ bun run start -- --help
 | `withdraw` | Withdraw from a pool (relayed or direct) | Yes |
 | `ragequit` | Emergency exit without ASP approval (alias: `exit`) | Yes |
 | `accounts` | List Pool Accounts with balances and approval status | Yes |
+| `migrate` | Read-only legacy migration or recovery readiness on supported chains | Yes |
 | `history` | Chronological event log | Yes |
 | `sync` | Force-sync account state from onchain | Yes |
 | `completion` | Generate shell completions (bash/zsh/fish/powershell) | |

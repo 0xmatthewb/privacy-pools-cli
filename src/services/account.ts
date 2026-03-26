@@ -6,21 +6,21 @@ import {
   type PoolInfo,
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Address } from "viem";
-import { CHAINS, resolveChainOverrides } from "../config/chains.js";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
-import { fetchDepositReviewStatuses } from "./asp.js";
 import {
   CLIError,
   accountMigrationRequiredError,
   accountWebsiteRecoveryRequiredError,
 } from "../utils/errors.js";
+import {
+  buildMigrationChainReadinessFromLegacyAccount,
+} from "./migration.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
   guardCriticalSection,
   releaseCriticalSection,
 } from "../utils/critical-section.js";
 import { warn, verbose as logVerbose } from "../utils/format.js";
-import { normalizeAspApprovalStatus } from "../utils/statuses.js";
 import {
   withSuppressedConsole,
   withSuppressedConsoleSync,
@@ -108,144 +108,6 @@ export interface InitializeAccountServiceState {
   rebuiltLegacyAccount: boolean;
 }
 
-interface LegacyCommitmentLike {
-  label?: bigint | null;
-  value?: bigint | null;
-}
-
-interface LegacyPoolAccountLike {
-  label?: bigint | null;
-  ragequit?: unknown;
-  isMigrated?: boolean;
-  deposit?: LegacyCommitmentLike | null;
-  children?: LegacyCommitmentLike[] | null;
-}
-
-interface LegacyMigrationCandidate {
-  scope: bigint;
-  label: string;
-}
-
-function latestLegacyCommitment(
-  account: LegacyPoolAccountLike,
-): LegacyCommitmentLike | null {
-  const children = Array.isArray(account.children) ? account.children : [];
-  return children.length > 0
-    ? children[children.length - 1] ?? null
-    : account.deposit ?? null;
-}
-
-function resolveLegacyDepositLabel(account: LegacyPoolAccountLike): string | null {
-  const label =
-    typeof account.deposit?.label === "bigint"
-      ? account.deposit.label
-      : typeof account.label === "bigint"
-        ? account.label
-        : null;
-
-  return label === null ? null : label.toString();
-}
-
-function collectLegacyMigrationCandidates(
-  legacyAccount: AccountService | undefined,
-): LegacyMigrationCandidate[] {
-  const poolAccounts = (
-    legacyAccount as unknown as {
-      account?: { poolAccounts?: Map<unknown, unknown[]> };
-    }
-  )?.account?.poolAccounts;
-
-  if (!(poolAccounts instanceof Map)) return [];
-
-  const candidates: LegacyMigrationCandidate[] = [];
-
-  for (const [rawScope, rawAccounts] of poolAccounts.entries()) {
-    if (typeof rawScope !== "bigint" || !Array.isArray(rawAccounts)) continue;
-
-    for (const rawAccount of rawAccounts) {
-      const account = rawAccount as LegacyPoolAccountLike;
-      if (account.ragequit || account.isMigrated) continue;
-
-      const latestCommitment = latestLegacyCommitment(account);
-      const remainingValue =
-        typeof latestCommitment?.value === "bigint"
-          ? latestCommitment.value
-          : null;
-      if (remainingValue === null || remainingValue <= 0n) continue;
-
-      const label = resolveLegacyDepositLabel(account);
-      if (!label) continue;
-
-      candidates.push({
-        scope: rawScope,
-        label,
-      });
-    }
-  }
-
-  return candidates;
-}
-
-function resolveChainConfigById(chainId: number) {
-  const baseConfig = Object.values(CHAINS).find((chain) => chain.id === chainId);
-  return baseConfig ? resolveChainOverrides(baseConfig) : null;
-}
-
-async function loadDeclinedLegacyLabels(
-  chainId: number,
-  candidates: readonly LegacyMigrationCandidate[],
-): Promise<Set<string> | null> {
-  if (candidates.length === 0) return new Set<string>();
-
-  const chainConfig = resolveChainConfigById(chainId);
-  if (!chainConfig) return null;
-
-  const labelsByScope = new Map<string, Set<string>>();
-  for (const candidate of candidates) {
-    const scopeKey = candidate.scope.toString();
-    const labels = labelsByScope.get(scopeKey) ?? new Set<string>();
-    labels.add(candidate.label);
-    labelsByScope.set(scopeKey, labels);
-  }
-
-  let unavailable = false;
-  const declinedLabels = new Set<string>();
-
-  await Promise.all(
-    [...labelsByScope.entries()].map(async ([scopeKey, labels]) => {
-      const statuses = await fetchDepositReviewStatuses(
-        chainConfig,
-        BigInt(scopeKey),
-        [...labels],
-      );
-      if (statuses === null) {
-        unavailable = true;
-        return;
-      }
-
-      for (const [label, status] of statuses.entries()) {
-        if (normalizeAspApprovalStatus(status) === "declined") {
-          declinedLabels.add(label);
-        }
-      }
-    }),
-  );
-
-  return unavailable ? null : declinedLabels;
-}
-
-function hasUnmigratedLegacyCommitments(
-  candidates: readonly LegacyMigrationCandidate[],
-  declinedLabels: ReadonlySet<string> | null,
-): boolean {
-  for (const candidate of candidates) {
-    if (declinedLabels?.has(candidate.label)) continue;
-    return true;
-  }
-
-  return false;
-}
-
 function staleAccountRefreshRequiredError(): CLIError {
   return new CLIError(
     "Stored account state is outdated and must be refreshed before it can be used safely.",
@@ -268,11 +130,16 @@ async function assertNoLegacyMigrationRequired(
   legacyAccount: AccountService | undefined,
   chainId: number,
 ): Promise<void> {
-  const candidates = collectLegacyMigrationCandidates(legacyAccount);
-  if (candidates.length === 0) return;
+  const readiness = await buildMigrationChainReadinessFromLegacyAccount(
+    legacyAccount,
+    chainId,
+  );
 
-  const declinedLabels = await loadDeclinedLegacyLabels(chainId, candidates);
-  if (!hasUnmigratedLegacyCommitments(candidates, declinedLabels)) {
+  if (readiness.status === "no_legacy" || readiness.status === "fully_migrated") {
+    return;
+  }
+
+  if (readiness.status === "website_recovery_required") {
     throw accountWebsiteRecoveryRequiredError(
       "Review this account in the Privacy Pools website first. Legacy declined deposits cannot be restored safely in the CLI and may require website-based public recovery instead of migration.",
     );
@@ -310,8 +177,12 @@ function buildPartialInitializationState(
   };
 }
 
-function isMigrationRequiredError(error: unknown): boolean {
-  return error instanceof CLIError && error.code === "ACCOUNT_MIGRATION_REQUIRED";
+function isLegacyWebsiteActionRequiredError(error: unknown): boolean {
+  return (
+    error instanceof CLIError &&
+    (error.code === "ACCOUNT_MIGRATION_REQUIRED" ||
+      error.code === "ACCOUNT_WEBSITE_RECOVERY_REQUIRED")
+  );
 }
 
 export async function initializeAccountServiceWithState(
@@ -383,7 +254,7 @@ export async function initializeAccountServiceWithState(
         rebuiltLegacyAccount: true,
       };
     } catch (err) {
-      if (isMigrationRequiredError(err)) {
+      if (isLegacyWebsiteActionRequiredError(err)) {
         throw err;
       }
       if (strictSync) {
@@ -490,7 +361,7 @@ export async function initializeAccountServiceWithState(
         rebuiltLegacyAccount: false,
       };
     } catch (err) {
-      if (isMigrationRequiredError(err)) {
+      if (isLegacyWebsiteActionRequiredError(err)) {
         throw err;
       }
       if (strictSync) {

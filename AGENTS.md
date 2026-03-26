@@ -32,6 +32,7 @@ privacy-pools flow ragequit latest --agent    # saved-workflow public recovery i
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools accounts --agent --chain mainnet                  # once pending disappears, confirm approved vs declined vs poi_required
+privacy-pools migrate status --agent --all-chains               # read-only legacy migration or recovery check on CLI-supported chains
 privacy-pools withdraw --all ETH --to 0xRecipient --agent
 ```
 
@@ -350,6 +351,24 @@ In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `
 
 **Poll pending approvals**: After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, reviewed entries disappear from the response instead of changing in place. Once it disappears, re-run `accounts --agent --chain <chain>` to confirm whether it became `"approved"`, `"declined"`, or `"poi_required"`. Withdraw only after approval; if declined, use `ragequit`; if `poi_required`, complete Proof of Association first. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
 
+#### `migrate status`
+
+Read-only legacy migration or recovery readiness check on CLI-supported chains.
+
+```bash
+privacy-pools migrate status --agent
+privacy-pools migrate status --agent --all-chains
+privacy-pools migrate status --agent --chain mainnet
+```
+
+`migrate status` rebuilds the legacy account view from the installed SDK, the built-in CLI pool registry for CLI-supported chains, and current onchain events without persisting trusted account state. It reports whether legacy pre-upgrade commitments still need website migration, already appear fully migrated, require website-based public recovery because they were declined, or cannot be classified safely because ASP review data is incomplete. The CLI does **not** submit migration transactions.
+
+Without `--chain`, `migrate status` checks all mainnet chains supported by the CLI by default. Use `--all-chains` to include supported testnets. Like other multi-chain read-only commands, `--rpc-url` is only valid with `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
+
+JSON payload: `{ mode: "migration-status", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }`
+
+When `readinessResolved` is `false`, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.
+
 #### `history`
 
 Chronological event history.
@@ -514,14 +533,24 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `PROOF_MALFORMED`                    | PROOF    | No        | Corrupt proof data                          |
 | `CONTRACT_NULLIFIER_ALREADY_SPENT`   | CONTRACT | No        | Pool Account already withdrawn              |
 | `CONTRACT_INCORRECT_ASP_ROOT`        | CONTRACT | Yes       | State changed, regenerate proof             |
+| `CONTRACT_UNKNOWN_STATE_ROOT`        | CONTRACT | Yes       | State root changed, regenerate proof        |
+| `CONTRACT_CONTEXT_MISMATCH`          | CONTRACT | No        | Proof context does not match withdrawal     |
 | `CONTRACT_INVALID_PROOF`             | CONTRACT | No        | Proof rejected onchain                      |
 | `CONTRACT_INVALID_PROCESSOOOR`       | CONTRACT | No        | Wrong withdrawal mode                       |
+| `CONTRACT_INVALID_COMMITMENT`        | CONTRACT | No        | Selected Pool Account is no longer valid    |
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED`| CONTRACT | No        | Duplicate precommitment, retry deposit      |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`   | CONTRACT | No        | Wrong signer for exit                       |
 | `CONTRACT_NO_ROOTS_AVAILABLE`        | CONTRACT | Yes       | Pool not ready, wait and retry              |
+| `CONTRACT_MINIMUM_DEPOSIT_AMOUNT`    | CONTRACT | No        | Deposit amount is below the pool minimum    |
+| `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No        | Withdrawal amount is invalid                |
+| `CONTRACT_POOL_NOT_FOUND`            | CONTRACT | No        | Requested pool is unavailable on this chain |
+| `CONTRACT_POOL_IS_DEAD`              | CONTRACT | No        | Pool no longer accepts activity             |
+| `CONTRACT_RELAY_FEE_GREATER_THAN_MAX`| CONTRACT | Yes       | Relayer fee exceeds pool maximum            |
+| `CONTRACT_INVALID_TREE_DEPTH`        | CONTRACT | No        | Proof inputs do not match pool tree depth   |
 | `CONTRACT_INSUFFICIENT_FUNDS`        | CONTRACT | No        | Wallet lacks ETH for amount + gas           |
 | `CONTRACT_NONCE_ERROR`               | CONTRACT | Yes       | Nonce conflict; pending tx may be stuck     |
-| `ACCOUNT_MIGRATION_REQUIRED`         | INPUT    | No        | Legacy pre-upgrade account must be handled in the website before CLI restore/sync |
+| `ACCOUNT_MIGRATION_REQUIRED`         | INPUT    | No        | Legacy pre-upgrade account must be migrated in the website before CLI restore/sync |
+| `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`  | INPUT    | No        | Legacy declined deposits require website-based recovery before CLI restore/sync |
 | `ACCOUNT_NOT_APPROVED`               | ASP      | No        | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
 | `UNKNOWN_ERROR`                      | UNKNOWN  | No        | Unexpected error                            |
 
@@ -543,13 +572,14 @@ Dry-run responses include `"dryRun": true` and all validation results.
 When `retryable: true` is present in the error response:
 
 1. For `RPC_NETWORK_ERROR`, `RPC_RATE_LIMITED`, or `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
-2. For `CONTRACT_INCORRECT_ASP_ROOT` or `PROOF_MERKLE_ERROR`: run `sync --agent` first, then retry the original command
-3. For `CONTRACT_NO_ROOTS_AVAILABLE` or `CONTRACT_NONCE_ERROR`: wait 30-60s and retry
+2. For `CONTRACT_INCORRECT_ASP_ROOT`, `CONTRACT_UNKNOWN_STATE_ROOT`, or `PROOF_MERKLE_ERROR`: run `sync --agent` first, then retry the original command
+3. For `CONTRACT_NO_ROOTS_AVAILABLE`, `CONTRACT_NONCE_ERROR`, or `CONTRACT_RELAY_FEE_GREATER_THAN_MAX`: wait 30-60s or request a fresh quote, then retry
 
 When `retryable: false` (non-retryable):
 
-4. For `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first; migrate it there if needed, or use the website's recovery flow for legacy declined deposits, then rerun the CLI restore or sync command.
-5. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+4. For `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
+5. For `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
+6. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ## Supported Chains
 

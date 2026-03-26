@@ -131,6 +131,7 @@ describe("barrel re-exports", () => {
     "poolToJson",
     "renderAccountsNoPools",
     "renderAccounts",
+    "renderMigrationStatus",
     "renderHistoryNoPools",
     "renderHistory",
     // Transactional command renderers

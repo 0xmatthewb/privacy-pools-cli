@@ -20,6 +20,7 @@ const ROOT_COMMAND_NAMES = [
   "pools",
   "deposit",
   "accounts",
+  "migrate",
   "withdraw",
   "ragequit",
   "history",
@@ -47,6 +48,8 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
     (await import("./command-shells/deposit.js")).createDepositCommand(),
   accounts: async () =>
     (await import("./command-shells/accounts.js")).createAccountsCommand(),
+  migrate: async () =>
+    (await import("./command-shells/migrate.js")).createMigrateCommand(),
   withdraw: async () =>
     (await import("./command-shells/withdraw.js")).createWithdrawCommand(),
   ragequit: async () =>

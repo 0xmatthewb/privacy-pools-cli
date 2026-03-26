@@ -367,6 +367,40 @@ privacy-pools accounts --no-sync --chain mainnet
 
 **JSON output:** `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
+### `migrate`
+
+Inspect legacy migration readiness on CLI-supported chains
+
+Read-only command for legacy pre-upgrade accounts on chains currently supported by the CLI. It rebuilds the legacy account view from the installed SDK plus current onchain events, then reports whether the Privacy Pools website migration flow or website-based recovery is needed. The CLI does not submit legacy migrations. Use the Privacy Pools website for actual migration or website-based recovery.
+
+```bash
+privacy-pools migrate status
+privacy-pools migrate status --chain mainnet
+privacy-pools migrate status --all-chains --agent
+```
+
+### `migrate status`
+
+Show legacy migration readiness on CLI-supported chains
+
+Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all mainnet chains by default. Use --all-chains to include testnets.
+
+```bash
+privacy-pools migrate status
+privacy-pools migrate status --chain mainnet
+privacy-pools migrate status --all-chains --agent
+```
+
+| Flag | Description |
+|------|-------------|
+| `--all-chains` | Include testnet chains (mainnet chains shown by default) |
+
+**Safety:** This command is read-only. It never submits migration transactions and does not persist rebuilt account state.
+**Safety:** When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.
+**Safety:** This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website.
+
+**JSON output:** `{ mode: "migration-status", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }`
+
 ### `history`
 
 Show chronological event history (deposits, withdrawals, ragequits)

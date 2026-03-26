@@ -1,0 +1,193 @@
+import chalk from "chalk";
+import type { OutputContext } from "./common.js";
+import {
+  guardCsvUnsupported,
+  info,
+  isSilent,
+  printJsonSuccess,
+  printTable,
+  warn,
+} from "./common.js";
+import { accentBold, notice } from "../utils/theme.js";
+import type { MigrationChainStatus } from "../services/migration.js";
+
+export interface MigrationWarning {
+  chain: string;
+  category: string;
+  message: string;
+}
+
+export interface MigrationChainRenderData {
+  chain: string;
+  chainId: number;
+  status: MigrationChainStatus;
+  candidateLegacyCommitments: number;
+  expectedLegacyCommitments: number;
+  migratedCommitments: number;
+  legacyMasterSeedNullifiedCount: number;
+  hasPostMigrationCommitments: boolean;
+  isMigrated: boolean;
+  legacySpendableCommitments: number;
+  upgradedSpendableCommitments: number;
+  declinedLegacyCommitments: number;
+  reviewStatusComplete: boolean;
+  requiresMigration: boolean;
+  requiresWebsiteRecovery: boolean;
+  scopes: string[];
+}
+
+export type MigrationStatusSummary =
+  | "no_legacy"
+  | "migration_required"
+  | "fully_migrated"
+  | "website_recovery_required"
+  | "review_incomplete";
+
+export interface MigrationRenderData {
+  mode: "migration-status";
+  chain: string;
+  allChains?: boolean;
+  chains?: string[];
+  warnings?: MigrationWarning[];
+  status: MigrationStatusSummary;
+  requiresMigration: boolean;
+  requiresWebsiteRecovery: boolean;
+  isFullyMigrated: boolean;
+  readinessResolved: boolean;
+  submissionSupported: false;
+  requiredChainIds: number[];
+  migratedChainIds: number[];
+  missingChainIds: number[];
+  websiteRecoveryChainIds: number[];
+  unresolvedChainIds: number[];
+  chainReadiness: MigrationChainRenderData[];
+}
+
+function statusSummaryLine(status: MigrationStatusSummary): string {
+  switch (status) {
+    case "migration_required":
+      return "Legacy website migration is still required on at least one chain.";
+    case "website_recovery_required":
+      return "Legacy declined deposits were found. Review the Privacy Pools website for website-based public recovery.";
+    case "fully_migrated":
+      return "Legacy pre-upgrade commitments were found, but all migratable commitments already appear migrated.";
+    case "review_incomplete":
+      return "Migration readiness is incomplete because some legacy ASP review data could not be confirmed.";
+    case "no_legacy":
+      return "No legacy pre-upgrade commitments were detected.";
+  }
+}
+
+function renderChainStatus(status: MigrationChainStatus): string {
+  switch (status) {
+    case "migration_required":
+      return chalk.yellow("migration required");
+    case "partially_migrated":
+      return chalk.yellow("partially migrated");
+    case "fully_migrated":
+      return chalk.green("fully migrated");
+    case "website_recovery_required":
+      return chalk.red("website recovery");
+    case "review_incomplete":
+      return chalk.yellow("review incomplete");
+    case "no_legacy":
+      return chalk.dim("no legacy");
+  }
+}
+
+function countCell(value: number, known: boolean): string {
+  return known ? String(value) : "?";
+}
+
+export function renderMigrationStatus(
+  ctx: OutputContext,
+  result: MigrationRenderData,
+): void {
+  guardCsvUnsupported(ctx, "migrate status");
+
+  if (ctx.mode.isJson) {
+    printJsonSuccess({
+      mode: result.mode,
+      chain: result.chain,
+      ...(result.allChains ? { allChains: true } : {}),
+      ...(result.chains ? { chains: result.chains } : {}),
+      ...(result.warnings && result.warnings.length > 0
+        ? { warnings: result.warnings }
+        : {}),
+      status: result.status,
+      requiresMigration: result.requiresMigration,
+      requiresWebsiteRecovery: result.requiresWebsiteRecovery,
+      isFullyMigrated: result.isFullyMigrated,
+      readinessResolved: result.readinessResolved,
+      submissionSupported: result.submissionSupported,
+      requiredChainIds: result.requiredChainIds,
+      migratedChainIds: result.migratedChainIds,
+      missingChainIds: result.missingChainIds,
+      websiteRecoveryChainIds: result.websiteRecoveryChainIds,
+      unresolvedChainIds: result.unresolvedChainIds,
+      chainReadiness: result.chainReadiness,
+    });
+    return;
+  }
+
+  const silent = isSilent(ctx);
+  if (!silent) {
+    process.stderr.write(`\n${accentBold("Migration Status")}\n\n`);
+  }
+
+  info(statusSummaryLine(result.status), silent);
+  info(
+    "Read-only check only. The CLI does not submit migrations; use the Privacy Pools website to migrate or recover legacy accounts.",
+    silent,
+  );
+
+  if (result.chainReadiness.length > 0) {
+    printTable(
+      ["Chain", "Status", "Legacy", "Migrated", "Remaining", "Declined"],
+      result.chainReadiness.map((entry) => [
+        entry.chain,
+        renderChainStatus(entry.status),
+        countCell(
+          entry.expectedLegacyCommitments,
+          entry.reviewStatusComplete,
+        ),
+        String(entry.migratedCommitments),
+        countCell(
+          entry.legacySpendableCommitments,
+          entry.reviewStatusComplete,
+        ),
+        countCell(
+          entry.declinedLegacyCommitments,
+          entry.reviewStatusComplete,
+        ),
+      ]),
+    );
+  }
+
+  for (const entry of result.chainReadiness) {
+    if (entry.scopes.length === 0) continue;
+    info(
+      `${entry.chain} scopes: ${entry.scopes.join(", ")}`,
+      silent,
+    );
+  }
+
+  if (result.warnings && result.warnings.length > 0) {
+    for (const entry of result.warnings) {
+      warn(`${entry.chain}: ${entry.message}`, silent);
+    }
+  }
+
+  if (!result.readinessResolved) {
+    warn(
+      "Some legacy ASP review data was unavailable. Review the account in the website before treating this result as final.",
+      silent,
+    );
+  }
+
+  if (!silent) {
+    process.stderr.write(
+      `\n${notice("Website-only action")}: migrate or recover legacy accounts in privacypools.com, then rerun this command.\n`,
+    );
+  }
+}

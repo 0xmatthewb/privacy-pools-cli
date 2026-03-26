@@ -40,6 +40,7 @@ describe("CLI help and discovery", () => {
     expect(result.stdout).toContain("ragequit");
     expect(result.stdout).toContain("exit");
     expect(result.stdout).toContain("accounts");
+    expect(result.stdout).toContain("migrate");
     expect(result.stdout).toContain("history");
     // sync, completion, and capabilities are all visible
     expect(result.stdout).toContain("sync");
@@ -68,6 +69,7 @@ describe("CLI help and discovery", () => {
     ["ragequit", "Publicly withdraw funds to your deposit address"],
     ["exit", "Publicly withdraw funds to your deposit address"],
     ["accounts", "List your Pool Accounts (individual deposit lineages) with balances"],
+    ["migrate", "Inspect legacy migration readiness on CLI-supported chains"],
     ["history", "Show chronological event history"],
     ["sync", "Force-sync local account state from onchain events"],
     ["capabilities", "Describe CLI capabilities for agent discovery"],
@@ -439,6 +441,7 @@ const SNAPSHOT_COMMANDS = [
   "withdraw",
   "ragequit",
   "accounts",
+  "migrate",
   "history",
   "sync",
   "guide",
@@ -500,6 +503,12 @@ describe("CLI --help snapshots", () => {
 
   test("flow ragequit --help snapshot", () => {
     const result = runStaticCli(["flow", "ragequit", "--help"]);
+    expect(result.status).toBe(0);
+    expect(normalizeHelp(result.stdout)).toMatchSnapshot();
+  });
+
+  test("migrate status --help snapshot", () => {
+    const result = runStaticCli(["migrate", "status", "--help"]);
     expect(result.status).toBe(0);
     expect(normalizeHelp(result.stdout)).toMatchSnapshot();
   });

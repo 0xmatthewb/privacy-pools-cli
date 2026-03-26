@@ -280,7 +280,7 @@ Manual path remains available when you need custom Pool Account selection, parti
 
 New CLI-generated recovery phrases use 24 words by default. Imported recovery phrases may still be 12 or 24 words.
 
-In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `accounts --agent --all-chains`. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely.
+In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `accounts --agent --all-chains`. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely. Use `migrate status --agent --all-chains` for a read-only legacy readiness check on CLI-supported chains; the CLI does not submit migration transactions, and beta or website-only migration surfaces must still be reviewed in the website.
 
 In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when that tradeoff is intentional.
 

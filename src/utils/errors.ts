@@ -72,7 +72,7 @@ export function accountWebsiteRecoveryRequiredError(
     "Legacy pre-upgrade Pool Accounts require website-based recovery before the CLI can safely restore this account.",
     "INPUT",
     hint,
-    "ACCOUNT_MIGRATION_REQUIRED",
+    "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
     false,
   );
 }
@@ -95,6 +95,11 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     code: "CONTRACT_UNKNOWN_STATE_ROOT",
     retryable: true,
   },
+  ContextMismatch: {
+    message: "Proof context does not match this withdrawal.",
+    hint: "Regenerate the proof against the intended chain, pool, amount, and recipient, then retry.",
+    code: "CONTRACT_CONTEXT_MISMATCH",
+  },
   InvalidProcessooor: {
     message: "Withdrawal type mismatch.",
     hint: "This usually means the wrong withdrawal mode was used. Try switching between --direct and relayed (default).",
@@ -109,6 +114,11 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "This precommitment hash was already used in a previous deposit.",
     hint: "Run a new deposit to generate fresh secrets.",
     code: "CONTRACT_PRECOMMITMENT_ALREADY_USED",
+  },
+  InvalidCommitment: {
+    message: "The selected Pool Account commitment is no longer in the pool state.",
+    hint: "Run 'privacy-pools sync' to refresh local account state before retrying.",
+    code: "CONTRACT_INVALID_COMMITMENT",
   },
   OnlyOriginalDepositor: {
     message: "Only the original depositor can exit this Pool Account.",
@@ -126,10 +136,31 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     hint: "Increase the amount to meet the pool minimum shown by 'privacy-pools pools' or the deposit validation output, then retry.",
     code: "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
   },
+  InvalidWithdrawalAmount: {
+    message: "Withdrawal amount is invalid for this Pool Account.",
+    hint: "Check the requested amount, available balance, and selected Pool Account, then retry with a valid withdrawal amount.",
+    code: "CONTRACT_INVALID_WITHDRAWAL_AMOUNT",
+  },
+  PoolNotFound: {
+    message: "The requested pool is not available on this chain.",
+    hint: "Run 'privacy-pools pools' to confirm the asset is supported on this chain, or choose another pool or asset.",
+    code: "CONTRACT_POOL_NOT_FOUND",
+  },
   PoolIsDead: {
     message: "This pool is no longer accepting new activity.",
     hint: "Choose another pool or asset before retrying.",
     code: "CONTRACT_POOL_IS_DEAD",
+  },
+  RelayFeeGreaterThanMax: {
+    message: "The relayer fee exceeds this pool's configured maximum.",
+    hint: "Request a fresh quote and retry. If it persists, wait for fees to normalize or choose another pool or asset.",
+    code: "CONTRACT_RELAY_FEE_GREATER_THAN_MAX",
+    retryable: true,
+  },
+  InvalidTreeDepth: {
+    message: "The proof inputs do not match this pool's tree configuration.",
+    hint: "Run 'privacy-pools sync' and retry once. If it persists, update the CLI before trying again.",
+    code: "CONTRACT_INVALID_TREE_DEPTH",
   },
 };
 

@@ -106,6 +106,8 @@ describe("command docs alignment", () => {
     expect(safeReadOnlyCommands).toBeDefined();
     expect(safeReadOnlyCommands).not.toContain('"flow"');
     expect(safeReadOnlyCommands).toContain('"flow status"');
+    expect(safeReadOnlyCommands).toContain('"migrate"');
+    expect(safeReadOnlyCommands).toContain('"migrate status"');
   });
 
   test("skill reference accounts section documents unknown ASP status", () => {
@@ -116,6 +118,49 @@ describe("command docs alignment", () => {
     expect(normalizedSection).toContain("aspStatus");
     expect(normalizedSection).toContain("\"unknown\"");
     expect(normalizedSection).toContain("spent or exited accounts");
+  });
+
+  test("AGENTS and skill reference error tables include current contract and legacy account codes", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const normalizedAgents = normalizeWhitespace(agents);
+    const normalizedReference = normalizeWhitespace(reference);
+    const requiredCodes = [
+      "CONTRACT_UNKNOWN_STATE_ROOT",
+      "CONTRACT_CONTEXT_MISMATCH",
+      "CONTRACT_INVALID_COMMITMENT",
+      "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
+      "CONTRACT_INVALID_WITHDRAWAL_AMOUNT",
+      "CONTRACT_POOL_NOT_FOUND",
+      "CONTRACT_POOL_IS_DEAD",
+      "CONTRACT_RELAY_FEE_GREATER_THAN_MAX",
+      "CONTRACT_INVALID_TREE_DEPTH",
+      "ACCOUNT_MIGRATION_REQUIRED",
+      "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
+    ];
+
+    for (const code of requiredCodes) {
+      expect(normalizedAgents).toContain(code);
+      expect(normalizedReference).toContain(code);
+    }
+
+    expect(normalizedAgents).toContain("CONTRACT_UNKNOWN_STATE_ROOT");
+    expect(normalizedAgents).toContain("run `sync --agent` first");
+    expect(normalizedReference).toContain("CONTRACT_UNKNOWN_STATE_ROOT");
+    expect(normalizedReference).toContain("run `privacy-pools sync --agent`, then retry");
+  });
+
+  test("skill reference migrate status example reflects the always-present coverage warning", () => {
+    const reference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const section = extractDocumentSection(reference, "### `migrate status`", [
+      "### `migrate status`",
+      "### `history`",
+    ]);
+    const normalizedSection = normalizeWhitespace(section);
+
+    expect(normalizedSection).toContain('"warnings": [');
+    expect(normalizedSection).toContain('"category": "COVERAGE"');
+    expect(normalizedSection).not.toContain('"warnings": []');
   });
 
   test("AGENTS and skill reference activity docs describe all-mainnets global mode", () => {

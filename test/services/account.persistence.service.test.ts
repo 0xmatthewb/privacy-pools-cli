@@ -531,7 +531,7 @@ describe("account persistence", () => {
       ),
     ).rejects.toMatchObject({
       category: "INPUT",
-      code: "ACCOUNT_MIGRATION_REQUIRED",
+      code: "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
       message: expect.stringContaining("website-based recovery"),
       hint: expect.stringContaining("public recovery"),
     });
