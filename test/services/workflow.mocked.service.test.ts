@@ -926,6 +926,25 @@ describe("workflow service mocked coverage", () => {
     expect(failedSnapshot.lastError?.step).toBe("deposit");
     expect(state.depositEthCalls).toBe(0);
     expect(state.depositErc20Calls).toBe(0);
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-ambiguous-deposit",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("transaction hash was not checkpointed locally");
+
+    expect(state.depositEthCalls).toBe(0);
+    expect(state.depositErc20Calls).toBe(0);
   });
 
   test("watchWorkflow does not retry after a checkpoint failure without a saved tx hash", async () => {
@@ -952,6 +971,47 @@ describe("workflow service mocked coverage", () => {
     await expect(
       watchWorkflow({
         workflowId: "wf-checkpoint-failed",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("transaction hash was not checkpointed locally");
+
+    expect(state.depositEthCalls).toBe(0);
+    expect(state.depositErc20Calls).toBe(0);
+  });
+
+  test("watchWorkflow does not retry legacy checkpoint failures without a saved tx hash", async () => {
+    writeWorkflowSecret("wf-legacy-checkpoint-failed");
+    writeWorkflowSnapshot("wf-legacy-checkpoint-failed", {
+      phase: "depositing_publicly",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositTxHash: null,
+      depositBlockNumber: null,
+      depositExplorerUrl: null,
+      requiredNativeFunding: "1000000000000000",
+      requiredTokenFunding: null,
+      aspStatus: undefined,
+      lastError: {
+        step: "deposit",
+        errorCode: "INPUT_ERROR",
+        errorMessage: "Public deposit was submitted, but the workflow could not checkpoint it locally.",
+        retryable: false,
+        at: "2026-03-24T12:00:00.000Z",
+      },
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-legacy-checkpoint-failed",
         globalOpts: { chain: "sepolia" },
         mode: {
           isAgent: true,

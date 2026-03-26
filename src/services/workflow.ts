@@ -149,6 +149,10 @@ const FLOW_GAS_ERC20_APPROVAL = 100_000n;
 const FLOW_GAS_ERC20_DEPOSIT = 275_000n;
 const FLOW_GAS_RAGEQUIT = 325_000n;
 const WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE = "WORKFLOW_DEPOSIT_CHECKPOINT_FAILED";
+const WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE =
+  "Public deposit was submitted, but the workflow could not checkpoint it locally.";
+const WORKFLOW_DEPOSIT_CHECKPOINT_AMBIGUOUS_MESSAGE =
+  "This workflow may have submitted a public deposit, but the transaction hash was not checkpointed locally.";
 
 export type FlowPhase =
   | "awaiting_funding"
@@ -706,6 +710,20 @@ function clearLastError(snapshot: FlowSnapshot): FlowSnapshot {
     ...rest,
     updatedAt: workflowNow(),
   };
+}
+
+function isDepositCheckpointFailure(lastError: FlowLastError | undefined): boolean {
+  if (!lastError || lastError.step !== "deposit") {
+    return false;
+  }
+  if (lastError.errorCode === WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE) {
+    return true;
+  }
+
+  return (
+    lastError.errorMessage.includes("could not checkpoint it locally") ||
+    lastError.errorMessage.includes("transaction hash was not checkpointed locally")
+  );
 }
 
 function nextPollDelayMs(
@@ -1690,7 +1708,7 @@ async function inspectFundingAndDeposit(params: {
     if (!currentSnapshot.depositTxHash) {
       const cleanSubmissionFailure =
         currentSnapshot.lastError?.step === "deposit" &&
-        currentSnapshot.lastError.errorCode !== WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE;
+        !isDepositCheckpointFailure(currentSnapshot.lastError);
       if (cleanSubmissionFailure) {
         currentSnapshot = saveWorkflowSnapshotIfChanged(
           currentSnapshot,
@@ -1702,7 +1720,7 @@ async function inspectFundingAndDeposit(params: {
         );
       } else {
         throw new CLIError(
-          "This workflow may have submitted a public deposit, but the transaction hash was not checkpointed locally.",
+          WORKFLOW_DEPOSIT_CHECKPOINT_AMBIGUOUS_MESSAGE,
           "INPUT",
           `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
         );
@@ -1784,7 +1802,7 @@ async function inspectFundingAndDeposit(params: {
         );
       } catch {
         throw new CLIError(
-          "Public deposit was submitted, but the workflow could not checkpoint it locally.",
+          WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE,
           "INPUT",
           `Tx ${pending.depositTxHash} may still confirm. Run 'privacy-pools sync --chain ${currentSnapshot.chain} --asset ${currentSnapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
           WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE,
