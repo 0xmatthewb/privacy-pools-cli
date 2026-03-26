@@ -66,7 +66,8 @@ jobs:
 
       - name: Skip linux-core
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping linux-core: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping linux-core: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'
@@ -122,7 +123,8 @@ jobs:
 
       - name: Skip packaged-smoke
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping packaged-smoke: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping packaged-smoke: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'
@@ -166,7 +168,8 @@ jobs:
 
       - name: Skip anvil-e2e-smoke
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping anvil-e2e-smoke: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping anvil-e2e-smoke: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'
@@ -212,7 +215,8 @@ jobs:
 
       - name: Skip coverage-guard
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping coverage-guard: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping coverage-guard: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'
@@ -252,7 +256,8 @@ jobs:
 
       - name: Skip evals
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping evals: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping evals: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'
@@ -292,7 +297,8 @@ jobs:
 
       - name: Skip conformance-core
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping conformance-core: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping conformance-core: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'

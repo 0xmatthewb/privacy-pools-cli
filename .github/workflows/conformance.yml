@@ -51,7 +51,8 @@ jobs:
 
       - name: Skip conformance-core
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping conformance-core: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping conformance-core: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'

@@ -63,7 +63,8 @@ jobs:
 
       - name: Skip cross-platform
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping cross-platform: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping cross-platform: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'

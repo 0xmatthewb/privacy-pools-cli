@@ -59,7 +59,8 @@ jobs:
 
       - name: Skip full-anvil
         if: steps.select.outputs.should_run != 'true'
-        run: echo "Skipping full-anvil: ${{ steps.select.outputs.reason }}"
+        run: |
+          echo "Skipping full-anvil: ${{ steps.select.outputs.reason }}"
 
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'
