@@ -112,6 +112,16 @@ function toSolidityProof(body: {
   };
 }
 
+function isRelayRevertError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /reverted|execution reverted|contract function "relay" reverted/i.test(
+    error.message,
+  );
+}
+
 async function route(
   req: IncomingMessage,
   res: ServerResponse,
@@ -265,26 +275,34 @@ async function route(
       transport: http(state.config.rpcUrl),
     });
 
-    const txHash = await walletClient.writeContract({
-      address: state.config.entrypoint,
-      abi: entrypointRelayAbi,
-      functionName: "relay",
-      args: [
-        body.withdrawal as {
-          processooor: `0x${string}`;
-          data: `0x${string}`;
-        },
-        toSolidityProof({
-          proof: body.proof as {
-            pi_a?: [string, string];
-            pi_b?: [[string, string], [string, string]];
-            pi_c?: [string, string];
+    let txHash: `0x${string}`;
+    try {
+      txHash = await walletClient.writeContract({
+        address: state.config.entrypoint,
+        abi: entrypointRelayAbi,
+        functionName: "relay",
+        args: [
+          body.withdrawal as {
+            processooor: `0x${string}`;
+            data: `0x${string}`;
           },
-          publicSignals: body.publicSignals as string[] | undefined,
-        }),
-        BigInt(String(body.scope)),
-      ],
-    });
+          toSolidityProof({
+            proof: body.proof as {
+              pi_a?: [string, string];
+              pi_b?: [[string, string], [string, string]];
+              pi_c?: [string, string];
+            },
+            publicSignals: body.publicSignals as string[] | undefined,
+          }),
+          BigInt(String(body.scope)),
+        ],
+      });
+    } catch (error) {
+      if (isRelayRevertError(error)) {
+        throw new Error("Relay transaction reverted");
+      }
+      throw error;
+    }
 
     const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
     if (receipt.status !== "success") {

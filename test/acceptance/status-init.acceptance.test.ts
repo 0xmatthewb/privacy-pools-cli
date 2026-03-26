@@ -1,10 +1,11 @@
 import { expect } from "bun:test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { runCli, writeTestSecretFiles } from "../helpers/cli.ts";
+import { writeTestSecretFiles } from "../helpers/cli.ts";
 import {
   assertExit,
   assertJson,
+  assertJsonEnvelopeStep,
   defineScenario,
   defineScenarioSuite,
   runCliStep,
@@ -25,7 +26,7 @@ defineScenarioSuite("status/init acceptance", [
   defineScenario("init persists config and signer state for status", [
     async (ctx) => {
       const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(ctx.home);
-      ctx.lastResult = runCli(
+      ctx.lastResult = ctx.runCli(
         [
           "--json",
           "init",
@@ -38,19 +39,19 @@ defineScenarioSuite("status/init acceptance", [
           "--yes",
         ],
         {
-          home: ctx.home,
           timeoutMs: 60_000,
-          env: ctx.env,
         },
       );
     },
     assertExit(0),
+    assertJsonEnvelopeStep({ success: true }),
     assertJson<{ success: boolean; defaultChain: string }>((json) => {
       expect(json.success).toBe(true);
       expect(json.defaultChain).toBe("sepolia");
     }),
     runCliStep(["--json", "status"]),
     assertExit(0),
+    assertJsonEnvelopeStep({ success: true }),
     assertJson<{
       success: boolean;
       defaultChain: string;
@@ -115,11 +116,13 @@ defineScenarioSuite("status/init acceptance", [
     writeFile(".privacy-pools/config.json", "{invalid json"),
     runCliStep(["--json", "status"], { timeoutMs: 60_000 }),
     assertExit(2),
+    assertJsonEnvelopeStep({
+      success: false,
+      errorCode: "INPUT_ERROR",
+    }),
     assertJson<{
-      success: boolean;
       error: { category: string; code: string; message: string };
     }>((json) => {
-      expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
       expect(json.error.code).toBe("INPUT_ERROR");
       expect(json.error.message).toContain("Config file is not valid JSON");
@@ -132,11 +135,10 @@ defineScenarioSuite("status/init acceptance", [
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(4),
+    assertJsonEnvelopeStep({ success: false }),
     assertJson<{
-      success: boolean;
       error: { category: string };
     }>((json) => {
-      expect(json.success).toBe(false);
       expect(json.error.category).toBe("ASP");
     }),
   ]),

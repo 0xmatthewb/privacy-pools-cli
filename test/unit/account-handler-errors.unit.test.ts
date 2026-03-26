@@ -1,14 +1,67 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
 
-const realErrors = await import("../../src/utils/errors.ts");
-const realMode = await import("../../src/utils/mode.ts");
-const realAccount = await import("../../src/services/account.ts");
-const realAsp = await import("../../src/services/asp.ts");
-const realPools = await import("../../src/services/pools.ts");
-const realSdk = await import("../../src/services/sdk.ts");
-const realWallet = await import("../../src/services/wallet.ts");
-const realOutputCommon = await import("../../src/output/common.ts");
+const realErrors = captureModuleExports(
+  await import("../../src/utils/errors.ts"),
+);
+const realMode = captureModuleExports(await import("../../src/utils/mode.ts"));
+const realAccount = captureModuleExports(
+  await import("../../src/services/account.ts"),
+);
+const realAsp = captureModuleExports(await import("../../src/services/asp.ts"));
+const realConfig = captureModuleExports(
+  await import("../../src/services/config.ts"),
+);
+const realPools = captureModuleExports(
+  await import("../../src/services/pools.ts"),
+);
+const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
+const realWallet = captureModuleExports(
+  await import("../../src/services/wallet.ts"),
+);
+const realValidation = captureModuleExports(
+  await import("../../src/utils/validation.ts"),
+);
+const realFormat = captureModuleExports(
+  await import("../../src/utils/format.ts"),
+);
+const realProofProgress = captureModuleExports(
+  await import("../../src/utils/proof-progress.ts"),
+);
+const realOutputCommon = captureModuleExports(
+  await import("../../src/output/common.ts"),
+);
+const realAccountsOutput = captureModuleExports(
+  await import("../../src/output/accounts.ts"),
+);
+const realHistoryOutput = captureModuleExports(
+  await import("../../src/output/history.ts"),
+);
+const realSyncOutput = captureModuleExports(
+  await import("../../src/output/sync.ts"),
+);
+
+const ACCOUNT_ERROR_MODULE_RESTORES = [
+  ["../../src/utils/validation.ts", realValidation],
+  ["../../src/services/config.ts", realConfig],
+  ["../../src/services/wallet.ts", realWallet],
+  ["../../src/services/sdk.ts", realSdk],
+  ["../../src/services/pools.ts", realPools],
+  ["../../src/services/account.ts", realAccount],
+  ["../../src/services/asp.ts", realAsp],
+  ["../../src/utils/format.ts", realFormat],
+  ["../../src/utils/proof-progress.ts", realProofProgress],
+  ["../../src/output/common.ts", realOutputCommon],
+  ["../../src/output/accounts.ts", realAccountsOutput],
+  ["../../src/output/history.ts", realHistoryOutput],
+  ["../../src/output/sync.ts", realSyncOutput],
+  ["../../src/utils/errors.ts", realErrors],
+  ["../../src/utils/mode.ts", realMode],
+] as const;
 
 const chainConfig = {
   id: 11155111,
@@ -183,7 +236,7 @@ function clearMockCalls(fn: {
 }
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations(ACCOUNT_ERROR_MODULE_RESTORES);
 });
 
 describe("account command error boundaries", () => {

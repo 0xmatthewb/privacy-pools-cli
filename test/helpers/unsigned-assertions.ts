@@ -5,6 +5,8 @@ export interface ExpectedUnsignedTransaction {
   to: string;
   value: string;
   description: string;
+  data?: string;
+  valueHex?: string;
   from?: null;
 }
 

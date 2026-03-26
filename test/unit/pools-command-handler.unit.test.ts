@@ -9,6 +9,10 @@ import {
 import type { Command } from "commander";
 import { saveConfig } from "../../src/services/config.ts";
 import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
 } from "../helpers/output.ts";
@@ -18,10 +22,29 @@ import {
   createTrackedTempDir,
 } from "../helpers/temp.ts";
 
-const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
-const realPools = await import("../../src/services/pools.ts");
-const realSdk = await import("../../src/services/sdk.ts");
-const realWallet = await import("../../src/services/wallet.ts");
+const realPoolAccounts = captureModuleExports(
+  await import("../../src/utils/pool-accounts.ts"),
+);
+const realPools = captureModuleExports(
+  await import("../../src/services/pools.ts"),
+);
+const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
+const realWallet = captureModuleExports(
+  await import("../../src/services/wallet.ts"),
+);
+const realAccount = captureModuleExports(
+  await import("../../src/services/account.ts"),
+);
+const realAsp = captureModuleExports(await import("../../src/services/asp.ts"));
+
+const POOLS_HANDLER_MODULE_RESTORES = [
+  ["../../src/services/wallet.ts", realWallet],
+  ["../../src/services/sdk.ts", realSdk],
+  ["../../src/services/account.ts", realAccount],
+  ["../../src/services/pools.ts", realPools],
+  ["../../src/services/asp.ts", realAsp],
+  ["../../src/utils/pool-accounts.ts", realPoolAccounts],
+] as const;
 
 const POOL = {
   symbol: "ETH",
@@ -144,7 +167,7 @@ async function loadPoolsHandlers(): Promise<void> {
 }
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations(POOLS_HANDLER_MODULE_RESTORES);
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {

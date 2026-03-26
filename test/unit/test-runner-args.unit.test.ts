@@ -7,7 +7,10 @@ import {
   hasExplicitTimeoutArg,
   splitExplicitTargets,
 } from "../../scripts/test-runner-args.mjs";
-import { DEFAULT_TEST_ISOLATED_SUITES } from "../../scripts/test-suite-manifest.mjs";
+import {
+  COVERAGE_ISOLATED_SUITES,
+  DEFAULT_TEST_ISOLATED_SUITES,
+} from "../../scripts/test-suite-manifest.mjs";
 
 const ROOT = process.cwd();
 const PRELOAD_HELPER = "./test/helpers/temp.ts";
@@ -121,5 +124,27 @@ describe("test runner arg helpers", () => {
       expect(typeof suite.reason).toBe("string");
       expect(suite.reason?.trim().length).toBeGreaterThan(0);
     }
+  });
+
+  test("default isolation policy matches the Bun-aware final suite set", () => {
+    expect(DEFAULT_TEST_ISOLATED_SUITES.map((suite) => suite.label)).toEqual([
+      "contracts-service",
+      "proofs-service",
+      "workflow-mocked",
+      "workflow-internal",
+      "init-interactive",
+    ]);
+  });
+
+  test("coverage isolation keeps only the final documented superset", () => {
+    expect(COVERAGE_ISOLATED_SUITES.map((suite) => suite.label)).toEqual([
+      "contracts-service",
+      "proofs-service",
+      "workflow-mocked",
+      "workflow-service",
+      "workflow-internal",
+      "init-interactive",
+      "bootstrap-runtime",
+    ]);
   });
 });

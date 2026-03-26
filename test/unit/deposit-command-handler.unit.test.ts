@@ -20,18 +20,52 @@ import {
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
 import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
 import { expectUnsignedTransactions } from "../helpers/unsigned-assertions.ts";
 
-const realAccount = await import("../../src/services/account.ts");
-const realContracts = await import("../../src/services/contracts.ts");
-const realInquirerPrompts = await import("@inquirer/prompts");
-const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
-const realPools = await import("../../src/services/pools.ts");
-const realSdk = await import("../../src/services/sdk.ts");
-const realViem = await import("viem");
+const realAccount = captureModuleExports(
+  await import("../../src/services/account.ts"),
+);
+const realContracts = captureModuleExports(
+  await import("../../src/services/contracts.ts"),
+);
+const realInquirerPrompts = captureModuleExports(
+  await import("@inquirer/prompts"),
+);
+const realPoolAccounts = captureModuleExports(
+  await import("../../src/utils/pool-accounts.ts"),
+);
+const realPools = captureModuleExports(
+  await import("../../src/services/pools.ts"),
+);
+const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
+const realPreflight = captureModuleExports(
+  await import("../../src/utils/preflight.ts"),
+);
+const realLock = captureModuleExports(await import("../../src/utils/lock.ts"));
+const realCriticalSection = captureModuleExports(
+  await import("../../src/utils/critical-section.ts"),
+);
+const realViem = captureModuleExports(await import("viem"));
+
+const DEPOSIT_HANDLER_MODULE_RESTORES = [
+  ["@inquirer/prompts", realInquirerPrompts],
+  ["../../src/services/account.ts", realAccount],
+  ["../../src/services/sdk.ts", realSdk],
+  ["../../src/services/pools.ts", realPools],
+  ["../../src/utils/preflight.ts", realPreflight],
+  ["../../src/services/contracts.ts", realContracts],
+  ["../../src/utils/pool-accounts.ts", realPoolAccounts],
+  ["../../src/utils/lock.ts", realLock],
+  ["../../src/utils/critical-section.ts", realCriticalSection],
+  ["viem", realViem],
+] as const;
 
 const ETH_POOL = {
   symbol: "ETH",
@@ -195,7 +229,7 @@ async function loadDepositCommandHandler(): Promise<void> {
 }
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations(DEPOSIT_HANDLER_MODULE_RESTORES);
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -208,16 +242,38 @@ beforeEach(() => {
   mock.restore();
   saveAccountMock.mockClear();
   saveSyncMetaMock.mockClear();
+  getDataServiceMock.mockClear();
   approveERC20Mock.mockClear();
   depositETHMock.mockClear();
   depositERC20Mock.mockClear();
   checkNativeBalanceMock.mockClear();
   checkErc20BalanceMock.mockClear();
   checkHasGasMock.mockClear();
+  acquireProcessLockMock.mockClear();
+  guardCriticalSectionMock.mockClear();
+  releaseCriticalSectionMock.mockClear();
   confirmPromptMock.mockClear();
   selectPromptMock.mockClear();
   confirmPromptMock.mockImplementation(async () => true);
   selectPromptMock.mockImplementation(async () => "ETH");
+  saveAccountMock.mockImplementation(() => undefined);
+  saveSyncMetaMock.mockImplementation(() => undefined);
+  getDataServiceMock.mockImplementation(async () => ({}));
+  approveERC20Mock.mockImplementation(async () => ({
+    hash: "0x" + "12".repeat(32),
+  }));
+  depositETHMock.mockImplementation(async () => ({
+    hash: "0x" + "34".repeat(32),
+  }));
+  depositERC20Mock.mockImplementation(async () => ({
+    hash: "0x" + "56".repeat(32),
+  }));
+  checkNativeBalanceMock.mockImplementation(async () => undefined);
+  checkErc20BalanceMock.mockImplementation(async () => undefined);
+  checkHasGasMock.mockImplementation(async () => undefined);
+  acquireProcessLockMock.mockImplementation(() => () => undefined);
+  guardCriticalSectionMock.mockImplementation(() => undefined);
+  releaseCriticalSectionMock.mockImplementation(() => undefined);
   initializeAccountServiceMock.mockImplementation(async () => ({
     account: { poolAccounts: new Map() },
     createDepositSecrets: () => ({

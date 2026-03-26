@@ -1,9 +1,31 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
 
-const realErrors = await import("../../src/utils/errors.ts");
-const realMode = await import("../../src/utils/mode.ts");
-const realOutputCommon = await import("../../src/output/common.ts");
+const realErrors = captureModuleExports(
+  await import("../../src/utils/errors.ts"),
+);
+const realMode = captureModuleExports(await import("../../src/utils/mode.ts"));
+const realOutputCommon = captureModuleExports(
+  await import("../../src/output/common.ts"),
+);
+const realFlowOutput = captureModuleExports(
+  await import("../../src/output/flow.ts"),
+);
+const realWorkflow = captureModuleExports(
+  await import("../../src/services/workflow.ts"),
+);
+
+const FLOW_MODULE_RESTORES = [
+  ["../../src/output/common.ts", realOutputCommon],
+  ["../../src/output/flow.ts", realFlowOutput],
+  ["../../src/services/workflow.ts", realWorkflow],
+  ["../../src/utils/mode.ts", realMode],
+  ["../../src/utils/errors.ts", realErrors],
+] as const;
 
 const ctx = { mode: "test" };
 const startSnapshot = { workflowId: "wf-start", phase: "awaiting_asp" };
@@ -90,7 +112,7 @@ function clearMockCalls(fn: {
 }
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations(FLOW_MODULE_RESTORES);
 });
 
 describe("flow command handlers", () => {

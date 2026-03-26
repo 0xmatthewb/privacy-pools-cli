@@ -3,6 +3,7 @@ import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import {
   assertExit,
   assertJson,
+  assertJsonEnvelopeStep,
   assertStderr,
   assertStderrEmpty,
   defineScenario,
@@ -74,41 +75,39 @@ defineScenarioSuite("transaction inputs acceptance", [
     runCliStep(["deposit", "0.1", "--unsigned"], { timeoutMs: 10_000 }),
     assertExit(2),
     assertStderrEmpty(),
+    assertJsonEnvelopeStep({
+      success: false,
+      errorCode: "INPUT_ERROR",
+    }),
     assertJson<{
-      schemaVersion: string;
-      success: boolean;
-      errorCode: string;
       error: { category: string; code: string };
     }>((json) => {
-      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
       expect(json.error.category).toBe("INPUT");
       expect(json.error.code).toBe("INPUT_ERROR");
     }),
     runCliStep(["withdraw", "0.1", "--unsigned"], { timeoutMs: 10_000 }),
     assertExit(2),
     assertStderrEmpty(),
+    assertJsonEnvelopeStep({
+      success: false,
+      errorCode: "INPUT_ERROR",
+    }),
     assertJson<{
-      errorCode: string;
-      success: boolean;
       error: { category: string; code: string };
     }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
       expect(json.error.category).toBe("INPUT");
       expect(json.error.code).toBe("INPUT_ERROR");
     }),
     runCliStep(["ragequit", "--unsigned"], { timeoutMs: 10_000 }),
     assertExit(2),
     assertStderrEmpty(),
+    assertJsonEnvelopeStep({
+      success: false,
+      errorCode: "INPUT_ERROR",
+    }),
     assertJson<{
-      errorCode: string;
-      success: boolean;
       error: { category: string; code: string };
     }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
       expect(json.error.category).toBe("INPUT");
       expect(json.error.code).toBe("INPUT_ERROR");
     }),

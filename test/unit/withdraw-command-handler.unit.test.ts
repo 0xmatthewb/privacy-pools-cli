@@ -20,6 +20,10 @@ import {
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
 import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
@@ -28,14 +32,59 @@ import {
   expectUnsignedTransactions,
 } from "../helpers/unsigned-assertions.ts";
 
-const realAccount = await import("../../src/services/account.ts");
-const realContracts = await import("../../src/services/contracts.ts");
-const realInquirerPrompts = await import("@inquirer/prompts");
-const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
-const realPools = await import("../../src/services/pools.ts");
-const realProofs = await import("../../src/services/proofs.ts");
-const realSdk = await import("../../src/services/sdk.ts");
-const realSdkPackage = await import("@0xbow/privacy-pools-core-sdk");
+const realAccount = captureModuleExports(
+  await import("../../src/services/account.ts"),
+);
+const realContracts = captureModuleExports(
+  await import("../../src/services/contracts.ts"),
+);
+const realInquirerPrompts = captureModuleExports(
+  await import("@inquirer/prompts"),
+);
+const realPoolAccounts = captureModuleExports(
+  await import("../../src/utils/pool-accounts.ts"),
+);
+const realPools = captureModuleExports(
+  await import("../../src/services/pools.ts"),
+);
+const realAsp = captureModuleExports(await import("../../src/services/asp.ts"));
+const realRelayer = captureModuleExports(
+  await import("../../src/services/relayer.ts"),
+);
+const realProofs = captureModuleExports(
+  await import("../../src/services/proofs.ts"),
+);
+const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
+const realPreflight = captureModuleExports(
+  await import("../../src/utils/preflight.ts"),
+);
+const realLock = captureModuleExports(await import("../../src/utils/lock.ts"));
+const realCriticalSection = captureModuleExports(
+  await import("../../src/utils/critical-section.ts"),
+);
+const realUnsigned = captureModuleExports(
+  await import("../../src/utils/unsigned.ts"),
+);
+const realSdkPackage = captureModuleExports(
+  await import("@0xbow/privacy-pools-core-sdk"),
+);
+
+const WITHDRAW_HANDLER_MODULE_RESTORES = [
+  ["@inquirer/prompts", realInquirerPrompts],
+  ["../../src/services/account.ts", realAccount],
+  ["../../src/services/sdk.ts", realSdk],
+  ["../../src/services/pools.ts", realPools],
+  ["../../src/services/asp.ts", realAsp],
+  ["../../src/services/relayer.ts", realRelayer],
+  ["../../src/services/proofs.ts", realProofs],
+  ["../../src/services/contracts.ts", realContracts],
+  ["../../src/utils/pool-accounts.ts", realPoolAccounts],
+  ["../../src/utils/preflight.ts", realPreflight],
+  ["../../src/utils/lock.ts", realLock],
+  ["../../src/utils/critical-section.ts", realCriticalSection],
+  ["../../src/utils/unsigned.ts", realUnsigned],
+  ["@0xbow/privacy-pools-core-sdk", realSdkPackage],
+] as const;
 
 const ETH_POOL = {
   symbol: "ETH",
@@ -348,7 +397,7 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
 }
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations(WITHDRAW_HANDLER_MODULE_RESTORES);
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -360,13 +409,36 @@ afterEach(() => {
 beforeEach(() => {
   mock.restore();
   initializeAccountServiceMock.mockClear();
+  getDataServiceMock.mockClear();
+  getPublicClientMock.mockClear();
   resolvePoolMock.mockClear();
   listPoolsMock.mockClear();
+  fetchMerkleRootsMock.mockClear();
+  fetchMerkleLeavesMock.mockClear();
+  fetchDepositsLargerThanMock.mockClear();
+  fetchDepositReviewStatusesMock.mockClear();
+  buildLoadedAspDepositReviewStateMock.mockClear();
+  getRelayerDetailsMock.mockClear();
   requestQuoteMock.mockClear();
+  proveWithdrawalMock.mockClear();
   withdrawDirectMock.mockClear();
   submitRelayRequestMock.mockClear();
   saveAccountMock.mockClear();
   saveSyncMetaMock.mockClear();
+  buildPoolAccountRefsMock.mockClear();
+  buildAllPoolAccountRefsMock.mockClear();
+  collectActiveLabelsMock.mockClear();
+  describeUnavailablePoolAccountMock.mockClear();
+  getUnknownPoolAccountErrorMock.mockClear();
+  parsePoolAccountSelectorMock.mockClear();
+  checkHasGasMock.mockClear();
+  acquireProcessLockMock.mockClear();
+  guardCriticalSectionMock.mockClear();
+  releaseCriticalSectionMock.mockClear();
+  generateMerkleProofMock.mockClear();
+  calculateContextMock.mockClear();
+  toWithdrawSolidityProofMock.mockClear();
+  stringifyBigIntsMock.mockClear();
   printRawTransactionsMock.mockClear();
   confirmPromptMock.mockClear();
   inputPromptMock.mockClear();
@@ -376,6 +448,9 @@ beforeEach(() => {
     "0x4444444444444444444444444444444444444444"
   );
   selectPromptMock.mockImplementation(async () => 1);
+  saveAccountMock.mockImplementation(() => undefined);
+  saveSyncMetaMock.mockImplementation(() => undefined);
+  getDataServiceMock.mockImplementation(async () => ({}));
   initializeAccountServiceMock.mockImplementation(async () => ({
     account: { poolAccounts: new Map() },
     getSpendableCommitments: () =>
@@ -395,6 +470,7 @@ beforeEach(() => {
     addWithdrawalCommitment: mock(() => undefined),
   }));
   resolvePoolMock.mockImplementation(async () => ETH_POOL);
+  listPoolsMock.mockImplementation(async () => [ETH_POOL]);
   getPublicClientMock.mockImplementation(() => ({
     readContract: async () => 1n,
     waitForTransactionReceipt: async () => ({
@@ -410,6 +486,28 @@ beforeEach(() => {
     aspLeaves: ["601"],
     stateTreeLeaves: ["501"],
   }));
+  fetchDepositsLargerThanMock.mockImplementation(async () => ({
+    eligibleDeposits: 8,
+    totalDeposits: 12,
+    percentage: 66.7,
+  }));
+  fetchDepositReviewStatusesMock.mockImplementation(async () =>
+    new Map<string, string>([
+      ["601", "approved"],
+      ["602", "pending"],
+    ]),
+  );
+  buildLoadedAspDepositReviewStateMock.mockImplementation(() => ({
+    approvedLabels: new Set<string>(["601"]),
+    reviewStatuses: new Map<string, string>([
+      ["601", "approved"],
+      ["602", "pending"],
+    ]),
+  }));
+  getRelayerDetailsMock.mockImplementation(async () => ({
+    minWithdrawAmount: "10000000000000000",
+    feeReceiverAddress: "0x3333333333333333333333333333333333333333",
+  }));
   requestQuoteMock.mockImplementation(async () => ({
     baseFeeBPS: "200",
     feeBPS: "250",
@@ -424,6 +522,63 @@ beforeEach(() => {
       signedRelayerCommitment: "0x01",
     },
   }));
+  proveWithdrawalMock.mockImplementation(async () => ({
+    proof: {
+      pi_a: ["0", "0", "1"],
+      pi_b: [
+        ["0", "0"],
+        ["0", "0"],
+        ["1", "0"],
+      ],
+      pi_c: ["0", "0", "1"],
+    },
+    publicSignals: [1n, 2n, 3n],
+  }));
+  withdrawDirectMock.mockImplementation(async () => ({
+    hash: "0x" + "56".repeat(32),
+  }));
+  submitRelayRequestMock.mockImplementation(async () => ({
+    txHash: "0x" + "34".repeat(32),
+  }));
+  buildPoolAccountRefsMock.mockImplementation(() => [
+    APPROVED_POOL_ACCOUNT,
+    PENDING_POOL_ACCOUNT,
+  ]);
+  buildAllPoolAccountRefsMock.mockImplementation(() => [
+    APPROVED_POOL_ACCOUNT,
+    PENDING_POOL_ACCOUNT,
+  ]);
+  collectActiveLabelsMock.mockImplementation(() => ["601", "602"]);
+  describeUnavailablePoolAccountMock.mockImplementation(() => null);
+  getUnknownPoolAccountErrorMock.mockImplementation(() => ({
+    message: "Unknown Pool Account.",
+    hint: "Choose a valid Pool Account.",
+  }));
+  parsePoolAccountSelectorMock.mockImplementation((raw: string) => {
+    const match = raw.match(/\d+/);
+    return match ? Number(match[0]) : null;
+  });
+  checkHasGasMock.mockImplementation(async () => undefined);
+  acquireProcessLockMock.mockImplementation(() => () => undefined);
+  guardCriticalSectionMock.mockImplementation(() => undefined);
+  releaseCriticalSectionMock.mockImplementation(() => undefined);
+  generateMerkleProofMock.mockImplementation((values: bigint[], target: bigint) => ({
+    root: values.includes(target) ? 1n : 0n,
+    siblings: [],
+    pathIndices: [],
+  }));
+  calculateContextMock.mockImplementation(() => 777n);
+  toWithdrawSolidityProofMock.mockImplementation(() => ({
+    pA: [0n, 0n],
+    pB: [
+      [0n, 0n],
+      [0n, 0n],
+    ],
+    pC: [0n, 0n],
+    pubSignals: [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n],
+  }));
+  stringifyBigIntsMock.mockImplementation((value: unknown) => value);
+  printRawTransactionsMock.mockImplementation(() => undefined);
 });
 
 beforeEach(async () => {

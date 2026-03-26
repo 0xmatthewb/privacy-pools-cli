@@ -8,6 +8,10 @@ import {
 } from "bun:test";
 import type { Command } from "commander";
 import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+import {
   saveConfig,
   saveMnemonicToFile,
 } from "../../src/services/config.ts";
@@ -20,11 +24,33 @@ import {
   createTrackedTempDir,
 } from "../helpers/temp.ts";
 
-const realAccount = await import("../../src/services/account.ts");
-const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
-const realPools = await import("../../src/services/pools.ts");
-const realSdk = await import("../../src/services/sdk.ts");
-const realSdkPackage = await import("@0xbow/privacy-pools-core-sdk");
+const realAccount = captureModuleExports(
+  await import("../../src/services/account.ts"),
+);
+const realPoolAccounts = captureModuleExports(
+  await import("../../src/utils/pool-accounts.ts"),
+);
+const realPools = captureModuleExports(
+  await import("../../src/services/pools.ts"),
+);
+const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
+const realSdkPackage = captureModuleExports(
+  await import("@0xbow/privacy-pools-core-sdk"),
+);
+const realAsp = captureModuleExports(await import("../../src/services/asp.ts"));
+const realMigration = captureModuleExports(
+  await import("../../src/services/migration.ts"),
+);
+
+const READONLY_HANDLER_MODULE_RESTORES = [
+  ["../../src/services/account.ts", realAccount],
+  ["../../src/services/sdk.ts", realSdk],
+  ["../../src/services/pools.ts", realPools],
+  ["../../src/services/asp.ts", realAsp],
+  ["../../src/utils/pool-accounts.ts", realPoolAccounts],
+  ["../../src/services/migration.ts", realMigration],
+  ["@0xbow/privacy-pools-core-sdk", realSdkPackage],
+] as const;
 
 const MAINNET_POOL = {
   symbol: "ETH",
@@ -227,7 +253,7 @@ async function loadReadonlyHandlers(): Promise<void> {
 }
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations(READONLY_HANDLER_MODULE_RESTORES);
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {

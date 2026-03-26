@@ -7,6 +7,8 @@ import {
 import {
   assertExit,
   assertJson,
+  assertJsonEnvelopeStep,
+  assertNextActionsStep,
   defineScenario,
   defineScenarioSuite,
   runCliStep,
@@ -55,8 +57,9 @@ defineScenarioSuite("withdraw quote acceptance", [
         { timeoutMs: 15_000, env: fixtureEnv() },
       )(ctx),
     assertExit(0),
+    assertJsonEnvelopeStep({ success: true }),
+    assertNextActionsStep(["withdraw"]),
     assertJson<{
-      success: boolean;
       mode: string;
       chain: string;
       asset: string;
@@ -76,7 +79,6 @@ defineScenarioSuite("withdraw quote acceptance", [
         options?: Record<string, unknown>;
       }>;
     }>((json) => {
-      expect(json.success).toBe(true);
       expect(json.mode).toBe("relayed-quote");
       expect(json.chain).toBe("sepolia");
       expect(json.asset).toBe("ETH");
@@ -108,12 +110,12 @@ defineScenarioSuite("withdraw quote acceptance", [
         { timeoutMs: 15_000, env: fixtureEnv() },
       )(ctx),
     assertExit(0),
+    assertJsonEnvelopeStep({ success: true }),
+    assertNextActionsStep(["withdraw"]),
     assertJson<{
-      success: boolean;
       recipient: string | null;
       nextActions?: Array<{ runnable?: boolean; options?: Record<string, unknown> }>;
     }>((json) => {
-      expect(json.success).toBe(true);
       expect(json.recipient).toBeNull();
       expect(json.nextActions?.[0]?.runnable).toBe(false);
       expect(json.nextActions?.[0]?.options).toMatchObject({
@@ -167,13 +169,13 @@ defineScenarioSuite("withdraw quote acceptance", [
         { timeoutMs: 15_000, env: fixtureEnv() },
       )(ctx),
     assertExit(5),
+    assertJsonEnvelopeStep({
+      success: false,
+      errorCode: "RELAYER_ERROR",
+    }),
     assertJson<{
-      success: boolean;
-      errorCode: string;
       error: { category: string; message: string };
     }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("RELAYER_ERROR");
       expect(json.error.category).toBe("RELAYER");
       expect(json.error.message).toContain("unexpected quote response");
     }),

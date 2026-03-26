@@ -19,6 +19,10 @@ import {
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
 import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
@@ -28,13 +32,51 @@ import {
   expectUnsignedTransactions,
 } from "../helpers/unsigned-assertions.ts";
 
-const realAccount = await import("../../src/services/account.ts");
-const realContracts = await import("../../src/services/contracts.ts");
-const realInquirerPrompts = await import("@inquirer/prompts");
-const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
-const realPools = await import("../../src/services/pools.ts");
-const realProofs = await import("../../src/services/proofs.ts");
-const realSdk = await import("../../src/services/sdk.ts");
+const realAccount = captureModuleExports(
+  await import("../../src/services/account.ts"),
+);
+const realContracts = captureModuleExports(
+  await import("../../src/services/contracts.ts"),
+);
+const realInquirerPrompts = captureModuleExports(
+  await import("@inquirer/prompts"),
+);
+const realPoolAccounts = captureModuleExports(
+  await import("../../src/utils/pool-accounts.ts"),
+);
+const realPools = captureModuleExports(
+  await import("../../src/services/pools.ts"),
+);
+const realAsp = captureModuleExports(await import("../../src/services/asp.ts"));
+const realProofs = captureModuleExports(
+  await import("../../src/services/proofs.ts"),
+);
+const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
+const realPreflight = captureModuleExports(
+  await import("../../src/utils/preflight.ts"),
+);
+const realLock = captureModuleExports(await import("../../src/utils/lock.ts"));
+const realCriticalSection = captureModuleExports(
+  await import("../../src/utils/critical-section.ts"),
+);
+const realUnsigned = captureModuleExports(
+  await import("../../src/utils/unsigned.ts"),
+);
+
+const RAGEQUIT_HANDLER_MODULE_RESTORES = [
+  ["@inquirer/prompts", realInquirerPrompts],
+  ["../../src/services/account.ts", realAccount],
+  ["../../src/services/sdk.ts", realSdk],
+  ["../../src/services/pools.ts", realPools],
+  ["../../src/services/asp.ts", realAsp],
+  ["../../src/services/proofs.ts", realProofs],
+  ["../../src/services/contracts.ts", realContracts],
+  ["../../src/utils/pool-accounts.ts", realPoolAccounts],
+  ["../../src/utils/preflight.ts", realPreflight],
+  ["../../src/utils/lock.ts", realLock],
+  ["../../src/utils/critical-section.ts", realCriticalSection],
+  ["../../src/utils/unsigned.ts", realUnsigned],
+] as const;
 
 const ETH_POOL = {
   symbol: "ETH",
@@ -234,7 +276,7 @@ async function loadRagequitCommandHandler(): Promise<void> {
 }
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations(RAGEQUIT_HANDLER_MODULE_RESTORES);
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -246,12 +288,20 @@ afterEach(() => {
 beforeEach(() => {
   mock.restore();
   initializeAccountServiceMock.mockClear();
+  getDataServiceMock.mockClear();
   getPublicClientMock.mockClear();
   resolvePoolMock.mockClear();
   listPoolsMock.mockClear();
   saveAccountMock.mockClear();
   saveSyncMetaMock.mockClear();
+  proveCommitmentMock.mockClear();
   ragequitMock.mockClear();
+  collectActiveLabelsMock.mockClear();
+  checkHasGasMock.mockClear();
+  acquireProcessLockMock.mockClear();
+  guardCriticalSectionMock.mockClear();
+  releaseCriticalSectionMock.mockClear();
+  toRagequitSolidityProofMock.mockClear();
   printRawTransactionsMock.mockClear();
   confirmPromptMock.mockClear();
   selectPromptMock.mockClear();
@@ -262,6 +312,38 @@ beforeEach(() => {
   parsePoolAccountSelectorMock.mockClear();
   confirmPromptMock.mockImplementation(async () => true);
   selectPromptMock.mockImplementation(async () => 1);
+  saveAccountMock.mockImplementation(() => undefined);
+  saveSyncMetaMock.mockImplementation(() => undefined);
+  getDataServiceMock.mockImplementation(async () => ({}));
+  proveCommitmentMock.mockImplementation(async () => ({
+    proof: {
+      pi_a: ["0", "0", "1"],
+      pi_b: [
+        ["0", "0"],
+        ["0", "0"],
+        ["1", "0"],
+      ],
+      pi_c: ["0", "0", "1"],
+    },
+    publicSignals: [1n, 2n, 3n, 4n],
+  }));
+  ragequitMock.mockImplementation(async () => ({
+    hash: "0x" + "12".repeat(32),
+  }));
+  collectActiveLabelsMock.mockImplementation(() => ["601"]);
+  checkHasGasMock.mockImplementation(async () => undefined);
+  acquireProcessLockMock.mockImplementation(() => () => undefined);
+  guardCriticalSectionMock.mockImplementation(() => undefined);
+  releaseCriticalSectionMock.mockImplementation(() => undefined);
+  toRagequitSolidityProofMock.mockImplementation(() => ({
+    pA: [0n, 0n],
+    pB: [
+      [0n, 0n],
+      [0n, 0n],
+    ],
+    pC: [0n, 0n],
+    pubSignals: [0n, 0n, 0n, 0n],
+  }));
   initializeAccountServiceMock.mockImplementation(async () => ({
     account: { poolAccounts: new Map() },
     getSpendableCommitments: () =>

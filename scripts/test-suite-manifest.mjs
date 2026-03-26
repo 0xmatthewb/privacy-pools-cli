@@ -168,19 +168,19 @@ export const ISOLATED_SUITES = [
     label: "account-handler-errors",
     tests: [ACCOUNT_HANDLER_ERRORS_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    isolateInDefaultTest: false,
+    isolateInCoverage: false,
     reason:
-      "even with per-test restore, Bun still reuses mocked output/common and account modules across later imports in the shared main batch",
+      "self-cleaning restore snapshots now return output/common and account modules to their real exports between tests",
   },
   {
     label: "account-readonly-handlers",
     tests: [ACCOUNT_READONLY_HANDLERS_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    isolateInDefaultTest: false,
+    isolateInCoverage: false,
     reason:
-      "mocks shared account, sdk-package, pools, and migration modules that still leak into later legacy-account and read-only suites under Bun's shared process cache",
+      "shared service and sdk-package mocks are restored to captured real exports after each test batch",
   },
   {
     label: "init-interactive",
@@ -195,55 +195,55 @@ export const ISOLATED_SUITES = [
     label: "deposit-handler",
     tests: [DEPOSIT_HANDLER_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    isolateInDefaultTest: false,
+    isolateInCoverage: false,
     reason:
-      "replaces shared sdk, preflight, and pool-account modules that still contaminate later command-handler imports in Bun's shared process",
+      "command-handler mocks now restore shared sdk, preflight, and transaction helpers to real export snapshots",
   },
   {
     label: "withdraw-handler",
     tests: [WITHDRAW_HANDLER_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    isolateInDefaultTest: false,
+    isolateInCoverage: false,
     reason:
-      "replaces shared sdk-package, unsigned, preflight, and pool-account modules that still leak into later proof and legacy-account suites under Bun's shared cache",
+      "unsigned, relayer, asp, and pool-account mocks now restore cleanly to real export snapshots between runs",
   },
   {
     label: "ragequit-handler",
     tests: [RAGEQUIT_HANDLER_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    isolateInDefaultTest: false,
+    isolateInCoverage: false,
     reason:
-      "replaces shared unsigned, preflight, sdk, and pool-account modules that still contaminate later shared-batch tests under Bun's module cache",
+      "ragequit handler mocks now restore shared unsigned, sdk, and pool-account modules to real export snapshots",
   },
   {
     label: "pools-handler",
     tests: [POOLS_HANDLER_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    isolateInDefaultTest: false,
+    isolateInCoverage: false,
     reason:
-      "mocks shared sdk, account, asp, and pool-account modules that still leak into later pool-account and read-only tests under Bun's shared process cache",
+      "pools handler restores shared sdk, account, asp, and pool-account modules after each test batch",
   },
   {
     label: "flow-handlers",
     tests: [FLOW_HANDLERS_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    isolateInDefaultTest: false,
+    isolateInCoverage: false,
     reason:
-      "even with per-test restore, Bun still reuses mocked workflow and output modules across later shared-batch imports",
+      "flow handler mocks restore workflow and output modules to captured real export snapshots between tests",
   },
   {
     label: "bootstrap-runtime",
     tests: [BOOTSTRAP_RUNTIME_TEST],
     timeoutMs: 120_000,
-    isolateInDefaultTest: true,
+    isolateInDefaultTest: false,
     isolateInCoverage: true,
     reason:
-      "replaces program, static-discovery, and cli-main modules extensively enough that later help/program-loading tests still see leaked implementations in Bun's shared process",
+      "the default lane now restores bootstrap modules cleanly, but coverage instrumentation still makes this runtime-heavy suite cheaper to isolate",
   },
 ];
 
