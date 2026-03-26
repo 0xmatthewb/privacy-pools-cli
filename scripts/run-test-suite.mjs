@@ -1,7 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  hasExplicitTestTarget,
+  hasExplicitTimeoutArg,
+} from "./test-runner-args.mjs";
 
 import {
   DEFAULT_MAIN_EXCLUDED_TESTS,
@@ -36,17 +39,7 @@ function runSuite(label, args) {
   }
 }
 
-function hasExplicitTestTarget(args) {
-  return args.some((token) => {
-    return !token.startsWith("-") && existsSync(resolve(ROOT, token));
-  });
-}
-
-function hasExplicitTimeout(args) {
-  return args.includes("--timeout");
-}
-
-if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs)) {
+if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs, ROOT)) {
   runSuite("custom", forwardedArgs);
   process.exit(0);
 }
@@ -61,7 +54,7 @@ runSuite("main", mainArgs);
 
 for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
   const suiteArgs = [...suite.tests];
-  if (!hasExplicitTimeout(forwardedArgs)) {
+  if (!hasExplicitTimeoutArg(forwardedArgs)) {
     suiteArgs.push("--timeout", String(suite.timeoutMs));
   }
   suiteArgs.push(...forwardedArgs);

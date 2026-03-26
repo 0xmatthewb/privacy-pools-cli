@@ -16,6 +16,14 @@ export const PACKAGED_SMOKE_TEST =
   "./test/integration/cli.packaged-smoke.integration.test.ts";
 export const BUILT_ENTRYPOINT_TEST =
   "./test/integration/cli-built-entrypoint.integration.test.ts";
+export const WORKFLOW_ANVIL_SERVICE_TEST =
+  "./test/services/workflow.anvil.service.test.ts";
+export const CLI_ANVIL_E2E_TEST =
+  "./test/integration/cli-anvil-e2e.integration.test.ts";
+export const CLI_ANVIL_FLOW_NEW_WALLET_ERC20_TEST =
+  "./test/integration/cli-anvil-flow-new-wallet-erc20.integration.test.ts";
+export const CLI_ANVIL_FLOW_NEW_WALLET_USDC_TEST =
+  "./test/integration/cli-anvil-flow-new-wallet-usdc.integration.test.ts";
 export const CONTRACTS_SERVICE_TEST = "./test/services/contracts.service.test.ts";
 export const PROOFS_SERVICE_TEST = "./test/services/proofs.service.test.ts";
 export const WORKFLOW_MOCKED_TEST =
@@ -31,6 +39,10 @@ export const ACCOUNT_HANDLER_ERRORS_TEST =
   "./test/unit/account-handler-errors.unit.test.ts";
 export const ACCOUNT_READONLY_HANDLERS_TEST =
   "./test/unit/account-readonly-command-handlers.unit.test.ts";
+export const BOOTSTRAP_RUNTIME_TEST =
+  "./test/unit/bootstrap-runtime.unit.test.ts";
+export const CLI_MAIN_COVERAGE_TEST =
+  "./test/unit/cli-main.coverage.unit.test.ts";
 export const INIT_INTERACTIVE_TEST =
   "./test/unit/init-command-interactive.unit.test.ts";
 export const DEPOSIT_HANDLER_TEST =
@@ -47,6 +59,13 @@ export const COMMAND_SURFACE_TESTS = [
   "./test/conformance/completion-spec.conformance.test.ts",
   "./test/conformance/lazy-startup.conformance.test.ts",
   "./test/conformance/root-help-static.conformance.test.ts",
+];
+
+export const ANVIL_E2E_TESTS = [
+  WORKFLOW_ANVIL_SERVICE_TEST,
+  CLI_ANVIL_E2E_TEST,
+  CLI_ANVIL_FLOW_NEW_WALLET_ERC20_TEST,
+  CLI_ANVIL_FLOW_NEW_WALLET_USDC_TEST,
 ];
 
 export const ISOLATED_SUITES = [
@@ -114,6 +133,20 @@ export const ISOLATED_SUITES = [
     isolateInCoverage: true,
   },
   {
+    label: "bootstrap-runtime",
+    tests: [BOOTSTRAP_RUNTIME_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+  },
+  {
+    label: "cli-main-coverage",
+    tests: [CLI_MAIN_COVERAGE_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+  },
+  {
     label: "init-interactive",
     tests: [INIT_INTERACTIVE_TEST],
     timeoutMs: 120_000,
@@ -167,9 +200,11 @@ export const COVERAGE_ISOLATED_SUITES = ISOLATED_SUITES.filter(
 
 export const DEFAULT_MAIN_EXCLUDED_TESTS = [
   PACKAGED_SMOKE_TEST,
+  ...ANVIL_E2E_TESTS,
   ...DEFAULT_TEST_ISOLATED_SUITES.flatMap((suite) => suite.tests),
 ];
 
-export const COVERAGE_MAIN_EXCLUDED_TESTS = COVERAGE_ISOLATED_SUITES.flatMap(
-  (suite) => suite.tests,
-);
+export const COVERAGE_MAIN_EXCLUDED_TESTS = [
+  ...ANVIL_E2E_TESTS,
+  ...COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests),
+];

@@ -116,17 +116,22 @@ describe("account service stdout guard", () => {
 });
 
 describe("installConsoleGuard", () => {
-  test("permanently silences console methods", () => {
+  test("permanently silences console methods", async () => {
+    const { installConsoleGuard: installFreshConsoleGuard } = await import(
+      `../../src/utils/console-guard.ts?console-guard-test=${Date.now()}`
+    );
     const origLog = console.log;
     const origWarn = console.warn;
     const origError = console.error;
     const origInfo = console.info;
     const origDebug = console.debug;
     try {
-      installConsoleGuard();
+      installFreshConsoleGuard();
 
-      // All methods should now be no-ops (not the originals).
+      // A fresh module instance should still replace the active console methods.
       expect(console.log).not.toBe(origLog);
+      expect(console.info).not.toBe(origInfo);
+      expect(console.debug).not.toBe(origDebug);
       expect(console.warn).not.toBe(origWarn);
       expect(console.error).not.toBe(origError);
 

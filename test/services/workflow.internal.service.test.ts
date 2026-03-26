@@ -20,6 +20,7 @@ import {
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import type { FlowSnapshot } from "../../src/services/workflow.ts";
+import { captureAsyncOutput } from "../helpers/output.ts";
 import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
@@ -747,27 +748,35 @@ describe("workflow internal helpers", () => {
     inputPromptMock.mockImplementation(async () => join(process.env.PRIVACY_POOLS_HOME!, "unused.txt"));
     selectPromptMock.mockImplementation(async () => "copied");
 
-    const result = await setupNewWalletWorkflow({
-      workflowId: "wf-human-wallet",
-      chainConfig: CHAINS.sepolia,
-      pool: USDC_POOL,
-      amount: 5_000_000n,
-      recipient: sampleSnapshot().recipient as Address,
-      mode: {
-        isAgent: false,
-        isJson: false,
-        isCsv: false,
-        isQuiet: false,
-        format: "table",
-        skipPrompts: false,
-      },
+    let result:
+      | Awaited<ReturnType<typeof setupNewWalletWorkflow>>
+      | null = null;
+    const captured = await captureAsyncOutput(async () => {
+      result = await setupNewWalletWorkflow({
+        workflowId: "wf-human-wallet",
+        chainConfig: CHAINS.sepolia,
+        pool: USDC_POOL,
+        amount: 5_000_000n,
+        recipient: sampleSnapshot().recipient as Address,
+        mode: {
+          isAgent: false,
+          isJson: false,
+          isCsv: false,
+          isQuiet: false,
+          format: "table",
+          skipPrompts: false,
+        },
+      });
     });
 
-    expect(result.snapshot.phase).toBe("awaiting_funding");
-    expect(result.snapshot.requiredTokenFunding).toBe("5000000");
-    expect(BigInt(result.snapshot.requiredNativeFunding ?? "0")).toBeGreaterThan(0n);
-    expect(result.secretRecord.exportedBackupPath).toBeNull();
-    expect(typeof result.secretRecord.backupConfirmedAt).toBe("string");
+    expect(result).not.toBeNull();
+    expect(captured.stderr).toContain("Private key:");
+    expect(captured.stderr).toMatch(/Private key:\s*0x[a-f0-9]{64}/i);
+    expect(result!.snapshot.phase).toBe("awaiting_funding");
+    expect(result!.snapshot.requiredTokenFunding).toBe("5000000");
+    expect(BigInt(result!.snapshot.requiredNativeFunding ?? "0")).toBeGreaterThan(0n);
+    expect(result!.secretRecord.exportedBackupPath).toBeNull();
+    expect(typeof result!.secretRecord.backupConfirmedAt).toBe("string");
     expect(state.warnings.join("\n")).toContain("Save this private key now.");
   });
 

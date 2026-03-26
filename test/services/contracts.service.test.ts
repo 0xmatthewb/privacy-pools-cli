@@ -1,4 +1,5 @@
 import {
+  afterAll,
   afterEach,
   beforeEach,
   describe,
@@ -148,6 +149,10 @@ describe("contracts service", () => {
       );
       rpcServer = null;
     }
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test("approveERC20 simulates and submits the transaction", async () => {

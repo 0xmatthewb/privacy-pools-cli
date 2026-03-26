@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
+  readdirSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -7,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -28,9 +29,19 @@ function normalizePath(path) {
   return path.replaceAll("\\", "/");
 }
 
+function stripLcovSourceSearchAndHash(source) {
+  const queryIndex = source.indexOf("?");
+  const hashIndex = source.indexOf("#");
+  const cutIndex = [queryIndex, hashIndex]
+    .filter((index) => index >= 0)
+    .sort((a, b) => a - b)[0];
+  return cutIndex === undefined ? source : source.slice(0, cutIndex);
+}
+
 const EXCLUDED_SOURCES = new Set([
   normalizePath(resolve(ROOT, "src/utils/command-discovery-static.ts")),
   normalizePath(resolve(ROOT, "src/services/circuit-checksums.js")),
+  normalizePath(resolve(ROOT, "src/types.ts")),
 ]);
 
 const thresholds = [
@@ -62,7 +73,11 @@ function parseLcovFile(filePath) {
     const sourceMatch = record.match(/^SF:(.+)$/m);
     if (!sourceMatch) continue;
 
-    const source = normalizePath(sourceMatch[1]);
+    const source = normalizePath(
+      isAbsolute(stripLcovSourceSearchAndHash(sourceMatch[1]))
+        ? stripLcovSourceSearchAndHash(sourceMatch[1])
+        : resolve(ROOT, stripLcovSourceSearchAndHash(sourceMatch[1])),
+    );
     const lineHits = files.get(source) ?? new Map();
     for (const line of record.matchAll(/^DA:(\d+),(\d+)/gm)) {
       const lineNumber = Number(line[1]);
@@ -172,6 +187,34 @@ function collectTopUncoveredFiles(coverageMap, limit = 12) {
     .slice(0, limit);
 }
 
+function collectExecutableSourceFiles(rootDir) {
+  const files = [];
+  const queue = [resolve(rootDir, "src")];
+
+  while (queue.length > 0) {
+    const current = queue.pop();
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const entryPath = join(current, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(entryPath);
+        continue;
+      }
+
+      if (!entry.isFile()) continue;
+      if (extname(entry.name) !== ".ts" && extname(entry.name) !== ".js") {
+        continue;
+      }
+      if (entry.name.endsWith(".d.ts")) continue;
+
+      files.push(normalizePath(entryPath));
+    }
+  }
+
+  return files
+    .filter((source) => !isExcludedSource(source))
+    .sort((a, b) => a.localeCompare(b));
+}
+
 function runCoverageSuite(args, coverageDir, envOverrides = {}) {
   const env = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -263,6 +306,17 @@ try {
   }
 
   const failures = [];
+  const executableSources = collectExecutableSourceFiles(ROOT);
+  const uninstrumentedSources = executableSources.filter((source) => {
+    return !mergedCoverage.has(source);
+  });
+
+  if (uninstrumentedSources.length > 0) {
+    failures.push(
+      `${uninstrumentedSources.length} executable src file(s) were missing from LCOV instrumentation`,
+    );
+  }
+
   for (const threshold of thresholds) {
     const stats = parseCoverageByMatchers(threshold.matchers, mergedCoverage);
     if (stats.linesFound === 0) {
@@ -291,6 +345,12 @@ try {
     console.error(
       `Overall executable src coverage: ${overallStats.percent.toFixed(2)}% (${overallStats.linesHit}/${overallStats.linesFound})`,
     );
+    if (uninstrumentedSources.length > 0) {
+      console.error("Uninstrumented executable src files:");
+      for (const source of uninstrumentedSources) {
+        console.error(`- ${source.replace(`${normalizePath(ROOT)}/`, "")}`);
+      }
+    }
     console.error("Top uncovered files by missed line count:");
     for (const row of collectTopUncoveredFiles(mergedCoverage)) {
       console.error(

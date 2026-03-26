@@ -22,7 +22,7 @@ bun run test:smoke             # packaged-smoke integration (timeout 180s)
 bun run test:fuzz              # fuzz suite (timeout 120s)
 bun run test:conformance       # build + conformance core suite
 bun run test:conformance:all   # build + all conformance suites
-bun run test:coverage          # hybrid coverage guard (overall src/services/commands/utils/output/shells/bootstrap ≥85%, workflow.ts ≥85%, config ≥95%)
+bun run test:coverage          # hybrid coverage guard (same thresholds as above, plus no uninstrumented executable src files)
 bun run test:evals             # agent eval suite (timeout 120s)
 bun run test:e2e:anvil         # full anvil e2e (requires local anvil)
 bun run test:e2e:anvil:smoke   # anvil smoke subset
@@ -30,7 +30,7 @@ bun run test:stress            # stress test (120 rounds)
 bun run test:ci                # full CI pipeline
 ```
 
-`bun run test` uses `scripts/run-test-suite.mjs`, which delegates to `scripts/run-bun-tests.mjs` for the main batch plus the isolated suites listed in `scripts/test-suite-manifest.mjs`. Pass explicit files or Bun flags with `bun run test -- <args>` when you want a targeted run. Default per-test timeout is 30s. The harness injects `PP_TEST_RUN_ID` per run and scopes temp dirs with `pp-` prefix for automatic cleanup.
+`bun run test` uses `scripts/run-test-suite.mjs`, which delegates to `scripts/run-bun-tests.mjs` for the main batch plus the isolated suites listed in `scripts/test-suite-manifest.mjs`. Pass explicit files or Bun flags with `bun run test -- <args>` when you want a targeted run. Default per-test timeout is 30s unless you pass an explicit Bun timeout flag. The harness injects `PP_TEST_RUN_ID` per run and scopes temp dirs with `pp-` prefix for automatic cleanup.
 
 To run a single test file: `node scripts/run-bun-tests.mjs ./test/unit/some-file.unit.test.ts`
 

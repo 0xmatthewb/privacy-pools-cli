@@ -3,6 +3,7 @@ import type { Command } from "commander";
 
 const realErrors = await import("../../src/utils/errors.ts");
 const realMode = await import("../../src/utils/mode.ts");
+const realOutputCommon = await import("../../src/output/common.ts");
 
 const ctx = { mode: "test" };
 const startSnapshot = { workflowId: "wf-start", phase: "awaiting_asp" };
@@ -57,6 +58,7 @@ function clearMockCalls(fn: {
 
 beforeAll(async () => {
   mock.module("../../src/output/common.ts", () => ({
+    ...realOutputCommon,
     createOutputContext: createOutputContextMock,
   }));
   mock.module("../../src/output/flow.ts", () => ({
@@ -74,7 +76,7 @@ beforeAll(async () => {
     resolveGlobalMode: resolveGlobalModeMock,
   }));
   mock.module("../../src/utils/errors.ts", () => ({
-    CLIError: realErrors.CLIError,
+    ...realErrors,
     printError: printErrorMock,
   }));
 

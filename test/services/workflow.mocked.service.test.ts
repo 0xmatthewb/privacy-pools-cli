@@ -29,8 +29,18 @@ import { captureAsyncOutput } from "../helpers/output.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 
 const realConfig = await import("../../src/services/config.ts");
+const realAccount = await import("../../src/services/account.ts");
+const realAsp = await import("../../src/services/asp.ts");
 const realChains = await import("../../src/config/chains.ts");
 const realFormat = await import("../../src/utils/format.ts");
+const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
+const realPools = await import("../../src/services/pools.ts");
+const realPreflight = await import("../../src/utils/preflight.ts");
+const realProofs = await import("../../src/services/proofs.ts");
+const realRelayer = await import("../../src/services/relayer.ts");
+const realSdk = await import("../../src/services/sdk.ts");
+const realWallet = await import("../../src/services/wallet.ts");
+const realWithdraw = await import("../../src/commands/withdraw.ts");
 const realViemAccounts = await import("viem/accounts");
 
 const GLOBAL_SIGNER_PRIVATE_KEY =
@@ -617,20 +627,24 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("../../src/services/wallet.ts", () => ({
+    ...realWallet,
     loadMnemonic: loadMnemonicMock,
     loadPrivateKey: loadPrivateKeyMock,
   }));
 
   mock.module("../../src/services/pools.ts", () => ({
+    ...realPools,
     resolvePool: resolvePoolMock,
   }));
 
   mock.module("../../src/services/sdk.ts", () => ({
+    ...realSdk,
     getPublicClient: mock(() => publicClient),
     getDataService: getDataServiceMock,
   }));
 
   mock.module("../../src/services/account.ts", () => ({
+    ...realAccount,
     initializeAccountService: initializeAccountServiceMock,
     saveAccount: saveAccountMock,
     saveSyncMeta: saveSyncMetaMock,
@@ -638,6 +652,7 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("../../src/services/asp.ts", () => ({
+    ...realAsp,
     buildLoadedAspDepositReviewState: mock(() => ({
       approvedLabels:
         state.aspStatus === "approved" ? [state.label] : [],
@@ -659,6 +674,7 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("../../src/services/proofs.ts", () => ({
+    ...realProofs,
     proveCommitment: mock(async () => ({
       proof: {
         pi_a: [1n, 2n],
@@ -684,6 +700,7 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("../../src/services/relayer.ts", () => ({
+    ...realRelayer,
     getRelayerDetails: getRelayerDetailsMock,
     requestQuote: requestQuoteMock,
     submitRelayRequest: submitRelayRequestMock,
@@ -696,6 +713,7 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("../../src/utils/preflight.ts", () => ({
+    ...realPreflight,
     checkErc20Balance: mock(async () => undefined),
     checkHasGas: mock(async () => undefined),
     checkNativeBalance: mock(async () => undefined),
@@ -710,6 +728,7 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("../../src/utils/pool-accounts.ts", () => ({
+    ...realPoolAccounts,
     buildAllPoolAccountRefs: mock(() =>
       isPoolAccountCurrentlyAvailable() ? [selectedPoolAccount()] : [],
     ),
@@ -726,6 +745,7 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("../../src/commands/withdraw.ts", () => ({
+    ...realWithdraw,
     getRelayedWithdrawalRemainderAdvisory:
       getRelayedWithdrawalRemainderAdvisoryMock,
     refreshExpiredRelayerQuoteForWithdrawal:

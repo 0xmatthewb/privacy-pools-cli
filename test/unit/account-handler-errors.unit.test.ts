@@ -5,6 +5,7 @@ const realErrors = await import("../../src/utils/errors.ts");
 const realMode = await import("../../src/utils/mode.ts");
 const realAccount = await import("../../src/services/account.ts");
 const realAsp = await import("../../src/services/asp.ts");
+const realOutputCommon = await import("../../src/output/common.ts");
 
 const chainConfig = {
   id: 11155111,
@@ -139,6 +140,7 @@ beforeAll(async () => {
     withSpinnerProgress: withSpinnerProgressMock,
   }));
   mock.module("../../src/output/common.ts", () => ({
+    ...realOutputCommon,
     createOutputContext: createOutputContextMock,
     isSilent: () => true,
   }));

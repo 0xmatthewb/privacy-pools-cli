@@ -1,0 +1,54 @@
+import { describe, expect, test } from "bun:test";
+import {
+  annotateArgs,
+  expandPathArgsWithExcludes,
+  hasExplicitTestTarget,
+  hasExplicitTimeoutArg,
+} from "../../scripts/test-runner-args.mjs";
+
+const ROOT = process.cwd();
+const PRELOAD_HELPER = "./test/helpers/temp.ts";
+const TEST_FILE = "./test/unit/mode.timeout.unit.test.ts";
+
+describe("test runner arg helpers", () => {
+  test("hasExplicitTimeoutArg detects inline and split timeout flags", () => {
+    expect(hasExplicitTimeoutArg([TEST_FILE, "--timeout", "123"])).toBe(true);
+    expect(hasExplicitTimeoutArg([TEST_FILE, "--timeout=123"])).toBe(true);
+    expect(hasExplicitTimeoutArg([TEST_FILE, "-t", "123"])).toBe(true);
+    expect(hasExplicitTimeoutArg([TEST_FILE])).toBe(false);
+  });
+
+  test("hasExplicitTestTarget ignores values consumed by Bun flags", () => {
+    expect(
+      hasExplicitTestTarget(["--preload", PRELOAD_HELPER, "--timeout=1"], ROOT),
+    ).toBe(false);
+    expect(
+      hasExplicitTestTarget(["--preload", PRELOAD_HELPER, TEST_FILE], ROOT),
+    ).toBe(true);
+  });
+
+  test("annotateArgs marks flag values so they are not treated as test targets", () => {
+    expect(
+      annotateArgs(["--preload", PRELOAD_HELPER, TEST_FILE]),
+    ).toEqual([
+      { token: "--preload", consumedAsValue: false },
+      { token: PRELOAD_HELPER, consumedAsValue: true },
+      { token: TEST_FILE, consumedAsValue: false },
+    ]);
+  });
+
+  test("expandPathArgsWithExcludes preserves path-valued flags", () => {
+    const expanded = expandPathArgsWithExcludes(
+      ["--preload", PRELOAD_HELPER, TEST_FILE],
+      new Set(),
+      (pathArg) => [`EXPANDED:${pathArg}`],
+      ROOT,
+    );
+
+    expect(expanded).toEqual([
+      "--preload",
+      PRELOAD_HELPER,
+      `EXPANDED:${TEST_FILE}`,
+    ]);
+  });
+});
