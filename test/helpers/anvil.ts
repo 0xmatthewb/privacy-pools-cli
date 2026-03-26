@@ -17,8 +17,8 @@ export interface AnvilInstance {
 }
 
 interface LaunchAnvilOptions {
-  forkUrl: string;
   chainId: number;
+  forkUrl?: string;
   forkBlockNumber?: bigint;
 }
 
@@ -120,10 +120,13 @@ export async function launchAnvil(
   const args = [
     "--host", "127.0.0.1",
     "--port", String(port),
-    "--fork-url", options.forkUrl,
     "--chain-id", String(options.chainId),
     "--silent",
   ];
+
+  if (options.forkUrl) {
+    args.push("--fork-url", options.forkUrl);
+  }
 
   if (options.forkBlockNumber !== undefined) {
     args.push("--fork-block-number", options.forkBlockNumber.toString());

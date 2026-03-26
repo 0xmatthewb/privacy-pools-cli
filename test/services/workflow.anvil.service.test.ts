@@ -7,7 +7,7 @@ import {
   expect,
   test,
 } from "bun:test";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   createPublicClient,
@@ -15,57 +15,46 @@ import {
   decodeEventLog,
   http,
   parseAbi,
+  type Address,
 } from "viem";
-import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
 import { privateKeyToAccount } from "viem/accounts";
+import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import {
   ensureCircuitArtifacts,
   resetCircuitArtifactsCacheForTests,
 } from "../../src/services/circuits.ts";
 import {
+  type FlowSnapshot,
   loadWorkflowSnapshot,
   startWorkflow,
   watchWorkflow,
 } from "../../src/services/workflow.ts";
+import { resolveChain } from "../../src/utils/validation.ts";
 import { createSeededHome } from "../helpers/cli.ts";
 import {
   impersonateAccount,
-  killAnvil,
-  launchAnvil,
-  revertState,
   setBalance,
-  snapshotState,
   stopImpersonatingAccount,
-  type AnvilInstance,
 } from "../helpers/anvil.ts";
 import {
-  killAnvilAspServer,
-  launchAnvilAspServer,
   writeAnvilAspState,
-  type AnvilAspServer,
   type AnvilAspState,
 } from "../helpers/anvil-asp-server.ts";
-import {
-  killAnvilRelayerServer,
-  launchAnvilRelayerServer,
-  type AnvilRelayerConfig,
-  type AnvilRelayerServer,
-} from "../helpers/anvil-relayer-server.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
+import {
+  applySharedAnvilProcessEnv,
+  configureSharedRelayer,
+  loadSharedAnvilEnv,
+  resetSharedAnvilEnv,
+  restoreSharedAnvilProcessEnv,
+  sharedAnvilCliEnv,
+  type SharedAnvilEnv,
+} from "../helpers/shared-anvil-env.ts";
 
 const ANVIL_E2E_ENABLED = process.env.PP_ANVIL_E2E === "1";
 const anvilTest = ANVIL_E2E_ENABLED ? test : test.skip;
 
-const chainConfig = CHAINS.sepolia;
-const DEFAULT_ANVIL_FORK_URL = "https://sepolia.gateway.tenderly.co";
-const forkUrl = process.env.PP_ANVIL_FORK_URL?.trim() || DEFAULT_ANVIL_FORK_URL;
-const signerPrivateKey =
-  "0x1111111111111111111111111111111111111111111111111111111111111111" as const;
-const signerAddress = privateKeyToAccount(signerPrivateKey).address;
-const relayerPrivateKey =
-  "0x2222222222222222222222222222222222222222222222222222222222222222" as const;
-const relayerAddress = privateKeyToAccount(relayerPrivateKey).address;
 const aspPostman = "0x696fe46495688fc9e99bad2daf2133b33de364ea" as const;
 const dummyCid = "bafybeigdyrzt5dummycidforworkflowservicetests1234567890";
 const relayedRecipient = "0x4444444444444444444444444444444444444444" as const;
@@ -92,18 +81,13 @@ const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
 ]);
 
-let anvil: AnvilInstance | null = null;
-let aspServer: AnvilAspServer | null = null;
-let relayerServer: AnvilRelayerServer | null = null;
+let sharedEnv: SharedAnvilEnv | null = null;
 let anvilClient: ReturnType<typeof createPublicClient> | null = null;
+let chainConfig = CHAINS.sepolia;
 let poolAddress: `0x${string}`;
-let poolScope: bigint;
-let baseStateTreeLeaves: string[] = [];
 let aspStateFile = "";
 let circuitsDir = "";
-let baselineSnapshotId = "";
 let aspState: AnvilAspState | null = null;
-let stateDir = "";
 
 const ORIGINAL_ENV = {
   PRIVACY_POOLS_HOME: process.env.PRIVACY_POOLS_HOME,
@@ -111,34 +95,13 @@ const ORIGINAL_ENV = {
   PRIVACY_POOLS_ASP_HOST: process.env.PRIVACY_POOLS_ASP_HOST,
   PRIVACY_POOLS_RELAYER_HOST: process.env.PRIVACY_POOLS_RELAYER_HOST,
   PRIVACY_POOLS_CIRCUITS_DIR: process.env.PRIVACY_POOLS_CIRCUITS_DIR,
+  PP_TEST_ENTRYPOINT_SEPOLIA: process.env.PP_TEST_ENTRYPOINT_SEPOLIA,
+  PP_TEST_START_BLOCK_SEPOLIA: process.env.PP_TEST_START_BLOCK_SEPOLIA,
 };
-const SHARED_CIRCUITS_DIR =
-  process.env.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim() || null;
 
-function restoreEnv(
-  key: keyof typeof ORIGINAL_ENV,
-): void {
-  const originalValue = ORIGINAL_ENV[key];
-  if (originalValue === undefined) {
-    delete process.env[key];
-  } else {
-    process.env[key] = originalValue;
-  }
-}
-
-function requireAnvil(): AnvilInstance {
-  if (!anvil) throw new Error("Anvil is not running");
-  return anvil;
-}
-
-function requireAspServer(): AnvilAspServer {
-  if (!aspServer) throw new Error("ASP server is not running");
-  return aspServer;
-}
-
-function requireRelayerServer(): AnvilRelayerServer {
-  if (!relayerServer) throw new Error("Relayer server is not running");
-  return relayerServer;
+function requireSharedEnv(): SharedAnvilEnv {
+  if (!sharedEnv) throw new Error("Shared Anvil environment is not initialized");
+  return sharedEnv;
 }
 
 function requireAnvilClient() {
@@ -160,106 +123,28 @@ function computeMerkleRoot(leaves: readonly string[]): bigint {
   return BigInt((proof as { root: bigint | string }).root);
 }
 
-async function fetchStateTreeLeaves(scope: bigint): Promise<string[]> {
-  const response = await fetch(
-    `${chainConfig.aspHost}/${chainConfig.id}/public/mt-leaves`,
-    {
-      headers: {
-        "X-Pool-Scope": scope.toString(),
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ASP leaves: HTTP ${response.status}`);
-  }
-
-  const payload = (await response.json()) as { stateTreeLeaves?: string[] };
-  if (!payload.stateTreeLeaves || payload.stateTreeLeaves.length === 0) {
-    throw new Error("ASP returned an empty state tree");
-  }
-
-  return payload.stateTreeLeaves;
-}
-
-async function captureSnapshot(): Promise<{
-  forkBlockNumber: bigint;
-  poolAddress: `0x${string}`;
-  poolScope: bigint;
-  baseStateTreeLeaves: string[];
-}> {
-  const client = createPublicClient({
-    chain: chainConfig.chain,
-    transport: http(forkUrl),
-  });
-
-  const assetConfig = await client.readContract({
-    address: chainConfig.entrypoint,
-    abi: entrypointAbi,
-    functionName: "assetConfig",
-    args: [NATIVE_ASSET_ADDRESS],
-  });
-
-  const resolvedPoolAddress = (assetConfig as [string])[0] as `0x${string}`;
-  const scope = (await client.readContract({
-    address: resolvedPoolAddress,
-    abi: poolAbi,
-    functionName: "SCOPE",
-  })) as bigint;
-
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const stateLeaves = await fetchStateTreeLeaves(scope);
-    const [blockNumber, currentRoot] = await Promise.all([
-      client.getBlockNumber(),
-      client.readContract({
-        address: resolvedPoolAddress,
-        abi: poolAbi,
-        functionName: "currentRoot",
-      }) as Promise<bigint>,
-    ]);
-
-    if (computeMerkleRoot(stateLeaves) === BigInt(currentRoot)) {
-      return {
-        forkBlockNumber: blockNumber,
-        poolAddress: resolvedPoolAddress,
-        poolScope: scope,
-        baseStateTreeLeaves: stateLeaves,
-      };
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1_000));
-  }
-
-  throw new Error("Could not capture a consistent Sepolia ETH state-tree snapshot");
-}
-
 function writeCurrentAspState(): void {
   writeAnvilAspState(aspStateFile, requireAspState());
 }
 
 async function resetAspState(): Promise<void> {
-  aspState = {
-    chainId: chainConfig.id,
-    rpcUrl: requireAnvil().url,
-    entrypoint: chainConfig.entrypoint,
-    scope: poolScope.toString(),
-    poolAddress,
-    assetAddress: NATIVE_ASSET_ADDRESS,
-    symbol: "ETH",
-    baseStateTreeLeaves: [...baseStateTreeLeaves],
-    insertedStateTreeLeaves: [],
-    approvedLabels: [],
-    reviewStatuses: {},
-  };
-  writeCurrentAspState();
+  aspState = JSON.parse(readFileSync(aspStateFile, "utf8")) as AnvilAspState;
 }
 
 function appendInsertedStateTreeLeaf(commitment: bigint): void {
+  const state = requireAspState();
+  const [ethPool, ...otherPools] = state.pools;
   aspState = {
-    ...requireAspState(),
-    insertedStateTreeLeaves: [
-      ...requireAspState().insertedStateTreeLeaves,
-      commitment.toString(),
+    ...state,
+    pools: [
+      {
+        ...ethPool,
+        insertedStateTreeLeaves: [
+          ...ethPool.insertedStateTreeLeaves,
+          commitment.toString(),
+        ],
+      },
+      ...otherPools,
     ],
   };
   writeCurrentAspState();
@@ -270,30 +155,39 @@ function setLabelReviewStatus(
   reviewStatus: "pending" | "declined" | "poi_required",
 ): void {
   const labelString = label.toString();
+  const state = requireAspState();
+  const [ethPool, ...otherPools] = state.pools;
   aspState = {
-    ...requireAspState(),
-    approvedLabels: requireAspState().approvedLabels.filter(
-      (value) => value !== labelString,
-    ),
-    reviewStatuses: {
-      ...requireAspState().reviewStatuses,
-      [labelString]: reviewStatus,
-    },
+    ...state,
+    pools: [
+      {
+        ...ethPool,
+        approvedLabels: ethPool.approvedLabels.filter(
+          (value) => value !== labelString,
+        ),
+        reviewStatuses: {
+          ...ethPool.reviewStatuses,
+          [labelString]: reviewStatus,
+        },
+      },
+      ...otherPools,
+    ],
   };
   writeCurrentAspState();
 }
 
 async function publishApprovedLabels(labels: readonly bigint[]): Promise<void> {
+  const env = requireSharedEnv();
   const labelStrings = labels.map((value) => value.toString());
   const root = computeMerkleRoot(labelStrings);
-  await impersonateAccount(requireAnvil().url, aspPostman);
-  await setBalance(requireAnvil().url, aspPostman, 10n ** 20n);
+  await impersonateAccount(env.rpcUrl, aspPostman);
+  await setBalance(env.rpcUrl, aspPostman, 10n ** 20n);
 
   try {
     const walletClient = createWalletClient({
       account: aspPostman,
       chain: chainConfig.chain,
-      transport: http(requireAnvil().url),
+      transport: http(env.rpcUrl),
     });
 
     const txHash = await walletClient.writeContract({
@@ -311,18 +205,26 @@ async function publishApprovedLabels(labels: readonly bigint[]): Promise<void> {
       throw new Error(`updateRoot reverted: ${txHash}`);
     }
   } finally {
-    await stopImpersonatingAccount(requireAnvil().url, aspPostman);
+    await stopImpersonatingAccount(env.rpcUrl, aspPostman);
   }
 
+  const state = requireAspState();
+  const [ethPool, ...otherPools] = state.pools;
   aspState = {
-    ...requireAspState(),
-    approvedLabels: labelStrings,
-    reviewStatuses: {
-      ...requireAspState().reviewStatuses,
-      ...Object.fromEntries(
-        labelStrings.map((value) => [value, "approved"] as const),
-      ),
-    },
+    ...state,
+    pools: [
+      {
+        ...ethPool,
+        approvedLabels: labelStrings,
+        reviewStatuses: {
+          ...ethPool.reviewStatuses,
+          ...Object.fromEntries(
+            labelStrings.map((value) => [value, "approved"] as const),
+          ),
+        },
+      },
+      ...otherPools,
+    ],
   };
   writeCurrentAspState();
 }
@@ -356,11 +258,7 @@ async function decodeDeposit(txHash: `0x${string}`): Promise<{
 }
 
 async function resetFork(): Promise<void> {
-  const reverted = await revertState(requireAnvil().url, baselineSnapshotId);
-  if (!reverted) {
-    throw new Error("Failed to revert the Anvil fork to the baseline snapshot");
-  }
-  baselineSnapshotId = await snapshotState(requireAnvil().url);
+  await resetSharedAnvilEnv(requireSharedEnv());
   await resetAspState();
 }
 
@@ -372,45 +270,45 @@ function useServiceHome(
 ): string {
   const home = createSeededHome("sepolia");
   process.env.PRIVACY_POOLS_HOME = join(home, ".privacy-pools");
-  process.env.PRIVACY_POOLS_RPC_URL_SEPOLIA = requireAnvil().url;
-  process.env.PRIVACY_POOLS_ASP_HOST = requireAspServer().url;
-  process.env.PRIVACY_POOLS_RELAYER_HOST = requireRelayerServer().url;
+  applySharedAnvilProcessEnv(requireSharedEnv());
   process.env.PRIVACY_POOLS_CIRCUITS_DIR =
     options.circuitsDirOverride ?? circuitsDir;
   return home;
 }
 
-function buildRelayerConfig(
-  overrides: Partial<AnvilRelayerConfig> = {},
-): AnvilRelayerConfig {
-  return {
-    chainId: chainConfig.id,
-    rpcUrl: requireAnvil().url,
-    entrypoint: chainConfig.entrypoint,
-    assetAddress: NATIVE_ASSET_ADDRESS,
-    feeReceiverAddress: relayerAddress,
-    relayerPrivateKey,
-    feeBPS: "50",
-    minWithdrawAmount: "1",
-    maxGasPrice: "100000000000",
-    ...overrides,
-  };
-}
-
-async function restartRelayerServer(
-  overrides: Partial<AnvilRelayerConfig> = {},
+async function configureEthRelayer(
+  quoteSequence?: Array<{
+    feeBPS?: string;
+    expirationOffsetMs?: number;
+  }>,
 ): Promise<void> {
-  if (relayerServer) {
-    await killAnvilRelayerServer(relayerServer);
-  }
-  relayerServer = await launchAnvilRelayerServer(buildRelayerConfig(overrides));
-  process.env.PRIVACY_POOLS_RELAYER_HOST = relayerServer.url;
+  const env = requireSharedEnv();
+  const feeReceiverAddress = privateKeyToAccount(env.relayerPrivateKey).address;
+  await configureSharedRelayer(env, {
+    assets: [
+      {
+        assetAddress: env.pools.eth.assetAddress,
+        feeReceiverAddress,
+        feeBPS: "50",
+        minWithdrawAmount: "1",
+        maxGasPrice: "100000000000",
+        quoteSequence,
+      },
+      {
+        assetAddress: env.pools.erc20.assetAddress,
+        feeReceiverAddress,
+        feeBPS: env.pools.erc20.maxRelayFeeBPS,
+        minWithdrawAmount: env.pools.erc20.minimumDepositAmount,
+        maxGasPrice: "100000000000",
+      },
+    ],
+  });
 }
 
 async function readRelayerState(): Promise<{
   quoteRequests: number;
 }> {
-  const response = await fetch(`${requireRelayerServer().url}/__state`);
+  const response = await fetch(`${requireSharedEnv().relayerUrl}/__state`);
   if (!response.ok) {
     throw new Error(`Failed to read relayer state: HTTP ${response.status}`);
   }
@@ -434,7 +332,7 @@ async function startServiceFlow(
     recipient: relayedRecipient,
     globalOpts: {
       chain: "sepolia",
-      rpcUrl: requireAnvil().url,
+      rpcUrl: requireSharedEnv().rpcUrl,
     },
     mode: MACHINE_MODE,
     isVerbose: false,
@@ -455,63 +353,37 @@ describe("workflow service on Anvil", () => {
   beforeAll(async () => {
     if (!ANVIL_E2E_ENABLED) return;
 
-    const snapshot = await captureSnapshot();
-    poolAddress = snapshot.poolAddress;
-    poolScope = snapshot.poolScope;
-    baseStateTreeLeaves = snapshot.baseStateTreeLeaves;
-
-    anvil = await launchAnvil({
-      forkUrl,
-      chainId: chainConfig.id,
-      forkBlockNumber: snapshot.forkBlockNumber,
-    });
-
+    sharedEnv = loadSharedAnvilEnv();
+    applySharedAnvilProcessEnv(sharedEnv);
+    chainConfig = resolveChain("sepolia");
+    poolAddress = sharedEnv.pools.eth.poolAddress;
+    aspStateFile = sharedEnv.aspStateFile;
+    circuitsDir = sharedEnv.circuitsDir;
     anvilClient = createPublicClient({
       chain: chainConfig.chain,
-      transport: http(anvil.url),
+      transport: http(sharedEnv.rpcUrl),
     });
 
-    await setBalance(anvil.url, signerAddress, 10n ** 20n);
-    await setBalance(anvil.url, aspPostman, 10n ** 20n);
-    await setBalance(anvil.url, relayerAddress, 10n ** 20n);
-
-    stateDir = createTrackedTempDir("pp-workflow-service-anvil-");
-    aspStateFile = join(stateDir, "state.json");
-    circuitsDir = SHARED_CIRCUITS_DIR || join(stateDir, "circuits");
-    writeFileSync(join(stateDir, ".keep"), "", "utf8");
+    await resetSharedAnvilEnv(sharedEnv);
     await resetAspState();
     process.env.PRIVACY_POOLS_CIRCUITS_DIR = circuitsDir;
     await ensureCircuitArtifacts();
     resetCircuitArtifactsCacheForTests();
-
-    aspServer = await launchAnvilAspServer(aspStateFile);
-    relayerServer = await launchAnvilRelayerServer(buildRelayerConfig());
-
-    baselineSnapshotId = await snapshotState(anvil.url);
   });
 
   beforeEach(async () => {
     if (!ANVIL_E2E_ENABLED) return;
     await resetFork();
-    await restartRelayerServer();
+    await configureEthRelayer();
   });
 
   afterEach(() => {
     resetCircuitArtifactsCacheForTests();
-    restoreEnv("PRIVACY_POOLS_HOME");
-    restoreEnv("PRIVACY_POOLS_RPC_URL_SEPOLIA");
-    restoreEnv("PRIVACY_POOLS_ASP_HOST");
-    restoreEnv("PRIVACY_POOLS_RELAYER_HOST");
-    restoreEnv("PRIVACY_POOLS_CIRCUITS_DIR");
+    restoreSharedAnvilProcessEnv(ORIGINAL_ENV);
   });
 
   afterAll(async () => {
-    if (relayerServer) await killAnvilRelayerServer(relayerServer);
-    if (aspServer) await killAnvilAspServer(aspServer);
-    if (anvil) await killAnvil(anvil);
-    if (stateDir) {
-      rmSync(stateDir, { recursive: true, force: true });
-    }
+    restoreSharedAnvilProcessEnv(ORIGINAL_ENV);
   });
 
   anvilTest("startWorkflow + watchWorkflow completes the approved path", async () => {
@@ -522,7 +394,7 @@ describe("workflow service on Anvil", () => {
       workflowId: snapshot.workflowId,
       globalOpts: {
         chain: "sepolia",
-        rpcUrl: requireAnvil().url,
+        rpcUrl: requireSharedEnv().rpcUrl,
       },
       mode: MACHINE_MODE,
       isVerbose: false,
@@ -541,7 +413,7 @@ describe("workflow service on Anvil", () => {
       workflowId: snapshot.workflowId,
       globalOpts: {
         chain: "sepolia",
-        rpcUrl: requireAnvil().url,
+        rpcUrl: requireSharedEnv().rpcUrl,
       },
       mode: MACHINE_MODE,
       isVerbose: false,
@@ -559,7 +431,7 @@ describe("workflow service on Anvil", () => {
       workflowId: snapshot.workflowId,
       globalOpts: {
         chain: "sepolia",
-        rpcUrl: requireAnvil().url,
+        rpcUrl: requireSharedEnv().rpcUrl,
       },
       mode: MACHINE_MODE,
       isVerbose: false,
@@ -584,7 +456,7 @@ describe("workflow service on Anvil", () => {
       workflowId: snapshot.workflowId,
       globalOpts: {
         chain: "sepolia",
-        rpcUrl: requireAnvil().url,
+        rpcUrl: requireSharedEnv().rpcUrl,
       },
       mode: MACHINE_MODE,
       isVerbose: false,
@@ -603,7 +475,7 @@ describe("workflow service on Anvil", () => {
         recipient: relayedRecipient,
         globalOpts: {
           chain: "sepolia",
-          rpcUrl: requireAnvil().url,
+          rpcUrl: requireSharedEnv().rpcUrl,
         },
         mode: MACHINE_MODE,
         isVerbose: false,
@@ -615,12 +487,10 @@ describe("workflow service on Anvil", () => {
   anvilTest(
     "watchWorkflow refreshes the relayer quote after proof generation when the fee is unchanged",
     async () => {
-      await restartRelayerServer({
-        quoteSequence: [
-          { feeBPS: "50", expirationOffsetMs: 1_000 },
-          { feeBPS: "50", expirationOffsetMs: 600_000 },
-        ],
-      });
+      await configureEthRelayer([
+        { feeBPS: "50", expirationOffsetMs: 1_000 },
+        { feeBPS: "50", expirationOffsetMs: 600_000 },
+      ]);
       const freshCircuitsDir = createTrackedTempDir(
         "pp-workflow-service-refresh-circuits-",
       );
@@ -636,7 +506,7 @@ describe("workflow service on Anvil", () => {
         workflowId: snapshot.workflowId,
         globalOpts: {
           chain: "sepolia",
-          rpcUrl: requireAnvil().url,
+          rpcUrl: requireSharedEnv().rpcUrl,
         },
         mode: MACHINE_MODE,
         isVerbose: false,
@@ -650,12 +520,10 @@ describe("workflow service on Anvil", () => {
   anvilTest(
     "watchWorkflow fails closed when the relayer fee changes after proof generation",
     async () => {
-      await restartRelayerServer({
-        quoteSequence: [
-          { feeBPS: "50", expirationOffsetMs: 1_000 },
-          { feeBPS: "75", expirationOffsetMs: 600_000 },
-        ],
-      });
+      await configureEthRelayer([
+        { feeBPS: "50", expirationOffsetMs: 1_000 },
+        { feeBPS: "75", expirationOffsetMs: 600_000 },
+      ]);
       const freshCircuitsDir = createTrackedTempDir(
         "pp-workflow-service-fee-change-circuits-",
       );
@@ -672,7 +540,7 @@ describe("workflow service on Anvil", () => {
           workflowId: snapshot.workflowId,
           globalOpts: {
             chain: "sepolia",
-            rpcUrl: requireAnvil().url,
+            rpcUrl: requireSharedEnv().rpcUrl,
           },
           mode: MACHINE_MODE,
           isVerbose: false,
@@ -691,7 +559,7 @@ describe("workflow service on Anvil", () => {
   anvilTest(
     "watchWorkflow fails closed when the ASP root changes during proof generation",
     async () => {
-      await restartRelayerServer();
+      await configureEthRelayer();
       const freshCircuitsDir = createTrackedTempDir(
         "pp-workflow-service-root-change-circuits-",
       );
@@ -713,7 +581,7 @@ describe("workflow service on Anvil", () => {
         workflowId: snapshot.workflowId,
         globalOpts: {
           chain: "sepolia",
-          rpcUrl: requireAnvil().url,
+          rpcUrl: requireSharedEnv().rpcUrl,
         },
         mode: MACHINE_MODE,
         isVerbose: false,

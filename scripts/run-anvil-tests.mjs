@@ -1,8 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { setupSharedAnvilFixture } from "./anvil-shared-fixture.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -25,8 +24,7 @@ const TEST_FILES = [
 ];
 
 const extraArgs = process.argv.slice(2);
-const sharedCircuitsDir = mkdtempSync(join(tmpdir(), "pp-anvil-circuits-"));
-
+const sharedFixture = await setupSharedAnvilFixture();
 let result;
 try {
   result = spawnSync(
@@ -43,17 +41,13 @@ try {
       env: {
         ...process.env,
         PP_ANVIL_E2E: "1",
-        PP_ANVIL_SHARED_CIRCUITS_DIR: sharedCircuitsDir,
+        PP_ANVIL_SHARED_CIRCUITS_DIR: sharedFixture.sharedCircuitsDir,
+        PP_ANVIL_SHARED_ENV_FILE: sharedFixture.envFile,
       },
     }
   );
 } finally {
-  rmSync(sharedCircuitsDir, {
-    recursive: true,
-    force: true,
-    maxRetries: 3,
-    retryDelay: 50,
-  });
+  await sharedFixture.cleanup();
 }
 
 if (result.error) {

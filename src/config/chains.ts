@@ -12,6 +12,14 @@ function normalizedChainEnvSuffix(chainName: string): string {
   return chainName.replace(/[^a-z0-9]/gi, "_").toUpperCase();
 }
 
+function resolveTestOverride(
+  field: "ENTRYPOINT" | "START_BLOCK",
+  chainName: string,
+): string | undefined {
+  const chainSuffix = normalizedChainEnvSuffix(chainName);
+  return process.env[`PP_TEST_${field}_${chainSuffix}`]?.trim() || undefined;
+}
+
 function resolveHostOverride(
   type: "ASP_HOST" | "RELAYER_HOST",
   chainName: string
@@ -32,9 +40,25 @@ function resolveHostOverride(
 export function resolveChainOverrides(config: ChainConfig): ChainConfig {
   const aspHostOverride = resolveHostOverride("ASP_HOST", config.name);
   const relayerHostOverride = resolveHostOverride("RELAYER_HOST", config.name);
-  if (!aspHostOverride && !relayerHostOverride) return config;
+  const entrypointOverride = resolveTestOverride("ENTRYPOINT", config.name);
+  const startBlockOverride = resolveTestOverride("START_BLOCK", config.name);
+  if (
+    !aspHostOverride
+    && !relayerHostOverride
+    && !entrypointOverride
+    && !startBlockOverride
+  ) {
+    return config;
+  }
+
+  const parsedStartBlock = startBlockOverride
+    ? BigInt(startBlockOverride)
+    : config.startBlock;
   return {
     ...config,
+    // Internal test-only hook for self-contained local Anvil harnesses.
+    entrypoint: (entrypointOverride ?? config.entrypoint) as Address,
+    startBlock: parsedStartBlock,
     aspHost: aspHostOverride ?? config.aspHost,
     relayerHost: relayerHostOverride ?? config.relayerHost,
   };
