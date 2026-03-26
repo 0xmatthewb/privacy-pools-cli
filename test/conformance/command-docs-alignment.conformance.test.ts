@@ -143,6 +143,75 @@ describe("command docs alignment", () => {
     expect(normalizedReference).toContain("privacy-pools describe stats global --agent");
   });
 
+  test("AGENTS preflight guidance uses the same signer readiness contract as status metadata", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const section = extractDocumentSection(agents, "## Preflight Check", [
+      "## Preflight Check",
+      "## Human + Agent Workflow",
+    ]);
+    const normalizedSection = normalizeWhitespace(section);
+
+    expect(normalizedSection).toContain("signerKeyValid: true");
+    expect(normalizedSection).toContain("readyForDeposit: true");
+    expect(normalizedSection).not.toContain("signerKeySet: true");
+  });
+
+  test("skill reference keeps pool default-sort examples aligned with runtime defaults", () => {
+    const reference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const section = extractDocumentSection(reference, "### `pools`", ["### `pools`", "### `activity`"]);
+    const normalizedSection = normalizeWhitespace(section);
+
+    expect(normalizedSection).toContain("Default sort is `tvl-desc`");
+    expect(normalizedSection).toContain("\"sort\": \"tvl-desc\"");
+    expect(normalizedSection).not.toContain("\"sort\": \"default\"");
+  });
+
+  test("skill reference unsigned docs describe the configured default-chain behavior", () => {
+    const reference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const normalizedReference = normalizeWhitespace(reference);
+
+    expect(normalizedReference).toContain("default: your configured default chain");
+    expect(normalizedReference).not.toContain("default: `mainnet`, chain ID 1");
+  });
+
+  test("flow status docs and discovery metadata keep the saved-workflow prerequisite explicit", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const flowMetadata = getCommandMetadata("flow");
+    const flowStatusMetadata = getCommandMetadata("flow status");
+    const agentsSection = extractDocumentSection(agents, "#### `flow`", getDocumentedAgentMarkers());
+    const referenceSection = extractDocumentSection(reference, "### `flow status`", [
+      "### `flow status`",
+      "### `flow ragequit`",
+    ]);
+
+    expect(normalizeWhitespace(agentsSection)).toContain(
+      "`flow status` is read-only and works as long as a saved workflow snapshot already exists locally",
+    );
+    expect(normalizeWhitespace(referenceSection)).toContain(
+      "does not require init if the saved workflow already exists locally",
+    );
+    expect(flowMetadata.help?.prerequisites).toBe(
+      "init for start/watch/ragequit; saved workflow for status",
+    );
+    expect(flowStatusMetadata.help?.prerequisites).toBe(
+      "saved workflow (usually created after init)",
+    );
+    expect(flowStatusMetadata.capabilities.requiresInit).toBe(false);
+  });
+
+  test("human reference documents the stats global chain restriction", () => {
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const section = extractDocumentSection(reference, "### `stats global`", [
+      "### `stats global`",
+      "### `stats pool`",
+    ]);
+
+    expect(normalizeWhitespace(section)).toContain(
+      "The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data",
+    );
+  });
+
   test("AGENTS deposit section documents the non-round deposit privacy guard", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const section = extractDocumentSection(agents, "#### `deposit`", getDocumentedAgentMarkers());

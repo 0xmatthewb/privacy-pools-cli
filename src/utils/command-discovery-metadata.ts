@@ -128,7 +128,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools flow status latest",
         "privacy-pools flow ragequit latest",
       ],
-      prerequisites: "init",
+      prerequisites: "init for start/watch/ragequit; saved workflow for status",
     },
     capabilities: {
       usage: "flow",
@@ -212,13 +212,14 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action.",
+        "This is read-only and does not require init if the saved workflow already exists locally.",
       ],
       examples: [
         "privacy-pools flow status",
         "privacy-pools flow status latest --agent",
         "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000",
       ],
-      prerequisites: "init",
+      prerequisites: "saved workflow (usually created after init)",
       jsonFields:
         "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
     },
@@ -333,6 +334,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   "stats global": {
     description: "Show global Privacy Pools statistics (all-time and last 24h)",
     help: {
+      overview: [
+        "Always returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data.",
+      ],
       examples: [
         "privacy-pools stats global",
         "privacy-pools stats global --agent",

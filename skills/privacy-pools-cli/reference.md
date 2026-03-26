@@ -67,7 +67,7 @@ Paused workflow states are successful command results, not CLI errors. Declined 
 
 ## Unsigned payload spec
 
-All `--unsigned` output targets the chain specified by `--chain` (default: `mainnet`, chain ID 1).
+All `--unsigned` output targets the chain specified by `--chain` (default: your configured default chain; if no default is configured yet, it falls back to `mainnet`, chain ID 1).
 
 ### Payload shape (envelope format)
 
@@ -177,7 +177,7 @@ Defaults to all mainnet chains when no `--chain` is specified. Default sort is `
 {
   "chain": "mainnet",
   "search": null,
-  "sort": "default",
+  "sort": "tvl-desc",
   "pools": [
     {
       "asset": "ETH",
@@ -211,7 +211,7 @@ Defaults to all mainnet chains when no `--chain` is specified. Default sort is `
 {
   "allChains": true,
   "search": null,
-  "sort": "default",
+  "sort": "tvl-desc",
   "chains": [{ "chain": "mainnet", "pools": 2, "error": null }],
   "pools": [ ... ],
   "warnings": [{ "chain": "sepolia", "category": "ASP", "message": "..." }]

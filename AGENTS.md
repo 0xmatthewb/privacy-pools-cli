@@ -60,7 +60,7 @@ Before running wallet-dependent commands, verify setup:
 privacy-pools status --agent
 ```
 
-Check `recoveryPhraseSet: true`. Most transaction commands also require `signerKeySet: true`; if `signerKeySet: false`, set `PRIVACY_POOLS_PRIVATE_KEY` in the agent's environment before running transaction commands.
+Check `recoveryPhraseSet: true`. Most transaction commands also require `signerKeyValid: true` and `readyForDeposit: true`; if `readyForDeposit: false` because the signer is missing or invalid, set `PRIVACY_POOLS_PRIVATE_KEY` in the agent's environment before running transaction commands.
 
 Exception: `flow start --new-wallet` creates and uses a dedicated per-workflow wallet, so it can begin without a configured global signer key as long as the recovery phrase is present.
 
@@ -242,6 +242,8 @@ privacy-pools flow ragequit latest --agent
 ```
 
 `flow start` performs the public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. The saved workflow always withdraws the full remaining balance of that same Pool Account at execution time.
+
+Creating or advancing a saved flow requires `init`. `flow status` is read-only and works as long as a saved workflow snapshot already exists locally.
 
 Like `deposit`, `flow start` rejects non-round amounts by default in machine modes because unique amounts can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy tradeoff.
 

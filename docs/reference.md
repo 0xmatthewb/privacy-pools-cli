@@ -115,7 +115,7 @@ Show the saved easy-path workflow state
 
 **Usage:** `privacy-pools flow status [workflowId] [options]`
 
-Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action.
+Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action. This is read-only and does not require init if the saved workflow already exists locally.
 
 ```bash
 privacy-pools flow status
@@ -201,6 +201,8 @@ privacy-pools stats pool --asset USDC --agent --chain mainnet
 ### `stats global`
 
 Show global Privacy Pools statistics (all-time and last 24h)
+
+Always returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data.
 
 ```bash
 privacy-pools stats global

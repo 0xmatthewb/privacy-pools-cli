@@ -414,7 +414,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "slow",
       "safeReadOnly": true,
       "prerequisites": [
-        "init"
+        "init for start/watch/ragequit; saved workflow for status"
       ],
       "examples": [
         "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
@@ -548,7 +548,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "fast",
       "safeReadOnly": true,
       "prerequisites": [
-        "init"
+        "saved workflow (usually created after init)"
       ],
       "examples": [
         "privacy-pools flow status",

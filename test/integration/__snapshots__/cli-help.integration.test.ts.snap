@@ -115,7 +115,7 @@ Examples:
   privacy-pools flow status latest
   privacy-pools flow ragequit latest
 Prerequisites:
-  Requires: init"
+  Requires: init for start/watch/ragequit; saved workflow for status"
 `;
 
 exports[`CLI --help snapshots status --help snapshot 1`] = `
@@ -477,6 +477,7 @@ exports[`CLI --help snapshots stats global --help snapshot 1`] = `
 Show global Privacy Pools statistics (all-time and last 24h)
 Options:
   -h, --help  display help for command
+Always returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data.
 Examples:
   privacy-pools stats global
   privacy-pools stats global --agent
@@ -568,12 +569,13 @@ Arguments:
 Options:
   -h, --help  display help for command
 Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action.
+This is read-only and does not require init if the saved workflow already exists locally.
 Examples:
   privacy-pools flow status
   privacy-pools flow status latest --agent
   privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000
 Prerequisites:
-  Requires: init
+  Requires: saved workflow (usually created after init)
 JSON output (--json):
   { mode: "flow", action: "status", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }"
 `;
