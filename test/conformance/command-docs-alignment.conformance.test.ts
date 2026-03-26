@@ -204,10 +204,8 @@ describe("command docs alignment", () => {
     const readme = readFileSync(`${CLI_ROOT}/README.md`, "utf8");
     const normalizedReadme = normalizeWhitespace(readme);
 
-    expect(normalizedReadme).toContain(
-      "Imported recovery phrases must be 12 or 24 words.",
-    );
-    expect(normalizedReadme).toContain("website-based public recovery");
+    expect(normalizedReadme).toContain("init --mnemonic");
+    expect(normalizedReadme).toContain("migrate status");
   });
 
   test("AGENTS preflight guidance uses the same signer readiness contract as status metadata", () => {
