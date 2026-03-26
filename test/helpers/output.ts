@@ -8,6 +8,17 @@
 
 import type { ResolvedGlobalMode } from "../../src/output/common.ts";
 
+const textDecoder = new TextDecoder();
+let activeOutputCapture:
+  | {
+      depth: number;
+      origStdout: typeof process.stdout.write;
+      origStderr: typeof process.stderr.write;
+      stdoutChunks: string[];
+      stderrChunks: string[];
+    }
+  | null = null;
+
 export function makeMode(
   overrides: Partial<ResolvedGlobalMode> = {},
 ): ResolvedGlobalMode {
@@ -27,34 +38,14 @@ export function captureOutput(fn: () => void): {
   stdout: string;
   stderr: string;
 } {
-  const stdoutChunks: string[] = [];
-  const stderrChunks: string[] = [];
-
-  const origStdout = process.stdout.write;
-  const origStderr = process.stderr.write;
-
-  process.stdout.write = ((chunk: string | Uint8Array) => {
-    stdoutChunks.push(
-      typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk),
-    );
-    return true;
-  }) as typeof process.stdout.write;
-
-  process.stderr.write = ((chunk: string | Uint8Array) => {
-    stderrChunks.push(
-      typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk),
-    );
-    return true;
-  }) as typeof process.stderr.write;
-
+  const capture = beginOutputCapture();
   try {
     fn();
   } finally {
-    process.stdout.write = origStdout;
-    process.stderr.write = origStderr;
+    capture.restore();
   }
 
-  return { stdout: stdoutChunks.join(""), stderr: stderrChunks.join("") };
+  return capture.read();
 }
 
 /** Capture stdout and stderr writes during an async `fn()`. */
@@ -64,34 +55,71 @@ export async function captureAsyncOutput(
   stdout: string;
   stderr: string;
 }> {
-  const stdoutChunks: string[] = [];
-  const stderrChunks: string[] = [];
-
-  const origStdout = process.stdout.write;
-  const origStderr = process.stderr.write;
-
-  process.stdout.write = ((chunk: string | Uint8Array) => {
-    stdoutChunks.push(
-      typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk),
-    );
-    return true;
-  }) as typeof process.stdout.write;
-
-  process.stderr.write = ((chunk: string | Uint8Array) => {
-    stderrChunks.push(
-      typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk),
-    );
-    return true;
-  }) as typeof process.stderr.write;
-
+  const capture = beginOutputCapture();
   try {
     await fn();
   } finally {
-    process.stdout.write = origStdout;
-    process.stderr.write = origStderr;
+    capture.restore();
   }
 
-  return { stdout: stdoutChunks.join(""), stderr: stderrChunks.join("") };
+  return capture.read();
+}
+
+function beginOutputCapture(): {
+  restore: () => void;
+  read: () => { stdout: string; stderr: string };
+} {
+  if (!activeOutputCapture) {
+    const captureState = {
+      depth: 0,
+      origStdout: process.stdout.write,
+      origStderr: process.stderr.write,
+      stdoutChunks: [] as string[],
+      stderrChunks: [] as string[],
+    };
+
+    process.stdout.write = ((chunk: string | Uint8Array) => {
+      captureState.stdoutChunks.push(
+        typeof chunk === "string" ? chunk : textDecoder.decode(chunk),
+      );
+      return true;
+    }) as typeof process.stdout.write;
+
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      captureState.stderrChunks.push(
+        typeof chunk === "string" ? chunk : textDecoder.decode(chunk),
+      );
+      return true;
+    }) as typeof process.stderr.write;
+
+    activeOutputCapture = captureState;
+  }
+
+  const captureState = activeOutputCapture;
+  const startStdoutIndex = captureState.stdoutChunks.length;
+  const startStderrIndex = captureState.stderrChunks.length;
+  captureState.depth += 1;
+
+  return {
+    restore() {
+      if (!activeOutputCapture) {
+        return;
+      }
+
+      activeOutputCapture.depth -= 1;
+      if (activeOutputCapture.depth === 0) {
+        process.stdout.write = activeOutputCapture.origStdout;
+        process.stderr.write = activeOutputCapture.origStderr;
+        activeOutputCapture = null;
+      }
+    },
+    read() {
+      return {
+        stdout: captureState.stdoutChunks.slice(startStdoutIndex).join(""),
+        stderr: captureState.stderrChunks.slice(startStderrIndex).join(""),
+      };
+    },
+  };
 }
 
 export function parseCapturedJson<T = any>(stdout: string): T {

@@ -10,115 +10,16 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  COMMAND_SURFACE_TESTS,
+  COVERAGE_ISOLATED_SUITES,
+  COVERAGE_MAIN_EXCLUDED_TESTS,
+  COVERAGE_MAIN_TEST_TARGETS,
+} from "./test-suite-manifest.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
-
-const CONTRACTS_SERVICE_TEST = "./test/services/contracts.service.test.ts";
-const PROOFS_SERVICE_TEST = "./test/services/proofs.service.test.ts";
-const WORKFLOW_MOCKED_TEST = "./test/services/workflow.mocked.service.test.ts";
-const WORKFLOW_SERVICE_TEST = "./test/services/workflow.service.test.ts";
-const WORKFLOW_INTERNAL_TEST = "./test/services/workflow.internal.service.test.ts";
-const ACCOUNT_SYNC_META_TEST =
-  "./test/services/account-sync-meta.service.test.ts";
-const FLOW_HANDLERS_TEST = "./test/unit/flow-handlers.unit.test.ts";
-const ACCOUNT_HANDLER_ERRORS_TEST =
-  "./test/unit/account-handler-errors.unit.test.ts";
-const ACCOUNT_READONLY_HANDLERS_TEST =
-  "./test/unit/account-readonly-command-handlers.unit.test.ts";
-const INIT_INTERACTIVE_TEST =
-  "./test/unit/init-command-interactive.unit.test.ts";
-const DEPOSIT_HANDLER_TEST =
-  "./test/unit/deposit-command-handler.unit.test.ts";
-const WITHDRAW_HANDLER_TEST =
-  "./test/unit/withdraw-command-handler.unit.test.ts";
-const RAGEQUIT_HANDLER_TEST =
-  "./test/unit/ragequit-command-handler.unit.test.ts";
-const POOLS_HANDLER_TEST =
-  "./test/unit/pools-command-handler.unit.test.ts";
-
-const COMMAND_SURFACE_TESTS = [
-  "./test/conformance/command-metadata.conformance.test.ts",
-  "./test/conformance/completion-spec.conformance.test.ts",
-  "./test/conformance/lazy-startup.conformance.test.ts",
-  "./test/conformance/root-help-static.conformance.test.ts",
-];
-
-const MAIN_EXCLUDED_TESTS = [
-  CONTRACTS_SERVICE_TEST,
-  PROOFS_SERVICE_TEST,
-  WORKFLOW_MOCKED_TEST,
-  WORKFLOW_SERVICE_TEST,
-  WORKFLOW_INTERNAL_TEST,
-  ACCOUNT_SYNC_META_TEST,
-  FLOW_HANDLERS_TEST,
-  ACCOUNT_HANDLER_ERRORS_TEST,
-  ACCOUNT_READONLY_HANDLERS_TEST,
-  INIT_INTERACTIVE_TEST,
-  DEPOSIT_HANDLER_TEST,
-  WITHDRAW_HANDLER_TEST,
-  RAGEQUIT_HANDLER_TEST,
-  POOLS_HANDLER_TEST,
-];
-
-const ISOLATED_SUITES = [
-  {
-    label: "contracts-service",
-    tests: [CONTRACTS_SERVICE_TEST],
-  },
-  {
-    label: "proofs-service",
-    tests: [PROOFS_SERVICE_TEST],
-  },
-  {
-    label: "workflow-mocked",
-    tests: [WORKFLOW_MOCKED_TEST],
-  },
-  {
-    label: "workflow-service",
-    tests: [WORKFLOW_SERVICE_TEST],
-  },
-  {
-    label: "workflow-internal",
-    tests: [WORKFLOW_INTERNAL_TEST],
-  },
-  {
-    label: "account-sync-meta",
-    tests: [ACCOUNT_SYNC_META_TEST],
-  },
-  {
-    label: "flow-handlers",
-    tests: [FLOW_HANDLERS_TEST],
-  },
-  {
-    label: "account-handler-errors",
-    tests: [ACCOUNT_HANDLER_ERRORS_TEST],
-  },
-  {
-    label: "account-readonly-handlers",
-    tests: [ACCOUNT_READONLY_HANDLERS_TEST],
-  },
-  {
-    label: "init-interactive",
-    tests: [INIT_INTERACTIVE_TEST],
-  },
-  {
-    label: "deposit-handler",
-    tests: [DEPOSIT_HANDLER_TEST],
-  },
-  {
-    label: "withdraw-handler",
-    tests: [WITHDRAW_HANDLER_TEST],
-  },
-  {
-    label: "ragequit-handler",
-    tests: [RAGEQUIT_HANDLER_TEST],
-  },
-  {
-    label: "pools-handler",
-    tests: [POOLS_HANDLER_TEST],
-  },
-];
 
 const coverageRootDir = mkdtempSync(join(tmpdir(), "pp-coverage-"));
 const keepCoverageRoot = process.env.PP_KEEP_COVERAGE_ROOT === "1";
@@ -311,7 +212,7 @@ try {
     main: join(coverageRootDir, "home-main"),
   };
 
-  for (const suite of ISOLATED_SUITES) {
+  for (const suite of COVERAGE_ISOLATED_SUITES) {
     coverageDirs[suite.label] = join(coverageRootDir, suite.label);
     isolatedHomes[suite.label] = join(coverageRootDir, `home-${suite.label}`);
   }
@@ -320,12 +221,8 @@ try {
     mkdirSync(path, { recursive: true });
   }
 
-  const mainArgs = [
-    "./test/unit",
-    "./test/services",
-    ...COMMAND_SURFACE_TESTS,
-  ];
-  for (const excluded of MAIN_EXCLUDED_TESTS) {
+  const mainArgs = [...COVERAGE_MAIN_TEST_TARGETS, ...COMMAND_SURFACE_TESTS];
+  for (const excluded of COVERAGE_MAIN_EXCLUDED_TESTS) {
     mainArgs.push("--exclude", excluded);
   }
 
@@ -337,7 +234,7 @@ try {
     process.exit(mainResult.status ?? 1);
   }
 
-  for (const suite of ISOLATED_SUITES) {
+  for (const suite of COVERAGE_ISOLATED_SUITES) {
     const result = runCoverageSuite(suite.tests, coverageDirs[suite.label], {
       PRIVACY_POOLS_HOME: isolatedHomes[suite.label],
     });
@@ -349,7 +246,7 @@ try {
 
   const mergedCoverage = mergeCoverageMaps(
     parseLcovFile(join(coverageDirs.main, "lcov.info")),
-    ...ISOLATED_SUITES.map((suite) =>
+    ...COVERAGE_ISOLATED_SUITES.map((suite) =>
       parseLcovFile(join(coverageDirs[suite.label], "lcov.info")),
     ),
   );

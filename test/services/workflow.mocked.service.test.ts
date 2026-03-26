@@ -116,9 +116,35 @@ interface MockState {
 }
 
 const state: MockState = {} as MockState;
+type PromptBackupChoice = "copied" | "file";
+
+const confirmPromptMock = mock(async () => true);
+const inputPromptMock = mock(async () =>
+  state.tempHome
+    ? join(state.tempHome, "unused-wallet.txt")
+    : "unused-wallet.txt",
+);
+const selectPromptMock = mock(async () => "copied" as PromptBackupChoice);
 
 function makeTempHome(): string {
   return createTrackedTempDir("pp-workflow-mocked-");
+}
+
+function setPromptResponses({
+  confirm = true,
+  input = join(state.tempHome, "unused-wallet.txt"),
+  select = "copied",
+}: {
+  confirm?: boolean;
+  input?: string;
+  select?: PromptBackupChoice;
+} = {}): void {
+  confirmPromptMock.mockClear();
+  confirmPromptMock.mockImplementation(async () => confirm);
+  inputPromptMock.mockClear();
+  inputPromptMock.mockImplementation(async () => input);
+  selectPromptMock.mockClear();
+  selectPromptMock.mockImplementation(async () => select);
 }
 
 function useImmediateTimers(): () => void {
@@ -663,6 +689,12 @@ async function installWorkflowMocks(): Promise<void> {
     submitRelayRequest: submitRelayRequestMock,
   }));
 
+  mock.module("@inquirer/prompts", () => ({
+    confirm: confirmPromptMock,
+    input: inputPromptMock,
+    select: selectPromptMock,
+  }));
+
   mock.module("../../src/utils/preflight.ts", () => ({
     checkErc20Balance: mock(async () => undefined),
     checkHasGas: mock(async () => undefined),
@@ -792,6 +824,7 @@ describe("workflow service mocked coverage", () => {
   beforeEach(() => {
     resetState();
     process.env.PRIVACY_POOLS_HOME = state.tempHome;
+    setPromptResponses();
     getDataServiceMock.mockClear();
     getDataServiceMock.mockImplementation(async () => ({ service: "data" }));
     initializeAccountServiceMock.mockClear();
@@ -3314,11 +3347,7 @@ describe("workflow service mocked coverage", () => {
   });
 
   test("interactive configured flows confirm the manual signer path before saving the workflow", async () => {
-    mock.module("@inquirer/prompts", () => ({
-      confirm: async () => true,
-      input: async () => join(state.tempHome, "unused-wallet.txt"),
-      select: async () => "copied",
-    }));
+    setPromptResponses();
 
     const snapshot = await startWorkflow({
       amountInput: "0.01",
@@ -3405,11 +3434,7 @@ describe("workflow service mocked coverage", () => {
   });
 
   test("interactive configured flows can cancel on the non-round amount privacy warning", async () => {
-    mock.module("@inquirer/prompts", () => ({
-      confirm: async () => false,
-      input: async () => join(state.tempHome, "unused-wallet.txt"),
-      select: async () => "copied",
-    }));
+    setPromptResponses({ confirm: false });
 
     await expect(
       startWorkflow({
@@ -3435,11 +3460,7 @@ describe("workflow service mocked coverage", () => {
   });
 
   test("interactive configured flows can cancel at the final confirmation prompt", async () => {
-    mock.module("@inquirer/prompts", () => ({
-      confirm: async () => false,
-      input: async () => join(state.tempHome, "unused-wallet.txt"),
-      select: async () => "copied",
-    }));
+    setPromptResponses({ confirm: false });
 
     await expect(
       startWorkflow({
@@ -3465,11 +3486,7 @@ describe("workflow service mocked coverage", () => {
   });
 
   test("interactive new-wallet flows can confirm backup and complete", async () => {
-    mock.module("@inquirer/prompts", () => ({
-      confirm: async () => true,
-      input: async () => join(state.tempHome, "ignored-wallet.txt"),
-      select: async () => "copied",
-    }));
+    setPromptResponses({ input: join(state.tempHome, "ignored-wallet.txt") });
     state.currentSignerPrivateKey = null;
     state.pool = {
       ...state.pool,
@@ -3512,11 +3529,7 @@ describe("workflow service mocked coverage", () => {
 
   test("interactive new-wallet flows can choose a backup file path and complete", async () => {
     const promptedBackupPath = join(state.tempHome, "prompted-wallet.txt");
-    mock.module("@inquirer/prompts", () => ({
-      confirm: async () => true,
-      input: async () => promptedBackupPath,
-      select: async () => "file",
-    }));
+    setPromptResponses({ input: promptedBackupPath, select: "file" });
     state.currentSignerPrivateKey = null;
     state.pool = {
       ...state.pool,
@@ -3556,11 +3569,7 @@ describe("workflow service mocked coverage", () => {
 
   test("interactive new-wallet flows persist ERC20 funding requirements for follow-up", async () => {
     const promptedBackupPath = join(state.tempHome, "visible-wallet.txt");
-    mock.module("@inquirer/prompts", () => ({
-      confirm: async () => true,
-      input: async () => promptedBackupPath,
-      select: async () => "file",
-    }));
+    setPromptResponses({ input: promptedBackupPath, select: "file" });
     state.currentSignerPrivateKey = null;
     state.pool = {
       ...state.pool,
@@ -3605,11 +3614,7 @@ describe("workflow service mocked coverage", () => {
   });
 
   test("interactive new-wallet flows stop when backup confirmation is declined", async () => {
-    mock.module("@inquirer/prompts", () => ({
-      confirm: async () => false,
-      input: async () => join(state.tempHome, "unused-wallet.txt"),
-      select: async () => "copied",
-    }));
+    setPromptResponses({ confirm: false });
     state.currentSignerPrivateKey = null;
 
     await expect(

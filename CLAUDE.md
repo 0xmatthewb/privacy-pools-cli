@@ -30,7 +30,7 @@ bun run test:stress            # stress test (120 rounds)
 bun run test:ci                # full CI pipeline
 ```
 
-Tests use Bun's built-in test runner via `scripts/run-bun-tests.mjs`. Default per-test timeout is 30s. The harness injects `PP_TEST_RUN_ID` per run and scopes temp dirs with `pp-` prefix for automatic cleanup.
+`bun run test` uses `scripts/run-test-suite.mjs`, which delegates to `scripts/run-bun-tests.mjs` for the main batch plus the isolated suites listed in `scripts/test-suite-manifest.mjs`. Pass explicit files or Bun flags with `bun run test -- <args>` when you want a targeted run. Default per-test timeout is 30s. The harness injects `PP_TEST_RUN_ID` per run and scopes temp dirs with `pp-` prefix for automatic cleanup.
 
 To run a single test file: `node scripts/run-bun-tests.mjs ./test/unit/some-file.unit.test.ts`
 
