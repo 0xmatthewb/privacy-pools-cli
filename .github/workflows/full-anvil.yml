@@ -74,10 +74,24 @@ jobs:
         with:
           cache: true
 
+      - name: Checkout contracts
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: 0xmatthewb/privacy-pools-core
+          path: privacy-pools-core
+
+      - name: Build contract artifacts
+        if: steps.select.outputs.should_run == 'true'
+        working-directory: privacy-pools-core/packages/contracts
+        run: forge build
+
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Run full Anvil end-to-end suite
         if: steps.select.outputs.should_run == 'true'
+        env:
+          PP_CONTRACTS_ROOT: ${{ github.workspace }}/privacy-pools-core/packages/contracts
         run: npm run test:e2e:anvil

@@ -22,15 +22,17 @@ import { sepolia } from "viem/chains";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-const CONTRACTS_ROOT = resolve(
-  ROOT,
-  "..",
-  "..",
-  "docs",
-  "privacy-pools-core-main",
-  "packages",
-  "contracts",
-);
+const CONTRACTS_ROOT = process.env.PP_CONTRACTS_ROOT
+  ? resolve(process.env.PP_CONTRACTS_ROOT)
+  : resolve(
+      ROOT,
+      "..",
+      "..",
+      "docs",
+      "privacy-pools-core-main",
+      "packages",
+      "contracts",
+    );
 const ASP_SERVER_SCRIPT = resolve(ROOT, "test", "helpers", "anvil-asp-server.ts");
 const RELAYER_SERVER_SCRIPT = resolve(
   ROOT,
