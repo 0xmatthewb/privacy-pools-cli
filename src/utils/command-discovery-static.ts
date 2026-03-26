@@ -412,7 +412,7 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "requiresInit": false,
       "expectedLatencyClass": "slow",
-      "safeReadOnly": true,
+      "safeReadOnly": false,
       "prerequisites": [
         "init for start/watch/ragequit; saved workflow for status"
       ],
@@ -1462,7 +1462,6 @@ export const STATIC_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     }
   ],
   "safeReadOnlyCommands": [
-    "flow",
     "flow status",
     "pools",
     "activity",
