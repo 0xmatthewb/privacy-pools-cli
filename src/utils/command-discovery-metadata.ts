@@ -137,7 +137,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       requiresInit: false,
       expectedLatencyClass: "slow",
     },
-    safeReadOnly: true,
+    safeReadOnly: false,
   },
   "flow start": {
     description: "Deposit now and save a later private withdrawal workflow",

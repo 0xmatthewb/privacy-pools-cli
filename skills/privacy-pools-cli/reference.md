@@ -14,7 +14,7 @@ privacy-pools flow status latest --agent
 privacy-pools flow ragequit latest --agent
 ```
 
-`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. With `--new-wallet`, the CLI generates a dedicated workflow wallet, requires a backup before proceeding, and waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in that same wallet. `flow watch` re-checks the saved workflow using workflow phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `paused_declined`, `paused_poi_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state. `flow status` reads the persisted workflow snapshot without mutating it. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
+`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. With `--new-wallet`, the CLI generates a dedicated workflow wallet, requires a backup before proceeding, and waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in that same wallet. `flow watch` re-checks the saved workflow using workflow phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state. `flow status` reads the persisted workflow snapshot without mutating it. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
 
 Flow JSON payloads share this shape:
 
@@ -429,7 +429,7 @@ Representative payload (abridged):
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. When runnable is false, the action is a template that needs additional user input before execution."
     }
   },
-  "safeReadOnlyCommands": ["flow", "flow status", "pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "completion"],
+  "safeReadOnlyCommands": ["flow status", "pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "completion"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
     { "name": "arbitrum", "chainId": 42161, "testnet": false },
