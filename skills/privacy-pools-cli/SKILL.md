@@ -1,6 +1,6 @@
 ---
 name: privacy-pools-cli
-version: 1.6.1
+version: 1.7.0
 description: >
   Deposit, withdraw, and manage funds in Privacy Pools v1 on Ethereum, Arbitrum,
   and Optimism. Use when the user or agent needs to interact with Privacy Pools:

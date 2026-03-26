@@ -4,6 +4,28 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.7.0] - 2026-03-26
+
+### Added
+
+- **`flow` command**: Easy-path deposit-to-withdrawal workflow. `flow start` deposits into a pool and saves a local workflow; `flow watch` polls for ASP approval and privately withdraws the full balance to the saved recipient when ready. `flow status` inspects the saved workflow and `flow ragequit` provides public recovery for declined workflows.
+- **`--new-wallet` flag** (flow start only): Generates a dedicated per-workflow wallet, requires a backup before continuing, and waits for funding automatically. ETH flows wait for the full ETH target; ERC20 flows wait for both the token amount and a native ETH gas reserve.
+- **`migrate status` command**: Read-only check of legacy pre-upgrade account migration or recovery readiness on CLI-supported chains.
+
+### Changed
+
+- Streamlined README Getting Started section for readability: workflow overview near the top, expected output shown, technical detail moved to reference docs.
+- Added `flow` trigger pattern to SKILL.md for skill-aware agent activation.
+- Removed emdashes from all user-facing documentation.
+- Hardened test infrastructure, coverage gates, CI workflows, and conformance suites across the branch.
+
+### Verification
+
+- `bun run test` (1778 tests, 0 failures)
+- `bun run test:conformance` (98 tests, 0 failures)
+- `bun run typecheck`
+- `bun run docs:check`
+
 ## [1.6.1] - 2026-03-24
 
 ### Changed
@@ -245,6 +267,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Enabled GitHub Actions CI/CD workflows for the repository.
 - Completed the initial packaging and release flow.
 
+[1.7.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.4.0...v1.5.0
