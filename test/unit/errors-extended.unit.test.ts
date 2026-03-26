@@ -36,6 +36,11 @@ describe("classifyError - contract revert completeness", () => {
       retryable: true,
     },
     {
+      name: "UnknownStateRoot",
+      code: "CONTRACT_UNKNOWN_STATE_ROOT",
+      retryable: true,
+    },
+    {
       name: "InvalidProcessooor",
       code: "CONTRACT_INVALID_PROCESSOOOR",
       retryable: false,
@@ -59,6 +64,16 @@ describe("classifyError - contract revert completeness", () => {
       name: "NoRootsAvailable",
       code: "CONTRACT_NO_ROOTS_AVAILABLE",
       retryable: true,
+    },
+    {
+      name: "MinimumDepositAmount",
+      code: "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
+      retryable: false,
+    },
+    {
+      name: "PoolIsDead",
+      code: "CONTRACT_POOL_IS_DEAD",
+      retryable: false,
     },
   ];
 

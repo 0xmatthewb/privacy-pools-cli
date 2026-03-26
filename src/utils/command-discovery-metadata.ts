@@ -88,11 +88,12 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       safetyNotes: [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
-        "Imported recovery phrases automatically recover older Pool Accounts during sync.",
+        "Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.",
+        "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.",
       ],
       agentWorkflowNotes: [
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
-        "When importing an existing recovery phrase, nextActions points to accounts --agent --all-chains so restored Pool Accounts are discovered across mainnets and testnets.",
+        "When importing an existing recovery phrase, nextActions points to accounts --agent --all-chains so the CLI can check for Pool Accounts across mainnets and testnets.",
       ],
     },
     capabilities: {
@@ -183,6 +184,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external.",
         "The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus.",
         "Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.",
+        "flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.",
       ],
       examples: [
         "privacy-pools flow watch",
@@ -198,6 +200,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       agentWorkflowNotes: [
         "New-wallet workflows wait for funding automatically. ERC20 workflows require both the token amount and a native ETH gas reserve in the generated wallet before the public deposit can proceed.",
         "When the saved Pool Account is approved, flow watch performs the relayed private withdrawal automatically using the saved recipient and the full remaining balance of that same Pool Account.",
+        "flow watch keeps polling until the saved workflow changes or finishes. If your automation should stop after a fixed duration, wrap the CLI call in your own external timeout.",
       ],
     },
     capabilities: {

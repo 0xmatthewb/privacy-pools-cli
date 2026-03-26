@@ -11,8 +11,10 @@ import { CLIError } from "../utils/errors.js";
 import { withSuppressedSdkStdoutSync } from "./account.js";
 import type { Address } from "viem";
 
+export const GENERATED_MNEMONIC_STRENGTH = 256;
+
 export function generateMnemonic(): string {
-  return viemGenerateMnemonic(english);
+  return viemGenerateMnemonic(english, GENERATED_MNEMONIC_STRENGTH);
 }
 
 export function validateMnemonic(mnemonic: string): boolean {

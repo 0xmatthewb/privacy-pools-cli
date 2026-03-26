@@ -216,9 +216,9 @@ JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryP
 
 When `--show-mnemonic` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
 
-When importing an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
+Newly generated CLI recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may be either 12 or 24 words.
 
-When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so agents can discover restored Pool Accounts across mainnets and testnets. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>` instead.
+When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so agents can check for Pool Accounts across mainnets and testnets. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>` instead.
 
 > **CRITICAL**: When generating a new recovery phrase, always pass `--show-mnemonic` to capture it in JSON output. Without this flag, the recovery phrase is stored on disk but not returned. You cannot retrieve it later via the CLI. Losing the recovery phrase means losing access to all deposited funds.
 
@@ -249,7 +249,7 @@ Like `deposit`, `flow start` rejects non-round amounts by default in machine mod
 
 With `--new-wallet`, the CLI generates a dedicated workflow wallet for that one flow. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in the same wallet. In non-interactive mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow begins.
 
-`flow watch` re-checks the saved workflow and advances it using the same real branches as the frontend and protocol. Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`. Deposit review state remains available separately in `aspStatus`. When the Pool Account is approved, `flow watch` performs the relayed private withdrawal automatically. If it is `declined`, the workflow pauses and surfaces `flow ragequit` as the canonical recovery path. If it is `poi_required`, the workflow pauses until Proof of Association is completed externally.
+`flow watch` re-checks the saved workflow and advances it using the same real branches as the frontend and protocol. Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`. Deposit review state remains available separately in `aspStatus`. When the Pool Account is approved, `flow watch` performs the relayed private withdrawal automatically. If it is `declined`, the workflow pauses and surfaces `flow ragequit` as the canonical recovery path. If it is `poi_required`, the workflow pauses until Proof of Association is completed externally. `flow watch` is intentionally unbounded; agents that need a wall-clock limit should wrap it in their own external timeout.
 
 `flow ragequit` performs the public recovery path for a saved workflow. For `walletMode = "new_wallet"` it uses the stored workflow wallet key. For `walletMode = "configured"` it must use the original depositor signer that created the saved workflow.
 
@@ -521,6 +521,7 @@ Dry-run responses include `"dryRun": true` and all validation results.
 | `CONTRACT_NO_ROOTS_AVAILABLE`        | CONTRACT | Yes       | Pool not ready, wait and retry              |
 | `CONTRACT_INSUFFICIENT_FUNDS`        | CONTRACT | No        | Wallet lacks ETH for amount + gas           |
 | `CONTRACT_NONCE_ERROR`               | CONTRACT | Yes       | Nonce conflict; pending tx may be stuck     |
+| `ACCOUNT_MIGRATION_REQUIRED`         | INPUT    | No        | Legacy pre-upgrade account must be handled in the website before CLI restore/sync |
 | `ACCOUNT_NOT_APPROVED`               | ASP      | No        | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
 | `UNKNOWN_ERROR`                      | UNKNOWN  | No        | Unexpected error                            |
 
@@ -547,7 +548,8 @@ When `retryable: true` is present in the error response:
 
 When `retryable: false` (non-retryable):
 
-4. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+4. For `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first; migrate it there if needed, or use the website's recovery flow for legacy declined deposits, then rerun the CLI restore or sync command.
+5. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ## Supported Chains
 

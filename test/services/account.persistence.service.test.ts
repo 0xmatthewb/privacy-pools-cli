@@ -7,12 +7,14 @@ import {
   ACCOUNT_FILE_VERSION,
   needsLegacyAccountRebuild,
   isSyncFresh,
+  loadSyncMeta,
   loadAccount,
   saveAccount,
   serialize,
   deserialize,
   initializeAccountService,
   initializeAccountServiceWithState,
+  syncAccountEvents,
 } from "../../src/services/account.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
@@ -34,6 +36,49 @@ function samplePool() {
     scope: 1n,
     deploymentBlock: 1n,
   }];
+}
+
+function makeLegacyAccount(overrides: Partial<{
+  value: bigint;
+  isMigrated: boolean;
+  ragequit: boolean;
+}> = {}) {
+  const value = overrides.value ?? 1n;
+  const isMigrated = overrides.isMigrated ?? false;
+  const ragequit = overrides.ragequit ?? false;
+
+  return new AccountService({} as any, {
+    account: {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map([
+        [1n, [{
+          label: 11n,
+          deposit: {
+            hash: 12n,
+            value,
+            label: 11n,
+            nullifier: 13n,
+            secret: 14n,
+            blockNumber: 1n,
+            txHash: "0x" + "11".repeat(32),
+          },
+          children: [],
+          isMigrated,
+          ragequit: ragequit
+            ? {
+                label: 11n,
+                value,
+                transactionHash: "0x" + "22".repeat(32),
+                blockNumber: 2n,
+                timestamp: 3n,
+              }
+            : undefined,
+        }]],
+      ]),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+    } as any,
+  });
 }
 
 describe("account persistence", () => {
@@ -281,6 +326,323 @@ describe("account persistence", () => {
       ACCOUNT_FILE_VERSION
     );
     expect(isSyncFresh(11155111)).toBe(true);
+  });
+
+  test("fresh mnemonic restore fails closed when SDK reports unmigrated legacy commitments", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: makeLegacyAccount(),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          suppressWarnings: true,
+        },
+      )
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      code: "ACCOUNT_MIGRATION_REQUIRED",
+    });
+
+    expect(loadAccount(11155111)).toBeNull();
+    expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("stale saved snapshots are rebuilt before the migration gate runs", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({
+        __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION - 1,
+        poolAccounts: new Map(),
+      }),
+      "utf-8",
+    );
+
+    let initializeCalls = 0;
+    AccountService.initializeWithEvents = (async () => {
+      initializeCalls += 1;
+      return {
+        account: new AccountService({} as any, {
+          account: {
+            masterKeys: [1n, 2n],
+            poolAccounts: new Map(),
+            creationTimestamp: 0n,
+            lastUpdateTimestamp: 0n,
+          } as any,
+        }),
+        legacyAccount: makeLegacyAccount(),
+        errors: [],
+      };
+    }) as typeof AccountService.initializeWithEvents;
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          allowLegacyAccountRebuild: true,
+          suppressWarnings: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      code: "ACCOUNT_MIGRATION_REQUIRED",
+    });
+
+    expect(initializeCalls).toBe(1);
+  });
+
+  test("stale saved snapshots are rejected when rebuild is disabled", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({
+        __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION - 1,
+        poolAccounts: new Map(),
+      }),
+      "utf-8",
+    );
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          allowLegacyAccountRebuild: false,
+          suppressWarnings: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      message: expect.stringContaining("outdated"),
+    });
+  });
+
+  test("legacy account rebuild fails closed when SDK reports unmigrated legacy commitments", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({ poolAccounts: new Map() }),
+      "utf-8",
+    );
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: makeLegacyAccount(),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          allowLegacyAccountRebuild: true,
+          suppressWarnings: true,
+        },
+      )
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      code: "ACCOUNT_MIGRATION_REQUIRED",
+    });
+
+    expect(loadAccount(11155111)?.__privacyPoolsCliAccountVersion).toBeUndefined();
+    expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("fresh mnemonic restore succeeds when legacy commitments are already migrated", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const rebuiltService = new AccountService({} as any, {
+      account: {
+        masterKeys: [1n, 2n],
+        poolAccounts: new Map(),
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+      } as any,
+    });
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: rebuiltService,
+      legacyAccount: makeLegacyAccount({ isMigrated: true }),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const result = await initializeAccountServiceWithState(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      {
+        suppressWarnings: true,
+      }
+    );
+
+    expect(result.accountService).toBe(rebuiltService);
+    expect(loadAccount(11155111)?.__privacyPoolsCliAccountVersion).toBe(
+      ACCOUNT_FILE_VERSION
+    );
+    expect(isSyncFresh(11155111)).toBe(true);
+  });
+
+  test("partial fresh initialization does not persist a trusted snapshot", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const rebuiltService = new AccountService({} as any, {
+      account: {
+        masterKeys: [1n, 2n],
+        poolAccounts: new Map(),
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+      } as any,
+    });
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: rebuiltService,
+      errors: [{ scope: 1n, reason: "mock rpc timeout" }],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const result = await initializeAccountServiceWithState(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      {
+        suppressWarnings: true,
+        strictSync: false,
+      },
+    );
+
+    expect(result.accountService).toBe(rebuiltService);
+    expect(result.skipImmediateSync).toBe(false);
+    expect(loadAccount(11155111)).toBeNull();
+    expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("partial legacy rebuild does not overwrite the stale saved snapshot", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({
+        __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION - 1,
+        poolAccounts: new Map(),
+      }),
+      "utf-8",
+    );
+
+    const rebuiltService = new AccountService({} as any, {
+      account: {
+        masterKeys: [1n, 2n],
+        poolAccounts: new Map(),
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+      } as any,
+    });
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: rebuiltService,
+      errors: [{ scope: 1n, reason: "mock rpc timeout" }],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const result = await initializeAccountServiceWithState(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      {
+        allowLegacyAccountRebuild: true,
+        suppressWarnings: true,
+        strictSync: false,
+      },
+    );
+
+    expect(result.accountService).toBe(rebuiltService);
+    expect(loadAccount(11155111)?.__privacyPoolsCliAccountVersion).toBe(
+      ACCOUNT_FILE_VERSION - 1,
+    );
+    expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("partial sync does not persist a mixed snapshot", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountService = {
+      account: {
+        masterKeys: [1n, 2n],
+        poolAccounts: new Map(),
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+      },
+      getDepositEvents: async () => undefined,
+      getWithdrawalEvents: async () => {
+        throw new Error("mock sync failure");
+      },
+      getRagequitEvents: async () => undefined,
+    } as unknown as AccountService;
+
+    const didSync = await syncAccountEvents(
+      accountService,
+      samplePool(),
+      [{ pool: samplePool()[0].address, symbol: "ETH" }],
+      11155111,
+      {
+        skip: false,
+        force: true,
+        silent: true,
+        isJson: false,
+        isVerbose: false,
+        errorLabel: "Sync",
+      },
+    );
+
+    expect(didSync).toBe(true);
+    expect(loadAccount(11155111)).toBeNull();
+    expect(loadSyncMeta(11155111)).toBeNull();
   });
 
   test("saved account without forceSync skips sync and returns service directly", async () => {

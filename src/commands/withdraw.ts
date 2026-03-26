@@ -63,7 +63,7 @@ import { writeWithdrawalPrivacyTip } from "../utils/amount-privacy.js";
 import {
   printRawTransactions,
   stringifyBigInts,
-  toSolidityProof,
+  toWithdrawSolidityProof,
 } from "../utils/unsigned.js";
 import {
   buildUnsignedDirectWithdrawOutput,
@@ -955,11 +955,11 @@ export async function handleWithdrawCommand(
       spin.text = "Building proofs...";
       const stateMerkleProof = generateMerkleProof(
         allCommitmentHashes,
-        BigInt(commitment.hash.toString()),
+        commitment.hash,
       );
       const aspMerkleProof = generateMerkleProof(
         aspLabels,
-        BigInt(commitmentLabel.toString()),
+        commitmentLabel,
       );
 
       // Generate withdrawal secrets
@@ -1044,7 +1044,7 @@ export async function handleWithdrawCommand(
           isVerbose,
           silent,
         );
-        const solidityProof = toSolidityProof(proof as any);
+        const solidityProof = toWithdrawSolidityProof(proof);
         await assertLatestRootUnchanged(
           "Pool state changed after proof generation. Re-run withdrawal to generate a fresh proof.",
           "Run 'privacy-pools sync' then retry the withdrawal.",
@@ -1462,7 +1462,7 @@ export async function handleWithdrawCommand(
         }
 
         if (isUnsigned) {
-          const solidityProof = toSolidityProof(proof as any);
+          const solidityProof = toWithdrawSolidityProof(proof);
           const payload = buildUnsignedRelayedWithdrawOutput({
             chainId: chainConfig.id,
             chainName: chainConfig.name,

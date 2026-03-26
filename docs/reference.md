@@ -16,7 +16,8 @@ Initialize wallet and configuration
 >   Signer key:     pays gas and sends transactions (can be set later)
 >   These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.
 > During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
-> Imported recovery phrases automatically recover older Pool Accounts during sync.
+> Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
+> Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
 > Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.
 
 ```bash
@@ -43,7 +44,8 @@ cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainn
 | `--force` | Overwrite existing configuration without prompting |
 
 **Safety:** The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
-**Safety:** Imported recovery phrases automatically recover older Pool Accounts during sync.
+**Safety:** Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
+**Safety:** Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
 
 **JSON output:** `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
@@ -98,7 +100,7 @@ Poll ASP approval and withdraw privately when ready
 
 **Usage:** `privacy-pools flow watch [workflowId] [options]`
 
-Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.
+Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
 
 ```bash
 privacy-pools flow watch

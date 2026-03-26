@@ -99,7 +99,7 @@ import {
   refreshExpiredRelayerQuoteForWithdrawal,
   validateRelayerQuoteForWithdrawal,
 } from "../commands/withdraw.js";
-import { toSolidityProof } from "../utils/unsigned.js";
+import { toRagequitSolidityProof } from "../utils/unsigned.js";
 import type { GlobalOptions } from "../types.js";
 
 const depositedEventAbi = parseAbi([
@@ -2113,11 +2113,11 @@ async function executeRelayedWithdrawalForFlow(params: {
 
   const stateMerkleProof = generateMerkleProof(
     context.allCommitmentHashes,
-    BigInt(selectedPoolAccount.commitment.hash.toString()),
+    selectedPoolAccount.commitment.hash,
   );
   const aspMerkleProof = generateMerkleProof(
     context.aspLabels,
-    BigInt(selectedPoolAccount.label.toString()),
+    selectedPoolAccount.label,
   );
 
   const { nullifier: newNullifier, secret: newSecret } =
@@ -2474,7 +2474,7 @@ async function executeRagequitForFlow(params: {
     () =>
       proveCommitment(
         commitment.value,
-        BigInt(commitment.label.toString()),
+        commitment.label,
         commitment.nullifier,
         commitment.secret,
       ),
@@ -2485,9 +2485,7 @@ async function executeRagequitForFlow(params: {
   const tx = await submitRagequit(
     chainConfig,
     pool.pool,
-    toSolidityProof(
-      proof as unknown as Parameters<typeof toSolidityProof>[0],
-    ),
+    toRagequitSolidityProof(proof),
     globalOpts?.rpcUrl,
     signerPrivateKey,
   );

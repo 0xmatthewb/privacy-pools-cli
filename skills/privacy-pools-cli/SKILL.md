@@ -256,11 +256,11 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 2. privacy-pools status --agent                                         # Check setup and health
 3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
 4. privacy-pools flow start 0.1 ETH --to <addr> --agent                 # Easy path: deposit now, save later withdrawal
-5. privacy-pools flow watch latest --agent                              # Resume the saved workflow until it reaches a terminal state
+5. privacy-pools flow watch latest --agent                              # Resume the saved workflow until it finishes or pauses
 6. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined
 ```
 
-The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient once approved.
+The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient once approved. `flow watch` is intentionally unbounded; if your automation needs a wall-clock limit, wrap it in an external timeout.
 
 `flow start` follows the same machine-mode non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. `flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow, requires a backup before continuing, and then waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts.
 
@@ -278,9 +278,9 @@ Manual path remains available when you need custom Pool Account selection, parti
 
 **Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.
 
-When restoring an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
+New CLI-generated recovery phrases use 24 words by default. Imported recovery phrases may still be 12 or 24 words.
 
-In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `accounts --agent --all-chains`.
+In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `accounts --agent --all-chains`. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely.
 
 In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when that tradeoff is intentional.
 

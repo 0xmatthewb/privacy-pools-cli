@@ -207,6 +207,33 @@ describe("command docs alignment", () => {
     expect(flowStatusMetadata.capabilities.requiresInit).toBe(false);
   });
 
+  test("flow watch docs explain the external-timeout expectation for agents", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const flowWatchMetadata = getCommandMetadata("flow watch");
+    const normalizedAgents = normalizeWhitespace(agents);
+    const normalizedReference = normalizeWhitespace(reference);
+    const normalizedSkill = normalizeWhitespace(skill);
+    const normalizedSkillReference = normalizeWhitespace(skillReference);
+
+    expect(normalizeWhitespace((flowWatchMetadata.help?.overview ?? []).join(" "))).toContain(
+      "flow watch is intentionally unbounded",
+    );
+    expect(normalizeWhitespace((flowWatchMetadata.help?.agentWorkflowNotes ?? []).join(" "))).toContain(
+      "wrap the CLI call in your own external timeout",
+    );
+    expect(normalizedAgents).toContain("is intentionally unbounded");
+    expect(normalizedAgents).toContain("external timeout");
+    expect(normalizedReference).toContain("is intentionally unbounded");
+    expect(normalizedReference).toContain("external timeout");
+    expect(normalizedSkill).toContain("is intentionally unbounded");
+    expect(normalizedSkill).toContain("external timeout");
+    expect(normalizedSkillReference).toContain("is intentionally unbounded");
+    expect(normalizedSkillReference).toContain("external timeout");
+  });
+
   test("human reference documents the stats global chain restriction", () => {
     const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
     const section = extractDocumentSection(reference, "### `stats global`", [

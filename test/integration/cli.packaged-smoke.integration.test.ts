@@ -336,7 +336,7 @@ describe("packaged CLI smoke", () => {
       expect(initJson.success).toBe(true);
       expect(initJson.defaultChain).toBe("sepolia");
       expect(typeof initJson.recoveryPhrase).toBe("string");
-      expect(initJson.recoveryPhrase?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+      expect(initJson.recoveryPhrase?.trim().split(/\s+/).length).toBe(24);
 
       const statusResult = runSmokeCli(["--agent", "status"], { home: initHome });
       expect(statusResult.status).toBe(0);

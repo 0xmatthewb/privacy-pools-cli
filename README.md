@@ -13,7 +13,7 @@ Compliant privacy on Ethereum, right from your terminal. Deposit funds publicly 
 ## Getting Started
 
 ```bash
-# 1. Initialize (creates a recovery phrase and signer key)
+# 1. Initialize (creates a 24-word recovery phrase and signer key)
 privacy-pools init
 
 # 2. See what's available
@@ -49,13 +49,15 @@ privacy-pools accounts --chain mainnet                  # confirm approved vs de
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 ```
 
-`flow start` is the compressed easy path: it performs the normal public deposit, saves a local workflow, and later `flow watch` will privately withdraw the full remaining balance of that same Pool Account to the saved recipient once the ASP approves it. With `--new-wallet`, the CLI can generate a dedicated workflow wallet, require a backup before proceeding, and then continue automatically once that wallet is funded. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet.
+`flow start` is the compressed easy path: it performs the normal public deposit, saves a local workflow, and later `flow watch` will privately withdraw the full remaining balance of that same Pool Account to the saved recipient once the ASP approves it. With `--new-wallet`, the CLI can generate a dedicated workflow wallet, require a backup before proceeding, and then continue automatically once that wallet is funded. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. `flow watch` is intentionally unbounded; if your automation needs a wall-clock limit, wrap the command in an external timeout.
 
 Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Association Set Provider (ASP) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit. If a deposit is marked `poi_required`, complete Proof of Association before withdrawing privately. If it is declined, the manual recovery path is `ragequit`, which exits publicly to your deposit address. For saved easy-path workflows, the canonical recovery command is `privacy-pools flow ragequit <workflowId>`. Manual commands remain available when you need custom Pool Account selection, partial withdrawals, direct withdrawals, unsigned payloads, or dry-runs.
 
 You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
 
-If you're restoring an existing recovery phrase with `privacy-pools init --mnemonic ...`, sync automatically recovers older Pool Accounts so they remain visible.
+New CLI-generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
+
+If you're restoring an existing recovery phrase with `privacy-pools init --mnemonic ...`, the CLI will check for Pool Accounts on sync. Legacy pre-upgrade accounts may require migration in the Privacy Pools website before the CLI can restore them safely.
 
 ## Install
 

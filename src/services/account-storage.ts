@@ -3,7 +3,7 @@ import { join } from "path";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
 import { CLIError } from "../utils/errors.js";
 
-export const ACCOUNT_FILE_VERSION = 2;
+export const ACCOUNT_FILE_VERSION = 3;
 
 function getAccountFilePath(chainId: number): string {
   return join(getAccountsDir(), `${chainId}.json`);

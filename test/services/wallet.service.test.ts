@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { generateMasterKeys as sdkGenerateMasterKeys } from "@0xbow/privacy-pools-core-sdk";
 import {
   generateMnemonic,
   validateMnemonic,
@@ -18,10 +19,10 @@ afterEach(() => {
 
 describe("wallet service", () => {
   describe("generateMnemonic", () => {
-    test("generates a 12-word BIP39 mnemonic", () => {
+    test("generates a 24-word BIP39 mnemonic", () => {
       const mnemonic = generateMnemonic();
       const words = mnemonic.split(" ");
-      expect(words.length).toBe(12);
+      expect(words.length).toBe(24);
     });
 
     test("generated mnemonic is valid", () => {
@@ -120,8 +121,9 @@ describe("wallet service", () => {
       expect(k1.masterSecret).not.toEqual(k2.masterSecret);
     });
 
-    test("matches bigint-based mnemonic derivation used by the fixed SDK", () => {
+    test("matches the installed SDK bigint-based mnemonic derivation", () => {
       const mnemonic = "test test test test test test test test test test test junk";
+      const expectedFromSdk = sdkGenerateMasterKeys(mnemonic);
       const expected = {
         masterNullifier:
           20068762160393292801596226195912281868434195939362930533775271887246872084568n,
@@ -129,7 +131,8 @@ describe("wallet service", () => {
           4263194520628581151689140073493505946870598678660509318310629023735624352890n,
       };
 
-      expect(getMasterKeys(mnemonic)).toEqual(expected);
+      expect(expectedFromSdk).toEqual(expected);
+      expect(getMasterKeys(mnemonic)).toEqual(expectedFromSdk);
     });
   });
 

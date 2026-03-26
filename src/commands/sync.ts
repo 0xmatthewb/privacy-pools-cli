@@ -77,7 +77,7 @@ export async function handleSyncCommand(
         {
           allowLegacyAccountRebuild: true,
           suppressWarnings: silent,
-          strictSync: false,
+          strictSync: true,
         },
       );
     const preSyncSpendable = withSuppressedSdkStdoutSync(() =>

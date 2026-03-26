@@ -3,7 +3,7 @@ import { AccountService } from "@0xbow/privacy-pools-core-sdk";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CHAINS } from "../../src/config/chains.ts";
-import { serialize } from "../../src/services/account.ts";
+import { ACCOUNT_FILE_VERSION, serialize } from "../../src/services/account.ts";
 import {
   TEST_MNEMONIC,
   createSeededHome,
@@ -37,8 +37,24 @@ function seedCachedAccount(home: string): void {
   mkdirSync(accountsDir, { recursive: true });
   writeFileSync(
     join(accountsDir, `${sepoliaChainConfig.id}.json`),
-    serialize({ poolAccounts: new Map() }),
+    serialize({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+      poolAccounts: new Map(),
+    }),
     "utf8"
+  );
+}
+
+function seedStaleCachedAccount(home: string): void {
+  const accountsDir = join(home, ".privacy-pools", "accounts");
+  mkdirSync(accountsDir, { recursive: true });
+  writeFileSync(
+    join(accountsDir, `${sepoliaChainConfig.id}.json`),
+    serialize({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION - 1,
+      poolAccounts: new Map(),
+    }),
+    "utf8",
   );
 }
 
@@ -103,6 +119,7 @@ function seedDetailedCachedAccount(home: string, chainId: number = sepoliaChainC
   writeFileSync(
     join(accountsDir, `${chainId}.json`),
     serialize({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
       masterKeys: [1n, 2n],
       poolAccounts: new Map([
         [mockScope, [
@@ -186,7 +203,7 @@ afterAll(async () => {
 describe("accounts/history --no-sync", () => {
   test("sync-enabled refresh upgrades legacy cached state and restores history", async () => {
     const home = createSeededHome("sepolia");
-    seedCachedAccount(home);
+    seedStaleCachedAccount(home);
     const seededAccount = new AccountService(
       {} as ConstructorParameters<typeof AccountService>[0],
       { mnemonic: TEST_MNEMONIC },
@@ -259,7 +276,9 @@ describe("accounts/history --no-sync", () => {
         "utf8",
       );
       expect(accountFile).toContain('"masterKeys"');
-      expect(accountFile).toContain('"__privacyPoolsCliAccountVersion": 2');
+      expect(accountFile).toContain(
+        `"__privacyPoolsCliAccountVersion": ${ACCOUNT_FILE_VERSION}`,
+      );
     } finally {
       await killSyncGateRpcServer(rebuildRpc);
     }

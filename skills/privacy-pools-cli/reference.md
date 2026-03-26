@@ -14,7 +14,7 @@ privacy-pools flow status latest --agent
 privacy-pools flow ragequit latest --agent
 ```
 
-`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. With `--new-wallet`, the CLI generates a dedicated workflow wallet, requires a backup before proceeding, and waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in that same wallet. `flow watch` re-checks the saved workflow using workflow phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state. `flow status` reads the persisted workflow snapshot without mutating it. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
+`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. With `--new-wallet`, the CLI generates a dedicated workflow wallet, requires a backup before proceeding, and waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in that same wallet. `flow watch` re-checks the saved workflow using workflow phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state. `flow watch` is intentionally unbounded; agents that need a wall-clock limit should wrap it in an external timeout. `flow status` reads the persisted workflow snapshot without mutating it. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
 
 Flow JSON payloads share this shape:
 
@@ -512,9 +512,9 @@ printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 word2 ..." --
 
 When importing an existing recovery phrase or private key, neither `recoveryPhrase` nor `recoveryPhraseRedacted` is present.
 
-When importing an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
+New CLI-generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
 
-When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so restored Pool Accounts can be discovered across mainnets and testnets. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
+When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so Pool Accounts can be checked across mainnets and testnets. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
 
 Use only one stdin secret source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
 
@@ -904,6 +904,7 @@ All errors in JSON mode:
 | `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool not ready, wait and retry |
 | `CONTRACT_INSUFFICIENT_FUNDS` | CONTRACT | No | Wallet lacks ETH for amount + gas |
 | `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | Nonce conflict; pending tx may be stuck |
+| `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | Legacy pre-upgrade account must be handled in the website before CLI restore/sync |
 | `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
 | `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error |
 
@@ -928,7 +929,8 @@ When `retryable: true`:
 3. `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR`: wait 30-60s and retry.
 
 When `retryable: false`:
-4. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+4. `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first; migrate it there if needed, or use the website's recovery flow for legacy declined deposits, then rerun the CLI restore or sync command.
+5. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ---
 

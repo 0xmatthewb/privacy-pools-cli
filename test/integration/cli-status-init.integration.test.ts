@@ -328,7 +328,7 @@ describe("init machine-mode behavior", () => {
 
     expect(json.success).toBe(true);
     expect(typeof json.recoveryPhrase).toBe("string");
-    expect(json.recoveryPhrase?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+    expect(json.recoveryPhrase?.trim().split(/\s+/).length).toBe(24);
     expect(json.recoveryPhraseRedacted).toBeUndefined();
   });
 
@@ -420,7 +420,7 @@ describe("init machine-mode behavior", () => {
     }>(result.stdout);
     expect(json.success).toBe(true);
     expect(typeof json.recoveryPhrase).toBe("string");
-    expect(json.recoveryPhrase?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+    expect(json.recoveryPhrase?.trim().split(/\s+/).length).toBe(24);
     expect(json.recoveryPhraseRedacted).toBeUndefined();
   });
 });

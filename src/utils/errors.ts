@@ -53,6 +53,18 @@ export class CLIError extends Error {
   }
 }
 
+export function accountMigrationRequiredError(
+  hint: string = "Review this account in the Privacy Pools website first. If it shows migratable legacy deposits, migrate them there, then rerun the CLI restore or sync command.",
+): CLIError {
+  return new CLIError(
+    "Legacy pre-upgrade Pool Accounts require migration before the CLI can safely restore this account.",
+    "INPUT",
+    hint,
+    "ACCOUNT_MIGRATION_REQUIRED",
+    false,
+  );
+}
+
 const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: string; retryable?: boolean }> = {
   NullifierAlreadySpent: {
     message: "This Pool Account has already been withdrawn.",
@@ -63,6 +75,12 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "Pool state changed since proof generation.",
     hint: "Refresh pool data and generate a new proof.",
     code: "CONTRACT_INCORRECT_ASP_ROOT",
+    retryable: true,
+  },
+  UnknownStateRoot: {
+    message: "Pool state root is outdated or unknown.",
+    hint: "Run 'privacy-pools sync' and retry to generate a fresh proof against the latest state root.",
+    code: "CONTRACT_UNKNOWN_STATE_ROOT",
     retryable: true,
   },
   InvalidProcessooor: {
@@ -90,6 +108,16 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     hint: "Wait for the relayer to publish the first state root, then retry.",
     code: "CONTRACT_NO_ROOTS_AVAILABLE",
     retryable: true,
+  },
+  MinimumDepositAmount: {
+    message: "Deposit amount is below the pool minimum.",
+    hint: "Increase the amount to meet the pool minimum shown by 'privacy-pools pools' or the deposit validation output, then retry.",
+    code: "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
+  },
+  PoolIsDead: {
+    message: "This pool is no longer accepting new activity.",
+    hint: "Choose another pool or asset before retrying.",
+    code: "CONTRACT_POOL_IS_DEAD",
   },
 };
 

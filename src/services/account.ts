@@ -6,14 +6,17 @@ import {
   type PoolInfo,
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Address } from "viem";
+import { CHAINS, resolveChainOverrides } from "../config/chains.js";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
-import { CLIError } from "../utils/errors.js";
+import { fetchDepositReviewStatuses } from "./asp.js";
+import { CLIError, accountMigrationRequiredError } from "../utils/errors.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
   guardCriticalSection,
   releaseCriticalSection,
 } from "../utils/critical-section.js";
 import { warn, verbose as logVerbose } from "../utils/format.js";
+import { normalizeAspApprovalStatus } from "../utils/statuses.js";
 import {
   withSuppressedConsole,
   withSuppressedConsoleSync,
@@ -101,6 +104,212 @@ export interface InitializeAccountServiceState {
   rebuiltLegacyAccount: boolean;
 }
 
+interface LegacyCommitmentLike {
+  label?: bigint | null;
+  value?: bigint | null;
+}
+
+interface LegacyPoolAccountLike {
+  label?: bigint | null;
+  ragequit?: unknown;
+  isMigrated?: boolean;
+  deposit?: LegacyCommitmentLike | null;
+  children?: LegacyCommitmentLike[] | null;
+}
+
+interface LegacyMigrationCandidate {
+  scope: bigint;
+  label: string;
+}
+
+function latestLegacyCommitment(
+  account: LegacyPoolAccountLike,
+): LegacyCommitmentLike | null {
+  const children = Array.isArray(account.children) ? account.children : [];
+  return children.length > 0
+    ? children[children.length - 1] ?? null
+    : account.deposit ?? null;
+}
+
+function resolveLegacyDepositLabel(account: LegacyPoolAccountLike): string | null {
+  const label =
+    typeof account.deposit?.label === "bigint"
+      ? account.deposit.label
+      : typeof account.label === "bigint"
+        ? account.label
+        : null;
+
+  return label === null ? null : label.toString();
+}
+
+function collectLegacyMigrationCandidates(
+  legacyAccount: AccountService | undefined,
+): LegacyMigrationCandidate[] {
+  const poolAccounts = (
+    legacyAccount as unknown as {
+      account?: { poolAccounts?: Map<unknown, unknown[]> };
+    }
+  )?.account?.poolAccounts;
+
+  if (!(poolAccounts instanceof Map)) return [];
+
+  const candidates: LegacyMigrationCandidate[] = [];
+
+  for (const [rawScope, rawAccounts] of poolAccounts.entries()) {
+    if (typeof rawScope !== "bigint" || !Array.isArray(rawAccounts)) continue;
+
+    for (const rawAccount of rawAccounts) {
+      const account = rawAccount as LegacyPoolAccountLike;
+      if (account.ragequit || account.isMigrated) continue;
+
+      const latestCommitment = latestLegacyCommitment(account);
+      const remainingValue =
+        typeof latestCommitment?.value === "bigint"
+          ? latestCommitment.value
+          : null;
+      if (remainingValue === null || remainingValue <= 0n) continue;
+
+      const label = resolveLegacyDepositLabel(account);
+      if (!label) continue;
+
+      candidates.push({
+        scope: rawScope,
+        label,
+      });
+    }
+  }
+
+  return candidates;
+}
+
+function resolveChainConfigById(chainId: number) {
+  const baseConfig = Object.values(CHAINS).find((chain) => chain.id === chainId);
+  return baseConfig ? resolveChainOverrides(baseConfig) : null;
+}
+
+async function loadDeclinedLegacyLabels(
+  chainId: number,
+  candidates: readonly LegacyMigrationCandidate[],
+): Promise<Set<string> | null> {
+  if (candidates.length === 0) return new Set<string>();
+
+  const chainConfig = resolveChainConfigById(chainId);
+  if (!chainConfig) return null;
+
+  const labelsByScope = new Map<string, Set<string>>();
+  for (const candidate of candidates) {
+    const scopeKey = candidate.scope.toString();
+    const labels = labelsByScope.get(scopeKey) ?? new Set<string>();
+    labels.add(candidate.label);
+    labelsByScope.set(scopeKey, labels);
+  }
+
+  let unavailable = false;
+  const declinedLabels = new Set<string>();
+
+  await Promise.all(
+    [...labelsByScope.entries()].map(async ([scopeKey, labels]) => {
+      const statuses = await fetchDepositReviewStatuses(
+        chainConfig,
+        BigInt(scopeKey),
+        [...labels],
+      );
+      if (statuses === null) {
+        unavailable = true;
+        return;
+      }
+
+      for (const [label, status] of statuses.entries()) {
+        if (normalizeAspApprovalStatus(status) === "declined") {
+          declinedLabels.add(label);
+        }
+      }
+    }),
+  );
+
+  return unavailable ? null : declinedLabels;
+}
+
+function hasUnmigratedLegacyCommitments(
+  candidates: readonly LegacyMigrationCandidate[],
+  declinedLabels: ReadonlySet<string> | null,
+): boolean {
+  for (const candidate of candidates) {
+    if (declinedLabels?.has(candidate.label)) continue;
+    return true;
+  }
+
+  return false;
+}
+
+function staleAccountRefreshRequiredError(): CLIError {
+  return new CLIError(
+    "Stored account state is outdated and must be refreshed before it can be used safely.",
+    "INPUT",
+    "Run 'privacy-pools sync' or rerun this command without --no-sync once RPC access is available.",
+  );
+}
+
+function staleAccountRefreshFailedError(error: unknown): CLIError {
+  return new CLIError(
+    `Stored account state could not be refreshed safely: ${error instanceof Error ? error.message : String(error)}`,
+    "RPC",
+    "Restore RPC access and rerun 'privacy-pools sync' before using this account.",
+    undefined,
+    true,
+  );
+}
+
+async function assertNoLegacyMigrationRequired(
+  legacyAccount: AccountService | undefined,
+  chainId: number,
+): Promise<void> {
+  const candidates = collectLegacyMigrationCandidates(legacyAccount);
+  if (candidates.length === 0) return;
+
+  const declinedLabels = await loadDeclinedLegacyLabels(chainId, candidates);
+  if (!hasUnmigratedLegacyCommitments(candidates, declinedLabels)) {
+    throw accountMigrationRequiredError(
+      "Review this account in the Privacy Pools website first. Legacy declined deposits cannot be restored safely in the CLI and may require website-based public recovery instead of migration.",
+    );
+  }
+
+  throw accountMigrationRequiredError();
+}
+
+function summarizeInitErrors(
+  initErrors: Array<{ scope: bigint; reason: string }>,
+): string {
+  return initErrors
+    .slice(0, 3)
+    .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
+    .join("; ");
+}
+
+function warnOnPartialInitialization(
+  suppressWarnings: boolean,
+  message: string,
+): void {
+  if (!suppressWarnings) {
+    process.stderr.write(`Warning: ${message}\n`);
+  }
+}
+
+function buildPartialInitializationState(
+  accountService: AccountService,
+  rebuiltLegacyAccount: boolean,
+): InitializeAccountServiceState {
+  return {
+    accountService,
+    skipImmediateSync: false,
+    rebuiltLegacyAccount,
+  };
+}
+
+function isMigrationRequiredError(error: unknown): boolean {
+  return error instanceof CLIError && error.code === "ACCOUNT_MIGRATION_REQUIRED";
+}
+
 export async function initializeAccountServiceWithState(
   dataService: DataService,
   mnemonic: string,
@@ -123,13 +332,14 @@ export async function initializeAccountServiceWithState(
   const savedAccount = loadAccount(chainId);
   const hasCurrentAccountVersion =
     savedAccount?.__privacyPoolsCliAccountVersion === ACCOUNT_FILE_VERSION;
+  const needsSavedAccountRefresh =
+    savedAccount !== null && pools.length > 0 && !hasCurrentAccountVersion;
 
-  if (
-    savedAccount &&
-    pools.length > 0 &&
-    !hasCurrentAccountVersion &&
-    allowLegacyAccountRebuild
-  ) {
+  if (needsSavedAccountRefresh) {
+    if (!allowLegacyAccountRebuild) {
+      throw staleAccountRefreshRequiredError();
+    }
+
     try {
       const poolInfos = pools.map(toPoolInfo);
       const result = await withSuppressedSdkStdout(async () =>
@@ -139,13 +349,11 @@ export async function initializeAccountServiceWithState(
           poolInfos,
         ),
       );
+      await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
 
       const initErrors = result.errors ?? [];
       if (initErrors.length > 0) {
-        const details = initErrors
-          .slice(0, 3)
-          .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
-          .join("; ");
+        const details = summarizeInitErrors(initErrors);
 
         if (strictSync) {
           throw new CLIError(
@@ -155,24 +363,25 @@ export async function initializeAccountServiceWithState(
           );
         }
 
-        if (!suppressWarnings) {
-          process.stderr.write(
-            `Warning: legacy account rebuild had partial failures for ${initErrors.length} pool(s): ${details}\n`,
-          );
-        }
+        warnOnPartialInitialization(
+          suppressWarnings,
+          `legacy account rebuild had partial failures for ${initErrors.length} pool(s): ${details}`,
+        );
+
+        return buildPartialInitializationState(result.account, true);
       }
 
-      const skipImmediateSync = initErrors.length === 0;
       saveAccount(chainId, result.account.account);
-      if (skipImmediateSync) {
-        saveSyncMeta(chainId);
-      }
+      saveSyncMeta(chainId);
       return {
         accountService: result.account,
-        skipImmediateSync,
+        skipImmediateSync: true,
         rebuiltLegacyAccount: true,
       };
     } catch (err) {
+      if (isMigrationRequiredError(err)) {
+        throw err;
+      }
       if (strictSync) {
         throw new CLIError(
           `Failed to rebuild legacy account state from onchain events: ${err instanceof Error ? err.message : String(err)}`,
@@ -182,9 +391,10 @@ export async function initializeAccountServiceWithState(
       }
       if (!suppressWarnings) {
         process.stderr.write(
-          `Warning: legacy account rebuild failed, using saved account: ${err instanceof Error ? err.message : String(err)}\n`,
+          `Warning: legacy account rebuild failed: ${err instanceof Error ? err.message : String(err)}\n`,
         );
       }
+      throw staleAccountRefreshFailedError(err);
     }
   }
 
@@ -246,13 +456,11 @@ export async function initializeAccountServiceWithState(
           poolInfos,
         ),
       );
+      await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
 
       const initErrors = result.errors ?? [];
       if (initErrors.length > 0) {
-        const details = initErrors
-          .slice(0, 3)
-          .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
-          .join("; ");
+        const details = summarizeInitErrors(initErrors);
 
         if (strictSync) {
           throw new CLIError(
@@ -262,25 +470,25 @@ export async function initializeAccountServiceWithState(
           );
         }
 
-        if (!suppressWarnings) {
-          process.stderr.write(
-            `Warning: account initialization had partial failures for ${initErrors.length} pool(s): ${details}\n`,
-          );
-        }
+        warnOnPartialInitialization(
+          suppressWarnings,
+          `account initialization had partial failures for ${initErrors.length} pool(s): ${details}`,
+        );
+
+        return buildPartialInitializationState(result.account, false);
       }
 
-      const skipImmediateSync = initErrors.length === 0;
-      // Save the initialized account
       saveAccount(chainId, result.account.account);
-      if (skipImmediateSync) {
-        saveSyncMeta(chainId);
-      }
+      saveSyncMeta(chainId);
       return {
         accountService: result.account,
-        skipImmediateSync,
+        skipImmediateSync: true,
         rebuiltLegacyAccount: false,
       };
     } catch (err) {
+      if (isMigrationRequiredError(err)) {
+        throw err;
+      }
       if (strictSync) {
         throw new CLIError(
           `Failed to initialize account from onchain events: ${err instanceof Error ? err.message : String(err)}`,
@@ -447,16 +655,18 @@ export async function syncAccountEvents(
     );
   }
 
+  if (syncFailures > 0) {
+    // Keep partial in-memory progress for the current invocation, but never
+    // persist a mixed snapshot that could hide legacy-account or sync gaps.
+    return true;
+  }
+
   const releaseLock = acquireProcessLock();
   try {
     guardCriticalSection();
     try {
       saveAccount(chainId, accountService.account);
-      // Only stamp sync freshness when all pools synced successfully.
-      // Partial failures should trigger a re-sync on next command.
-      if (syncFailures === 0) {
-        saveSyncMeta(chainId);
-      }
+      saveSyncMeta(chainId);
     } finally {
       releaseCriticalSection();
     }

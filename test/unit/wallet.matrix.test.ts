@@ -17,11 +17,11 @@ import {
 } from "../../src/services/wallet.ts";
 
 describe("wallet matrix", () => {
-  test("generateMnemonic emits a valid mnemonic", () => {
+  test("generateMnemonic emits a valid 24-word mnemonic", () => {
     const mnemonic = generateMnemonic();
     expect(validateMnemonic(mnemonic)).toBe(true);
     const words = mnemonic.trim().split(/\s+/g);
-    expect(words.length === 12 || words.length === 24).toBe(true);
+    expect(words.length).toBe(24);
   });
 
   const VALID_MNEMONICS = [

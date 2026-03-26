@@ -1,6 +1,10 @@
 import type { Address, Hex } from "viem";
 import { encodeFunctionData, parseAbi } from "viem";
-import type { SolidityProof, UnsignedTransactionPayload } from "./unsigned.js";
+import type {
+  SolidityRagequitProof,
+  SolidityWithdrawProof,
+  UnsignedTransactionPayload,
+} from "./unsigned.js";
 
 export const erc20ApproveAbi = parseAbi([
   "function approve(address spender, uint256 amount)",
@@ -116,7 +120,7 @@ export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
   selectedCommitmentLabel: bigint;
   selectedCommitmentValue: bigint;
   withdrawal: WithdrawalCall;
-  proof: SolidityProof;
+  proof: SolidityWithdrawProof;
 }): UnsignedDirectWithdrawOutput {
   const transaction: UnsignedTransactionPayload = {
     chainId: params.chainId,
@@ -126,7 +130,7 @@ export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
     data: encodeFunctionData({
       abi: privacyPoolWithdrawAbi,
       functionName: "withdraw",
-      args: [params.withdrawal, params.proof as any],
+      args: [params.withdrawal, params.proof],
     }),
     description: "Direct withdraw from Privacy Pool",
   };
@@ -170,7 +174,7 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
   feeBPS: string;
   quoteExpiresAt: string;
   withdrawal: WithdrawalCall;
-  proof: SolidityProof;
+  proof: SolidityWithdrawProof;
   relayerRequest: unknown;
 }): UnsignedRelayedWithdrawOutput {
   const transaction: UnsignedTransactionPayload = {
@@ -181,7 +185,7 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
     data: encodeFunctionData({
       abi: entrypointRelayAbi,
       functionName: "relay",
-      args: [params.withdrawal, params.proof as any, params.scope],
+      args: [params.withdrawal, params.proof, params.scope],
     }),
     description: "Relay withdrawal through Entrypoint",
   };
@@ -218,7 +222,7 @@ export function buildUnsignedRagequitOutput(params: UnsignedBase & {
   poolAddress: Address;
   selectedCommitmentLabel: bigint;
   selectedCommitmentValue: bigint;
-  proof: SolidityProof;
+  proof: SolidityRagequitProof;
 }): UnsignedRagequitOutput {
   const transaction: UnsignedTransactionPayload = {
     chainId: params.chainId,
@@ -228,7 +232,7 @@ export function buildUnsignedRagequitOutput(params: UnsignedBase & {
     data: encodeFunctionData({
       abi: privacyPoolRagequitAbi,
       functionName: "ragequit",
-      args: [params.proof as any],
+      args: [params.proof],
     }),
     description: "Ragequit from Privacy Pool",
   };
