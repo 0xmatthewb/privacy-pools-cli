@@ -5,6 +5,9 @@ const realErrors = await import("../../src/utils/errors.ts");
 const realMode = await import("../../src/utils/mode.ts");
 const realAccount = await import("../../src/services/account.ts");
 const realAsp = await import("../../src/services/asp.ts");
+const realPools = await import("../../src/services/pools.ts");
+const realSdk = await import("../../src/services/sdk.ts");
+const realWallet = await import("../../src/services/wallet.ts");
 const realOutputCommon = await import("../../src/output/common.ts");
 
 const chainConfig = {
@@ -81,15 +84,18 @@ async function loadAccountErrorHandlers(): Promise<void> {
     loadConfig: () => config,
   }));
   mock.module("../../src/services/wallet.ts", () => ({
+    ...realWallet,
     loadMnemonic: () => "test test test test test test test test test test test junk",
   }));
   mock.module("../../src/services/sdk.ts", () => ({
+    ...realSdk,
     getDataService: async () => ({}),
     getPublicClient: () => ({
       getTransactionReceipt: async () => null,
     }),
   }));
   mock.module("../../src/services/pools.ts", () => ({
+    ...realPools,
     listPools: async () => [pool],
     resolvePool: async () => pool,
   }));

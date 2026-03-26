@@ -35,7 +35,9 @@ const realConfig = await import("../../src/services/config.ts");
 const realAccount = await import("../../src/services/account.ts");
 const realAsp = await import("../../src/services/asp.ts");
 const realChains = await import("../../src/config/chains.ts");
+const realContracts = await import("../../src/services/contracts.ts");
 const realFormat = await import("../../src/utils/format.ts");
+const realInquirerPrompts = await import("@inquirer/prompts");
 const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
 const realPools = await import("../../src/services/pools.ts");
 const realPreflight = await import("../../src/utils/preflight.ts");
@@ -660,6 +662,7 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("../../src/services/contracts.ts", () => ({
+    ...realContracts,
     approveERC20: approveErc20Mock,
     depositERC20: depositErc20Mock,
     depositETH: depositEthMock,
@@ -700,6 +703,7 @@ async function installWorkflowMocks(): Promise<void> {
   }));
 
   mock.module("@inquirer/prompts", () => ({
+    ...realInquirerPrompts,
     confirm: confirmPromptMock,
     input: inputPromptMock,
     select: selectPromptMock,

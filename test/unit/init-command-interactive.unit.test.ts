@@ -1,7 +1,5 @@
 import {
-  afterAll,
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -21,6 +19,7 @@ import {
   createTrackedTempDir,
 } from "../helpers/temp.ts";
 
+const realInquirerPrompts = await import("@inquirer/prompts");
 const confirmPromptMock = mock(async () => true);
 const inputPromptMock = mock(async () => "");
 const passwordPromptMock = mock(async () => "");
@@ -47,8 +46,9 @@ function useIsolatedHome(): string {
   return home;
 }
 
-beforeAll(async () => {
+async function loadInitCommandHandler(): Promise<void> {
   mock.module("@inquirer/prompts", () => ({
+    ...realInquirerPrompts,
     confirm: confirmPromptMock,
     input: inputPromptMock,
     password: passwordPromptMock,
@@ -56,15 +56,12 @@ beforeAll(async () => {
   }));
 
   ({ handleInitCommand } = await import(
-    "../../src/commands/init.ts?init-interactive-tests"
+    "../../src/commands/init.ts"
   ));
-});
-
-afterAll(() => {
-  mock.restore();
-});
+}
 
 beforeEach(() => {
+  mock.restore();
   confirmPromptMock.mockClear();
   inputPromptMock.mockClear();
   passwordPromptMock.mockClear();
@@ -76,7 +73,12 @@ beforeEach(() => {
   selectPromptMock.mockImplementation(async () => "generate");
 });
 
+beforeEach(async () => {
+  await loadInitCommandHandler();
+});
+
 afterEach(() => {
+  mock.restore();
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {

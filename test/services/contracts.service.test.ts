@@ -26,7 +26,7 @@ import {
 } from "../../src/utils/unsigned-flows.ts";
 import {
   installModuleMocks,
-  restoreModuleMocks,
+  restoreMockFunctions,
 } from "../helpers/module-mocks.ts";
 
 let simulateShouldRevert = false;
@@ -266,7 +266,7 @@ describe("contracts service", () => {
   });
 
   afterAll(() => {
-    restoreModuleMocks();
+    restoreMockFunctions();
   });
 
   test("approveERC20 simulates and submits the transaction", async () => {

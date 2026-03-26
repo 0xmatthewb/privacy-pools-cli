@@ -3,6 +3,7 @@
 Developer guide for AI agents contributing to this codebase.
 
 For CLI consumer/agent integration docs, see [AGENTS.md](AGENTS.md) and [skills/privacy-pools-cli/SKILL.md](skills/privacy-pools-cli/SKILL.md).
+For test architecture and suite policy, see [docs/testing.md](docs/testing.md).
 
 ## Build & Run
 
@@ -31,6 +32,10 @@ bun run test:ci                # full CI pipeline
 ```
 
 `bun run test` uses `scripts/run-test-suite.mjs`, which delegates to `scripts/run-bun-tests.mjs` for the main batch plus the isolated suites listed in `scripts/test-suite-manifest.mjs`. Pass explicit files or Bun flags with `bun run test -- <args>` when you want a targeted run. Default per-test timeout is 30s unless you pass an explicit Bun timeout flag. The harness injects `PP_TEST_RUN_ID` per run and scopes temp dirs with `pp-` prefix for automatic cleanup.
+
+`bunfig.toml` provides Bun-native test defaults such as `coverageSkipTestFiles`, but the repository still treats `scripts/check-coverage.mjs` as the authoritative coverage gate because Bun coverage alone does not count unloaded executable source files.
+
+Process isolation is intentional here. Bun runs test files in a shared process by default, and `mock.module()` is not safely reversible in-process. If a suite remains listed as isolated in `scripts/test-suite-manifest.mjs`, treat that as a documented containment boundary, not a smell to “fix” with more `mock.restore()` calls.
 
 To run a single test file: `node scripts/run-bun-tests.mjs ./test/unit/some-file.unit.test.ts`
 

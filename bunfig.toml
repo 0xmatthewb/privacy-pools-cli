@@ -1,0 +1,10 @@
+[test]
+coverageSkipTestFiles = true
+pathIgnorePatterns = [
+  "dist",
+  "coverage",
+]
+coveragePathIgnorePatterns = [
+  "dist/**",
+  "coverage/**",
+]

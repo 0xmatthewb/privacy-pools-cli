@@ -1,7 +1,5 @@
 import {
-  afterAll,
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -28,6 +26,11 @@ import {
 import { expectUnsignedTransactions } from "../helpers/unsigned-assertions.ts";
 
 const realAccount = await import("../../src/services/account.ts");
+const realContracts = await import("../../src/services/contracts.ts");
+const realInquirerPrompts = await import("@inquirer/prompts");
+const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
+const realPools = await import("../../src/services/pools.ts");
+const realSdk = await import("../../src/services/sdk.ts");
 const realViem = await import("viem");
 
 const ETH_POOL = {
@@ -137,8 +140,9 @@ function useIsolatedHome(options: {
   return home;
 }
 
-beforeAll(async () => {
+async function loadDepositCommandHandler(): Promise<void> {
   mock.module("@inquirer/prompts", () => ({
+    ...realInquirerPrompts,
     confirm: confirmPromptMock,
     select: selectPromptMock,
   }));
@@ -150,10 +154,12 @@ beforeAll(async () => {
     withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
   }));
   mock.module("../../src/services/sdk.ts", () => ({
+    ...realSdk,
     getDataService: getDataServiceMock,
     getPublicClient: getPublicClientMock,
   }));
   mock.module("../../src/services/pools.ts", () => ({
+    ...realPools,
     resolvePool: resolvePoolMock,
     listPools: listPoolsMock,
   }));
@@ -163,9 +169,13 @@ beforeAll(async () => {
     checkHasGas: checkHasGasMock,
   }));
   mock.module("../../src/services/contracts.ts", () => ({
+    ...realContracts,
     approveERC20: approveERC20Mock,
     depositETH: depositETHMock,
     depositERC20: depositERC20Mock,
+  }));
+  mock.module("../../src/utils/pool-accounts.ts", () => ({
+    ...realPoolAccounts,
   }));
   mock.module("../../src/utils/lock.ts", () => ({
     acquireProcessLock: acquireProcessLockMock,
@@ -180,15 +190,12 @@ beforeAll(async () => {
   }));
 
   ({ handleDepositCommand } = await import(
-    "../../src/commands/deposit.ts?deposit-handler-tests"
+    "../../src/commands/deposit.ts"
   ));
-});
-
-afterAll(() => {
-  mock.restore();
-});
+}
 
 afterEach(() => {
+  mock.restore();
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -198,6 +205,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  mock.restore();
   saveAccountMock.mockClear();
   saveSyncMetaMock.mockClear();
   approveERC20Mock.mockClear();
@@ -240,6 +248,10 @@ beforeEach(() => {
       _value: 99000000000000000n,
     },
   }));
+});
+
+beforeEach(async () => {
+  await loadDepositCommandHandler();
 });
 
 describe("deposit command handler", () => {

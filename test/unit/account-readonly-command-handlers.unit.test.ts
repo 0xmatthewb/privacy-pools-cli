@@ -1,7 +1,5 @@
 import {
-  afterAll,
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -23,6 +21,9 @@ import {
 } from "../helpers/temp.ts";
 
 const realAccount = await import("../../src/services/account.ts");
+const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
+const realPools = await import("../../src/services/pools.ts");
+const realSdk = await import("../../src/services/sdk.ts");
 const realSdkPackage = await import("@0xbow/privacy-pools-core-sdk");
 
 const MAINNET_POOL = {
@@ -170,7 +171,7 @@ function useIsolatedHome(defaultChain: string = "mainnet"): string {
   return home;
 }
 
-beforeAll(async () => {
+async function loadReadonlyHandlers(): Promise<void> {
   mock.module("../../src/services/account.ts", () => ({
     ...realAccount,
     initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
@@ -179,10 +180,12 @@ beforeAll(async () => {
     withSuppressedSdkStdout: withSuppressedSdkStdoutMock,
   }));
   mock.module("../../src/services/sdk.ts", () => ({
+    ...realSdk,
     getDataService: getDataServiceMock,
     getPublicClient: getPublicClientMock,
   }));
   mock.module("../../src/services/pools.ts", () => ({
+    ...realPools,
     listPools: listPoolsMock,
     resolvePool: resolvePoolMock,
     listKnownPoolsFromRegistry: listKnownPoolsFromRegistryMock,
@@ -194,6 +197,7 @@ beforeAll(async () => {
     hasIncompleteDepositReviewData: () => false,
   }));
   mock.module("../../src/utils/pool-accounts.ts", () => ({
+    ...realPoolAccounts,
     buildAllPoolAccountRefs: buildAllPoolAccountRefsMock,
     collectActiveLabels: collectActiveLabelsMock,
   }));
@@ -209,24 +213,21 @@ beforeAll(async () => {
   }));
 
   ({ handleAccountsCommand } = await import(
-    "../../src/commands/accounts.ts?account-readonly-handlers"
+    "../../src/commands/accounts.ts"
   ));
   ({ handleHistoryCommand } = await import(
-    "../../src/commands/history.ts?account-readonly-handlers"
+    "../../src/commands/history.ts"
   ));
   ({ handleSyncCommand } = await import(
-    "../../src/commands/sync.ts?account-readonly-handlers"
+    "../../src/commands/sync.ts"
   ));
   ({ handleMigrateStatusCommand } = await import(
-    "../../src/commands/migrate.ts?account-readonly-handlers"
+    "../../src/commands/migrate.ts"
   ));
-});
-
-afterAll(() => {
-  mock.restore();
-});
+}
 
 afterEach(() => {
+  mock.restore();
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -236,6 +237,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  mock.restore();
   initializeAccountServiceWithStateMock.mockImplementation(async () => ({
     accountService: {
       account: { poolAccounts: new Map() },
@@ -328,6 +330,10 @@ beforeEach(() => {
     legacyAccount: { poolAccounts: new Map() },
     errors: [],
   }));
+});
+
+beforeEach(async () => {
+  await loadReadonlyHandlers();
 });
 
 describe("account read-only command handlers", () => {

@@ -1,7 +1,5 @@
 import {
-  afterAll,
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -19,6 +17,11 @@ import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
+
+const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
+const realPools = await import("../../src/services/pools.ts");
+const realSdk = await import("../../src/services/sdk.ts");
+const realWallet = await import("../../src/services/wallet.ts");
 
 const POOL = {
   symbol: "ETH",
@@ -105,11 +108,13 @@ function useIsolatedHome(defaultChain = "mainnet"): void {
   });
 }
 
-beforeAll(async () => {
+async function loadPoolsHandlers(): Promise<void> {
   mock.module("../../src/services/wallet.ts", () => ({
+    ...realWallet,
     loadMnemonic: loadMnemonicMock,
   }));
   mock.module("../../src/services/sdk.ts", () => ({
+    ...realSdk,
     getDataService: getDataServiceMock,
   }));
   mock.module("../../src/services/account.ts", () => ({
@@ -117,6 +122,7 @@ beforeAll(async () => {
     withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
   }));
   mock.module("../../src/services/pools.ts", () => ({
+    ...realPools,
     listPools: listPoolsMock,
     resolvePool: resolvePoolMock,
   }));
@@ -126,6 +132,7 @@ beforeAll(async () => {
     formatIncompleteAspReviewDataMessage: () => "ASP review data is incomplete.",
   }));
   mock.module("../../src/utils/pool-accounts.ts", () => ({
+    ...realPoolAccounts,
     buildPoolAccountRefs: buildPoolAccountRefsMock,
     collectActiveLabels: collectActiveLabelsMock,
   }));
@@ -133,14 +140,11 @@ beforeAll(async () => {
   ({
     handlePoolsCommand,
     formatPoolDetailMyFundsWarning,
-  } = await import("../../src/commands/pools.ts?pools-handler-tests"));
-});
-
-afterAll(() => {
-  mock.restore();
-});
+  } = await import("../../src/commands/pools.ts"));
+}
 
 afterEach(() => {
+  mock.restore();
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -150,6 +154,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  mock.restore();
   listPoolsMock.mockImplementation(async () => [POOL, USDC_POOL]);
   resolvePoolMock.mockImplementation(async (_chainConfig: unknown, asset: string) =>
     asset.toUpperCase() === "USDC" ? USDC_POOL : POOL,
@@ -182,6 +187,10 @@ beforeEach(() => {
   }));
   buildPoolAccountRefsMock.mockImplementation(() => []);
   collectActiveLabelsMock.mockImplementation(() => []);
+});
+
+beforeEach(async () => {
+  await loadPoolsHandlers();
 });
 
 describe("pools command handler", () => {

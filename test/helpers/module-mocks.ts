@@ -10,6 +10,16 @@ export function installModuleMocks(
   }
 }
 
-export function restoreModuleMocks(): void {
+/**
+ * Bun does not provide a safe in-process "unmock module" reset for mock.module().
+ * This helper only restores spy/function mocks. Process-level isolation remains
+ * the containment boundary for suites that replace modules.
+ */
+export function restoreMockFunctions(): void {
   mock.restore();
 }
+
+/**
+ * @deprecated Use restoreMockFunctions(). This does not undo mock.module() replacements.
+ */
+export const restoreModuleMocks = restoreMockFunctions;

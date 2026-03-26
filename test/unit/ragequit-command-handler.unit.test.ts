@@ -1,7 +1,5 @@
 import {
-  afterAll,
   afterEach,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -31,6 +29,12 @@ import {
 } from "../helpers/unsigned-assertions.ts";
 
 const realAccount = await import("../../src/services/account.ts");
+const realContracts = await import("../../src/services/contracts.ts");
+const realInquirerPrompts = await import("@inquirer/prompts");
+const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
+const realPools = await import("../../src/services/pools.ts");
+const realProofs = await import("../../src/services/proofs.ts");
+const realSdk = await import("../../src/services/sdk.ts");
 
 const ETH_POOL = {
   symbol: "ETH",
@@ -156,8 +160,9 @@ function useIsolatedHome(options: {
   return home;
 }
 
-beforeAll(async () => {
+async function loadRagequitCommandHandler(): Promise<void> {
   mock.module("@inquirer/prompts", () => ({
+    ...realInquirerPrompts,
     confirm: confirmPromptMock,
     select: selectPromptMock,
   }));
@@ -169,10 +174,12 @@ beforeAll(async () => {
     withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
   }));
   mock.module("../../src/services/sdk.ts", () => ({
+    ...realSdk,
     getDataService: getDataServiceMock,
     getPublicClient: getPublicClientMock,
   }));
   mock.module("../../src/services/pools.ts", () => ({
+    ...realPools,
     resolvePool: resolvePoolMock,
     listPools: listPoolsMock,
   }));
@@ -189,12 +196,15 @@ beforeAll(async () => {
       statuses,
   }));
   mock.module("../../src/services/proofs.ts", () => ({
+    ...realProofs,
     proveCommitment: proveCommitmentMock,
   }));
   mock.module("../../src/services/contracts.ts", () => ({
+    ...realContracts,
     ragequit: ragequitMock,
   }));
   mock.module("../../src/utils/pool-accounts.ts", () => ({
+    ...realPoolAccounts,
     buildAllPoolAccountRefs: buildAllPoolAccountRefsMock,
     buildPoolAccountRefs: buildPoolAccountRefsMock,
     collectActiveLabels: collectActiveLabelsMock,
@@ -219,15 +229,12 @@ beforeAll(async () => {
   }));
 
   ({ handleRagequitCommand } = await import(
-    "../../src/commands/ragequit.ts?ragequit-handler-tests"
+    "../../src/commands/ragequit.ts"
   ));
-});
-
-afterAll(() => {
-  mock.restore();
-});
+}
 
 afterEach(() => {
+  mock.restore();
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -237,6 +244,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  mock.restore();
   initializeAccountServiceMock.mockClear();
   getPublicClientMock.mockClear();
   resolvePoolMock.mockClear();
@@ -280,6 +288,10 @@ beforeEach(() => {
       blockNumber: 987n,
     }),
   }));
+});
+
+beforeEach(async () => {
+  await loadRagequitCommandHandler();
 });
 
 describe("ragequit command handler", () => {

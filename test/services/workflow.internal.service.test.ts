@@ -27,6 +27,7 @@ import {
 } from "../helpers/temp.ts";
 
 const realFormat = await import("../../src/utils/format.ts");
+const realInquirerPrompts = await import("@inquirer/prompts");
 const realSdk = await import("../../src/services/sdk.ts");
 const realAccount = await import("../../src/services/account.ts");
 const realWallet = await import("../../src/services/wallet.ts");
@@ -445,6 +446,7 @@ beforeAll(async () => {
     proveWithdrawal: proveWithdrawalMock,
   }));
   mock.module("@inquirer/prompts", () => ({
+    ...realInquirerPrompts,
     confirm: confirmPromptMock,
     input: inputPromptMock,
     select: selectPromptMock,
