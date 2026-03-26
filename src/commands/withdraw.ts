@@ -171,13 +171,13 @@ export function formatApprovalResolutionHint(params: {
 
   switch (status) {
     case "pending":
-      return `ASP approval is required for both relayed and direct withdrawals. Run 'privacy-pools accounts --agent --chain ${chainName}' to check aspStatus. Most deposits are approved within 1 hour, though some may take up to 7 days.`;
+      return `ASP approval is required for both relayed and direct withdrawals. Run 'privacy-pools accounts --chain ${chainName}' to check aspStatus. Most deposits are approved within 1 hour, though some may take up to 7 days.`;
     case "poi_required":
-      return `This Pool Account needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL}, then re-run 'privacy-pools accounts --agent --chain ${chainName}' to confirm aspStatus. If you prefer a public recovery path instead, use '${ragequitCmd}'.`;
+      return `This Pool Account needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL}, then re-run 'privacy-pools accounts --chain ${chainName}' to confirm aspStatus. If you prefer a public recovery path instead, use '${ragequitCmd}'.`;
     case "declined":
       return `This Pool Account was declined by the ASP. Private withdraw, including --direct, is unavailable. Use '${ragequitCmd}' to exit publicly to the original deposit address.`;
     default:
-      return `Run 'privacy-pools accounts --agent --chain ${chainName}' to inspect aspStatus. Pending deposits need more time, PoA-needed deposits need Proof of Association at ${POA_PORTAL_URL}, and declined deposits must use '${ragequitCmd}' to exit publicly to the original deposit address.`;
+      return `Run 'privacy-pools accounts --chain ${chainName}' to inspect aspStatus. Pending deposits need more time, PoA-needed deposits need Proof of Association at ${POA_PORTAL_URL}, and declined deposits must use '${ragequitCmd}' to exit publicly to the original deposit address.`;
   }
 }
 

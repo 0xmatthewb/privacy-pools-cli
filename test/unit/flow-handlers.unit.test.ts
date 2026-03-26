@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "b
 import type { Command } from "commander";
 
 const realErrors = await import("../../src/utils/errors.ts");
+const realMode = await import("../../src/utils/mode.ts");
 
 const ctx = { mode: "test" };
 const startSnapshot = { workflowId: "wf-start", phase: "awaiting_asp" };
@@ -11,6 +12,7 @@ const ragequitSnapshot = {
   workflowId: "wf-ragequit",
   phase: "completed_public_recovery",
 };
+class MockFlowCancelledError extends Error {}
 
 const createOutputContextMock = mock(() => ctx);
 const renderFlowResultMock = mock(() => undefined);
@@ -61,13 +63,14 @@ beforeAll(async () => {
     renderFlowResult: renderFlowResultMock,
   }));
   mock.module("../../src/services/workflow.ts", () => ({
-    FlowCancelledError: class FlowCancelledError extends Error {},
+    FlowCancelledError: MockFlowCancelledError,
     getWorkflowStatus: getWorkflowStatusMock,
     ragequitWorkflow: ragequitWorkflowMock,
     startWorkflow: startWorkflowMock,
     watchWorkflow: watchWorkflowMock,
   }));
   mock.module("../../src/utils/mode.ts", () => ({
+    ...realMode,
     resolveGlobalMode: resolveGlobalModeMock,
   }));
   mock.module("../../src/utils/errors.ts", () => ({
@@ -146,6 +149,75 @@ describe("flow command handlers", () => {
       "Missing required --to <address>.",
     );
     expect(isJson).toBe(true);
+  });
+
+  test("start rejects --export-new-wallet without --new-wallet before calling the service", async () => {
+    const cmd = fakeCommand({ json: true });
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+        exportNewWallet: "/tmp/flow-wallet.txt",
+      },
+      cmd,
+    );
+
+    expect(startWorkflowMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
+      "--export-new-wallet requires --new-wallet.",
+    );
+    expect(isJson).toBe(true);
+  });
+
+  test("JSON mode converts flow cancellation into a structured INPUT error", async () => {
+    startWorkflowMock.mockImplementationOnce(async () => {
+      throw new MockFlowCancelledError("Flow cancelled.");
+    });
+    const cmd = fakeCommand({ json: true });
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+      },
+      cmd,
+    );
+
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
+      "Flow cancelled.",
+    );
+    expect((error as InstanceType<typeof realErrors.CLIError>).category).toBe(
+      "INPUT",
+    );
+    expect(isJson).toBe(true);
+  });
+
+  test("human mode swallows flow cancellation without rendering or printing an error", async () => {
+    startWorkflowMock.mockImplementationOnce(async () => {
+      throw new MockFlowCancelledError("Flow cancelled.");
+    });
+    const cmd = fakeCommand({});
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+      },
+      cmd,
+    );
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).not.toHaveBeenCalled();
   });
 
   test("watch delegates to the workflow service and renders the snapshot", async () => {

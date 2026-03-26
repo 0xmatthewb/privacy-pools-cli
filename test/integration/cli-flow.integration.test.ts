@@ -41,6 +41,39 @@ describe("flow command", () => {
     expect(json.error.hint).toContain("privacy-pools flow start <amount> <asset> --to");
   });
 
+  test("flow start rejects --export-new-wallet without --new-wallet", () => {
+    const result = runCli(
+      [
+        "--json",
+        "flow",
+        "start",
+        "0.1",
+        "ETH",
+        "--to",
+        "0x4444444444444444444444444444444444444444",
+        "--export-new-wallet",
+        "/tmp/flow-wallet.txt",
+      ],
+      {
+        home: createTempHome(),
+        timeoutMs: 10_000,
+      },
+    );
+
+    expect(result.status).toBe(2);
+    const json = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      errorMessage: string;
+      error: { hint?: string };
+    }>(result.stdout);
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toBe("--export-new-wallet requires --new-wallet.");
+    expect(json.error.hint).toContain("--new-wallet");
+  });
+
   test("flow status errors cleanly when no saved workflow exists", () => {
     const result = runCli(["--json", "flow", "status"], {
       home: createTempHome(),

@@ -738,6 +738,91 @@ describe("workflow service mocked coverage", () => {
     ).rejects.toThrow("Non-interactive workflow wallets require --export-new-wallet");
   });
 
+  test("flow start rejects --export-new-wallet without --new-wallet", async () => {
+    await expect(
+      startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        exportNewWallet: join(state.tempHome, "workflow-wallet.txt"),
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("--export-new-wallet requires --new-wallet");
+  });
+
+  test("new-wallet flows reject backup paths whose parent directory is missing", async () => {
+    const backupPath = join(state.tempHome, "missing", "workflow-wallet.txt");
+
+    await expect(
+      startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        exportNewWallet: backupPath,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("Workflow wallet backup directory does not exist");
+
+    expect(existsSync(backupPath)).toBe(false);
+    const secretsDir = realConfig.getWorkflowSecretsDir();
+    expect(
+      existsSync(secretsDir) ? readdirSync(secretsDir) : [],
+    ).toHaveLength(0);
+  });
+
+  test("new-wallet flows reject existing backup targets without overwriting them", async () => {
+    const backupPath = join(state.tempHome, "workflow-wallet.txt");
+    writeFileSync(backupPath, "do not overwrite", "utf8");
+
+    await expect(
+      startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        exportNewWallet: backupPath,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("Workflow wallet backup file already exists");
+
+    expect(readFileSync(backupPath, "utf8")).toBe("do not overwrite");
+    const secretsDir = realConfig.getWorkflowSecretsDir();
+    expect(
+      existsSync(secretsDir) ? readdirSync(secretsDir) : [],
+    ).toHaveLength(0);
+  });
+
   test("new-wallet setup does not write secrets or backups before readiness checks pass", async () => {
     state.gasPriceError = true;
     const backupPath = join(state.tempHome, "workflow-wallet.txt");

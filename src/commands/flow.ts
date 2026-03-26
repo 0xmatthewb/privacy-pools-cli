@@ -32,6 +32,25 @@ function getRootGlobalOptions(cmd: Command): GlobalOptions {
   return cmd.parent?.parent?.opts() as GlobalOptions;
 }
 
+function flowCancelledCliError(): CLIError {
+  return new CLIError(
+    "Flow cancelled.",
+    "INPUT",
+    "Re-run the flow command when you are ready to continue.",
+  );
+}
+
+function handleFlowCommandError(error: unknown, json: boolean): void {
+  if (error instanceof FlowCancelledError) {
+    if (json) {
+      printError(flowCancelledCliError(), true);
+    }
+    return;
+  }
+
+  printError(error, json);
+}
+
 export async function handleFlowStartCommand(
   amount: string,
   asset: string,
@@ -52,6 +71,14 @@ export async function handleFlowStartCommand(
       );
     }
 
+    if (!opts.newWallet && opts.exportNewWallet?.trim()) {
+      throw new CLIError(
+        "--export-new-wallet requires --new-wallet.",
+        "INPUT",
+        "Re-run with --new-wallet to generate a dedicated workflow wallet, or remove --export-new-wallet.",
+      );
+    }
+
     const snapshot = await startWorkflow({
       amountInput: amount,
       assetInput: asset,
@@ -69,10 +96,7 @@ export async function handleFlowStartCommand(
       snapshot,
     });
   } catch (error) {
-    if (error instanceof FlowCancelledError) {
-      return;
-    }
-    printError(error, mode.isJson);
+    handleFlowCommandError(error, mode.isJson);
   }
 }
 
@@ -99,7 +123,7 @@ export async function handleFlowRagequitCommand(
       snapshot,
     });
   } catch (error) {
-    printError(error, mode.isJson);
+    handleFlowCommandError(error, mode.isJson);
   }
 }
 
@@ -126,7 +150,7 @@ export async function handleFlowWatchCommand(
       snapshot,
     });
   } catch (error) {
-    printError(error, mode.isJson);
+    handleFlowCommandError(error, mode.isJson);
   }
 }
 
@@ -147,6 +171,6 @@ export async function handleFlowStatusCommand(
       snapshot,
     });
   } catch (error) {
-    printError(error, mode.isJson);
+    handleFlowCommandError(error, mode.isJson);
   }
 }

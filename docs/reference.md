@@ -81,11 +81,12 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 |------|-------------|
 | `-t, --to <address>` | Recipient address for the later private withdrawal |
 | `--new-wallet` | Create and use a dedicated wallet for this workflow |
-| `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing |
+| `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
 | `--watch` | Keep watching this workflow until it reaches a terminal state |
 
 **Safety:** The deposit is still public and reviewed by the ASP before private withdrawal is possible.
 **Safety:** In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.
+**Safety:** --export-new-wallet is only valid with --new-wallet.
 **Safety:** Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.
 **Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
 

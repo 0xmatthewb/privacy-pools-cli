@@ -5,11 +5,12 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   calculateContext,
   generateMerkleProof,
@@ -381,13 +382,100 @@ function writePrivateJsonFile(filePath: string, payload: unknown): void {
 
 function writePrivateTextFile(filePath: string, content: string): void {
   const tmpPath = `${filePath}.tmp`;
-  writeFileSync(tmpPath, content, { encoding: "utf-8", mode: 0o600 });
-  renameSync(tmpPath, filePath);
   try {
-    chmodSync(filePath, 0o600);
-  } catch {
-    // Best effort. Some filesystems may not support chmod.
+    writeFileSync(tmpPath, content, { encoding: "utf-8", mode: 0o600 });
+    renameSync(tmpPath, filePath);
+    try {
+      chmodSync(filePath, 0o600);
+    } catch {
+      // Best effort. Some filesystems may not support chmod.
+    }
+  } catch (error) {
+    try {
+      unlinkSync(tmpPath);
+    } catch {
+      // Best effort cleanup of the temporary backup file.
+    }
+    throw new CLIError(
+      `Could not write workflow wallet backup to ${filePath}.`,
+      "INPUT",
+      error instanceof Error
+        ? `Check that the parent directory exists, the target file does not already exist, and the location is writable. Original error: ${error.message}`
+        : "Check that the parent directory exists, the target file does not already exist, and the location is writable.",
+    );
   }
+}
+
+function validateWorkflowWalletBackupPath(filePath: string): string {
+  const normalizedPath = filePath.trim();
+  if (!normalizedPath) {
+    throw new CLIError(
+      "Workflow wallet backup path cannot be empty.",
+      "INPUT",
+      "Provide a non-empty file path with --export-new-wallet <path>.",
+    );
+  }
+
+  const parentDir = dirname(normalizedPath);
+  if (!existsSync(parentDir)) {
+    throw new CLIError(
+      `Workflow wallet backup directory does not exist: ${parentDir}`,
+      "INPUT",
+      "Create the parent directory first or choose an existing location for --export-new-wallet.",
+    );
+  }
+
+  let parentStats;
+  try {
+    parentStats = statSync(parentDir);
+  } catch (error) {
+    throw new CLIError(
+      `Could not inspect workflow wallet backup directory: ${parentDir}`,
+      "INPUT",
+      error instanceof Error
+        ? `Check that ${parentDir} is accessible, then retry. Original error: ${error.message}`
+        : `Check that ${parentDir} is accessible, then retry.`,
+    );
+  }
+
+  if (!parentStats.isDirectory()) {
+    throw new CLIError(
+      `Workflow wallet backup parent is not a directory: ${parentDir}`,
+      "INPUT",
+      "Choose a file path whose parent directory already exists.",
+    );
+  }
+
+  if (!existsSync(normalizedPath)) {
+    return normalizedPath;
+  }
+
+  let targetStats;
+  try {
+    targetStats = statSync(normalizedPath);
+  } catch (error) {
+    throw new CLIError(
+      `Could not inspect workflow wallet backup target: ${normalizedPath}`,
+      "INPUT",
+      error instanceof Error
+        ? `Check that ${normalizedPath} is accessible, then retry. Original error: ${error.message}`
+        : `Check that ${normalizedPath} is accessible, then retry.`,
+    );
+  }
+
+  if (targetStats.isDirectory()) {
+    throw new CLIError(
+      `Workflow wallet backup path must point to a file, not a directory: ${normalizedPath}`,
+      "INPUT",
+      "Choose a file path for --export-new-wallet instead of an existing directory.",
+    );
+  }
+
+  throw new CLIError(
+    `Workflow wallet backup file already exists: ${normalizedPath}`,
+    "INPUT",
+    "Choose a new --export-new-wallet path or remove the existing file before retrying.",
+  );
 }
 
 function persistWorkflowSnapshot(snapshot: FlowSnapshot): void {
@@ -757,19 +845,19 @@ function sleep(ms: number): Promise<void> {
 
 function classifyFlowMutation(current: FlowSnapshot, poolAccount: PoolAccountRef | undefined): FlowPhase | null {
   if (!poolAccount) {
-    return current.phase === "withdrawing" ? "stopped_external" : "stopped_external";
+    return "stopped_external";
   }
 
   if (poolAccount.status === "spent" || poolAccount.status === "exited") {
-    return current.phase === "withdrawing" ? "stopped_external" : "stopped_external";
+    return "stopped_external";
   }
 
   if (current.committedValue && poolAccount.value.toString() !== current.committedValue) {
-    return current.phase === "withdrawing" ? "stopped_external" : "stopped_external";
+    return "stopped_external";
   }
 
   if (current.depositLabel && poolAccount.label.toString() !== current.depositLabel) {
-    return current.phase === "withdrawing" ? "stopped_external" : "stopped_external";
+    return "stopped_external";
   }
 
   return null;
@@ -2406,7 +2494,9 @@ async function executeRagequitForFlow(params: {
   const tx = await submitRagequit(
     chainConfig,
     pool.pool,
-    toSolidityProof(proof as any),
+    toSolidityProof(
+      proof as unknown as Parameters<typeof toSolidityProof>[0],
+    ),
     globalOpts?.rpcUrl,
     signerPrivateKey,
   );
@@ -2439,17 +2529,19 @@ async function executeRagequitForFlow(params: {
   guardCriticalSection();
   try {
     try {
+      type RagequitRecord = Parameters<typeof accountService.addRagequitToAccount>[1];
+      const ragequitRecord: RagequitRecord = {
+        ragequitter: signerAddress,
+        commitment: commitment.hash,
+        label: commitment.label,
+        value: commitment.value,
+        blockNumber: receipt.blockNumber,
+        transactionHash: tx.hash as Hex,
+      } as unknown as RagequitRecord;
       withSuppressedSdkStdoutSync(() =>
         accountService.addRagequitToAccount(
           commitment.label as unknown as SDKHash,
-          {
-            ragequitter: signerAddress,
-            commitment: commitment.hash,
-            label: commitment.label,
-            value: commitment.value,
-            blockNumber: receipt.blockNumber,
-            transactionHash: tx.hash as Hex,
-          } as any,
+          ragequitRecord,
         ),
       );
       saveAccount(chainConfig.id, accountService.account);
@@ -2645,6 +2737,9 @@ async function setupNewWalletWorkflow(params: {
     globalOpts,
     silent,
   });
+  const validatedBackupPath = exportNewWallet?.trim()
+    ? validateWorkflowWalletBackupPath(exportNewWallet)
+    : null;
   const privateKey = generatePrivateKey();
   const account = privateKeyToAccount(privateKey);
   const now = workflowNow();
@@ -2661,7 +2756,7 @@ async function setupNewWalletWorkflow(params: {
   };
 
   if (skipPrompts) {
-    backupPath = exportNewWallet!.trim();
+    backupPath = validatedBackupPath!;
     writePrivateTextFile(backupPath, buildWorkflowWalletBackup(secretRecord));
     backupConfirmedAt = workflowNow();
   } else {
@@ -2669,8 +2764,8 @@ async function setupNewWalletWorkflow(params: {
     warn("A dedicated workflow wallet was created for this flow.", silent);
     info(`Workflow wallet: ${account.address}`, silent);
 
-    if (exportNewWallet?.trim()) {
-      backupPath = exportNewWallet.trim();
+    if (validatedBackupPath) {
+      backupPath = validatedBackupPath;
       writePrivateTextFile(backupPath, buildWorkflowWalletBackup(secretRecord));
       info(`Workflow wallet backup saved to ${backupPath}`, silent);
       warn(
@@ -2692,11 +2787,11 @@ async function setupNewWalletWorkflow(params: {
           message: "Save location:",
           default: defaultWorkflowWalletBackupPath(workflowId),
         });
+        backupPath = validateWorkflowWalletBackupPath(backupPath);
         writePrivateTextFile(
-          backupPath.trim(),
+          backupPath,
           buildWorkflowWalletBackup(secretRecord),
         );
-        backupPath = backupPath.trim();
         info(`Workflow wallet backup saved to ${backupPath}`, silent);
         warn(
           "The recovery key was written to that backup file. Keep it secure; anyone with that key can move workflow funds.",
@@ -2805,6 +2900,14 @@ export async function startWorkflow(
     );
   }
 
+  if (!newWallet && exportNewWallet?.trim()) {
+    throw new CLIError(
+      "--export-new-wallet requires --new-wallet.",
+      "INPUT",
+      "Re-run with --new-wallet to generate a dedicated workflow wallet, or remove --export-new-wallet.",
+    );
+  }
+
   const config = loadConfig();
   const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
   const pool = await resolvePool(chainConfig, assetInput, globalOpts?.rpcUrl);
@@ -2844,11 +2947,11 @@ export async function startWorkflow(
     const proceed = await confirm({
       message: "Proceed with this amount anyway?",
       default: false,
-        });
-        if (!proceed) {
-          throw new FlowCancelledError();
-        }
-      }
+    });
+    if (!proceed) {
+      throw new FlowCancelledError();
+    }
+  }
 
   const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
   const estimatedCommitted = amount - feeAmount;
