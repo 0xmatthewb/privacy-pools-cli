@@ -99,7 +99,7 @@ function parseCoverageByPrefix(prefix, coverageMap) {
   return {
     linesFound,
     linesHit,
-    percent: linesFound === 0 ? 100 : (linesHit / linesFound) * 100,
+    percent: linesFound === 0 ? 0 : (linesHit / linesFound) * 100,
   };
 }
 
@@ -262,7 +262,11 @@ try {
   const failures = [];
   for (const threshold of thresholds) {
     const stats = parseCoverageByPrefix(threshold.prefix, mergedCoverage);
-    if (stats.percent < threshold.min) {
+    if (stats.linesFound === 0) {
+      failures.push(
+        `${threshold.label}: no instrumented lines matched prefix ${threshold.prefix}`,
+      );
+    } else if (stats.percent < threshold.min) {
       failures.push(
         `${threshold.label}: ${stats.percent.toFixed(2)}% < ${threshold.min}% (${stats.linesHit}/${stats.linesFound})`
       );

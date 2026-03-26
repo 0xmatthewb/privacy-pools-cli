@@ -1,6 +1,13 @@
-import { beforeAll, describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { spawn, spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import {
   CLI_CWD,
@@ -11,9 +18,22 @@ import {
 } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { npmBin } from "../helpers/npm-bin.ts";
+import {
+  killSyncGateRpcServer,
+  launchSyncGateRpcServer,
+  type SyncGateRpcServer,
+} from "../helpers/sync-gate-rpc-server.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+import {
+  interruptChildProcess,
+  terminateChildProcess,
+} from "../helpers/process.ts";
+import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+
+const PACKAGED_SMOKE_POOL =
+  "0x1234567890abcdef1234567890abcdef12345678" as const;
 
 function packedBaseNames(paths: Set<string>, prefix: string): string[] {
   return Array.from(new Set(
@@ -191,16 +211,88 @@ function writeWorkflow(home: string, workflow: Record<string, unknown>): void {
   );
 }
 
+async function waitForCondition<T>(
+  label: string,
+  fn: () => T | null | undefined | Promise<T | null | undefined>,
+  timeoutMs: number = 15_000,
+  intervalMs: number = 100,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = await fn();
+    if (value !== null && value !== undefined) {
+      return value;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
+function loadLatestWorkflowSnapshot(home: string): Record<string, unknown> | null {
+  const workflowDir = join(home, ".privacy-pools", "workflows");
+  let files: string[];
+  try {
+    files = readdirSync(workflowDir)
+      .filter((entry) => entry.endsWith(".json"))
+      .sort();
+  } catch {
+    return null;
+  }
+
+  const latestFile = files.at(-1);
+  if (!latestFile) {
+    return null;
+  }
+
+  return JSON.parse(
+    readFileSync(join(workflowDir, latestFile), "utf8"),
+  ) as Record<string, unknown>;
+}
+
+async function waitForLatestWorkflowSnapshot(
+  home: string,
+  phase: string,
+  timeoutMs: number = 15_000,
+): Promise<Record<string, unknown>> {
+  return waitForCondition(
+    `workflow phase ${phase}`,
+    () => {
+      const snapshot = loadLatestWorkflowSnapshot(home);
+      return snapshot?.phase === phase ? snapshot : null;
+    },
+    timeoutMs,
+  );
+}
+
 describe("packaged CLI smoke", () => {
   let home: string;
   let packed: PackedArtifact;
   let packRoot: string;
+  let syncGateRpc: SyncGateRpcServer | null = null;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     packRoot = createBuiltWorkspaceSnapshot();
     packed = packAndExtractCli(packRoot);
     home = createTempHome("pp-smoke-dist-");
+    syncGateRpc = await launchSyncGateRpcServer({
+      chainId: CHAINS.sepolia.id,
+      entrypoint: CHAINS.sepolia.entrypoint,
+      poolAddress: PACKAGED_SMOKE_POOL,
+      scope: 12345n,
+      assetAddress: NATIVE_ASSET_ADDRESS,
+      assetSymbol: "ETH",
+      assetDecimals: 18,
+      gasPrice: 1n,
+      nativeBalance: 0n,
+      validDepositLog: true,
+    });
   }, 240_000);
+
+  afterAll(async () => {
+    if (syncGateRpc) {
+      await killSyncGateRpcServer(syncGateRpc);
+    }
+  });
 
   const runSmokeCli = (args: string[], options: CliRunOptions = {}) =>
     runPackagedCli(packed, args, options);
@@ -364,6 +456,78 @@ describe("packaged CLI smoke", () => {
   });
 
   describe("saved flow smoke", () => {
+    test("flow start --new-wallet persists an awaiting_funding workflow from the packed artifact", async () => {
+      const flowHome = createTempHome("pp-smoke-flow-start-");
+      const exportPath = join(flowHome, "workflow-wallet.txt");
+      const initResult = runSmokeCli(
+        ["--agent", "init", "--show-mnemonic", "--default-chain", "sepolia"],
+        { home: flowHome, timeoutMs: 60_000 },
+      );
+      expect(initResult.status).toBe(0);
+
+      const child = spawn(
+        "node",
+        [
+          packed.binPath,
+          "--agent",
+          "--chain",
+          "sepolia",
+          "--rpc-url",
+          syncGateRpc!.url,
+          "flow",
+          "start",
+          "0.1",
+          "ETH",
+          "--to",
+          "0x4444444444444444444444444444444444444444",
+          "--new-wallet",
+          "--export-new-wallet",
+          exportPath,
+        ],
+        {
+          cwd: packed.packageRoot,
+          env: buildChildProcessEnv({
+            PRIVACY_POOLS_HOME: join(flowHome, ".privacy-pools"),
+          }),
+          stdio: "ignore",
+        },
+      );
+
+      try {
+        const snapshot = await waitForLatestWorkflowSnapshot(flowHome, "awaiting_funding");
+        const backupText = await waitForCondition(
+          "workflow wallet backup",
+          () => (existsSync(exportPath) ? readFileSync(exportPath, "utf8") : null),
+        );
+        expect(backupText).toContain("Privacy Pools Flow Wallet");
+        expect(snapshot.workflowId).toBeTruthy();
+        expect(snapshot.phase).toBe("awaiting_funding");
+        expect(snapshot.walletMode).toBe("new_wallet");
+        expect(snapshot.backupConfirmed).toBe(true);
+        expect(snapshot.requiredNativeFunding).toBeTruthy();
+        expect(snapshot.depositTxHash).toBeNull();
+
+        await interruptChildProcess(child);
+
+        const statusResult = runSmokeCli(["--agent", "flow", "status", "latest"], {
+          home: flowHome,
+        });
+        expect(statusResult.status).toBe(0);
+        const statusJson = parseJsonOutput<{
+          success: boolean;
+          workflowId: string;
+          phase: string;
+          walletMode: string;
+        }>(statusResult.stdout);
+        expect(statusJson.success).toBe(true);
+        expect(statusJson.workflowId).toBe(snapshot.workflowId);
+        expect(statusJson.phase).toBe("awaiting_funding");
+        expect(statusJson.walletMode).toBe("new_wallet");
+      } finally {
+        await terminateChildProcess(child);
+      }
+    });
+
     test("flow status latest --agent reads the saved workflow from the packed artifact", () => {
       const flowHome = createTempHome("pp-smoke-flow-status-");
       writeWorkflow(flowHome, {

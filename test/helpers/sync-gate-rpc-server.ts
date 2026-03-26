@@ -40,6 +40,9 @@ interface SyncGateRpcConfig {
   assetAddress?: `0x${string}`;
   assetSymbol?: string;
   assetDecimals?: number;
+  gasPrice?: bigint;
+  nativeBalance?: bigint;
+  tokenBalance?: bigint;
   blockNumber?: bigint;
   minimumDepositAmount?: bigint;
   vettingFeeBPS?: bigint;
@@ -76,6 +79,9 @@ function parseConfigFromEnv(): SyncGateRpcConfig {
     assetAddress: process.env.PP_SYNC_RPC_ASSET as `0x${string}` | undefined,
     assetSymbol: process.env.PP_SYNC_RPC_SYMBOL ?? undefined,
     assetDecimals: Number(process.env.PP_SYNC_RPC_DECIMALS ?? "18"),
+    gasPrice: BigInt(process.env.PP_SYNC_RPC_GAS_PRICE ?? "1"),
+    nativeBalance: BigInt(process.env.PP_SYNC_RPC_NATIVE_BALANCE ?? "0"),
+    tokenBalance: BigInt(process.env.PP_SYNC_RPC_TOKEN_BALANCE ?? "0"),
     blockNumber: BigInt(process.env.PP_SYNC_RPC_BLOCK_NUMBER ?? "10000000"),
     minimumDepositAmount: BigInt(process.env.PP_SYNC_RPC_MIN_DEPOSIT ?? "1"),
     vettingFeeBPS: BigInt(process.env.PP_SYNC_RPC_VETTING_FEE_BPS ?? "0"),
@@ -170,6 +176,18 @@ async function route(
       );
       return;
 
+    case "eth_gasPrice":
+      writeRpcResult(res, id, `0x${(config.gasPrice ?? 1n).toString(16)}`);
+      return;
+
+    case "eth_getBalance":
+      writeRpcResult(
+        res,
+        id,
+        `0x${(config.nativeBalance ?? 0n).toString(16)}`
+      );
+      return;
+
     case "eth_call": {
       const call = Array.isArray(payload.params)
         ? payload.params[0] as { to?: string; data?: string } | undefined
@@ -224,6 +242,15 @@ async function route(
       }
 
       if (config.assetAddress && to === config.assetAddress.toLowerCase()) {
+        if (data.startsWith("0x70a08231")) {
+          writeRpcResult(
+            res,
+            id,
+            encodeAbiParameters([{ type: "uint256" }], [config.tokenBalance ?? 0n])
+          );
+          return;
+        }
+
         if (data.startsWith("0x95d89b41")) {
           writeRpcResult(
             res,
@@ -348,6 +375,9 @@ export function launchSyncGateRpcServer(
         PP_SYNC_RPC_DECIMALS: config.assetDecimals === undefined
           ? undefined
           : String(config.assetDecimals),
+        PP_SYNC_RPC_GAS_PRICE: config.gasPrice?.toString(),
+        PP_SYNC_RPC_NATIVE_BALANCE: config.nativeBalance?.toString(),
+        PP_SYNC_RPC_TOKEN_BALANCE: config.tokenBalance?.toString(),
         PP_SYNC_RPC_BLOCK_NUMBER: String(config.blockNumber ?? 10000000n),
         PP_SYNC_RPC_MIN_DEPOSIT: String(config.minimumDepositAmount ?? 1n),
         PP_SYNC_RPC_VETTING_FEE_BPS: String(config.vettingFeeBPS ?? 0n),
