@@ -5,8 +5,44 @@ import {
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
-import * as realConsoleGuard from "../../src/utils/console-guard.ts";
-import * as realHelp from "../../src/utils/help.ts";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+
+const realProgram = captureModuleExports(await import("../../src/program.ts"));
+const realBanner = captureModuleExports(
+  await import("../../src/utils/banner.ts"),
+);
+const realHelp = captureModuleExports(await import("../../src/utils/help.ts"));
+const realRootHelp = captureModuleExports(
+  await import("../../src/utils/root-help.ts"),
+);
+const realTheme = captureModuleExports(await import("../../src/utils/theme.ts"));
+const realDotenv = captureModuleExports(await import("dotenv"));
+const realStaticDiscovery = captureModuleExports(
+  await import("../../src/static-discovery.ts"),
+);
+const realCliMain = captureModuleExports(await import("../../src/cli-main.ts"));
+const realConsoleGuard = captureModuleExports(
+  await import("../../src/utils/console-guard.ts"),
+);
+const realUpdateCheck = captureModuleExports(
+  await import("../../src/utils/update-check.ts"),
+);
+
+const BOOTSTRAP_RUNTIME_MODULE_RESTORES = [
+  ["../../src/program.ts", realProgram],
+  ["../../src/utils/banner.ts", realBanner],
+  ["../../src/utils/help.ts", realHelp],
+  ["../../src/utils/root-help.ts", realRootHelp],
+  ["../../src/utils/theme.ts", realTheme],
+  ["dotenv", realDotenv],
+  ["../../src/static-discovery.ts", realStaticDiscovery],
+  ["../../src/cli-main.ts", realCliMain],
+  ["../../src/utils/console-guard.ts", realConsoleGuard],
+  ["../../src/utils/update-check.ts", realUpdateCheck],
+] as const;
 
 const ORIGINAL_ARGV = [...process.argv];
 const ORIGINAL_NO_COLOR = process.env.NO_COLOR;
@@ -108,7 +144,7 @@ afterEach(() => {
     process.env.CODESPACES = ORIGINAL_CODESPACES;
   }
   setTty(Boolean(ORIGINAL_STDOUT_IS_TTY), Boolean(ORIGINAL_STDERR_IS_TTY));
-  mock.restore();
+  restoreModuleImplementations(BOOTSTRAP_RUNTIME_MODULE_RESTORES);
 });
 
 describe("bootstrap runtime coverage", () => {

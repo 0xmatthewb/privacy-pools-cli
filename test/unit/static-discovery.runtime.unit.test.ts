@@ -3,6 +3,7 @@ import {
   runStaticCompletionQuery,
   runStaticDiscoveryCommand,
   runStaticRootHelp,
+  staticDiscoveryTestInternals,
 } from "../../src/static-discovery.ts";
 import {
   captureAsyncJsonOutput,
@@ -22,6 +23,117 @@ afterEach(() => {
 });
 
 describe("static discovery runtime", () => {
+  test("static discovery parser helpers cover fallback json and invalid option branches", () => {
+    expect(staticDiscoveryTestInternals.isKnownCompletionShell("bash")).toBe(
+      true,
+    );
+    expect(staticDiscoveryTestInternals.isKnownCompletionShell("elvish")).toBe(
+      false,
+    );
+    expect(
+      staticDiscoveryTestInternals.detectStaticCompletionShell("/bin/zsh"),
+    ).toBe("zsh");
+    expect(
+      staticDiscoveryTestInternals.detectStaticCompletionShell(
+        "/usr/local/bin/fish",
+      ),
+    ).toBe("fish");
+    const originalShell = process.env.SHELL;
+    delete process.env.SHELL;
+    expect(staticDiscoveryTestInternals.detectStaticCompletionShell()).toBe(
+      "bash",
+    );
+    if (originalShell === undefined) {
+      delete process.env.SHELL;
+    } else {
+      process.env.SHELL = originalShell;
+    }
+
+    expect(
+      staticDiscoveryTestInternals.fallbackJsonModeFromArgv([
+        "--format",
+        "json",
+      ]),
+    ).toBe(true);
+    expect(
+      staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--format=json"]),
+    ).toBe(true);
+    expect(
+      staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["-qj"]),
+    ).toBe(true);
+    expect(
+      staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--format", "csv"]),
+    ).toBe(false);
+    expect(
+      staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--verbose"]),
+    ).toBe(false);
+
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--bogus", undefined, {}),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-z", undefined, {}),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseShortFlagBundle("-qj", {}),
+    ).toEqual({
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseShortFlagBundle("-cz", {}),
+    ).toBeNull();
+  });
+
+  test("static discovery parsers reject malformed static and completion argv shapes", () => {
+    expect(staticDiscoveryTestInternals.parseStaticCommand(["--", "guide"])).toBe(
+      null,
+    );
+    expect(staticDiscoveryTestInternals.parseStaticCommand(["guide", "extra"])).toBe(
+      null,
+    );
+    expect(staticDiscoveryTestInternals.parseStaticCommand(["describe"])).toBe(
+      null,
+    );
+    expect(staticDiscoveryTestInternals.parseStaticCommand(["help", "guide"])).toBe(
+      null,
+    );
+
+    expect(
+      staticDiscoveryTestInternals.parseCompletionQuery(["completion"]),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseCompletionQuery([
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "fish",
+        "--",
+        "privacy-pools",
+      ]),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseCompletionQuery([
+        "completion",
+        "--query",
+        "bash",
+        "extra",
+        "--",
+        "privacy-pools",
+      ]),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseCompletionQuery([
+        "prelude",
+        "completion",
+        "--query",
+        "--",
+        "privacy-pools",
+      ]),
+    ).toBeNull();
+  });
+
   test("renders capabilities in human mode", async () => {
     const { stdout, stderr } = await captureAsyncOutput(async () => {
       const handled = await runStaticDiscoveryCommand(["capabilities"]);
@@ -481,6 +593,42 @@ describe("static discovery runtime", () => {
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
     expect(stderr).toContain("--format csv is not supported for 'completion'");
+  });
+
+  test("rejects conflicting completion shell declarations and keeps empty human completions silent", async () => {
+    const mismatch = await captureAsyncOutputAllowExit(async () => {
+      const handled = await runStaticCompletionQuery([
+        "--json",
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "zsh",
+        "--",
+        "privacy-pools",
+      ]);
+      expect(handled).toBe(false);
+    });
+    expect(mismatch.exitCode).toBeNull();
+    expect(mismatch.stdout).toBe("");
+    expect(mismatch.stderr).toBe("");
+
+    const noCandidates = await captureAsyncOutput(async () => {
+      const handled = await runStaticCompletionQuery([
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "1",
+        "--",
+        "privacy-pools",
+        "zzzz",
+      ]);
+      expect(handled).toBe(true);
+    });
+    expect(noCandidates.stdout).toBe("");
+    expect(noCandidates.stderr).toBe("");
   });
 
   test("renders styled human root help", async () => {

@@ -615,3 +615,14 @@ export async function runStaticRootHelp(isMachineMode: boolean): Promise<void> {
     `${styleCommanderHelp(rootHelpBaseText())}\n${rootHelpFooter()}\n`,
   );
 }
+
+export const staticDiscoveryTestInternals = {
+  isKnownCompletionShell,
+  detectStaticCompletionShell,
+  fallbackJsonModeFromArgv,
+  parseLongOption,
+  parseShortOption,
+  parseShortFlagBundle,
+  parseStaticCommand,
+  parseCompletionQuery,
+};
