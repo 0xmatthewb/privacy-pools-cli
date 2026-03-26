@@ -176,6 +176,7 @@ describe("circuits service", () => {
     const manifest = sharedChecksumManifest as Record<string, Record<string, string>>;
 
     expect(manifest[installedSdkTag()]).toBeDefined();
+    expect(Object.keys(manifest)).toEqual([installedSdkTag()]);
     expect(Object.keys(manifest[installedSdkTag()])).toEqual([...ALL_FILES]);
   });
 });
