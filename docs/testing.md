@@ -12,9 +12,9 @@ This repository uses a Bun-aligned test architecture. The important constraint i
   - Use strict outbound stub registries around RPC, ASP, relayer, and child-process boundaries and fail closed on unexpected or unused calls.
 - `test/acceptance/`
   - Typed CLI journey tests built on `test/acceptance/framework.ts` and `test/helpers/test-world.ts`.
-  - These are the primary home for broad subprocess-driven command contracts such as stream separation, JSON envelopes, fail-closed UX, and filesystem side effects.
+  - These are the primary home for broad subprocess-driven command contracts such as help/version/welcome flows, stream separation, JSON envelopes, fail-closed UX, and filesystem side effects.
 - `test/integration/`
-  - Hand-written subprocess suites that still cover built/package/runtime boundaries, cross-platform concerns, environment trust boundaries, and cases not yet migrated to acceptance.
+  - Hand-written subprocess suites that still cover built/package/runtime boundaries, cross-platform concerns, environment trust boundaries, and offline pipeline boundaries that acceptance should not own.
   - Once an integration suite has a contract-equivalent acceptance replacement, exclude the legacy integration file from the default lane via `scripts/test-suite-manifest.mjs`.
 - `test/fuzz/`
   - Cheap machine-safety invariants for parsing, error normalization, output contracts, and proof serialization helpers.
