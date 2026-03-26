@@ -50,8 +50,6 @@ jobs:
     name: validate
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      PP_ANVIL_FORK_URL: ${{ secrets.PP_ANVIL_FORK_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6

@@ -37,19 +37,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
 
+      - name: Select conformance-core
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job conformance-core >> "$GITHUB_OUTPUT"
+
+      - name: Skip conformance-core
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "Skipping conformance-core: ${{ steps.select.outputs.reason }}"
+
       - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.11"
 
       - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Run conformance tests
+        if: steps.select.outputs.should_run == 'true'
         run: npm run test:conformance

@@ -6,11 +6,11 @@
 #
 # WHAT does it do?
 #   Six independent jobs run in parallel:
-#     1. linux-core  — typechecks, builds, and runs the default fast suite
+#     1. linux-core  — shards the default fast suite across exact file lists
 #     2. packaged-smoke — builds the npm package and runs smoke tests
 #        against the packed tarball (catches packaging mistakes)
 #     3. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
-#        against a forked local chain via Anvil
+#        against the self-contained local Anvil fixture
 #     4. coverage-guard — enforces coverage floors for key source directories
 #     5. evals — runs machine-facing eval fixtures
 #     6. conformance-core — checks required protocol/docs conformance
@@ -42,19 +42,34 @@ jobs:
   # Job 1: typecheck + build + unit/integration tests on Linux
   # -----------------------------------------------------------
   linux-core:
-    name: linux-core
+    name: linux-core (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
 
+      - name: Select linux-core
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job linux-core >> "$GITHUB_OUTPUT"
+
+      - name: Skip linux-core
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "Skipping linux-core: ${{ steps.select.outputs.reason }}"
+
       - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.11"
@@ -62,16 +77,20 @@ jobs:
       # --frozen-lockfile ensures CI uses the exact same dependency
       # versions you committed, instead of quietly upgrading anything.
       - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Typecheck
+        if: steps.select.outputs.should_run == 'true' && matrix.shard == 1
         run: npm run typecheck
 
       - name: Build
+        if: steps.select.outputs.should_run == 'true' && matrix.shard == 1
         run: npm run build
 
-      - name: Test core suite
-        run: npm test
+      - name: Test core suite shard
+        if: steps.select.outputs.should_run == 'true'
+        run: node scripts/ci/test-shards.mjs --run --index ${{ matrix.shard }} --count 3 -- --smol
 
   # -----------------------------------------------------------
   # Job 2: package the CLI and run smoke tests against it
@@ -89,58 +108,84 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Select packaged-smoke
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job packaged-smoke >> "$GITHUB_OUTPUT"
+
+      - name: Skip packaged-smoke
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "Skipping packaged-smoke: ${{ steps.select.outputs.reason }}"
+
       - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.11"
 
       - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Build package
+        if: steps.select.outputs.should_run == 'true'
         run: npm run build
 
       - name: Run packaged smoke tests
+        if: steps.select.outputs.should_run == 'true'
         run: npm run test:smoke
 
   # -----------------------------------------------------------
-  # Job 3: forked-chain happy-path smoke coverage via Anvil
+  # Job 3: self-contained happy-path smoke coverage via Anvil
   # -----------------------------------------------------------
   anvil-e2e-smoke:
     name: anvil-e2e-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    env:
-      PP_ANVIL_FORK_URL: ${{ secrets.PP_ANVIL_FORK_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
 
+      - name: Select anvil-e2e-smoke
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job anvil-e2e-smoke >> "$GITHUB_OUTPUT"
+
+      - name: Skip anvil-e2e-smoke
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "Skipping anvil-e2e-smoke: ${{ steps.select.outputs.reason }}"
+
       - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.11"
 
       - name: Install Foundry
+        if: steps.select.outputs.should_run == 'true'
         uses: foundry-rs/foundry-toolchain@v1
         with:
           cache: true
 
       - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Run Anvil happy-path smoke tests
+        if: steps.select.outputs.should_run == 'true'
         run: npm run test:e2e:anvil:smoke
 
   # -----------------------------------------------------------
@@ -153,21 +198,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
 
+      - name: Select coverage-guard
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job coverage-guard >> "$GITHUB_OUTPUT"
+
+      - name: Skip coverage-guard
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "Skipping coverage-guard: ${{ steps.select.outputs.reason }}"
+
       - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.11"
 
       - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Enforce coverage thresholds
+        if: steps.select.outputs.should_run == 'true'
         run: npm run test:coverage
 
   # -----------------------------------------------------------
@@ -180,21 +238,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
 
+      - name: Select evals
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job evals >> "$GITHUB_OUTPUT"
+
+      - name: Skip evals
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "Skipping evals: ${{ steps.select.outputs.reason }}"
+
       - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.11"
 
       - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Run eval suites
+        if: steps.select.outputs.should_run == 'true'
         run: npm run test:evals
 
   # -----------------------------------------------------------
@@ -207,19 +278,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
 
+      - name: Select conformance-core
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job conformance-core >> "$GITHUB_OUTPUT"
+
+      - name: Skip conformance-core
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "Skipping conformance-core: ${{ steps.select.outputs.reason }}"
+
       - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.11"
 
       - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Run core conformance
+        if: steps.select.outputs.should_run == 'true'
         run: npm run test:conformance

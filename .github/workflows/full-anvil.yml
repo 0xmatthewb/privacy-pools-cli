@@ -1,4 +1,4 @@
-# Full Anvil — informative end-to-end coverage for the full forked-chain matrix.
+# Full Anvil — informative end-to-end coverage for the full local-fixture matrix.
 #
 # WHEN does this run?
 #   - Every pull request targeting "main"
@@ -42,29 +42,41 @@ jobs:
     name: anvil-e2e-full
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      PP_ANVIL_FORK_URL: ${{ secrets.PP_ANVIL_FORK_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
 
+      - name: Select full-anvil
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job full-anvil >> "$GITHUB_OUTPUT"
+
+      - name: Skip full-anvil
+        if: steps.select.outputs.should_run != 'true'
+        run: echo "Skipping full-anvil: ${{ steps.select.outputs.reason }}"
+
       - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.11"
 
       - name: Install Foundry
+        if: steps.select.outputs.should_run == 'true'
         uses: foundry-rs/foundry-toolchain@v1
         with:
           cache: true
 
       - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
       - name: Run full Anvil end-to-end suite
+        if: steps.select.outputs.should_run == 'true'
         run: npm run test:e2e:anvil
