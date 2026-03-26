@@ -8,6 +8,20 @@ export interface ChildProcessResult {
   stderr: string;
 }
 
+export function registerProcessExitCleanup(proc: ChildProcess): () => void {
+  const onExit = () => {
+    if (proc.exitCode === null && proc.signalCode === null) {
+      proc.kill();
+    }
+  };
+
+  process.once("exit", onExit);
+
+  return () => {
+    process.off("exit", onExit);
+  };
+}
+
 export async function terminateChildProcess(
   proc: ChildProcess,
   timeoutMs: number = 2_000,

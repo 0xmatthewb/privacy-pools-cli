@@ -4,7 +4,10 @@ import { resolve } from "node:path";
 import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { buildChildProcessEnv } from "./child-env.ts";
-import { terminateChildProcess } from "./process.ts";
+import {
+  registerProcessExitCleanup,
+  terminateChildProcess,
+} from "./process.ts";
 
 export interface AnvilRelayerConfig {
   chainId: number;
@@ -26,6 +29,7 @@ export interface AnvilRelayerServer {
   proc: ChildProcess;
   port: number;
   url: string;
+  cleanup?: () => void;
 }
 
 const entrypointRelayAbi = parseAbi([
@@ -256,9 +260,11 @@ export function launchAnvilRelayerServer(
       }),
       stdio: ["ignore", "pipe", "ignore"],
     });
+    const cleanupProcessExit = registerProcessExitCleanup(proc);
 
     let output = "";
     const timeout = setTimeout(() => {
+      cleanupProcessExit();
       proc.kill();
       reject(new Error("Anvil relayer server did not start within 10s"));
     }, 10_000);
@@ -272,28 +278,31 @@ export function launchAnvilRelayerServer(
         proc.stdout?.removeAllListeners("data");
         proc.stdout?.destroy();
         proc.unref();
-        process.once("exit", () => {
-          if (proc.exitCode === null && proc.signalCode === null) {
-            proc.kill();
-          }
+        resolveLaunch({
+          proc,
+          port,
+          url: `http://127.0.0.1:${port}`,
+          cleanup: cleanupProcessExit,
         });
-        resolveLaunch({ proc, port, url: `http://127.0.0.1:${port}` });
       }
     });
 
     proc.on("error", (error) => {
       clearTimeout(timeout);
+      cleanupProcessExit();
       reject(error);
     });
 
     proc.on("exit", (code) => {
       clearTimeout(timeout);
+      cleanupProcessExit();
       reject(new Error(`Anvil relayer server exited early with code ${code}`));
     });
   });
 }
 
 export async function killAnvilRelayerServer(server: AnvilRelayerServer): Promise<void> {
+  server.cleanup?.();
   await terminateChildProcess(server.proc);
 }
 

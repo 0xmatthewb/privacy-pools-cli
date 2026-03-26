@@ -4,12 +4,16 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { buildChildProcessEnv } from "./child-env.ts";
-import { terminateChildProcess } from "./process.ts";
+import {
+  registerProcessExitCleanup,
+  terminateChildProcess,
+} from "./process.ts";
 
 export interface AnvilInstance {
   proc: ChildProcess;
   port: number;
   url: string;
+  cleanup?: () => void;
 }
 
 interface LaunchAnvilOptions {
@@ -132,6 +136,7 @@ export async function launchAnvil(
     stdio: ["ignore", "ignore", "pipe"],
     env: buildChildProcessEnv(),
   });
+  const cleanupProcessExit = registerProcessExitCleanup(proc);
   const spawnFailure = new Promise<never>((_, reject) => {
     proc.once("error", reject);
   });
@@ -147,6 +152,7 @@ export async function launchAnvil(
   try {
     await Promise.race([waitForRpc(url), spawnFailure]);
   } catch (error) {
+    cleanupProcessExit();
     proc.kill();
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       throw new Error(
@@ -170,16 +176,12 @@ export async function launchAnvil(
   proc.stderr?.removeAllListeners("data");
   proc.stderr?.destroy();
   proc.unref();
-  process.once("exit", () => {
-    if (proc.exitCode === null && proc.signalCode === null) {
-      proc.kill();
-    }
-  });
 
-  return { proc, port, url };
+  return { proc, port, url, cleanup: cleanupProcessExit };
 }
 
 export async function killAnvil(anvil: AnvilInstance): Promise<void> {
+  anvil.cleanup?.();
   await terminateChildProcess(anvil.proc);
 }
 

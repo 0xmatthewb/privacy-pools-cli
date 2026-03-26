@@ -23,7 +23,10 @@ import { resolve } from "node:path";
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
-import { terminateChildProcess } from "./process.ts";
+import {
+  registerProcessExitCleanup,
+  terminateChildProcess,
+} from "./process.ts";
 
 // ── Canned response data ─────────────────────────────────────────────────────
 
@@ -332,6 +335,7 @@ export interface FixtureServer {
   proc: ChildProcess;
   port: number;
   url: string;
+  cleanup?: () => void;
 }
 
 /**
@@ -347,9 +351,11 @@ export function launchFixtureServer(): Promise<FixtureServer> {
       detached: false,
       env: buildChildProcessEnv(),
     });
+    const cleanupProcessExit = registerProcessExitCleanup(proc);
 
     let output = "";
     const timeout = setTimeout(() => {
+      cleanupProcessExit();
       proc.kill();
       reject(new Error("Fixture server did not start within 10s"));
     }, 10_000);
@@ -363,22 +369,24 @@ export function launchFixtureServer(): Promise<FixtureServer> {
         proc.stdout?.removeAllListeners("data");
         proc.stdout?.destroy();
         proc.unref();
-        process.once("exit", () => {
-          if (proc.exitCode === null && proc.signalCode === null) {
-            proc.kill();
-          }
+        resolve({
+          proc,
+          port,
+          url: `http://127.0.0.1:${port}`,
+          cleanup: cleanupProcessExit,
         });
-        resolve({ proc, port, url: `http://127.0.0.1:${port}` });
       }
     });
 
     proc.on("error", (err) => {
       clearTimeout(timeout);
+      cleanupProcessExit();
       reject(err);
     });
 
     proc.on("exit", (code) => {
       clearTimeout(timeout);
+      cleanupProcessExit();
       reject(new Error(`Fixture server exited early with code ${code}`));
     });
   });
@@ -388,6 +396,7 @@ export function launchFixtureServer(): Promise<FixtureServer> {
  * Stop a fixture server launched by `launchFixtureServer`.
  */
 export async function killFixtureServer(fixture: FixtureServer): Promise<void> {
+  fixture.cleanup?.();
   await terminateChildProcess(fixture.proc);
 }
 
