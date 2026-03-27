@@ -150,6 +150,16 @@ describe("ci job selection", () => {
     expect(sharedInstallDecision.reason).toContain(
       "scripts/lib/install-verification.mjs",
     );
+
+    const fixtureDecision = evaluateJobSelection({
+      job: "supported-native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/release-install-asp-fixture.mjs"],
+    });
+    expect(fixtureDecision.shouldRun).toBe(true);
+    expect(fixtureDecision.reason).toContain(
+      "scripts/release-install-asp-fixture.mjs",
+    );
   });
 
   test("anvil smoke runs when installed-cli anvil verification changes", () => {

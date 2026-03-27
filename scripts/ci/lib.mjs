@@ -84,6 +84,7 @@ const JOB_RULES = {
     "scripts/clean-dist.mjs",
     "scripts/pack-native-tarball.mjs",
     "scripts/prepare-native-package.mjs",
+    "scripts/release-install-asp-fixture.mjs",
     "scripts/verify-release-install.mjs",
     "scripts/verify-packed-native-package.mjs",
     "scripts/lib/install-verification.mjs",
