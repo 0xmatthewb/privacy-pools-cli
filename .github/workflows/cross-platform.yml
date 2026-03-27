@@ -38,7 +38,7 @@ concurrency:
 
 jobs:
   smoke-matrix:
-    name: smoke-${{ matrix.label }}
+    name: smoke-${{ matrix.label }}-node-${{ matrix.node-version }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
 
@@ -47,6 +47,9 @@ jobs:
       # the full picture of which platforms pass and which don't.
       fail-fast: false
       matrix:
+        node-version:
+          - "22.x"
+          - "25.x"
         include:
           - label: linux-x64-gnu
             runner: ubuntu-latest
@@ -68,7 +71,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25.x"
+          node-version: ${{ matrix.node-version }}
 
       - name: Select cross-platform
         id: select

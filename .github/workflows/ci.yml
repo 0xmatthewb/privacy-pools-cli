@@ -218,12 +218,15 @@ jobs:
         run: npm run test:smoke:native
 
   supported-native-smoke:
-    name: supported-native-smoke-${{ matrix.label }}
+    name: supported-native-smoke-${{ matrix.label }}-node-${{ matrix.node-version }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
+        node-version:
+          - "22.x"
+          - "25.x"
         include:
           - label: linux-x64-gnu
             runner: ubuntu-latest
@@ -244,7 +247,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25.x"
+          node-version: ${{ matrix.node-version }}
 
       - name: Select supported-native-smoke
         id: select
