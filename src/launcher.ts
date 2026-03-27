@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { readFileSync } from "node:fs";
@@ -34,6 +35,11 @@ const SIGNAL_EXIT_CODES: Partial<Record<NodeJS.Signals, number>> = {
 interface NativePackageJson {
   version?: string;
   bin?: string | Record<string, string>;
+  privacyPoolsCliNative?: {
+    sha256?: string;
+    protocolVersion?: string;
+    triplet?: string;
+  };
 }
 
 export interface LaunchTarget {
@@ -94,6 +100,23 @@ function resolvePackageBinPath(
   return resolve(dirname(packageJsonPath), binEntry);
 }
 
+function sha256File(path: string): string {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function hasValidInstalledNativeChecksum(
+  packageJson: NativePackageJson,
+  binaryPath: string,
+): boolean {
+  const expected = packageJson.privacyPoolsCliNative?.sha256?.trim();
+  if (!expected) return false;
+  try {
+    return sha256File(binaryPath) === expected;
+  } catch {
+    return false;
+  }
+}
+
 export function resolveInstalledNativeBinary(
   pkg: CliPackageInfo,
   options: {
@@ -121,7 +144,13 @@ export function resolveInstalledNativeBinary(
       return null;
     }
 
-    return resolvePackageBinPath(packageJsonPath, packageJson);
+    const binaryPath = resolvePackageBinPath(packageJsonPath, packageJson);
+    if (!binaryPath) return null;
+    if (!hasValidInstalledNativeChecksum(packageJson, binaryPath)) {
+      return null;
+    }
+
+    return binaryPath;
   } catch {
     return null;
   }
@@ -318,6 +347,7 @@ export const launcherTestInternals = {
   createJsWorkerTarget,
   defaultJsWorkerPath,
   isFlagEnabled,
+  hasValidInstalledNativeChecksum,
   nativePackageName,
   nativeTriplet,
   resolveInstalledNativeBinary,

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -64,7 +65,12 @@ describe("launcher routing", () => {
     const tempDir = mkdtempSync(join(tmpdir(), "pp-native-pkg-"));
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools");
     mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
     writeFileSync(
       packageJsonPath,
       JSON.stringify({
@@ -72,10 +78,14 @@ describe("launcher routing", () => {
         bin: {
           "privacy-pools": "bin/privacy-pools",
         },
+        privacyPoolsCliNative: {
+          sha256,
+          protocolVersion: "1",
+          triplet: "darwin-arm64",
+        },
       }),
       "utf8",
     );
-    writeFileSync(join(binDir, "privacy-pools"), "", "utf8");
 
     try {
       expect(
@@ -84,7 +94,7 @@ describe("launcher routing", () => {
           arch: "arm64",
           requireResolve: () => packageJsonPath,
         }),
-      ).toBe(join(tempDir, "bin", "privacy-pools"));
+      ).toBe(binPath);
 
       expect(
         launcherTestInternals.resolveInstalledNativeBinary(
@@ -95,6 +105,41 @@ describe("launcher routing", () => {
             requireResolve: () => packageJsonPath,
           },
         ),
+      ).toBeNull();
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects installed native binaries with a checksum mismatch", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "pp-native-pkg-bad-"));
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(join(binDir, "privacy-pools"), "mismatch", "utf8");
+    writeFileSync(
+      packageJsonPath,
+      JSON.stringify({
+        version: "1.7.0",
+        bin: {
+          "privacy-pools": "bin/privacy-pools",
+        },
+        privacyPoolsCliNative: {
+          sha256: "deadbeef",
+          protocolVersion: "1",
+          triplet: "darwin-arm64",
+        },
+      }),
+      "utf8",
+    );
+
+    try {
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          requireResolve: () => packageJsonPath,
+        }),
       ).toBeNull();
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

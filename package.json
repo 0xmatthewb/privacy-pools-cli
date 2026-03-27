@@ -20,6 +20,8 @@
   "scripts": {
     "clean": "node scripts/clean-dist.mjs",
     "build": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
+    "native:build": "cargo build --manifest-path native/shell/Cargo.toml",
+    "native:package": "node scripts/prepare-native-package.mjs",
     "circuits:provision": "node scripts/provision-circuits.mjs",
     "prepare": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
     "cli": "bun src/index.ts",
@@ -68,6 +70,13 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/0xmatthewb/privacy-pools-cli"
+  },
+  "optionalDependencies": {
+    "@0xbow/privacy-pools-cli-native-darwin-arm64": "1.7.0",
+    "@0xbow/privacy-pools-cli-native-darwin-x64": "1.7.0",
+    "@0xbow/privacy-pools-cli-native-linux-x64-gnu": "1.7.0",
+    "@0xbow/privacy-pools-cli-native-win32-arm64-msvc": "1.7.0",
+    "@0xbow/privacy-pools-cli-native-win32-x64-msvc": "1.7.0"
   },
   "overrides": {
     "jsonpath": "1.3.0",
