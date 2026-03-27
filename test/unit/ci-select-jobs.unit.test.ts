@@ -93,6 +93,17 @@ describe("ci job selection", () => {
     expect(decision.reason).toContain("native/shell/src/main.rs");
   });
 
+  test("root-install-smoke runs for install verification changes", () => {
+    const decision = evaluateJobSelection({
+      job: "root-install-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/verify-root-only-install.mjs"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("scripts/verify-root-only-install.mjs");
+  });
+
   test("native-unit and native-coverage run for native shell changes", () => {
     const unitDecision = evaluateJobSelection({
       job: "native-unit",
@@ -187,6 +198,76 @@ describe("ci job selection", () => {
     expect(coverageScriptDecision.shouldRun).toBe(true);
     expect(coverageScriptDecision.reason).toContain(
       "scripts/check-native-coverage.mjs",
+    );
+  });
+
+  test("build config changes fan out to build-backed smoke lanes", () => {
+    const packagedSmokeDecision = evaluateJobSelection({
+      job: "packaged-smoke",
+      eventName: "pull_request",
+      changedFiles: ["tsconfig.json"],
+    });
+    expect(packagedSmokeDecision.shouldRun).toBe(true);
+    expect(packagedSmokeDecision.reason).toContain("tsconfig.json");
+
+    const nativeSmokeDecision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["bunfig.toml"],
+    });
+    expect(nativeSmokeDecision.shouldRun).toBe(true);
+    expect(nativeSmokeDecision.reason).toContain("bunfig.toml");
+
+    const supportedNativeDecision = evaluateJobSelection({
+      job: "supported-native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["tsconfig.json"],
+    });
+    expect(supportedNativeDecision.shouldRun).toBe(true);
+    expect(supportedNativeDecision.reason).toContain("tsconfig.json");
+
+    const crossPlatformDecision = evaluateJobSelection({
+      job: "cross-platform",
+      eventName: "pull_request",
+      changedFiles: ["bunfig.toml"],
+    });
+    expect(crossPlatformDecision.shouldRun).toBe(true);
+    expect(crossPlatformDecision.reason).toContain("bunfig.toml");
+
+    const rootInstallDecision = evaluateJobSelection({
+      job: "root-install-smoke",
+      eventName: "pull_request",
+      changedFiles: ["tsconfig.json"],
+    });
+    expect(rootInstallDecision.shouldRun).toBe(true);
+    expect(rootInstallDecision.reason).toContain("tsconfig.json");
+  });
+
+  test("coverage-guard runs when its planner inputs change", () => {
+    const plannerDecision = evaluateJobSelection({
+      job: "coverage-guard",
+      eventName: "pull_request",
+      changedFiles: ["scripts/coverage-suite-plan.mjs"],
+    });
+    expect(plannerDecision.shouldRun).toBe(true);
+    expect(plannerDecision.reason).toContain("scripts/coverage-suite-plan.mjs");
+
+    const collectorDecision = evaluateJobSelection({
+      job: "coverage-guard",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-file-collector.mjs"],
+    });
+    expect(collectorDecision.shouldRun).toBe(true);
+    expect(collectorDecision.reason).toContain("scripts/test-file-collector.mjs");
+
+    const conformanceDecision = evaluateJobSelection({
+      job: "coverage-guard",
+      eventName: "pull_request",
+      changedFiles: ["test/conformance/root-help-static.conformance.test.ts"],
+    });
+    expect(conformanceDecision.shouldRun).toBe(true);
+    expect(conformanceDecision.reason).toContain(
+      "test/conformance/root-help-static.conformance.test.ts",
     );
   });
 

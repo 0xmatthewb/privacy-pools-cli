@@ -67,6 +67,9 @@ describe("package scripts conformance", () => {
   });
 
   test("test:install mirrors the current-host installed-artifact gate", () => {
+    expect(packageJson.scripts?.["test:artifacts:root"]).toBe(
+      "node scripts/verify-root-only-host-artifact.mjs",
+    );
     expect(packageJson.scripts?.["test:artifacts:host"]).toBe(
       "node scripts/verify-current-host-release-artifacts.mjs",
     );

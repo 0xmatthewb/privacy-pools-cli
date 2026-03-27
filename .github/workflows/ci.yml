@@ -5,22 +5,24 @@
 #   - Every push (merge) to "main"
 #
 # WHAT does it do?
-#   Ten independent jobs run in parallel:
+#   Eleven independent jobs run in parallel:
 #     1. linux-core  — shards the default fast suite across exact file lists
 #     2. npm-test — runs the repo's top-level `npm test` wrapper as a literal gate
 #     3. packaged-smoke — builds the npm package and runs smoke tests
 #        against the packed tarball (catches packaging mistakes)
-#     4. native-smoke — exercises the packaged-native path on Linux
+#     4. root-install-smoke — verifies the installed root-only launcher path
+#        from the packed npm artifact with optional native deps omitted
+#     5. native-smoke — exercises the packaged-native path on Linux
 #        so the default launcher route is covered by blocking CI
-#     5. native-unit — runs focused Rust unit tests for the native shell
+#     6. native-unit — runs focused Rust unit tests for the native shell
 #        bootstrap/parser/routing modules so native behavior has direct ownership
-#     6. supported-native-smoke — verifies installed root+native artifacts on the
+#     7. supported-native-smoke — verifies installed root+native artifacts on the
 #        supported host matrix for the published distribution story
-#     7. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
+#     8. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
 #        against the self-contained local Anvil fixture
-#     8. coverage-guard — enforces coverage floors for key source directories
-#     9. evals — runs machine-facing eval fixtures
-#    10. conformance-core — checks required protocol/docs conformance
+#     9. coverage-guard — enforces coverage floors for key source directories
+#    10. evals — runs machine-facing eval fixtures
+#    11. conformance-core — checks required protocol/docs conformance
 #
 # If any job fails the PR gets a red X, telling you something is broken.
 
@@ -206,7 +208,52 @@ jobs:
         run: npm run test:smoke
 
   # -----------------------------------------------------------
-  # Job 4: packaged native smoke on the default Linux triplet
+  # Job 4: verify the root-only installed artifact path directly
+  # -----------------------------------------------------------
+  root-install-smoke:
+    name: root-install-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+
+      - name: Select root-install-smoke
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job root-install-smoke >> "$GITHUB_OUTPUT"
+
+      - name: Skip root-install-smoke
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping root-install-smoke: ${{ steps.select.outputs.reason }}"
+
+      - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        if: steps.select.outputs.should_run == 'true'
+        run: npm run build
+
+      - name: Run root-only installed artifact gate
+        if: steps.select.outputs.should_run == 'true'
+        run: npm run test:artifacts:root
+
+  # -----------------------------------------------------------
+  # Job 5: packaged native smoke on the default Linux triplet
   # -----------------------------------------------------------
   native-smoke:
     name: native-smoke-node-${{ matrix.node-version }}

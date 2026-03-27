@@ -79,6 +79,27 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain('- "25.x"');
   });
 
+  test("blocking CI includes a root-only installed artifact gate", () => {
+    const rootInstallSectionStart = ciWorkflow.indexOf("root-install-smoke:");
+    expect(rootInstallSectionStart).toBeGreaterThanOrEqual(0);
+    const rootInstallSectionEnd = ciWorkflow.indexOf(
+      "native-smoke:",
+      rootInstallSectionStart,
+    );
+    const rootInstallSection = ciWorkflow.slice(
+      rootInstallSectionStart,
+      rootInstallSectionEnd === -1 ? ciWorkflow.length : rootInstallSectionEnd,
+    );
+
+    expect(rootInstallSection).toContain("Select root-install-smoke");
+    expect(rootInstallSection).toContain(
+      'node scripts/ci/select-jobs.mjs --job root-install-smoke',
+    );
+    expect(rootInstallSection).toContain("Run root-only installed artifact gate");
+    expect(rootInstallSection).toContain("run: npm run test:artifacts:root");
+    expect(rootInstallSection).toContain('node-version: "25.x"');
+  });
+
   test("blocking CI includes supported-target artifact install smoke", () => {
     const supportedSectionStart = ciWorkflow.indexOf("supported-native-smoke:");
     expect(supportedSectionStart).toBeGreaterThanOrEqual(0);

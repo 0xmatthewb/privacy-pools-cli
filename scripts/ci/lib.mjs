@@ -15,6 +15,7 @@ const SHARD_WEIGHT_MANIFEST = resolve(
   ROOT,
   "scripts/ci/test-shard-weights.json",
 );
+const BUILD_CONFIG_RULES = ["tsconfig.json", "bunfig.toml"];
 
 const JOB_RULES = {
   "linux-core": [
@@ -44,6 +45,7 @@ const JOB_RULES = {
     "scripts/run-bun-tests.mjs",
     "package.json",
     "bun.lock",
+    ...BUILD_CONFIG_RULES,
     "AGENTS.md",
     "CHANGELOG.md",
     "docs/contracts/",
@@ -54,6 +56,17 @@ const JOB_RULES = {
     "test/helpers/",
     ".github/workflows/ci.yml",
     ".github/workflows/cross-platform.yml",
+  ],
+  "root-install-smoke": [
+    "src/",
+    "scripts/clean-dist.mjs",
+    "scripts/verify-root-only-host-artifact.mjs",
+    "scripts/verify-root-only-install.mjs",
+    "scripts/lib/install-verification.mjs",
+    "package.json",
+    "bun.lock",
+    ...BUILD_CONFIG_RULES,
+    ".github/workflows/ci.yml",
   ],
   "native-smoke": [
     "src/",
@@ -68,6 +81,7 @@ const JOB_RULES = {
     "scripts/lib/install-verification.mjs",
     "package.json",
     "bun.lock",
+    ...BUILD_CONFIG_RULES,
     "docs/contracts/",
     "test/integration/cli-native-package-smoke.integration.test.ts",
     "test/helpers/",
@@ -111,6 +125,7 @@ const JOB_RULES = {
     "scripts/lib/install-verification.mjs",
     "package.json",
     "bun.lock",
+    ...BUILD_CONFIG_RULES,
     "docs/contracts/",
     "test/integration/cli-native-package-smoke.integration.test.ts",
     "test/helpers/",
@@ -154,7 +169,10 @@ const JOB_RULES = {
     "test/unit/",
     "test/services/",
     "test/acceptance/",
+    "test/conformance/",
     "scripts/check-coverage.mjs",
+    "scripts/coverage-suite-plan.mjs",
+    "scripts/test-file-collector.mjs",
     "scripts/test-suite-manifest.mjs",
     "scripts/run-test-suite.mjs",
     "scripts/run-bun-tests.mjs",
@@ -200,6 +218,7 @@ const JOB_RULES = {
     "scripts/lib/install-verification.mjs",
     "package.json",
     "bun.lock",
+    ...BUILD_CONFIG_RULES,
     "docs/contracts/",
     "test/integration/cli-native-package-smoke.integration.test.ts",
     "test/helpers/",
