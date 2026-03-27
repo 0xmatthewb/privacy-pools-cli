@@ -1,5 +1,13 @@
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "fs";
+import { dirname, join } from "path";
 import { homedir } from "os";
 import type { Command } from "commander";
 import { confirm, input, password, select } from "@inquirer/prompts";
@@ -49,6 +57,67 @@ interface InitCommandOptions {
 }
 
 export { createInitCommand } from "../command-shells/init.js";
+
+function writeRecoveryBackupFile(filePath: string, content: string): string {
+  const normalizedPath = filePath.trim();
+  if (!normalizedPath) {
+    throw new CLIError(
+      "Recovery phrase backup path cannot be empty.",
+      "INPUT",
+      "Choose a non-empty file path for the recovery phrase backup.",
+    );
+  }
+
+  const parentDir = dirname(normalizedPath);
+  if (!existsSync(parentDir)) {
+    throw new CLIError(
+      `Recovery phrase backup directory does not exist: ${parentDir}`,
+      "INPUT",
+      "Choose an existing parent directory for the recovery phrase backup.",
+    );
+  }
+
+  if (existsSync(normalizedPath)) {
+    const existing = lstatSync(normalizedPath);
+    if (existing.isSymbolicLink()) {
+      throw new CLIError(
+        "Recovery phrase backup path cannot be a symlink.",
+        "INPUT",
+        "Choose a new file path for the recovery phrase backup.",
+      );
+    }
+    throw new CLIError(
+      `Recovery phrase backup already exists: ${normalizedPath}`,
+      "INPUT",
+      "Choose a new file path or remove the existing backup before retrying.",
+    );
+  }
+
+  const tmpPath = `${normalizedPath}.tmp`;
+  try {
+    writeFileSync(tmpPath, content, { encoding: "utf8", mode: 0o600 });
+    renameSync(tmpPath, normalizedPath);
+    try {
+      chmodSync(normalizedPath, 0o600);
+    } catch {
+      // Best effort. Some filesystems may not support chmod.
+    }
+    return normalizedPath;
+  } catch (error) {
+    try {
+      unlinkSync(tmpPath);
+    } catch {
+      // Best effort cleanup of the temporary recovery backup file.
+    }
+    throw new CLIError(
+      `Could not write the recovery phrase backup to ${normalizedPath}.`,
+      "INPUT",
+      error instanceof Error
+        ? `Check that the parent directory is writable and retry. Original error: ${error.message}`
+        : "Check that the parent directory is writable and retry.",
+    );
+  }
+}
 
 export async function handleInitCommand(
   opts: InitCommandOptions,
@@ -305,21 +374,23 @@ export async function handleInitCommand(
 
         if (saveAction === "file") {
           const defaultPath = join(homedir(), "privacy-pools-recovery.txt");
-          const filePath = await input({
+          const filePathInput = await input({
             message: "Save location:",
             default: defaultPath,
           });
-          const fileContent = [
-            "Privacy Pools Recovery Phrase",
-            "",
-            `Recovery Phrase:`,
-            mnemonic,
-            "",
-            "IMPORTANT: Keep this file secure. Delete it after transferring to a safe location.",
-            "Anyone with this phrase can access your Privacy Pools deposits.",
-          ].join("\n");
-          writeFileSync(filePath.trim(), fileContent, { mode: 0o600 });
-          success(`Recovery phrase saved to ${filePath.trim()}`, silent);
+          const filePath = writeRecoveryBackupFile(
+            filePathInput,
+            [
+              "Privacy Pools Recovery Phrase",
+              "",
+              `Recovery Phrase:`,
+              mnemonic,
+              "",
+              "IMPORTANT: Keep this file secure. Delete it after transferring to a safe location.",
+              "Anyone with this phrase can access your Privacy Pools deposits.",
+            ].join("\n"),
+          );
+          success(`Recovery phrase saved to ${filePath}`, silent);
           process.stderr.write(
             notice(
               "  Remember to move this file to a secure location and delete the original.\n",

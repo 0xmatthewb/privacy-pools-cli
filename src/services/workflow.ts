@@ -9,7 +9,6 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   calculateContext,
@@ -599,7 +598,7 @@ export function buildWorkflowWalletBackup(record: FlowSecretRecord): string {
 }
 
 function defaultWorkflowWalletBackupPath(workflowId: string): string {
-  return join(homedir(), `privacy-pools-flow-wallet-${workflowId}.txt`);
+  return join(getWorkflowSecretsDir(), `${workflowId}.backup.txt`);
 }
 
 function isNewWalletFlow(snapshot: FlowSnapshot): boolean {

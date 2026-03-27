@@ -6,7 +6,7 @@ import {
   mock,
   test,
 } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
 import { saveConfig, saveMnemonicToFile } from "../../src/services/config.ts";
@@ -172,5 +172,25 @@ describe("init command handler interactive coverage", () => {
     expect(stderr).toContain("--mnemonic is visible in process list");
     expect(stderr).toContain("--private-key is visible in process list");
     expect(stderr).toContain("Signer key saved.");
+  });
+
+  test("refuses to overwrite an existing recovery backup file", async () => {
+    const home = useIsolatedHome();
+    const backupPath = join(home, "workflow-recovery.txt");
+    writeFileSync(backupPath, "existing", { encoding: "utf8", mode: 0o644 });
+    selectPromptMock
+      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "file");
+    inputPromptMock.mockImplementationOnce(async () => backupPath);
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("Recovery phrase backup already exists");
+    expect(readFileSync(backupPath, "utf8")).toBe("existing");
+    expect(statSync(backupPath).mode & 0o777).toBe(0o644);
   });
 });

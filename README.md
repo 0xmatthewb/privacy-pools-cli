@@ -60,7 +60,7 @@ Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP reviews. 
 The manual commands (`deposit`, `accounts`, `withdraw`) remain available when you need partial withdrawals, custom Pool Account selection, unsigned payloads, or dry-runs. See [docs/reference.md](docs/reference.md) for details.
 
 > [!TIP]
-> Restoring an existing account? Use `privacy-pools init --mnemonic "..."` and the CLI will sync your Pool Accounts automatically. For legacy pre-upgrade accounts, check `privacy-pools migrate status --all-chains`.
+> Restoring an existing account? Prefer `privacy-pools init --mnemonic-file ./recovery.txt` or `cat recovery.txt | privacy-pools init --mnemonic-stdin`. Inline `--mnemonic` is still supported, but it is visible in shell history and process listings. For legacy pre-upgrade accounts, check `privacy-pools migrate status --all-chains`.
 
 ## Install
 

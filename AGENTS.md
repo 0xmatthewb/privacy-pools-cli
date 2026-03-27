@@ -193,6 +193,7 @@ privacy-pools status --agent --check
 JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
 
 `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
+When `rpcUrl` or `aspHost` comes from a custom endpoint, the CLI redacts userinfo, query strings, and token-like path segments before printing them.
 
 #### `capabilities`
 
@@ -227,10 +228,12 @@ Initialize wallet and configuration.
 
 ```bash
 privacy-pools init --agent --default-chain mainnet --show-mnemonic
-privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
+privacy-pools init --agent --mnemonic-file ./recovery.txt --default-chain mainnet
 cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
-privacy-pools init --agent --private-key 0x... --default-chain mainnet
-printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 ..." --private-key-stdin --default-chain mainnet
+privacy-pools init --agent --private-key-file ./signer-key.txt --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --agent --mnemonic-file ./recovery.txt --private-key-stdin --default-chain mainnet
+# unsafe fallback: visible in process lists and shell history
+privacy-pools init --agent --mnemonic "word1 word2 ..." --private-key 0x...
 ```
 
 JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`

@@ -361,6 +361,7 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
 ```
 
 Health checks run by default when a chain is selected. Pass `--no-check` to suppress them, or use `--check-rpc` / `--check-asp` to run only specific checks.
+Custom `rpcUrl` and `aspHost` values are rendered in a display-safe form: userinfo, query strings, and token-like path segments are redacted before they are printed.
 
 When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When no deposits exist, `nextActions` points to `pools`; when deposits already exist, it points to `accounts`. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`.
 
@@ -502,11 +503,12 @@ privacy-pools describe stats global --agent
 
 ```bash
 privacy-pools init --agent --default-chain mainnet --show-mnemonic
-privacy-pools init --agent --mnemonic "word1 word2 ..." --default-chain mainnet
+privacy-pools init --agent --mnemonic-file ./recovery.txt --default-chain mainnet
 cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
-privacy-pools init --agent --private-key 0x... --default-chain mainnet
 privacy-pools init --agent --private-key-file ./key.txt --default-chain mainnet
-printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 word2 ..." --private-key-stdin --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --agent --mnemonic-file ./recovery.txt --private-key-stdin --default-chain mainnet
+# unsafe fallback: visible in process lists and shell history
+privacy-pools init --agent --mnemonic "word1 word2 ..." --private-key 0x...
 ```
 
 ```json
