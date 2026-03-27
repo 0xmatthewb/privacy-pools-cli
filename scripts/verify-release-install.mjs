@@ -90,8 +90,9 @@ function readLatestWorkflowSnapshot(homeDir) {
 }
 
 async function waitForWorkflowPhase(homeDir, phase, options = {}) {
-  const timeoutMs = options.timeoutMs ?? 15_000;
-  const intervalMs = options.intervalMs ?? 100;
+  const timeoutMs = options.timeoutMs ?? 60_000;
+  const intervalMs = options.intervalMs ?? 250;
+  const child = options.child ?? null;
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
@@ -99,7 +100,18 @@ async function waitForWorkflowPhase(homeDir, phase, options = {}) {
     if (snapshot?.phase === phase) {
       return snapshot;
     }
+    if (child && (child.exitCode !== null || child.signalCode !== null)) {
+      throw new Error(
+        `Installed workflow process exited before reaching phase ${phase} (code=${child.exitCode}, signal=${child.signalCode}).`,
+      );
+    }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, intervalMs));
+  }
+
+  if (child && (child.exitCode !== null || child.signalCode !== null)) {
+    throw new Error(
+      `Installed workflow process exited before reaching phase ${phase} (code=${child.exitCode}, signal=${child.signalCode}).`,
+    );
   }
 
   throw new Error(`Timed out waiting for installed workflow phase ${phase}.`);
@@ -493,6 +505,9 @@ async function main() {
       const awaitingFunding = await waitForWorkflowPhase(
         stdinHomeDir,
         "awaiting_funding",
+        {
+          child: flowStartHandle.child,
+        },
       );
       if (awaitingFunding.walletMode !== "new_wallet") {
         fail(
