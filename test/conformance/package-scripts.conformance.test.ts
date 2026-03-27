@@ -49,4 +49,13 @@ describe("package scripts conformance", () => {
       "npm run bench:gate:release",
     );
   });
+
+  test("test:flake covers packaged native and installed-artifact lanes", () => {
+    expect(packageJson.scripts?.["test:flake"]).toContain(
+      "npm run test:smoke:native:package",
+    );
+    expect(packageJson.scripts?.["test:flake"]).toContain(
+      "npm run test:artifacts:host",
+    );
+  });
 });

@@ -45,7 +45,7 @@
     "test:smoke:native": "npm run test:smoke:native:package",
     "test:smoke:native:package": "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000",
     "test:evals": "node scripts/run-bun-tests.mjs ./test/evals --timeout 120000",
-    "test:flake": "node scripts/run-test-suite.mjs --randomize --seed 20260326 && node scripts/run-bun-tests.mjs ./test/acceptance/withdraw-quote.acceptance.test.ts ./test/unit/public-command-handlers.unit.test.ts ./test/unit/status-command-handler.unit.test.ts --rerun-each 3 --timeout 120000",
+    "test:flake": "node scripts/run-test-suite.mjs --randomize --seed 20260326 && node scripts/run-bun-tests.mjs ./test/acceptance/withdraw-quote.acceptance.test.ts ./test/unit/public-command-handlers.unit.test.ts ./test/unit/status-command-handler.unit.test.ts --rerun-each 3 --timeout 120000 && npm run test:smoke:native:package && npm run test:artifacts:host",
     "test:e2e:anvil": "node scripts/run-anvil-tests.mjs",
     "test:e2e:anvil:smoke": "node scripts/run-anvil-smoke.mjs",
     "discovery:generate": "bun run build && node scripts/generate-command-discovery-static.mjs",

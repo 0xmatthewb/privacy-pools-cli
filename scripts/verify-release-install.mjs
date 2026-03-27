@@ -9,6 +9,10 @@ const repoRoot = dirname(scriptDir);
 const rootPackageJson = JSON.parse(
   readFileSync(join(repoRoot, "package.json"), "utf8"),
 );
+const TEST_MNEMONIC =
+  "test test test test test test test test test test test junk";
+const TEST_PRIVATE_KEY =
+  "0x1111111111111111111111111111111111111111111111111111111111111111";
 
 function parseArgs(argv) {
   const result = {};
@@ -76,6 +80,7 @@ function runCli(installRoot, homeDir, args, options = {}) {
       PRIVACY_POOLS_HOME: homeDir,
       ...options.env,
     },
+    input: options.input,
   });
 
   if (result.error) {
@@ -176,6 +181,7 @@ const installRoot = mkdtempSync(join(tmpdir(), "pp-release-install-"));
 const npmCacheDir = join(installRoot, ".npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const homeDir = join(installRoot, ".privacy-pools");
+const stdinHomeDir = join(installRoot, ".privacy-pools-stdin");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
 
 async function main() {
@@ -262,6 +268,41 @@ async function main() {
       );
     }
 
+    const initResult = runCli(
+      installRoot,
+      stdinHomeDir,
+      [
+        "--agent",
+        "init",
+        "--mnemonic",
+        TEST_MNEMONIC,
+        "--private-key-stdin",
+        "--default-chain",
+        "sepolia",
+        "--yes",
+      ],
+      {
+        input: `${TEST_PRIVATE_KEY}\n`,
+        timeout: 60_000,
+      },
+    );
+    const initPayload = parseJson(initResult.stdout, "init --agent");
+    if (
+      initResult.status !== 0 ||
+      initPayload.success !== true ||
+      initPayload.defaultChain !== "sepolia"
+    ) {
+      fail(
+        `Installed release CLI failed JS-forwarded init via stdin:\nstatus=${initResult.status}\nstdout=${initResult.stdout}\nstderr=${initResult.stderr}`,
+      );
+    }
+    if (
+      initResult.stdout.includes(TEST_PRIVATE_KEY) ||
+      initResult.stderr.includes(TEST_PRIVATE_KEY)
+    ) {
+      fail("Installed release CLI leaked the stdin private key");
+    }
+
     aspFixture = await launchAspFixtureServer();
     const statsSuccessResult = runCli(
       installRoot,
@@ -292,11 +333,16 @@ async function main() {
 
     const statusResult = runCli(
       installRoot,
-      homeDir,
+      stdinHomeDir,
       ["--agent", "status", "--no-check"],
     );
     const statusPayload = parseJson(statusResult.stdout, "status --agent --no-check");
-    if (statusResult.status !== 0 || statusPayload.success !== true) {
+    if (
+      statusResult.status !== 0 ||
+      statusPayload.success !== true ||
+      statusPayload.recoveryPhraseSet !== true ||
+      statusPayload.signerKeyValid !== true
+    ) {
       fail(
         `Installed release CLI failed JS-forwarded status:\nstatus=${statusResult.status}\nstdout=${statusResult.stdout}\nstderr=${statusResult.stderr}`,
       );

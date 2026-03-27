@@ -22,9 +22,11 @@ import {
   sharedCliEnv,
   setSharedLabelReviewStatus,
 } from "../helpers/shared-anvil-cli.ts";
+import { CARGO_AVAILABLE, ensureNativeShellBinary } from "../helpers/native.ts";
 
 const ANVIL_E2E_ENABLED = process.env.PP_ANVIL_E2E === "1";
 const anvilTest = ANVIL_E2E_ENABLED ? test : test.skip;
+const nativeAnvilTest = ANVIL_E2E_ENABLED && CARGO_AVAILABLE ? test : test.skip;
 
 const aspPostman = "0x696fe46495688fc9e99bad2daf2133b33de364ea" as const;
 const dummyCid = "bafybeigdyrzt5sharedanvile2etests12345678901234567890";
@@ -41,6 +43,7 @@ const depositedEventAbi = parseAbi([
 let sharedEnv: SharedAnvilEnv | null = null;
 let anvilClient: ReturnType<typeof createPublicClient> | null = null;
 let chainConfig = resolveChain("sepolia");
+let nativeBinary: string | null = null;
 
 function requireSharedEnv(): SharedAnvilEnv {
   if (!sharedEnv) throw new Error("Shared Anvil environment is not initialized");
@@ -75,6 +78,24 @@ function runAnvilCli(home: string, args: string[], timeoutMs = 180_000) {
   });
 }
 
+function requireNativeBinary(): string {
+  if (!nativeBinary) {
+    throw new Error("Native shell binary is not initialized");
+  }
+  return nativeBinary;
+}
+
+function runNativeAnvilCli(home: string, args: string[], timeoutMs = 180_000) {
+  return runCli(args, {
+    home,
+    timeoutMs,
+    env: {
+      ...sharedCliEnv(requireSharedEnv()),
+      PRIVACY_POOLS_CLI_BINARY: requireNativeBinary(),
+    },
+  });
+}
+
 function expectSuccessStatus(
   result: { status: number | null; stdout: string; stderr: string },
   label: string,
@@ -93,6 +114,17 @@ function parseSuccessfulAgentResult<T>(
   timeoutMs?: number,
 ): T {
   const result = runAnvilCli(home, args, timeoutMs);
+  expectSuccessStatus(result, label);
+  return parseJsonOutput<T>(result.stdout);
+}
+
+function parseSuccessfulNativeAgentResult<T>(
+  home: string,
+  args: string[],
+  label: string,
+  timeoutMs?: number,
+): T {
+  const result = runNativeAnvilCli(home, args, timeoutMs);
   expectSuccessStatus(result, label);
   return parseJsonOutput<T>(result.stdout);
 }
@@ -148,6 +180,9 @@ async function createDepositedPoolAccount(prefix: string): Promise<{
 
 beforeAll(async () => {
   if (!ANVIL_E2E_ENABLED) return;
+  if (CARGO_AVAILABLE) {
+    nativeBinary = ensureNativeShellBinary();
+  }
   sharedEnv = loadSharedAnvilEnv();
   Object.assign(process.env, sharedCliEnv(sharedEnv));
   chainConfig = resolveChain("sepolia");
@@ -321,6 +356,174 @@ describe("Anvil E2E", () => {
       home,
       ["--agent", "flow", "watch", "latest", "--chain", "sepolia"],
       "flow watch",
+      300_000,
+    );
+    expect(watched.success).toBe(true);
+    expect(watched.phase).toBe("completed");
+    expect(watched.withdrawTxHash).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  nativeAnvilTest("native launcher: deposit -> sync -> accounts -> ragequit -> sync", async () => {
+    const deposit = await createDepositedPoolAccount("pp-anvil-native-eth-ragequit-");
+
+    const pendingAccounts = parseSuccessfulNativeAgentResult<{
+      pendingCount: number;
+      accounts: Array<{ poolAccountId: string }>;
+    }>(
+      deposit.home,
+      ["--agent", "accounts", "--pending-only", "--chain", "sepolia"],
+      "native accounts pending",
+    );
+    expect(pendingAccounts.pendingCount).toBeGreaterThan(0);
+    expect(
+      pendingAccounts.accounts.some(
+        (account) => account.poolAccountId === deposit.poolAccountId,
+      ),
+    ).toBe(true);
+
+    const ragequitJson = parseSuccessfulNativeAgentResult<{
+      success: boolean;
+      operation: string;
+      txHash: string;
+    }>(
+      deposit.home,
+      [
+        "--agent",
+        "ragequit",
+        "ETH",
+        "--from-pa",
+        deposit.poolAccountId,
+        "--chain",
+        "sepolia",
+      ],
+      "native ragequit",
+    );
+    expect(ragequitJson.success).toBe(true);
+    expect(ragequitJson.operation).toBe("ragequit");
+    expect(ragequitJson.txHash).toMatch(/^0x[0-9a-f]{64}$/);
+
+    parseSuccessfulNativeAgentResult(
+      deposit.home,
+      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      "native sync after ragequit",
+    );
+
+    const history = parseSuccessfulNativeAgentResult<{
+      events: Array<{ type: string; poolAccountId: string }>;
+    }>(
+      deposit.home,
+      ["--agent", "history", "--chain", "sepolia"],
+      "native history after ragequit",
+    );
+    expect(
+      history.events.some(
+        (event) =>
+          event.type === "ragequit" &&
+          event.poolAccountId === deposit.poolAccountId,
+      ),
+    ).toBe(true);
+  });
+
+  nativeAnvilTest("native launcher: deposit -> approve -> withdraw (relayed) -> sync", async () => {
+    const deposit = await createDepositedPoolAccount("pp-anvil-native-eth-withdraw-");
+    await approveEthLabel(deposit.label);
+
+    const withdrawJson = parseSuccessfulNativeAgentResult<{
+      success: boolean;
+      operation: string;
+      mode: string;
+      txHash: string;
+      remainingBalance: string;
+    }>(
+      deposit.home,
+      [
+        "--agent",
+        "withdraw",
+        "--all",
+        "ETH",
+        "--to",
+        relayedRecipient,
+        "--from-pa",
+        deposit.poolAccountId,
+        "--chain",
+        "sepolia",
+      ],
+      "native withdraw",
+      300_000,
+    );
+    expect(withdrawJson.success).toBe(true);
+    expect(withdrawJson.operation).toBe("withdraw");
+    expect(withdrawJson.mode).toBe("relayed");
+    expect(withdrawJson.txHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(withdrawJson.remainingBalance).toBe("0");
+
+    parseSuccessfulNativeAgentResult(
+      deposit.home,
+      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      "native sync after withdraw",
+    );
+
+    const history = parseSuccessfulNativeAgentResult<{
+      events: Array<{ type: string; poolAccountId: string }>;
+    }>(
+      deposit.home,
+      ["--agent", "history", "--chain", "sepolia"],
+      "native history after withdraw",
+    );
+    expect(
+      history.events.some(
+        (event) =>
+          event.type === "withdrawal" &&
+          event.poolAccountId === deposit.poolAccountId,
+      ),
+    ).toBe(true);
+  });
+
+  nativeAnvilTest("native launcher: flow start -> approved watch -> completed", async () => {
+    const home = createAnvilHome("pp-anvil-native-eth-flow-");
+    const flowJson = parseSuccessfulNativeAgentResult<{
+      success: boolean;
+      mode: string;
+      action: string;
+      workflowId: string;
+      depositTxHash: `0x${string}`;
+    }>(
+      home,
+      [
+        "--agent",
+        "flow",
+        "start",
+        "0.01",
+        "ETH",
+        "--to",
+        relayedRecipient,
+        "--chain",
+        "sepolia",
+      ],
+      "native flow start",
+      300_000,
+    );
+    expect(flowJson.success).toBe(true);
+    expect(flowJson.mode).toBe("flow");
+    expect(flowJson.action).toBe("start");
+
+    const depositEvent = await decodeDepositEvent({
+      publicClient: requireAnvilClient(),
+      txHash: flowJson.depositTxHash,
+      poolAddress: requireSharedEnv().pools.eth.poolAddress,
+      depositedEventAbi,
+    });
+    appendInsertedStateTreeLeaf(requireSharedEnv(), "eth", depositEvent.commitment);
+    await approveEthLabel(depositEvent.label);
+
+    const watched = parseSuccessfulNativeAgentResult<{
+      success: boolean;
+      phase: string;
+      withdrawTxHash: string;
+    }>(
+      home,
+      ["--agent", "flow", "watch", "latest", "--chain", "sepolia"],
+      "native flow watch",
       300_000,
     );
     expect(watched.success).toBe(true);
