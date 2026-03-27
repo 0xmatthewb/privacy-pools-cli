@@ -67,6 +67,14 @@ const COMMANDS = [
     }),
   },
   {
+    label: "activity --agent --chain sepolia --asset ETH",
+    args: ["--chain", "sepolia", "activity", "--agent", "--asset", "ETH"],
+    env: ({ fixtureUrl }) => ({
+      PRIVACY_POOLS_ASP_HOST: fixtureUrl,
+      PRIVACY_POOLS_RPC_URL_SEPOLIA: fixtureUrl,
+    }),
+  },
+  {
     label: "stats --agent",
     args: ["stats", "--agent"],
     env: ({ fixtureUrl }) => ({
@@ -103,7 +111,9 @@ function printUsageAndExit(exitCode = 0) {
       "Base timings always use the JS fallback path so native preview branches",
       "can be measured directly against the current npm baseline. The native",
       "lane executes the Rust shell directly to reflect the roadmap's shell",
-      "performance targets without Node launcher startup overhead.",
+      "performance targets without Node launcher startup overhead. The",
+      "launcher-native lane disables local JS fast paths so it measures the",
+      "real shipped launcher -> native shell path.",
       "",
       "Options:",
       `  --base <ref>    Git ref to compare against, or 'self' to compare native against the current JS fallback (default: ${DEFAULT_BASE_REF})`,
@@ -518,6 +528,9 @@ try {
                   {
                     ...extraEnv,
                     PRIVACY_POOLS_CLI_BINARY: currentNativeBinary,
+                    ...(runtime === "launcher-native"
+                      ? { PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH: "1" }
+                      : {}),
                   },
                   { disableNative: false },
                 )

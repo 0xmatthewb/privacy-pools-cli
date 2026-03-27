@@ -21,7 +21,9 @@ preview branches can be compared directly against the current npm baseline.
 Use `--runtime js` for the pure JS launcher path, `--runtime native` for the
 direct Rust shell path, `--runtime launcher-native` for the shipped JS launcher
 plus native shell path, `--runtime both` to print the JS and direct-native
-lanes together, or `--runtime all` to print every lane in one report.
+lanes together, or `--runtime all` to print every lane in one report. The
+`launcher-native` lane disables the local JS fast paths so it measures the real
+launcher to native-shell handoff instead of the root-command short-circuits.
 
 The `js` lane still includes `status --json --no-check`, but that command is
 intentionally JS-owned for the fund-safety boundary and is not part of the
@@ -45,6 +47,7 @@ The default command matrix covers:
 - `status --json --no-check`
 - `pools --agent --chain sepolia`
 - `activity --agent`
+- `activity --agent --chain sepolia --asset ETH`
 - `stats --agent`
 - `stats pool --agent --chain sepolia --asset ETH`
 

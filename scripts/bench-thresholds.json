@@ -30,6 +30,9 @@
     "activity --agent": {
       "minImprovementPct": 25
     },
+    "activity --agent --chain sepolia --asset ETH": {
+      "minImprovementPct": 25
+    },
     "stats --agent": {
       "minImprovementPct": 25
     },
