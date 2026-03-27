@@ -134,6 +134,44 @@ describe("ci job selection", () => {
     expect(decision.reason).toContain("scripts/verify-cli-install-anvil.mjs");
   });
 
+  test("packaged smoke runs when packaged smoke fixtures or helpers change", () => {
+    const helperDecision = evaluateJobSelection({
+      job: "packaged-smoke",
+      eventName: "pull_request",
+      changedFiles: ["test/helpers/cli.ts"],
+    });
+    expect(helperDecision.shouldRun).toBe(true);
+    expect(helperDecision.reason).toContain("test/helpers/cli.ts");
+
+    const suiteDecision = evaluateJobSelection({
+      job: "packaged-smoke",
+      eventName: "pull_request",
+      changedFiles: ["test/integration/cli.packaged-smoke.integration.test.ts"],
+    });
+    expect(suiteDecision.shouldRun).toBe(true);
+    expect(suiteDecision.reason).toContain(
+      "test/integration/cli.packaged-smoke.integration.test.ts",
+    );
+  });
+
+  test("anvil lanes run when shared CLI helpers change", () => {
+    const smokeDecision = evaluateJobSelection({
+      job: "anvil-e2e-smoke",
+      eventName: "pull_request",
+      changedFiles: ["test/helpers/cli.ts"],
+    });
+    expect(smokeDecision.shouldRun).toBe(true);
+    expect(smokeDecision.reason).toContain("test/helpers/cli.ts");
+
+    const fullDecision = evaluateJobSelection({
+      job: "full-anvil",
+      eventName: "pull_request",
+      changedFiles: ["test/helpers/cli.ts"],
+    });
+    expect(fullDecision.shouldRun).toBe(true);
+    expect(fullDecision.reason).toContain("test/helpers/cli.ts");
+  });
+
   test("packaged and native lanes run for shipped runtime contract docs", () => {
     const packagedDecision = evaluateJobSelection({
       job: "packaged-smoke",
