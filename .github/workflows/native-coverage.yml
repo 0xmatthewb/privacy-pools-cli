@@ -1,0 +1,72 @@
+# Native Coverage — informative Rust line coverage for the native shell.
+#
+# WHEN does this run?
+#   - Every pull request (changed-path selected)
+#   - Every push to "main"
+#   - Daily on schedule
+#   - Manually via the "Run workflow" button
+#
+# WHAT does it do?
+#   - Installs `cargo-llvm-cov`
+#   - Runs the repository's native coverage contract (`npm run test:coverage:native`)
+#   - Enforces line-coverage floors for the Rust bootstrap/parser/routing modules
+#
+# WHY separate?
+#   Native line coverage is valuable, but it is slower and has extra toolchain
+#   setup. Keeping it in its own lane preserves fast blocking CI while still
+#   making coverage drift obvious on PRs and main.
+
+name: Native Coverage
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "31 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-coverage:
+    name: native-coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+
+      - name: Select native-coverage
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job native-coverage >> "$GITHUB_OUTPUT"
+
+      - name: Skip native-coverage
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping native-coverage: ${{ steps.select.outputs.reason }}"
+
+      - name: Setup Rust
+        if: steps.select.outputs.should_run == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-llvm-cov
+        if: steps.select.outputs.should_run == 'true'
+        run: cargo install cargo-llvm-cov --locked
+
+      - name: Run native coverage gate
+        if: steps.select.outputs.should_run == 'true'
+        run: npm run test:coverage:native

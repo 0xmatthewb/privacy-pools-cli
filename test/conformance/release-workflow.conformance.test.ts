@@ -18,6 +18,10 @@ const crossPlatformWorkflow = readFileSync(
   join(CLI_ROOT, ".github", "workflows", "cross-platform.yml"),
   "utf8",
 );
+const nativeCoverageWorkflow = readFileSync(
+  join(CLI_ROOT, ".github", "workflows", "native-coverage.yml"),
+  "utf8",
+);
 const packNativeTarballScript = readFileSync(
   join(CLI_ROOT, "scripts", "pack-native-tarball.mjs"),
   "utf8",
@@ -60,6 +64,9 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain("npm-test:");
     expect(ciWorkflow).toContain("Run npm test");
     expect(ciWorkflow).toContain("run: npm test");
+    expect(ciWorkflow).toContain("native-unit:");
+    expect(ciWorkflow).toContain("Run native Rust unit tests");
+    expect(ciWorkflow).toContain("run: npm run test:native");
     expect(ciWorkflow).toContain("native-smoke:");
     expect(ciWorkflow).toContain('node scripts/ci/select-jobs.mjs --job native-smoke');
     expect(ciWorkflow).toContain("npm run test:smoke:native:package");
@@ -171,6 +178,13 @@ describe("release workflow conformance", () => {
   test("cross-platform smoke also runs on main pushes", () => {
     expect(crossPlatformWorkflow).toContain("push:");
     expect(crossPlatformWorkflow).toContain("- main");
+  });
+
+  test("native coverage workflow enforces the repo's native coverage contract", () => {
+    expect(nativeCoverageWorkflow).toContain("name: Native Coverage");
+    expect(nativeCoverageWorkflow).toContain("Select native-coverage");
+    expect(nativeCoverageWorkflow).toContain("cargo install cargo-llvm-cov --locked");
+    expect(nativeCoverageWorkflow).toContain("run: npm run test:coverage:native");
   });
 
   test("release native triplets stay aligned with optional dependencies and cross-platform smoke", () => {

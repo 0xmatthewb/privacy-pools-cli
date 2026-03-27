@@ -162,6 +162,38 @@ describe("native package smoke", () => {
     expect(result.stderr.trim()).toBe("");
   });
 
+  nativePackageSmokeTest("packaged native keeps discovery structured when agent mode and csv are mixed", () => {
+    const guideResult = runBuiltCli(["--agent", "--format", "csv", "guide"], {
+      cwd: snapshotRoot,
+    });
+    expect(guideResult.status).toBe(0);
+    expect(guideResult.stderr.trim()).toBe("");
+    expect(
+      parseJsonOutput<{ success: boolean; mode: string; help: string }>(
+        guideResult.stdout,
+      ),
+    ).toMatchObject({
+      success: true,
+      mode: "help",
+    });
+
+    const capabilitiesResult = runBuiltCli(
+      ["--json", "--format", "csv", "capabilities"],
+      {
+        cwd: snapshotRoot,
+      },
+    );
+    expect(capabilitiesResult.status).toBe(0);
+    expect(capabilitiesResult.stderr.trim()).toBe("");
+    expect(
+      parseJsonOutput<{ success: boolean; commands: unknown[] }>(
+        capabilitiesResult.stdout,
+      ),
+    ).toMatchObject({
+      success: true,
+    });
+  });
+
   nativePackageSmokeTest("packaged native still serves native-owned help when the JS worker path is broken", () => {
     const result = runBuiltCli(["flow", "--help"], {
       cwd: snapshotRoot,

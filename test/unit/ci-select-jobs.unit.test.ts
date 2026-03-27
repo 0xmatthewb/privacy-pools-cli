@@ -93,6 +93,24 @@ describe("ci job selection", () => {
     expect(decision.reason).toContain("native/shell/src/main.rs");
   });
 
+  test("native-unit and native-coverage run for native shell changes", () => {
+    const unitDecision = evaluateJobSelection({
+      job: "native-unit",
+      eventName: "pull_request",
+      changedFiles: ["native/shell/src/routing.rs"],
+    });
+    expect(unitDecision.shouldRun).toBe(true);
+    expect(unitDecision.reason).toContain("native/shell/src/routing.rs");
+
+    const coverageDecision = evaluateJobSelection({
+      job: "native-coverage",
+      eventName: "pull_request",
+      changedFiles: ["native/shell/src/root_argv.rs"],
+    });
+    expect(coverageDecision.shouldRun).toBe(true);
+    expect(coverageDecision.reason).toContain("native/shell/src/root_argv.rs");
+  });
+
   test("supported-native-smoke runs for native packaging changes", () => {
     const decision = evaluateJobSelection({
       job: "supported-native-smoke",
@@ -159,6 +177,16 @@ describe("ci job selection", () => {
     expect(fixtureDecision.shouldRun).toBe(true);
     expect(fixtureDecision.reason).toContain(
       "scripts/release-install-asp-fixture.mjs",
+    );
+
+    const coverageScriptDecision = evaluateJobSelection({
+      job: "native-coverage",
+      eventName: "pull_request",
+      changedFiles: ["scripts/check-native-coverage.mjs"],
+    });
+    expect(coverageScriptDecision.shouldRun).toBe(true);
+    expect(coverageScriptDecision.reason).toContain(
+      "scripts/check-native-coverage.mjs",
     );
   });
 
