@@ -1,0 +1,40 @@
+{
+  "native": {
+    "--help": {
+      "maxMedianMs": 15,
+      "minImprovementPct": 50
+    },
+    "--version": {
+      "maxMedianMs": 15,
+      "minImprovementPct": 50
+    },
+    "capabilities --agent": {
+      "maxMedianMs": 15,
+      "minImprovementPct": 50
+    },
+    "describe withdraw quote --agent": {
+      "maxMedianMs": 15,
+      "minImprovementPct": 50
+    },
+    "flow --help": {
+      "maxMedianMs": 50,
+      "minImprovementPct": 66.7
+    },
+    "migrate --help": {
+      "maxMedianMs": 50,
+      "minImprovementPct": 66.7
+    },
+    "pools --agent --chain sepolia": {
+      "minImprovementPct": 25
+    },
+    "activity --agent": {
+      "minImprovementPct": 25
+    },
+    "stats --agent": {
+      "minImprovementPct": 25
+    },
+    "stats pool --agent --chain sepolia --asset ETH": {
+      "minImprovementPct": 25
+    }
+  }
+}

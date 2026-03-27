@@ -15,19 +15,17 @@ median timing deltas. Base timings always use the JS fallback path so native
 preview branches can be compared directly against the current npm baseline.
 
 Use `--runtime js` for the pure JS launcher path, `--runtime native` for the
-launcher + native shell path, or `--runtime both` to print both lanes in one
-report.
+direct Rust shell path, or `--runtime both` to print both lanes in one report.
 
-The `native` lane still includes `status --json --no-check`, but that command
-is intentionally JS-owned for the fund-safety boundary. Its native timing
-therefore measures launcher + native-shell forwarding overhead rather than a
-Rust implementation.
+The `js` lane still includes `status --json --no-check`, but that command is
+intentionally JS-owned for the fund-safety boundary and is not part of the
+enforced native shell gate.
 
 It keeps the setup intentionally lightweight:
 
 - no extra dependencies
 - no external benchmark runner
-- isolated temp home for `status --json --no-check`
+- isolated temp home for `status --json --no-check` in the JS lane
 - local fixture-backed ASP/RPC paths for public read-only commands
 
 The default command matrix covers:
@@ -43,6 +41,12 @@ The default command matrix covers:
 - `activity --agent`
 - `stats --agent`
 - `stats pool --agent --chain sepolia --asset ETH`
+
+The enforced `bench:gate` thresholds apply to the direct native shell targets
+from the roadmap: root help/version/discovery, heavy subcommand help, and the
+native-owned public read-only commands. The JS-owned `status --json --no-check`
+benchmark remains in the report for visibility, but it is intentionally
+informational-only under the current safety boundary.
 
 If you want to compare a different ref, pass `--base <ref>` such as `HEAD~1`,
 `origin/main`, or a release tag.

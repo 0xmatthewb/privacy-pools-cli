@@ -50,7 +50,8 @@
     "discovery:generate": "bun run build && node scripts/generate-command-discovery-static.mjs",
     "docs:generate": "bun run build && node scripts/generate-reference.mjs --write",
     "docs:preview": "bun run build && node scripts/generate-reference.mjs",
-    "docs:check": "bun run build && node scripts/generate-reference.mjs --check"
+    "docs:check": "bun run build && node scripts/generate-reference.mjs --check",
+    "bench:gate": "node scripts/bench-cli.mjs --base self --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json"
   },
   "dependencies": {
     "@0xbow/privacy-pools-core-sdk": "1.2.0",

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,6 +48,7 @@ const COMMANDS = [
     label: "status --json --no-check",
     args: ["status", "--json", "--no-check"],
     isolateHome: true,
+    skipDirectNative: true,
   },
   {
     label: "pools --agent --chain sepolia",
@@ -99,18 +100,22 @@ function printUsageAndExit(exitCode = 0) {
       "Compares the current checkout against a git ref by building both and timing",
       "a small read-only command matrix.",
       "Base timings always use the JS fallback path so native preview branches",
-      "can be measured directly against the current npm baseline.",
+      "can be measured directly against the current npm baseline. The native",
+      "lane executes the Rust shell directly to reflect the roadmap's shell",
+      "performance targets without Node launcher startup overhead.",
       "",
       "Options:",
-      `  --base <ref>    Git ref to compare against (default: ${DEFAULT_BASE_REF})`,
+      `  --base <ref>    Git ref to compare against, or 'self' to compare native against the current JS fallback (default: ${DEFAULT_BASE_REF})`,
       `  --runs <n>      Timed runs per command (default: ${DEFAULT_RUNS})`,
       `  --warmup <n>    Warmup runs before timing (default: ${DEFAULT_WARMUP})`,
       `  --runtime <m>   Current checkout runtime: js, native, or both (default: ${DEFAULT_RUNTIME})`,
+      "  --assert-thresholds <path>  Fail if benchmark thresholds are missed",
       "  --help          Show this message",
       "",
       "Examples:",
       "  node scripts/bench-cli.mjs",
       "  node scripts/bench-cli.mjs --base origin/main --runs 12",
+      "  node scripts/bench-cli.mjs --base self --runtime native",
       "  node scripts/bench-cli.mjs --runtime native",
       "  node scripts/bench-cli.mjs --runtime both --runs 6",
     ].join("\n") + "\n",
@@ -181,6 +186,17 @@ function parseArgs(argv) {
     }
     if (token.startsWith("--runtime=")) {
       options.runtime = token.slice("--runtime=".length);
+      continue;
+    }
+    if (token === "--assert-thresholds") {
+      const value = argv[i + 1];
+      if (!value) throw new Error("--assert-thresholds requires a value");
+      options.assertThresholdsPath = value;
+      i += 1;
+      continue;
+    }
+    if (token.startsWith("--assert-thresholds=")) {
+      options.assertThresholdsPath = token.slice("--assert-thresholds=".length);
       continue;
     }
     throw new Error(`Unknown argument: ${token}`);
@@ -364,6 +380,13 @@ function formatMs(value) {
   return `${value.toFixed(2)} ms`;
 }
 
+function loadThresholds(thresholdsPath) {
+  if (!thresholdsPath) return null;
+  return JSON.parse(
+    readFileSync(join(repoRoot, thresholdsPath), "utf8"),
+  );
+}
+
 function mean(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
@@ -376,11 +399,12 @@ function median(values) {
     : sorted[middle];
 }
 
-function runBench(commandPath, cwd, args, env, warmupRuns, timedRuns) {
+function runBench(command, prefixArgs, cwd, args, env, warmupRuns, timedRuns) {
   const timings = [];
+  const fullArgs = [...prefixArgs, ...args];
 
   for (let i = 0; i < warmupRuns; i += 1) {
-    spawnOrThrow(process.execPath, [commandPath, ...args], {
+    spawnOrThrow(command, fullArgs, {
       cwd,
       env,
     });
@@ -388,7 +412,7 @@ function runBench(commandPath, cwd, args, env, warmupRuns, timedRuns) {
 
   for (let i = 0; i < timedRuns; i += 1) {
     const start = process.hrtime.bigint();
-    const result = spawnSync(process.execPath, [commandPath, ...args], {
+    const result = spawnSync(command, fullArgs, {
       cwd,
       env,
       encoding: "utf8",
@@ -400,7 +424,7 @@ function runBench(commandPath, cwd, args, env, warmupRuns, timedRuns) {
     }
     if (result.status !== 0) {
       throw new Error(
-        `Benchmark command failed: ${args.join(" ")}\n${result.stderr?.trim() || result.stdout?.trim() || ""}`,
+        `Benchmark command failed: ${fullArgs.join(" ")}\n${result.stderr?.trim() || result.stdout?.trim() || ""}`,
       );
     }
     timings.push(elapsedMs);
@@ -415,25 +439,33 @@ function runBench(commandPath, cwd, args, env, warmupRuns, timedRuns) {
 }
 
 const commandArgs = parseArgs(process.argv.slice(2));
+const thresholds = loadThresholds(commandArgs.assertThresholdsPath);
 
 try {
   ensureNodeModules();
 
   buildCheckout(repoRoot);
 
-  const baselineWorktree = createBaselineWorktree(commandArgs.baseRef);
+  const baselineWorktree =
+    commandArgs.baseRef === "self"
+      ? null
+      : createBaselineWorktree(commandArgs.baseRef);
   try {
-    buildCheckout(baselineWorktree);
+    if (baselineWorktree) {
+      buildCheckout(baselineWorktree);
+    }
 
     const fixture = await launchFixtureServer();
     try {
       const currentDist = join(repoRoot, "dist", "index.js");
-      const baselineDist = join(baselineWorktree, "dist", "index.js");
+      const baselineDir = baselineWorktree ?? repoRoot;
+      const baselineDist = join(baselineDir, "dist", "index.js");
       const currentBaseEnv = withRepoBinPath();
       const baselineBaseEnv = withRepoBinPath();
       const runtimes =
         commandArgs.runtime === "both" ? ["js", "native"] : [commandArgs.runtime];
       let currentNativeBinary = null;
+      const thresholdFailures = [];
 
       if (runtimes.includes("native")) {
         assertNativeSupported();
@@ -463,6 +495,10 @@ try {
 
       for (const runtime of runtimes) {
         for (const command of COMMANDS) {
+          if (runtime === "native" && command.skipDirectNative) {
+            continue;
+          }
+
           const extraEnv =
             typeof command.env === "function"
               ? command.env({ fixtureUrl: fixture.url })
@@ -496,21 +532,28 @@ try {
 
           try {
             const base = runBench(
-              baselineDist,
+              process.execPath,
+              [baselineDist],
               baselineWorktree,
               command.args,
               baseEnv,
               commandArgs.warmup,
               commandArgs.runs,
             );
+            const currentRunner =
+              runtime === "native"
+                ? { command: currentNativeBinary, prefixArgs: [] }
+                : { command: process.execPath, prefixArgs: [currentDist] };
             const current = runBench(
-              currentDist,
+              currentRunner.command,
+              currentRunner.prefixArgs,
               repoRoot,
               command.args,
               currentEnv,
               commandArgs.warmup,
               commandArgs.runs,
             );
+            const improvementPct = ((base.median - current.median) / base.median) * 100;
             const delta = current.median - base.median;
             const deltaPct = (delta / base.median) * 100;
 
@@ -524,6 +567,21 @@ try {
                 `${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%`,
               ].join("\t") + "\n",
             );
+
+            const threshold = thresholds?.[runtime]?.[command.label];
+            if (threshold?.maxMedianMs !== undefined && current.median > threshold.maxMedianMs) {
+              thresholdFailures.push(
+                `${runtime} ${command.label}: median ${formatMs(current.median)} exceeded ${formatMs(threshold.maxMedianMs)}`,
+              );
+            }
+            if (
+              threshold?.minImprovementPct !== undefined &&
+              improvementPct < threshold.minImprovementPct
+            ) {
+              thresholdFailures.push(
+                `${runtime} ${command.label}: improvement ${improvementPct.toFixed(1)}% was below ${threshold.minImprovementPct.toFixed(1)}%`,
+              );
+            }
           } finally {
             for (const tempHome of tempHomes) {
               rmSync(tempHome, { recursive: true, force: true });
@@ -531,11 +589,20 @@ try {
           }
         }
       }
+
+      if (thresholdFailures.length > 0) {
+        process.stderr.write(
+          ["Benchmark gate failed:", ...thresholdFailures].join("\n") + "\n",
+        );
+        process.exit(1);
+      }
     } finally {
       await stopFixtureServer(fixture);
     }
   } finally {
-    cleanupBaselineWorktree(baselineWorktree);
+    if (baselineWorktree) {
+      cleanupBaselineWorktree(baselineWorktree);
+    }
   }
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
