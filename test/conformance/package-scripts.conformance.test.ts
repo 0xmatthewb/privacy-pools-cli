@@ -10,6 +10,23 @@ const packageJson = JSON.parse(
 };
 
 describe("package scripts conformance", () => {
+  test("conformance and release scripts include the node-script syntax gate", () => {
+    expect(packageJson.scripts?.["test:scripts"]).toBe(
+      "node scripts/check-node-scripts.mjs",
+    );
+    expect(packageJson.scripts?.["test:conformance"]).toContain(
+      "npm run test:scripts",
+    );
+    expect(packageJson.scripts?.["test:conformance:all"]).toContain(
+      "npm run test:scripts",
+    );
+    expect(packageJson.scripts?.["test:ci"]).toContain("npm run test:scripts");
+    expect(packageJson.scripts?.["test:release"]).toContain(
+      "npm run test:scripts",
+    );
+    expect(packageJson.scripts?.["test:all"]).toContain("npm run test:scripts");
+  });
+
   test("native package smoke scripts distinguish packaged smoke from installed-artifact checks", () => {
     expect(packageJson.scripts?.["test:smoke:native"]).toBe(
       "npm run test:smoke:native:package",

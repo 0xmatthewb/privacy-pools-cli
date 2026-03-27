@@ -1,7 +1,8 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   assertInstalledLauncherBasics,
   currentNativePackageName,
@@ -14,6 +15,12 @@ import {
   runInstalledCli,
   repoRoot,
 } from "./lib/install-verification.mjs";
+
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const TEST_MNEMONIC =
+  "test test test test test test test test test test test junk";
+const TEST_PRIVATE_KEY =
+  "0x1111111111111111111111111111111111111111111111111111111111111111";
 
 function usageAndExit() {
   process.stderr.write(
@@ -44,6 +51,82 @@ function run(command, args, options = {}) {
   }
 
   return result;
+}
+
+async function launchAspFixtureServer() {
+  const child = spawn(
+    process.execPath,
+    [join(scriptDir, "release-install-asp-fixture.mjs")],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+
+  const port = await new Promise((resolvePromise, rejectPromise) => {
+    let stdout = "";
+    let stderr = "";
+    const readyTimeout = setTimeout(() => {
+      rejectPromise(
+        new Error(
+          `Timed out waiting for registry-install ASP fixture.\nstderr:\n${stderr}`,
+        ),
+      );
+    }, 10_000);
+
+    const settle = (callback) => {
+      clearTimeout(readyTimeout);
+      child.stdout.removeAllListeners("data");
+      child.stderr.removeAllListeners("data");
+      child.removeAllListeners("error");
+      child.removeAllListeners("exit");
+      callback();
+    };
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      const match = stdout.match(/FIXTURE_PORT=(\d+)/);
+      if (match) {
+        settle(() => resolvePromise(Number(match[1])));
+      }
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    child.once("error", (error) => {
+      settle(() => rejectPromise(error));
+    });
+
+    child.once("exit", (code, signal) => {
+      settle(() =>
+        rejectPromise(
+          new Error(
+            `Registry-install ASP fixture exited before startup (code=${code}, signal=${signal}).\nstderr:\n${stderr}`,
+          ),
+        ),
+      );
+    });
+  });
+
+  return {
+    url: `http://127.0.0.1:${port}`,
+    async close() {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        return;
+      }
+
+      await new Promise((resolvePromise) => {
+        child.once("exit", () => resolvePromise());
+        child.kill("SIGTERM");
+      });
+    },
+  };
+}
+
 async function waitForRegistryPackage(packageName, version, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
 
@@ -92,10 +175,12 @@ if (!nativePackageName) {
 
 const installRoot = mkdtempSync(join(tmpdir(), "pp-registry-install-"));
 const homeDir = join(installRoot, ".privacy-pools");
+const seededHomeDir = join(installRoot, ".privacy-pools-seeded");
 const npmCacheDir = join(installRoot, ".npm-cache");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
 
 try {
+  let aspFixture = null;
   await waitForRegistryPackage(nativePackageName, expectedVersion, timeoutMs);
   await waitForRegistryPackage(packageName, expectedVersion, timeoutMs);
 
@@ -154,22 +239,104 @@ try {
     label: "Installed registry CLI",
   });
 
-  const statusResult = runInstalledCli(
+  aspFixture = await launchAspFixtureServer();
+  const statsResult = runInstalledCli(
     installRoot,
     homeDir,
+    ["--agent", "stats"],
+    {
+      env: {
+        PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+      },
+    },
+  );
+  const statsPayload = parseJson(statsResult.stdout, "stats --agent");
+  if (
+    statsResult.status !== 0 ||
+    statsPayload.success !== true ||
+    statsPayload.mode !== "global-stats"
+  ) {
+    fail(
+      `Installed registry CLI failed native read-only success parity:\nstatus=${statsResult.status}\nstdout=${statsResult.stdout}\nstderr=${statsResult.stderr}`,
+    );
+  }
+  await aspFixture.close();
+  aspFixture = null;
+
+  const initResult = runInstalledCli(
+    installRoot,
+    seededHomeDir,
+    [
+      "--agent",
+      "init",
+      "--mnemonic",
+      TEST_MNEMONIC,
+      "--private-key-stdin",
+      "--default-chain",
+      "sepolia",
+      "--yes",
+    ],
+    {
+      input: `${TEST_PRIVATE_KEY}\n`,
+      timeout: 60_000,
+    },
+  );
+  const initPayload = parseJson(initResult.stdout, "init --agent");
+  if (
+    initResult.status !== 0 ||
+    initPayload.success !== true ||
+    initPayload.defaultChain !== "sepolia"
+  ) {
+    fail(
+      `Installed registry CLI failed JS-forwarded init via stdin:\nstatus=${initResult.status}\nstdout=${initResult.stdout}\nstderr=${initResult.stderr}`,
+    );
+  }
+  if (
+    initResult.stdout.includes(TEST_PRIVATE_KEY) ||
+    initResult.stderr.includes(TEST_PRIVATE_KEY)
+  ) {
+    fail("Installed registry CLI leaked the stdin private key");
+  }
+
+  const statusResult = runInstalledCli(
+    installRoot,
+    seededHomeDir,
     ["--agent", "status", "--no-check"],
   );
-  const statusPayload = parseJson(
-    statusResult.stdout,
-    "status --agent --no-check",
-  );
+  const statusPayload = parseJson(statusResult.stdout, "status --agent --no-check");
   if (
     statusResult.status !== 0 ||
     statusPayload.success !== true ||
-    statusPayload.recoveryPhraseSet !== false
+    statusPayload.recoveryPhraseSet !== true ||
+    statusPayload.signerKeyValid !== true
   ) {
     fail(
       `Installed registry CLI failed JS-forwarded status:\nstatus=${statusResult.status}\nstdout=${statusResult.stdout}\nstderr=${statusResult.stderr}`,
+    );
+  }
+
+  const statsErrorResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "stats"],
+    {
+      env: {
+        PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+      },
+    },
+  );
+  const statsErrorPayload = parseJson(
+    statsErrorResult.stdout,
+    "stats --agent",
+  );
+  if (
+    statsErrorResult.status !== 3 ||
+    statsErrorPayload.success !== false ||
+    statsErrorPayload.errorCode !== "RPC_NETWORK_ERROR"
+  ) {
+    fail(
+      `Installed registry CLI failed native read-only error parity:\nstatus=${statsErrorResult.status}\nstdout=${statsErrorResult.stdout}\nstderr=${statsErrorResult.stderr}`,
     );
   }
 

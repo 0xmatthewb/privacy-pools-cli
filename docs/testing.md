@@ -22,6 +22,7 @@ This repository uses a Bun-aligned test architecture. The important constraint i
   - Agent-focused behavior checks such as `nextActions` quality.
 - `test/conformance/`
   - Source-of-truth, docs, discovery, and generated-artifact alignment.
+  - Also owns fast syntax/integrity checks for Node-side release/install helper scripts under `scripts/**/*.mjs`.
 - Anvil E2E
   - `bun run test:e2e:anvil:smoke` is the fast representative lane.
   - `bun run test:e2e:anvil` is the broader local-only matrix built on the shared self-contained fixture.
@@ -133,6 +134,7 @@ If a target is missed:
 CI notes:
 
 - `scripts/ci/test-shards.mjs` uses `scripts/ci/test-shard-weights.json` for deterministic runtime-aware shard balancing.
+- `npm run test:scripts` runs `node --check` across `scripts/**/*.mjs` and is included in the conformance path so broken release/install helpers fail in blocking CI before release day.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
 - `.github/workflows/flake-anvil.yml` is the separate heavier flake lane for shared-Anvil smoke reruns. It is informational and changed-path selected on pull requests so the fast flake job stays lightweight.
 - `npm run test:ci` now includes the current-host packed-artifact install check so local verification exercises the same installed launcher/native path that blocking CI enforces on supported targets.
