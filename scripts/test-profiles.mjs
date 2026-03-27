@@ -51,7 +51,7 @@ export const TEST_PROFILES = {
   release: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
-    ...composeProfile("native-core", "coverage", "anvil-full", "evals"),
+    ...composeProfile("native-core", "coverage", "anvil-full", "anvil-smoke", "evals"),
     ...composeProfile(
       "build",
       "docs-reference-check",
@@ -62,7 +62,7 @@ export const TEST_PROFILES = {
   all: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
-    ...composeProfile("native-core", "coverage", "anvil-full", "evals"),
+    ...composeProfile("native-core", "coverage", "anvil-full", "anvil-smoke", "evals"),
     ...composeProfile(
       "build",
       "docs-reference-check",

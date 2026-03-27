@@ -80,6 +80,14 @@ describe("test profiles", () => {
     expect(resolveProfile("ci")).toContainEqual(["npm", ["run", "test:native"]]);
     expect(resolveProfile("release")).toContainEqual([
       "npm",
+      ["run", "test:e2e:anvil:smoke"],
+    ]);
+    expect(resolveProfile("all")).toContainEqual([
+      "npm",
+      ["run", "test:e2e:anvil:smoke"],
+    ]);
+    expect(resolveProfile("release")).toContainEqual([
+      "npm",
       ["run", "bench:gate:release"],
     ]);
   });
