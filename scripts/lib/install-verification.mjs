@@ -11,8 +11,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const libDir = dirname(fileURLToPath(import.meta.url));
-
 export const repoRoot = dirname(dirname(libDir));
+const INSTALL_ASP_FIXTURE = join(
+  repoRoot,
+  "scripts",
+  "release-install-asp-fixture.mjs",
+);
 export const rootPackageJson = JSON.parse(
   readFileSync(join(repoRoot, "package.json"), "utf8"),
 );
@@ -150,6 +154,76 @@ export function runInstalledCli(installRoot, homeDir, args, options = {}) {
   }
 
   return result;
+}
+
+export async function launchAspFixtureServer(label = "installed-artifact") {
+  const child = spawn(process.execPath, [INSTALL_ASP_FIXTURE], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+
+  const port = await new Promise((resolvePromise, rejectPromise) => {
+    let stdout = "";
+    let stderr = "";
+    const readyTimeout = setTimeout(() => {
+      rejectPromise(
+        new Error(
+          `Timed out waiting for ${label} ASP fixture.\nstderr:\n${stderr}`,
+        ),
+      );
+    }, 10_000);
+
+    const settle = (callback) => {
+      clearTimeout(readyTimeout);
+      child.stdout.removeAllListeners("data");
+      child.stderr.removeAllListeners("data");
+      child.removeAllListeners("error");
+      child.removeAllListeners("exit");
+      callback();
+    };
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      const match = stdout.match(/FIXTURE_PORT=(\d+)/);
+      if (match) {
+        settle(() => resolvePromise(Number(match[1])));
+      }
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    child.once("error", (error) => {
+      settle(() => rejectPromise(error));
+    });
+
+    child.once("exit", (code, signal) => {
+      settle(() =>
+        rejectPromise(
+          new Error(
+            `${label} ASP fixture exited before startup (code=${code}, signal=${signal}).\nstderr:\n${stderr}`,
+          ),
+        ),
+      );
+    });
+  });
+
+  return {
+    url: `http://127.0.0.1:${port}`,
+    async close() {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        return;
+      }
+
+      await new Promise((resolvePromise) => {
+        child.once("exit", () => resolvePromise());
+        child.kill("SIGTERM");
+      });
+    },
+  };
 }
 
 export function spawnInstalledCli(installRoot, homeDir, args, options = {}) {
@@ -357,4 +431,190 @@ export function assertInstalledStatusSuccess({
   }
 
   return statusPayload;
+}
+
+export function assertInstalledInitViaStdin({
+  installRoot,
+  homeDir,
+  label,
+  mnemonic,
+  privateKey,
+  defaultChain = "sepolia",
+}) {
+  const initResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    [
+      "--agent",
+      "init",
+      "--mnemonic",
+      mnemonic,
+      "--private-key-stdin",
+      "--default-chain",
+      defaultChain,
+      "--yes",
+    ],
+    {
+      input: `${privateKey}\n`,
+      timeout: 60_000,
+    },
+  );
+  const initPayload = parseJson(initResult.stdout, "init --agent");
+  if (
+    initResult.status !== 0 ||
+    initPayload.success !== true ||
+    initPayload.defaultChain !== defaultChain
+  ) {
+    fail(
+      `${label} failed JS-forwarded init via stdin:\nstatus=${initResult.status}\nstdout=${initResult.stdout}\nstderr=${initResult.stderr}`,
+    );
+  }
+
+  if (
+    initResult.stdout.includes(privateKey) ||
+    initResult.stderr.includes(privateKey)
+  ) {
+    fail(`${label} leaked the stdin private key`);
+  }
+
+  return initPayload;
+}
+
+export async function assertInstalledNativeStatsSuccess({
+  installRoot,
+  homeDir,
+  label,
+  missingWorkerPath,
+}) {
+  const aspFixture = await launchAspFixtureServer(label);
+  try {
+    const statsResult = runInstalledCli(
+      installRoot,
+      homeDir,
+      ["--agent", "stats"],
+      {
+        env: {
+          PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+          PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+        },
+      },
+    );
+    const statsPayload = parseJson(statsResult.stdout, "stats --agent");
+    if (
+      statsResult.status !== 0 ||
+      statsPayload.success !== true ||
+      statsPayload.mode !== "global-stats"
+    ) {
+      fail(
+        `${label} failed native read-only success parity:\nstatus=${statsResult.status}\nstdout=${statsResult.stdout}\nstderr=${statsResult.stderr}`,
+      );
+    }
+  } finally {
+    await aspFixture.close();
+  }
+}
+
+export async function assertInstalledFlowAwaitingFunding({
+  installRoot,
+  homeDir,
+  label,
+  exportPath,
+  recipient,
+  chain = "sepolia",
+}) {
+  const aspFixture = await launchAspFixtureServer(label);
+  const flowStartHandle = spawnInstalledCli(
+    installRoot,
+    homeDir,
+    [
+      "--agent",
+      "flow",
+      "start",
+      "100",
+      "USDC",
+      "--to",
+      recipient,
+      "--new-wallet",
+      "--export-new-wallet",
+      exportPath,
+      "--chain",
+      chain,
+    ],
+    {
+      env: {
+        PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+      },
+    },
+  );
+
+  try {
+    const awaitingFunding = await waitForWorkflowPhase(homeDir, "awaiting_funding", {
+      child: flowStartHandle.child,
+    });
+    if (awaitingFunding.walletMode !== "new_wallet") {
+      fail(
+        `${label} created an unexpected workflow wallet mode:\n${JSON.stringify(awaitingFunding, null, 2)}`,
+      );
+    }
+
+    const flowStatusResult = runInstalledCli(
+      installRoot,
+      homeDir,
+      ["--agent", "flow", "status", "latest", "--chain", chain],
+      {
+        env: {
+          PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+        },
+      },
+    );
+    const flowStatusPayload = parseJson(
+      flowStatusResult.stdout,
+      "flow status latest --agent",
+    );
+    if (
+      flowStatusResult.status !== 0 ||
+      flowStatusPayload.success !== true ||
+      flowStatusPayload.phase !== "awaiting_funding" ||
+      flowStatusPayload.walletMode !== "new_wallet"
+    ) {
+      fail(
+        `${label} failed JS-forwarded flow status parity:\nstatus=${flowStatusResult.status}\nstdout=${flowStatusResult.stdout}\nstderr=${flowStatusResult.stderr}`,
+      );
+    }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    fail(
+      `${label} failed JS-forwarded flow setup parity:\n${reason}\nstdout=${flowStartHandle.getStdout()}\nstderr=${flowStartHandle.getStderr()}`,
+    );
+  } finally {
+    await stopInstalledCliChild(flowStartHandle);
+    await aspFixture.close();
+  }
+}
+
+export function assertInstalledNativeStatsError({
+  installRoot,
+  homeDir,
+  label,
+}) {
+  const statsResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "stats"],
+    {
+      env: {
+        PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+      },
+    },
+  );
+  const statsPayload = parseJson(statsResult.stdout, "stats --agent");
+  if (
+    statsResult.status !== 3 ||
+    statsPayload.success !== false ||
+    statsPayload.errorCode !== "RPC_NETWORK_ERROR"
+  ) {
+    fail(
+      `${label} failed native read-only error parity:\nstatus=${statsResult.status}\nstdout=${statsResult.stdout}\nstderr=${statsResult.stderr}`,
+    );
+  }
 }
