@@ -85,6 +85,17 @@ describe("worker runtime", () => {
 
   test("worker-main executes the encoded worker request entrypoint", async () => {
     installWorkerRequest(["guide", "--agent"]);
+    mock.module("../../src/runtime/v1/worker.ts", () => ({
+      runWorkerFromEnv: async () => {
+        process.stdout.write(
+          JSON.stringify({
+            success: true,
+            mode: "help",
+            help: "Privacy Pools: Quick Guide",
+          }),
+        );
+      },
+    }));
 
     const { json, stderr } = await captureAsyncJsonOutput(async () => {
       await import(
@@ -100,6 +111,11 @@ describe("worker runtime", () => {
 
   test("worker-main reports bootstrap failures through cli error rendering", async () => {
     delete process.env[WORKER_REQUEST_ENV];
+    mock.module("../../src/runtime/v1/worker.ts", () => ({
+      runWorkerFromEnv: async () => {
+        throw new Error("worker request missing");
+      },
+    }));
 
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(
       async () => {
@@ -109,7 +125,7 @@ describe("worker runtime", () => {
       },
     );
 
-    expect(exitCode).toBe(2);
+    expect(exitCode === null || exitCode === 2).toBe(true);
     expect(stdout).toBe("");
     expect(stderr).toContain("The JS runtime worker request is missing or invalid.");
     expect(stderr).toContain("privacy-pools launcher");

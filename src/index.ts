@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readCliPackageInfo } from "./package-info.js";
+import { createCliPackageInfoResolver } from "./package-info.js";
 import { runLauncher } from "./launcher.js";
 import { installConsoleGuard } from "./utils/console-guard.js";
 
@@ -9,4 +9,7 @@ import { installConsoleGuard } from "./utils/console-guard.js";
 // the CLI routes all its own output through process.stderr/stdout.write.
 installConsoleGuard();
 
-await runLauncher(readCliPackageInfo(import.meta.url), process.argv.slice(2));
+await runLauncher(
+  createCliPackageInfoResolver(import.meta.url),
+  process.argv.slice(2),
+);

@@ -12,8 +12,13 @@ import {
 export async function runWorkerRequest(
   request: WorkerRequestV1,
   pkg: CliPackageInfo = readCliPackageInfo(import.meta.url),
+  options: {
+    installConsoleGuard?: boolean;
+  } = {},
 ): Promise<void> {
-  installConsoleGuard();
+  if (options.installConsoleGuard ?? true) {
+    installConsoleGuard();
+  }
   await runCli(pkg, request.argv);
 }
 

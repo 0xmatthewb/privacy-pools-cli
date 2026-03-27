@@ -8,6 +8,7 @@ import {
   CURRENT_RUNTIME_DESCRIPTOR,
 } from "./runtime/runtime-contract.js";
 import {
+  createCurrentWorkerRequest,
   createNativeJsBridgeDescriptor,
   CURRENT_RUNTIME_REQUEST_ENV,
   encodeCurrentWorkerRequest,
@@ -40,6 +41,12 @@ const ENV_PRIVATE_KEY = "PRIVACY_POOLS_PRIVATE_KEY";
 const STATIC_DISCOVERY_COMMANDS = new Set<string>(
   [...GENERATED_STATIC_LOCAL_COMMANDS].filter((command) => command !== "completion"),
 );
+const TOKENIZED_COMMAND_ROUTES = GENERATED_COMMAND_MANIFEST.commandPaths
+  .map((route) => ({
+    route,
+    tokens: route.split(" "),
+  }))
+  .sort((left, right) => right.tokens.length - left.tokens.length);
 
 const SIGNAL_EXIT_CODES: Partial<Record<NodeJS.Signals, number>> = {
   SIGINT: 130,
@@ -67,8 +74,16 @@ export interface LaunchTarget {
   env: NodeJS.ProcessEnv;
 }
 
+type CliPackageInfoSource = CliPackageInfo | (() => CliPackageInfo);
+
 function isFlagEnabled(value: string | undefined): boolean {
   return value?.trim() === "1";
+}
+
+function resolveCliPackageInfo(
+  pkg: CliPackageInfoSource,
+): CliPackageInfo {
+  return typeof pkg === "function" ? pkg() : pkg;
 }
 
 function defaultJsWorkerPath(): string {
@@ -85,6 +100,18 @@ function resolveConfiguredJsWorkerPath(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   return env[ENV_CLI_JS_WORKER]?.trim() || defaultJsWorkerPath();
+}
+
+function hasExplicitBinaryOverride(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return Boolean(env[ENV_CLI_BINARY]?.trim());
+}
+
+function hasExplicitJsWorkerOverride(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return Boolean(env[ENV_CLI_JS_WORKER]?.trim());
 }
 
 function nativeTriplet(
@@ -197,13 +224,14 @@ export function resolveLaunchTarget(
   env: NodeJS.ProcessEnv = process.env,
   options: {
     resolveInstalledNativeBinary?: typeof resolveInstalledNativeBinary;
+    parsed?: ParsedRootArgv;
   } = {},
 ): LaunchTarget {
   if (isFlagEnabled(env[ENV_CLI_DISABLE_NATIVE])) {
     return createJsWorkerTarget(argv, env);
   }
 
-  const parsed = parseRootArgv(argv);
+  const parsed = options.parsed ?? parseRootArgv(argv);
   if (invocationRequiresJsWorker(parsed)) {
     return createJsWorkerTarget(argv, env);
   }
@@ -269,19 +297,14 @@ function resolveCommandRoute(tokens: string[]): string | null {
     normalizedTokens.splice(0, 1, ...aliasedFirstToken.split(" "));
   }
 
-  let bestRoute: string | null = null;
-  for (const route of GENERATED_COMMAND_MANIFEST.commandPaths) {
-    const routeTokens = route.split(" ");
+  for (const { route, tokens: routeTokens } of TOKENIZED_COMMAND_ROUTES) {
     if (routeTokens.length > normalizedTokens.length) continue;
-    if (!routeTokens.every((token, index) => normalizedTokens[index] === token)) {
-      continue;
-    }
-    if (!bestRoute || routeTokens.length > bestRoute.split(" ").length) {
-      bestRoute = route;
+    if (routeTokens.every((token, index) => normalizedTokens[index] === token)) {
+      return route;
     }
   }
 
-  return bestRoute;
+  return null;
 }
 
 function isHybridInvocationNative(
@@ -365,6 +388,68 @@ function validateJsWorkerPath(
   );
 }
 
+async function tryRunLocalFastPath(
+  pkg: CliPackageInfoSource,
+  argv: string[],
+  parsed: ParsedRootArgv,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<boolean> {
+  if (hasExplicitBinaryOverride(env)) {
+    return false;
+  }
+
+  if (parsed.isVersionLike && parsed.firstCommandToken === undefined) {
+    await writeVersionOutput(resolveCliPackageInfo(pkg), parsed.isStructuredOutputMode);
+    process.exit(0);
+    return true;
+  }
+
+  if (parsed.isRootHelpInvocation) {
+    const { runStaticRootHelp } = await import("./static-discovery.js");
+    await runStaticRootHelp(parsed.isStructuredOutputMode);
+    process.exit(0);
+    return true;
+  }
+
+  if (
+    !parsed.isHelpLike &&
+    !parsed.isVersionLike &&
+    parsed.firstCommandToken === "completion"
+  ) {
+    const { runStaticCompletionQuery } = await import("./static-discovery.js");
+    if (await runStaticCompletionQuery(argv)) {
+      process.exit(0);
+      return true;
+    }
+  }
+
+  if (
+    !parsed.isHelpLike &&
+    !parsed.isVersionLike &&
+    STATIC_DISCOVERY_COMMANDS.has(parsed.firstCommandToken ?? "")
+  ) {
+    const { runStaticDiscoveryCommand } = await import("./static-discovery.js");
+    if (await runStaticDiscoveryCommand(argv)) {
+      process.exit(0);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function runJsWorkerInline(
+  pkg: CliPackageInfoSource,
+  argv: string[],
+): Promise<void> {
+  const { runWorkerRequest } = await import("./runtime/v1/worker.js");
+  await runWorkerRequest(
+    createCurrentWorkerRequest(argv),
+    resolveCliPackageInfo(pkg),
+    { installConsoleGuard: false },
+  );
+}
+
 async function spawnLaunchTarget(target: LaunchTarget): Promise<void> {
   const { code, signal } = await new Promise<{
     code: number | null;
@@ -414,51 +499,24 @@ async function spawnLaunchTarget(target: LaunchTarget): Promise<void> {
 }
 
 export async function runLauncher(
-  pkg: CliPackageInfo,
+  pkg: CliPackageInfoSource,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
   applyLauncherEnvironment(argv);
 
   const parsed = parseRootArgv(argv);
-  const target = resolveLaunchTarget(pkg, argv);
-
-  if (target.kind !== "native-binary") {
-    if (parsed.isVersionLike && parsed.firstCommandToken === undefined) {
-      await writeVersionOutput(pkg, parsed.isStructuredOutputMode);
-      process.exit(0);
-    }
-
-    if (parsed.isRootHelpInvocation) {
-      const { runStaticRootHelp } = await import("./static-discovery.js");
-      await runStaticRootHelp(parsed.isStructuredOutputMode);
-      process.exit(0);
-    }
-
-    if (
-      !parsed.isHelpLike &&
-      !parsed.isVersionLike &&
-      parsed.firstCommandToken === "completion"
-    ) {
-      const { runStaticCompletionQuery } = await import("./static-discovery.js");
-      if (await runStaticCompletionQuery(argv)) {
-        process.exit(0);
-      }
-    }
-
-    if (
-      !parsed.isHelpLike &&
-      !parsed.isVersionLike &&
-      STATIC_DISCOVERY_COMMANDS.has(parsed.firstCommandToken ?? "")
-    ) {
-      const { runStaticDiscoveryCommand } = await import("./static-discovery.js");
-      if (await runStaticDiscoveryCommand(argv)) {
-        process.exit(0);
-      }
-    }
+  if (await tryRunLocalFastPath(pkg, argv, parsed)) {
+    return;
   }
+  const resolvedPackageInfo = resolveCliPackageInfo(pkg);
+  const target = resolveLaunchTarget(resolvedPackageInfo, argv, process.env, {
+    parsed,
+  });
 
   try {
-    if (target.kind === "js-worker" || invocationRequiresJsWorker(parsed)) {
+    if (target.kind === "js-worker" && hasExplicitJsWorkerOverride(target.env)) {
+      validateJsWorkerPath(target.env);
+    } else if (target.kind === "native-binary" && invocationRequiresJsWorker(parsed)) {
       validateJsWorkerPath(target.env);
     }
   } catch (error) {
@@ -471,6 +529,11 @@ export async function runLauncher(
     return;
   }
 
+  if (!hasExplicitJsWorkerOverride(target.env)) {
+    await runJsWorkerInline(resolvedPackageInfo, argv);
+    return;
+  }
+
   await spawnLaunchTarget(target);
 }
 
@@ -479,16 +542,20 @@ export const launcherTestInternals = {
   createNativeForwardingEnv,
   createJsWorkerTarget,
   defaultJsWorkerPath,
+  hasExplicitBinaryOverride,
+  hasExplicitJsWorkerOverride,
   invocationRequiresJsWorker,
   hasCompatibleInstalledNativeMetadata,
   isFlagEnabled,
   hasValidInstalledNativeChecksum: hasValidNativeChecksum,
   nativePackageName,
   nativeTriplet,
+  resolveCliPackageInfo,
   resolveConfiguredJsWorkerPath,
   resolveCommandRoute,
   resolveInstalledNativeBinary,
   resolveLaunchTarget,
+  tryRunLocalFastPath,
   validateJsWorkerPath,
   writeVersionOutput,
 };

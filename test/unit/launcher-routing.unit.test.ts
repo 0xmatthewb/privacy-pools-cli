@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -212,6 +212,31 @@ describe("launcher routing", () => {
       version: "1.7.0",
     });
     expect(structured.stderr).toBe("");
+  });
+
+  test("runLauncher serves static discovery without resolving package info", async () => {
+    const pkgResolver = mock(() => PKG);
+
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      runLauncher(pkgResolver, ["capabilities", "--agent"]),
+    );
+
+    expect(exitCode).toBe(0);
+    expect(json.success).toBe(true);
+    expect(Array.isArray(json.commands)).toBe(true);
+    expect(stderr).toBe("");
+    expect(pkgResolver).not.toHaveBeenCalled();
+  });
+
+  test("runLauncher resolves js-owned commands inline when no worker override is set", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      runLauncher(PKG, ["--agent", "status", "--no-check"]),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.recoveryPhraseSet).toBeDefined();
+    expect(json.readyForDeposit).toBeDefined();
+    expect(stderr).toBe("");
   });
 
   test("runLauncher renders structured worker-path failures for js-owned commands", async () => {
