@@ -159,6 +159,111 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
 }
 
 #[test]
+fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
+    ];
+
+    let pool_activity = run_native_with_env(
+        &["--chain", "sepolia", "activity", "--asset", "ETH", "--agent"],
+        &env,
+    );
+    assert!(pool_activity.status.success());
+    assert!(stderr_string(&pool_activity).trim().is_empty());
+    let pool_activity_payload = parse_stdout_json(&pool_activity);
+    assert_eq!(pool_activity_payload["success"], Value::Bool(true));
+    assert_eq!(
+        pool_activity_payload["mode"],
+        Value::String("pool-activity".to_string())
+    );
+    assert_eq!(
+        pool_activity_payload["chain"],
+        Value::String("sepolia".to_string())
+    );
+    assert_eq!(
+        pool_activity_payload["asset"],
+        Value::String("ETH".to_string())
+    );
+    assert_eq!(
+        pool_activity_payload["scope"],
+        Value::String("12345".to_string())
+    );
+
+    let stats_global = run_native_with_env(&["stats", "global", "--agent"], &env);
+    assert!(stats_global.status.success());
+    assert!(stderr_string(&stats_global).trim().is_empty());
+    let stats_global_payload = parse_stdout_json(&stats_global);
+    assert_eq!(stats_global_payload["success"], Value::Bool(true));
+    assert_eq!(
+        stats_global_payload["mode"],
+        Value::String("global-stats".to_string())
+    );
+    assert_eq!(
+        stats_global_payload["chain"],
+        Value::String("all-mainnets".to_string())
+    );
+    assert!(stats_global_payload["chains"].is_array());
+}
+
+#[test]
+fn invalid_native_read_only_flag_combinations_fail_cleanly() {
+    let fixture = launch_fixture_server();
+    let stats_global = run_native_with_env(
+        &["--agent", "--chain", "sepolia", "stats", "global"],
+        &[("PRIVACY_POOLS_ASP_HOST", fixture.base_url())],
+    );
+    assert_eq!(stats_global.status.code(), Some(2));
+    assert!(stderr_string(&stats_global).trim().is_empty());
+    let stats_global_payload = parse_stdout_json(&stats_global);
+    assert_eq!(stats_global_payload["success"], Value::Bool(false));
+    assert_eq!(
+        stats_global_payload["errorCode"],
+        Value::String("INPUT_ERROR".to_string())
+    );
+    assert!(
+        stats_global_payload["errorMessage"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Global statistics are aggregated across all chains"),
+    );
+    assert!(
+        stats_global_payload["error"]["hint"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("For chain-specific data use: privacy-pools stats pool"),
+    );
+
+    let pools_with_rpc_url = run_native_with_env(
+        &["--agent", "pools", "--rpc-url", fixture.base_url()],
+        &[],
+    );
+    assert_eq!(pools_with_rpc_url.status.code(), Some(2));
+    assert!(stderr_string(&pools_with_rpc_url).trim().is_empty());
+    let pools_payload = parse_stdout_json(&pools_with_rpc_url);
+    assert_eq!(pools_payload["success"], Value::Bool(false));
+    assert_eq!(
+        pools_payload["errorCode"],
+        Value::String("INPUT_ERROR".to_string())
+    );
+    assert!(
+        pools_payload["errorMessage"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("--rpc-url cannot be combined with multi-chain queries"),
+    );
+    assert!(
+        pools_payload["error"]["hint"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Use --chain <name> to target a single chain with --rpc-url"),
+    );
+}
+
+#[test]
 fn network_failures_keep_machine_readable_error_contracts() {
     let env = [("PRIVACY_POOLS_ASP_HOST", "http://127.0.0.1:9")];
     let output = run_native_with_env(&["activity", "--agent"], &env);

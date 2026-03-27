@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
 use assert_cmd::prelude::*;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -16,6 +18,20 @@ use tiny_keccak::{Hasher, Keccak};
 const FIXTURE_CHAIN_ID: u64 = 11_155_111;
 const FIXTURE_POOL: &str = "0x1234567890abcdef1234567890abcdef12345678";
 const FIXTURE_ASSET: &str = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RuntimeContractFixture {
+    #[serde(rename = "runtimeVersion")]
+    pub runtime_version: String,
+    #[serde(rename = "workerProtocolVersion")]
+    pub worker_protocol_version: String,
+    #[serde(rename = "nativeBridgeVersion")]
+    pub native_bridge_version: String,
+    #[serde(rename = "workerRequestEnv")]
+    pub worker_request_env: String,
+    #[serde(rename = "nativeBridgeEnv")]
+    pub native_bridge_env: String,
+}
 
 pub fn run_native(args: &[&str]) -> Output {
     run_native_with_env(args, &[])
@@ -50,6 +66,16 @@ pub fn missing_worker_path() -> String {
     let mut path = std::env::temp_dir();
     path.push("pp-missing-worker.js");
     path.to_string_lossy().into_owned()
+}
+
+pub fn runtime_contract_fixture() -> RuntimeContractFixture {
+    let contract_path = format!("{}/generated/runtime-contract.json", env!("CARGO_MANIFEST_DIR"));
+    let raw = std::fs::read_to_string(&contract_path).expect("runtime contract fixture should exist");
+    serde_json::from_str(&raw).expect("runtime contract fixture should parse")
+}
+
+pub fn encode_bridge_descriptor(value: Value) -> String {
+    BASE64.encode(serde_json::to_vec(&value).expect("bridge descriptor should serialize"))
 }
 
 pub struct FixtureServer {

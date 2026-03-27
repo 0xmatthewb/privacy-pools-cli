@@ -1,9 +1,9 @@
 mod support;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use support::{
-    missing_worker_path, parse_stdout_json, run_native, run_native_with_env, stderr_string,
-    stdout_string,
+    encode_bridge_descriptor, missing_worker_path, parse_stdout_json, run_native,
+    run_native_with_env, runtime_contract_fixture, stderr_string, stdout_string,
 };
 
 #[test]
@@ -109,5 +109,130 @@ fn direct_binary_js_owned_commands_fail_cleanly_in_agent_mode() {
             "Run the native shell through the npm launcher so it can forward JS-owned commands."
                 .to_string(),
         )
+    );
+}
+
+#[test]
+fn malformed_bridge_descriptor_fails_cleanly_in_agent_mode() {
+    let contract = runtime_contract_fixture();
+    let output = run_native_with_env(
+        &["--agent", "status", "--no-check"],
+        &[(contract.native_bridge_env.as_str(), "%%%")],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr_string(&output).trim().is_empty());
+    let payload = parse_stdout_json(&output);
+    assert_eq!(payload["success"], Value::Bool(false));
+    assert!(
+        payload["errorMessage"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Failed to decode JS bridge descriptor"),
+    );
+}
+
+#[test]
+fn incomplete_bridge_descriptor_fails_cleanly_in_agent_mode() {
+    let contract = runtime_contract_fixture();
+    let encoded = encode_bridge_descriptor(json!({
+        "runtimeVersion": contract.runtime_version,
+        "workerProtocolVersion": contract.worker_protocol_version,
+        "nativeBridgeVersion": contract.native_bridge_version,
+        "workerRequestEnv": contract.worker_request_env,
+        "workerCommand": "",
+        "workerArgs": [],
+    }));
+    let output = run_native_with_env(
+        &["--agent", "status", "--no-check"],
+        &[(contract.native_bridge_env.as_str(), encoded.as_str())],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr_string(&output).trim().is_empty());
+    let payload = parse_stdout_json(&output);
+    assert_eq!(payload["success"], Value::Bool(false));
+    assert_eq!(
+        payload["errorMessage"],
+        Value::String("JS bridge descriptor is incomplete.".to_string())
+    );
+}
+
+#[test]
+fn bridge_runtime_and_worker_env_mismatches_fail_cleanly() {
+    let contract = runtime_contract_fixture();
+
+    let runtime_mismatch = encode_bridge_descriptor(json!({
+        "runtimeVersion": "runtime/v999",
+        "workerProtocolVersion": contract.worker_protocol_version,
+        "nativeBridgeVersion": contract.native_bridge_version,
+        "workerRequestEnv": contract.worker_request_env,
+        "workerCommand": missing_worker_path(),
+        "workerArgs": [],
+    }));
+    let runtime_output = run_native_with_env(
+        &["--agent", "status", "--no-check"],
+        &[(contract.native_bridge_env.as_str(), runtime_mismatch.as_str())],
+    );
+    assert_eq!(runtime_output.status.code(), Some(1));
+    assert!(stderr_string(&runtime_output).trim().is_empty());
+    let runtime_payload = parse_stdout_json(&runtime_output);
+    assert_eq!(runtime_payload["success"], Value::Bool(false));
+    assert!(
+        runtime_payload["errorMessage"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("JS bridge runtime version mismatch"),
+    );
+
+    let request_env_mismatch = encode_bridge_descriptor(json!({
+        "runtimeVersion": contract.runtime_version,
+        "workerProtocolVersion": contract.worker_protocol_version,
+        "nativeBridgeVersion": contract.native_bridge_version,
+        "workerRequestEnv": "PRIVACY_POOLS_WORKER_REQUEST_WRONG",
+        "workerCommand": missing_worker_path(),
+        "workerArgs": [],
+    }));
+    let request_env_output = run_native_with_env(
+        &["--agent", "status", "--no-check"],
+        &[(contract.native_bridge_env.as_str(), request_env_mismatch.as_str())],
+    );
+    assert_eq!(request_env_output.status.code(), Some(1));
+    assert!(stderr_string(&request_env_output).trim().is_empty());
+    let request_env_payload = parse_stdout_json(&request_env_output);
+    assert_eq!(request_env_payload["success"], Value::Bool(false));
+    assert!(
+        request_env_payload["errorMessage"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("JS bridge worker request env mismatch"),
+    );
+}
+
+#[test]
+fn valid_bridge_descriptor_still_fails_cleanly_when_the_worker_is_missing() {
+    let contract = runtime_contract_fixture();
+    let encoded = encode_bridge_descriptor(json!({
+        "runtimeVersion": contract.runtime_version,
+        "workerProtocolVersion": contract.worker_protocol_version,
+        "nativeBridgeVersion": contract.native_bridge_version,
+        "workerRequestEnv": contract.worker_request_env,
+        "workerCommand": missing_worker_path(),
+        "workerArgs": [],
+    }));
+    let output = run_native_with_env(
+        &["--agent", "status", "--no-check"],
+        &[(contract.native_bridge_env.as_str(), encoded.as_str())],
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr_string(&output).trim().is_empty());
+    let payload = parse_stdout_json(&output);
+    assert_eq!(payload["success"], Value::Bool(false));
+    assert!(
+        payload["errorMessage"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Failed to launch JS worker"),
     );
 }
