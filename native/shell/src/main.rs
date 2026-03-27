@@ -1,14 +1,20 @@
 mod completion;
 mod root_argv;
+mod routing;
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use completion::{detect_completion_shell, parse_completion_query, parse_completion_script_spec};
 use num_bigint::BigUint;
 use num_traits::{ToPrimitive, Zero};
 use root_argv::{
-    all_non_option_tokens, has_short_flag, is_command_global_boolean_option,
-    is_command_global_inline_value_option, is_command_global_value_option, parse_root_argv,
-    read_long_option_value, root_argv_slice, ParsedRootArgv,
+    has_short_flag, is_command_global_boolean_option, is_command_global_inline_value_option,
+    is_command_global_value_option, parse_root_argv, read_long_option_value, root_argv_slice,
+    ParsedRootArgv,
+};
+use routing::{
+    activity_native_mode, is_known_root_command, is_static_quiet_mode, manifest_allows_native_mode,
+    pools_native_mode, resolve_command_path, resolve_help_path, resolve_mode, stats_native_mode,
+    NativeMode,
 };
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
@@ -141,30 +147,6 @@ impl CliError {
 struct CliConfig {
     default_chain: String,
     rpc_overrides: HashMap<u64, String>,
-}
-
-#[derive(Debug, Clone)]
-struct NativeMode {
-    format: OutputFormat,
-    is_agent: bool,
-    is_quiet: bool,
-}
-
-impl NativeMode {
-    fn is_json(&self) -> bool {
-        matches!(self.format, OutputFormat::Json)
-    }
-
-    fn is_csv(&self) -> bool {
-        matches!(self.format, OutputFormat::Csv)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum OutputFormat {
-    Table,
-    Csv,
-    Json,
 }
 
 #[derive(Debug, Clone)]
@@ -484,8 +466,7 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         return Err(CliError::unknown(
             format!(
                 "Native shell manifest version mismatch: expected {}, got {}.",
-                runtime_contract.manifest_version,
-                manifest.manifest_version
+                runtime_contract.manifest_version, manifest.manifest_version
             ),
             Some("Regenerate the native manifest and rebuild the native shell.".to_string()),
         ));
@@ -1185,212 +1166,6 @@ fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
     Ok(exit_code_from_status(status))
 }
 
-fn resolve_mode(parsed: &ParsedRootArgv) -> NativeMode {
-    let format = if parsed.is_csv_mode {
-        OutputFormat::Csv
-    } else if parsed.is_structured_output_mode {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Table
-    };
-
-    NativeMode {
-        format,
-        is_agent: parsed.is_agent,
-        is_quiet: parsed.is_quiet || parsed.is_agent,
-    }
-}
-
-fn is_static_quiet_mode(parsed: &ParsedRootArgv) -> bool {
-    let mode = resolve_mode(parsed);
-    mode.is_quiet || mode.is_json() || mode.is_csv()
-}
-
-fn should_handle_native_pools(argv: &[String]) -> bool {
-    let non_option_tokens = all_non_option_tokens(argv);
-    non_option_tokens.len() == 1
-        && non_option_tokens
-            .first()
-            .map(|value| value == "pools")
-            .unwrap_or(false)
-}
-
-fn activity_native_mode(
-    _argv: &[String],
-    parsed: &ParsedRootArgv,
-    manifest: &Manifest,
-) -> Option<&'static str> {
-    if parsed.is_help_like {
-        return None;
-    }
-    let native_mode = match resolve_mode(parsed).format {
-        OutputFormat::Json => "structured",
-        OutputFormat::Csv => "csv",
-        OutputFormat::Table => "default",
-    };
-    manifest_allows_native_mode("activity", native_mode, manifest).then_some(native_mode)
-}
-
-fn pools_native_mode(
-    argv: &[String],
-    parsed: &ParsedRootArgv,
-    manifest: &Manifest,
-) -> Option<&'static str> {
-    if parsed.is_help_like || !should_handle_native_pools(argv) {
-        return None;
-    }
-
-    let native_mode = match resolve_mode(parsed).format {
-        OutputFormat::Json => "structured-list",
-        OutputFormat::Csv => "csv-list",
-        OutputFormat::Table => "default-list",
-    };
-    manifest_allows_native_mode("pools", native_mode, manifest).then_some(native_mode)
-}
-
-fn stats_native_mode(
-    argv: &[String],
-    parsed: &ParsedRootArgv,
-    manifest: &Manifest,
-) -> Option<&'static str> {
-    if parsed.is_help_like {
-        return None;
-    }
-
-    let command_path = resolve_command_path_prefix(&all_non_option_tokens(argv), manifest)?;
-    let mode = resolve_mode(parsed);
-    match command_path.as_str() {
-        "stats" => {
-            let native_mode = match mode.format {
-                OutputFormat::Json => "structured-default",
-                OutputFormat::Csv => "csv",
-                OutputFormat::Table => "default",
-            };
-            manifest_allows_native_mode("stats", native_mode, manifest).then_some(native_mode)
-        }
-        "stats global" => {
-            let native_mode = match mode.format {
-                OutputFormat::Json => "structured",
-                OutputFormat::Csv => "csv",
-                OutputFormat::Table => "default",
-            };
-            manifest_allows_native_mode("stats global", native_mode, manifest)
-                .then_some(native_mode)
-        }
-        "stats pool" => {
-            let native_mode = match mode.format {
-                OutputFormat::Json => "structured",
-                OutputFormat::Csv => "csv",
-                OutputFormat::Table => "default",
-            };
-            manifest_allows_native_mode("stats pool", native_mode, manifest).then_some(native_mode)
-        }
-        _ => None,
-    }
-}
-
-fn resolve_help_path(parsed: &ParsedRootArgv, manifest: &Manifest) -> Option<String> {
-    let tokens = if parsed.first_command_token.as_deref() == Some("help") {
-        parsed
-            .non_option_tokens
-            .iter()
-            .skip(1)
-            .cloned()
-            .collect::<Vec<_>>()
-    } else {
-        parsed.non_option_tokens.clone()
-    };
-
-    if tokens.is_empty() {
-        return None;
-    }
-
-    for length in (1..=tokens.len()).rev() {
-        let candidate = tokens
-            .iter()
-            .take(length)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(" ");
-        let canonical = canonicalize_command_path(&candidate, manifest);
-        if manifest
-            .routes
-            .help_command_paths
-            .iter()
-            .any(|path| path == &canonical)
-            && manifest.help_text_by_path.contains_key(&canonical)
-        {
-            return Some(canonical);
-        }
-    }
-
-    None
-}
-
-fn canonicalize_command_path(candidate: &str, manifest: &Manifest) -> String {
-    manifest
-        .alias_map
-        .get(candidate)
-        .cloned()
-        .unwrap_or_else(|| candidate.to_string())
-}
-
-fn resolve_command_path(tokens: &[String], manifest: &Manifest) -> Option<String> {
-    if tokens.is_empty() {
-        return None;
-    }
-
-    let joined = tokens.join(" ");
-    let canonical = canonicalize_command_path(&joined, manifest);
-    if manifest.command_paths.iter().any(|path| path == &canonical) {
-        return Some(canonical);
-    }
-
-    None
-}
-
-fn resolve_command_path_prefix(tokens: &[String], manifest: &Manifest) -> Option<String> {
-    if tokens.is_empty() {
-        return None;
-    }
-
-    for length in (1..=tokens.len()).rev() {
-        let candidate = tokens
-            .iter()
-            .take(length)
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(" ");
-        let canonical = canonicalize_command_path(&candidate, manifest);
-        if manifest.command_paths.iter().any(|path| path == &canonical) {
-            return Some(canonical);
-        }
-    }
-
-    None
-}
-
-fn is_known_root_command(command: &str, manifest: &Manifest) -> bool {
-    manifest
-        .command_paths
-        .iter()
-        .filter(|path| !path.contains(' '))
-        .any(|path| path == command)
-        || manifest.alias_map.contains_key(command)
-}
-
-fn manifest_allows_native_mode(command_path: &str, native_mode: &str, manifest: &Manifest) -> bool {
-    let Some(route) = manifest.routes.command_routes.get(command_path) else {
-        return false;
-    };
-
-    if route.owner == "js-runtime" {
-        return false;
-    }
-
-    route.native_modes.iter().any(|mode| mode == native_mode)
-}
-
 fn emit_help(text: &str, structured: bool) {
     if structured {
         print_json_success(json!({
@@ -1511,8 +1286,7 @@ fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliE
         return Err(CliError::unknown(
             format!(
                 "JS bridge runtime version mismatch: expected {}, got {}.",
-                runtime_contract.runtime_version,
-                descriptor.runtime_version
+                runtime_contract.runtime_version, descriptor.runtime_version
             ),
             Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         ));
@@ -1522,8 +1296,7 @@ fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliE
         return Err(CliError::unknown(
             format!(
                 "JS bridge worker protocol mismatch: expected {}, got {}.",
-                runtime_contract.worker_protocol_version,
-                descriptor.worker_protocol_version
+                runtime_contract.worker_protocol_version, descriptor.worker_protocol_version
             ),
             Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         ));
@@ -1533,8 +1306,7 @@ fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliE
         return Err(CliError::unknown(
             format!(
                 "JS bridge version mismatch: expected {}, got {}.",
-                runtime_contract.native_bridge_version,
-                descriptor.native_bridge_version
+                runtime_contract.native_bridge_version, descriptor.native_bridge_version
             ),
             Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         ));
@@ -1544,8 +1316,7 @@ fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliE
         return Err(CliError::unknown(
             format!(
                 "JS bridge worker request env mismatch: expected {}, got {}.",
-                runtime_contract.worker_request_env,
-                descriptor.worker_request_env
+                runtime_contract.worker_request_env, descriptor.worker_request_env
             ),
             Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         ));

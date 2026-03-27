@@ -64,7 +64,8 @@ fn split_flag_names(flag: &str) -> Vec<String> {
 }
 
 fn short_bundle_flags(names: &BTreeSet<String>) -> BTreeSet<char> {
-    names.iter()
+    names
+        .iter()
         .filter_map(|name| {
             if name.starts_with('-') && !name.starts_with("--") && name.len() == 2 {
                 name.chars().nth(1)
@@ -77,10 +78,9 @@ fn short_bundle_flags(names: &BTreeSet<String>) -> BTreeSet<char> {
 
 fn root_flag_contract() -> &'static RootFlagContract {
     ROOT_FLAG_CONTRACT.get_or_init(|| {
-        let flags: Vec<GeneratedRootFlag> = serde_json::from_str(include_str!(
-            "../generated/root-flags.json",
-        ))
-        .expect("native shell root flag contract must deserialize");
+        let flags: Vec<GeneratedRootFlag> =
+            serde_json::from_str(include_str!("../generated/root-flags.json",))
+                .expect("native shell root flag contract must deserialize");
 
         let value_options = flags
             .iter()
@@ -120,11 +120,12 @@ pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
     let non_option_tokens = all_non_option_tokens(argv);
     let format_flag_value =
         read_long_option_value(argv, "--format").map(|value| value.to_lowercase());
+    let is_agent = has_long_flag(argv, "--agent");
     let is_json = has_long_flag(argv, "--json")
         || has_short_flag(argv, 'j')
-        || format_flag_value.as_deref() == Some("json");
-    let is_csv_mode = format_flag_value.as_deref() == Some("csv");
-    let is_agent = has_long_flag(argv, "--agent");
+        || format_flag_value.as_deref() == Some("json")
+        || is_agent;
+    let is_csv_mode = format_flag_value.as_deref() == Some("csv") && !is_json;
     let is_unsigned = has_long_flag(argv, "--unsigned");
     let is_machine_mode = is_json || is_csv_mode || is_unsigned || is_agent;
     let is_structured_output_mode = is_json || is_unsigned || is_agent;
@@ -138,7 +139,7 @@ pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
             || (non_option_tokens.len() == 1 && non_option_tokens[0] == "help"));
     let suppress_banner = root_args.iter().any(|token| token == "--no-banner");
     let is_quiet = root_args.iter().any(|token| token == "--quiet") || has_short_flag(argv, 'q');
-    let is_welcome = is_welcome_flag_only_invocation(argv) && (!is_machine_mode || is_csv_mode);
+    let is_welcome = is_welcome_flag_only_invocation(argv) && !is_machine_mode;
 
     ParsedRootArgv {
         argv: argv.to_vec(),
@@ -358,4 +359,136 @@ pub(crate) fn is_command_global_value_option(token: &str) -> bool {
 
 pub(crate) fn is_command_global_inline_value_option(token: &str) -> bool {
     is_root_long_inline_value_option(token)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn argv(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn structured_machine_flags_outrank_csv_mode() {
+        let parsed = parse_root_argv(&argv(&["--agent", "--format", "csv", "guide"]));
+        assert!(parsed.is_agent);
+        assert!(parsed.is_json);
+        assert!(!parsed.is_csv_mode);
+        assert!(parsed.is_structured_output_mode);
+        assert!(!parsed.is_welcome);
+    }
+
+    #[test]
+    fn json_flag_outranks_csv_mode() {
+        let parsed = parse_root_argv(&argv(&["--json", "--format", "csv", "capabilities"]));
+        assert!(parsed.is_json);
+        assert!(!parsed.is_csv_mode);
+        assert!(parsed.is_structured_output_mode);
+    }
+
+    #[test]
+    fn help_style_invocations_still_resolve_root_help() {
+        let parsed = parse_root_argv(&argv(&["help"]));
+        assert!(parsed.is_help_like);
+        assert!(parsed.is_root_help_invocation);
+        assert_eq!(parsed.non_option_tokens, vec!["help".to_string()]);
+    }
+
+    #[test]
+    fn detail_pools_invocation_is_not_welcome() {
+        let parsed = parse_root_argv(&argv(&["pools", "ETH"]));
+        assert_eq!(parsed.first_command_token.as_deref(), Some("pools"));
+        assert!(!parsed.is_welcome);
+    }
+
+    #[test]
+    fn global_option_helpers_read_split_and_inline_values() {
+        let parsed = parse_root_argv(&argv(&[
+            "--chain",
+            "mainnet",
+            "--rpc-url=https://rpc.example",
+            "status",
+        ]));
+
+        assert_eq!(parsed.global_chain().as_deref(), Some("mainnet"));
+        assert_eq!(
+            parsed.global_rpc_url().as_deref(),
+            Some("https://rpc.example")
+        );
+    }
+
+    #[test]
+    fn root_option_helpers_ignore_tokens_after_double_dash() {
+        let args = argv(&["--json", "--", "--chain", "mainnet"]);
+        let parsed = parse_root_argv(&args);
+
+        assert!(parsed.is_json);
+        assert_eq!(parsed.global_chain(), None);
+        assert!(has_long_flag(&args, "--json"));
+        assert!(!has_long_flag(&args, "--chain"));
+        assert_eq!(root_argv_slice(&args), argv(&["--json"]));
+    }
+
+    #[test]
+    fn short_flag_detection_supports_bundles_and_rejects_non_alpha_tokens() {
+        let args = argv(&["-qV"]);
+        assert!(has_short_flag(&args, 'q'));
+        assert!(has_short_flag(&args, 'V'));
+
+        let non_alpha_bundle = argv(&["-q1"]);
+        assert!(!has_short_flag(&non_alpha_bundle, 'q'));
+    }
+
+    #[test]
+    fn token_helpers_skip_global_value_options() {
+        let args = argv(&[
+            "--chain",
+            "mainnet",
+            "--rpc-url=https://rpc.example",
+            "stats",
+            "pool",
+        ]);
+
+        assert_eq!(
+            all_non_option_tokens(&args),
+            vec!["stats".to_string(), "pool".to_string()]
+        );
+        assert_eq!(
+            read_short_option_value(&argv(&["-c", "mainnet"]), "-c"),
+            Some("mainnet".to_string())
+        );
+        assert_eq!(
+            read_long_option_value(&argv(&["--format=json"]), "--format"),
+            Some("json".to_string())
+        );
+    }
+
+    #[test]
+    fn welcome_detection_accepts_safe_flags_and_rejects_missing_values() {
+        let quiet_welcome = parse_root_argv(&argv(&["-q", "--no-banner"]));
+        assert!(quiet_welcome.is_welcome);
+        assert!(quiet_welcome.is_quiet);
+        assert!(quiet_welcome.suppress_banner);
+
+        let missing_value = parse_root_argv(&argv(&["--chain"]));
+        assert!(!missing_value.is_welcome);
+
+        let command_invocation = parse_root_argv(&argv(&["status", "--quiet"]));
+        assert!(!command_invocation.is_welcome);
+    }
+
+    #[test]
+    fn command_global_helpers_classify_boolean_and_value_options() {
+        assert!(is_command_global_boolean_option("--quiet"));
+        assert!(is_command_global_boolean_option("-qV"));
+        assert!(is_command_global_boolean_option("--help"));
+        assert!(!is_command_global_boolean_option("--chain"));
+
+        assert!(is_command_global_value_option("--chain"));
+        assert!(is_command_global_inline_value_option(
+            "--rpc-url=https://rpc.example"
+        ));
+        assert!(!is_command_global_inline_value_option("--quiet"));
+    }
 }
