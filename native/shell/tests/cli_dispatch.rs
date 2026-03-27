@@ -1,47 +1,10 @@
-use assert_cmd::prelude::*;
+mod support;
+
 use serde_json::Value;
-use std::process::{Command, Output};
-
-fn run_native(args: &[&str]) -> Output {
-    let mut command =
-        Command::cargo_bin("privacy-pools-cli-native-shell").expect("native shell should build");
-    command.current_dir(env!("CARGO_MANIFEST_DIR"));
-    command.env("NO_COLOR", "1");
-    command.env("PP_NO_UPDATE_CHECK", "1");
-    command.args(args);
-    command.output().expect("native shell should execute")
-}
-
-fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
-    let mut command =
-        Command::cargo_bin("privacy-pools-cli-native-shell").expect("native shell should build");
-    command.current_dir(env!("CARGO_MANIFEST_DIR"));
-    command.env("NO_COLOR", "1");
-    command.env("PP_NO_UPDATE_CHECK", "1");
-    for (key, value) in env {
-        command.env(key, value);
-    }
-    command.args(args);
-    command.output().expect("native shell should execute")
-}
-
-fn stdout_string(output: &Output) -> String {
-    String::from_utf8(output.stdout.clone()).expect("stdout should be utf8")
-}
-
-fn stderr_string(output: &Output) -> String {
-    String::from_utf8(output.stderr.clone()).expect("stderr should be utf8")
-}
-
-fn parse_stdout_json(output: &Output) -> Value {
-    serde_json::from_slice(&output.stdout).expect("stdout should contain valid json")
-}
-
-fn missing_worker_path() -> String {
-    let mut path = std::env::temp_dir();
-    path.push("pp-missing-worker.js");
-    path.to_string_lossy().into_owned()
-}
+use support::{
+    missing_worker_path, parse_stdout_json, run_native, run_native_with_env, stderr_string,
+    stdout_string,
+};
 
 #[test]
 fn root_help_and_version_stay_on_stdout() {

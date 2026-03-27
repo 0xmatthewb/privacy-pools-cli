@@ -1,0 +1,350 @@
+#![allow(dead_code)]
+
+use assert_cmd::prelude::*;
+use serde_json::{json, Value};
+use std::io::{Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
+use std::process::{Command, Output};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+use tiny_keccak::{Hasher, Keccak};
+
+const FIXTURE_CHAIN_ID: u64 = 11_155_111;
+const FIXTURE_POOL: &str = "0x1234567890abcdef1234567890abcdef12345678";
+const FIXTURE_ASSET: &str = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+
+pub fn run_native(args: &[&str]) -> Output {
+    run_native_with_env(args, &[])
+}
+
+pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
+    let mut command =
+        Command::cargo_bin("privacy-pools-cli-native-shell").expect("native shell should build");
+    command.current_dir(env!("CARGO_MANIFEST_DIR"));
+    command.env("NO_COLOR", "1");
+    command.env("PP_NO_UPDATE_CHECK", "1");
+    for (key, value) in env {
+        command.env(key, value);
+    }
+    command.args(args);
+    command.output().expect("native shell should execute")
+}
+
+pub fn stdout_string(output: &Output) -> String {
+    String::from_utf8(output.stdout.clone()).expect("stdout should be utf8")
+}
+
+pub fn stderr_string(output: &Output) -> String {
+    String::from_utf8(output.stderr.clone()).expect("stderr should be utf8")
+}
+
+pub fn parse_stdout_json(output: &Output) -> Value {
+    serde_json::from_slice(&output.stdout).expect("stdout should contain valid json")
+}
+
+pub fn missing_worker_path() -> String {
+    let mut path = std::env::temp_dir();
+    path.push("pp-missing-worker.js");
+    path.to_string_lossy().into_owned()
+}
+
+pub struct FixtureServer {
+    base_url: String,
+    running: Arc<AtomicBool>,
+    join_handle: Option<JoinHandle<()>>,
+}
+
+impl FixtureServer {
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+}
+
+impl Drop for FixtureServer {
+    fn drop(&mut self) {
+        self.running.store(false, Ordering::SeqCst);
+        let _ = TcpStream::connect(
+            self.base_url
+                .strip_prefix("http://")
+                .expect("fixture base url should be http"),
+        )
+        .and_then(|stream| stream.shutdown(Shutdown::Both));
+        if let Some(handle) = self.join_handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+pub fn launch_fixture_server() -> FixtureServer {
+    let listener =
+        TcpListener::bind("127.0.0.1:0").expect("fixture listener should bind to a free port");
+    listener
+        .set_nonblocking(true)
+        .expect("fixture listener should support nonblocking mode");
+    let address = listener
+        .local_addr()
+        .expect("fixture listener should expose its local address");
+    let base_url = format!("http://{address}");
+    let running = Arc::new(AtomicBool::new(true));
+    let running_for_thread = Arc::clone(&running);
+
+    let join_handle = thread::spawn(move || {
+        while running_for_thread.load(Ordering::SeqCst) {
+            match listener.accept() {
+                Ok((stream, _)) => handle_connection(stream),
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    FixtureServer {
+        base_url,
+        running,
+        join_handle: Some(join_handle),
+    }
+}
+
+fn handle_connection(mut stream: TcpStream) {
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .expect("fixture stream should support timeouts");
+    let request = read_http_request(&mut stream);
+    let (status_line, body) = route_request(&request);
+    let response = format!(
+        "{status_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body,
+    );
+    stream
+        .write_all(response.as_bytes())
+        .expect("fixture should write a complete response");
+    let _ = stream.flush();
+}
+
+fn read_http_request(stream: &mut TcpStream) -> String {
+    let mut buffer = Vec::<u8>::new();
+    let mut chunk = [0u8; 2048];
+
+    loop {
+        match stream.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(read) => {
+                buffer.extend_from_slice(&chunk[..read]);
+                if request_is_complete(&buffer) {
+                    break;
+                }
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) =>
+            {
+                break;
+            }
+            Err(error) => panic!("fixture failed to read request: {error}"),
+        }
+    }
+
+    String::from_utf8(buffer).expect("fixture request should be utf8")
+}
+
+fn request_is_complete(buffer: &[u8]) -> bool {
+    let Some(headers_end) = buffer.windows(4).position(|window| window == b"\r\n\r\n") else {
+        return false;
+    };
+    let headers_len = headers_end + 4;
+    let headers = String::from_utf8_lossy(&buffer[..headers_len]);
+    let content_length = headers
+        .lines()
+        .find_map(|line| line.split_once(':'))
+        .and_then(|(name, value)| {
+            if name.eq_ignore_ascii_case("content-length") {
+                value.trim().parse::<usize>().ok()
+            } else {
+                None
+            }
+        })
+        .unwrap_or(0);
+
+    buffer.len() >= headers_len + content_length
+}
+
+fn route_request(request: &str) -> (&'static str, String) {
+    let (request_line, body) = request
+        .split_once("\r\n")
+        .map(|(head, _)| (head, request_body(request)))
+        .unwrap_or_default();
+    let mut tokens = request_line.split_whitespace();
+    let method = tokens.next().unwrap_or_default();
+    let raw_path = tokens.next().unwrap_or("/");
+    let path = raw_path.split('?').next().unwrap_or(raw_path);
+
+    let json_body = match (method, path) {
+        ("GET", "/global/public/events") => json!({
+            "events": [activity_event("deposit")],
+            "page": 1,
+            "perPage": 12,
+            "total": 1,
+            "totalPages": 1,
+        }),
+        ("GET", "/global/public/statistics") => json!({
+            "allTime": {
+                "tvlUsd": "150000",
+                "totalDepositsCount": 100,
+                "totalDepositsValue": "200000000000000000000",
+                "totalWithdrawalsCount": 50,
+                "totalWithdrawalsValue": "100000000000000000000"
+            },
+            "last24h": {
+                "totalDepositsCount": 5,
+                "totalDepositsValue": "10000000000000000000",
+                "totalWithdrawalsCount": 2,
+                "totalWithdrawalsValue": "4000000000000000000"
+            },
+            "cacheTimestamp": "2025-01-01T00:00:00.000Z"
+        }),
+        ("GET", "/11155111/public/events") => json!({
+            "events": [activity_event("deposit")],
+            "page": 1,
+            "perPage": 12,
+            "total": 1,
+            "totalPages": 1,
+        }),
+        ("GET", "/11155111/public/pools-stats") => json!([
+            {
+                "scope": "12345",
+                "chainId": FIXTURE_CHAIN_ID,
+                "tokenAddress": FIXTURE_ASSET,
+                "tokenSymbol": "ETH",
+                "totalInPoolValue": "5000000000000000000",
+                "totalDepositsValue": "10000000000000000000",
+                "acceptedDepositsValue": "8000000000000000000",
+                "pendingDepositsValue": "2000000000000000000",
+                "totalDepositsCount": 42,
+                "acceptedDepositsCount": 35,
+                "pendingDepositsCount": 7,
+                "growth24h": 0.05
+            }
+        ]),
+        ("GET", "/11155111/public/pool-statistics") => json!({
+            "pool": {
+                "scope": "12345",
+                "chainId": format!("{FIXTURE_CHAIN_ID}"),
+                "tokenSymbol": "ETH",
+                "tokenAddress": FIXTURE_ASSET,
+                "tokenDecimals": 18,
+                "allTime": {
+                    "tvlUsd": "150000",
+                    "totalDepositsCount": 100,
+                    "totalDepositsValue": "200000000000000000000",
+                    "totalWithdrawalsCount": 50,
+                    "totalWithdrawalsValue": "100000000000000000000"
+                },
+                "last24h": {
+                    "totalDepositsCount": 5,
+                    "totalDepositsValue": "10000000000000000000",
+                    "totalWithdrawalsCount": 2,
+                    "totalWithdrawalsValue": "4000000000000000000"
+                }
+            },
+            "cacheTimestamp": "2025-01-01T00:00:00.000Z"
+        }),
+        ("POST", _) => route_rpc_request(body),
+        _ => return ("HTTP/1.1 404 Not Found", json!({ "error": "not found" }).to_string()),
+    };
+
+    ("HTTP/1.1 200 OK", json_body.to_string())
+}
+
+fn request_body(request: &str) -> &str {
+    request.split_once("\r\n\r\n").map(|(_, body)| body).unwrap_or("")
+}
+
+fn route_rpc_request(body: &str) -> Value {
+    let request: Value =
+        serde_json::from_str(body).expect("fixture rpc body should be valid json");
+    let method = request
+        .get("method")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let id = request.get("id").cloned().unwrap_or_else(|| json!(1));
+
+    if method == "eth_call" {
+        let data = request
+            .get("params")
+            .and_then(Value::as_array)
+            .and_then(|params| params.first())
+            .and_then(|call| call.get("data"))
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_lowercase();
+        let asset_selector = format!("0x{}", hex::encode(function_selector("assetConfig(address)")));
+        let scope_selector = format!("0x{}", hex::encode(function_selector("SCOPE()")));
+
+        let result = if data.starts_with(&asset_selector) {
+            format!(
+                "0x{}{}{}{}",
+                encode_address_word(FIXTURE_POOL),
+                encode_u256(1_000_000_000_000_000),
+                encode_u256(50),
+                encode_u256(250)
+            )
+        } else if data.starts_with(&scope_selector) {
+            format!("0x{}", encode_u256(12_345))
+        } else {
+            "0x".to_string()
+        };
+
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": result,
+        });
+    }
+
+    json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": "0x",
+    })
+}
+
+fn activity_event(event_type: &str) -> Value {
+    json!({
+        "type": event_type,
+        "txHash": "0xabc1230000000000000000000000000000000000000000000000000000000001",
+        "timestamp": 1700000000,
+        "amount": "1000000000000000000",
+        "reviewStatus": "accepted",
+        "pool": {
+            "chainId": FIXTURE_CHAIN_ID,
+            "poolAddress": FIXTURE_POOL,
+            "tokenSymbol": "ETH",
+            "denomination": "18"
+        }
+    })
+}
+
+fn function_selector(signature: &str) -> [u8; 4] {
+    let mut hash = [0u8; 32];
+    let mut keccak = Keccak::v256();
+    keccak.update(signature.as_bytes());
+    keccak.finalize(&mut hash);
+    [hash[0], hash[1], hash[2], hash[3]]
+}
+
+fn encode_address_word(address: &str) -> String {
+    format!("{:0>64}", address.trim_start_matches("0x").to_lowercase())
+}
+
+fn encode_u256(value: u128) -> String {
+    format!("{value:064x}")
+}
