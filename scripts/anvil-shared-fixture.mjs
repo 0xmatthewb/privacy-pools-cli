@@ -1,10 +1,12 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -55,6 +57,33 @@ const INITIAL_ROOT_CID =
 const LOCAL_TEST_CHAIN = { ...sepolia, id: 11155111 };
 const ERC20_SYMBOL = "USDC";
 const ERC20_DECIMALS = 6;
+const CONTRACTS_ARTIFACT_SENTINEL = resolve(
+  CONTRACTS_ROOT,
+  "out",
+  "Entrypoint.sol",
+  "Entrypoint.json",
+);
+const CONTRACTS_PROXY_ARTIFACT = resolve(
+  CONTRACTS_ROOT,
+  "node_modules",
+  "@openzeppelin",
+  "contracts",
+  "build",
+  "contracts",
+  "ERC1967Proxy.json",
+);
+const CONTRACTS_WORKSPACE_NODE_MODULES = resolve(
+  CONTRACTS_ROOT,
+  "..",
+  "..",
+  "node_modules",
+);
+const LEAN_IMT_SOURCE = resolve(
+  CONTRACTS_WORKSPACE_NODE_MODULES,
+  "@zk-kit",
+  "lean-imt.sol",
+);
+const LEAN_IMT_ALIAS = resolve(CONTRACTS_WORKSPACE_NODE_MODULES, "lean-imt");
 
 const entrypointAbi = parseAbi([
   "function initialize(address _owner, address _postman)",
@@ -104,6 +133,81 @@ function readArtifact(relativePath) {
   return JSON.parse(
     readFileSync(resolve(CONTRACTS_ROOT, relativePath), "utf8"),
   );
+}
+
+function ensureContractsWorkspaceDependencies() {
+  if (
+    existsSync(LEAN_IMT_SOURCE)
+    && existsSync(CONTRACTS_PROXY_ARTIFACT)
+  ) {
+    return;
+  }
+
+  const result = spawnSync(
+    "bash",
+    [
+      "-lc",
+      "corepack enable >/dev/null 2>&1 || true; yarn --frozen-lockfile --network-concurrency 1",
+    ],
+    {
+      cwd: CONTRACTS_ROOT,
+      encoding: "utf8",
+    },
+  );
+
+  if (result.status !== 0) {
+    throw new Error(
+      result.stderr || result.stdout || "failed to install contracts workspace dependencies",
+    );
+  }
+}
+
+function normalizeContractsRemappings() {
+  const remappingsPath = resolve(CONTRACTS_ROOT, "remappings.txt");
+  if (!existsSync(remappingsPath)) {
+    return;
+  }
+
+  const current = readFileSync(remappingsPath, "utf8");
+  const updated = current
+    .split("\n")
+    .map((line) => (
+      line.startsWith("lean-imt/=")
+        ? "lean-imt/=../../node_modules/lean-imt/"
+        : line
+    ))
+    .join("\n");
+
+  if (updated !== current) {
+    writeFileSync(remappingsPath, updated, "utf8");
+  }
+}
+
+function ensureLeanImtAlias() {
+  if (!existsSync(LEAN_IMT_SOURCE) || existsSync(LEAN_IMT_ALIAS)) {
+    return;
+  }
+
+  symlinkSync(LEAN_IMT_SOURCE, LEAN_IMT_ALIAS, "dir");
+}
+
+function ensureContractsArtifacts() {
+  ensureContractsWorkspaceDependencies();
+  ensureLeanImtAlias();
+  normalizeContractsRemappings();
+
+  if (existsSync(CONTRACTS_ARTIFACT_SENTINEL) && existsSync(CONTRACTS_PROXY_ARTIFACT)) {
+    return;
+  }
+
+  const result = spawnSync("forge", ["build"], {
+    cwd: CONTRACTS_ROOT,
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || "forge build failed");
+  }
 }
 
 function getFreePort() {
@@ -312,6 +416,8 @@ contract MintableUsdToken {
 }
 
 async function deployProtocol(rpcUrl) {
+  ensureContractsArtifacts();
+
   const deployer = privateKeyToAccount(DEPLOYER_PRIVATE_KEY);
   const relayer = privateKeyToAccount(RELAYER_PRIVATE_KEY);
   const signer = privateKeyToAccount(SIGNER_PRIVATE_KEY);

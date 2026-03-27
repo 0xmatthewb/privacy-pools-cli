@@ -188,7 +188,23 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: 0xmatthewb/privacy-pools-core
+          ref: a80836a47451e662f127af17e11430ffa976c234
           path: privacy-pools-core
+
+      - name: Install contract dependencies
+        if: steps.select.outputs.should_run == 'true'
+        working-directory: privacy-pools-core/packages/contracts
+        run: |
+          corepack enable
+          yarn --frozen-lockfile --network-concurrency 1
+
+      - name: Normalize contract remappings
+        if: steps.select.outputs.should_run == 'true'
+        working-directory: privacy-pools-core/packages/contracts
+        run: |
+          ln -sfn @zk-kit/lean-imt.sol ../../node_modules/lean-imt
+          sed -i.bak 's#^lean-imt/=.*$#lean-imt/=../../node_modules/lean-imt/#' remappings.txt
+          rm -f remappings.txt.bak
 
       - name: Build contract artifacts
         if: steps.select.outputs.should_run == 'true'
