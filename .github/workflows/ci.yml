@@ -5,17 +5,18 @@
 #   - Every push (merge) to "main"
 #
 # WHAT does it do?
-#   Seven independent jobs run in parallel:
+#   Eight independent jobs run in parallel:
 #     1. linux-core  — shards the default fast suite across exact file lists
-#     2. packaged-smoke — builds the npm package and runs smoke tests
+#     2. npm-test — runs the repo's top-level `npm test` wrapper as a literal gate
+#     3. packaged-smoke — builds the npm package and runs smoke tests
 #        against the packed tarball (catches packaging mistakes)
-#     3. native-smoke — exercises the installed packaged-native path on Linux
+#     4. native-smoke — exercises the installed packaged-native path on Linux
 #        so the default launcher route is covered by blocking CI
-#     4. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
+#     5. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
 #        against the self-contained local Anvil fixture
-#     5. coverage-guard — enforces coverage floors for key source directories
-#     6. evals — runs machine-facing eval fixtures
-#     7. conformance-core — checks required protocol/docs conformance
+#     6. coverage-guard — enforces coverage floors for key source directories
+#     7. evals — runs machine-facing eval fixtures
+#     8. conformance-core — checks required protocol/docs conformance
 #
 # If any job fails the PR gets a red X, telling you something is broken.
 
@@ -112,7 +113,48 @@ jobs:
           fi
 
   # -----------------------------------------------------------
-  # Job 2: package the CLI and run smoke tests against it
+  # Job 2: run the literal npm test wrapper as a hard gate
+  # -----------------------------------------------------------
+  npm-test:
+    name: npm-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+
+      - name: Select npm-test
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job linux-core >> "$GITHUB_OUTPUT"
+
+      - name: Skip npm-test
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping npm-test: ${{ steps.select.outputs.reason }}"
+
+      - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Run npm test
+        if: steps.select.outputs.should_run == 'true'
+        run: npm test
+
+  # -----------------------------------------------------------
+  # Job 3: package the CLI and run smoke tests against it
   # -----------------------------------------------------------
   packaged-smoke:
     name: packaged-smoke
@@ -163,7 +205,7 @@ jobs:
         run: npm run test:smoke
 
   # -----------------------------------------------------------
-  # Job 3: packaged native smoke on the default Linux triplet
+  # Job 4: packaged native smoke on the default Linux triplet
   # -----------------------------------------------------------
   native-smoke:
     name: native-smoke-node-${{ matrix.node-version }}

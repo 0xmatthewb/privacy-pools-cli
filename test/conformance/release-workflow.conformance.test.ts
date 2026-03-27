@@ -43,6 +43,9 @@ function expectedNativeTriplets(): string[] {
 
 describe("release workflow conformance", () => {
   test("blocking CI includes a packaged native smoke gate", () => {
+    expect(ciWorkflow).toContain("npm-test:");
+    expect(ciWorkflow).toContain("Run npm test");
+    expect(ciWorkflow).toContain("run: npm test");
     expect(ciWorkflow).toContain("native-smoke:");
     expect(ciWorkflow).toContain('node scripts/ci/select-jobs.mjs --job native-smoke');
     expect(ciWorkflow).toContain("npm run test:smoke:native");
