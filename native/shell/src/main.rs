@@ -733,7 +733,47 @@ fn handle_stats_native(
 
     let stats_subcommand = resolve_stats_subcommand(parsed);
     if stats_subcommand == StatsSubcommand::Pool {
-        return forward_to_js_worker(argv);
+        let asset = read_long_option_value(argv, "--asset").ok_or_else(|| {
+            CliError::input(
+                "Missing required --asset <symbol|address>.",
+                Some("Example: privacy-pools stats pool --asset ETH".to_string()),
+            )
+        })?;
+        let config = load_config()?;
+        let explicit_chain = parsed
+            .global_chain()
+            .unwrap_or_else(|| config.default_chain.clone());
+        let chain = resolve_chain(&explicit_chain, manifest)?;
+        let timeout_ms = parse_timeout_ms(argv);
+        let pool = resolve_pool_native(
+            &chain,
+            &asset,
+            parsed.global_rpc_url(),
+            &config,
+            manifest,
+            timeout_ms,
+        )?;
+        let response = fetch_pool_statistics(&chain, &pool.scope, timeout_ms)?;
+        let pool_stats = response.get("pool").and_then(Value::as_object);
+
+        print_json_success(json!({
+            "mode": "pool-stats",
+            "chain": chain.name,
+            "asset": pool.symbol,
+            "pool": pool.pool_address,
+            "scope": pool.scope,
+            "cacheTimestamp": response.get("cacheTimestamp").cloned().unwrap_or(Value::Null),
+            "allTime": pool_stats
+                .and_then(|stats| stats.get("allTime"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "last24h": pool_stats
+                .and_then(|stats| stats.get("last24h"))
+                .cloned()
+                .unwrap_or(Value::Null),
+        }));
+
+        return Ok(0);
     }
 
     if parsed.global_chain().is_some() {
@@ -2444,6 +2484,15 @@ fn fetch_global_events(
 fn fetch_global_statistics(chain: &ChainDefinition, timeout_ms: u64) -> Result<Value, CliError> {
     let url = format!("{}/global/public/statistics", chain.asp_host);
     http_get_json_with_js_transport_error(&url, &[], timeout_ms)
+}
+
+fn fetch_pool_statistics(
+    chain: &ChainDefinition,
+    scope: &str,
+    timeout_ms: u64,
+) -> Result<Value, CliError> {
+    let url = format!("{}/{}/public/pool-statistics", chain.asp_host, chain.id);
+    http_get_json_with_js_transport_error(&url, &[("X-Pool-Scope", scope.to_string())], timeout_ms)
 }
 
 fn fetch_pools_stats(chain: &ChainDefinition, timeout_ms: u64) -> Result<Value, CliError> {

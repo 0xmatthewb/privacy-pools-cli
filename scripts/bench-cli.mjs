@@ -71,6 +71,14 @@ const COMMANDS = [
       PRIVACY_POOLS_ASP_HOST: fixtureUrl,
     }),
   },
+  {
+    label: "stats pool --agent --chain sepolia --asset ETH",
+    args: ["--chain", "sepolia", "stats", "pool", "--asset", "ETH", "--agent"],
+    env: ({ fixtureUrl }) => ({
+      PRIVACY_POOLS_ASP_HOST: fixtureUrl,
+      PRIVACY_POOLS_RPC_URL_SEPOLIA: fixtureUrl,
+    }),
+  },
 ];
 
 function sanitizedProcessEnv() {

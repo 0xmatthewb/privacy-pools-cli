@@ -105,6 +105,13 @@ function buildCommandRoute(path) {
     };
   }
 
+  if (path === "stats pool") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured", "help"],
+    };
+  }
+
   if (path === "status") {
     return {
       owner: "js-runtime",

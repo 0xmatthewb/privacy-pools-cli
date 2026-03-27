@@ -42,6 +42,7 @@ The default command matrix covers:
 - `pools --agent --chain sepolia`
 - `activity --agent`
 - `stats --agent`
+- `stats pool --agent --chain sepolia --asset ETH`
 
 If you want to compare a different ref, pass `--base <ref>` such as `HEAD~1`,
 `origin/main`, or a release tag.

@@ -207,8 +207,9 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "stats pool": {
-    "owner": "js-runtime",
+    "owner": "hybrid",
     "nativeModes": [
+      "structured",
       "help"
     ]
   },

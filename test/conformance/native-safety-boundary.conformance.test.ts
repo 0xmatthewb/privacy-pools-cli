@@ -20,6 +20,18 @@ const nativeManifest = JSON.parse(
 };
 
 describe("native safety boundary conformance", () => {
+  test("stats pool is the only additional nativeized public read-only route", () => {
+    expect(GENERATED_COMMAND_ROUTES["stats pool"]).toEqual({
+      owner: "hybrid",
+      nativeModes: ["structured", "help"],
+    });
+
+    expect(nativeManifest.routes.commandRoutes["stats pool"]).toEqual({
+      owner: "hybrid",
+      nativeModes: ["structured", "help"],
+    });
+  });
+
   test("status stays JS-owned in generated launcher and native manifests", () => {
     expect(GENERATED_COMMAND_ROUTES.status).toEqual({
       owner: "js-runtime",

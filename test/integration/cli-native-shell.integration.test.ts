@@ -202,6 +202,14 @@ describe("native shell parity", () => {
       js: { env },
       native: { env },
     });
+    expectJsonParity(
+      nativeBinary,
+      ["--agent", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      {
+        js: { env },
+        native: { env },
+      },
+    );
     expectJsonParity(nativeBinary, ["--agent", "activity"], {
       js: { env },
       native: { env },
@@ -217,6 +225,42 @@ describe("native shell parity", () => {
       js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
       native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
     });
+    expectSourceJsonParity(
+      nativeBinary,
+      ["--json", "--chain", "mainnet", "stats", "pool", "--asset", "ETH"],
+      {
+        js: {
+          env: {
+            PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+            PRIVACY_POOLS_RPC_URL_ETHEREUM: "http://127.0.0.1:9",
+          },
+        },
+        native: {
+          env: {
+            PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+            PRIVACY_POOLS_RPC_URL_ETHEREUM: "http://127.0.0.1:9",
+          },
+        },
+      },
+    );
+    expectSourceJsonParity(
+      nativeBinary,
+      ["--json", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      {
+        js: {
+          env: {
+            PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture!.url,
+          },
+        },
+        native: {
+          env: {
+            PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture!.url,
+          },
+        },
+      },
+    );
     expectSourceJsonParity(nativeBinary, ["--json", "stats"], {
       js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
       native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
@@ -245,6 +289,17 @@ describe("native shell parity", () => {
     );
   });
 
+  nativeTest("stats pool input validation stays identical through the native path", () => {
+    expectSourceJsonParity(
+      nativeBinary,
+      ["--json", "stats", "pool", "--chain", "sepolia"],
+      {
+        js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+        native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+      },
+    );
+  });
+
   nativeTest("JS-owned commands still forward through the native shell unchanged", () => {
     const args = [
       "--agent",
@@ -267,11 +322,6 @@ describe("native shell parity", () => {
   });
 
   const forwardingCases: ForwardingParityCase[] = [
-    {
-      label: "stats pool detail",
-      args: ["--agent", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
-      envFactory: fixtureEnv,
-    },
     {
       label: "pools detail",
       args: ["--agent", "--chain", "sepolia", "pools", "ETH"],
