@@ -66,6 +66,20 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain("node scripts/verify-release-install.mjs");
   });
 
+  test("anvil smoke provisions rust for installed root-plus-native verification", () => {
+    const anvilSectionStart = ciWorkflow.indexOf("anvil-e2e-smoke:");
+    expect(anvilSectionStart).toBeGreaterThanOrEqual(0);
+    const anvilSectionEnd = ciWorkflow.indexOf("coverage-guard:", anvilSectionStart);
+    const anvilSection = ciWorkflow.slice(
+      anvilSectionStart,
+      anvilSectionEnd === -1 ? ciWorkflow.length : anvilSectionEnd,
+    );
+
+    expect(anvilSection).toContain("Setup Rust");
+    expect(anvilSection).toContain("dtolnay/rust-toolchain@stable");
+    expect(anvilSection).toContain("npm run test:e2e:anvil:smoke");
+  });
+
   test("release workflow signs and publishes the checksum manifest", () => {
     expect(releaseWorkflow).toContain("sigstore/cosign-installer");
     expect(releaseWorkflow).toContain("SHA256SUMS.txt.sig");

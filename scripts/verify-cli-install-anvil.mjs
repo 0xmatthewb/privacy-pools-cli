@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const cargoCommand = process.platform === "win32" ? "cargo.exe" : "cargo";
 // Use a deterministic wallet that does not collide with the shared-Anvil smoke
 // wallet, otherwise the installed-artifact deposit can hit PrecommitmentAlreadyUsed.
 const TEST_MNEMONIC =
@@ -58,6 +59,27 @@ function parseJson(stdout, label) {
     const reason = error instanceof Error ? error.message : String(error);
     fail(`${label} did not emit valid JSON:\n${reason}\n${stdout}`);
   }
+}
+
+function currentNativeTriplet(platform = process.platform, arch = process.arch) {
+  if (platform === "darwin" && arch === "arm64") return "darwin-arm64";
+  if (platform === "darwin" && arch === "x64") return "darwin-x64";
+  if (platform === "linux" && arch === "x64") return "linux-x64-gnu";
+  if (platform === "win32" && arch === "x64") return "win32-x64-msvc";
+  if (platform === "win32" && arch === "arm64") return "win32-arm64-msvc";
+  return null;
+}
+
+function currentNativeBinaryPath() {
+  const binName =
+    process.platform === "win32"
+      ? "privacy-pools-cli-native-shell.exe"
+      : "privacy-pools-cli-native-shell";
+  return join(repoRoot, "native", "shell", "target", "release", binName);
+}
+
+function currentNativePackageName(triplet) {
+  return `@0xbow/privacy-pools-cli-native-${triplet}`;
 }
 
 function readSharedFixtureEnv(sharedEnvFile) {
@@ -142,15 +164,20 @@ if (!sharedEnvFile) {
 }
 
 const sharedEnv = readSharedFixtureEnv(sharedEnvFile);
+const nativeTriplet = currentNativeTriplet();
 
 const distIndexPath = join(repoRoot, "dist", "index.js");
 const tempRoot = mkdtempSync(join(tmpdir(), "pp-installed-cli-anvil-"));
 const cliTarballDir = join(tempRoot, "cli");
+const nativePackageDir = join(tempRoot, "native-package");
+const nativeTarballDir = join(tempRoot, "native-tarball");
 const installRoot = join(tempRoot, "install");
 const homeDir = join(installRoot, ".privacy-pools");
 const npmCacheDir = join(tempRoot, ".npm-cache");
+const missingWorkerPath = join(installRoot, "missing-worker.js");
 
 mkdirSync(cliTarballDir, { recursive: true });
+mkdirSync(nativeTarballDir, { recursive: true });
 mkdirSync(installRoot, { recursive: true });
 
 try {
@@ -160,13 +187,56 @@ try {
     fail("dist/index.js not found after build.");
   }
 
+  if (!nativeTriplet) {
+    process.stdout.write(
+      `Skipping installed CLI + native Anvil verification on unsupported host ${process.platform}/${process.arch}.\n`,
+    );
+    process.exit(0);
+  }
+
+  const cargoCheck = spawnSync(cargoCommand, ["--version"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    timeout: 15_000,
+  });
+  if (cargoCheck.error || cargoCheck.status !== 0) {
+    process.stdout.write(
+      `Skipping installed CLI + native Anvil verification because cargo is unavailable on ${process.platform}/${process.arch}.\n`,
+    );
+    process.exit(0);
+  }
+
+  run(cargoCommand, [
+    "build",
+    "--manifest-path",
+    "native/shell/Cargo.toml",
+    "--release",
+  ]);
+
   const cliTarball = packTarball(repoRoot, cliTarballDir);
+  run("node", [
+    join(repoRoot, "scripts", "prepare-native-package.mjs"),
+    "--triplet",
+    nativeTriplet,
+    "--binary",
+    currentNativeBinaryPath(),
+    "--out-dir",
+    nativePackageDir,
+  ]);
+  const nativeTarball = packTarball(nativePackageDir, nativeTarballDir);
+  const nativePackageName = currentNativePackageName(nativeTriplet);
 
   writeFileSync(
     join(installRoot, "package.json"),
     JSON.stringify({
       name: "pp-installed-cli-anvil-check",
       private: true,
+      dependencies: {
+        "privacy-pools-cli": `file:${cliTarball}`,
+      },
+      overrides: {
+        [nativePackageName]: `file:${nativeTarball}`,
+      },
     }),
     "utf8",
   );
@@ -180,7 +250,6 @@ try {
       "--ignore-scripts",
       "--no-audit",
       "--no-fund",
-      cliTarball,
     ],
     {
       cwd: installRoot,
@@ -190,6 +259,55 @@ try {
       },
     },
   );
+
+  const installedNativePackagePath = join(
+    installRoot,
+    "node_modules",
+    "@0xbow",
+    `privacy-pools-cli-native-${nativeTriplet}`,
+    "package.json",
+  );
+  if (!existsSync(installedNativePackagePath)) {
+    fail(
+      `Installed CLI did not resolve ${nativePackageName} through npm optional dependencies.`,
+    );
+  }
+
+  const nativeResolutionResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["flow", "--help"],
+    {
+      env: {
+        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+      },
+    },
+  );
+  if (
+    nativeResolutionResult.status !== 0 ||
+    !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
+  ) {
+    fail(
+      `Installed CLI failed native resolution parity with optional package installed:\nstatus=${nativeResolutionResult.status}\nstdout=${nativeResolutionResult.stdout}\nstderr=${nativeResolutionResult.stderr}`,
+    );
+  }
+
+  const disabledNativeResolutionResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["flow", "--help"],
+    {
+      env: {
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+      },
+    },
+  );
+  if (disabledNativeResolutionResult.status === 0) {
+    fail(
+      `Installed CLI did not distinguish native resolution from JS fallback:\nstdout=${disabledNativeResolutionResult.stdout}\nstderr=${disabledNativeResolutionResult.stderr}`,
+    );
+  }
 
   const initResult = runInstalledCli(
     installRoot,
@@ -301,7 +419,7 @@ try {
   }
 
   process.stdout.write(
-    `Verified installed CLI tarball against shared Anvil using ${distIndexPath}\n`,
+    `Verified installed CLI and native tarballs against shared Anvil using ${distIndexPath}\n`,
   );
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
