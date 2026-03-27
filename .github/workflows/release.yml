@@ -4,13 +4,15 @@
 #   - When you push a git tag that starts with "v" (e.g. v1.2.3)
 #   - Manually via the "Run workflow" button (you type an existing tag)
 #
-# WHAT does it do?  (four sequential stages)
+# WHAT does it do?  (five sequential stages)
 #   1. validate  — runs the release-readiness suite as `npm run test:release`
 #                  to make sure the tagged code is healthy.
 #   2. package   — creates an npm tarball (.tgz) of the CLI.
 #   3. package-native — builds exact-version native package tarballs for the
 #                  supported host triplets.
-#   4. release   — attaches the npm tarball, native tarballs, and checksum
+#   4. publish-native — publishes the native optional packages to npm and
+#                  verifies they resolve at the tagged version.
+#   5. release   — attaches the npm tarball, native tarballs, and checksum
 #                  manifest to a GitHub Release page.
 #
 # HOW to create a release:
@@ -312,14 +314,108 @@ jobs:
             --native-tarball "${NATIVE_TARBALL}"
 
   # -----------------------------------------------------------
-  # Stage 3: Create or update the GitHub Release page
-  # This only runs after the JS and native package jobs succeed.
+  # Stage 3: Publish the native optional packages to npm
+  # This only runs after the native package jobs succeed.
+  # -----------------------------------------------------------
+  publish-native:
+    name: publish-native
+    needs:
+      - package
+      - package-native
+    runs-on: ubuntu-latest
+    environment:
+      name: native-release-signoff
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+          registry-url: "https://registry.npmjs.org"
+          scope: "@0xbow"
+
+      - name: Ensure npm publish token is configured
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -z "${NODE_AUTH_TOKEN}" ]]; then
+            echo "NPM_TOKEN secret is required to publish native optional packages."
+            exit 1
+          fi
+
+      - name: Download native darwin-arm64 artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-darwin-arm64
+          path: release-artifacts/native/darwin-arm64
+
+      - name: Download native darwin-x64 artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-darwin-x64
+          path: release-artifacts/native/darwin-x64
+
+      - name: Download native linux-x64-gnu artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-linux-x64-gnu
+          path: release-artifacts/native/linux-x64-gnu
+
+      - name: Download native win32-x64-msvc artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-win32-x64-msvc
+          path: release-artifacts/native/win32-x64-msvc
+
+      - name: Download native win32-arm64-msvc artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-win32-arm64-msvc
+          path: release-artifacts/native/win32-arm64-msvc
+
+      - name: Publish and verify native npm packages
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+
+          for TRIPLET in \
+            darwin-arm64 \
+            darwin-x64 \
+            linux-x64-gnu \
+            win32-x64-msvc \
+            win32-arm64-msvc
+          do
+            PACKAGE="@0xbow/privacy-pools-cli-native-${TRIPLET}"
+            TARBALL="$(echo release-artifacts/native/${TRIPLET}/*.tgz)"
+
+            if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+              echo "${PACKAGE}@${VERSION} already published; verifying registry entry."
+            else
+              npm publish "${TARBALL}" --access public
+            fi
+
+            npm view "${PACKAGE}@${VERSION}" version
+          done
+
+  # -----------------------------------------------------------
+  # Stage 4: Create or update the GitHub Release page
+  # This only runs after the JS package, native package, and npm publish jobs succeed.
   # -----------------------------------------------------------
   release:
     name: github-release
     needs:
       - package
       - package-native
+      - publish-native
     runs-on: ubuntu-latest
     environment:
       name: native-release-signoff

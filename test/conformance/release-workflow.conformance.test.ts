@@ -77,6 +77,15 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("node scripts/verify-release-install.mjs");
   });
 
+  test("release workflow publishes native optional packages to npm", () => {
+    expect(releaseWorkflow).toContain("publish-native:");
+    expect(releaseWorkflow).toContain("NPM_TOKEN");
+    expect(releaseWorkflow).toContain('registry-url: "https://registry.npmjs.org"');
+    expect(releaseWorkflow).toContain("npm publish");
+    expect(releaseWorkflow).toContain("npm view");
+    expect(releaseWorkflow).toContain("@0xbow/privacy-pools-cli-native-${TRIPLET}");
+  });
+
   test("release workflow keeps an explicit native release signoff gate", () => {
     expect(releaseWorkflow).toContain("environment:");
     expect(releaseWorkflow).toContain("native-release-signoff");
