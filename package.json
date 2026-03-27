@@ -33,6 +33,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-test-suite.mjs",
     "test:install": "node scripts/run-test-profile.mjs install",
+    "test:native:fmt": "cargo fmt --manifest-path native/shell/Cargo.toml --check",
+    "test:native:lint": "cargo clippy --manifest-path native/shell/Cargo.toml --tests -- -D warnings",
     "test:native": "cargo test --manifest-path native/shell/Cargo.toml",
     "test:ci": "node scripts/run-test-profile.mjs ci",
     "test:release": "node scripts/run-test-profile.mjs release",

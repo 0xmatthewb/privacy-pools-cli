@@ -7,19 +7,13 @@ pub(crate) struct ParsedRootArgv {
     pub(crate) argv: Vec<String>,
     pub(crate) first_command_token: Option<String>,
     pub(crate) non_option_tokens: Vec<String>,
-    pub(crate) format_flag_value: Option<String>,
-    pub(crate) is_json: bool,
     pub(crate) is_csv_mode: bool,
     pub(crate) is_agent: bool,
-    pub(crate) is_unsigned: bool,
-    pub(crate) is_machine_mode: bool,
     pub(crate) is_structured_output_mode: bool,
     pub(crate) is_help_like: bool,
     pub(crate) is_version_like: bool,
     pub(crate) is_root_help_invocation: bool,
     pub(crate) is_quiet: bool,
-    pub(crate) suppress_banner: bool,
-    pub(crate) is_welcome: bool,
 }
 
 impl ParsedRootArgv {
@@ -137,27 +131,20 @@ pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
     let is_root_help_invocation = is_help_like
         && (non_option_tokens.is_empty()
             || (non_option_tokens.len() == 1 && non_option_tokens[0] == "help"));
-    let suppress_banner = root_args.iter().any(|token| token == "--no-banner");
     let is_quiet = root_args.iter().any(|token| token == "--quiet") || has_short_flag(argv, 'q');
-    let is_welcome = is_welcome_flag_only_invocation(argv) && !is_machine_mode;
+    let _is_welcome = is_welcome_flag_only_invocation(argv) && !is_machine_mode;
 
     ParsedRootArgv {
         argv: argv.to_vec(),
         first_command_token,
         non_option_tokens,
-        format_flag_value,
-        is_json,
         is_csv_mode,
         is_agent,
-        is_unsigned,
-        is_machine_mode,
         is_structured_output_mode,
         is_help_like,
         is_version_like,
         is_root_help_invocation,
         is_quiet,
-        suppress_banner,
-        is_welcome,
     }
 }
 
@@ -373,16 +360,16 @@ mod tests {
     fn structured_machine_flags_outrank_csv_mode() {
         let parsed = parse_root_argv(&argv(&["--agent", "--format", "csv", "guide"]));
         assert!(parsed.is_agent);
-        assert!(parsed.is_json);
         assert!(!parsed.is_csv_mode);
         assert!(parsed.is_structured_output_mode);
-        assert!(!parsed.is_welcome);
+        assert!(!is_welcome_flag_only_invocation(&argv(&[
+            "--agent", "--format", "csv", "guide",
+        ])));
     }
 
     #[test]
     fn json_flag_outranks_csv_mode() {
         let parsed = parse_root_argv(&argv(&["--json", "--format", "csv", "capabilities"]));
-        assert!(parsed.is_json);
         assert!(!parsed.is_csv_mode);
         assert!(parsed.is_structured_output_mode);
     }
@@ -399,7 +386,7 @@ mod tests {
     fn detail_pools_invocation_is_not_welcome() {
         let parsed = parse_root_argv(&argv(&["pools", "ETH"]));
         assert_eq!(parsed.first_command_token.as_deref(), Some("pools"));
-        assert!(!parsed.is_welcome);
+        assert!(!is_welcome_flag_only_invocation(&argv(&["pools", "ETH"])));
     }
 
     #[test]
@@ -423,7 +410,6 @@ mod tests {
         let args = argv(&["--json", "--", "--chain", "mainnet"]);
         let parsed = parse_root_argv(&args);
 
-        assert!(parsed.is_json);
         assert_eq!(parsed.global_chain(), None);
         assert!(has_long_flag(&args, "--json"));
         assert!(!has_long_flag(&args, "--chain"));
@@ -467,15 +453,17 @@ mod tests {
     #[test]
     fn welcome_detection_accepts_safe_flags_and_rejects_missing_values() {
         let quiet_welcome = parse_root_argv(&argv(&["-q", "--no-banner"]));
-        assert!(quiet_welcome.is_welcome);
         assert!(quiet_welcome.is_quiet);
-        assert!(quiet_welcome.suppress_banner);
+        assert!(is_welcome_flag_only_invocation(&argv(&[
+            "-q",
+            "--no-banner"
+        ])));
 
-        let missing_value = parse_root_argv(&argv(&["--chain"]));
-        assert!(!missing_value.is_welcome);
+        assert!(!is_welcome_flag_only_invocation(&argv(&["--chain"])));
 
-        let command_invocation = parse_root_argv(&argv(&["status", "--quiet"]));
-        assert!(!command_invocation.is_welcome);
+        assert!(!is_welcome_flag_only_invocation(&argv(&[
+            "status", "--quiet"
+        ])));
     }
 
     #[test]

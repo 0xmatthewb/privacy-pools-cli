@@ -65,6 +65,10 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain("Run npm test");
     expect(ciWorkflow).toContain("run: npm test");
     expect(ciWorkflow).toContain("native-unit:");
+    expect(ciWorkflow).toContain("Restore Rust cache");
+    expect(ciWorkflow).toContain("Swatinem/rust-cache@v2");
+    expect(ciWorkflow).toContain("Run native Rust lint checks");
+    expect(ciWorkflow).toContain("npm run test:native:fmt && npm run test:native:lint");
     expect(ciWorkflow).toContain("Run native Rust unit tests");
     expect(ciWorkflow).toContain("run: npm run test:native");
     expect(ciWorkflow).toContain("native-smoke:");
@@ -183,7 +187,9 @@ describe("release workflow conformance", () => {
   test("native coverage workflow enforces the repo's native coverage contract", () => {
     expect(nativeCoverageWorkflow).toContain("name: Native Coverage");
     expect(nativeCoverageWorkflow).toContain("Select native-coverage");
-    expect(nativeCoverageWorkflow).toContain("cargo install cargo-llvm-cov --locked");
+    expect(nativeCoverageWorkflow).toContain("Restore Rust cache");
+    expect(nativeCoverageWorkflow).toContain("Swatinem/rust-cache@v2");
+    expect(nativeCoverageWorkflow).toContain("taiki-e/install-action@cargo-llvm-cov");
     expect(nativeCoverageWorkflow).toContain("run: npm run test:coverage:native");
   });
 

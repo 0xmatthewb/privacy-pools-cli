@@ -63,9 +63,15 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Restore Rust cache
+        if: steps.select.outputs.should_run == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/shell
+
       - name: Install cargo-llvm-cov
         if: steps.select.outputs.should_run == 'true'
-        run: cargo install cargo-llvm-cov --locked
+        uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Run native coverage gate
         if: steps.select.outputs.should_run == 'true'

@@ -4,7 +4,6 @@ use crate::Manifest;
 #[derive(Debug, Clone)]
 pub(crate) struct NativeMode {
     pub(crate) format: OutputFormat,
-    pub(crate) is_agent: bool,
     pub(crate) is_quiet: bool,
 }
 
@@ -36,7 +35,6 @@ pub(crate) fn resolve_mode(parsed: &ParsedRootArgv) -> NativeMode {
 
     NativeMode {
         format,
-        is_agent: parsed.is_agent,
         is_quiet: parsed.is_quiet || parsed.is_agent,
     }
 }
@@ -377,7 +375,6 @@ mod tests {
         assert!(!mode.is_json());
         assert!(!mode.is_csv());
         assert!(!mode.is_quiet);
-        assert!(!mode.is_agent);
     }
 
     #[test]

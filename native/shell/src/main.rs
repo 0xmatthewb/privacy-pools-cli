@@ -38,9 +38,6 @@ enum ErrorCategory {
     Input,
     Rpc,
     Asp,
-    Relayer,
-    Proof,
-    Contract,
     Unknown,
 }
 
@@ -50,9 +47,6 @@ impl ErrorCategory {
             ErrorCategory::Input => "INPUT",
             ErrorCategory::Rpc => "RPC",
             ErrorCategory::Asp => "ASP",
-            ErrorCategory::Relayer => "RELAYER",
-            ErrorCategory::Proof => "PROOF",
-            ErrorCategory::Contract => "CONTRACT",
             ErrorCategory::Unknown => "UNKNOWN",
         }
     }
@@ -63,9 +57,6 @@ impl ErrorCategory {
             ErrorCategory::Input => 2,
             ErrorCategory::Rpc => 3,
             ErrorCategory::Asp => 4,
-            ErrorCategory::Relayer => 5,
-            ErrorCategory::Proof => 6,
-            ErrorCategory::Contract => 7,
         }
     }
 
@@ -74,9 +65,6 @@ impl ErrorCategory {
             ErrorCategory::Input => "INPUT_ERROR",
             ErrorCategory::Rpc => "RPC_ERROR",
             ErrorCategory::Asp => "ASP_ERROR",
-            ErrorCategory::Relayer => "RELAYER_ERROR",
-            ErrorCategory::Proof => "PROOF_ERROR",
-            ErrorCategory::Contract => "CONTRACT_ERROR",
             ErrorCategory::Unknown => "UNKNOWN_ERROR",
         }
     }
@@ -216,10 +204,6 @@ struct NativeRuntimeContract {
 
 #[derive(Debug, Clone, Deserialize)]
 struct ManifestRoutes {
-    #[serde(rename = "staticLocalCommands")]
-    static_local_commands: Vec<String>,
-    #[serde(rename = "directNativeCommands")]
-    direct_native_commands: Vec<String>,
     #[serde(rename = "helpCommandPaths")]
     help_command_paths: Vec<String>,
     #[serde(rename = "commandRoutes")]
@@ -273,16 +257,10 @@ struct ChainDefinition {
     id: u64,
     name: String,
     entrypoint: String,
-    #[serde(rename = "startBlock")]
-    start_block: String,
     #[serde(rename = "aspHost")]
     asp_host: String,
     #[serde(rename = "relayerHost")]
     relayer_host: String,
-    #[serde(rename = "isTestnet")]
-    is_testnet: bool,
-    #[serde(rename = "avgBlockTimeSec")]
-    avg_block_time_sec: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -417,13 +395,8 @@ struct PoolsRenderData {
 #[derive(Debug, Clone)]
 struct NativePoolResolution {
     symbol: String,
-    asset_address: String,
     pool_address: String,
     scope: String,
-    decimals: u32,
-    minimum_deposit_amount: String,
-    vetting_fee_bps: String,
-    max_relay_fee_bps: String,
 }
 
 fn main() {
@@ -2136,7 +2109,7 @@ fn classify_network_error(error: ureq::Error, url: &str, category: ErrorCategory
         }
         other => match category {
             ErrorCategory::Asp => CliError::asp(
-                format!("Could not reach the ASP service."),
+                "Could not reach the ASP service.".to_string(),
                 Some(
                     "Check your network connection. If it persists, the service may be temporarily down."
                         .to_string(),
@@ -2390,8 +2363,7 @@ fn parse_json_u64(value: Option<&Value>) -> Option<u64> {
 fn ms_to_iso_timestamp(timestamp_ms: u64) -> String {
     let seconds = timestamp_ms / 1000;
     let milliseconds = timestamp_ms % 1000;
-    let datetime = chrono_like_iso(seconds as i64, milliseconds as u32);
-    datetime
+    chrono_like_iso(seconds as i64, milliseconds as u32)
 }
 
 fn chrono_like_iso(seconds: i64, milliseconds: u32) -> String {
@@ -3670,7 +3642,7 @@ fn decode_abi_words(hex_data: &str) -> Result<Vec<String>, CliError> {
     if normalized.is_empty() {
         return Ok(vec![]);
     }
-    if normalized.len() % 64 != 0 {
+    if !normalized.len().is_multiple_of(64) {
         return Err(CliError::rpc(
             "Malformed ABI response from RPC.",
             Some("Retry the command or switch RPC providers.".to_string()),
@@ -3768,7 +3740,7 @@ fn decode_abi_string(hex_data: &str) -> Result<String, CliError> {
     })?;
 
     let mut bytes = vec![];
-    let required_words = (length + 31) / 32;
+    let required_words = length.div_ceil(32);
     for word_index in 0..required_words {
         let word = words.get(index + 1 + word_index).ok_or_else(|| {
             CliError::rpc(
@@ -4005,26 +3977,16 @@ fn resolve_pool_from_asset_address_native(
 
     Ok(NativePoolResolution {
         symbol: token_metadata.symbol,
-        asset_address: asset_address.to_string(),
         pool_address: asset_config.pool_address,
         scope,
-        decimals: token_metadata.decimals,
-        minimum_deposit_amount: asset_config.minimum_deposit_amount,
-        vetting_fee_bps: asset_config.vetting_fee_bps,
-        max_relay_fee_bps: asset_config.max_relay_fee_bps,
     })
 }
 
 fn pool_listing_entry_to_resolution(entry: &PoolListingEntry) -> NativePoolResolution {
     NativePoolResolution {
         symbol: entry.asset.clone(),
-        asset_address: entry.token_address.clone(),
         pool_address: entry.pool.clone(),
         scope: entry.scope.clone(),
-        decimals: entry.decimals,
-        minimum_deposit_amount: entry.minimum_deposit.clone(),
-        vetting_fee_bps: entry.vetting_fee_bps.clone(),
-        max_relay_fee_bps: entry.max_relay_fee_bps.clone(),
     }
 }
 

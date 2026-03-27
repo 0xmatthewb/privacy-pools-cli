@@ -25,6 +25,8 @@ export const TEST_PROFILES = {
   ci: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
+    ["npm", ["run", "test:native:fmt"]],
+    ["npm", ["run", "test:native:lint"]],
     ["npm", ["run", "test:native"]],
     ["npm", ["run", "test:coverage"]],
     ["npm", ["run", "test:e2e:anvil:smoke"]],
@@ -37,6 +39,8 @@ export const TEST_PROFILES = {
   release: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
+    ["npm", ["run", "test:native:fmt"]],
+    ["npm", ["run", "test:native:lint"]],
     ["npm", ["run", "test:native"]],
     ["npm", ["run", "test:coverage"]],
     ["npm", ["run", "test:e2e:anvil"]],
@@ -50,6 +54,8 @@ export const TEST_PROFILES = {
   all: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
+    ["npm", ["run", "test:native:fmt"]],
+    ["npm", ["run", "test:native:lint"]],
     ["npm", ["run", "test:native"]],
     ["npm", ["run", "test:coverage"]],
     ["npm", ["run", "test:e2e:anvil"]],

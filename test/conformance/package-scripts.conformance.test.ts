@@ -35,6 +35,12 @@ describe("package scripts conformance", () => {
   });
 
   test("top-level test wrappers compose shared install and native lanes", () => {
+    expect(packageJson.scripts?.["test:native:fmt"]).toBe(
+      "cargo fmt --manifest-path native/shell/Cargo.toml --check",
+    );
+    expect(packageJson.scripts?.["test:native:lint"]).toBe(
+      "cargo clippy --manifest-path native/shell/Cargo.toml --tests -- -D warnings",
+    );
     expect(packageJson.scripts?.["test:native"]).toBe(
       "cargo test --manifest-path native/shell/Cargo.toml",
     );

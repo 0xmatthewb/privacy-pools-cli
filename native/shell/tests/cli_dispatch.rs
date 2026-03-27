@@ -1,6 +1,5 @@
 use assert_cmd::prelude::*;
 use serde_json::Value;
-use std::path::PathBuf;
 use std::process::{Command, Output};
 
 fn run_native(args: &[&str]) -> Output {
@@ -39,7 +38,7 @@ fn parse_stdout_json(output: &Output) -> Value {
 }
 
 fn missing_worker_path() -> String {
-    let mut path = PathBuf::from(std::env::temp_dir());
+    let mut path = std::env::temp_dir();
     path.push("pp-missing-worker.js");
     path.to_string_lossy().into_owned()
 }
