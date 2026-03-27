@@ -20,6 +20,8 @@ const ENV_JS_WORKER_ARGS_B64: &str = "PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64";
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
+const JS_UNKNOWN_ERROR_HINT: &str =
+    "If this persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues.";
 
 #[derive(Clone, Copy)]
 enum ErrorCategory {
@@ -107,6 +109,14 @@ impl CliError {
         code: Option<&str>,
     ) -> Self {
         Self::new(ErrorCategory::Rpc, message, hint.into(), code, false)
+    }
+
+    fn rpc_retryable(
+        message: impl Into<String>,
+        hint: impl Into<Option<String>>,
+        code: Option<&str>,
+    ) -> Self {
+        Self::new(ErrorCategory::Rpc, message, hint.into(), code, true)
     }
 
     fn asp(
@@ -978,6 +988,14 @@ fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
     }
 }
 
+fn root_argv_slice(argv: &[String]) -> &[String] {
+    let boundary = argv
+        .iter()
+        .position(|token| token == "--")
+        .unwrap_or(argv.len());
+    &argv[..boundary]
+}
+
 impl ParsedRootArgv {
     fn global_chain(&self) -> Option<String> {
         read_long_option_value(&self.argv, "--chain")
@@ -991,7 +1009,7 @@ impl ParsedRootArgv {
 }
 
 fn has_short_flag(argv: &[String], flag: char) -> bool {
-    for token in argv {
+    for token in root_argv_slice(argv) {
         if !token.starts_with('-') || token.starts_with("--") {
             continue;
         }
@@ -1017,11 +1035,13 @@ fn has_short_flag(argv: &[String], flag: char) -> bool {
 }
 
 fn has_long_flag(argv: &[String], flag: &str) -> bool {
-    argv.iter()
+    root_argv_slice(argv)
+        .iter()
         .any(|token| token == flag || token.starts_with(&format!("{flag}=")))
 }
 
 fn read_long_option_value(argv: &[String], flag: &str) -> Option<String> {
+    let argv = root_argv_slice(argv);
     for index in 0..argv.len() {
         let token = &argv[index];
         if token == flag {
@@ -1036,6 +1056,7 @@ fn read_long_option_value(argv: &[String], flag: &str) -> Option<String> {
 }
 
 fn read_short_option_value(argv: &[String], flag: &str) -> Option<String> {
+    let argv = root_argv_slice(argv);
     for index in 0..argv.len() {
         if argv[index] == flag {
             return argv.get(index + 1).cloned();
@@ -1045,6 +1066,7 @@ fn read_short_option_value(argv: &[String], flag: &str) -> Option<String> {
 }
 
 fn all_non_option_tokens(argv: &[String]) -> Vec<String> {
+    let argv = root_argv_slice(argv);
     let mut tokens = vec![];
     let mut index = 0;
 
@@ -1077,6 +1099,7 @@ fn all_non_option_tokens(argv: &[String]) -> Vec<String> {
 }
 
 fn first_non_option_token(argv: &[String]) -> Option<String> {
+    let argv = root_argv_slice(argv);
     let mut index = 0;
 
     while index < argv.len() {
@@ -1103,6 +1126,7 @@ fn root_option_takes_value(token: &str) -> bool {
 }
 
 fn is_welcome_flag_only_invocation(argv: &[String]) -> bool {
+    let argv = root_argv_slice(argv);
     if argv.is_empty() {
         return true;
     }
@@ -2291,6 +2315,37 @@ fn http_get_json(
     })
 }
 
+fn js_like_unknown_transport_error() -> CliError {
+    CliError::unknown(
+        "Unable to connect. Is the computer able to access the url?",
+        Some(JS_UNKNOWN_ERROR_HINT.to_string()),
+    )
+}
+
+fn http_get_json_with_js_transport_error(
+    url: &str,
+    headers: &[(&str, String)],
+    timeout_ms: u64,
+) -> Result<Value, CliError> {
+    let mut request = ureq::get(url).timeout(Duration::from_millis(timeout_ms));
+    for (key, value) in headers {
+        request = request.set(key, value);
+    }
+
+    let response = match request.call() {
+        Ok(response) => response,
+        Err(ureq::Error::Transport(_)) => return Err(js_like_unknown_transport_error()),
+        Err(error) => return Err(classify_network_error(error, url, ErrorCategory::Asp)),
+    };
+
+    serde_json::from_reader(response.into_reader()).map_err(|error| {
+        CliError::unknown(
+            format!("Invalid JSON response from {url}: {error}"),
+            Some("Retry the command once; if it persists, report the issue.".to_string()),
+        )
+    })
+}
+
 fn http_post_json(url: &str, body: &Value, timeout_ms: u64) -> Result<Value, CliError> {
     let response = ureq::post(url)
         .timeout(Duration::from_millis(timeout_ms))
@@ -2370,7 +2425,7 @@ fn fetch_pool_events(
         "{}/{}/public/events?page={page}&perPage={per_page}",
         chain.asp_host, chain.id
     );
-    http_get_json(&url, &[("X-Pool-Scope", scope.to_string())], timeout_ms)
+    http_get_json_with_js_transport_error(&url, &[("X-Pool-Scope", scope.to_string())], timeout_ms)
 }
 
 fn fetch_global_events(
@@ -2383,12 +2438,12 @@ fn fetch_global_events(
         "{}/global/public/events?page={page}&perPage={per_page}",
         chain.asp_host
     );
-    http_get_json(&url, &[], timeout_ms)
+    http_get_json_with_js_transport_error(&url, &[], timeout_ms)
 }
 
 fn fetch_global_statistics(chain: &ChainDefinition, timeout_ms: u64) -> Result<Value, CliError> {
     let url = format!("{}/global/public/statistics", chain.asp_host);
-    http_get_json(&url, &[], timeout_ms)
+    http_get_json_with_js_transport_error(&url, &[], timeout_ms)
 }
 
 fn fetch_pools_stats(chain: &ChainDefinition, timeout_ms: u64) -> Result<Value, CliError> {
@@ -2622,7 +2677,14 @@ fn list_pools_native(
     manifest: &Manifest,
     timeout_ms: u64,
 ) -> Result<Vec<PoolListingEntry>, CliError> {
-    let stats_data = fetch_pools_stats(chain, timeout_ms)?;
+    let stats_data = fetch_pools_stats(chain, timeout_ms).map_err(|_| {
+        CliError::asp(
+            format!("Cannot reach ASP ({}) to discover pools.", chain.asp_host),
+            Some("Check your network connection, or try again later.".to_string()),
+            None,
+            false,
+        )
+    })?;
     let stats_entries = normalize_pool_stats_entries(&stats_data);
     if stats_entries.is_empty() {
         return Err(CliError::asp(
@@ -2635,62 +2697,71 @@ fn list_pools_native(
 
     let rpc_urls = get_rpc_urls(chain.id, rpc_override, config, &manifest.runtime_config)?;
     let mut entries = vec![];
+    let mut rpc_read_failures = 0usize;
     for stats_entry in stats_entries {
         let Some(asset_address) = resolve_pool_asset_address(&stats_entry) else {
             continue;
         };
-        let asset_config = read_asset_config(chain, &asset_address, &rpc_urls, timeout_ms)?;
-        let scope = read_pool_scope(&asset_config.pool_address, &rpc_urls, timeout_ms)?;
-        let token_metadata = resolve_token_metadata(
-            &asset_address,
-            &rpc_urls,
-            &manifest.runtime_config.native_asset_address,
-            timeout_ms,
-        );
-        entries.push(PoolListingEntry {
-            chain: chain.name.clone(),
-            chain_id: chain.id,
-            asset: token_metadata.symbol,
-            token_address: asset_address,
-            pool: asset_config.pool_address,
-            scope,
-            decimals: token_metadata.decimals,
-            minimum_deposit: asset_config.minimum_deposit_amount,
-            vetting_fee_bps: asset_config.vetting_fee_bps,
-            max_relay_fee_bps: asset_config.max_relay_fee_bps,
-            total_in_pool_value: parse_json_decimal_string(stats_entry.get("totalInPoolValue")),
-            total_in_pool_value_usd: parse_json_string(stats_entry.get("totalInPoolValueUsd")),
-            total_deposits_value: parse_json_decimal_string(stats_entry.get("totalDepositsValue")),
-            total_deposits_value_usd: parse_json_string(stats_entry.get("totalDepositsValueUsd")),
-            accepted_deposits_value: parse_json_decimal_string(
-                stats_entry.get("acceptedDepositsValue"),
-            ),
-            accepted_deposits_value_usd: parse_json_string(
-                stats_entry.get("acceptedDepositsValueUsd"),
-            ),
-            pending_deposits_value: parse_json_decimal_string(
-                stats_entry.get("pendingDepositsValue"),
-            ),
-            pending_deposits_value_usd: parse_json_string(
-                stats_entry.get("pendingDepositsValueUsd"),
-            ),
-            total_deposits_count: parse_json_u64(stats_entry.get("totalDepositsCount")),
-            accepted_deposits_count: parse_json_u64(stats_entry.get("acceptedDepositsCount")),
-            pending_deposits_count: parse_json_u64(stats_entry.get("pendingDepositsCount")),
-            growth24h: parse_json_number(stats_entry.get("growth24h")),
-            pending_growth24h: parse_json_number(stats_entry.get("pendingGrowth24h")),
-        });
+        let resolved_entry = (|| -> Result<PoolListingEntry, CliError> {
+            let asset_config = read_asset_config(chain, &asset_address, &rpc_urls, timeout_ms)?;
+            let scope = read_pool_scope(&asset_config.pool_address, &rpc_urls, timeout_ms)?;
+            let token_metadata = resolve_token_metadata(
+                &asset_address,
+                &rpc_urls,
+                &manifest.runtime_config.native_asset_address,
+                timeout_ms,
+            );
+
+            Ok(PoolListingEntry {
+                chain: chain.name.clone(),
+                chain_id: chain.id,
+                asset: token_metadata.symbol,
+                token_address: asset_address,
+                pool: asset_config.pool_address,
+                scope,
+                decimals: token_metadata.decimals,
+                minimum_deposit: asset_config.minimum_deposit_amount,
+                vetting_fee_bps: asset_config.vetting_fee_bps,
+                max_relay_fee_bps: asset_config.max_relay_fee_bps,
+                total_in_pool_value: parse_json_decimal_string(stats_entry.get("totalInPoolValue")),
+                total_in_pool_value_usd: parse_json_string(stats_entry.get("totalInPoolValueUsd")),
+                total_deposits_value: parse_json_decimal_string(
+                    stats_entry.get("totalDepositsValue"),
+                ),
+                total_deposits_value_usd: parse_json_string(
+                    stats_entry.get("totalDepositsValueUsd"),
+                ),
+                accepted_deposits_value: parse_json_decimal_string(
+                    stats_entry.get("acceptedDepositsValue"),
+                ),
+                accepted_deposits_value_usd: parse_json_string(
+                    stats_entry.get("acceptedDepositsValueUsd"),
+                ),
+                pending_deposits_value: parse_json_decimal_string(
+                    stats_entry.get("pendingDepositsValue"),
+                ),
+                pending_deposits_value_usd: parse_json_string(
+                    stats_entry.get("pendingDepositsValueUsd"),
+                ),
+                total_deposits_count: parse_json_u64(stats_entry.get("totalDepositsCount")),
+                accepted_deposits_count: parse_json_u64(stats_entry.get("acceptedDepositsCount")),
+                pending_deposits_count: parse_json_u64(stats_entry.get("pendingDepositsCount")),
+                growth24h: parse_json_number(stats_entry.get("growth24h")),
+                pending_growth24h: parse_json_number(stats_entry.get("pendingGrowth24h")),
+            })
+        })();
+
+        match resolved_entry {
+            Ok(entry) => entries.push(entry),
+            Err(error) if matches!(error.category, ErrorCategory::Rpc) => {
+                rpc_read_failures += 1;
+            }
+            Err(error) => return Err(error),
+        }
     }
 
-    if entries.is_empty() {
-        return Err(CliError::rpc(
-            format!(
-                "Failed to resolve pools on {} due to RPC errors.",
-                chain.name
-            ),
-            Some("Check your RPC connection and try again.".to_string()),
-            None,
-        ));
+    if entries.is_empty() && rpc_read_failures > 0 {
+        return Ok(vec![]);
     }
 
     Ok(deduplicate_pool_entries(entries))
@@ -3388,36 +3459,121 @@ fn resolve_pool_native(
     manifest: &Manifest,
     timeout_ms: u64,
 ) -> Result<NativePoolResolution, CliError> {
-    let rpc_urls = get_rpc_urls(chain.id, rpc_override, config, &manifest.runtime_config)?;
-    let asset_address = if is_hex_address(asset) {
-        asset.to_string()
-    } else {
-        manifest
-            .runtime_config
-            .known_pools
-            .get(&chain.id)
-            .and_then(|pools| pools.get(&asset.to_uppercase()))
-            .cloned()
-            .ok_or_else(|| {
-                CliError::input(
-                    format!("Unknown asset '{asset}' on {}.", chain.name),
-                    Some("Run 'privacy-pools pools' to list supported assets.".to_string()),
-                )
-            })?
+    let rpc_urls = get_rpc_urls(
+        chain.id,
+        rpc_override.clone(),
+        config,
+        &manifest.runtime_config,
+    )?;
+    if is_hex_address(asset) {
+        return resolve_pool_from_asset_address_native(
+            chain,
+            asset,
+            &rpc_urls,
+            &manifest.runtime_config.native_asset_address,
+            timeout_ms,
+        )
+        .map_err(|error| {
+            if matches!(error.category, ErrorCategory::Rpc) {
+                return CliError::rpc_retryable(
+                    format!(
+                        "Failed to resolve pool for {asset} on {} due to RPC error.",
+                        chain.name
+                    ),
+                    Some("Check your RPC URL and network connectivity, then retry.".to_string()),
+                    Some("RPC_POOL_RESOLUTION_FAILED"),
+                );
+            }
+            error
+        });
+    }
+
+    let normalized = asset.to_uppercase();
+    let mut available_assets_hint: Option<String> = None;
+    let mut asp_lookup_failed = false;
+
+    match list_pools_native(chain, rpc_override.clone(), config, manifest, timeout_ms) {
+        Ok(entries) => {
+            if let Some(entry) = entries
+                .iter()
+                .find(|entry| entry.asset.eq_ignore_ascii_case(&normalized))
+            {
+                return Ok(pool_listing_entry_to_resolution(entry));
+            }
+
+            let available_assets = entries
+                .iter()
+                .map(|entry| entry.asset.clone())
+                .collect::<Vec<_>>();
+            if !available_assets.is_empty() {
+                available_assets_hint = Some(available_assets.join(", "));
+            }
+        }
+        Err(error) => {
+            if !matches!(error.category, ErrorCategory::Asp) {
+                return Err(error);
+            }
+            asp_lookup_failed = true;
+        }
+    }
+
+    let Some(known_asset_address) = manifest
+        .runtime_config
+        .known_pools
+        .get(&chain.id)
+        .and_then(|pools| pools.get(&normalized))
+        .cloned()
+    else {
+        return Err(CliError::input(
+            format!("No pool found for asset \"{asset}\" on {}.", chain.name),
+            Some(if asp_lookup_failed {
+                "The ASP may be offline. Try using --asset with a token contract address (0x...)."
+                    .to_string()
+            } else if let Some(hint) = available_assets_hint {
+                format!("Available assets: {hint}")
+            } else {
+                "No pools found. Try using --asset with a contract address.".to_string()
+            }),
+        ));
     };
 
-    let asset_config = read_asset_config(chain, &asset_address, &rpc_urls, timeout_ms)?;
-    let scope = read_pool_scope(&asset_config.pool_address, &rpc_urls, timeout_ms)?;
-    let token_metadata = resolve_token_metadata(
-        &asset_address,
+    resolve_pool_from_asset_address_native(
+        chain,
+        &known_asset_address,
         &rpc_urls,
         &manifest.runtime_config.native_asset_address,
         timeout_ms,
-    );
+    )
+    .map_err(|error| {
+        if matches!(error.category, ErrorCategory::Rpc) {
+            return CliError::rpc_retryable(
+                format!(
+                    "Built-in pool fallback also failed for \"{asset}\" on {}.",
+                    chain.name
+                ),
+                Some("Check your RPC URL and network connectivity, then retry.".to_string()),
+                Some("RPC_POOL_RESOLUTION_FAILED"),
+            );
+        }
+        error
+    })
+}
+
+fn resolve_pool_from_asset_address_native(
+    chain: &ChainDefinition,
+    asset_address: &str,
+    rpc_urls: &[String],
+    native_asset_address: &str,
+    timeout_ms: u64,
+) -> Result<NativePoolResolution, CliError> {
+    let asset_config = read_asset_config(chain, asset_address, rpc_urls, timeout_ms)?;
+    let scope = read_pool_scope(&asset_config.pool_address, rpc_urls, timeout_ms)?;
+    let token_metadata =
+        resolve_token_metadata(asset_address, rpc_urls, native_asset_address, timeout_ms);
 
     Ok(NativePoolResolution {
         symbol: token_metadata.symbol,
-        asset_address,
+        asset_address: asset_address.to_string(),
         pool_address: asset_config.pool_address,
         scope,
         decimals: token_metadata.decimals,
@@ -3425,6 +3581,19 @@ fn resolve_pool_native(
         vetting_fee_bps: asset_config.vetting_fee_bps,
         max_relay_fee_bps: asset_config.max_relay_fee_bps,
     })
+}
+
+fn pool_listing_entry_to_resolution(entry: &PoolListingEntry) -> NativePoolResolution {
+    NativePoolResolution {
+        symbol: entry.asset.clone(),
+        asset_address: entry.token_address.clone(),
+        pool_address: entry.pool.clone(),
+        scope: entry.scope.clone(),
+        decimals: entry.decimals,
+        minimum_deposit_amount: entry.minimum_deposit.clone(),
+        vetting_fee_bps: entry.vetting_fee_bps.clone(),
+        max_relay_fee_bps: entry.max_relay_fee_bps.clone(),
+    }
 }
 
 fn exit_code_from_status(status: std::process::ExitStatus) -> i32 {

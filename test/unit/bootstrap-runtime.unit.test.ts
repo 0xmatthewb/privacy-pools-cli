@@ -52,6 +52,7 @@ const ORIGINAL_ARGV = [...process.argv];
 const ORIGINAL_NO_COLOR = process.env.NO_COLOR;
 const ORIGINAL_PRIVACY_POOLS_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_PRIVACY_POOLS_CONFIG_DIR = process.env.PRIVACY_POOLS_CONFIG_DIR;
+const ORIGINAL_DISABLE_NATIVE = process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE;
 const ORIGINAL_CI = process.env.CI;
 const ORIGINAL_CODESPACES = process.env.CODESPACES;
 const ORIGINAL_STDOUT_IS_TTY = process.stdout.isTTY;
@@ -91,6 +92,10 @@ function makeSpawnChild(exitCode: number = 0) {
   });
 
   return child;
+}
+
+function forceJsLauncherFallback(): void {
+  process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE = "1";
 }
 
 function expectWorkerRequestArgv(
@@ -178,6 +183,11 @@ afterEach(() => {
     delete process.env.PRIVACY_POOLS_CONFIG_DIR;
   } else {
     process.env.PRIVACY_POOLS_CONFIG_DIR = ORIGINAL_PRIVACY_POOLS_CONFIG_DIR;
+  }
+  if (ORIGINAL_DISABLE_NATIVE === undefined) {
+    delete process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE;
+  } else {
+    process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE = ORIGINAL_DISABLE_NATIVE;
   }
   if (ORIGINAL_CI === undefined) {
     delete process.env.CI;
@@ -677,6 +687,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index routes root help through the static discovery fast path", async () => {
+    forceJsLauncherFallback();
     const runStaticRootHelpMock = mock(async () => undefined);
     const runStaticCompletionQueryMock = mock(async () => false);
     const runStaticDiscoveryCommandMock = mock(async () => false);
@@ -709,6 +720,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index serves structured root help through the static fast path", async () => {
+    forceJsLauncherFallback();
     const runStaticRootHelpMock = mock(async () => undefined);
     const runCliMock = mock(async () => undefined);
 
@@ -733,6 +745,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index routes completion queries through the static completion fast path", async () => {
+    forceJsLauncherFallback();
     const runStaticRootHelpMock = mock(async () => undefined);
     const runStaticCompletionQueryMock = mock(async () => true);
     const runStaticDiscoveryCommandMock = mock(async () => false);
@@ -766,6 +779,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index falls back to the worker boundary when the completion fast path declines the argv", async () => {
+    forceJsLauncherFallback();
     const spawnMock = mock(() => makeSpawnChild());
 
     mock.module("../../src/static-discovery.ts", () => ({
@@ -801,6 +815,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index routes guide through the static discovery command fast path", async () => {
+    forceJsLauncherFallback();
     const runStaticCompletionQueryMock = mock(async () => false);
     const runStaticDiscoveryCommandMock = mock(async () => true);
     const runCliMock = mock(async () => undefined);
@@ -827,6 +842,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index falls back to the worker boundary when the static discovery fast path declines", async () => {
+    forceJsLauncherFallback();
     const spawnMock = mock(() => makeSpawnChild());
 
     mock.module("../../src/static-discovery.ts", () => ({
@@ -850,6 +866,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index serves the root version fast path in human and structured modes", async () => {
+    forceJsLauncherFallback();
     process.argv = ["node", "privacy-pools", "-V"];
     const human = await captureAsyncOutputAllowExit(async () => {
       await import(`../../src/index.ts?version-human-fast-path=${Date.now()}`);
@@ -872,6 +889,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index routes root help after skipping root option values", async () => {
+    forceJsLauncherFallback();
     const runStaticRootHelpMock = mock(async () => undefined);
     const runCliMock = mock(async () => undefined);
 
@@ -896,6 +914,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index routes structured root help when --format json is split across tokens", async () => {
+    forceJsLauncherFallback();
     const runStaticRootHelpMock = mock(async () => undefined);
     const runCliMock = mock(async () => undefined);
 
@@ -920,6 +939,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index serves the structured root version fast path for agent mode", async () => {
+    forceJsLauncherFallback();
     process.argv = ["node", "privacy-pools", "--agent", "--version"];
 
     const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(
@@ -936,6 +956,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index sets NO_COLOR before delegating to the full cli path", async () => {
+    forceJsLauncherFallback();
     const spawnMock = mock((_command: string, _args: string[], options?: { env?: NodeJS.ProcessEnv }) => {
       expect(process.env.NO_COLOR).toBe("1");
       expect(options?.env?.NO_COLOR).toBe("1");
@@ -958,6 +979,7 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index delegates non-fast invocations to the worker boundary", async () => {
+    forceJsLauncherFallback();
     const spawnMock = mock(() => makeSpawnChild());
     const installConsoleGuardMock = mock(() => undefined);
 

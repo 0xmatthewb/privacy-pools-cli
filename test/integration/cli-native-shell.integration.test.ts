@@ -5,6 +5,7 @@ import {
   TEST_PRIVATE_KEY,
   createTempHome,
   parseJsonOutput,
+  runCli,
   runBuiltCli,
 } from "../helpers/cli.ts";
 import {
@@ -40,6 +41,16 @@ function runNativeBuiltCli(
   });
 }
 
+function withJsFallback(options: CliRunOptions = {}): CliRunOptions {
+  return {
+    ...options,
+    env: {
+      ...options.env,
+      PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+    },
+  };
+}
+
 function expectStreamParity(
   nativeBinary: string,
   args: string[],
@@ -48,7 +59,7 @@ function expectStreamParity(
     native?: CliRunOptions;
   } = {},
 ): void {
-  const jsResult = runBuiltCli(args, options.js);
+  const jsResult = runBuiltCli(args, withJsFallback(options.js));
   const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
 
   expect(nativeResult.status).toBe(jsResult.status);
@@ -64,7 +75,25 @@ function expectJsonParity(
     native?: CliRunOptions;
   } = {},
 ): void {
-  const jsResult = runBuiltCli(args, options.js);
+  const jsResult = runBuiltCli(args, withJsFallback(options.js));
+  const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
+
+  expect(nativeResult.status).toBe(jsResult.status);
+  expect(parseJsonOutput(nativeResult.stdout)).toEqual(
+    parseJsonOutput(jsResult.stdout),
+  );
+  expect(nativeResult.stderr).toBe(jsResult.stderr);
+}
+
+function expectSourceJsonParity(
+  nativeBinary: string,
+  args: string[],
+  options: {
+    js?: CliRunOptions;
+    native?: CliRunOptions;
+  } = {},
+): void {
+  const jsResult = runCli(args, options.js);
   const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
 
   expect(nativeResult.status).toBe(jsResult.status);
@@ -139,6 +168,19 @@ describe("native shell parity", () => {
       "--",
       "privacy-pools",
     ]);
+    expectStreamParity(nativeBinary, [
+      "completion",
+      "--query",
+      "--shell",
+      "bash",
+      "--cword",
+      "3",
+      "--",
+      "privacy-pools",
+      "deposit",
+      "--unsigned",
+      "",
+    ]);
   });
 
   nativeTest("status --agent --no-check stays JS-owned through native forwarding", () => {
@@ -168,6 +210,39 @@ describe("native shell parity", () => {
       js: { env },
       native: { env },
     });
+  });
+
+  nativeTest("offline public envelopes and degraded pool discovery stay aligned", () => {
+    expectSourceJsonParity(nativeBinary, ["--json", "--chain", "mainnet", "activity"], {
+      js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+      native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+    });
+    expectSourceJsonParity(nativeBinary, ["--json", "stats"], {
+      js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+      native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+    });
+    expectSourceJsonParity(nativeBinary, ["--json", "--chain", "sepolia", "pools"], {
+      js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+      native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+    });
+    expectSourceJsonParity(
+      nativeBinary,
+      ["--json", "--chain", "sepolia", "pools"],
+      {
+        js: {
+          env: {
+            PRIVACY_POOLS_ASP_HOST: fixture!.url,
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
+          },
+        },
+        native: {
+          env: {
+            PRIVACY_POOLS_ASP_HOST: fixture!.url,
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
+          },
+        },
+      },
+    );
   });
 
   nativeTest("JS-owned commands still forward through the native shell unchanged", () => {

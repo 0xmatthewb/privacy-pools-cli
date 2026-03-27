@@ -192,6 +192,9 @@ export function resolveLaunchTarget(
   pkg: CliPackageInfo,
   argv: string[],
   env: NodeJS.ProcessEnv = process.env,
+  options: {
+    resolveInstalledNativeBinary?: typeof resolveInstalledNativeBinary;
+  } = {},
 ): LaunchTarget {
   if (isFlagEnabled(env[ENV_CLI_DISABLE_NATIVE])) {
     return createJsWorkerTarget(argv, env);
@@ -207,16 +210,20 @@ export function resolveLaunchTarget(
     };
   }
 
-  if (isFlagEnabled(env[ENV_CLI_ENABLE_NATIVE])) {
-    const nativeBinary = resolveInstalledNativeBinary(pkg);
-    if (nativeBinary) {
-      return {
-        kind: "native-binary",
-        command: nativeBinary,
-        args: [...argv],
-        env: createNativeForwardingEnv(env),
-      };
-    }
+  const resolveInstalledNativeBinaryFn =
+    options.resolveInstalledNativeBinary ?? resolveInstalledNativeBinary;
+  // Same-version packaged native binaries are preferred by default once they
+  // pass the checksum/version gates. ENABLE_NATIVE remains as a compatibility
+  // alias for callers that already exported it during preview rollouts.
+  void env[ENV_CLI_ENABLE_NATIVE];
+  const nativeBinary = resolveInstalledNativeBinaryFn(pkg);
+  if (nativeBinary) {
+    return {
+      kind: "native-binary",
+      command: nativeBinary,
+      args: [...argv],
+      env: createNativeForwardingEnv(env),
+    };
   }
 
   return createJsWorkerTarget(argv, env);

@@ -123,11 +123,17 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
   const timeoutMs = options.timeoutMs ?? 20_000;
   const cwd = options.cwd ?? CLI_CWD;
   const start = Date.now();
+  const sourceCliEnv =
+    options.env?.PRIVACY_POOLS_CLI_BINARY !== undefined ||
+    options.env?.PRIVACY_POOLS_CLI_DISABLE_NATIVE !== undefined
+      ? {}
+      : { PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1" };
 
   const result = spawnSync("bun", ["src/index.ts", ...args], {
     cwd,
     env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+      ...sourceCliEnv,
       ...options.env,
     }),
     encoding: "utf8",

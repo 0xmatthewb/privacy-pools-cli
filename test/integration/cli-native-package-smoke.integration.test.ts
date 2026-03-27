@@ -63,12 +63,9 @@ describe("native package smoke", () => {
     }
   }, 240_000);
 
-  nativePackageSmokeTest("launcher resolves the packaged native binary and keeps JS forwarding intact", () => {
+  nativePackageSmokeTest("launcher prefers the packaged native binary by default and keeps JS forwarding intact", () => {
     const helpResult = runBuiltCli(["--help"], {
       cwd: snapshotRoot,
-      env: {
-        PRIVACY_POOLS_CLI_ENABLE_NATIVE: "1",
-      },
     });
 
     expect(helpResult.status).toBe(0);
@@ -90,9 +87,6 @@ describe("native package smoke", () => {
       {
         cwd: snapshotRoot,
         home: createTempHome("pp-native-package-smoke-"),
-        env: {
-          PRIVACY_POOLS_CLI_ENABLE_NATIVE: "1",
-        },
         timeoutMs: 60_000,
       },
     );
@@ -103,5 +97,18 @@ describe("native package smoke", () => {
     );
     expect(payload.success).toBe(true);
     expect(payload.defaultChain).toBe("sepolia");
+  });
+
+  nativePackageSmokeTest("disable-native still forces the js fallback when a packaged binary exists", () => {
+    const result = runBuiltCli(["--help"], {
+      cwd: snapshotRoot,
+      env: {
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("privacy-pools");
+    expect(result.stderr.trim()).toBe("");
   });
 });

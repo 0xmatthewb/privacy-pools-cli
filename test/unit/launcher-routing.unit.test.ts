@@ -9,11 +9,15 @@ import { decodeWorkerRequestV1 } from "../../src/runtime/v1/request.ts";
 const PKG = { version: "1.7.0" };
 
 describe("launcher routing", () => {
-  test("defaults to the js worker boundary and encodes argv", () => {
-    const target = launcherTestInternals.resolveLaunchTarget(PKG, [
-      "status",
-      "--json",
-    ]);
+  test("falls back to the js worker boundary when no native package is available and encodes argv", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      PKG,
+      ["status", "--json"],
+      {},
+      {
+        resolveInstalledNativeBinary: () => null,
+      },
+    );
 
     expect(target.kind).toBe("js-worker");
     expect(target.command).toBe(process.execPath);
@@ -59,6 +63,21 @@ describe("launcher routing", () => {
     expect(target.args).toEqual(["status", "--json"]);
     expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_COMMAND).toBe(process.execPath);
     expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64).toBeTruthy();
+  });
+
+  test("prefers an installed same-version native package by default", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      PKG,
+      ["--help"],
+      {},
+      {
+        resolveInstalledNativeBinary: () => "/tmp/privacy-pools-native",
+      },
+    );
+
+    expect(target.kind).toBe("native-binary");
+    expect(target.command).toBe("/tmp/privacy-pools-native");
+    expect(target.args).toEqual(["--help"]);
   });
 
   test("resolves an installed native binary only on exact version match", () => {
