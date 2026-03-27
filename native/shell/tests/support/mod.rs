@@ -258,19 +258,26 @@ fn route_request(request: &str) -> (&'static str, String) {
             "cacheTimestamp": "2025-01-01T00:00:00.000Z"
         }),
         ("POST", _) => route_rpc_request(body),
-        _ => return ("HTTP/1.1 404 Not Found", json!({ "error": "not found" }).to_string()),
+        _ => {
+            return (
+                "HTTP/1.1 404 Not Found",
+                json!({ "error": "not found" }).to_string(),
+            )
+        }
     };
 
     ("HTTP/1.1 200 OK", json_body.to_string())
 }
 
 fn request_body(request: &str) -> &str {
-    request.split_once("\r\n\r\n").map(|(_, body)| body).unwrap_or("")
+    request
+        .split_once("\r\n\r\n")
+        .map(|(_, body)| body)
+        .unwrap_or("")
 }
 
 fn route_rpc_request(body: &str) -> Value {
-    let request: Value =
-        serde_json::from_str(body).expect("fixture rpc body should be valid json");
+    let request: Value = serde_json::from_str(body).expect("fixture rpc body should be valid json");
     let method = request
         .get("method")
         .and_then(Value::as_str)
@@ -286,7 +293,10 @@ fn route_rpc_request(body: &str) -> Value {
             .and_then(Value::as_str)
             .unwrap_or_default()
             .to_lowercase();
-        let asset_selector = format!("0x{}", hex::encode(function_selector("assetConfig(address)")));
+        let asset_selector = format!(
+            "0x{}",
+            hex::encode(function_selector("assetConfig(address)"))
+        );
         let scope_selector = format!("0x{}", hex::encode(function_selector("SCOPE()")));
 
         let result = if data.starts_with(&asset_selector) {

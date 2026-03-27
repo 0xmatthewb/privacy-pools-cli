@@ -48,6 +48,33 @@ fn global_public_commands_succeed_against_the_rust_fixture() {
 }
 
 #[test]
+fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let env = [("PRIVACY_POOLS_ASP_HOST", asp_host.as_str())];
+
+    let human_activity = run_native_with_env(&["activity"], &env);
+    assert!(human_activity.status.success());
+    assert!(stdout_string(&human_activity).is_empty());
+    assert!(stderr_string(&human_activity).contains("Global activity"));
+
+    let csv_activity = run_native_with_env(&["--format", "csv", "activity"], &env);
+    assert!(csv_activity.status.success());
+    assert!(stderr_string(&csv_activity).contains("Fetching public activity"));
+    assert!(stdout_string(&csv_activity).contains("Type,Pool,Amount,Status,Time,Tx"));
+
+    let human_stats = run_native_with_env(&["stats"], &env);
+    assert!(human_stats.status.success());
+    assert!(stdout_string(&human_stats).is_empty());
+    assert!(stderr_string(&human_stats).contains("Global statistics (all-mainnets):"));
+
+    let csv_stats = run_native_with_env(&["--format", "csv", "stats"], &env);
+    assert!(csv_stats.status.success());
+    assert!(stderr_string(&csv_stats).contains("Fetching global statistics"));
+    assert!(stdout_string(&csv_stats).contains("Metric,All Time,Last 24h"));
+}
+
+#[test]
 fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();
@@ -62,17 +89,16 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     assert!(stderr_string(&pools).trim().is_empty());
     let pools_payload = parse_stdout_json(&pools);
     assert_eq!(pools_payload["success"], Value::Bool(true));
-    assert_eq!(
-        pools_payload["chain"],
-        Value::String("sepolia".to_string())
-    );
+    assert_eq!(pools_payload["chain"], Value::String("sepolia".to_string()));
     assert_eq!(
         pools_payload["pools"][0]["asset"],
         Value::String("ETH".to_string())
     );
 
     let stats_pool = run_native_with_env(
-        &["--chain", "sepolia", "stats", "pool", "--asset", "ETH", "--agent"],
+        &[
+            "--chain", "sepolia", "stats", "pool", "--asset", "ETH", "--agent",
+        ],
         &env,
     );
     assert!(stats_pool.status.success());
@@ -91,6 +117,45 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
         stats_pool_payload["scope"],
         Value::String("12345".to_string())
     );
+}
+
+#[test]
+fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
+    ];
+
+    let human_pools = run_native_with_env(&["--chain", "sepolia", "pools"], &env);
+    assert!(human_pools.status.success());
+    assert!(stdout_string(&human_pools).is_empty());
+    assert!(stderr_string(&human_pools).contains("Pools on sepolia:"));
+
+    let csv_pools = run_native_with_env(&["--format", "csv", "--chain", "sepolia", "pools"], &env);
+    assert!(csv_pools.status.success());
+    assert!(stderr_string(&csv_pools).is_empty());
+    assert!(stdout_string(&csv_pools).contains("Asset,Total Deposits,Pool Balance"));
+
+    let human_stats_pool = run_native_with_env(
+        &["--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+        &env,
+    );
+    assert!(human_stats_pool.status.success());
+    assert!(stdout_string(&human_stats_pool).is_empty());
+    assert!(stderr_string(&human_stats_pool).contains("Pool statistics for ETH on sepolia:"));
+
+    let csv_stats_pool = run_native_with_env(
+        &[
+            "--format", "csv", "--chain", "sepolia", "stats", "pool", "--asset", "ETH",
+        ],
+        &env,
+    );
+    assert!(csv_stats_pool.status.success());
+    assert!(stderr_string(&csv_stats_pool).contains("Fetching pool statistics"));
+    assert!(stdout_string(&csv_stats_pool).contains("Metric,All Time,Last 24h"));
 }
 
 #[test]
