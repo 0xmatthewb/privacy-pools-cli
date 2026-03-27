@@ -8,6 +8,7 @@ import { npmBin } from "./npm-bin.ts";
 
 interface WorkspaceSnapshotOptions {
   build?: boolean;
+  nodeModulesMode?: "symlink" | "copy";
 }
 
 export function buildWorkspaceSnapshot(snapshotRoot: string): void {
@@ -30,6 +31,7 @@ export function createWorkspaceSnapshot(
   options: WorkspaceSnapshotOptions = {},
 ): string {
   const snapshotRoot = createTrackedTempDir("pp-workspace-snapshot-");
+  const nodeModulesMode = options.nodeModulesMode ?? "symlink";
 
   cpSync(CLI_ROOT, snapshotRoot, {
     recursive: true,
@@ -42,11 +44,17 @@ export function createWorkspaceSnapshot(
     },
   });
 
-  symlinkSync(
-    join(CLI_ROOT, "node_modules"),
-    join(snapshotRoot, "node_modules"),
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  if (nodeModulesMode === "copy") {
+    cpSync(join(CLI_ROOT, "node_modules"), join(snapshotRoot, "node_modules"), {
+      recursive: true,
+    });
+  } else {
+    symlinkSync(
+      join(CLI_ROOT, "node_modules"),
+      join(snapshotRoot, "node_modules"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+  }
 
   if (options.build) {
     buildWorkspaceSnapshot(snapshotRoot);
@@ -55,6 +63,8 @@ export function createWorkspaceSnapshot(
   return snapshotRoot;
 }
 
-export function createBuiltWorkspaceSnapshot(): string {
-  return createWorkspaceSnapshot({ build: true });
+export function createBuiltWorkspaceSnapshot(
+  options: Omit<WorkspaceSnapshotOptions, "build"> = {},
+): string {
+  return createWorkspaceSnapshot({ ...options, build: true });
 }

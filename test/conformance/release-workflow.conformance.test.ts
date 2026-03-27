@@ -71,6 +71,11 @@ describe("release workflow conformance", () => {
     expect(crossPlatformWorkflow).toContain("npm run test:smoke:native");
   });
 
+  test("cross-platform smoke also runs on main pushes", () => {
+    expect(crossPlatformWorkflow).toContain("push:");
+    expect(crossPlatformWorkflow).toContain("- main");
+  });
+
   test("release native triplets stay aligned with optional dependencies and cross-platform smoke", () => {
     const expectedTriplets = expectedNativeTriplets();
     expect(extractTriplets(releaseWorkflow)).toEqual(expectedTriplets);

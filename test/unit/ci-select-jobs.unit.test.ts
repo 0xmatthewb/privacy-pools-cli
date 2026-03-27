@@ -67,4 +67,24 @@ describe("ci job selection", () => {
     expect(decision.shouldRun).toBe(true);
     expect(decision.reason).toContain("native/shell/src/main.rs");
   });
+
+  test("native lanes run when their helpers or verifier change", () => {
+    const helperDecision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["test/helpers/workspace-snapshot.ts"],
+    });
+    expect(helperDecision.shouldRun).toBe(true);
+    expect(helperDecision.reason).toContain("test/helpers/workspace-snapshot.ts");
+
+    const verifierDecision = evaluateJobSelection({
+      job: "cross-platform",
+      eventName: "pull_request",
+      changedFiles: ["scripts/verify-packed-native-package.mjs"],
+    });
+    expect(verifierDecision.shouldRun).toBe(true);
+    expect(verifierDecision.reason).toContain(
+      "scripts/verify-packed-native-package.mjs",
+    );
+  });
 });

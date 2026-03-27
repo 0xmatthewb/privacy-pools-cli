@@ -128,6 +128,9 @@ describe("built CLI legacy restore safety", () => {
         home,
         cwd: builtWorkspaceRoot,
         timeoutMs: 60_000,
+        env: {
+          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+        },
       },
     );
     expect(initResult.status).toBe(0);
@@ -139,6 +142,7 @@ describe("built CLI legacy restore safety", () => {
         cwd: builtWorkspaceRoot,
         timeoutMs: 30_000,
         env: {
+          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
           PRIVACY_POOLS_ASP_HOST: fixture.url,
           PRIVACY_POOLS_RPC_URL_SEPOLIA: rpcServer.url,
         },

@@ -17,6 +17,9 @@ describe("built CLI entrypoint", () => {
     runBuiltCli(args, {
       home: createTempHome(),
       cwd: builtWorkspaceRoot,
+      env: {
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+      },
     });
 
   test("--version returns a semantic version", () => {

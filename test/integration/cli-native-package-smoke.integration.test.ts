@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,6 +13,11 @@ import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
 import {
+  killFixtureServer,
+  launchFixtureServer,
+  type FixtureServer,
+} from "../helpers/fixture-server.ts";
+import {
   CARGO_AVAILABLE,
   ensureNativeShellBinary,
 } from "../helpers/native.ts";
@@ -25,11 +30,13 @@ const nativePackageSmokeTest =
 describe("native package smoke", () => {
   let nativeBinary: string;
   let snapshotRoot: string;
+  let fixture: FixtureServer | null = null;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     if (!CARGO_AVAILABLE || !currentTriplet) return;
     nativeBinary = ensureNativeShellBinary();
-    snapshotRoot = createBuiltWorkspaceSnapshot();
+    snapshotRoot = createBuiltWorkspaceSnapshot({ nodeModulesMode: "copy" });
+    fixture = await launchFixtureServer();
 
     const outputDir = join(
       snapshotRoot,
@@ -64,7 +71,14 @@ describe("native package smoke", () => {
     }
   }, 240_000);
 
+  afterAll(async () => {
+    if (fixture) {
+      await killFixtureServer(fixture);
+    }
+  });
+
   nativePackageSmokeTest("launcher prefers the packaged native binary by default and keeps JS forwarding intact", () => {
+    const home = createTempHome("pp-native-package-smoke-");
     const helpResult = runBuiltCli(["--help"], {
       cwd: snapshotRoot,
     });
@@ -87,7 +101,7 @@ describe("native package smoke", () => {
       ],
       {
         cwd: snapshotRoot,
-        home: createTempHome("pp-native-package-smoke-"),
+        home,
         timeoutMs: 60_000,
       },
     );
@@ -98,6 +112,127 @@ describe("native package smoke", () => {
     );
     expect(payload.success).toBe(true);
     expect(payload.defaultChain).toBe("sepolia");
+
+    const statusResult = runBuiltCli(["--agent", "status", "--no-check"], {
+      cwd: snapshotRoot,
+      home,
+    });
+    expect(statusResult.status).toBe(0);
+    expect(parseJsonOutput<{ success: boolean }>(statusResult.stdout).success).toBe(true);
+  });
+
+  nativePackageSmokeTest("packaged native executes fixture-backed public read-only commands successfully", () => {
+    const env = {
+      PRIVACY_POOLS_ASP_HOST: fixture!.url,
+      PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture!.url,
+    };
+
+    const statsResult = runBuiltCli(["--agent", "stats"], {
+      cwd: snapshotRoot,
+      env,
+    });
+    expect(statsResult.status).toBe(0);
+    expect(parseJsonOutput<{ success: boolean; mode: string }>(statsResult.stdout)).toMatchObject({
+      success: true,
+      mode: "global-stats",
+    });
+
+    const statsPoolResult = runBuiltCli(
+      ["--agent", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      {
+        cwd: snapshotRoot,
+        env,
+      },
+    );
+    expect(statsPoolResult.status).toBe(0);
+    expect(
+      parseJsonOutput<{ success: boolean; mode: string; asset: string }>(
+        statsPoolResult.stdout,
+      ),
+    ).toMatchObject({
+      success: true,
+      mode: "pool-stats",
+      asset: "ETH",
+    });
+
+    const activityResult = runBuiltCli(["--agent", "activity"], {
+      cwd: snapshotRoot,
+      env,
+    });
+    expect(activityResult.status).toBe(0);
+    expect(
+      parseJsonOutput<{ success: boolean; mode: string; events: unknown[] }>(
+        activityResult.stdout,
+      ),
+    ).toMatchObject({
+      success: true,
+      mode: "global-activity",
+    });
+
+    const poolsResult = runBuiltCli(["--agent", "--chain", "sepolia", "pools"], {
+      cwd: snapshotRoot,
+      env,
+    });
+    expect(poolsResult.status).toBe(0);
+    expect(
+      parseJsonOutput<{ success: boolean; pools: Array<{ asset: string }> }>(
+        poolsResult.stdout,
+      ),
+    ).toMatchObject({
+      success: true,
+    });
+  });
+
+  nativePackageSmokeTest("packaged native preserves stdin secret forwarding without leaking secrets", () => {
+    const mnemonicHome = createTempHome("pp-native-package-mnemonic-stdin-");
+    const mnemonicResult = runBuiltCli(
+      [
+        "--agent",
+        "init",
+        "--mnemonic-stdin",
+        "--private-key",
+        TEST_PRIVATE_KEY,
+        "--default-chain",
+        "sepolia",
+        "--yes",
+      ],
+      {
+        cwd: snapshotRoot,
+        home: mnemonicHome,
+        input: `${TEST_MNEMONIC}\n`,
+        timeoutMs: 60_000,
+      },
+    );
+
+    expect(mnemonicResult.status).toBe(0);
+    expect(parseJsonOutput<{ success: boolean }>(mnemonicResult.stdout).success).toBe(true);
+    expect(mnemonicResult.stdout).not.toContain(TEST_MNEMONIC);
+    expect(mnemonicResult.stderr).not.toContain(TEST_MNEMONIC);
+
+    const privateKeyHome = createTempHome("pp-native-package-key-stdin-");
+    const privateKeyResult = runBuiltCli(
+      [
+        "--agent",
+        "init",
+        "--mnemonic",
+        TEST_MNEMONIC,
+        "--private-key-stdin",
+        "--default-chain",
+        "sepolia",
+        "--yes",
+      ],
+      {
+        cwd: snapshotRoot,
+        home: privateKeyHome,
+        input: `${TEST_PRIVATE_KEY}\n`,
+        timeoutMs: 60_000,
+      },
+    );
+
+    expect(privateKeyResult.status).toBe(0);
+    expect(parseJsonOutput<{ success: boolean }>(privateKeyResult.stdout).success).toBe(true);
+    expect(privateKeyResult.stdout).not.toContain(TEST_PRIVATE_KEY);
+    expect(privateKeyResult.stderr).not.toContain(TEST_PRIVATE_KEY);
   });
 
   nativePackageSmokeTest("packaged native selection survives even when the JS stats handler is unavailable", () => {

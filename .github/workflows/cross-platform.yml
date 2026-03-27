@@ -2,6 +2,7 @@
 #
 # WHEN does this run?
 #   - Every pull request (any branch)
+#   - Every push to "main"
 #   - Manually via the "Run workflow" button on GitHub
 #
 # WHAT does it do?
@@ -22,6 +23,9 @@ name: Cross Platform (non-blocking)
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
