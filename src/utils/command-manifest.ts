@@ -655,17 +655,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--show-mnemonic"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -712,17 +712,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "ragequit [workflowId|latest]"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "slow",
@@ -763,17 +763,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--export-new-wallet <path>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -818,17 +818,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "[workflowId|latest]"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -869,17 +869,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "[workflowId|latest]"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -914,17 +914,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "[workflowId|latest]"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -967,17 +967,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--sort <mode>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1023,17 +1023,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1076,12 +1076,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1119,12 +1119,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1159,17 +1159,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--asset <symbol|address>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1204,17 +1204,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--check-asp"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1248,17 +1248,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "capabilities",
       "flags": [],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1291,17 +1291,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "<command...>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1333,17 +1333,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "guide",
       "flags": [],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1378,17 +1378,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--ignore-unique-amount"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1444,17 +1444,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1504,17 +1504,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--to <address>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "medium",
@@ -1555,17 +1555,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1611,17 +1611,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pending-only"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1667,17 +1667,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "status [--all-chains]"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1712,17 +1712,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all-chains"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1764,17 +1764,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1810,17 +1810,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-a, --asset <symbol|address>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1857,17 +1857,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--shell <shell>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--format <format>",
         "-y, --yes",
-        "-c, --chain <name>",
         "-r, --rpc-url <url>",
-        "-q, --quiet",
-        "-v, --verbose",
-        "--no-banner",
-        "--no-color",
         "--agent",
-        "--timeout <seconds>"
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -2061,6 +2061,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   },
   "globalFlags": [
     {
+      "flag": "-c, --chain <name>",
+      "description": "Target chain (mainnet, arbitrum, optimism, ...)"
+    },
+    {
       "flag": "-j, --json",
       "description": "Machine-readable JSON output on stdout"
     },
@@ -2073,36 +2077,32 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Skip confirmation prompts"
     },
     {
-      "flag": "-c, --chain <name>",
-      "description": "Target chain (mainnet, arbitrum, optimism, ...)"
-    },
-    {
       "flag": "-r, --rpc-url <url>",
       "description": "Override RPC URL"
-    },
-    {
-      "flag": "-q, --quiet",
-      "description": "Suppress non-essential stderr output"
-    },
-    {
-      "flag": "-v, --verbose",
-      "description": "Enable verbose/debug output"
-    },
-    {
-      "flag": "--no-banner",
-      "description": "Disable ASCII banner output"
-    },
-    {
-      "flag": "--no-color",
-      "description": "Disable colored output (also respects NO_COLOR env var)"
     },
     {
       "flag": "--agent",
       "description": "Machine-friendly mode (alias for --json --yes --quiet)"
     },
     {
+      "flag": "-q, --quiet",
+      "description": "Suppress non-essential stderr output"
+    },
+    {
+      "flag": "--no-banner",
+      "description": "Disable ASCII banner output"
+    },
+    {
+      "flag": "-v, --verbose",
+      "description": "Enable verbose/debug output"
+    },
+    {
       "flag": "--timeout <seconds>",
       "description": "Network/transaction timeout in seconds (default: 30)"
+    },
+    {
+      "flag": "--no-color",
+      "description": "Disable colored output (also respects NO_COLOR env var)"
     }
   ],
   "agentWorkflow": [

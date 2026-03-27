@@ -26,6 +26,7 @@ const distProgramModulePath = join(
   "dist",
   "program.js",
 );
+const sourceCliPath = join(repoRoot, "src", "index.ts");
 
 const manifestModulePath = join(
   repoRoot,
@@ -123,13 +124,12 @@ function sanitizeEnv(baseEnv = process.env) {
 }
 
 function captureBuiltCli(args) {
-  const builtCliPath = join(repoRoot, "dist", "index.js");
   const tempHome = mkdtempSync(join(tmpdir(), "pp-native-manifest-"));
 
   try {
     const result = spawnSync(
-      process.execPath,
-      [builtCliPath, ...args],
+      "bun",
+      [sourceCliPath, ...args],
       {
         cwd: repoRoot,
         env: {
@@ -148,7 +148,7 @@ function captureBuiltCli(args) {
 
     if (result.status !== 0) {
       throw new Error(
-        `Built CLI capture failed for '${args.join(" ")}' with status ${result.status}.\n` +
+        `CLI capture failed for '${args.join(" ")}' with status ${result.status}.\n` +
         `stdout:\n${result.stdout ?? ""}\n` +
         `stderr:\n${result.stderr ?? ""}`,
       );

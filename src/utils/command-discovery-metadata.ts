@@ -5,6 +5,7 @@ import {
 } from "../config/protocol-profile.js";
 import { readCliPackageInfo } from "../package-info.js";
 import { jsonContractDocRelativePath } from "./json.js";
+import { ROOT_GLOBAL_FLAG_METADATA } from "./root-global-flags.js";
 import type {
   CapabilitiesPayload,
   CommandExecutionDescriptor,
@@ -871,19 +872,11 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "capabilities",
 ];
 
-export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] = [
-  { flag: "-j, --json", description: "Machine-readable JSON output on stdout" },
-  { flag: "--format <format>", description: "Output format: table (default), csv, json" },
-  { flag: "-y, --yes", description: "Skip confirmation prompts" },
-  { flag: "-c, --chain <name>", description: "Target chain (mainnet, arbitrum, optimism, ...)" },
-  { flag: "-r, --rpc-url <url>", description: "Override RPC URL" },
-  { flag: "-q, --quiet", description: "Suppress non-essential stderr output" },
-  { flag: "-v, --verbose", description: "Enable verbose/debug output" },
-  { flag: "--no-banner", description: "Disable ASCII banner output" },
-  { flag: "--no-color", description: "Disable colored output (also respects NO_COLOR env var)" },
-  { flag: "--agent", description: "Machine-friendly mode (alias for --json --yes --quiet)" },
-  { flag: "--timeout <seconds>", description: "Network/transaction timeout in seconds (default: 30)" },
-];
+export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] =
+  ROOT_GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({
+    flag,
+    description,
+  }));
 
 const CHAIN_GLOBAL_FLAG = "-c, --chain <name>";
 

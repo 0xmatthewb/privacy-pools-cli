@@ -1,29 +1,8 @@
-const ROOT_LONG_OPTIONS_WITH_INLINE_VALUE = [
-  "--chain",
-  "--format",
-  "--rpc-url",
-  "--timeout",
-] as const;
-
-const WELCOME_BOOLEAN_FLAGS = new Set([
-  "-q",
-  "--quiet",
-  "-v",
-  "--verbose",
-  "-y",
-  "--yes",
-  "--no-banner",
-  "--no-color",
-]);
-
-export const ROOT_OPTIONS_WITH_VALUE = new Set([
-  "-c",
-  "--chain",
-  "--format",
-  "-r",
-  "--rpc-url",
-  "--timeout",
-]);
+import {
+  ROOT_LONG_OPTIONS_WITH_INLINE_VALUE,
+  ROOT_OPTIONS_WITH_VALUE,
+  ROOT_WELCOME_BOOLEAN_FLAGS,
+} from "./root-global-flags.js";
 
 export interface ParsedRootArgv {
   argv: string[];
@@ -124,14 +103,10 @@ export function isWelcomeFlagOnlyInvocation(args: string[]): boolean {
       i++;
       continue;
     }
-    if (
-      ROOT_LONG_OPTIONS_WITH_INLINE_VALUE.some((flag) =>
-        token.startsWith(`${flag}=`),
-      )
-    ) {
+    if (ROOT_LONG_OPTIONS_WITH_INLINE_VALUE.some((flag) => token.startsWith(`${flag}=`))) {
       continue;
     }
-    if (WELCOME_BOOLEAN_FLAGS.has(token) || isWelcomeShortFlagBundle(token)) {
+    if (ROOT_WELCOME_BOOLEAN_FLAGS.has(token) || isWelcomeShortFlagBundle(token)) {
       continue;
     }
     return false;

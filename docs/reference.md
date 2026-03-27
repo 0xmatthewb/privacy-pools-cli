@@ -531,17 +531,17 @@ privacy-pools capabilities --agent
 
 | Flag | Description |
 |------|-------------|
+| `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-j, --json` | Machine-readable JSON output on stdout |
 | `--format <format>` | Output format: table (default), csv, json |
 | `-y, --yes` | Skip confirmation prompts |
-| `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-r, --rpc-url <url>` | Override RPC URL |
-| `-q, --quiet` | Suppress non-essential stderr output |
-| `-v, --verbose` | Enable verbose/debug output |
-| `--no-banner` | Disable ASCII banner output |
-| `--no-color` | Disable colored output (also respects NO_COLOR env var) |
 | `--agent` | Machine-friendly mode (alias for --json --yes --quiet) |
+| `-q, --quiet` | Suppress non-essential stderr output |
+| `--no-banner` | Disable ASCII banner output |
+| `-v, --verbose` | Enable verbose/debug output |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
+| `--no-color` | Disable colored output (also respects NO_COLOR env var) |
 
 ## Exit Codes
 
