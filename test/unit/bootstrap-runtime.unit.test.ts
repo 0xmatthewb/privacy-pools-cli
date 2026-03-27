@@ -10,7 +10,13 @@ import {
   captureModuleExports,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
-import { decodeWorkerRequestV1 } from "../../src/runtime/v1/request.ts";
+import {
+  CURRENT_RUNTIME_DESCRIPTOR,
+} from "../../src/runtime/runtime-contract.js";
+import {
+  CURRENT_RUNTIME_REQUEST_ENV,
+  decodeCurrentWorkerRequest,
+} from "../../src/runtime/current.ts";
 
 const realProgram = captureModuleExports(await import("../../src/program.ts"));
 const realBanner = captureModuleExports(
@@ -109,14 +115,14 @@ function expectWorkerRequestArgv(
   ];
 
   expect(Array.isArray(args)).toBe(true);
-  expect(options?.env?.PRIVACY_POOLS_WORKER_REQUEST_B64).toBeTruthy();
+  expect(options?.env?.[CURRENT_RUNTIME_REQUEST_ENV]).toBeTruthy();
 
-  const request = decodeWorkerRequestV1(
-    String(options?.env?.PRIVACY_POOLS_WORKER_REQUEST_B64),
+  const request = decodeCurrentWorkerRequest(
+    String(options?.env?.[CURRENT_RUNTIME_REQUEST_ENV]),
   );
 
   expect(request).toEqual({
-    protocolVersion: "1",
+    protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
     argv: expectedArgv,
   });
 }

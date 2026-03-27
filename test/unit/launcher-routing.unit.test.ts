@@ -3,10 +3,43 @@ import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { launcherTestInternals } from "../../src/launcher.ts";
-import { decodeWorkerRequestV1 } from "../../src/runtime/v1/request.ts";
+import {
+  CURRENT_RUNTIME_DESCRIPTOR,
+} from "../../src/runtime/runtime-contract.js";
+import {
+  CURRENT_RUNTIME_REQUEST_ENV,
+  decodeCurrentWorkerRequest,
+  decodeNativeJsBridgeDescriptor,
+  NATIVE_JS_BRIDGE_ENV,
+} from "../../src/runtime/current.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 
 const PKG = { version: "1.7.0" };
+
+function writeNativePackageJson(
+  packageJsonPath: string,
+  sha256: string,
+  extra: Record<string, unknown> = {},
+): void {
+  writeFileSync(
+    packageJsonPath,
+    JSON.stringify({
+      version: "1.7.0",
+      bin: {
+        "privacy-pools": "bin/privacy-pools",
+      },
+      privacyPoolsCliNative: {
+        bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+        protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+        runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
+        triplet: "darwin-arm64",
+        sha256,
+        ...extra,
+      },
+    }),
+    "utf8",
+  );
+}
 
 describe("launcher routing", () => {
   test("falls back to the js worker boundary when no native package is available and encodes argv", () => {
@@ -26,11 +59,11 @@ describe("launcher routing", () => {
       expect(target.args[0]).toBe("--no-env-file");
     }
     expect(
-      decodeWorkerRequestV1(
-        String(target.env.PRIVACY_POOLS_WORKER_REQUEST_B64),
+      decodeCurrentWorkerRequest(
+        String(target.env[CURRENT_RUNTIME_REQUEST_ENV]),
       ),
     ).toEqual({
-      protocolVersion: "1",
+      protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
       argv: ["status", "--json"],
     });
   });
@@ -61,10 +94,18 @@ describe("launcher routing", () => {
     expect(target.kind).toBe("native-binary");
     expect(target.command).toBe("/tmp/privacy-pools-native");
     expect(target.args).toEqual(["status", "--json"]);
-    expect(target.env.PRIVACY_POOLS_INTERNAL_JS_WORKER_COMMAND).toBe(
-      process.execPath,
-    );
-    expect(target.env.PRIVACY_POOLS_INTERNAL_JS_WORKER_ARGS_B64).toBeTruthy();
+    expect(target.env[NATIVE_JS_BRIDGE_ENV]).toBeTruthy();
+    expect(
+      decodeNativeJsBridgeDescriptor(String(target.env[NATIVE_JS_BRIDGE_ENV])),
+    ).toEqual({
+      runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
+      workerProtocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
+      workerRequestEnv: CURRENT_RUNTIME_REQUEST_ENV,
+      workerCommand: process.execPath,
+      workerArgs: process.versions.bun
+        ? ["--no-env-file", launcherTestInternals.defaultJsWorkerPath()]
+        : [launcherTestInternals.defaultJsWorkerPath()],
+    });
   });
 
   test("native forwarding keeps the public CLI env surface limited to documented keys", () => {
@@ -114,21 +155,7 @@ describe("launcher routing", () => {
     const sha256 = createHash("sha256")
       .update("#!/usr/bin/env node\n", "utf8")
       .digest("hex");
-    writeFileSync(
-      packageJsonPath,
-      JSON.stringify({
-        version: "1.7.0",
-        bin: {
-          "privacy-pools": "bin/privacy-pools",
-        },
-        privacyPoolsCliNative: {
-          sha256,
-          protocolVersion: "1",
-          triplet: "darwin-arm64",
-        },
-      }),
-      "utf8",
-    );
+    writeNativePackageJson(packageJsonPath, sha256);
 
     try {
       expect(
@@ -160,21 +187,35 @@ describe("launcher routing", () => {
     const binDir = join(tempDir, "bin");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(join(binDir, "privacy-pools"), "mismatch", "utf8");
-    writeFileSync(
-      packageJsonPath,
-      JSON.stringify({
-        version: "1.7.0",
-        bin: {
-          "privacy-pools": "bin/privacy-pools",
-        },
-        privacyPoolsCliNative: {
-          sha256: "deadbeef",
-          protocolVersion: "1",
-          triplet: "darwin-arm64",
-        },
-      }),
-      "utf8",
-    );
+    writeNativePackageJson(packageJsonPath, "deadbeef");
+
+    try {
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          requireResolve: () => packageJsonPath,
+        }),
+      ).toBeNull();
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects installed native binaries with a bridge version mismatch", () => {
+    const tempDir = createTrackedTempDir("pp-native-pkg-bridge-");
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+    writeNativePackageJson(packageJsonPath, sha256, {
+      bridgeVersion: "2",
+      protocolVersion: "2",
+    });
 
     try {
       expect(

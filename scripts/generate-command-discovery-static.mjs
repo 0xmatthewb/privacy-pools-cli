@@ -48,9 +48,20 @@ const metadataModulePath = existsSync(distModulePath)
   ? distModulePath
   : sourceMetadataModulePath;
 
+const runtimeContractModulePath = join(
+  repoRoot,
+  "src",
+  "runtime",
+  "runtime-contract.js",
+);
+
 const { COMMAND_PATHS, buildCapabilitiesPayload } = await import(
   pathToFileURL(metadataModulePath).href
 );
+const {
+  CURRENT_MANIFEST_VERSION,
+  CURRENT_RUNTIME_VERSION,
+} = await import(pathToFileURL(runtimeContractModulePath).href);
 
 const capabilitiesPayload = buildCapabilitiesPayload();
 const packageJson = JSON.parse(
@@ -255,7 +266,8 @@ async function buildNativeShellManifest() {
   );
 
   return {
-    protocolVersion: "1",
+    manifestVersion: CURRENT_MANIFEST_VERSION,
+    runtimeVersion: CURRENT_RUNTIME_VERSION,
     cliVersion,
     commandPaths: COMMAND_PATHS,
     aliasMap,
@@ -328,7 +340,8 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
 export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = ${JSON.stringify(capabilitiesPayload, null, 2)};
 
 export const GENERATED_COMMAND_MANIFEST = {
-  protocolVersion: "1",
+  manifestVersion: ${JSON.stringify(CURRENT_MANIFEST_VERSION)},
+  runtimeVersion: ${JSON.stringify(CURRENT_RUNTIME_VERSION)},
   commandPaths: GENERATED_COMMAND_PATHS,
   rootCommands: GENERATED_ROOT_COMMANDS,
   staticLocalCommands: GENERATED_STATIC_LOCAL_COMMANDS,

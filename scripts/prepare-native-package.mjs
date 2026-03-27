@@ -1,13 +1,23 @@
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
 const rootPackageJson = JSON.parse(
   readFileSync(join(repoRoot, "package.json"), "utf8"),
 );
+const runtimeContractModulePath = join(
+  repoRoot,
+  "src",
+  "runtime",
+  "runtime-contract.js",
+);
+const {
+  CURRENT_NATIVE_BRIDGE_VERSION,
+  CURRENT_RUNTIME_VERSION,
+} = await import(pathToFileURL(runtimeContractModulePath).href);
 
 const TRIPLET_METADATA = {
   "darwin-arm64": {
@@ -112,7 +122,9 @@ const packageJson = {
   files: ["bin", "README.md", "package.json"],
   privacyPoolsCliNative: {
     triplet,
-    protocolVersion: "1",
+    bridgeVersion: CURRENT_NATIVE_BRIDGE_VERSION,
+    protocolVersion: CURRENT_NATIVE_BRIDGE_VERSION,
+    runtimeVersion: CURRENT_RUNTIME_VERSION,
     sha256,
   },
 };

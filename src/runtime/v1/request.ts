@@ -1,4 +1,6 @@
-export const WORKER_PROTOCOL_VERSION = "1" as const;
+import { CURRENT_WORKER_PROTOCOL_VERSION } from "../runtime-contract.js";
+
+export const WORKER_PROTOCOL_VERSION = CURRENT_WORKER_PROTOCOL_VERSION;
 export const WORKER_REQUEST_ENV = "PRIVACY_POOLS_WORKER_REQUEST_B64";
 
 export interface WorkerRequestV1 {

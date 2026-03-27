@@ -1877,7 +1877,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
 };
 
 export const GENERATED_COMMAND_MANIFEST = {
-  protocolVersion: "1",
+  manifestVersion: "1",
+  runtimeVersion: "v1",
   commandPaths: GENERATED_COMMAND_PATHS,
   rootCommands: GENERATED_ROOT_COMMANDS,
   staticLocalCommands: GENERATED_STATIC_LOCAL_COMMANDS,

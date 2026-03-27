@@ -3,25 +3,26 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import type { CliPackageInfo } from "./package-info.js";
+import {
+  CURRENT_RUNTIME_DESCRIPTOR,
+} from "./runtime/runtime-contract.js";
+import {
+  createNativeJsBridgeDescriptor,
+  CURRENT_RUNTIME_REQUEST_ENV,
+  encodeCurrentWorkerRequest,
+  encodeNativeJsBridgeDescriptor,
+  NATIVE_JS_BRIDGE_ENV,
+  resolveCurrentWorkerPath,
+} from "./runtime/current.js";
 import { parseRootArgv } from "./utils/root-argv.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
-import {
-  createWorkerRequestV1,
-  encodeWorkerRequestV1,
-  WORKER_REQUEST_ENV,
-} from "./runtime/v1/request.js";
 
 const ENV_CLI_BINARY = "PRIVACY_POOLS_CLI_BINARY";
 const ENV_CLI_DISABLE_NATIVE = "PRIVACY_POOLS_CLI_DISABLE_NATIVE";
 const ENV_CLI_ENABLE_NATIVE = "PRIVACY_POOLS_CLI_ENABLE_NATIVE";
 const ENV_CLI_JS_WORKER = "PRIVACY_POOLS_CLI_JS_WORKER";
-const ENV_INTERNAL_JS_WORKER_COMMAND =
-  "PRIVACY_POOLS_INTERNAL_JS_WORKER_COMMAND";
-const ENV_INTERNAL_JS_WORKER_ARGS_B64 =
-  "PRIVACY_POOLS_INTERNAL_JS_WORKER_ARGS_B64";
 
 const STATIC_DISCOVERY_COMMANDS = new Set<string>(
   [...GENERATED_STATIC_LOCAL_COMMANDS].filter((command) => command !== "completion"),
@@ -37,7 +38,9 @@ interface NativePackageJson {
   bin?: string | Record<string, string>;
   privacyPoolsCliNative?: {
     sha256?: string;
+    bridgeVersion?: string;
     protocolVersion?: string;
+    runtimeVersion?: string;
     triplet?: string;
   };
 }
@@ -54,17 +57,13 @@ function isFlagEnabled(value: string | undefined): boolean {
 }
 
 function defaultJsWorkerPath(): string {
-  return fileURLToPath(new URL("./runtime/v1/worker-main.js", import.meta.url));
+  return resolveCurrentWorkerPath();
 }
 
 function defaultJsWorkerArgs(workerPath: string): string[] {
   return process.versions.bun
     ? ["--no-env-file", workerPath]
     : [workerPath];
-}
-
-function encodeJsWorkerArgs(args: string[]): string {
-  return Buffer.from(JSON.stringify(args), "utf8").toString("base64");
 }
 
 function nativeTriplet(
@@ -117,6 +116,28 @@ function hasValidInstalledNativeChecksum(
   }
 }
 
+function hasCompatibleInstalledNativeMetadata(
+  packageJson: NativePackageJson,
+): boolean {
+  const metadata = packageJson.privacyPoolsCliNative;
+  const actualBridgeVersion =
+    metadata?.bridgeVersion?.trim() ?? metadata?.protocolVersion?.trim();
+  if (actualBridgeVersion !== CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion) {
+    return false;
+  }
+
+  // Packages published before runtimeVersion existed can still be accepted
+  // through the legacy protocolVersion bridge gate on exact CLI version.
+  if (
+    metadata?.bridgeVersion &&
+    metadata.runtimeVersion?.trim() !== CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export function resolveInstalledNativeBinary(
   pkg: CliPackageInfo,
   options: {
@@ -144,6 +165,10 @@ export function resolveInstalledNativeBinary(
       return null;
     }
 
+    if (!hasCompatibleInstalledNativeMetadata(packageJson)) {
+      return null;
+    }
+
     const binaryPath = resolvePackageBinPath(packageJsonPath, packageJson);
     if (!binaryPath) return null;
     if (!hasValidInstalledNativeChecksum(packageJson, binaryPath)) {
@@ -168,7 +193,7 @@ function createJsWorkerTarget(
     args: childArgs,
     env: {
       ...env,
-      [WORKER_REQUEST_ENV]: encodeWorkerRequestV1(createWorkerRequestV1(argv)),
+      [CURRENT_RUNTIME_REQUEST_ENV]: encodeCurrentWorkerRequest(argv),
     },
   };
 }
@@ -177,12 +202,12 @@ function createNativeForwardingEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
   const workerPath = env[ENV_CLI_JS_WORKER]?.trim() || defaultJsWorkerPath();
+  const workerArgs = defaultJsWorkerArgs(workerPath);
   return {
     ...env,
     [ENV_CLI_JS_WORKER]: workerPath,
-    [ENV_INTERNAL_JS_WORKER_COMMAND]: process.execPath,
-    [ENV_INTERNAL_JS_WORKER_ARGS_B64]: encodeJsWorkerArgs(
-      defaultJsWorkerArgs(workerPath),
+    [NATIVE_JS_BRIDGE_ENV]: encodeNativeJsBridgeDescriptor(
+      createNativeJsBridgeDescriptor(process.execPath, workerArgs),
     ),
   };
 }
@@ -352,6 +377,7 @@ export const launcherTestInternals = {
   createNativeForwardingEnv,
   createJsWorkerTarget,
   defaultJsWorkerPath,
+  hasCompatibleInstalledNativeMetadata,
   isFlagEnabled,
   hasValidInstalledNativeChecksum,
   nativePackageName,

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { renameSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   TEST_MNEMONIC,
@@ -138,5 +138,51 @@ describe("native package smoke", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("privacy-pools");
     expect(result.stderr.trim()).toBe("");
+  });
+
+  nativePackageSmokeTest("launcher falls back to JS when the packaged native bridge metadata is incompatible", () => {
+    const packageJsonPath = join(
+      snapshotRoot,
+      "node_modules",
+      "@0xbow",
+      `privacy-pools-cli-native-${currentTriplet}`,
+      "package.json",
+    );
+    const originalPackageJson = readFileSync(packageJsonPath, "utf8");
+    const parsed = JSON.parse(originalPackageJson) as {
+      privacyPoolsCliNative?: Record<string, unknown>;
+    };
+    parsed.privacyPoolsCliNative = {
+      ...parsed.privacyPoolsCliNative,
+      bridgeVersion: "999",
+      protocolVersion: "999",
+    };
+    writeFileSync(packageJsonPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+
+    const statsHandlerPath = join(snapshotRoot, "dist", "commands", "stats.js");
+    const statsHandlerBackupPath = `${statsHandlerPath}.bak`;
+    renameSync(statsHandlerPath, statsHandlerBackupPath);
+
+    try {
+      const result = runBuiltCli(["--agent", "stats"], {
+        cwd: snapshotRoot,
+        env: {
+          PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+        },
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr.trim()).toBe("");
+
+      const payload = parseJsonOutput<{
+        success: boolean;
+        errorCode?: string;
+      }>(result.stdout);
+      expect(payload.success).toBe(false);
+      expect(payload.errorCode).toBeTruthy();
+    } finally {
+      renameSync(statsHandlerBackupPath, statsHandlerPath);
+      writeFileSync(packageJsonPath, originalPackageJson, "utf8");
+    }
   });
 });

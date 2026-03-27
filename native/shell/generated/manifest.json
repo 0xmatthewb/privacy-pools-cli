@@ -1,5 +1,6 @@
 {
-  "protocolVersion": "1",
+  "manifestVersion": "1",
+  "runtimeVersion": "v1",
   "cliVersion": "1.7.0",
   "commandPaths": [
     "init",

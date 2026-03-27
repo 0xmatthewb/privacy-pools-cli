@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  CURRENT_RUNTIME_DESCRIPTOR,
+} from "../../src/runtime/runtime-contract.js";
+import {
   createWorkerRequestV1,
   decodeWorkerRequestV1,
   encodeWorkerRequestV1,
@@ -9,6 +12,12 @@ import {
 } from "../../src/runtime/v1/request.ts";
 
 describe("worker request boundary", () => {
+  test("uses the shared runtime contract worker protocol version", () => {
+    expect(WORKER_PROTOCOL_VERSION).toBe(
+      CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
+    );
+  });
+
   test("round-trips WorkerRequestV1 through base64", () => {
     const request = createWorkerRequestV1(["status", "--json"]);
     const encoded = encodeWorkerRequestV1(request);

@@ -13,10 +13,8 @@ use std::time::{Duration, UNIX_EPOCH};
 use tiny_keccak::{Hasher, Keccak};
 
 const JSON_SCHEMA_VERSION: &str = "1.5.0";
-const WORKER_REQUEST_ENV: &str = "PRIVACY_POOLS_WORKER_REQUEST_B64";
 const ENV_JS_WORKER_PATH: &str = "PRIVACY_POOLS_CLI_JS_WORKER";
-const ENV_JS_WORKER_COMMAND: &str = "PRIVACY_POOLS_INTERNAL_JS_WORKER_COMMAND";
-const ENV_JS_WORKER_ARGS_B64: &str = "PRIVACY_POOLS_INTERNAL_JS_WORKER_ARGS_B64";
+const ENV_JS_BRIDGE_B64: &str = "PRIVACY_POOLS_INTERNAL_JS_BRIDGE_B64";
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
@@ -199,8 +197,10 @@ struct ActivityCommandOptions {
 
 #[derive(Debug, Clone, Deserialize)]
 struct Manifest {
-    #[serde(rename = "protocolVersion")]
-    protocol_version: String,
+    #[serde(rename = "manifestVersion")]
+    manifest_version: String,
+    #[serde(rename = "runtimeVersion")]
+    runtime_version: String,
     #[serde(rename = "cliVersion")]
     cli_version: String,
     #[serde(rename = "commandPaths")]
@@ -225,8 +225,42 @@ struct Manifest {
     completion_scripts: HashMap<String, String>,
     #[serde(rename = "runtimeConfig")]
     runtime_config: RuntimeConfig,
+    routes: ManifestRoutes,
     #[serde(rename = "capabilitiesPayload")]
     capabilities_payload: Value,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ManifestRoutes {
+    #[serde(rename = "staticLocalCommands")]
+    static_local_commands: Vec<String>,
+    #[serde(rename = "directNativeCommands")]
+    direct_native_commands: Vec<String>,
+    #[serde(rename = "helpCommandPaths")]
+    help_command_paths: Vec<String>,
+    #[serde(rename = "commandRoutes")]
+    command_routes: HashMap<String, ManifestCommandRoute>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ManifestCommandRoute {
+    owner: String,
+    #[serde(rename = "nativeModes")]
+    native_modes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct JsBridgeDescriptor {
+    #[serde(rename = "runtimeVersion")]
+    runtime_version: String,
+    #[serde(rename = "workerProtocolVersion")]
+    worker_protocol_version: String,
+    #[serde(rename = "workerRequestEnv")]
+    worker_request_env: String,
+    #[serde(rename = "workerCommand")]
+    worker_command: String,
+    #[serde(rename = "workerArgs")]
+    worker_args: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -378,10 +412,10 @@ fn manifest() -> &'static Manifest {
 
 fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
     let manifest = manifest();
-    if manifest.protocol_version != "1" {
+    if manifest.manifest_version.trim().is_empty() || manifest.runtime_version.trim().is_empty() {
         return Err(CliError::unknown(
-            "Native shell manifest protocol version mismatch.",
-            Some("Rebuild the CLI and native shell together.".to_string()),
+            "Native shell manifest compatibility metadata is missing.",
+            Some("Regenerate the native manifest and rebuild the CLI.".to_string()),
         ));
     }
 
@@ -442,17 +476,31 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
     };
 
     match first_command {
-        "guide" => handle_guide(parsed, manifest),
-        "capabilities" => handle_capabilities(parsed, manifest),
-        "describe" => handle_describe(parsed, manifest),
-        "completion" => handle_completion(argv, parsed, manifest),
-        "activity" if should_handle_structured_public_command(parsed) => {
+        "guide" if manifest_allows_native_mode("guide", "default", manifest) => {
+            handle_guide(parsed, manifest)
+        }
+        "capabilities" if manifest_allows_native_mode("capabilities", "default", manifest) => {
+            handle_capabilities(parsed, manifest)
+        }
+        "describe" if manifest_allows_native_mode("describe", "default", manifest) => {
+            handle_describe(parsed, manifest)
+        }
+        "completion" if manifest_allows_native_mode("completion", "default", manifest) => {
+            handle_completion(argv, parsed, manifest)
+        }
+        "activity"
+            if should_handle_structured_public_command(parsed)
+                && manifest_allows_native_mode("activity", "structured", manifest) =>
+        {
             handle_activity_native(argv, parsed, manifest)
         }
-        "stats" if should_handle_structured_public_command(parsed) => {
+        "stats" if stats_native_mode(argv, parsed, manifest).is_some() => {
             handle_stats_native(argv, parsed, manifest)
         }
-        "pools" if should_handle_native_pools(argv, parsed) => {
+        "pools"
+            if should_handle_native_pools(argv, parsed)
+                && manifest_allows_native_mode("pools", "structured-list", manifest) =>
+        {
             handle_pools_native(argv, parsed, manifest)
         }
         _ if is_known_root_command(first_command, manifest) => forward_to_js_worker(argv),
@@ -929,33 +977,44 @@ fn handle_pools_native(
 }
 
 fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
-    let worker_command = env::var(ENV_JS_WORKER_COMMAND)
+    let bridge = env::var(ENV_JS_BRIDGE_B64)
         .ok()
         .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            env::var(ENV_JS_WORKER_PATH)
+        .map(|encoded| decode_js_bridge_descriptor(&encoded))
+        .transpose()?;
+
+    let (worker_command, worker_args, worker_request_env, worker_protocol_version) = match bridge {
+        Some(bridge) => (
+            bridge.worker_command,
+            bridge.worker_args,
+            bridge.worker_request_env,
+            bridge.worker_protocol_version,
+        ),
+        None => {
+            let worker_command = env::var(ENV_JS_WORKER_PATH)
                 .ok()
                 .filter(|value| !value.trim().is_empty())
-        })
-        .ok_or_else(|| {
-            CliError::unknown(
-                "JS worker bootstrap is unavailable.",
-                Some(
-                    "Run the native shell through the npm launcher so it can forward JS-owned commands."
-                        .to_string(),
-                ),
-            )
-        })?;
+                .ok_or_else(|| {
+                    CliError::unknown(
+                        "JS worker bootstrap is unavailable.",
+                        Some(
+                            "Run the native shell through the npm launcher so it can forward JS-owned commands."
+                                .to_string(),
+                        ),
+                    )
+                })?;
 
-    let worker_args = env::var(ENV_JS_WORKER_ARGS_B64)
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .map(|encoded| decode_string_array(&encoded))
-        .transpose()?
-        .unwrap_or_default();
+            (
+                worker_command,
+                Vec::new(),
+                "PRIVACY_POOLS_WORKER_REQUEST_B64".to_string(),
+                "1".to_string(),
+            )
+        }
+    };
 
     let request = json!({
-        "protocolVersion": "1",
+        "protocolVersion": worker_protocol_version,
         "argv": argv,
     });
     let encoded_request = BASE64.encode(serde_json::to_vec(&request).map_err(|error| {
@@ -968,7 +1027,7 @@ fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
     let mut child = Command::new(worker_command);
     child
         .args(worker_args)
-        .env(WORKER_REQUEST_ENV, encoded_request)
+        .env(worker_request_env, encoded_request)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
@@ -1256,6 +1315,27 @@ fn should_handle_native_pools(argv: &[String], parsed: &ParsedRootArgv) -> bool 
             .unwrap_or(false)
 }
 
+fn stats_native_mode(
+    argv: &[String],
+    parsed: &ParsedRootArgv,
+    manifest: &Manifest,
+) -> Option<&'static str> {
+    if !should_handle_structured_public_command(parsed) {
+        return None;
+    }
+
+    let command_path = resolve_command_path(&all_non_option_tokens(argv), manifest)?;
+    match command_path.as_str() {
+        "stats" => manifest_allows_native_mode("stats", "structured-default", manifest)
+            .then_some("structured-default"),
+        "stats global" => manifest_allows_native_mode("stats global", "structured", manifest)
+            .then_some("structured"),
+        "stats pool" => manifest_allows_native_mode("stats pool", "structured", manifest)
+            .then_some("structured"),
+        _ => None,
+    }
+}
+
 fn resolve_help_path(parsed: &ParsedRootArgv, manifest: &Manifest) -> Option<String> {
     let tokens = if parsed.first_command_token.as_deref() == Some("help") {
         parsed
@@ -1280,7 +1360,9 @@ fn resolve_help_path(parsed: &ParsedRootArgv, manifest: &Manifest) -> Option<Str
             .collect::<Vec<_>>()
             .join(" ");
         let canonical = canonicalize_command_path(&candidate, manifest);
-        if manifest.help_text_by_path.contains_key(&canonical) {
+        if manifest.routes.help_command_paths.iter().any(|path| path == &canonical)
+            && manifest.help_text_by_path.contains_key(&canonical)
+        {
             return Some(canonical);
         }
     }
@@ -1317,6 +1399,18 @@ fn is_known_root_command(command: &str, manifest: &Manifest) -> bool {
         .filter(|path| !path.contains(' '))
         .any(|path| path == command)
         || manifest.alias_map.contains_key(command)
+}
+
+fn manifest_allows_native_mode(command_path: &str, native_mode: &str, manifest: &Manifest) -> bool {
+    let Some(route) = manifest.routes.command_routes.get(command_path) else {
+        return false;
+    };
+
+    if route.owner == "js-runtime" {
+        return false;
+    }
+
+    route.native_modes.iter().any(|mode| mode == native_mode)
 }
 
 fn emit_help(text: &str, structured: bool) {
@@ -1407,19 +1501,33 @@ fn print_error_and_exit(error: &CliError, structured: bool) -> ! {
     std::process::exit(error.category.exit_code());
 }
 
-fn decode_string_array(encoded: &str) -> Result<Vec<String>, CliError> {
+fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliError> {
     let bytes = BASE64.decode(encoded).map_err(|error| {
         CliError::unknown(
-            format!("Invalid worker-args payload: {error}"),
-            Some("Reinstall the CLI and retry.".to_string()),
+            format!("Failed to decode JS bridge descriptor: {error}"),
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         )
     })?;
-    serde_json::from_slice::<Vec<String>>(&bytes).map_err(|error| {
+
+    let descriptor: JsBridgeDescriptor = serde_json::from_slice(&bytes).map_err(|error| {
         CliError::unknown(
-            format!("Invalid worker-args JSON: {error}"),
-            Some("Reinstall the CLI and retry.".to_string()),
+            format!("Malformed JS bridge descriptor: {error}"),
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         )
-    })
+    })?;
+
+    if descriptor.runtime_version.trim().is_empty()
+        || descriptor.worker_protocol_version.trim().is_empty()
+        || descriptor.worker_request_env.trim().is_empty()
+        || descriptor.worker_command.trim().is_empty()
+    {
+        return Err(CliError::unknown(
+            "JS bridge descriptor is incomplete.",
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
+        ));
+    }
+
+    Ok(descriptor)
 }
 
 fn resolve_chain(name: &str, manifest: &Manifest) -> Result<ChainDefinition, CliError> {
