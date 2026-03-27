@@ -299,7 +299,7 @@ export async function handleInitCommand(
           message: "How would you like to back up your recovery phrase?",
           choices: [
             { name: "Save to file (recommended)", value: "file" },
-            { name: "I've already copied it", value: "copied" },
+            { name: "I'll back it up manually", value: "copied" },
           ],
         });
 

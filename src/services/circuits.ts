@@ -53,6 +53,7 @@ const CIRCUIT_SOURCES: Record<string, string> = {
 
 const DEFAULT_ARTIFACT_CHECKSUMS: Record<string, Record<string, string>> =
   defaultArtifactChecksums;
+const ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS = [1_000, 2_000, 5_000] as const;
 
 let cachedSdkInstall: SdkInstall | null = null;
 let cachedArtifactsDir: string | null = null;
@@ -122,6 +123,10 @@ function sha256Bytes(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function sha256File(path: string): Promise<string> {
   return sha256Bytes(await readFile(path));
 }
@@ -156,6 +161,73 @@ async function writeFileAtomic(path: string, bytes: Uint8Array): Promise<void> {
   }
 }
 
+function buildArtifactDownloadError(
+  filename: string,
+  url: string,
+  reason: string,
+): CLIError {
+  return new CLIError(
+    "Could not download circuit artifacts.",
+    "PROOF",
+    `${reason} for ${filename} from ${url}. Set PRIVACY_POOLS_CIRCUITS_DIR to a pre-provisioned directory if you need offline proof generation.`,
+    "PROOF_GENERATION_FAILED",
+  );
+}
+
+async function fetchArtifactBytes(
+  filename: string,
+  url: string,
+): Promise<Uint8Array> {
+  let lastError: CLIError | null = null;
+
+  for (
+    let attempt = 0;
+    attempt < ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS.length + 1;
+    attempt += 1
+  ) {
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(60_000),
+      });
+
+      if (response.ok) {
+        return new Uint8Array(await response.arrayBuffer());
+      }
+
+      const isTransientStatus =
+        response.status === 429 || response.status >= 500;
+      const error = buildArtifactDownloadError(
+        filename,
+        url,
+        `Download failed (HTTP ${response.status})`,
+      );
+      if (!isTransientStatus) {
+        throw error;
+      }
+      lastError = error;
+    } catch (error) {
+      if (error instanceof CLIError) {
+        throw error;
+      }
+
+      lastError = buildArtifactDownloadError(
+        filename,
+        url,
+        error instanceof Error ? error.message : "Download failed",
+      );
+    }
+
+    if (attempt < ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS.length) {
+      await delay(ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  throw (
+    lastError ??
+    buildArtifactDownloadError(filename, url, "Download failed")
+  );
+}
+
 async function provisionArtifacts(targetDir: string, tag: string): Promise<void> {
   await mkdir(targetDir, { recursive: true });
   const checksums = checksumManifest(tag);
@@ -172,32 +244,7 @@ async function provisionArtifacts(targetDir: string, tag: string): Promise<void>
     const url =
       `https://raw.githubusercontent.com/0xbow-io/privacy-pools-core/${tag}/${sourcePath}`;
 
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        signal: AbortSignal.timeout(60_000),
-      });
-    } catch (error) {
-      throw new CLIError(
-        "Could not download circuit artifacts.",
-        "PROOF",
-        error instanceof Error
-          ? `${error.message}. Set PRIVACY_POOLS_CIRCUITS_DIR to a pre-provisioned directory if you need offline proof generation.`
-          : "Set PRIVACY_POOLS_CIRCUITS_DIR to a pre-provisioned directory if you need offline proof generation.",
-        "PROOF_GENERATION_FAILED"
-      );
-    }
-
-    if (!response.ok) {
-      throw new CLIError(
-        "Could not download circuit artifacts.",
-        "PROOF",
-        `Download failed for ${filename} (HTTP ${response.status}) from ${url}.`,
-        "PROOF_GENERATION_FAILED"
-      );
-    }
-
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const bytes = await fetchArtifactBytes(filename, url);
     const actualHash = sha256Bytes(bytes);
     if (actualHash !== checksums[filename]) {
       throw new CLIError(

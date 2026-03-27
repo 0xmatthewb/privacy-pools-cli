@@ -15,6 +15,13 @@ import { join } from "path";
 import { getConfigDir, ensureConfigDir } from "../services/config.js";
 import { CLIError } from "./errors.js";
 
+interface OwnedLock {
+  depth: number;
+  cleanup: () => void;
+}
+
+const ownedLocks = new Map<string, OwnedLock>();
+
 function getLockFilePath(): string {
   return join(getConfigDir(), ".lock");
 }
@@ -47,6 +54,23 @@ function readLockPid(lockPath: string): number | null {
 export function acquireProcessLock(): () => void {
   ensureConfigDir();
   const lockPath = getLockFilePath();
+  const existingLock = ownedLocks.get(lockPath);
+  if (existingLock) {
+    existingLock.depth += 1;
+
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      existingLock.depth -= 1;
+      if (existingLock.depth === 0) {
+        ownedLocks.delete(lockPath);
+        process.removeListener("exit", existingLock.cleanup);
+        existingLock.cleanup();
+      }
+    };
+  }
+
   const pidStr = String(process.pid);
 
   // Attempt atomic create via 'wx' flag — fails with EEXIST if file exists.
@@ -83,12 +107,7 @@ export function acquireProcessLock(): () => void {
     }
   }
 
-  let released = false;
-
-  const release = () => {
-    if (released) return;
-    released = true;
-    process.removeListener("exit", release);
+  const cleanup = () => {
     try {
       // Only remove if it's still ours
       const pid = readLockPid(lockPath);
@@ -100,8 +119,25 @@ export function acquireProcessLock(): () => void {
     }
   };
 
-  // Auto-release on exit
-  process.on("exit", release);
+  process.on("exit", cleanup);
+  const ownedLock: OwnedLock = {
+    depth: 1,
+    cleanup,
+  };
+  ownedLocks.set(lockPath, ownedLock);
 
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    ownedLock.depth -= 1;
+    if (ownedLock.depth === 0) {
+      ownedLocks.delete(lockPath);
+      process.removeListener("exit", cleanup);
+      cleanup();
+    }
+  };
+
+  // Auto-release on exit
   return release;
 }

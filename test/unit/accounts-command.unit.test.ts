@@ -1,8 +1,27 @@
 import { describe, expect, test } from "bun:test";
 import {
   collectAccountScopeStrings,
+  describeAccountsChainScope,
+  formatAccountsLoadingText,
   hasIncompleteAspReviewData,
 } from "../../src/commands/accounts.ts";
+
+describe("accounts loading helpers", () => {
+  test("describeAccountsChainScope reflects the selected multi-chain scope", () => {
+    expect(describeAccountsChainScope(true)).toBe("all chains");
+    expect(describeAccountsChainScope(false)).toBe("mainnet chains");
+    expect(describeAccountsChainScope(undefined)).toBe("mainnet chains");
+  });
+
+  test("formatAccountsLoadingText adds per-chain progress only when available", () => {
+    expect(formatAccountsLoadingText(false)).toBe(
+      "Loading My Pools across mainnet chains...",
+    );
+    expect(formatAccountsLoadingText(true, 2, 3)).toBe(
+      "Loading My Pools across all chains... (2/3 complete)",
+    );
+  });
+});
 
 describe("collectAccountScopeStrings", () => {
   test("includes historical-only scopes when requested", () => {
@@ -48,6 +67,20 @@ describe("collectAccountScopeStrings", () => {
       "3",
       "20",
     ]);
+  });
+
+  test("ignores historical scopes when account storage is not a Map", () => {
+    const spendable = new Map<bigint, readonly unknown[]>([
+      [5n, []],
+    ]);
+
+    expect(
+      collectAccountScopeStrings(
+        spendable,
+        { poolAccounts: { unexpected: true } },
+        true,
+      ),
+    ).toEqual(["5"]);
   });
 });
 

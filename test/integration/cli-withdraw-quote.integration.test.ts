@@ -20,8 +20,8 @@ beforeAll(async () => {
   fixture = await launchFixtureServer();
 });
 
-afterAll(() => {
-  killFixtureServer(fixture);
+afterAll(async () => {
+  await killFixtureServer(fixture);
 });
 
 function fixtureEnv() {

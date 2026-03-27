@@ -1,0 +1,77 @@
+# Flake detection — informative randomized and repeated test passes.
+#
+# WHEN does this run?
+#   - Every pull request (changed-path selected)
+#   - Daily on schedule
+#   - Manually via the "Run workflow" button
+#
+# WHAT does it do?
+#   - Runs the default non-E2E suite in randomized order with a fixed seed
+#   - Re-runs a few stateful suites multiple times to catch order and cache leaks
+#
+# WHY separate?
+#   This workflow is intentionally informative, not a required merge gate.
+
+name: Flake Detection
+
+on:
+  pull_request:
+  schedule:
+    - cron: "19 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flake-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flake-core:
+    name: flake-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+
+      - name: Select flake-core
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job flake-core >> "$GITHUB_OUTPUT"
+
+      - name: Skip flake-core
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping flake-core: ${{ steps.select.outputs.reason }}"
+
+      - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Run randomized suite
+        if: steps.select.outputs.should_run == 'true'
+        run: node scripts/run-test-suite.mjs --randomize --seed 20260326
+
+      - name: Re-run stateful suites
+        if: steps.select.outputs.should_run == 'true'
+        run: |
+          node scripts/run-bun-tests.mjs \
+            ./test/acceptance/withdraw-quote.acceptance.test.ts \
+            ./test/unit/public-command-handlers.unit.test.ts \
+            ./test/unit/status-command-handler.unit.test.ts \
+            --rerun-each 3 \
+            --timeout 120000

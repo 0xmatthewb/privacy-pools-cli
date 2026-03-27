@@ -68,8 +68,12 @@ describe("command metadata conformance", () => {
     expect(payload.commands.map((command) => command.name)).toContain("describe");
     expect(payload.commandDetails["withdraw quote"]?.command).toBe("withdraw quote");
     expect(payload.commandDetails["describe"]?.globalFlags).toContain("--agent");
+    expect(payload.commandDetails["flow"]?.safeReadOnly).toBe(false);
+    expect(payload.commandDetails["flow status"]?.safeReadOnly).toBe(true);
     expect(payload.commandDetails["guide"]?.safeReadOnly).toBe(true);
     expect(payload.commandDetails["completion"]?.safeReadOnly).toBe(true);
+    expect(payload.safeReadOnlyCommands).not.toContain("flow");
+    expect(payload.safeReadOnlyCommands).toContain("flow status");
     expect(payload.safeReadOnlyCommands).toContain("guide");
     expect(payload.safeReadOnlyCommands).toContain("completion");
   });

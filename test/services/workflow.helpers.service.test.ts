@@ -1,0 +1,776 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { privateKeyToAccount } from "viem/accounts";
+import {
+  attachDepositResultToSnapshot,
+  attachPendingDepositToSnapshot,
+  attachPendingRagequitToSnapshot,
+  attachPendingWithdrawalToSnapshot,
+  attachRagequitResultToSnapshot,
+  attachWithdrawalResultToSnapshot,
+  alignSnapshotToPoolAccount,
+  buildFlowLastError,
+  buildSavedWorkflowRecoveryCommand,
+  buildWorkflowWalletBackup,
+  classifyFlowMutation,
+  clearLastError,
+  cleanupTerminalWorkflowSecret,
+  createInitialSnapshot,
+  deleteWorkflowSecretRecord,
+  getFlowSignerAddress,
+  humanPollDelayLabel,
+  initialPollDelayMs,
+  isDepositCheckpointFailure,
+  isTerminalFlowPhase,
+  loadWorkflowSecretRecord,
+  loadWorkflowSnapshot,
+  normalizeWorkflowSnapshot,
+  nextPollDelayMs,
+  pickWorkflowPoolAccount,
+  resolveLatestWorkflowId,
+  sameWorkflowSnapshotState,
+  saveWorkflowSecretRecord,
+  saveWorkflowSnapshot,
+  saveWorkflowSnapshotIfChanged,
+  updateSnapshot,
+  validateWorkflowWalletBackupPath,
+  writePrivateTextFile,
+  type FlowLastError,
+  type FlowSnapshot,
+} from "../../src/services/workflow.ts";
+import {
+  ensureConfigDir,
+  getWorkflowSecretsDir,
+  saveSignerKey,
+} from "../../src/services/config.ts";
+import type { PoolAccountRef } from "../../src/utils/pool-accounts.ts";
+import { CLIError } from "../../src/utils/errors.ts";
+import { cleanupTrackedTempDirs, createTrackedTempDir } from "../helpers/temp.ts";
+
+const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+const CONFIGURED_SIGNER =
+  "0x1111111111111111111111111111111111111111111111111111111111111111" as const;
+const WORKFLOW_SIGNER =
+  "0x2222222222222222222222222222222222222222222222222222222222222222" as const;
+
+function useIsolatedHome(): string {
+  const home = createTrackedTempDir("pp-workflow-helper-");
+  process.env.PRIVACY_POOLS_HOME = home;
+  ensureConfigDir();
+  return home;
+}
+
+function sampleWorkflow(
+  workflowId = "wf-helper",
+  patch: Partial<FlowSnapshot> = {},
+): FlowSnapshot {
+  const now = "2026-03-24T12:00:00.000Z";
+  return {
+    schemaVersion: "1.5.0",
+    workflowId,
+    createdAt: now,
+    updatedAt: now,
+    phase: "awaiting_asp",
+    chain: "mainnet",
+    asset: "ETH",
+    depositAmount: "100000000000000000",
+    recipient: "0x4444444444444444444444444444444444444444",
+    walletMode: "configured",
+    walletAddress: null,
+    requiredNativeFunding: null,
+    requiredTokenFunding: null,
+    backupConfirmed: false,
+    ...patch,
+  };
+}
+
+function samplePoolAccount(
+  patch: Partial<PoolAccountRef> = {},
+): PoolAccountRef {
+  return {
+    paNumber: 1,
+    paId: "PA-1",
+    status: "approved",
+    aspStatus: "approved",
+    commitment: {
+      hash: 77n,
+      label: 88n,
+      value: 900n,
+      blockNumber: 123n,
+      txHash: "0x" + "aa".repeat(32),
+    },
+    label: 88n,
+    value: 900n,
+    blockNumber: 123n,
+    txHash: "0x" + "aa".repeat(32),
+    ...patch,
+  };
+}
+
+describe("workflow helper coverage", () => {
+  afterEach(() => {
+    if (ORIGINAL_HOME === undefined) {
+      delete process.env.PRIVACY_POOLS_HOME;
+    } else {
+      process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+    }
+    cleanupTrackedTempDirs();
+  });
+
+  test("validateWorkflowWalletBackupPath accepts a fresh file path", () => {
+    const home = useIsolatedHome();
+    const backupDir = join(home, "exports");
+    mkdirSync(backupDir, { recursive: true });
+
+    expect(
+      validateWorkflowWalletBackupPath(` ${join(backupDir, "flow-wallet.txt")} `),
+    ).toBe(join(backupDir, "flow-wallet.txt"));
+  });
+
+  test("validateWorkflowWalletBackupPath rejects empty paths", () => {
+    expect(() => validateWorkflowWalletBackupPath("   ")).toThrow(
+      "Workflow wallet backup path cannot be empty.",
+    );
+  });
+
+  test("validateWorkflowWalletBackupPath rejects missing parent directories", () => {
+    const home = useIsolatedHome();
+
+    expect(() =>
+      validateWorkflowWalletBackupPath(
+        join(home, "missing-parent", "flow-wallet.txt"),
+      ),
+    ).toThrow("Workflow wallet backup directory does not exist");
+  });
+
+  test("validateWorkflowWalletBackupPath rejects parents that are files", () => {
+    const home = useIsolatedHome();
+    const parentFile = join(home, "not-a-dir");
+    writeFileSync(parentFile, "oops", "utf-8");
+
+    expect(() =>
+      validateWorkflowWalletBackupPath(join(parentFile, "flow-wallet.txt")),
+    ).toThrow("Workflow wallet backup parent is not a directory");
+  });
+
+  test("validateWorkflowWalletBackupPath rejects directory targets", () => {
+    const home = useIsolatedHome();
+    const backupDir = join(home, "exports");
+    const targetDir = join(backupDir, "already-a-dir");
+    mkdirSync(targetDir, { recursive: true });
+
+    expect(() => validateWorkflowWalletBackupPath(targetDir)).toThrow(
+      "Workflow wallet backup path must point to a file",
+    );
+  });
+
+  test("validateWorkflowWalletBackupPath rejects existing files", () => {
+    const home = useIsolatedHome();
+    const backupDir = join(home, "exports");
+    mkdirSync(backupDir, { recursive: true });
+    const targetFile = join(backupDir, "existing.txt");
+    writeFileSync(targetFile, "present", "utf-8");
+
+    expect(() => validateWorkflowWalletBackupPath(targetFile)).toThrow(
+      "Workflow wallet backup file already exists",
+    );
+  });
+
+  test("writePrivateTextFile writes private backups and rewraps write failures", () => {
+    const home = useIsolatedHome();
+    const backupDir = join(home, "exports");
+    mkdirSync(backupDir, { recursive: true });
+    const backupPath = join(backupDir, "wallet.txt");
+
+    writePrivateTextFile(backupPath, "secret");
+    expect(readFileSync(backupPath, "utf-8")).toBe("secret");
+
+    expect(() =>
+      writePrivateTextFile(join(home, "missing", "wallet.txt"), "secret"),
+    ).toThrow("Could not write workflow wallet backup");
+  });
+
+  test("loadWorkflowSecretRecord surfaces missing, unreadable, and malformed files", () => {
+    useIsolatedHome();
+
+    expect(() => loadWorkflowSecretRecord("missing")).toThrow(
+      "Workflow wallet secret is missing",
+    );
+
+    writeFileSync(join(getWorkflowSecretsDir(), "broken.json"), "{", "utf-8");
+    expect(() => loadWorkflowSecretRecord("broken")).toThrow(
+      "Workflow wallet secret is unreadable",
+    );
+
+    writeFileSync(
+      join(getWorkflowSecretsDir(), "malformed.json"),
+      JSON.stringify({ workflowId: "malformed", walletAddress: "0x1234" }),
+      "utf-8",
+    );
+    expect(() => loadWorkflowSecretRecord("malformed")).toThrow(
+      "Workflow wallet secret has invalid structure",
+    );
+  });
+
+  test("loadWorkflowSecretRecord and getFlowSignerAddress use the workflow secret for new-wallet flows", () => {
+    useIsolatedHome();
+
+    writeFileSync(
+      join(getWorkflowSecretsDir(), "wf-secret.json"),
+      JSON.stringify({
+        workflowId: "wf-secret",
+        chain: "mainnet",
+        walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
+        privateKey: WORKFLOW_SIGNER,
+      }),
+      "utf-8",
+    );
+
+    const record = loadWorkflowSecretRecord("wf-secret");
+    expect(record.privateKey).toBe(WORKFLOW_SIGNER);
+    expect(record.walletAddress).toBe(privateKeyToAccount(WORKFLOW_SIGNER).address);
+
+    expect(
+      getFlowSignerAddress(
+        sampleWorkflow("wf-secret", {
+          walletMode: "new_wallet",
+          walletAddress: record.walletAddress,
+          backupConfirmed: true,
+        }),
+      ),
+    ).toBe(record.walletAddress);
+  });
+
+  test("buildWorkflowWalletBackup renders a reusable human backup", () => {
+    const backup = buildWorkflowWalletBackup({
+      workflowId: "wf-1",
+      chain: "mainnet",
+      walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
+      privateKey: WORKFLOW_SIGNER,
+    });
+
+    expect(backup).toContain("Privacy Pools Flow Wallet");
+    expect(backup).toContain("Workflow ID: wf-1");
+    expect(backup).toContain("Chain: mainnet");
+    expect(backup).toContain(`Wallet Address: ${privateKeyToAccount(WORKFLOW_SIGNER).address}`);
+    expect(backup).toContain(`Private Key: ${WORKFLOW_SIGNER}`);
+  });
+
+  test("getFlowSignerAddress uses the configured signer for configured workflows", () => {
+    useIsolatedHome();
+    saveSignerKey(CONFIGURED_SIGNER);
+
+    expect(getFlowSignerAddress(sampleWorkflow())).toBe(
+      privateKeyToAccount(CONFIGURED_SIGNER).address,
+    );
+  });
+
+  test("pickWorkflowPoolAccount prefers deposit label, then tx hash, then pool account number", () => {
+    const labelMatch = samplePoolAccount({
+      paNumber: 2,
+      paId: "PA-2",
+      label: 99n,
+      commitment: {
+        hash: 2n,
+        label: 99n,
+        value: 900n,
+        blockNumber: 124n,
+        txHash: "0x" + "bb".repeat(32),
+      },
+      txHash: "0x" + "bb".repeat(32),
+    });
+    const txMatch = samplePoolAccount({
+      paNumber: 3,
+      paId: "PA-3",
+      txHash: "0x" + "cc".repeat(32),
+      commitment: {
+        hash: 3n,
+        label: 100n,
+        value: 900n,
+        blockNumber: 125n,
+        txHash: "0x" + "cc".repeat(32),
+      },
+      label: 100n,
+    });
+    const numberMatch = samplePoolAccount({
+      paNumber: 4,
+      paId: "PA-4",
+    });
+
+    expect(
+      pickWorkflowPoolAccount(
+        sampleWorkflow("wf-label", { depositLabel: "99" }),
+        [numberMatch, txMatch, labelMatch],
+      )?.paId,
+    ).toBe("PA-2");
+    expect(
+      pickWorkflowPoolAccount(
+        sampleWorkflow("wf-tx", {
+          depositLabel: null,
+          depositTxHash: "0x" + "cc".repeat(32),
+        }),
+        [numberMatch, txMatch],
+      )?.paId,
+    ).toBe("PA-3");
+    expect(
+      pickWorkflowPoolAccount(
+        sampleWorkflow("wf-number", {
+          depositLabel: null,
+          depositTxHash: null,
+          poolAccountNumber: 4,
+        }),
+        [numberMatch],
+      )?.paId,
+    ).toBe("PA-4");
+  });
+
+  test("alignSnapshotToPoolAccount refreshes the saved pool account details and clears lastError", () => {
+    const aligned = alignSnapshotToPoolAccount(
+      sampleWorkflow("wf-align", {
+        lastError: {
+          step: "withdraw",
+          errorCode: "RPC_ERROR",
+          errorMessage: "pending",
+          retryable: true,
+          at: "2026-03-24T12:01:00.000Z",
+        },
+      }),
+      1,
+      samplePoolAccount({
+        paNumber: 7,
+        paId: "PA-7",
+        label: 123n,
+        value: 777n,
+        blockNumber: 456n,
+        txHash: "0x" + "dd".repeat(32),
+        commitment: {
+          hash: 7n,
+          label: 123n,
+          value: 777n,
+          blockNumber: 456n,
+          txHash: "0x" + "dd".repeat(32),
+        },
+      }),
+    );
+
+    expect(aligned.lastError).toBeUndefined();
+    expect(aligned.poolAccountNumber).toBe(7);
+    expect(aligned.poolAccountId).toBe("PA-7");
+    expect(aligned.depositLabel).toBe("123");
+    expect(aligned.committedValue).toBe("777");
+    expect(aligned.depositExplorerUrl).toContain("0x" + "dd".repeat(32));
+  });
+
+  test("createInitialSnapshot applies workflow defaults and funding metadata", () => {
+    const snapshot = createInitialSnapshot({
+      workflowId: "wf-initial",
+      walletMode: "new_wallet",
+      walletAddress: "0x1234567890123456789012345678901234567890",
+      assetDecimals: 6,
+      requiredNativeFunding: 123n,
+      requiredTokenFunding: 456n,
+      backupConfirmed: true,
+      phase: "awaiting_funding",
+      chain: "optimism",
+      asset: "USDC",
+      depositAmount: 1_000_000n,
+      recipient: "0x4444444444444444444444444444444444444444",
+    });
+
+    expect(snapshot.workflowId).toBe("wf-initial");
+    expect(snapshot.phase).toBe("awaiting_funding");
+    expect(snapshot.walletMode).toBe("new_wallet");
+    expect(snapshot.walletAddress).toBe(
+      "0x1234567890123456789012345678901234567890",
+    );
+    expect(snapshot.assetDecimals).toBe(6);
+    expect(snapshot.requiredNativeFunding).toBe("123");
+    expect(snapshot.requiredTokenFunding).toBe("456");
+    expect(snapshot.backupConfirmed).toBe(true);
+    expect(snapshot.depositAmount).toBe("1000000");
+    expect(snapshot.aspStatus).toBeUndefined();
+  });
+
+  test("attach snapshot helpers move workflows through deposit, withdraw, and ragequit states", () => {
+    const baseSnapshot = sampleWorkflow("wf-attach", {
+      phase: "awaiting_funding",
+      lastError: {
+        step: "deposit",
+        errorCode: "RPC_ERROR",
+        errorMessage: "retry me",
+        retryable: true,
+        at: "2026-03-24T12:01:00.000Z",
+      },
+    });
+
+    const pendingDeposit = attachPendingDepositToSnapshot(baseSnapshot, {
+      depositTxHash: "0x" + "11".repeat(32),
+      depositExplorerUrl: "https://example.invalid/deposit",
+    });
+    expect(pendingDeposit.phase).toBe("depositing_publicly");
+    expect(pendingDeposit.depositTxHash).toBe("0x" + "11".repeat(32));
+    expect(pendingDeposit.depositExplorerUrl).toBe(
+      "https://example.invalid/deposit",
+    );
+    expect(pendingDeposit.lastError).toBeUndefined();
+
+    const deposited = attachDepositResultToSnapshot(pendingDeposit, {
+      chain: "mainnet",
+      asset: "ETH",
+      amount: 100n,
+      decimals: 18,
+      poolAccountNumber: 4,
+      poolAccountId: "PA-4",
+      depositTxHash: "0x" + "22".repeat(32),
+      depositBlockNumber: 456n,
+      depositExplorerUrl: "https://example.invalid/deposit/confirmed",
+      depositLabel: 123n,
+      committedValue: 99n,
+    });
+    expect(deposited.phase).toBe("awaiting_asp");
+    expect(deposited.poolAccountNumber).toBe(4);
+    expect(deposited.poolAccountId).toBe("PA-4");
+    expect(deposited.depositLabel).toBe("123");
+    expect(deposited.committedValue).toBe("99");
+    expect(deposited.aspStatus).toBe("pending");
+
+    const pendingWithdraw = attachPendingWithdrawalToSnapshot(
+      deposited,
+      1,
+      ("0x" + "33".repeat(32)) as `0x${string}`,
+    );
+    expect(pendingWithdraw.phase).toBe("withdrawing");
+    expect(pendingWithdraw.withdrawTxHash).toBe("0x" + "33".repeat(32));
+    expect(pendingWithdraw.withdrawBlockNumber).toBeNull();
+    expect(pendingWithdraw.withdrawExplorerUrl).toContain(
+      "0x" + "33".repeat(32),
+    );
+
+    const withdrawn = attachWithdrawalResultToSnapshot(pendingWithdraw, {
+      chainId: 1,
+      withdrawTxHash: "0x" + "44".repeat(32),
+      withdrawBlockNumber: 789n,
+    });
+    expect(withdrawn.phase).toBe("completed");
+    expect(withdrawn.aspStatus).toBe("approved");
+    expect(withdrawn.withdrawTxHash).toBe("0x" + "44".repeat(32));
+    expect(withdrawn.withdrawBlockNumber).toBe("789");
+    expect(withdrawn.withdrawExplorerUrl).toContain("0x" + "44".repeat(32));
+
+    const pendingRagequit = attachPendingRagequitToSnapshot(
+      deposited,
+      10,
+      ("0x" + "55".repeat(32)) as `0x${string}`,
+    );
+    expect(pendingRagequit.ragequitTxHash).toBe("0x" + "55".repeat(32));
+    expect(pendingRagequit.ragequitBlockNumber).toBeNull();
+    expect(pendingRagequit.ragequitExplorerUrl).toContain(
+      "0x" + "55".repeat(32),
+    );
+
+    const ragequitCompleted = attachRagequitResultToSnapshot(
+      pendingRagequit,
+      {
+        chainId: 10,
+        aspStatus: "declined",
+        ragequitTxHash: "0x" + "66".repeat(32),
+        ragequitBlockNumber: "321",
+      },
+    );
+    expect(ragequitCompleted.phase).toBe("completed_public_recovery");
+    expect(ragequitCompleted.aspStatus).toBe("declined");
+    expect(ragequitCompleted.ragequitTxHash).toBe("0x" + "66".repeat(32));
+    expect(ragequitCompleted.ragequitBlockNumber).toBe("321");
+    expect(ragequitCompleted.ragequitExplorerUrl).toContain(
+      "0x" + "66".repeat(32),
+    );
+  });
+
+  test("buildSavedWorkflowRecoveryCommand targets the saved workflow id", () => {
+    expect(buildSavedWorkflowRecoveryCommand(sampleWorkflow("wf-ragequit"))).toBe(
+      "privacy-pools flow ragequit wf-ragequit",
+    );
+  });
+
+  test("updateSnapshot and clearLastError refresh snapshot timestamps predictably", async () => {
+    const snapshot = sampleWorkflow("wf-clear", {
+      lastError: {
+        step: "deposit",
+        errorCode: "RPC_ERROR",
+        errorMessage: "deposit failed",
+        retryable: true,
+        at: "2026-03-24T12:01:00.000Z",
+      },
+    });
+
+    const updated = updateSnapshot(snapshot, { phase: "awaiting_funding" });
+    expect(updated.phase).toBe("awaiting_funding");
+    expect(updated.updatedAt).not.toBe(snapshot.updatedAt);
+
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    const cleared = clearLastError(updated);
+    expect(cleared.lastError).toBeUndefined();
+    expect(cleared.updatedAt).not.toBe(updated.updatedAt);
+
+    const untouched = sampleWorkflow("wf-clean");
+    expect(clearLastError(untouched)).toBe(untouched);
+  });
+
+  test("normalizeWorkflowSnapshot fills optional fields and snapshot comparisons ignore updatedAt", () => {
+    const normalized = normalizeWorkflowSnapshot(sampleWorkflow("wf-normalize"));
+    expect(normalized.walletMode).toBe("configured");
+    expect(normalized.walletAddress).toBeNull();
+    expect(normalized.requiredNativeFunding).toBeNull();
+    expect(normalized.requiredTokenFunding).toBeNull();
+    expect(normalized.poolAccountId).toBeNull();
+
+    const baseline = normalizeWorkflowSnapshot(
+      sampleWorkflow("wf-compare", { updatedAt: "2026-03-24T12:00:00.000Z" }),
+    );
+    const later = {
+      ...baseline,
+      updatedAt: "2026-03-24T12:10:00.000Z",
+    };
+    expect(sameWorkflowSnapshotState(baseline, later)).toBe(true);
+    expect(
+      sameWorkflowSnapshotState(baseline, {
+        ...later,
+        committedValue: "123",
+      }),
+    ).toBe(false);
+  });
+
+  test("saveWorkflowSnapshot helpers persist, reuse, and clean up workflow files", () => {
+    useIsolatedHome();
+
+    const snapshot = normalizeWorkflowSnapshot(
+      sampleWorkflow("wf-persist", { walletMode: "new_wallet" }),
+    );
+    const saved = saveWorkflowSnapshot(snapshot);
+    expect(saved.workflowId).toBe("wf-persist");
+    expect(
+      readFileSync(join(process.env.PRIVACY_POOLS_HOME!, "workflows", "wf-persist.json"), "utf-8"),
+    ).toContain("\"workflowId\": \"wf-persist\"");
+
+    const unchanged = saveWorkflowSnapshotIfChanged(saved, {
+      ...saved,
+      updatedAt: "2030-01-01T00:00:00.000Z",
+    });
+    expect(unchanged).toBe(saved);
+
+    const secret = saveWorkflowSecretRecord({
+      workflowId: "wf-persist",
+      chain: "mainnet",
+      walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
+      privateKey: WORKFLOW_SIGNER,
+    });
+    expect(secret.walletAddress).toBe(privateKeyToAccount(WORKFLOW_SIGNER).address);
+    expect(loadWorkflowSecretRecord("wf-persist").privateKey).toBe(WORKFLOW_SIGNER);
+
+    deleteWorkflowSecretRecord("wf-persist");
+    expect(() => loadWorkflowSecretRecord("wf-persist")).toThrow(
+      "Workflow wallet secret is missing",
+    );
+  });
+
+  test("loadWorkflowSnapshot rejects missing, corrupt, and invalid workflow files", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    expect(() => loadWorkflowSnapshot("missing")).toThrow("Unknown workflow");
+
+    writeFileSync(join(workflowsDir, "wf-broken.json"), "{", "utf-8");
+    expect(() => loadWorkflowSnapshot("wf-broken")).toThrow(
+      "Workflow file is corrupt or unreadable",
+    );
+
+    writeFileSync(join(workflowsDir, "wf-invalid.json"), JSON.stringify([]), "utf-8");
+    expect(() => loadWorkflowSnapshot("wf-invalid")).toThrow(
+      "Workflow file has invalid structure",
+    );
+
+    writeFileSync(
+      join(workflowsDir, "wf-missing-fields.json"),
+      JSON.stringify({ workflowId: "wf-missing-fields" }),
+      "utf-8",
+    );
+    expect(() => loadWorkflowSnapshot("wf-missing-fields")).toThrow(
+      "Workflow file has invalid structure",
+    );
+  });
+
+  test("resolveLatestWorkflowId returns the newest readable workflow and skips invalid files", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-older", {
+        updatedAt: "2026-03-24T12:00:00.000Z",
+      }),
+    );
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-newer", {
+        updatedAt: "2026-03-24T12:10:00.000Z",
+      }),
+    );
+    writeFileSync(join(workflowsDir, "wf-broken.json"), "{", "utf-8");
+
+    expect(resolveLatestWorkflowId()).toBe("wf-newer");
+  });
+
+  test("resolveLatestWorkflowId fails when only unreadable workflow files remain", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    writeFileSync(join(workflowsDir, "wf-broken.json"), "{", "utf-8");
+
+    expect(() => resolveLatestWorkflowId()).toThrow(
+      "No readable saved workflows found.",
+    );
+  });
+
+  test("isDepositCheckpointFailure detects explicit workflow checkpoint errors", () => {
+    const lastError: FlowLastError = {
+      step: "deposit",
+      errorCode: "WORKFLOW_DEPOSIT_CHECKPOINT_FAILED",
+      errorMessage: "Deposit confirmed onchain but could not checkpoint it locally.",
+      retryable: false,
+      at: "2026-03-24T12:01:00.000Z",
+    };
+
+    expect(isDepositCheckpointFailure(lastError)).toBe(true);
+  });
+
+  test("isDepositCheckpointFailure detects legacy checkpoint wording and ignores other steps", () => {
+    expect(
+      isDepositCheckpointFailure({
+        step: "deposit",
+        errorCode: "UNKNOWN_ERROR",
+        errorMessage: "The transaction hash was not checkpointed locally.",
+        retryable: false,
+        at: "2026-03-24T12:01:00.000Z",
+      }),
+    ).toBe(true);
+
+    expect(
+      isDepositCheckpointFailure({
+        step: "withdraw",
+        errorCode: "UNKNOWN_ERROR",
+        errorMessage: "The transaction hash was not checkpointed locally.",
+        retryable: false,
+        at: "2026-03-24T12:01:00.000Z",
+      }),
+    ).toBe(false);
+    expect(isDepositCheckpointFailure(undefined)).toBe(false);
+  });
+
+  test("poll delay helpers keep funding and approval phases on their own cadence", () => {
+    expect(initialPollDelayMs("awaiting_funding")).toBe(10_000);
+    expect(initialPollDelayMs("depositing_publicly")).toBe(10_000);
+    expect(initialPollDelayMs("awaiting_asp")).toBe(60_000);
+
+    expect(nextPollDelayMs(45_000, "awaiting_funding")).toBe(60_000);
+    expect(nextPollDelayMs(200_000, "awaiting_asp")).toBe(300_000);
+  });
+
+  test("humanPollDelayLabel formats seconds and minute pluralization", () => {
+    expect(humanPollDelayLabel(45_000)).toBe("45 seconds");
+    expect(humanPollDelayLabel(60_000)).toBe("1 minute");
+    expect(humanPollDelayLabel(180_000)).toBe("3 minutes");
+  });
+
+  test("classifyFlowMutation detects missing, spent, exited, and drifted pool accounts", () => {
+    const baseSnapshot = sampleWorkflow("wf-mutation", {
+      committedValue: "900",
+      depositLabel: "88",
+    });
+
+    expect(classifyFlowMutation(baseSnapshot, undefined)).toBe(
+      "stopped_external",
+    );
+    expect(
+      classifyFlowMutation(baseSnapshot, samplePoolAccount({ status: "spent" })),
+    ).toBe("stopped_external");
+    expect(
+      classifyFlowMutation(baseSnapshot, samplePoolAccount({ status: "exited" })),
+    ).toBe("stopped_external");
+    expect(
+      classifyFlowMutation(baseSnapshot, samplePoolAccount({ value: 901n })),
+    ).toBe("stopped_external");
+    expect(
+      classifyFlowMutation(baseSnapshot, samplePoolAccount({ label: 89n })),
+    ).toBe("stopped_external");
+    expect(classifyFlowMutation(baseSnapshot, samplePoolAccount())).toBeNull();
+  });
+
+  test("cleanupTerminalWorkflowSecret removes only terminal new-wallet secrets", () => {
+    useIsolatedHome();
+    saveWorkflowSecretRecord({
+      workflowId: "wf-terminal",
+      chain: "mainnet",
+      walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
+      privateKey: WORKFLOW_SIGNER,
+    });
+    saveWorkflowSecretRecord({
+      workflowId: "wf-nonterminal",
+      chain: "mainnet",
+      walletAddress: privateKeyToAccount(CONFIGURED_SIGNER).address,
+      privateKey: CONFIGURED_SIGNER,
+    });
+
+    cleanupTerminalWorkflowSecret(
+      sampleWorkflow("wf-terminal", {
+        walletMode: "new_wallet",
+        phase: "completed",
+      }),
+    );
+    expect(() => loadWorkflowSecretRecord("wf-terminal")).toThrow(
+      "Workflow wallet secret is missing",
+    );
+
+    cleanupTerminalWorkflowSecret(
+      sampleWorkflow("wf-nonterminal", {
+        walletMode: "new_wallet",
+        phase: "awaiting_asp",
+      }),
+    );
+    expect(loadWorkflowSecretRecord("wf-nonterminal").privateKey).toBe(
+      CONFIGURED_SIGNER,
+    );
+  });
+
+  test("isTerminalFlowPhase recognizes only terminal workflow phases", () => {
+    expect(isTerminalFlowPhase("completed")).toBe(true);
+    expect(isTerminalFlowPhase("completed_public_recovery")).toBe(true);
+    expect(isTerminalFlowPhase("stopped_external")).toBe(true);
+    expect(isTerminalFlowPhase("awaiting_asp")).toBe(false);
+  });
+
+  test("buildFlowLastError preserves classified codes and retryability", () => {
+    const cliError = new CLIError(
+      "Quote failed",
+      "RELAYER",
+      "retry later",
+      "RELAYER_QUOTE_FAILED",
+      true,
+    );
+    const lastError = buildFlowLastError("withdraw", cliError);
+
+    expect(lastError).toMatchObject({
+      step: "withdraw",
+      errorCode: "RELAYER_QUOTE_FAILED",
+      errorMessage: "Quote failed",
+      retryable: true,
+    });
+
+    const unknownLastError = buildFlowLastError(
+      "deposit",
+      new Error("unexpected failure"),
+    );
+    expect(unknownLastError.step).toBe("deposit");
+    expect(unknownLastError.errorCode).toBe("UNKNOWN_ERROR");
+    expect(unknownLastError.errorMessage).toBe("unexpected failure");
+    expect(unknownLastError.retryable).toBe(false);
+  });
+});

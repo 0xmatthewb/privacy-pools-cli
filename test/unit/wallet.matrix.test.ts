@@ -17,11 +17,11 @@ import {
 } from "../../src/services/wallet.ts";
 
 describe("wallet matrix", () => {
-  test("generateMnemonic emits a valid mnemonic", () => {
+  test("generateMnemonic emits a valid 24-word mnemonic", () => {
     const mnemonic = generateMnemonic();
     expect(validateMnemonic(mnemonic)).toBe(true);
     const words = mnemonic.trim().split(/\s+/g);
-    expect(words.length === 12 || words.length === 24).toBe(true);
+    expect(words.length).toBe(24);
   });
 
   const VALID_MNEMONICS = [
@@ -42,6 +42,9 @@ describe("wallet matrix", () => {
     "",
     "test",
     "this is not a bip39 mnemonic",
+    "morning world loop ankle vehicle coach cradle curious image position write tuition enemy permit bone",
+    "peanut clever wing prize mom meadow kitten manage quick scout cram often slot fever attack party radar question",
+    "warfare ship flee wave warfare scorpion joke surprise great minor local alone obvious ecology brown nature fog harvest put stove picnic",
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon",
     "test test test test test test test test test test test test",
     "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo",

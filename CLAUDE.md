@@ -3,6 +3,7 @@
 Developer guide for AI agents contributing to this codebase.
 
 For CLI consumer/agent integration docs, see [AGENTS.md](AGENTS.md) and [skills/privacy-pools-cli/SKILL.md](skills/privacy-pools-cli/SKILL.md).
+For test architecture and suite policy, see [docs/testing.md](docs/testing.md).
 
 ## Build & Run
 
@@ -22,15 +23,27 @@ bun run test:smoke             # packaged-smoke integration (timeout 180s)
 bun run test:fuzz              # fuzz suite (timeout 120s)
 bun run test:conformance       # build + conformance core suite
 bun run test:conformance:all   # build + all conformance suites
-bun run test:coverage          # coverage enforcement (services/utils/output ≥85%, config ≥95%)
+bun run test:coverage          # hybrid coverage guard (same thresholds as above, plus no uninstrumented executable src files)
 bun run test:evals             # agent eval suite (timeout 120s)
 bun run test:e2e:anvil         # full anvil e2e (requires local anvil)
 bun run test:e2e:anvil:smoke   # anvil smoke subset
+bun run test:flake             # randomized non-e2e pass + targeted reruns
 bun run test:stress            # stress test (120 rounds)
 bun run test:ci                # full CI pipeline
 ```
 
-Tests use Bun's built-in test runner via `scripts/run-bun-tests.mjs`. Default per-test timeout is 30s. The harness injects `PP_TEST_RUN_ID` per run and scopes temp dirs with `pp-` prefix for automatic cleanup.
+`bun run test` uses `scripts/run-test-suite.mjs`, which delegates to `scripts/run-bun-tests.mjs` for the main batch plus the isolated suites listed in `scripts/test-suite-manifest.mjs`. Pass explicit files or Bun flags with `bun run test -- <args>` when you want a targeted run. Default per-test timeout is 30s unless you pass an explicit Bun timeout flag. The harness injects `PP_TEST_RUN_ID` per run and scopes temp dirs with `pp-` prefix for automatic cleanup.
+
+`bunfig.toml` provides Bun-native test defaults such as `coverageSkipTestFiles`, but the repository still treats `scripts/check-coverage.mjs` as the authoritative coverage gate because Bun coverage alone does not count unloaded executable source files.
+
+Process isolation is intentional here. Bun runs test files in a shared process by default, and `mock.module()` is not safely reversible in-process. If a suite remains listed as isolated in `scripts/test-suite-manifest.mjs`, treat that as a documented containment boundary, not a smell to “fix” with more `mock.restore()` calls.
+
+The preferred test harness primitives are:
+- `test/helpers/test-world.ts` for temp home/env/process lifecycle
+- `test/helpers/contract-assertions.ts` for JSON envelope, nextActions, and stream-boundary checks
+- `test/helpers/strict-stubs.ts` for fail-closed outbound expectations
+
+Default isolated suites are intentionally limited to `contracts-service`, `proofs-service`, `workflow-mocked`, `workflow-internal`, and `init-interactive`. Coverage-only isolation additionally keeps `workflow-service` and `bootstrap-runtime` out of the shared batch.
 
 To run a single test file: `node scripts/run-bun-tests.mjs ./test/unit/some-file.unit.test.ts`
 
@@ -91,4 +104,4 @@ Defined in `src/config/chains.ts`: mainnet (1), arbitrum (42161), optimism (10),
 - Node ≥22 <26 required. Dev/CI baseline: Node 25.
 - Test files follow `<name>.<category>.test.ts` naming (e.g., `withdrawal.unit.test.ts`).
 - Error handling: throw `CLIError` with category, code, hint, and retryable fields.
-- Version references: CLI v1.6.1, SDK v1.2.0, JSON schema v1.5.0.
+- Version references: CLI v1.7.0, SDK v1.2.0, JSON schema v1.5.0.

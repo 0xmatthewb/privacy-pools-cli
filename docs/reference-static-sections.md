@@ -42,12 +42,20 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | Variable | Purpose |
 |----------|---------|
 | `PRIVACY_POOLS_HOME` | Override config directory |
+| `PRIVACY_POOLS_CONFIG_DIR` | Alias for `PRIVACY_POOLS_HOME` |
 | `PRIVACY_POOLS_PRIVATE_KEY` | Signer private key (takes precedence over `.signer` file) |
+| `PRIVACY_POOLS_RPC_URL` | Override RPC URL for all chains |
+| `PP_RPC_URL` | Alias for `PRIVACY_POOLS_RPC_URL` |
 | `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
+| `PP_ASP_HOST` | Alias for `PRIVACY_POOLS_ASP_HOST` |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
+| `PP_RELAYER_HOST` | Alias for `PRIVACY_POOLS_RELAYER_HOST` |
 | `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory (default: `~/.privacy-pools/circuits/v<sdk-version>`) |
+| `PRIVACY_POOLS_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PRIVACY_POOLS_RPC_URL_ARBITRUM`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
+| `PRIVACY_POOLS_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PRIVACY_POOLS_ASP_HOST_SEPOLIA`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
+| `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
@@ -112,6 +120,7 @@ npm unlink -g privacy-pools-cli
 ```bash
 bun run test              # fast default suite (excludes packaged smoke)
 bun run test:ci           # local mirror of required CI checks
+bun run test:release      # release-readiness suite (full Anvil matrix)
 bun run test:smoke        # packaged CLI smoke against a packed tarball
 bun run typecheck         # TypeScript type check (no emit)
 bun run circuits:provision # prefetch proof artifacts into the CLI home
@@ -125,6 +134,6 @@ bun run test:conformance:frontend # optional frontend parity (website access req
 bun run test:conformance:all # core conformance + frontend parity
 ```
 
-Use `bun run test` / `bun run test:ci` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts.
+Use `bun run test`, `bun run test:ci`, and `bun run test:release` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts.
 
 The Anvil E2E harness starts local ASP and relayer shims against a forked Sepolia state snapshot. Install Anvil via Foundry (`https://www.getfoundry.sh/anvil`) or set `PP_ANVIL_BIN` if `anvil` is not discoverable on your `PATH`.

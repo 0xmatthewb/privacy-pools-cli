@@ -11,12 +11,24 @@ import { CLIError } from "../utils/errors.js";
 import { withSuppressedSdkStdoutSync } from "./account.js";
 import type { Address } from "viem";
 
+export const GENERATED_MNEMONIC_STRENGTH = 256;
+const SUPPORTED_MNEMONIC_WORD_COUNTS = new Set([12, 24]);
+
+function hasSupportedMnemonicWordCount(mnemonic: string): boolean {
+  const words = mnemonic.trim().split(/\s+/).filter(Boolean);
+  return SUPPORTED_MNEMONIC_WORD_COUNTS.has(words.length);
+}
+
 export function generateMnemonic(): string {
-  return viemGenerateMnemonic(english);
+  return viemGenerateMnemonic(english, GENERATED_MNEMONIC_STRENGTH);
 }
 
 export function validateMnemonic(mnemonic: string): boolean {
-  return bip39ValidateMnemonic(mnemonic.trim(), bip39EnglishWordlist);
+  const trimmed = mnemonic.trim();
+  if (!trimmed || !hasSupportedMnemonicWordCount(trimmed)) {
+    return false;
+  }
+  return bip39ValidateMnemonic(trimmed, bip39EnglishWordlist);
 }
 
 export type MnemonicExtractionFailure = "none_found" | "multiple_found";
@@ -51,9 +63,7 @@ export function extractMnemonicFromFileDetailed(
 
   for (const raw of lines) {
     const line = raw.trim();
-    // Skip empty lines and lines that are clearly not mnemonics:
-    // fewer than 12 space-separated tokens can't be a valid BIP-39 phrase
-    if (!line || line.split(/\s+/).length < 12) continue;
+    if (!line || !hasSupportedMnemonicWordCount(line)) continue;
     if (validateMnemonic(line)) {
       // If we already found one, the file is ambiguous — fail safely
       if (found !== null) return { mnemonic: null, failure: "multiple_found" };

@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   classifyError,
   CLIError,
+  accountMigrationReviewIncompleteError,
+  accountWebsiteRecoveryRequiredError,
   defaultErrorCode,
   printError,
 } from "../../src/utils/errors.ts";
@@ -36,6 +38,16 @@ describe("classifyError - contract revert completeness", () => {
       retryable: true,
     },
     {
+      name: "UnknownStateRoot",
+      code: "CONTRACT_UNKNOWN_STATE_ROOT",
+      retryable: true,
+    },
+    {
+      name: "ContextMismatch",
+      code: "CONTRACT_CONTEXT_MISMATCH",
+      retryable: false,
+    },
+    {
       name: "InvalidProcessooor",
       code: "CONTRACT_INVALID_PROCESSOOOR",
       retryable: false,
@@ -51,14 +63,74 @@ describe("classifyError - contract revert completeness", () => {
       retryable: false,
     },
     {
+      name: "InvalidCommitment",
+      code: "CONTRACT_INVALID_COMMITMENT",
+      retryable: false,
+    },
+    {
       name: "OnlyOriginalDepositor",
       code: "CONTRACT_ONLY_ORIGINAL_DEPOSITOR",
+      retryable: false,
+    },
+    {
+      name: "NotYetRagequitteable",
+      code: "CONTRACT_NOT_YET_RAGEQUITTEABLE",
+      retryable: true,
+    },
+    {
+      name: "MaxTreeDepthReached",
+      code: "CONTRACT_MAX_TREE_DEPTH_REACHED",
       retryable: false,
     },
     {
       name: "NoRootsAvailable",
       code: "CONTRACT_NO_ROOTS_AVAILABLE",
       retryable: true,
+    },
+    {
+      name: "MinimumDepositAmount",
+      code: "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
+      retryable: false,
+    },
+    {
+      name: "InvalidDepositValue",
+      code: "CONTRACT_INVALID_DEPOSIT_VALUE",
+      retryable: false,
+    },
+    {
+      name: "InvalidWithdrawalAmount",
+      code: "CONTRACT_INVALID_WITHDRAWAL_AMOUNT",
+      retryable: false,
+    },
+    {
+      name: "PoolNotFound",
+      code: "CONTRACT_POOL_NOT_FOUND",
+      retryable: false,
+    },
+    {
+      name: "PoolIsDead",
+      code: "CONTRACT_POOL_IS_DEAD",
+      retryable: false,
+    },
+    {
+      name: "RelayFeeGreaterThanMax",
+      code: "CONTRACT_RELAY_FEE_GREATER_THAN_MAX",
+      retryable: true,
+    },
+    {
+      name: "InvalidTreeDepth",
+      code: "CONTRACT_INVALID_TREE_DEPTH",
+      retryable: false,
+    },
+    {
+      name: "NativeAssetTransferFailed",
+      code: "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED",
+      retryable: false,
+    },
+    {
+      name: "FailedToSendNativeAsset",
+      code: "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED",
+      retryable: false,
     },
   ];
 
@@ -220,6 +292,23 @@ describe("CLIError constructor", () => {
   test("hint is optional", () => {
     const err = new CLIError("msg", "INPUT");
     expect(err.hint).toBeUndefined();
+  });
+});
+
+describe("website recovery errors", () => {
+  test("uses a distinct machine code for website-based recovery", () => {
+    const err = accountWebsiteRecoveryRequiredError();
+    expect(err.category).toBe("INPUT");
+    expect(err.code).toBe("ACCOUNT_WEBSITE_RECOVERY_REQUIRED");
+    expect(err.message).toContain("website-based recovery");
+  });
+
+  test("uses a retryable machine code for incomplete legacy review state", () => {
+    const err = accountMigrationReviewIncompleteError();
+    expect(err.category).toBe("ASP");
+    expect(err.code).toBe("ACCOUNT_MIGRATION_REVIEW_INCOMPLETE");
+    expect(err.retryable).toBe(true);
+    expect(err.message).toContain("could not safely determine");
   });
 });
 

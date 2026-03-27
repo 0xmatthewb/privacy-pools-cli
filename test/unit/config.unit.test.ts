@@ -1,14 +1,23 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  configExists,
+  ensureConfigDir,
+  getAccountsDir,
   getConfigDir,
   getRpcUrl,
   getRpcUrls,
+  getWorkflowSecretsDir,
+  getWorkflowsDir,
+  loadMnemonicFromFile,
+  mnemonicExists,
   resolveRpcEnvVar,
   loadConfig,
   saveConfig,
   loadSignerKey,
+  saveMnemonicToFile,
+  saveSignerKey,
 } from "../../src/services/config.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
@@ -113,6 +122,68 @@ describe("config service", () => {
       }
     }
   });
+
+  test("loadConfig returns built-in defaults when no config file exists", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    saveConfig({ defaultChain: "__flush__", rpcOverrides: {} });
+    rmSync(join(home, "config.json"), { force: true });
+
+    expect(loadConfig()).toEqual({
+      defaultChain: "mainnet",
+      rpcOverrides: {},
+    });
+  });
+
+  test("ensureConfigDir creates private account and workflow directories", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    ensureConfigDir();
+
+    expect(existsSync(getConfigDir())).toBe(true);
+    expect(existsSync(getAccountsDir())).toBe(true);
+    expect(existsSync(getWorkflowsDir())).toBe(true);
+    expect(existsSync(getWorkflowSecretsDir())).toBe(true);
+    expect(statSync(getConfigDir()).mode & 0o777).toBe(0o700);
+    expect(statSync(getAccountsDir()).mode & 0o777).toBe(0o700);
+    expect(statSync(getWorkflowsDir()).mode & 0o777).toBe(0o700);
+    expect(statSync(getWorkflowSecretsDir()).mode & 0o777).toBe(0o700);
+  });
+
+  test("saveConfig, saveMnemonicToFile, and saveSignerKey persist private files", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    saveConfig({
+      defaultChain: "sepolia",
+      rpcOverrides: { 11155111: "https://custom-sepolia.invalid" },
+    });
+    saveMnemonicToFile("test test test test test test test test test test test junk");
+    saveSignerKey("0xabc123");
+
+    expect(readFileSync(join(home, "config.json"), "utf-8")).toContain('"defaultChain": "sepolia"');
+    expect(loadMnemonicFromFile()).toBe(
+      "test test test test test test test test test test test junk",
+    );
+    expect(loadSignerKey()).toBe("0xabc123");
+    expect(statSync(join(home, ".mnemonic")).mode & 0o777).toBe(0o600);
+    expect(statSync(join(home, ".signer")).mode & 0o777).toBe(0o600);
+  });
+
+  test("configExists and mnemonicExists track persisted config state", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    expect(configExists()).toBe(false);
+    expect(mnemonicExists()).toBe(false);
+
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile("test test test test test test test test test test test junk");
+
+    expect(configExists()).toBe(true);
+    expect(mnemonicExists()).toBe(true);
+  });
 });
 
 // ── PRIVACY_POOLS_RPC_URL_* longer prefix env vars ───────────────────────────
@@ -211,6 +282,23 @@ describe("loadConfig JSON validation errors", () => {
     const home = isolatedHome();
     writeTestConfig(home, JSON.stringify({ defaultChain: "mainnet", rpcOverrides: { abc: "http://x" } }));
     expect(() => loadConfig()).toThrow("invalid chain key");
+  });
+
+  test("scopes cached config to the active home override", () => {
+    const homeA = isolatedHome();
+    const homeB = isolatedHome();
+
+    writeTestConfig(homeA, JSON.stringify({ defaultChain: "mainnet", rpcOverrides: {} }));
+    expect(loadConfig()).toEqual({
+      defaultChain: "mainnet",
+      rpcOverrides: {},
+    });
+
+    writeTestConfig(homeB, JSON.stringify({ defaultChain: "sepolia", rpcOverrides: {} }));
+    expect(loadConfig()).toEqual({
+      defaultChain: "sepolia",
+      rpcOverrides: {},
+    });
   });
 });
 

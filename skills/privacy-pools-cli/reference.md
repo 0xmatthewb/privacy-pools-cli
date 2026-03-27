@@ -2,9 +2,72 @@
 
 Detailed payload spec, JSON output shapes, and unsigned transaction format for agent integration.
 
+## Easy-path workflow
+
+The CLI ships a persisted happy-path workflow under `flow`:
+
+```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
+privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet --export-new-wallet ./flow-wallet.txt --agent
+privacy-pools flow watch latest --agent
+privacy-pools flow status latest --agent
+privacy-pools flow ragequit latest --agent
+```
+
+`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. With `--new-wallet`, the CLI generates a dedicated workflow wallet, requires a backup before proceeding, and waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in that same wallet. `flow watch` re-checks the saved workflow using workflow phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state. `flow watch` is intentionally unbounded; agents that need a wall-clock limit should wrap it in an external timeout. `flow status` reads the persisted workflow snapshot without mutating it. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
+
+Flow JSON payloads share this shape:
+
+```json
+{
+  "schemaVersion": "1.5.0",
+  "success": true,
+  "mode": "flow",
+  "action": "start",
+  "workflowId": "123e4567-e89b-12d3-a456-426614174000",
+  "phase": "awaiting_funding",
+  "walletMode": "new_wallet",
+  "walletAddress": "0x...",
+  "requiredNativeFunding": "3500000000000000",
+  "requiredTokenFunding": "100000000",
+  "backupConfirmed": true,
+  "chain": "mainnet",
+  "asset": "USDC",
+  "depositAmount": "100000000",
+  "recipient": "0x...",
+  "nextActions": [
+    {
+      "command": "flow watch",
+      "reason": "Resume this saved workflow and continue toward the private withdrawal.",
+      "when": "flow_resume",
+      "args": ["123e4567-e89b-12d3-a456-426614174000"],
+      "options": { "agent": true },
+      "runnable": true
+    }
+  ]
+}
+```
+
+Possible `phase` values:
+
+- `awaiting_funding`
+- `depositing_publicly`
+- `awaiting_asp`
+- `approved_ready_to_withdraw`
+- `withdrawing`
+- `completed`
+- `completed_public_recovery`
+- `paused_poi_required`
+- `paused_declined`
+- `stopped_external`
+
+Paused workflow states are successful command results, not CLI errors. Declined workflows surface `flow ragequit` as the canonical saved-workflow recovery path. Manual commands remain available for advanced control.
+
+---
+
 ## Unsigned payload spec
 
-All `--unsigned` output targets the chain specified by `--chain` (default: `mainnet`, chain ID 1).
+All `--unsigned` output targets the chain specified by `--chain` (default: your configured default chain; if no default is configured yet, it falls back to `mainnet`, chain ID 1).
 
 ### Payload shape (envelope format)
 
@@ -114,7 +177,7 @@ Defaults to all mainnet chains when no `--chain` is specified. Default sort is `
 {
   "chain": "mainnet",
   "search": null,
-  "sort": "default",
+  "sort": "tvl-desc",
   "pools": [
     {
       "asset": "ETH",
@@ -148,7 +211,7 @@ Defaults to all mainnet chains when no `--chain` is specified. Default sort is `
 {
   "allChains": true,
   "search": null,
-  "sort": "default",
+  "sort": "tvl-desc",
   "chains": [{ "chain": "mainnet", "pools": 2, "error": null }],
   "pools": [ ... ],
   "warnings": [{ "chain": "sepolia", "category": "ASP", "message": "..." }]
@@ -339,9 +402,12 @@ Representative payload (abridged):
     "1. privacy-pools status --agent",
     "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
     "3. privacy-pools pools --agent --chain <chain>",
-    "4. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>",
-    "5. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
-    "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
+    "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
+    "5. privacy-pools flow watch [workflowId|latest] --agent",
+    "6. privacy-pools flow ragequit [workflowId|latest] --agent  (if the saved workflow is declined)",
+    "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
+    "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
+    "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
   ],
   "agentNotes": {
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
@@ -363,7 +429,7 @@ Representative payload (abridged):
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. When runnable is false, the action is a template that needs additional user input before execution."
     }
   },
-  "safeReadOnlyCommands": ["pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "completion"],
+  "safeReadOnlyCommands": ["flow status", "pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "migrate", "migrate status", "completion"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
     { "name": "arbitrum", "chainId": 42161, "testnet": false },
@@ -446,9 +512,9 @@ printf '%s\n' 0x... | privacy-pools init --agent --mnemonic "word1 word2 ..." --
 
 When importing an existing recovery phrase or private key, neither `recoveryPhrase` nor `recoveryPhraseRedacted` is present.
 
-When importing an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
+New CLI-generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
 
-When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so restored Pool Accounts can be discovered across mainnets and testnets. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
+When `init` imports an existing recovery phrase, `nextActions` points to `accounts --agent --all-chains` so Pool Accounts can be checked across mainnets and testnets. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
 
 Use only one stdin secret source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
 
@@ -727,6 +793,66 @@ Without `--chain`, `accounts` aggregates all mainnet chains by default. Use `--a
 
 After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Reviewed entries disappear from `--pending-only` results instead of changing in place; once gone, re-run `accounts --agent --chain <chain>` to confirm whether the final status is `approved`, `declined`, or `poi_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
 
+### `migrate status`
+
+```bash
+privacy-pools migrate status --agent
+privacy-pools migrate status --agent --all-chains
+privacy-pools migrate status --agent --chain mainnet
+```
+
+`migrate status` is a strictly read-only legacy website migration or recovery check on CLI-supported chains. It rebuilds the legacy account view from the installed SDK, the built-in CLI pool registry for CLI-supported chains, and current onchain events without persisting trusted account or sync state, then reports whether legacy pre-upgrade commitments still need website migration, already appear fully migrated, require website-based public recovery because they were declined, or cannot be classified safely because ASP review data is incomplete.
+
+Without `--chain`, `migrate status` checks all mainnet chains supported by the CLI by default. Use `--all-chains` to include supported testnets. As with other multi-chain read-only commands, `--rpc-url` is only valid alongside `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
+
+```json
+{
+  "mode": "migration-status",
+  "chain": "all-mainnets",
+  "chains": ["mainnet", "arbitrum", "optimism"],
+  "warnings": [
+    {
+      "chain": "all-mainnets",
+      "category": "COVERAGE",
+      "message": "This command only checks chains currently supported by the CLI. Review beta or other website-only legacy migration surfaces in the Privacy Pools website."
+    }
+  ],
+  "status": "migration_required",
+  "requiresMigration": true,
+  "requiresWebsiteRecovery": false,
+  "isFullyMigrated": false,
+  "readinessResolved": true,
+  "submissionSupported": false,
+  "requiredChainIds": [1],
+  "migratedChainIds": [],
+  "missingChainIds": [1],
+  "websiteRecoveryChainIds": [],
+  "unresolvedChainIds": [],
+  "chainReadiness": [
+    {
+      "chain": "mainnet",
+      "chainId": 1,
+      "status": "migration_required",
+      "candidateLegacyCommitments": 1,
+      "expectedLegacyCommitments": 1,
+      "migratedCommitments": 0,
+      "legacyMasterSeedNullifiedCount": 0,
+      "hasPostMigrationCommitments": false,
+      "isMigrated": false,
+      "legacySpendableCommitments": 1,
+      "upgradedSpendableCommitments": 0,
+      "declinedLegacyCommitments": 0,
+      "reviewStatusComplete": true,
+      "requiresMigration": true,
+      "requiresWebsiteRecovery": false,
+      "scopes": ["12345"]
+    }
+  ]
+}
+```
+
+When `readinessResolved` is `false`, treat the result as incomplete and review the account in the Privacy Pools website before acting on it. The CLI does not submit migration transactions.
+
 ### `history`
 
 ```bash
@@ -783,8 +909,17 @@ privacy-pools sync --agent [--asset <symbol>]
 | `PRIVACY_POOLS_PRIVATE_KEY` | Ethereum private key (alternative to init wizard) |
 | `PRIVACY_POOLS_HOME` | Override config directory (default: `~/.privacy-pools`) |
 | `PRIVACY_POOLS_CONFIG_DIR` | Alias for `PRIVACY_POOLS_HOME` |
+| `PRIVACY_POOLS_RPC_URL` | Override RPC URL for all chains |
+| `PP_RPC_URL` | Alias for `PRIVACY_POOLS_RPC_URL` |
+| `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
+| `PP_ASP_HOST` | Alias for `PRIVACY_POOLS_ASP_HOST` |
+| `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
+| `PP_RELAYER_HOST` | Alias for `PRIVACY_POOLS_RELAYER_HOST` |
+| `PRIVACY_POOLS_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PRIVACY_POOLS_RPC_URL_ARBITRUM`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
+| `PRIVACY_POOLS_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PRIVACY_POOLS_ASP_HOST_SEPOLIA`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
+| `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
@@ -831,13 +966,29 @@ All errors in JSON mode:
 | `PROOF_MALFORMED` | PROOF | No | Corrupt proof data |
 | `CONTRACT_NULLIFIER_ALREADY_SPENT` | CONTRACT | No | Pool Account already withdrawn |
 | `CONTRACT_INCORRECT_ASP_ROOT` | CONTRACT | Yes | State changed, regenerate proof |
+| `CONTRACT_UNKNOWN_STATE_ROOT` | CONTRACT | Yes | State root changed, regenerate proof |
+| `CONTRACT_CONTEXT_MISMATCH` | CONTRACT | No | Proof context does not match withdrawal |
 | `CONTRACT_INVALID_PROOF` | CONTRACT | No | Proof rejected on-chain |
 | `CONTRACT_INVALID_PROCESSOOOR` | CONTRACT | No | Wrong withdrawal mode |
+| `CONTRACT_INVALID_COMMITMENT` | CONTRACT | No | Selected Pool Account is no longer valid |
 | `CONTRACT_PRECOMMITMENT_ALREADY_USED` | CONTRACT | No | Duplicate precommitment, retry deposit |
 | `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | Wrong signer for exit |
+| `CONTRACT_NOT_YET_RAGEQUITTEABLE` | CONTRACT | Yes | Pool Account cannot be exited yet |
+| `CONTRACT_MAX_TREE_DEPTH_REACHED` | CONTRACT | No | Pool has reached max deposit capacity |
 | `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool not ready, wait and retry |
+| `CONTRACT_MINIMUM_DEPOSIT_AMOUNT` | CONTRACT | No | Deposit amount is below the pool minimum |
+| `CONTRACT_INVALID_DEPOSIT_VALUE` | CONTRACT | No | Deposit amount is too large |
+| `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No | Withdrawal amount is invalid |
+| `CONTRACT_POOL_NOT_FOUND` | CONTRACT | No | Requested pool is unavailable on this chain |
+| `CONTRACT_POOL_IS_DEAD` | CONTRACT | No | Pool no longer accepts activity |
+| `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` | CONTRACT | Yes | Relayer fee exceeds pool maximum |
+| `CONTRACT_INVALID_TREE_DEPTH` | CONTRACT | No | Proof inputs do not match pool tree depth |
+| `CONTRACT_NATIVE_ASSET_TRANSFER_FAILED` | CONTRACT | No | Native asset transfer to the destination failed |
 | `CONTRACT_INSUFFICIENT_FUNDS` | CONTRACT | No | Wallet lacks ETH for amount + gas |
 | `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | Nonce conflict; pending tx may be stuck |
+| `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | Legacy pre-upgrade account must be migrated in the website before CLI restore/sync |
+| `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | INPUT | No | Legacy declined deposits require website-based recovery before CLI restore/sync |
+| `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | Legacy ASP review data is incomplete; retry before acting on restore/sync |
 | `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
 | `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error |
 
@@ -858,11 +1009,14 @@ All errors in JSON mode:
 
 When `retryable: true`:
 1. `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
-2. `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent`, then retry.
-3. `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR`: wait 30-60s and retry.
+2. `CONTRACT_INCORRECT_ASP_ROOT` / `CONTRACT_UNKNOWN_STATE_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent`, then retry.
+3. `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR` / `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` / `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry.
 
 When `retryable: false`:
-4. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+4. `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
+5. `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
+6. `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
+7. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ---
 

@@ -16,7 +16,8 @@ Initialize wallet and configuration
 >   Signer key:     pays gas and sends transactions (can be set later)
 >   These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.
 > During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
-> Imported recovery phrases automatically recover older Pool Accounts during sync.
+> Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
+> Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
 > Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.
 
 ```bash
@@ -43,9 +44,108 @@ cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainn
 | `--force` | Overwrite existing configuration without prompting |
 
 **Safety:** The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
-**Safety:** Imported recovery phrases automatically recover older Pool Accounts during sync.
+**Safety:** Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
+**Safety:** Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
 
 **JSON output:** `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
+
+### `flow`
+
+Run the easy-path deposit-to-withdraw workflow
+
+Adds a persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands. Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.
+
+```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient...
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch
+privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt
+privacy-pools flow watch
+privacy-pools flow status latest
+privacy-pools flow ragequit latest
+```
+
+### `flow start`
+
+Deposit now and save a later private withdrawal workflow
+
+**Usage:** `privacy-pools flow start <amount> <asset> [options]`
+
+This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always withdraws the full remaining balance from the newly created Pool Account, and it never auto-ragequits.
+
+```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient...
+privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet
+privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
+```
+
+| Flag | Description |
+|------|-------------|
+| `-t, --to <address>` | Recipient address for the later private withdrawal |
+| `--new-wallet` | Create and use a dedicated wallet for this workflow |
+| `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
+| `--watch` | Keep watching this workflow until it finishes or pauses |
+
+**Safety:** The deposit is still public and reviewed by the ASP before private withdrawal is possible.
+**Safety:** In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.
+**Safety:** --export-new-wallet is only valid with --new-wallet.
+**Safety:** Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.
+**Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
+
+**JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+
+### `flow watch`
+
+Poll ASP approval and withdraw privately when ready
+
+**Usage:** `privacy-pools flow watch [workflowId] [options]`
+
+Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
+
+```bash
+privacy-pools flow watch
+privacy-pools flow watch latest --agent
+privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000
+```
+
+**Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical recovery path, and PoA-required workflows pause until the external Proof of Association step is completed.
+
+**JSON output:** `{ mode: "flow", action: "watch", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+
+### `flow status`
+
+Show the saved easy-path workflow state
+
+**Usage:** `privacy-pools flow status [workflowId] [options]`
+
+Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action. This is read-only and does not require init if the saved workflow already exists locally.
+
+```bash
+privacy-pools flow status
+privacy-pools flow status latest --agent
+privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000
+```
+
+**JSON output:** `{ mode: "flow", action: "status", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+
+### `flow ragequit`
+
+Recover a saved workflow publicly via ragequit
+
+**Usage:** `privacy-pools flow ragequit [workflowId] [options]`
+
+Uses the saved workflow context to perform the public recovery path without changing any manual commands. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
+
+```bash
+privacy-pools flow ragequit
+privacy-pools flow ragequit latest --agent
+privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
+```
+
+**Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
+**Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.
+
+**JSON output:** `{ mode: "flow", action: "ragequit", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
 
 ### `pools`
 
@@ -104,6 +204,8 @@ privacy-pools stats pool --asset USDC --agent --chain mainnet
 ### `stats global`
 
 Show global Privacy Pools statistics (all-time and last 24h)
+
+Always returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data.
 
 ```bash
 privacy-pools stats global
@@ -264,6 +366,40 @@ privacy-pools accounts --no-sync --chain mainnet
 | `--pending-only` | Show only pending ASP approvals |
 
 **JSON output:** `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
+
+### `migrate`
+
+Inspect legacy migration readiness on CLI-supported chains
+
+Read-only command for legacy pre-upgrade accounts on chains currently supported by the CLI. It rebuilds the legacy account view from the installed SDK plus current onchain events, then reports whether the Privacy Pools website migration flow or website-based recovery is needed. The CLI does not submit legacy migrations. Use the Privacy Pools website for actual migration or website-based recovery.
+
+```bash
+privacy-pools migrate status
+privacy-pools migrate status --chain mainnet
+privacy-pools migrate status --all-chains --agent
+```
+
+### `migrate status`
+
+Show legacy migration readiness on CLI-supported chains
+
+Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all mainnet chains by default. Use --all-chains to include testnets.
+
+```bash
+privacy-pools migrate status
+privacy-pools migrate status --chain mainnet
+privacy-pools migrate status --all-chains --agent
+```
+
+| Flag | Description |
+|------|-------------|
+| `--all-chains` | Include testnet chains (mainnet chains shown by default) |
+
+**Safety:** This command is read-only. It never submits migration transactions and does not persist rebuilt account state.
+**Safety:** When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.
+**Safety:** This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website.
+
+**JSON output:** `{ mode: "migration-status", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }`
 
 ### `history`
 
@@ -464,12 +600,20 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | Variable | Purpose |
 |----------|---------|
 | `PRIVACY_POOLS_HOME` | Override config directory |
+| `PRIVACY_POOLS_CONFIG_DIR` | Alias for `PRIVACY_POOLS_HOME` |
 | `PRIVACY_POOLS_PRIVATE_KEY` | Signer private key (takes precedence over `.signer` file) |
+| `PRIVACY_POOLS_RPC_URL` | Override RPC URL for all chains |
+| `PP_RPC_URL` | Alias for `PRIVACY_POOLS_RPC_URL` |
 | `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
+| `PP_ASP_HOST` | Alias for `PRIVACY_POOLS_ASP_HOST` |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
+| `PP_RELAYER_HOST` | Alias for `PRIVACY_POOLS_RELAYER_HOST` |
 | `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory (default: `~/.privacy-pools/circuits/v<sdk-version>`) |
+| `PRIVACY_POOLS_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PRIVACY_POOLS_RPC_URL_ARBITRUM`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
+| `PRIVACY_POOLS_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PRIVACY_POOLS_ASP_HOST_SEPOLIA`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
+| `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
@@ -534,6 +678,7 @@ npm unlink -g privacy-pools-cli
 ```bash
 bun run test              # fast default suite (excludes packaged smoke)
 bun run test:ci           # local mirror of required CI checks
+bun run test:release      # release-readiness suite (full Anvil matrix)
 bun run test:smoke        # packaged CLI smoke against a packed tarball
 bun run typecheck         # TypeScript type check (no emit)
 bun run circuits:provision # prefetch proof artifacts into the CLI home
@@ -547,6 +692,6 @@ bun run test:conformance:frontend # optional frontend parity (website access req
 bun run test:conformance:all # core conformance + frontend parity
 ```
 
-Use `bun run test` / `bun run test:ci` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts.
+Use `bun run test`, `bun run test:ci`, and `bun run test:release` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts.
 
 The Anvil E2E harness starts local ASP and relayer shims against a forked Sepolia state snapshot. Install Anvil via Foundry (`https://www.getfoundry.sh/anvil`) or set `PP_ANVIL_BIN` if `anvil` is not discoverable on your `PATH`.

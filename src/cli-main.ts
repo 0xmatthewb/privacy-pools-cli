@@ -208,6 +208,158 @@ function shouldStartUpdateCheck(
   return true;
 }
 
+interface MachineOutputBuffer {
+  value: string;
+}
+
+interface CommanderOutputOptions {
+  captureMachineOutput: boolean;
+  isWelcome: boolean;
+  isMachineMode: boolean;
+  styleCommanderHelp: ((value: string) => string) | null;
+  dangerTone: ((value: string) => string) | null;
+  machineOutput: MachineOutputBuffer;
+}
+
+function configureCommanderOutput(
+  program: Command,
+  options: CommanderOutputOptions,
+): void {
+  const {
+    captureMachineOutput,
+    isWelcome,
+    isMachineMode,
+    styleCommanderHelp,
+    dangerTone,
+    machineOutput,
+  } = options;
+
+  program.configureOutput({
+    writeOut: (str: string) => {
+      if (captureMachineOutput) {
+        machineOutput.value += str;
+        return;
+      }
+      if (isWelcome) return;
+      const styled = styleCommanderHelp ? styleCommanderHelp(str) : str;
+      process.stdout.write(styled);
+    },
+    writeErr: (str: string) => {
+      if (isWelcome) return;
+      if (!isMachineMode) process.stderr.write(str);
+    },
+    outputError: (str, write) => {
+      if (!isMachineMode && dangerTone) {
+        write(dangerTone(str));
+      }
+    },
+  });
+}
+
+function applyMachineMode(
+  cmd: Command,
+  options: Pick<
+    CommanderOutputOptions,
+    "captureMachineOutput" | "styleCommanderHelp" | "machineOutput"
+  >,
+): void {
+  cmd.showSuggestionAfterError(false);
+  cmd.showHelpAfterError(false);
+  cmd.configureOutput({
+    writeOut: (str: string) => {
+      if (options.captureMachineOutput) {
+        options.machineOutput.value += str;
+        return;
+      }
+      const styled = options.styleCommanderHelp
+        ? options.styleCommanderHelp(str)
+        : str;
+      process.stdout.write(styled);
+    },
+    writeErr: () => {},
+    outputError: () => {},
+  });
+  cmd.exitOverride();
+
+  for (const sub of cmd.commands) {
+    applyMachineMode(sub as Command, options);
+  }
+}
+
+function emitStructuredRootHelpIfNeeded(
+  program: Pick<Command, "helpInformation">,
+  options: {
+    isStructuredOutputMode: boolean;
+    isHelpLike: boolean;
+    isVersionLike: boolean;
+    firstCommandToken: string | undefined;
+  },
+): void {
+  const {
+    isStructuredOutputMode,
+    isHelpLike,
+    isVersionLike,
+    firstCommandToken,
+  } = options;
+
+  if (
+    isStructuredOutputMode &&
+    !isHelpLike &&
+    !isVersionLike &&
+    firstCommandToken === undefined
+  ) {
+    printJsonSuccess({
+      mode: "help",
+      help: program.helpInformation().trimEnd(),
+    });
+  }
+}
+
+function emitCommanderSignalPayload(
+  program: Pick<Command, "helpInformation">,
+  commanderCode: string | undefined,
+  options: {
+    captureMachineOutput: boolean;
+    isStructuredOutputMode: boolean;
+    machineOutput: MachineOutputBuffer;
+    version: string;
+  },
+): void {
+  const {
+    captureMachineOutput,
+    isStructuredOutputMode,
+    machineOutput,
+    version,
+  } = options;
+
+  if (captureMachineOutput) {
+    if (commanderCode === "commander.version") {
+      const versionLine = machineOutput.value.trim();
+      printJsonSuccess({
+        mode: "version",
+        version: versionLine || version,
+      });
+    } else {
+      printJsonSuccess({
+        mode: "help",
+        help: machineOutput.value.trimEnd(),
+      });
+    }
+  } else if (isStructuredOutputMode) {
+    if (commanderCode === "commander.version") {
+      printJsonSuccess({
+        mode: "version",
+        version,
+      });
+    } else {
+      printJsonSuccess({
+        mode: "help",
+        help: program.helpInformation().trimEnd(),
+      });
+    }
+  }
+}
+
 export async function runCli(
   pkg: CliPackageInfo,
   argv: string[] = process.argv.slice(2),
@@ -235,7 +387,7 @@ export async function runCli(
   const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
   const isWelcome =
     isWelcomeFlagOnlyInvocation(argv) && (!isMachineMode || isCsvMode);
-  let machineCapturedOut = "";
+  const machineOutput = { value: "" };
   const [chalk, dangerTone, styleCommanderHelp] = shouldStyleHelp
     ? await Promise.all([
         import("chalk").then((mod) => mod.default),
@@ -267,51 +419,21 @@ export async function runCli(
     program.showHelpAfterError(false);
   }
 
-  program.configureOutput({
-    writeOut: (str: string) => {
-      if (captureMachineOutput) {
-        machineCapturedOut += str;
-        return;
-      }
-      if (isWelcome) return;
-      const styled = styleCommanderHelp!(str);
-      process.stdout.write(styled);
-    },
-    writeErr: (str: string) => {
-      if (isWelcome) return;
-      if (!isMachineMode) process.stderr.write(str);
-    },
-    outputError: (str, write) => {
-      if (!isMachineMode) {
-        write(dangerTone!(str));
-      }
-    },
+  configureCommanderOutput(program, {
+    captureMachineOutput,
+    isWelcome,
+    isMachineMode,
+    styleCommanderHelp,
+    dangerTone,
+    machineOutput,
   });
 
   if (isMachineMode) {
-    const applyMachineMode = (cmd: Command): void => {
-      cmd.showSuggestionAfterError(false);
-      cmd.showHelpAfterError(false);
-      cmd.configureOutput({
-        writeOut: (str: string) => {
-          if (captureMachineOutput) {
-          machineCapturedOut += str;
-          return;
-        }
-          const styled = styleCommanderHelp ? styleCommanderHelp(str) : str;
-          process.stdout.write(styled);
-        },
-        writeErr: () => {},
-        outputError: () => {},
-      });
-      cmd.exitOverride();
-
-      for (const sub of cmd.commands) {
-        applyMachineMode(sub);
-      }
-    };
-
-    applyMachineMode(program);
+    applyMachineMode(program, {
+      captureMachineOutput,
+      styleCommanderHelp,
+      machineOutput,
+    });
   }
 
   const shouldCheckUpdates = shouldStartUpdateCheck(
@@ -327,17 +449,12 @@ export async function runCli(
     if (shouldCheckUpdates) {
       checkForUpdateInBackground();
     }
-    if (
-      isStructuredOutputMode &&
-      !isHelpLike &&
-      !isVersionLike &&
-      firstCommandToken === undefined
-    ) {
-      printJsonSuccess({
-        mode: "help",
-        help: program.helpInformation().trimEnd(),
-      });
-    }
+    emitStructuredRootHelpIfNeeded(program, {
+      isStructuredOutputMode,
+      isHelpLike,
+      isVersionLike,
+      firstCommandToken,
+    });
   } catch (err) {
     if (
       typeof err === "object" &&
@@ -369,32 +486,12 @@ export async function runCli(
       }
 
       const commanderCode = (err as { code?: string }).code;
-      if (captureMachineOutput) {
-        if (commanderCode === "commander.version") {
-          const versionLine = machineCapturedOut.trim();
-          printJsonSuccess({
-            mode: "version",
-            version: versionLine || pkg.version,
-          });
-        } else {
-          printJsonSuccess({
-            mode: "help",
-            help: machineCapturedOut.trimEnd(),
-          });
-        }
-      } else if (isStructuredOutputMode) {
-        if (commanderCode === "commander.version") {
-          printJsonSuccess({
-            mode: "version",
-            version: pkg.version,
-          });
-        } else {
-          printJsonSuccess({
-            mode: "help",
-            help: program.helpInformation().trimEnd(),
-          });
-        }
-      }
+      emitCommanderSignalPayload(program, commanderCode, {
+        captureMachineOutput,
+        isStructuredOutputMode,
+        machineOutput,
+        version: pkg.version,
+      });
       process.exit(0);
     }
 
@@ -411,3 +508,20 @@ export async function runCli(
     printError(err, isStructuredOutputMode);
   }
 }
+
+export const cliMainTestInternals = {
+  normalizeRepositoryUrl,
+  hasShortFlag,
+  readLongOptionValue,
+  isWelcomeShortFlagBundle,
+  firstNonOptionToken,
+  isWelcomeFlagOnlyInvocation,
+  configHome,
+  maybeLoadConfigEnv,
+  mapCommanderError,
+  shouldStartUpdateCheck,
+  configureCommanderOutput,
+  applyMachineMode,
+  emitStructuredRootHelpIfNeeded,
+  emitCommanderSignalPayload,
+};

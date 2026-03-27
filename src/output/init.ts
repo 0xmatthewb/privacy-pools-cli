@@ -48,7 +48,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     ? [
         createNextAction(
           "accounts",
-          "Sync and review your restored onchain Pool Accounts across all chains.",
+          "Sync and review your onchain Pool Accounts across all chains. Legacy pre-upgrade accounts may need website migration or website-based recovery first.",
           "after_restore",
           { options: { agent: true, allChains: true } },
         ),
@@ -69,7 +69,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     ? [
         createNextAction(
           "accounts",
-          "Sync and review your onchain Pool Accounts across all chains.",
+          "Sync and review your onchain Pool Accounts across all chains. Legacy pre-upgrade accounts may need website migration or website-based recovery first.",
           "after_restore",
           { options: { allChains: true } },
         ),

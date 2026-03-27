@@ -4,6 +4,27 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [1.7.0] - 2026-03-26
+
+### Added
+
+- **`flow` command**: Easy-path deposit-to-withdrawal workflow. `flow start` deposits into a pool and saves a local workflow; `flow watch` polls for ASP approval and privately withdraws the full balance to the saved recipient when ready. `flow status` inspects the saved workflow and `flow ragequit` provides public recovery for declined workflows.
+- **`--new-wallet` flag** (flow start only): Generates a dedicated per-workflow wallet, requires a backup before continuing, and waits for funding automatically. ETH flows wait for the full ETH target; ERC20 flows wait for both the token amount and a native ETH gas reserve.
+- **`migrate status` command**: Read-only check of legacy pre-upgrade account migration or recovery readiness on CLI-supported chains.
+
+### Changed
+
+- Onboarding and reference docs now surface `flow` as the recommended easy path and document `--new-wallet` and `migrate status` alongside the existing manual command surfaces.
+- Saved workflow handling is more robust across interrupts, local state persistence, and dedicated workflow wallet backups.
+
+### Verification
+
+- `npm test`
+- `npm run test:coverage`
+- `npm run test:e2e:anvil`
+- `npm run docs:check`
+- `npm run test:conformance`
+
 ## [1.6.1] - 2026-03-24
 
 ### Changed
@@ -245,6 +266,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Enabled GitHub Actions CI/CD workflows for the repository.
 - Completed the initial packaging and release flow.
 
+[1.7.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/0xmatthewb/privacy-pools-cli/compare/v1.4.0...v1.5.0

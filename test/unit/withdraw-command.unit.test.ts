@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   formatApprovalResolutionHint,
+  getEligibleUnapprovedStatuses,
   getRelayedWithdrawalRemainderAdvisory,
   normalizeRelayerQuoteExpirationMs,
   refreshExpiredRelayerQuoteForWithdrawal,
@@ -8,6 +9,61 @@ import {
 } from "../../src/commands/withdraw.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
+import type { PoolAccountRef } from "../../src/utils/pool-accounts.ts";
+
+function samplePoolAccount(
+  patch: Partial<PoolAccountRef> = {},
+): PoolAccountRef {
+  return {
+    paNumber: 1,
+    paId: "PA-1",
+    status: "approved",
+    aspStatus: "approved",
+    commitment: {
+      hash: 1n,
+      label: 11n,
+      value: 500n,
+      blockNumber: 10n,
+      txHash: "0x" + "aa".repeat(32),
+    },
+    label: 11n,
+    value: 500n,
+    blockNumber: 10n,
+    txHash: "0x" + "aa".repeat(32),
+    ...patch,
+  };
+}
+
+describe("getEligibleUnapprovedStatuses", () => {
+  test("returns the distinct non-approved statuses that can cover the withdrawal", () => {
+    expect(
+      getEligibleUnapprovedStatuses(
+        [
+          samplePoolAccount({ status: "approved", aspStatus: "approved" }),
+          samplePoolAccount({ paNumber: 2, paId: "PA-2", status: "pending", aspStatus: "pending" }),
+          samplePoolAccount({ paNumber: 3, paId: "PA-3", status: "poi_required", aspStatus: "poi_required" }),
+          samplePoolAccount({ paNumber: 4, paId: "PA-4", status: "declined", aspStatus: "declined" }),
+          samplePoolAccount({ paNumber: 5, paId: "PA-5", status: "unknown", aspStatus: "unknown" }),
+          samplePoolAccount({ paNumber: 6, paId: "PA-6", status: "pending", aspStatus: "pending" }),
+        ],
+        400n,
+      ),
+    ).toEqual(["pending", "poi_required", "declined", "unknown"]);
+  });
+
+  test("ignores Pool Accounts that are approved or too small", () => {
+    expect(
+      getEligibleUnapprovedStatuses(
+        [
+          samplePoolAccount({ status: "approved", aspStatus: "approved", value: 1_000n }),
+          samplePoolAccount({ paNumber: 2, paId: "PA-2", status: "pending", aspStatus: "pending", value: 100n }),
+          samplePoolAccount({ paNumber: 3, paId: "PA-3", status: "unknown", aspStatus: "unknown", value: 200n }),
+        ],
+        300n,
+      ),
+    ).toEqual([]);
+  });
+});
 
 describe("getRelayedWithdrawalRemainderAdvisory", () => {
   test("returns null when no remainder remains", () => {
@@ -52,6 +108,19 @@ describe("getRelayedWithdrawalRemainderAdvisory", () => {
 });
 
 describe("formatApprovalResolutionHint", () => {
+  test("explains pending Pool Accounts need more ASP review time", () => {
+    const hint = formatApprovalResolutionHint({
+      chainName: "sepolia",
+      assetSymbol: "ETH",
+      poolAccountId: "PA-3",
+      status: "pending",
+    });
+
+    expect(hint).toContain("ASP approval is required");
+    expect(hint).toContain("privacy-pools accounts --chain sepolia");
+    expect(hint).toContain("up to 7 days");
+  });
+
   test("explains declined Pool Accounts are exit-only", () => {
     const hint = formatApprovalResolutionHint({
       chainName: "sepolia",
@@ -86,7 +155,7 @@ describe("formatApprovalResolutionHint", () => {
       status: "unknown",
     });
 
-    expect(hint).toContain("privacy-pools accounts --agent --chain sepolia");
+    expect(hint).toContain("privacy-pools accounts --chain sepolia");
     expect(hint).toContain("Pending deposits need more time");
     expect(hint).toContain("declined deposits must use");
   });
@@ -181,6 +250,19 @@ describe("relayer quote helpers", () => {
     expect(refreshed.expirationMs).toBe(3_000_000);
   });
 
+  test("accepts a fresh relayer quote on the first attempt", async () => {
+    const refreshed = await refreshExpiredRelayerQuoteForWithdrawal({
+      nowMs: () => 1_000,
+      maxRelayFeeBPS: "250",
+      fetchQuote: async () => validQuote,
+    });
+
+    expect(refreshed.attempts).toBe(1);
+    expect(refreshed.quote).toEqual(validQuote);
+    expect(refreshed.quoteFeeBPS).toBe(250n);
+    expect(refreshed.expirationMs).toBe(4_102_444_800_000);
+  });
+
   test("fails closed when refreshed quotes stay expired", async () => {
     await expect(
       refreshExpiredRelayerQuoteForWithdrawal({
@@ -199,5 +281,15 @@ describe("relayer quote helpers", () => {
       category: "RELAYER",
       message: "Relayer returned stale/expired quotes repeatedly.",
     });
+  });
+
+  test("propagates quote validation failures while refreshing", async () => {
+    await expect(
+      refreshExpiredRelayerQuoteForWithdrawal({
+        nowMs: () => 1_000,
+        maxRelayFeeBPS: 100n,
+        fetchQuote: async () => validQuote,
+      }),
+    ).rejects.toThrow("exceeds onchain maximum");
   });
 });

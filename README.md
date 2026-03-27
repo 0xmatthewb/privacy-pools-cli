@@ -13,7 +13,7 @@ Compliant privacy on Ethereum, right from your terminal. Deposit funds publicly 
 ## Getting Started
 
 ```bash
-# 1. Initialize (creates a recovery phrase and signer key)
+# 1. Initialize (creates a 24-word recovery phrase and signer key)
 privacy-pools init
 
 # 2. See what's available
@@ -32,22 +32,35 @@ privacy-pools pools
 ```
 
 ```bash
-# 3. Deposit into a pool
+# 3. Easy path: deposit now, save the later private withdrawal, and resume when ready
+privacy-pools flow start 0.1 ETH --to 0xRecipient...
+privacy-pools flow watch                     # or pass --watch to flow start
+privacy-pools flow status latest            # inspect the saved workflow later
+privacy-pools flow ragequit latest          # public recovery path if the saved workflow is declined
+
+# 4. Manual path: deposit into a pool
 privacy-pools deposit 0.1 ETH
 
-# 4. Wait for ASP approval (most < 1 hour, up to 7 days)
+# 5. Wait for ASP approval (most < 1 hour, up to 7 days)
 privacy-pools accounts --chain mainnet --pending-only   # poll while the deposit remains pending
 privacy-pools accounts --chain mainnet                  # confirm approved vs declined vs PoA-needed before next step
 
-# 5. Withdraw privately to any address
+# 6. Withdraw privately to any address
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 ```
 
-Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that 0xbow's Association Set Provider (ASP) reviews. Once approved, you can withdraw privately through a relayer with no onchain connection to your deposit. If a deposit is marked `poi_required`, complete Proof of Association before withdrawing privately. If it is declined, the recovery path is `ragequit`, which exits publicly to your deposit address.
+### How it works
 
-You can recover your funds at any time, even if your deposit isn't approved. `privacy-pools ragequit ETH --from-pa PA-1` exits publicly to your deposit address.
+`flow start` deposits into a pool and saves a local workflow. Once 0xbow's Association Set Provider (ASP) approves it, `flow watch` privately withdraws the full balance to the saved recipient with no onchain link between deposit and withdrawal. Most approvals happen within an hour; some take up to 7 days.
 
-If you're restoring an existing recovery phrase with `privacy-pools init --mnemonic ...`, sync automatically recovers older Pool Accounts so they remain visible.
+With `--new-wallet`, the CLI generates a dedicated wallet for the workflow, asks you to back it up, then waits for you to fund it before continuing. Useful for one-off flows where you don't want to use your main signer.
+
+Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP reviews. You can always recover your funds, even without approval. `ragequit` exits publicly to your original deposit address, and `flow ragequit` does the same for saved workflows.
+
+The manual commands (`deposit`, `accounts`, `withdraw`) remain available when you need partial withdrawals, custom Pool Account selection, unsigned payloads, or dry-runs. See [docs/reference.md](docs/reference.md) for details.
+
+> [!TIP]
+> Restoring an existing account? Use `privacy-pools init --mnemonic "..."` and the CLI will sync your Pool Accounts automatically. For legacy pre-upgrade accounts, check `privacy-pools migrate status --all-chains`.
 
 ## Install
 
@@ -86,25 +99,33 @@ bun run start -- --help
 | `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
 | `init` | Set up wallet and config (run once) | |
+| `flow` | Easy-path deposit now, withdraw later workflow | Yes |
 | `deposit` | Deposit into a pool | Yes |
 | `withdraw` | Withdraw from a pool (relayed or direct) | Yes |
 | `ragequit` | Emergency exit without ASP approval (alias: `exit`) | Yes |
 | `accounts` | List Pool Accounts with balances and approval status | Yes |
+| `migrate` | Read-only legacy migration or recovery readiness on supported chains | Yes |
 | `history` | Chronological event log | Yes |
 | `sync` | Force-sync account state from onchain | Yes |
 | `completion` | Generate shell completions (bash/zsh/fish/powershell) | |
 
-All commands accept `--chain <name>` to override your default chain. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
+Most commands accept `--chain <name>` to override your default chain. `stats global` is the exception because it is always cross-chain. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
 
 ## Agent / Machine Mode
 
 Pass `--agent` (shorthand for `--json --yes --quiet`) for structured JSON on stdout, no prompts, no banners:
 
 ```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent
+privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt --agent
+privacy-pools flow watch latest --agent
+privacy-pools flow ragequit latest --agent
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 ```
+
+`flow` is the persisted easy path for demos and common happy-path usage. `--new-wallet` stays scoped to `flow` only; it does not change the manual command surfaces. The manual commands above remain unchanged for advanced control.
 
 Every response is wrapped in a versioned envelope:
 

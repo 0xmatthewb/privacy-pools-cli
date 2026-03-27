@@ -18,9 +18,9 @@ function toBigIntValue(value: BigNumberish, label: string): bigint {
 
 interface Groth16Like {
   proof: {
-    pi_a: [BigNumberish, BigNumberish, ...BigNumberish[]];
-    pi_b: [[BigNumberish, BigNumberish], [BigNumberish, BigNumberish], ...Array<[BigNumberish, BigNumberish]>];
-    pi_c: [BigNumberish, BigNumberish, ...BigNumberish[]];
+    pi_a: BigNumberish[];
+    pi_b: BigNumberish[][];
+    pi_c: BigNumberish[];
   };
   publicSignals: BigNumberish[];
 }
@@ -30,6 +30,23 @@ export interface SolidityProof {
   pB: [[bigint, bigint], [bigint, bigint]];
   pC: [bigint, bigint];
   pubSignals: bigint[];
+}
+
+export interface SolidityWithdrawProof extends Omit<SolidityProof, "pubSignals"> {
+  pubSignals: [
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+  ];
+}
+
+export interface SolidityRagequitProof extends Omit<SolidityProof, "pubSignals"> {
+  pubSignals: [bigint, bigint, bigint, bigint];
 }
 
 export interface UnsignedTransactionPayload {
@@ -150,6 +167,61 @@ export function toSolidityProof(raw: Groth16Like): SolidityProof {
     pubSignals: pubSignals.map((value: unknown, idx: number) =>
       toBigIntValue(value as BigNumberish, `publicSignals[${idx}]`)
     ),
+  };
+}
+
+function requirePublicSignals(
+  proof: SolidityProof,
+  expectedLength: number,
+  label: string,
+): bigint[] {
+  if (proof.pubSignals.length !== expectedLength) {
+    throw new CLIError(
+      `Malformed proof structure: expected ${expectedLength} public signals for ${label}.`,
+      "PROOF",
+      "Regenerate the proof and retry.",
+      "PROOF_MALFORMED"
+    );
+  }
+
+  return proof.pubSignals;
+}
+
+export function toWithdrawSolidityProof(
+  raw: Groth16Like,
+): SolidityWithdrawProof {
+  const proof = toSolidityProof(raw);
+  const pubSignals = requirePublicSignals(proof, 8, "withdraw");
+
+  return {
+    ...proof,
+    pubSignals: [
+      pubSignals[0],
+      pubSignals[1],
+      pubSignals[2],
+      pubSignals[3],
+      pubSignals[4],
+      pubSignals[5],
+      pubSignals[6],
+      pubSignals[7],
+    ],
+  };
+}
+
+export function toRagequitSolidityProof(
+  raw: Groth16Like,
+): SolidityRagequitProof {
+  const proof = toSolidityProof(raw);
+  const pubSignals = requirePublicSignals(proof, 4, "ragequit");
+
+  return {
+    ...proof,
+    pubSignals: [
+      pubSignals[0],
+      pubSignals[1],
+      pubSignals[2],
+      pubSignals[3],
+    ],
   };
 }
 

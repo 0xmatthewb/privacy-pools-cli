@@ -1,12 +1,12 @@
 ---
 name: privacy-pools-cli
-version: 1.6.1
+version: 1.7.0
 description: >
   Deposit, withdraw, and manage funds in Privacy Pools v1 on Ethereum, Arbitrum,
   and Optimism. Use when the user or agent needs to interact with Privacy Pools:
-  browsing pools, depositing, withdrawing, checking accounts and balances,
-  building unsigned transaction payloads for external signers, or querying
-  on-chain activity.
+  browsing pools, running the easy-path flow, depositing, withdrawing, checking
+  accounts and balances, building unsigned transaction payloads for external
+  signers, or querying on-chain activity.
 author: matthewb
 permissions:
   - filesystem:read
@@ -20,6 +20,7 @@ triggers:
   - pattern: privacy pool accounts
   - pattern: privacy pool ragequit
   - pattern: privacy pool exit
+  - pattern: privacy pool flow
   - pattern: unsigned deposit
   - pattern: unsigned withdraw
   - pattern: compliant withdrawal
@@ -43,6 +44,11 @@ Install from GitHub: `npm i -g github:0xmatthewb/privacy-pools-cli` or `bun add 
 | Discover capabilities | `privacy-pools capabilities --agent` | No wallet needed |
 | Describe one command | `privacy-pools describe withdraw quote --agent` | No wallet needed |
 | Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-mnemonic` | One-time setup |
+| Start easy flow | `privacy-pools flow start 0.1 ETH --to 0x... --agent` | Deposit now, save later private withdrawal |
+| Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet and waits for token funding plus ETH gas |
+| Watch easy flow | `privacy-pools flow watch latest --agent` | Wait for approval and withdraw privately when ready |
+| Check easy flow | `privacy-pools flow status latest --agent` | Inspect the saved workflow snapshot |
+| Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined saved workflow |
 | Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
 | Check accounts | `privacy-pools accounts --agent` | Dashboard view across all mainnet chains by default |
@@ -219,8 +225,17 @@ Responses include `"dryRun": true` and all validation results. Supported on: `de
 | `PRIVACY_POOLS_PRIVATE_KEY` | Ethereum private key (alternative to init wizard) |
 | `PRIVACY_POOLS_HOME` | Override config directory (default: `~/.privacy-pools`) |
 | `PRIVACY_POOLS_CONFIG_DIR` | Alias for `PRIVACY_POOLS_HOME` |
+| `PRIVACY_POOLS_RPC_URL` | Override RPC URL for all chains |
+| `PP_RPC_URL` | Alias for `PRIVACY_POOLS_RPC_URL` |
+| `PRIVACY_POOLS_ASP_HOST` | Override ASP host for all chains |
+| `PP_ASP_HOST` | Alias for `PRIVACY_POOLS_ASP_HOST` |
+| `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
+| `PP_RELAYER_HOST` | Alias for `PRIVACY_POOLS_RELAYER_HOST` |
+| `PRIVACY_POOLS_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PRIVACY_POOLS_RPC_URL_ARBITRUM`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
+| `PRIVACY_POOLS_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PRIVACY_POOLS_ASP_HOST_SEPOLIA`) |
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
+| `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
@@ -250,17 +265,32 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 1. privacy-pools capabilities --agent                                   # Discover all commands
 2. privacy-pools status --agent                                         # Check setup and health
 3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
-4. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
-5. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
-6. privacy-pools accounts --agent --chain <chain> --pending-only        # Approved entries disappear; confirm with accounts --agent --chain <chain>
-7. privacy-pools withdraw 0.1 ETH --to <addr> --agent                   # Withdraw
+4. privacy-pools flow start 0.1 ETH --to <addr> --agent                 # Easy path: deposit now, save later withdrawal
+5. privacy-pools flow watch latest --agent                              # Resume the saved workflow until it finishes or pauses
+6. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined
+```
+
+The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient once approved. `flow watch` is intentionally unbounded; if your automation needs a wall-clock limit, wrap it in an external timeout.
+
+`flow start` follows the same machine-mode non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. `flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow, requires a backup before continuing, and then waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts.
+
+For saved-workflow public recovery, `flow ragequit` uses the stored workflow wallet key for `walletMode = "new_wallet"`, but configured-wallet recovery only works when the active signer still matches the original depositor address saved with the workflow.
+
+Manual path remains available when you need custom Pool Account selection, partial withdrawals, direct withdrawals, unsigned payloads, or dry-runs:
+
+```
+1. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
+2. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
+3. privacy-pools accounts --agent --chain <chain> --pending-only        # Poll while pending; reviewed entries disappear from this view
+4. privacy-pools accounts --agent --chain <chain>                       # Confirm approved vs declined vs poi_required
+5. privacy-pools withdraw --all ETH --to <addr> --agent                 # Withdraw the full approved remainder
 ```
 
 **Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.
 
-When restoring an existing recovery phrase, sync automatically recovers older Pool Accounts so they remain discoverable.
+New CLI-generated recovery phrases use 24 words by default. Imported recovery phrases may still be 12 or 24 words.
 
-In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `accounts --agent --all-chains`.
+In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `accounts --agent --all-chains`. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely. Use `migrate status --agent --all-chains` for a read-only legacy readiness check on CLI-supported chains; the CLI does not submit migration transactions, and beta or website-only migration surfaces must still be reviewed in the website.
 
 In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when that tradeoff is intentional.
 
@@ -274,9 +304,10 @@ Exit codes: 0 (success), 1 (unknown), 2 (input), 3 (RPC), 4 (ASP), 5 (relayer), 
 
 Recommended retry strategy:
 - `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
-- `CONTRACT_INCORRECT_ASP_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent` first, then retry.
-- `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR`: wait 30-60s and retry.
-- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, the recovery path is `ragequit`.
+- `CONTRACT_INCORRECT_ASP_ROOT` / `CONTRACT_UNKNOWN_STATE_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent` first, then retry.
+- `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR` / `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` / `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry.
+- `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
+- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
 
 ---
 

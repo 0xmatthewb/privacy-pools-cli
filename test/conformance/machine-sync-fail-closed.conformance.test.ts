@@ -29,28 +29,35 @@ describe("machine sync fail-closed conformance", () => {
     expect(accountsSource).toContain('errorLabel: "Account"');
   });
 
-  test("syncAccountEvents fails closed in JSON mode on partial sync errors", () => {
-    expect(accountServiceSource).toContain("syncFailures > 0 && opts.isJson");
+  test("syncAccountEvents fails closed on partial sync errors", () => {
     expect(accountServiceSource).toContain("sync failed for");
     expect(accountServiceSource).toContain("isSyncFresh");
     expect(accountServiceSource).toContain("saveSyncMeta");
+    expect(accountServiceSource).toContain("Retry with a healthy RPC before using this data.");
   });
 
-  test("partial sync failures skip saveSyncMeta to force re-sync", () => {
-    // saveSyncMeta must be gated by syncFailures === 0 so that partial
-    // failures in human mode don't mark stale data as fresh.
-    expect(accountServiceSource).toContain("syncFailures === 0");
-    // The saveSyncMeta call must be inside the syncFailures === 0 guard
-    const guardPos = accountServiceSource.indexOf("syncFailures === 0");
-    const savePos = accountServiceSource.indexOf("saveSyncMeta", guardPos);
-    expect(guardPos).toBeGreaterThan(-1);
-    expect(savePos).toBeGreaterThan(guardPos);
-    // Ensure the guard is close to the save call (within the same block)
-    expect(savePos - guardPos).toBeLessThan(100);
+  test("partial sync failures skip account persistence entirely", () => {
+    const partialFailureGuard = accountServiceSource.indexOf(
+      "if (syncFailures > 0) {\n    throw new CLIError(",
+    );
+    const saveAccountPos = accountServiceSource.indexOf(
+      "saveAccount(chainId, accountService.account)",
+      partialFailureGuard,
+    );
+    const saveSyncMetaPos = accountServiceSource.indexOf(
+      "saveSyncMeta(chainId)",
+      saveAccountPos,
+    );
+
+    expect(partialFailureGuard).toBeGreaterThan(-1);
+    expect(saveAccountPos).toBeGreaterThan(partialFailureGuard);
+    expect(saveSyncMetaPos).toBeGreaterThan(saveAccountPos);
   });
 
   test("read-only sync flows rebuild legacy saved accounts before refresh", () => {
     expect(accountServiceSource).toContain("allowLegacyAccountRebuild");
+    expect(accountServiceSource).toContain("staleAccountRefreshRequiredError");
+    expect(accountServiceSource).toContain("staleAccountRefreshFailedError");
     expect(accountServiceSource).toContain("skipImmediateSync");
     expect(accountsSource).toContain("initializeAccountServiceWithState");
     expect(accountsSource).toContain("skip: opts.sync === false || skipImmediateSync");
@@ -58,5 +65,6 @@ describe("machine sync fail-closed conformance", () => {
     expect(historySource).toContain("skip: opts.sync === false || skipImmediateSync");
     expect(syncSource).toContain("initializeAccountServiceWithState");
     expect(syncSource).toContain("skip: skipImmediateSync");
+    expect(syncSource).toContain("strictSync: true");
   });
 });

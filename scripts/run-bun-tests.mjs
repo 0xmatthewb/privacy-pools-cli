@@ -2,6 +2,11 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
+import {
+  expandPathArgsWithExcludes,
+  hasExplicitTestTarget,
+  hasExplicitTimeoutArg,
+} from "./test-runner-args.mjs";
 
 const runId = `${process.pid}-${Date.now()}`;
 const TEMP_PREFIX = "pp-";
@@ -87,7 +92,7 @@ for (let i = 2; i < process.argv.length; i += 1) {
 // cases when the full suite is contending for CPU or network resources.
 // Keep a higher default for reliability, while still allowing explicit
 // --timeout values in package scripts or ad hoc runs to override it.
-const hasExplicitTimeout = forwardedArgs.includes("--timeout");
+const hasExplicitTimeout = hasExplicitTimeoutArg(forwardedArgs);
 if (!hasExplicitTimeout) {
   forwardedArgs.push("--timeout", "30000");
 }
@@ -95,21 +100,14 @@ if (!hasExplicitTimeout) {
 const bunArgs =
   excludedPaths.size === 0
     ? forwardedArgs
-    : forwardedArgs.flatMap((token) => {
-        if (token.startsWith("-") || !existsSync(token)) {
-          return [token];
-        }
+    : expandPathArgsWithExcludes(
+        forwardedArgs,
+        excludedPaths,
+        collectTestFiles,
+        process.cwd(),
+      );
 
-        return collectTestFiles(token).filter((candidate) => {
-          return !excludedPaths.has(resolve(candidate));
-        });
-      });
-
-const hasExplicitTestTarget = bunArgs.some((token) => {
-  return !token.startsWith("-") && existsSync(resolve(token));
-});
-
-if (!hasExplicitTestTarget) {
+if (!hasExplicitTestTarget(bunArgs, process.cwd())) {
   throw new Error(
     "No test files selected. Pass at least one test file or directory.",
   );

@@ -4,16 +4,21 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { buildChildProcessEnv } from "./child-env.ts";
+import {
+  registerProcessExitCleanup,
+  terminateChildProcess,
+} from "./process.ts";
 
 export interface AnvilInstance {
   proc: ChildProcess;
   port: number;
   url: string;
+  cleanup?: () => void;
 }
 
 interface LaunchAnvilOptions {
-  forkUrl: string;
   chainId: number;
+  forkUrl?: string;
   forkBlockNumber?: bigint;
 }
 
@@ -115,10 +120,13 @@ export async function launchAnvil(
   const args = [
     "--host", "127.0.0.1",
     "--port", String(port),
-    "--fork-url", options.forkUrl,
     "--chain-id", String(options.chainId),
     "--silent",
   ];
+
+  if (options.forkUrl) {
+    args.push("--fork-url", options.forkUrl);
+  }
 
   if (options.forkBlockNumber !== undefined) {
     args.push("--fork-block-number", options.forkBlockNumber.toString());
@@ -131,6 +139,7 @@ export async function launchAnvil(
     stdio: ["ignore", "ignore", "pipe"],
     env: buildChildProcessEnv(),
   });
+  const cleanupProcessExit = registerProcessExitCleanup(proc);
   const spawnFailure = new Promise<never>((_, reject) => {
     proc.once("error", reject);
   });
@@ -146,6 +155,7 @@ export async function launchAnvil(
   try {
     await Promise.race([waitForRpc(url), spawnFailure]);
   } catch (error) {
+    cleanupProcessExit();
     proc.kill();
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       throw new Error(
@@ -166,11 +176,16 @@ export async function launchAnvil(
     throw error;
   }
 
-  return { proc, port, url };
+  proc.stderr?.removeAllListeners("data");
+  proc.stderr?.destroy();
+  proc.unref();
+
+  return { proc, port, url, cleanup: cleanupProcessExit };
 }
 
-export function killAnvil(anvil: AnvilInstance): void {
-  anvil.proc.kill();
+export async function killAnvil(anvil: AnvilInstance): Promise<void> {
+  anvil.cleanup?.();
+  await terminateChildProcess(anvil.proc);
 }
 
 export async function setBalance(

@@ -14,6 +14,5 @@ const ARTIFACT_HASHES = {
 };
 
 export default {
-  "v1.1.1": { ...ARTIFACT_HASHES },
   "v1.2.0": { ...ARTIFACT_HASHES },
 };

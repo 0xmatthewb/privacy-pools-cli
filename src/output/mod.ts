@@ -66,6 +66,13 @@ export {
   type AccountsRenderData,
 } from "./accounts.js";
 export {
+  renderMigrationStatus,
+  type MigrationWarning,
+  type MigrationChainRenderData,
+  type MigrationRenderData,
+  type MigrationStatusSummary,
+} from "./migrate.js";
+export {
   renderHistoryNoPools,
   renderHistory,
   type HistoryPoolInfo,
@@ -81,6 +88,10 @@ export {
   type DepositDryRunData,
   type DepositSuccessData,
 } from "./deposit.js";
+export {
+  renderFlowResult,
+  type FlowRenderData,
+} from "./flow.js";
 export {
   renderRagequitDryRun,
   renderRagequitSuccess,

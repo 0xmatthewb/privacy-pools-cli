@@ -7,6 +7,7 @@ import {
 } from "viem/chains";
 import type { Address } from "viem";
 import type { ChainConfig } from "../types.js";
+import { resolveSharedAnvilChainOverride } from "./test-chain-overrides.js";
 
 function normalizedChainEnvSuffix(chainName: string): string {
   return chainName.replace(/[^a-z0-9]/gi, "_").toUpperCase();
@@ -32,9 +33,19 @@ function resolveHostOverride(
 export function resolveChainOverrides(config: ChainConfig): ChainConfig {
   const aspHostOverride = resolveHostOverride("ASP_HOST", config.name);
   const relayerHostOverride = resolveHostOverride("RELAYER_HOST", config.name);
-  if (!aspHostOverride && !relayerHostOverride) return config;
+  const sharedAnvilOverride = resolveSharedAnvilChainOverride(config);
+  if (
+    !aspHostOverride
+    && !relayerHostOverride
+    && !sharedAnvilOverride
+  ) {
+    return config;
+  }
+
   return {
     ...config,
+    entrypoint: (sharedAnvilOverride?.entrypoint ?? config.entrypoint) as Address,
+    startBlock: sharedAnvilOverride?.startBlock ?? config.startBlock,
     aspHost: aspHostOverride ?? config.aspHost,
     relayerHost: relayerHostOverride ?? config.relayerHost,
   };

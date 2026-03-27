@@ -16,9 +16,11 @@ const ROOT_OPTIONS_WITH_VALUE = new Set([
 
 const ROOT_COMMAND_NAMES = [
   "init",
+  "flow",
   "pools",
   "deposit",
   "accounts",
+  "migrate",
   "withdraw",
   "ragequit",
   "history",
@@ -40,11 +42,14 @@ const ROOT_COMMAND_ALIASES: Record<string, RootCommandName> = {
 
 const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   init: async () => (await import("./command-shells/init.js")).createInitCommand(),
+  flow: async () => (await import("./command-shells/flow.js")).createFlowCommand(),
   pools: async () => (await import("./command-shells/pools.js")).createPoolsCommand(),
   deposit: async () =>
     (await import("./command-shells/deposit.js")).createDepositCommand(),
   accounts: async () =>
     (await import("./command-shells/accounts.js")).createAccountsCommand(),
+  migrate: async () =>
+    (await import("./command-shells/migrate.js")).createMigrateCommand(),
   withdraw: async () =>
     (await import("./command-shells/withdraw.js")).createWithdrawCommand(),
   ragequit: async () =>

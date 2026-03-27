@@ -54,9 +54,9 @@ beforeAll(async () => {
   });
 });
 
-afterAll(() => {
-  killSyncGateRpcServer(rpcServer);
-  killDeploymentHintAspServer(aspServer);
+afterAll(async () => {
+  await killSyncGateRpcServer(rpcServer);
+  await killDeploymentHintAspServer(aspServer);
 });
 
 describe("deployment block hints", () => {

@@ -29,6 +29,7 @@ const ALL_FILES = [
 const TEMP_DIRS: string[] = [];
 const TEST_BYTES = new Uint8Array([1, 2, 3]);
 const TEST_HASH = "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81";
+
 function installedSdkTag(): string {
   const sdkPackageJsonPath = require.resolve(
     "@0xbow/privacy-pools-core-sdk/package.json"
@@ -51,6 +52,16 @@ function tempDir(): string {
   const dir = createTrackedTempDir("pp-circuits-");
   TEMP_DIRS.push(dir);
   return dir;
+}
+
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+function isArtifactDownloadUrl(url: string): boolean {
+  return url.startsWith("https://raw.githubusercontent.com/0xbow-io/privacy-pools-core/");
 }
 
 describe("circuits service", () => {
@@ -80,15 +91,18 @@ describe("circuits service", () => {
     delete process.env.PRIVACY_POOLS_CONFIG_DIR;
     installTestChecksums();
 
+    const artifactRequests: string[] = [];
     const fetchMock = mock((input: RequestInfo | URL) => {
-      expect(String(input)).toContain("raw.githubusercontent.com/0xbow-io/privacy-pools-core/");
+      const url = requestUrl(input);
+      expect(url).toContain("raw.githubusercontent.com/0xbow-io/privacy-pools-core/");
+      artifactRequests.push(url);
       return Promise.resolve(new Response(TEST_BYTES, { status: 200 }));
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
     const artifactsDir = await ensureCircuitArtifacts();
     expect(artifactsDir).toBe(resolve(dir));
-    expect(fetchMock).toHaveBeenCalledTimes(ALL_FILES.length);
+    expect(artifactRequests).toHaveLength(ALL_FILES.length);
 
     for (const filename of ALL_FILES) {
       expect(existsSync(join(dir, filename))).toBe(true);
@@ -156,6 +170,48 @@ describe("circuits service", () => {
     });
   });
 
+  test("retries transient artifact download failures before succeeding", async () => {
+    const dir = tempDir();
+    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
+    installTestChecksums();
+
+    let artifactAttempts = 0;
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      const url = requestUrl(input);
+      if (!isArtifactDownloadUrl(url)) {
+        return Promise.resolve(new Response("{}", { status: 200 }));
+      }
+
+      artifactAttempts += 1;
+      if (artifactAttempts <= 2) {
+        return Promise.resolve(new Response("busy", { status: 429 }));
+      }
+      return Promise.resolve(new Response(TEST_BYTES, { status: 200 }));
+    }) as typeof fetch;
+
+    await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(dir));
+    expect(artifactAttempts).toBe(ALL_FILES.length + 2);
+  });
+
+  test("does not retry permanent artifact download failures", async () => {
+    const dir = tempDir();
+    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
+    installTestChecksums();
+
+    let attempts = 0;
+    globalThis.fetch = mock(() => {
+      attempts += 1;
+      return Promise.resolve(new Response("missing", { status: 404 }));
+    }) as typeof fetch;
+
+    await expect(ensureCircuitArtifacts()).rejects.toMatchObject({
+      name: "CLIError",
+      category: "PROOF",
+      code: "PROOF_GENERATION_FAILED",
+    });
+    expect(attempts).toBe(1);
+  });
+
   test("rejects checksum mismatches for downloaded artifacts", async () => {
     const dir = tempDir();
     process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
@@ -176,6 +232,7 @@ describe("circuits service", () => {
     const manifest = sharedChecksumManifest as Record<string, Record<string, string>>;
 
     expect(manifest[installedSdkTag()]).toBeDefined();
+    expect(Object.keys(manifest)).toEqual([installedSdkTag()]);
     expect(Object.keys(manifest[installedSdkTag()])).toEqual([...ALL_FILES]);
   });
 });

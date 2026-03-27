@@ -1,6 +1,13 @@
-import { beforeAll, describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { spawn, spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import {
   CLI_CWD,
@@ -11,9 +18,23 @@ import {
 } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { npmBin } from "../helpers/npm-bin.ts";
+import {
+  killSyncGateRpcServer,
+  launchSyncGateRpcServer,
+  type SyncGateRpcServer,
+} from "../helpers/sync-gate-rpc-server.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+import {
+  interruptChildProcess,
+  terminateChildProcess,
+} from "../helpers/process.ts";
+import { waitForWorkflowSnapshotPhase } from "../helpers/workflow-snapshot.ts";
+import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+
+const PACKAGED_SMOKE_POOL =
+  "0x1234567890abcdef1234567890abcdef12345678" as const;
 
 function packedBaseNames(paths: Set<string>, prefix: string): string[] {
   return Array.from(new Set(
@@ -31,33 +52,10 @@ function sourceBaseNames(dir: string): string[] {
     .sort();
 }
 
-function packedFilePaths(packRoot: string): Set<string> {
-  const pack = spawnSync(
-    npmBin(),
-    ["pack", "--dry-run", "--ignore-scripts", "--json", "--silent"],
-    {
-      cwd: packRoot,
-      encoding: "utf8",
-      timeout: 30_000,
-      env: buildChildProcessEnv(),
-    },
-  );
-  expect(pack.status).toBe(0);
-  const output = `${pack.stdout}\n${pack.stderr}`.trim();
-  const jsonStart = output.indexOf("[");
-  const jsonEnd = output.lastIndexOf("]");
-  expect(jsonStart).toBeGreaterThanOrEqual(0);
-  expect(jsonEnd).toBeGreaterThan(jsonStart);
-
-  const manifest = JSON.parse(output.slice(jsonStart, jsonEnd + 1)) as Array<{
-    files?: Array<{ path?: string }>;
-  }>;
-  return new Set((manifest[0]?.files ?? []).map((entry) => entry.path));
-}
-
 interface PackedArtifact {
   packageRoot: string;
   binPath: string;
+  filePaths: Set<string>;
 }
 
 function sourcePackageJson(): {
@@ -93,15 +91,31 @@ function linkDeclaredProdDependencies(packageRoot: string): void {
   }
 }
 
+async function waitForCondition<T>(
+  label: string,
+  fn: () => T | null | undefined | Promise<T | null | undefined>,
+  timeoutMs: number = 15_000,
+  intervalMs: number = 100,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = await fn();
+    if (value !== null && value !== undefined) {
+      return value;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
 function packAndExtractCli(packRoot: string): PackedArtifact {
-  const packDir = createTrackedTempDir("pp-smoke-pack-");
   const extractDir = createTrackedTempDir("pp-smoke-extract-");
 
   const pack = spawnSync(
     npmBin(),
-    ["pack", packRoot, "--ignore-scripts", "--silent"],
+    ["pack", "--ignore-scripts", "--silent"],
     {
-      cwd: packDir,
+      cwd: packRoot,
       encoding: "utf8",
       timeout: 120_000,
       maxBuffer: 10 * 1024 * 1024,
@@ -113,7 +127,7 @@ function packAndExtractCli(packRoot: string): PackedArtifact {
   const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
   expect(tarballName).toBeTruthy();
 
-  const tarballPath = join(packDir, tarballName!);
+  const tarballPath = join(packRoot, tarballName!);
   const extract = spawnSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
     encoding: "utf8",
     timeout: 120_000,
@@ -128,6 +142,21 @@ function packAndExtractCli(packRoot: string): PackedArtifact {
   // workspace node_modules symlink would mask.
   linkDeclaredProdDependencies(packageRoot);
 
+  const listedFiles = spawnSync("tar", ["-tzf", tarballPath], {
+    encoding: "utf8",
+    timeout: 120_000,
+    maxBuffer: 10 * 1024 * 1024,
+    env: buildChildProcessEnv(),
+  });
+  expect(listedFiles.status).toBe(0);
+  const filePaths = new Set(
+    listedFiles.stdout
+      .trim()
+      .split(/\r?\n/g)
+      .filter((entry) => entry.length > 0)
+      .map((entry) => entry.replace(/^package\//, "")),
+  );
+
   const pkg = JSON.parse(
     readFileSync(join(packageRoot, "package.json"), "utf8"),
   ) as { bin?: string | Record<string, string> };
@@ -139,6 +168,7 @@ function packAndExtractCli(packRoot: string): PackedArtifact {
   return {
     packageRoot,
     binPath: join(packageRoot, binEntry!),
+    filePaths,
   };
 }
 
@@ -181,16 +211,44 @@ function runPackagedCli(
   };
 }
 
+function writeWorkflow(home: string, workflow: Record<string, unknown>): void {
+  const workflowDir = join(home, ".privacy-pools", "workflows");
+  mkdirSync(workflowDir, { recursive: true });
+  writeFileSync(
+    join(workflowDir, `${workflow.workflowId as string}.json`),
+    JSON.stringify(workflow, null, 2),
+    "utf8",
+  );
+}
+
 describe("packaged CLI smoke", () => {
   let home: string;
   let packed: PackedArtifact;
-  let packRoot: string;
+  let syncGateRpc: SyncGateRpcServer | null = null;
 
-  beforeAll(() => {
-    packRoot = createBuiltWorkspaceSnapshot();
+  beforeAll(async () => {
+    const packRoot = createBuiltWorkspaceSnapshot();
     packed = packAndExtractCli(packRoot);
     home = createTempHome("pp-smoke-dist-");
+    syncGateRpc = await launchSyncGateRpcServer({
+      chainId: CHAINS.sepolia.id,
+      entrypoint: CHAINS.sepolia.entrypoint,
+      poolAddress: PACKAGED_SMOKE_POOL,
+      scope: 12345n,
+      assetAddress: NATIVE_ASSET_ADDRESS,
+      assetSymbol: "ETH",
+      assetDecimals: 18,
+      gasPrice: 1n,
+      nativeBalance: 0n,
+      validDepositLog: true,
+    });
   }, 240_000);
+
+  afterAll(async () => {
+    if (syncGateRpc) {
+      await killSyncGateRpcServer(syncGateRpc);
+    }
+  });
 
   const runSmokeCli = (args: string[], options: CliRunOptions = {}) =>
     runPackagedCli(packed, args, options);
@@ -278,7 +336,7 @@ describe("packaged CLI smoke", () => {
       expect(initJson.success).toBe(true);
       expect(initJson.defaultChain).toBe("sepolia");
       expect(typeof initJson.recoveryPhrase).toBe("string");
-      expect(initJson.recoveryPhrase?.trim().split(/\s+/).length).toBeGreaterThanOrEqual(12);
+      expect(initJson.recoveryPhrase?.trim().split(/\s+/).length).toBe(24);
 
       const statusResult = runSmokeCli(["--agent", "status"], { home: initHome });
       expect(statusResult.status).toBe(0);
@@ -336,6 +394,188 @@ describe("packaged CLI smoke", () => {
       expect(json.success).toBe(false);
       expect(json.errorCode).toBe("INPUT_ERROR");
       expect(json.error.category).toBe("INPUT");
+    });
+
+    test("flow start --agent without --to: INPUT_ERROR exit 2", () => {
+      const result = runSmokeCli(["--agent", "flow", "start", "0.1", "ETH"], { home });
+      expect(result.status).toBe(2);
+      expect(result.stderr.trim()).toBe("");
+      const json = parseJsonOutput<{
+        success: boolean;
+        errorCode: string;
+        error: { category: string };
+      }>(result.stdout);
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.error.category).toBe("INPUT");
+    });
+  });
+
+  describe("saved flow smoke", () => {
+    test("flow start --new-wallet persists an awaiting_funding workflow from the packed artifact", async () => {
+      const flowHome = createTempHome("pp-smoke-flow-start-");
+      const exportPath = join(flowHome, "workflow-wallet.txt");
+      const initResult = runSmokeCli(
+        ["--agent", "init", "--show-mnemonic", "--default-chain", "sepolia"],
+        { home: flowHome, timeoutMs: 60_000 },
+      );
+      expect(initResult.status).toBe(0);
+
+      const child = spawn(
+        "node",
+        [
+          packed.binPath,
+          "--agent",
+          "--chain",
+          "sepolia",
+          "--rpc-url",
+          syncGateRpc!.url,
+          "flow",
+          "start",
+          "0.1",
+          "ETH",
+          "--to",
+          "0x4444444444444444444444444444444444444444",
+          "--new-wallet",
+          "--export-new-wallet",
+          exportPath,
+        ],
+        {
+          cwd: packed.packageRoot,
+          env: buildChildProcessEnv({
+            PRIVACY_POOLS_HOME: join(flowHome, ".privacy-pools"),
+          }),
+          stdio: "ignore",
+        },
+      );
+
+      try {
+        const snapshot = await waitForWorkflowSnapshotPhase(flowHome, "awaiting_funding");
+        const backupText = await waitForCondition(
+          "workflow wallet backup",
+          () => (existsSync(exportPath) ? readFileSync(exportPath, "utf8") : null),
+        );
+        expect(backupText).toContain("Privacy Pools Flow Wallet");
+        expect(snapshot.workflowId).toBeTruthy();
+        expect(snapshot.phase).toBe("awaiting_funding");
+        expect(snapshot.walletMode).toBe("new_wallet");
+        expect(snapshot.backupConfirmed).toBe(true);
+        expect(snapshot.requiredNativeFunding).toBeTruthy();
+        expect(snapshot.depositTxHash).toBeNull();
+
+        await interruptChildProcess(child);
+
+        const statusResult = runSmokeCli(["--agent", "flow", "status", "latest"], {
+          home: flowHome,
+        });
+        expect(statusResult.status).toBe(0);
+        const statusJson = parseJsonOutput<{
+          success: boolean;
+          workflowId: string;
+          phase: string;
+          walletMode: string;
+        }>(statusResult.stdout);
+        expect(statusJson.success).toBe(true);
+        expect(statusJson.workflowId).toBe(snapshot.workflowId);
+        expect(statusJson.phase).toBe("awaiting_funding");
+        expect(statusJson.walletMode).toBe("new_wallet");
+      } finally {
+        await terminateChildProcess(child);
+      }
+    });
+
+    test("flow status latest --agent reads the saved workflow from the packed artifact", () => {
+      const flowHome = createTempHome("pp-smoke-flow-status-");
+      writeWorkflow(flowHome, {
+        schemaVersion: "1.5.0",
+        workflowId: "wf-latest",
+        createdAt: "2026-03-24T12:00:00.000Z",
+        updatedAt: "2026-03-24T12:05:00.000Z",
+        phase: "paused_declined",
+        chain: "sepolia",
+        asset: "ETH",
+        assetDecimals: 18,
+        depositAmount: "10000000000000000",
+        recipient: "0x4444444444444444444444444444444444444444",
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        depositTxHash:
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        depositBlockNumber: "12345",
+        depositExplorerUrl: "https://example.test/deposit",
+        committedValue: "9950000000000000",
+        aspStatus: "declined",
+      });
+
+      const result = runSmokeCli(["--agent", "flow", "status", "latest"], {
+        home: flowHome,
+      });
+      expect(result.status).toBe(0);
+      expect(result.stderr.trim()).toBe("");
+
+      const json = parseJsonOutput<{
+        success: boolean;
+        mode: string;
+        action: string;
+        workflowId: string;
+        phase: string;
+      }>(result.stdout);
+      expect(json.success).toBe(true);
+      expect(json.mode).toBe("flow");
+      expect(json.action).toBe("status");
+      expect(json.workflowId).toBe("wf-latest");
+      expect(json.phase).toBe("paused_declined");
+    });
+
+    test("flow watch latest --agent resolves the newest saved workflow", () => {
+      const flowHome = createTempHome("pp-smoke-flow-watch-");
+      writeWorkflow(flowHome, {
+        schemaVersion: "1.5.0",
+        workflowId: "wf-older",
+        createdAt: "2026-03-24T12:00:00.000Z",
+        updatedAt: "2026-03-24T12:00:00.000Z",
+        phase: "completed",
+        chain: "sepolia",
+        asset: "ETH",
+        assetDecimals: 18,
+        depositAmount: "10000000000000000",
+        recipient: "0x4444444444444444444444444444444444444444",
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+      });
+      writeWorkflow(flowHome, {
+        schemaVersion: "1.5.0",
+        workflowId: "wf-latest",
+        createdAt: "2026-03-24T12:00:00.000Z",
+        updatedAt: "2026-03-24T12:10:00.000Z",
+        phase: "completed",
+        chain: "sepolia",
+        asset: "ETH",
+        assetDecimals: 18,
+        depositAmount: "10000000000000000",
+        recipient: "0x4444444444444444444444444444444444444444",
+        poolAccountId: "PA-2",
+        poolAccountNumber: 2,
+        withdrawTxHash:
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        withdrawBlockNumber: "12399",
+        withdrawExplorerUrl: "https://example.test/withdraw",
+      });
+
+      const result = runSmokeCli(["--agent", "flow", "watch", "latest"], {
+        home: flowHome,
+      });
+      expect(result.status).toBe(0);
+      expect(result.stderr.trim()).toBe("");
+
+      const json = parseJsonOutput<{
+        success: boolean;
+        workflowId: string;
+        phase: string;
+      }>(result.stdout);
+      expect(json.success).toBe(true);
+      expect(json.workflowId).toBe("wf-latest");
+      expect(json.phase).toBe("completed");
     });
   });
 
@@ -445,17 +685,16 @@ describe("packaged CLI smoke", () => {
   // ── Packaged artifact ──────────────────────────────────────────────────────
 
   test("npm pack includes dist entry point and package.json without orphaned command/output artifacts", () => {
-    const filePaths = packedFilePaths(packRoot);
-    const packedCommandNames = packedBaseNames(filePaths, "dist/commands/");
-    const packedOutputNames = packedBaseNames(filePaths, "dist/output/");
+    const packedCommandNames = packedBaseNames(packed.filePaths, "dist/commands/");
+    const packedOutputNames = packedBaseNames(packed.filePaths, "dist/output/");
     const sourcePkg = sourcePackageJson() as { bin?: unknown; dependencies?: unknown };
     const packedPkg = JSON.parse(
       readFileSync(join(packed.packageRoot, "package.json"), "utf8"),
     ) as { bin?: unknown; dependencies?: unknown };
 
-    expect(filePaths.has("dist/index.js")).toBe(true);
-    expect(filePaths.has("package.json")).toBe(true);
-    expect(filePaths.has("scripts/start-built-cli.mjs")).toBe(true);
+    expect(packed.filePaths.has("dist/index.js")).toBe(true);
+    expect(packed.filePaths.has("package.json")).toBe(true);
+    expect(packed.filePaths.has("scripts/start-built-cli.mjs")).toBe(true);
     expect(packedCommandNames).toEqual(sourceBaseNames("src/commands"));
     expect(packedOutputNames).toEqual(sourceBaseNames("src/output"));
     expect(packedPkg.bin).toEqual(sourcePkg.bin);
@@ -463,13 +702,11 @@ describe("packaged CLI smoke", () => {
   }, 30_000);
 
   test("npm pack includes docs referenced by shipped docs and capabilities", () => {
-    const filePaths = packedFilePaths(packRoot);
-
-    expect(filePaths.has("AGENTS.md")).toBe(true);
-    expect(filePaths.has("CHANGELOG.md")).toBe(true);
-    expect(filePaths.has("docs/reference.md")).toBe(true);
-    expect(filePaths.has("skills/privacy-pools-cli/SKILL.md")).toBe(true);
-    expect(filePaths.has("skills/privacy-pools-cli/reference.md")).toBe(true);
+    expect(packed.filePaths.has("AGENTS.md")).toBe(true);
+    expect(packed.filePaths.has("CHANGELOG.md")).toBe(true);
+    expect(packed.filePaths.has("docs/reference.md")).toBe(true);
+    expect(packed.filePaths.has("skills/privacy-pools-cli/SKILL.md")).toBe(true);
+    expect(packed.filePaths.has("skills/privacy-pools-cli/reference.md")).toBe(true);
 
     const capabilities = runSmokeCli(["--agent", "capabilities"], { home });
     expect(capabilities.status).toBe(0);
@@ -481,8 +718,8 @@ describe("packaged CLI smoke", () => {
       };
     }>(capabilities.stdout);
 
-    expect(filePaths.has(json.documentation?.reference ?? "")).toBe(true);
-    expect(filePaths.has(json.documentation?.agentGuide ?? "")).toBe(true);
-    expect(filePaths.has(json.documentation?.changelog ?? "")).toBe(true);
+    expect(packed.filePaths.has(json.documentation?.reference ?? "")).toBe(true);
+    expect(packed.filePaths.has(json.documentation?.agentGuide ?? "")).toBe(true);
+    expect(packed.filePaths.has(json.documentation?.changelog ?? "")).toBe(true);
   }, 30_000);
 }, 300_000);

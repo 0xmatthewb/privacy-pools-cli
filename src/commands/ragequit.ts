@@ -6,6 +6,7 @@ import type {
   AccountCommitment,
   Hash as SDKHash,
   PrivacyPoolAccount,
+  RagequitEvent,
 } from "@0xbow/privacy-pools-core-sdk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
@@ -45,7 +46,7 @@ import {
   renderRagequitDryRun,
   renderRagequitSuccess,
 } from "../output/ragequit.js";
-import { printRawTransactions, toSolidityProof } from "../utils/unsigned.js";
+import { printRawTransactions, toRagequitSolidityProof } from "../utils/unsigned.js";
 import { buildUnsignedRagequitOutput } from "../utils/unsigned-flows.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
@@ -594,7 +595,7 @@ export async function handleRagequitCommand(
         () =>
           proveCommitment(
             commitment.value,
-            BigInt(commitment.label.toString()),
+            commitment.label,
             commitment.nullifier,
             commitment.secret,
           ),
@@ -612,13 +613,13 @@ export async function handleRagequitCommand(
           poolAccountId: selectedPoolAccount.paId,
           selectedCommitmentLabel: commitment.label,
           selectedCommitmentValue: commitment.value,
-          proofPublicSignals: (proof as any).publicSignals?.length ?? 0,
+          proofPublicSignals: proof.publicSignals.length,
         });
         return;
       }
 
       if (isUnsigned) {
-        const solidityProof = toSolidityProof(proof as any);
+        const solidityProof = toRagequitSolidityProof(proof);
         const payload = buildUnsignedRagequitOutput({
           chainId: chainConfig.id,
           chainName: chainConfig.name,
@@ -648,7 +649,7 @@ export async function handleRagequitCommand(
 
       // Submit ragequit
       stageHeader(3, 3, "Submitting exit", silent);
-      const solidityProof = toSolidityProof(proof as any);
+      const solidityProof = toRagequitSolidityProof(proof);
       spin.text = "Submitting exit transaction...";
       const tx = await submitRagequit(
         chainConfig,
@@ -684,17 +685,18 @@ export async function handleRagequitCommand(
       try {
         // Mark the account as ragequit so it's excluded from getSpendableCommitments()
         try {
+          const ragequitEvent: RagequitEvent = {
+            ragequitter: signerAddress!,
+            commitment: commitment.hash,
+            label: commitment.label,
+            value: commitment.value,
+            blockNumber: receipt.blockNumber,
+            transactionHash: tx.hash as Hex,
+          };
           withSuppressedSdkStdoutSync(() =>
             accountService.addRagequitToAccount(
               commitment.label as unknown as SDKHash,
-              {
-                ragequitter: signerAddress,
-                commitment: commitment.hash,
-                label: commitment.label,
-                value: commitment.value,
-                blockNumber: receipt.blockNumber,
-                transactionHash: tx.hash as Hex,
-              } as any,
+              ragequitEvent,
             ),
           );
         } catch (err) {

@@ -8,6 +8,11 @@ import type { CommandHelpConfig } from "./help.js";
 
 export type CommandPath =
   | "init"
+  | "flow"
+  | "flow start"
+  | "flow watch"
+  | "flow status"
+  | "flow ragequit"
   | "pools"
   | "activity"
   | "stats"
@@ -22,6 +27,8 @@ export type CommandPath =
   | "withdraw quote"
   | "ragequit"
   | "accounts"
+  | "migrate"
+  | "migrate status"
   | "history"
   | "sync"
   | "completion";
@@ -55,7 +62,7 @@ interface CommandDescriptorSeed {
 export interface CommandMetadata {
   description: string;
   aliases?: string[];
-  help?: Omit<CommandHelpConfig, "overview">;
+  help?: CommandHelpConfig;
   capabilities?: CommandCapabilityMetadata;
   safeReadOnly?: boolean;
   agentsDocMarker?: string;
@@ -83,11 +90,12 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       safetyNotes: [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
-        "Imported recovery phrases automatically recover older Pool Accounts during sync.",
+        "Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.",
+        "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.",
       ],
       agentWorkflowNotes: [
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
-        "When importing an existing recovery phrase, nextActions points to accounts --agent --all-chains so restored Pool Accounts are discovered across mainnets and testnets.",
+        "When importing an existing recovery phrase, nextActions points to accounts --agent --all-chains so the CLI can check for Pool Accounts across mainnets and testnets.",
       ],
     },
     capabilities: {
@@ -107,6 +115,156 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     agentsDocMarker: "#### `init`",
+  },
+  flow: {
+    description: "Run the easy-path deposit-to-withdraw workflow",
+    help: {
+      overview: [
+        "Adds a persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands.",
+        "Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.",
+      ],
+      examples: [
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch",
+        "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
+        "privacy-pools flow watch",
+        "privacy-pools flow status latest",
+        "privacy-pools flow ragequit latest",
+      ],
+      prerequisites: "init for start/watch/ragequit; saved workflow for status",
+    },
+    capabilities: {
+      usage: "flow",
+      flags: ["start <amount> <asset> --to <address>", "watch [workflowId|latest]", "status [workflowId|latest]", "ragequit [workflowId|latest]"],
+      agentFlags: "start <amount> <asset> --to <address> --agent (or: watch/status/ragequit --agent)",
+      requiresInit: false,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: false,
+  },
+  "flow start": {
+    description: "Deposit now and save a later private withdrawal workflow",
+    help: {
+      overview: [
+        "This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient.",
+        "With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve.",
+        "The saved workflow always withdraws the full remaining balance from the newly created Pool Account, and it never auto-ragequits.",
+      ],
+      examples: [
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+        "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet",
+        "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent",
+      ],
+      prerequisites: "init",
+      jsonFields:
+        "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      safetyNotes: [
+        "The deposit is still public and reviewed by the ASP before private withdrawal is possible.",
+        "In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.",
+        "--export-new-wallet is only valid with --new-wallet.",
+        "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
+        "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.",
+      ],
+      agentWorkflowNotes: [
+        "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
+        "Use --watch to stay attached on configured-wallet workflows; otherwise the workflow is persisted locally and flow watch <workflowId> is the canonical resume path.",
+      ],
+    },
+    capabilities: {
+      usage: "flow start <amount> <asset> --to <address>",
+      flags: ["--to <address>", "--watch", "--new-wallet", "--export-new-wallet <path>"],
+      agentFlags: "--agent --to <address> [--watch] [--new-wallet] [--export-new-wallet <path>]",
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+  },
+  "flow watch": {
+    description: "Poll ASP approval and withdraw privately when ready",
+    help: {
+      overview: [
+        "Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external.",
+        "The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus.",
+        "Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.",
+        "flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.",
+      ],
+      examples: [
+        "privacy-pools flow watch",
+        "privacy-pools flow watch latest --agent",
+        "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000",
+      ],
+      prerequisites: "init",
+      jsonFields:
+        "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      safetyNotes: [
+        "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical recovery path, and PoA-required workflows pause until the external Proof of Association step is completed.",
+      ],
+      agentWorkflowNotes: [
+        "New-wallet workflows wait for funding automatically. ERC20 workflows require both the token amount and a native ETH gas reserve in the generated wallet before the public deposit can proceed.",
+        "When the saved Pool Account is approved, flow watch performs the relayed private withdrawal automatically using the saved recipient and the full remaining balance of that same Pool Account.",
+        "flow watch keeps polling until the saved workflow changes or finishes. If your automation should stop after a fixed duration, wrap the CLI call in your own external timeout.",
+      ],
+    },
+    capabilities: {
+      usage: "flow watch [workflowId|latest]",
+      flags: ["[workflowId|latest]"],
+      agentFlags: "--agent [workflowId|latest]",
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+  },
+  "flow status": {
+    description: "Show the saved easy-path workflow state",
+    help: {
+      overview: [
+        "Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action.",
+        "This is read-only and does not require init if the saved workflow already exists locally.",
+      ],
+      examples: [
+        "privacy-pools flow status",
+        "privacy-pools flow status latest --agent",
+        "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000",
+      ],
+      prerequisites: "saved workflow (usually created after init)",
+      jsonFields:
+        "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+    },
+    capabilities: {
+      usage: "flow status [workflowId|latest]",
+      flags: ["[workflowId|latest]"],
+      agentFlags: "--agent [workflowId|latest]",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+  },
+  "flow ragequit": {
+    description: "Recover a saved workflow publicly via ragequit",
+    help: {
+      overview: [
+        "Uses the saved workflow context to perform the public recovery path without changing any manual commands.",
+        "For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.",
+      ],
+      examples: [
+        "privacy-pools flow ragequit",
+        "privacy-pools flow ragequit latest --agent",
+        "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000",
+      ],
+      prerequisites: "init",
+      jsonFields:
+        "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      safetyNotes: [
+        "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
+        "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
+      ],
+    },
+    capabilities: {
+      usage: "flow ragequit [workflowId|latest]",
+      flags: ["[workflowId|latest]"],
+      agentFlags: "--agent [workflowId|latest]",
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
   },
   pools: {
     description: "List available pools and assets",
@@ -182,6 +340,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   "stats global": {
     description: "Show global Privacy Pools statistics (all-time and last 24h)",
     help: {
+      overview: [
+        "Always returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data.",
+      ],
       examples: [
         "privacy-pools stats global",
         "privacy-pools stats global --agent",
@@ -494,6 +655,64 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
 
     agentsDocMarker: "#### `accounts`",
   },
+  migrate: {
+    description: "Inspect legacy migration readiness on CLI-supported chains",
+    help: {
+      overview: [
+        "Read-only command for legacy pre-upgrade accounts on chains currently supported by the CLI. It rebuilds the legacy account view from the installed SDK plus current onchain events, then reports whether the Privacy Pools website migration flow or website-based recovery is needed.",
+        "The CLI does not submit legacy migrations. Use the Privacy Pools website for actual migration or website-based recovery.",
+      ],
+      examples: [
+        "privacy-pools migrate status",
+        "privacy-pools migrate status --chain mainnet",
+        "privacy-pools migrate status --all-chains --agent",
+      ],
+      prerequisites: "init",
+    },
+    capabilities: {
+      usage: "migrate",
+      flags: ["status [--all-chains]"],
+      agentFlags: "status --agent [--all-chains]",
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: true,
+  },
+  "migrate status": {
+    description: "Show legacy migration readiness on CLI-supported chains",
+    help: {
+      overview: [
+        "Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead.",
+        "Without --chain, migrate status checks all mainnet chains by default. Use --all-chains to include testnets.",
+      ],
+      examples: [
+        "privacy-pools migrate status",
+        "privacy-pools migrate status --chain mainnet",
+        "privacy-pools migrate status --all-chains --agent",
+      ],
+      prerequisites: "init",
+      jsonFields:
+        "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }",
+      safetyNotes: [
+        "This command is read-only. It never submits migration transactions and does not persist rebuilt account state.",
+        "When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.",
+        "This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website.",
+      ],
+      agentWorkflowNotes: [
+        "Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery.",
+      ],
+    },
+    capabilities: {
+      usage: "migrate status",
+      flags: ["--all-chains"],
+      agentFlags: "--agent [--all-chains]",
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: true,
+
+    agentsDocMarker: "#### `migrate status`",
+  },
   history: {
     description: "Show chronological event history (deposits, withdrawals, ragequits)",
     help: {
@@ -562,6 +781,11 @@ export const COMMAND_PATHS = Object.keys(COMMAND_METADATA) as CommandPath[];
 
 export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "init",
+  "flow",
+  "flow start",
+  "flow watch",
+  "flow status",
+  "flow ragequit",
   "pools",
   "activity",
   "stats",
@@ -572,6 +796,8 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "withdraw",
   "withdraw quote",
   "accounts",
+  "migrate",
+  "migrate status",
   "history",
   "sync",
   "status",
@@ -595,13 +821,35 @@ export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] = [
   { flag: "--timeout <seconds>", description: "Network/transaction timeout in seconds (default: 30)" },
 ];
 
+const CHAIN_GLOBAL_FLAG = "-c, --chain <name>";
+
+const CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>([
+  "stats",
+  "stats global",
+]);
+
+function supportedGlobalFlagMetadata(path: CommandPath): GlobalFlagMetadata[] {
+  return GLOBAL_FLAG_METADATA.filter((entry) => {
+    if (
+      entry.flag === CHAIN_GLOBAL_FLAG &&
+      CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS.has(path)
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
 const AGENT_WORKFLOW = [
   "1. privacy-pools status --agent",
   "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
   "3. privacy-pools pools --agent --chain <chain>",
-  "4. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>",
-  "5. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
-  "6. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>",
+  "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
+  "5. privacy-pools flow watch [workflowId|latest] --agent",
+  "6. privacy-pools flow ragequit [workflowId|latest] --agent  (if the saved workflow is declined)",
+  "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
+  "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
+  "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>",
 ];
 
 const AGENT_NOTES: Record<string, string> = {
@@ -667,7 +915,7 @@ function descriptorSeed(path: CommandPath): CommandDescriptorSeed {
     aliases: metadata.aliases ?? [],
     usage: capabilities.usage ?? path,
     flags: capabilities.flags ?? [],
-    globalFlags: GLOBAL_FLAG_METADATA.map(({ flag }) => flag),
+    globalFlags: supportedGlobalFlagMetadata(path).map(({ flag }) => flag),
     requiresInit: capabilities.requiresInit,
     expectedLatencyClass: capabilities.expectedLatencyClass ?? "fast",
     safeReadOnly: metadata.safeReadOnly ?? false,

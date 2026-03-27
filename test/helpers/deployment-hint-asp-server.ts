@@ -6,6 +6,10 @@ import {
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
 import { buildChildProcessEnv } from "./child-env.ts";
+import {
+  registerProcessExitCleanup,
+  terminateChildProcess,
+} from "./process.ts";
 
 interface DeploymentHintAspConfig {
   chainId: number;
@@ -18,6 +22,7 @@ export interface DeploymentHintAspServer {
   proc: ChildProcess;
   port: number;
   url: string;
+  cleanup?: () => void;
 }
 
 function parseConfigFromEnv(): DeploymentHintAspConfig {
@@ -109,9 +114,11 @@ export function launchDeploymentHintAspServer(
         PP_DEPLOYMENT_HINT_ASP_SCOPE: config.scope.toString(),
       }),
     });
+    const cleanupProcessExit = registerProcessExitCleanup(proc);
 
     let output = "";
     const timeout = setTimeout(() => {
+      cleanupProcessExit();
       proc.kill();
       reject(new Error("Deployment-hint ASP server did not start within 10s"));
     }, 10_000);
@@ -122,24 +129,37 @@ export function launchDeploymentHintAspServer(
       if (match) {
         clearTimeout(timeout);
         const port = Number(match[1]);
-        resolvePromise({ proc, port, url: `http://127.0.0.1:${port}` });
+        proc.stdout?.removeAllListeners("data");
+        proc.stdout?.destroy();
+        proc.unref();
+        resolvePromise({
+          proc,
+          port,
+          url: `http://127.0.0.1:${port}`,
+          cleanup: cleanupProcessExit,
+        });
       }
     });
 
     proc.on("error", (error) => {
       clearTimeout(timeout);
+      cleanupProcessExit();
       reject(error);
     });
 
     proc.on("exit", (code) => {
       clearTimeout(timeout);
+      cleanupProcessExit();
       reject(new Error(`Deployment-hint ASP server exited early with code ${code}`));
     });
   });
 }
 
-export function killDeploymentHintAspServer(server: DeploymentHintAspServer): void {
-  server.proc.kill();
+export async function killDeploymentHintAspServer(
+  server: DeploymentHintAspServer
+): Promise<void> {
+  server.cleanup?.();
+  await terminateChildProcess(server.proc);
 }
 
 if (import.meta.main) {

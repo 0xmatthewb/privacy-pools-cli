@@ -1,0 +1,687 @@
+import { afterAll, beforeAll, expect } from "bun:test";
+import { AccountService } from "@0xbow/privacy-pools-core-sdk";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { CHAINS } from "../../src/config/chains.ts";
+import { ACCOUNT_FILE_VERSION, serialize } from "../../src/services/account.ts";
+import {
+  TEST_MNEMONIC,
+  parseJsonOutput,
+  runCli,
+} from "../helpers/cli.ts";
+import {
+  killFixtureServer,
+  launchFixtureServer,
+  type FixtureServer,
+} from "../helpers/fixture-server.ts";
+import {
+  killSyncGateRpcServer,
+  launchSyncGateRpcServer,
+  type SyncGateRpcServer,
+} from "../helpers/sync-gate-rpc-server.ts";
+import {
+  assertExit,
+  assertJson,
+  assertStderrEmpty,
+  defineScenario,
+  defineScenarioSuite,
+  runCliStep,
+  seedHome,
+} from "./framework.ts";
+
+const mainnetChainConfig = CHAINS.mainnet;
+const arbitrumChainConfig = CHAINS.arbitrum;
+const optimismChainConfig = CHAINS.optimism;
+const sepoliaChainConfig = CHAINS.sepolia;
+const opSepoliaChainConfig = CHAINS["op-sepolia"];
+const mockPoolAddress = "0x1234567890abcdef1234567890abcdef12345678" as const;
+const mockScope = 12345n;
+
+let fixture: FixtureServer;
+let rpcServers: Record<string, SyncGateRpcServer>;
+
+function seedCachedAccount(home: string): void {
+  const accountsDir = join(home, ".privacy-pools", "accounts");
+  mkdirSync(accountsDir, { recursive: true });
+  writeFileSync(
+    join(accountsDir, `${sepoliaChainConfig.id}.json`),
+    serialize({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+      poolAccounts: new Map(),
+    }),
+    "utf8",
+  );
+}
+
+function seedStaleCachedAccount(home: string): void {
+  const accountsDir = join(home, ".privacy-pools", "accounts");
+  mkdirSync(accountsDir, { recursive: true });
+  writeFileSync(
+    join(accountsDir, `${sepoliaChainConfig.id}.json`),
+    serialize({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION - 1,
+      poolAccounts: new Map(),
+    }),
+    "utf8",
+  );
+}
+
+function commitment(
+  label: bigint,
+  hash: bigint,
+  value: bigint,
+  blockNumber: bigint,
+  txHash: `0x${string}`,
+) {
+  return {
+    label,
+    hash,
+    value,
+    blockNumber,
+    txHash,
+    nullifier: (label + 1000n) as any,
+    secret: (label + 2000n) as any,
+  };
+}
+
+function seedDetailedCachedAccount(
+  home: string,
+  chainId: number = sepoliaChainConfig.id,
+): void {
+  const accountsDir = join(home, ".privacy-pools", "accounts");
+  mkdirSync(accountsDir, { recursive: true });
+
+  const approved = commitment(
+    1n,
+    11n,
+    1_000_000_000_000_000_000n,
+    10n,
+    "0x1111111111111111111111111111111111111111111111111111111111111111",
+  );
+  const pending = commitment(
+    2n,
+    22n,
+    2_000_000_000_000_000_000n,
+    20n,
+    "0x2222222222222222222222222222222222222222222222222222222222222222",
+  );
+  const spentDeposit = commitment(
+    3n,
+    33n,
+    5_000_000_000_000_000_000n,
+    30n,
+    "0x3333333333333333333333333333333333333333333333333333333333333333",
+  );
+  const spentChild = commitment(
+    3n,
+    333n,
+    0n,
+    31n,
+    "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  );
+  const exited = commitment(
+    4n,
+    44n,
+    4_000_000_000_000_000_000n,
+    40n,
+    "0x4444444444444444444444444444444444444444444444444444444444444444",
+  );
+
+  writeFileSync(
+    join(accountsDir, `${chainId}.json`),
+    serialize({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map([
+        [
+          mockScope,
+          [
+            { label: approved.label as any, deposit: approved, children: [] },
+            { label: pending.label as any, deposit: pending, children: [] },
+            {
+              label: spentDeposit.label as any,
+              deposit: spentDeposit,
+              children: [spentChild],
+            },
+            {
+              label: exited.label as any,
+              deposit: exited,
+              children: [],
+              ragequit: {
+                ragequitter: "0x1111111111111111111111111111111111111111",
+                commitment: exited.hash as any,
+                label: exited.label as any,
+                value: exited.value,
+                blockNumber: 444n,
+                transactionHash:
+                  "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              },
+            },
+          ],
+        ],
+      ]),
+    }),
+    "utf8",
+  );
+}
+
+function testEnv() {
+  return {
+    PRIVACY_POOLS_ASP_HOST: fixture.url,
+    PRIVACY_POOLS_RPC_URL_ETHEREUM: rpcServers.mainnet.url,
+    PRIVACY_POOLS_RPC_URL_ARBITRUM: rpcServers.arbitrum.url,
+    PRIVACY_POOLS_RPC_URL_OPTIMISM: rpcServers.optimism.url,
+    PRIVACY_POOLS_RPC_URL_SEPOLIA: rpcServers.sepolia.url,
+    PRIVACY_POOLS_RPC_URL_OP_SEPOLIA: rpcServers["op-sepolia"].url,
+  };
+}
+
+beforeAll(async () => {
+  fixture = await launchFixtureServer();
+  rpcServers = {
+    mainnet: await launchSyncGateRpcServer({
+      chainId: mainnetChainConfig.id,
+      entrypoint: mainnetChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+    arbitrum: await launchSyncGateRpcServer({
+      chainId: arbitrumChainConfig.id,
+      entrypoint: arbitrumChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+    optimism: await launchSyncGateRpcServer({
+      chainId: optimismChainConfig.id,
+      entrypoint: optimismChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+    sepolia: await launchSyncGateRpcServer({
+      chainId: sepoliaChainConfig.id,
+      entrypoint: sepoliaChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+    "op-sepolia": await launchSyncGateRpcServer({
+      chainId: opSepoliaChainConfig.id,
+      entrypoint: opSepoliaChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+    }),
+  };
+});
+
+afterAll(async () => {
+  for (const server of Object.values(rpcServers)) {
+    await killSyncGateRpcServer(server);
+  }
+  await killFixtureServer(fixture);
+});
+
+defineScenarioSuite("no-sync acceptance", [
+  defineScenario(
+    "sync-enabled refresh upgrades stale cached state and restores history",
+    [
+      seedHome("sepolia"),
+      async (ctx) => {
+        seedStaleCachedAccount(ctx.home);
+
+        const seededAccount = new AccountService(
+          {} as ConstructorParameters<typeof AccountService>[0],
+          { mnemonic: TEST_MNEMONIC },
+        );
+        const { precommitment } = seededAccount.createDepositSecrets(
+          mockScope,
+          0n,
+        );
+
+        const rebuildRpc = await launchSyncGateRpcServer({
+          chainId: sepoliaChainConfig.id,
+          entrypoint: sepoliaChainConfig.entrypoint,
+          poolAddress: mockPoolAddress,
+          scope: mockScope,
+          depositCommitment: 1n,
+          depositLabel: 2n,
+          depositValue: 3n,
+          depositPrecommitment: precommitment,
+        });
+
+        try {
+          const accountsResult = runCli(
+            ["--json", "--chain", "sepolia", "accounts"],
+            {
+              home: ctx.home,
+              timeoutMs: 20_000,
+              env: {
+                ...testEnv(),
+                PRIVACY_POOLS_RPC_URL_SEPOLIA: rebuildRpc.url,
+              },
+            },
+          );
+
+          expect(accountsResult.status).toBe(0);
+          const accountsJson = parseJsonOutput<{
+            success: boolean;
+            accounts: Array<{ poolAccountId: string; value: string }>;
+          }>(accountsResult.stdout);
+          expect(accountsJson.success).toBe(true);
+          expect(accountsJson.accounts).toEqual([
+            expect.objectContaining({
+              poolAccountId: "PA-1",
+              value: "3",
+            }),
+          ]);
+
+          const historyResult = runCli(
+            ["--json", "--chain", "sepolia", "history"],
+            {
+              home: ctx.home,
+              timeoutMs: 20_000,
+              env: {
+                ...testEnv(),
+                PRIVACY_POOLS_RPC_URL_SEPOLIA: rebuildRpc.url,
+              },
+            },
+          );
+
+          expect(historyResult.status).toBe(0);
+          const historyJson = parseJsonOutput<{
+            success: boolean;
+            events: unknown[];
+          }>(historyResult.stdout);
+          expect(historyJson.success).toBe(true);
+          expect(historyJson.events).toHaveLength(1);
+          expect(historyJson.events[0]).toEqual(
+            expect.objectContaining({
+              type: "deposit",
+              poolAccountId: "PA-1",
+              value: "3",
+            }),
+          );
+
+          const accountFile = readFileSync(
+            join(
+              ctx.home,
+              ".privacy-pools",
+              "accounts",
+              `${sepoliaChainConfig.id}.json`,
+            ),
+            "utf8",
+          );
+          expect(accountFile).toContain('"masterKeys"');
+          expect(accountFile).toContain(
+            `"__privacyPoolsCliAccountVersion": ${ACCOUNT_FILE_VERSION}`,
+          );
+        } finally {
+          await killSyncGateRpcServer(rebuildRpc);
+        }
+      },
+    ],
+    { timeoutMs: 30_000 },
+  ),
+  defineScenario(
+    "accounts and history use cached state with --no-sync when log RPC is unavailable",
+    [
+      seedHome("sepolia"),
+      (ctx) => {
+        seedCachedAccount(ctx.home);
+      },
+      (ctx) =>
+        runCliStep(["--json", "--chain", "sepolia", "accounts"], {
+          timeoutMs: 20_000,
+          env: testEnv(),
+        })(ctx),
+      assertExit(3),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        error: { category: string };
+      }>((json) => {
+        expect(json.success).toBe(false);
+        expect(json.error.category).toBe("RPC");
+      }),
+      (ctx) =>
+        runCliStep(["--json", "--chain", "sepolia", "accounts", "--no-sync"], {
+          timeoutMs: 20_000,
+          env: testEnv(),
+        })(ctx),
+      assertExit(0),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        chain: string;
+        accounts: unknown[];
+        balances: unknown[];
+      }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.chain).toBe("sepolia");
+        expect(json.accounts).toEqual([]);
+        expect(Array.isArray(json.balances)).toBe(true);
+      }),
+      (ctx) =>
+        runCliStep(["--json", "--chain", "sepolia", "history"], {
+          timeoutMs: 20_000,
+          env: testEnv(),
+        })(ctx),
+      assertExit(3),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        error: { category: string };
+      }>((json) => {
+        expect(json.success).toBe(false);
+        expect(json.error.category).toBe("RPC");
+      }),
+      (ctx) =>
+        runCliStep(["--json", "--chain", "sepolia", "history", "--no-sync"], {
+          timeoutMs: 20_000,
+          env: testEnv(),
+        })(ctx),
+      assertExit(0),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        chain: string;
+        events: unknown[];
+      }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.chain).toBe("sepolia");
+        expect(json.events).toEqual([]);
+      }),
+    ],
+    { timeoutMs: 30_000 },
+  ),
+  defineScenario(
+    "accounts --no-sync summary and pending-only reflect cached status and next actions",
+    [
+      seedHome("sepolia"),
+      (ctx) => {
+        seedDetailedCachedAccount(ctx.home);
+      },
+      (ctx) =>
+        runCliStep(
+          ["--json", "--chain", "sepolia", "accounts", "--no-sync", "--summary"],
+          {
+            timeoutMs: 20_000,
+            env: testEnv(),
+          },
+        )(ctx),
+      assertExit(0),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        chain: string;
+        pendingCount: number;
+        approvedCount: number;
+        poiRequiredCount: number;
+        declinedCount: number;
+        unknownCount: number;
+        spentCount: number;
+        exitedCount: number;
+        balances: Array<{
+          asset: string;
+          balance: string;
+          usdValue: string | null;
+          poolAccounts: number;
+        }>;
+        nextActions?: Array<{ command: string }>;
+        accounts?: unknown[];
+      }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.chain).toBe("sepolia");
+        expect(json.accounts).toBeUndefined();
+        expect(json.pendingCount).toBe(1);
+        expect(json.approvedCount).toBe(1);
+        expect(json.poiRequiredCount).toBe(0);
+        expect(json.declinedCount).toBe(0);
+        expect(json.unknownCount).toBe(0);
+        expect(json.spentCount).toBe(1);
+        expect(json.exitedCount).toBe(1);
+        expect(json.balances).toEqual([
+          {
+            asset: "ETH",
+            balance: "3000000000000000000",
+            usdValue: null,
+            poolAccounts: 2,
+          },
+        ]);
+        expect(json.nextActions?.map((action) => action.command)).toEqual([
+          "accounts",
+        ]);
+      }),
+      (ctx) =>
+        runCliStep(
+          [
+            "--json",
+            "--chain",
+            "sepolia",
+            "accounts",
+            "--no-sync",
+            "--pending-only",
+          ],
+          {
+            timeoutMs: 20_000,
+            env: testEnv(),
+          },
+        )(ctx),
+      assertExit(0),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        chain: string;
+        pendingCount: number;
+        accounts: Array<{
+          poolAccountId: string;
+          aspStatus: string;
+          status: string;
+          value: string;
+        }>;
+        balances?: unknown[];
+        nextActions?: Array<{
+          command: string;
+          options?: Record<string, boolean | string>;
+        }>;
+      }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.chain).toBe("sepolia");
+        expect(json.pendingCount).toBe(1);
+        expect(json.accounts).toHaveLength(1);
+        expect(json.accounts[0]?.poolAccountId).toBe("PA-2");
+        expect(json.accounts[0]?.aspStatus).toBe("pending");
+        expect(json.accounts[0]?.status).toBe("pending");
+        expect(json.accounts[0]?.value).toBe("2000000000000000000");
+        expect(json.balances).toBeUndefined();
+        expect(json.nextActions).toHaveLength(1);
+        expect(json.nextActions?.[0]?.command).toBe("accounts");
+        expect(json.nextActions?.[0]?.options).toEqual({
+          agent: true,
+          chain: "sepolia",
+          pendingOnly: true,
+        });
+      }),
+    ],
+    { timeoutMs: 30_000 },
+  ),
+  defineScenario(
+    "mainnet pending-only aggregation stays cached, partial-failure tolerant, and poll-oriented",
+    [
+      seedHome("mainnet"),
+      (ctx) => {
+        seedDetailedCachedAccount(ctx.home, mainnetChainConfig.id);
+        seedDetailedCachedAccount(ctx.home, arbitrumChainConfig.id);
+      },
+      (ctx) =>
+        runCliStep(["--agent", "accounts", "--no-sync", "--pending-only"], {
+          timeoutMs: 30_000,
+          env: {
+            ...testEnv(),
+            PRIVACY_POOLS_ASP_HOST_OPTIMISM: "http://127.0.0.1:9",
+          },
+        })(ctx),
+      assertExit(0),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        chain: string;
+        chains: string[];
+        warnings?: Array<{ chain: string; category: string; message: string }>;
+        pendingCount: number;
+        accounts: Array<{
+          poolAccountId: string;
+          aspStatus: string;
+          chain: string;
+          chainId: number;
+        }>;
+        balances?: unknown[];
+        nextActions?: Array<{
+          command: string;
+          reason: string;
+          when: string;
+          options?: Record<string, boolean | string>;
+        }>;
+      }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.chain).toBe("all-mainnets");
+        expect(json.chains).toEqual(["mainnet", "arbitrum", "optimism"]);
+        expect(json.pendingCount).toBe(2);
+        expect(json.accounts).toHaveLength(2);
+        expect(
+          json.accounts.every((account) => account.aspStatus === "pending"),
+        ).toBe(true);
+        expect(json.accounts.map((account) => account.chain)).toEqual([
+          "mainnet",
+          "arbitrum",
+        ]);
+        expect(json.accounts.map((account) => account.chainId)).toEqual([
+          1,
+          42161,
+        ]);
+        expect(json.accounts.map((account) => account.poolAccountId)).toEqual([
+          "PA-2",
+          "PA-2",
+        ]);
+        expect(json.balances).toBeUndefined();
+        expect(json.warnings).toHaveLength(1);
+        expect(json.warnings?.[0]?.chain).toBe("optimism");
+        expect(json.nextActions).toEqual([
+          {
+            command: "accounts",
+            reason:
+              "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
+            when: "has_pending",
+            options: { agent: true, pendingOnly: true },
+          },
+        ]);
+      }),
+    ],
+    { timeoutMs: 30_000 },
+  ),
+  defineScenario(
+    "all-chains summary includes cached testnets and chain metadata",
+    [
+      seedHome("mainnet"),
+      (ctx) => {
+        for (const chainId of [
+          mainnetChainConfig.id,
+          arbitrumChainConfig.id,
+          optimismChainConfig.id,
+          sepoliaChainConfig.id,
+          opSepoliaChainConfig.id,
+        ]) {
+          seedDetailedCachedAccount(ctx.home, chainId);
+        }
+      },
+      (ctx) =>
+        runCliStep(
+          ["--agent", "accounts", "--no-sync", "--all-chains", "--summary"],
+          {
+            timeoutMs: 30_000,
+            env: testEnv(),
+          },
+        )(ctx),
+      assertExit(0),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        chain: string;
+        allChains?: boolean;
+        chains: string[];
+        pendingCount: number;
+        approvedCount: number;
+        poiRequiredCount: number;
+        declinedCount: number;
+        unknownCount: number;
+        spentCount: number;
+        exitedCount: number;
+        balances: Array<{
+          asset: string;
+          balance: string;
+          poolAccounts: number;
+          chain: string;
+          chainId: number;
+        }>;
+        nextActions?: Array<{
+          command: string;
+          reason: string;
+          when: string;
+          options?: Record<string, boolean | string>;
+        }>;
+      }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.chain).toBe("all-chains");
+        expect(json.allChains).toBe(true);
+        expect(json.chains).toEqual([
+          "mainnet",
+          "arbitrum",
+          "optimism",
+          "sepolia",
+          "op-sepolia",
+        ]);
+        expect(json.pendingCount).toBe(5);
+        expect(json.approvedCount).toBe(5);
+        expect(json.poiRequiredCount).toBe(0);
+        expect(json.declinedCount).toBe(0);
+        expect(json.unknownCount).toBe(0);
+        expect(json.spentCount).toBe(5);
+        expect(json.exitedCount).toBe(5);
+        expect(json.balances).toHaveLength(5);
+        expect(json.balances.map((balance) => balance.chain)).toEqual([
+          "mainnet",
+          "arbitrum",
+          "optimism",
+          "sepolia",
+          "op-sepolia",
+        ]);
+        expect(json.balances.map((balance) => balance.chainId)).toEqual([
+          1,
+          42161,
+          10,
+          11155111,
+          11155420,
+        ]);
+        expect(json.balances.every((balance) => balance.asset === "ETH")).toBe(
+          true,
+        );
+        expect(
+          json.balances.every(
+            (balance) => balance.balance === "3000000000000000000",
+          ),
+        ).toBe(true);
+        expect(
+          json.balances.every((balance) => balance.poolAccounts === 2),
+        ).toBe(true);
+        expect(json.nextActions).toEqual([
+          {
+            command: "accounts",
+            reason:
+              "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
+            when: "has_pending",
+            options: { agent: true, allChains: true, pendingOnly: true },
+          },
+        ]);
+      }),
+    ],
+    { timeoutMs: 30_000 },
+  ),
+]);

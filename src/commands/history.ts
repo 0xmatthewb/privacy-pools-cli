@@ -154,8 +154,6 @@ export async function handleHistoryCommand(
       silent,
     );
 
-    const mnemonic = loadMnemonic();
-
     const spin = spinner("Loading history...", silent);
     spin.start();
 
@@ -167,6 +165,8 @@ export async function handleHistoryCommand(
       renderHistoryNoPools(ctx, chainConfig.name);
       return;
     }
+
+    const mnemonic = loadMnemonic();
 
     const poolInfos = pools.map((p) => ({
       chainId: chainConfig.id,

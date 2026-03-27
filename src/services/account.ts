@@ -7,7 +7,15 @@ import {
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Address } from "viem";
 import { getAccountsDir, ensureConfigDir } from "./config.js";
-import { CLIError } from "../utils/errors.js";
+import {
+  CLIError,
+  accountMigrationRequiredError,
+  accountMigrationReviewIncompleteError,
+  accountWebsiteRecoveryRequiredError,
+} from "../utils/errors.js";
+import {
+  buildMigrationChainReadinessFromLegacyAccount,
+} from "./migration.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
   guardCriticalSection,
@@ -101,6 +109,90 @@ export interface InitializeAccountServiceState {
   rebuiltLegacyAccount: boolean;
 }
 
+function staleAccountRefreshRequiredError(): CLIError {
+  return new CLIError(
+    "Stored account state is outdated and must be refreshed before it can be used safely.",
+    "INPUT",
+    "Run 'privacy-pools sync' or rerun this command without --no-sync once RPC access is available.",
+  );
+}
+
+function staleAccountRefreshFailedError(error: unknown): CLIError {
+  return new CLIError(
+    `Stored account state could not be refreshed safely: ${error instanceof Error ? error.message : String(error)}`,
+    "RPC",
+    "Restore RPC access and rerun 'privacy-pools sync' before using this account.",
+    undefined,
+    true,
+  );
+}
+
+async function assertNoLegacyMigrationRequired(
+  legacyAccount: AccountService | undefined,
+  chainId: number,
+): Promise<void> {
+  const readiness = await buildMigrationChainReadinessFromLegacyAccount(
+    legacyAccount,
+    chainId,
+  );
+
+  if (readiness.status === "no_legacy" || readiness.status === "fully_migrated") {
+    return;
+  }
+
+  if (readiness.status === "website_recovery_required") {
+    throw accountWebsiteRecoveryRequiredError(
+      "Review this account in the Privacy Pools website first. Legacy declined deposits cannot be restored safely in the CLI and may require website-based public recovery instead of migration.",
+    );
+  }
+
+  if (readiness.status === "review_incomplete") {
+    throw accountMigrationReviewIncompleteError(
+      "Legacy ASP review data is temporarily unavailable. Retry this command or run 'privacy-pools migrate status' after ASP connectivity recovers before acting on this account.",
+    );
+  }
+
+  throw accountMigrationRequiredError();
+}
+
+function summarizeInitErrors(
+  initErrors: Array<{ scope: bigint; reason: string }>,
+): string {
+  return initErrors
+    .slice(0, 3)
+    .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
+    .join("; ");
+}
+
+function warnOnPartialInitialization(
+  suppressWarnings: boolean,
+  message: string,
+): void {
+  if (!suppressWarnings) {
+    process.stderr.write(`Warning: ${message}\n`);
+  }
+}
+
+function buildPartialInitializationState(
+  accountService: AccountService,
+  rebuiltLegacyAccount: boolean,
+): InitializeAccountServiceState {
+  return {
+    accountService,
+    skipImmediateSync: false,
+    rebuiltLegacyAccount,
+  };
+}
+
+function isLegacyRestoreBlockingError(error: unknown): boolean {
+  return (
+    error instanceof CLIError &&
+    (error.code === "ACCOUNT_MIGRATION_REQUIRED" ||
+      error.code === "ACCOUNT_WEBSITE_RECOVERY_REQUIRED" ||
+      error.code === "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE")
+  );
+}
+
 export async function initializeAccountServiceWithState(
   dataService: DataService,
   mnemonic: string,
@@ -123,13 +215,14 @@ export async function initializeAccountServiceWithState(
   const savedAccount = loadAccount(chainId);
   const hasCurrentAccountVersion =
     savedAccount?.__privacyPoolsCliAccountVersion === ACCOUNT_FILE_VERSION;
+  const needsSavedAccountRefresh =
+    savedAccount !== null && pools.length > 0 && !hasCurrentAccountVersion;
 
-  if (
-    savedAccount &&
-    pools.length > 0 &&
-    !hasCurrentAccountVersion &&
-    allowLegacyAccountRebuild
-  ) {
+  if (needsSavedAccountRefresh) {
+    if (!allowLegacyAccountRebuild) {
+      throw staleAccountRefreshRequiredError();
+    }
+
     try {
       const poolInfos = pools.map(toPoolInfo);
       const result = await withSuppressedSdkStdout(async () =>
@@ -139,13 +232,11 @@ export async function initializeAccountServiceWithState(
           poolInfos,
         ),
       );
+      await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
 
       const initErrors = result.errors ?? [];
       if (initErrors.length > 0) {
-        const details = initErrors
-          .slice(0, 3)
-          .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
-          .join("; ");
+        const details = summarizeInitErrors(initErrors);
 
         if (strictSync) {
           throw new CLIError(
@@ -155,24 +246,25 @@ export async function initializeAccountServiceWithState(
           );
         }
 
-        if (!suppressWarnings) {
-          process.stderr.write(
-            `Warning: legacy account rebuild had partial failures for ${initErrors.length} pool(s): ${details}\n`,
-          );
-        }
+        warnOnPartialInitialization(
+          suppressWarnings,
+          `legacy account rebuild had partial failures for ${initErrors.length} pool(s): ${details}`,
+        );
+
+        return buildPartialInitializationState(result.account, true);
       }
 
-      const skipImmediateSync = initErrors.length === 0;
       saveAccount(chainId, result.account.account);
-      if (skipImmediateSync) {
-        saveSyncMeta(chainId);
-      }
+      saveSyncMeta(chainId);
       return {
         accountService: result.account,
-        skipImmediateSync,
+        skipImmediateSync: true,
         rebuiltLegacyAccount: true,
       };
     } catch (err) {
+      if (isLegacyRestoreBlockingError(err)) {
+        throw err;
+      }
       if (strictSync) {
         throw new CLIError(
           `Failed to rebuild legacy account state from onchain events: ${err instanceof Error ? err.message : String(err)}`,
@@ -182,9 +274,10 @@ export async function initializeAccountServiceWithState(
       }
       if (!suppressWarnings) {
         process.stderr.write(
-          `Warning: legacy account rebuild failed, using saved account: ${err instanceof Error ? err.message : String(err)}\n`,
+          `Warning: legacy account rebuild failed: ${err instanceof Error ? err.message : String(err)}\n`,
         );
       }
+      throw staleAccountRefreshFailedError(err);
     }
   }
 
@@ -246,13 +339,11 @@ export async function initializeAccountServiceWithState(
           poolInfos,
         ),
       );
+      await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
 
       const initErrors = result.errors ?? [];
       if (initErrors.length > 0) {
-        const details = initErrors
-          .slice(0, 3)
-          .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
-          .join("; ");
+        const details = summarizeInitErrors(initErrors);
 
         if (strictSync) {
           throw new CLIError(
@@ -262,25 +353,25 @@ export async function initializeAccountServiceWithState(
           );
         }
 
-        if (!suppressWarnings) {
-          process.stderr.write(
-            `Warning: account initialization had partial failures for ${initErrors.length} pool(s): ${details}\n`,
-          );
-        }
+        warnOnPartialInitialization(
+          suppressWarnings,
+          `account initialization had partial failures for ${initErrors.length} pool(s): ${details}`,
+        );
+
+        return buildPartialInitializationState(result.account, false);
       }
 
-      const skipImmediateSync = initErrors.length === 0;
-      // Save the initialized account
       saveAccount(chainId, result.account.account);
-      if (skipImmediateSync) {
-        saveSyncMeta(chainId);
-      }
+      saveSyncMeta(chainId);
       return {
         accountService: result.account,
-        skipImmediateSync,
+        skipImmediateSync: true,
         rebuiltLegacyAccount: false,
       };
     } catch (err) {
+      if (isLegacyRestoreBlockingError(err)) {
+        throw err;
+      }
       if (strictSync) {
         throw new CLIError(
           `Failed to initialize account from onchain events: ${err instanceof Error ? err.message : String(err)}`,
@@ -439,11 +530,13 @@ export async function syncAccountEvents(
     }
   }
 
-  if (syncFailures > 0 && opts.isJson) {
+  if (syncFailures > 0) {
     throw new CLIError(
       `${opts.errorLabel} sync failed for ${syncFailures} pool(s).`,
       "RPC",
       "Retry with a healthy RPC before using this data.",
+      undefined,
+      true,
     );
   }
 
@@ -452,11 +545,7 @@ export async function syncAccountEvents(
     guardCriticalSection();
     try {
       saveAccount(chainId, accountService.account);
-      // Only stamp sync freshness when all pools synced successfully.
-      // Partial failures should trigger a re-sync on next command.
-      if (syncFailures === 0) {
-        saveSyncMeta(chainId);
-      }
+      saveSyncMeta(chainId);
     } finally {
       releaseCriticalSection();
     }

@@ -349,15 +349,12 @@ export async function listPools(
   return pools;
 }
 
-async function resolveKnownPool(
+async function resolveKnownPoolAddress(
   publicClient: PublicClient,
   chainConfig: ChainConfig,
-  normalizedSymbol: string,
+  knownAddress: Address,
   assetInput: string
-): Promise<PoolStats | null> {
-  const knownAddress = KNOWN_POOLS[chainConfig.id]?.[normalizedSymbol];
-  if (!knownAddress) return null;
-
+): Promise<PoolStats> {
   try {
     const assetConfig = await getAssetConfigReadOnly(
       publicClient,
@@ -395,6 +392,56 @@ async function resolveKnownPool(
       true
     );
   }
+}
+
+async function resolveKnownPool(
+  publicClient: PublicClient,
+  chainConfig: ChainConfig,
+  normalizedSymbol: string,
+  assetInput: string
+): Promise<PoolStats | null> {
+  const knownAddress = KNOWN_POOLS[chainConfig.id]?.[normalizedSymbol];
+  if (!knownAddress) return null;
+
+  return resolveKnownPoolAddress(
+    publicClient,
+    chainConfig,
+    knownAddress,
+    assetInput
+  );
+}
+
+export async function listKnownPoolsFromRegistry(
+  chainConfig: ChainConfig,
+  rpcOverride?: string
+): Promise<PoolStats[]> {
+  const knownEntries = Object.entries(KNOWN_POOLS[chainConfig.id] ?? {}).filter(
+    ([, address], index, entries) =>
+      entries.findIndex(([, candidate]) =>
+        candidate.toLowerCase() === address.toLowerCase(),
+      ) === index,
+  ) as Array<[string, Address]>;
+  if (knownEntries.length === 0) return [];
+
+  const publicClient = getPublicClient(chainConfig, rpcOverride);
+  const pools = await Promise.all(
+    knownEntries.map(([symbol, address]) =>
+      resolveKnownPoolAddress(
+        publicClient,
+        chainConfig,
+        address,
+        symbol,
+      ),
+    ),
+  );
+
+  const seenPools = new Set<string>();
+  return pools.filter((pool) => {
+    const key = pool.pool.toLowerCase();
+    if (seenPools.has(key)) return false;
+    seenPools.add(key);
+    return true;
+  });
 }
 
 export async function resolvePool(

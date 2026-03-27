@@ -13,6 +13,10 @@ import {
   parseAbi,
 } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
+import {
+  registerProcessExitCleanup,
+  terminateChildProcess,
+} from "./process.ts";
 
 const entrypointAbi = parseAbi([
   "function assetConfig(address asset) view returns (address pool, uint256 minimumDepositAmount, uint256 vettingFeeBPS, uint256 maxRelayFeeBPS)",
@@ -39,6 +43,9 @@ interface SyncGateRpcConfig {
   assetAddress?: `0x${string}`;
   assetSymbol?: string;
   assetDecimals?: number;
+  gasPrice?: bigint;
+  nativeBalance?: bigint;
+  tokenBalance?: bigint;
   blockNumber?: bigint;
   minimumDepositAmount?: bigint;
   vettingFeeBPS?: bigint;
@@ -55,6 +62,7 @@ export interface SyncGateRpcServer {
   proc: ChildProcess;
   port: number;
   url: string;
+  cleanup?: () => void;
 }
 
 function parseConfigFromEnv(): SyncGateRpcConfig {
@@ -75,6 +83,9 @@ function parseConfigFromEnv(): SyncGateRpcConfig {
     assetAddress: process.env.PP_SYNC_RPC_ASSET as `0x${string}` | undefined,
     assetSymbol: process.env.PP_SYNC_RPC_SYMBOL ?? undefined,
     assetDecimals: Number(process.env.PP_SYNC_RPC_DECIMALS ?? "18"),
+    gasPrice: BigInt(process.env.PP_SYNC_RPC_GAS_PRICE ?? "1"),
+    nativeBalance: BigInt(process.env.PP_SYNC_RPC_NATIVE_BALANCE ?? "0"),
+    tokenBalance: BigInt(process.env.PP_SYNC_RPC_TOKEN_BALANCE ?? "0"),
     blockNumber: BigInt(process.env.PP_SYNC_RPC_BLOCK_NUMBER ?? "10000000"),
     minimumDepositAmount: BigInt(process.env.PP_SYNC_RPC_MIN_DEPOSIT ?? "1"),
     vettingFeeBPS: BigInt(process.env.PP_SYNC_RPC_VETTING_FEE_BPS ?? "0"),
@@ -169,6 +180,18 @@ async function route(
       );
       return;
 
+    case "eth_gasPrice":
+      writeRpcResult(res, id, `0x${(config.gasPrice ?? 1n).toString(16)}`);
+      return;
+
+    case "eth_getBalance":
+      writeRpcResult(
+        res,
+        id,
+        `0x${(config.nativeBalance ?? 0n).toString(16)}`
+      );
+      return;
+
     case "eth_call": {
       const call = Array.isArray(payload.params)
         ? payload.params[0] as { to?: string; data?: string } | undefined
@@ -223,6 +246,15 @@ async function route(
       }
 
       if (config.assetAddress && to === config.assetAddress.toLowerCase()) {
+        if (data.startsWith("0x70a08231")) {
+          writeRpcResult(
+            res,
+            id,
+            encodeAbiParameters([{ type: "uint256" }], [config.tokenBalance ?? 0n])
+          );
+          return;
+        }
+
         if (data.startsWith("0x95d89b41")) {
           writeRpcResult(
             res,
@@ -347,6 +379,9 @@ export function launchSyncGateRpcServer(
         PP_SYNC_RPC_DECIMALS: config.assetDecimals === undefined
           ? undefined
           : String(config.assetDecimals),
+        PP_SYNC_RPC_GAS_PRICE: config.gasPrice?.toString(),
+        PP_SYNC_RPC_NATIVE_BALANCE: config.nativeBalance?.toString(),
+        PP_SYNC_RPC_TOKEN_BALANCE: config.tokenBalance?.toString(),
         PP_SYNC_RPC_BLOCK_NUMBER: String(config.blockNumber ?? 10000000n),
         PP_SYNC_RPC_MIN_DEPOSIT: String(config.minimumDepositAmount ?? 1n),
         PP_SYNC_RPC_VETTING_FEE_BPS: String(config.vettingFeeBPS ?? 0n),
@@ -359,9 +394,11 @@ export function launchSyncGateRpcServer(
         PP_SYNC_RPC_DEPOSIT_PRECOMMITMENT: config.depositPrecommitment?.toString(),
       }),
     });
+    const cleanupProcessExit = registerProcessExitCleanup(proc);
 
     let output = "";
     const timeout = setTimeout(() => {
+      cleanupProcessExit();
       proc.kill();
       reject(new Error("Sync-gate RPC server did not start within 10s"));
     }, 10_000);
@@ -372,24 +409,37 @@ export function launchSyncGateRpcServer(
       if (match) {
         clearTimeout(timeout);
         const port = Number(match[1]);
-        resolvePromise({ proc, port, url: `http://127.0.0.1:${port}` });
+        proc.stdout?.removeAllListeners("data");
+        proc.stdout?.destroy();
+        proc.unref();
+        resolvePromise({
+          proc,
+          port,
+          url: `http://127.0.0.1:${port}`,
+          cleanup: cleanupProcessExit,
+        });
       }
     });
 
     proc.on("error", (err) => {
       clearTimeout(timeout);
+      cleanupProcessExit();
       reject(err);
     });
 
     proc.on("exit", (code) => {
       clearTimeout(timeout);
+      cleanupProcessExit();
       reject(new Error(`Sync-gate RPC server exited early with code ${code}`));
     });
   });
 }
 
-export function killSyncGateRpcServer(server: SyncGateRpcServer): void {
-  server.proc.kill();
+export async function killSyncGateRpcServer(
+  server: SyncGateRpcServer
+): Promise<void> {
+  server.cleanup?.();
+  await terminateChildProcess(server.proc);
 }
 
 if (import.meta.main) {

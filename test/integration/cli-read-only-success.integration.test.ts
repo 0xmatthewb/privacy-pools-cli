@@ -28,8 +28,8 @@ beforeAll(async () => {
   fixture = await launchFixtureServer();
 });
 
-afterAll(() => {
-  killFixtureServer(fixture);
+afterAll(async () => {
+  await killFixtureServer(fixture);
 });
 
 function fixtureEnv() {
@@ -229,13 +229,16 @@ describe("pools with fixture server", () => {
 
     const json = parseJsonOutput<{
       success: boolean;
+      chain?: string;
       pools: unknown[];
     }>(result.stdout);
 
     expect(json.success).toBe(true);
+    expect(json.chain).toBe("sepolia");
     // Pools array is empty because RPC reads failed for each entry,
     // but the command didn't throw an ASP error — proof the fixture served data.
-    expect(Array.isArray(json.pools)).toBe(true);
+    expect(json.pools).toEqual([]);
+    expect(result.stderr.trim()).toBe("");
   });
 
   test("pools <asset> keeps wallet-state warnings concise when RPC log methods are unavailable", () => {
