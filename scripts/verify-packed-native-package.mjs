@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -19,6 +18,11 @@ const nativeDistributionModulePath = join(
   "src",
   "native-distribution.js",
 );
+const nativePackageMetadataModulePath = join(
+  repoRoot,
+  "src",
+  "native-package-metadata.js",
+);
 
 const rootPackageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 const {
@@ -27,6 +31,11 @@ const {
 const { nativePackageNameForTriplet } = await import(
   pathToFileURL(nativeDistributionModulePath).href
 );
+const {
+  resolveNativeBinaryPath,
+  resolveNativeBridgeVersion,
+  sha256File,
+} = await import(pathToFileURL(nativePackageMetadataModulePath).href);
 const protocolProfileModulePath = join(
   repoRoot,
   "src",
@@ -57,10 +66,6 @@ function usageAndExit() {
   process.exit(2);
 }
 
-function sha256File(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
-}
-
 function fail(message) {
   process.stderr.write(`${message}\n`);
   process.exit(1);
@@ -83,20 +88,6 @@ const packageName = nativePackageNameForTriplet(triplet);
 
 if (!packageName) {
   fail(`Unsupported native triplet ${triplet}.`);
-}
-
-function resolveNativeBridgeVersion(metadata = {}) {
-  return metadata.bridgeVersion ?? metadata.protocolVersion;
-}
-
-function resolvePackagedBinaryPath(installedPackageJsonPath, installedPackageJson) {
-  const metadata = installedPackageJson.privacyPoolsCliNative ?? {};
-  const binaryPath = metadata.binaryPath?.trim();
-  if (!binaryPath) {
-    fail("Packed native package is missing privacyPoolsCliNative.binaryPath.");
-  }
-
-  return resolve(dirname(installedPackageJsonPath), binaryPath);
 }
 
 try {
@@ -210,10 +201,14 @@ try {
     );
   }
 
-  const binaryPath = resolvePackagedBinaryPath(
+  const binaryPath = resolveNativeBinaryPath(
     installedPackageJsonPath,
     installedPackageJson,
+    { allowLegacyBin: false },
   );
+  if (!binaryPath) {
+    fail("Packed native package is missing privacyPoolsCliNative.binaryPath.");
+  }
   if (!existsSync(binaryPath)) {
     fail(`Packed native package binary is missing ${binaryPath}.`);
   }

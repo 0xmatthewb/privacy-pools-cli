@@ -1,7 +1,5 @@
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import type { CliPackageInfo } from "./package-info.js";
 import { CLI_PROTOCOL_PROFILE } from "./config/protocol-profile.js";
@@ -20,6 +18,11 @@ import {
   nativePackageName as resolveNativePackageName,
   nativeTriplet as resolveNativeTriplet,
 } from "./native-distribution.js";
+import {
+  hasCompatibleNativeMetadata,
+  hasValidNativeChecksum,
+  resolveNativeBinaryPath,
+} from "./native-package-metadata.js";
 import { parseRootArgv } from "./utils/root-argv.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
@@ -63,12 +66,6 @@ function isFlagEnabled(value: string | undefined): boolean {
   return value?.trim() === "1";
 }
 
-function usesLegacyNativePreviewOptIn(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
-  return isFlagEnabled(env[ENV_CLI_ENABLE_NATIVE]);
-}
-
 function defaultJsWorkerPath(): string {
   return resolveCurrentWorkerPath();
 }
@@ -93,75 +90,14 @@ function nativePackageName(
   return resolveNativePackageName(platform, arch);
 }
 
-function resolvePackageBinaryPath(
-  packageJsonPath: string,
-  packageJson: NativePackageJson,
-): string | null {
-  const metadataBinaryPath =
-    packageJson.privacyPoolsCliNative?.binaryPath?.trim() || null;
-  if (metadataBinaryPath) {
-    return resolve(dirname(packageJsonPath), metadataBinaryPath);
-  }
-
-  const legacyBinEntry =
-    typeof packageJson.bin === "string"
-      ? packageJson.bin
-      : packageJson.bin?.["privacy-pools"];
-
-  if (!legacyBinEntry) return null;
-  return resolve(dirname(packageJsonPath), legacyBinEntry);
-}
-
-function sha256File(path: string): string {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
-}
-
-function hasValidInstalledNativeChecksum(
-  packageJson: NativePackageJson,
-  binaryPath: string,
-): boolean {
-  const expected = packageJson.privacyPoolsCliNative?.sha256?.trim();
-  if (!expected) return false;
-  try {
-    return sha256File(binaryPath) === expected;
-  } catch {
-    return false;
-  }
-}
-
 function hasCompatibleInstalledNativeMetadata(
   packageJson: NativePackageJson,
 ): boolean {
-  const metadata = packageJson.privacyPoolsCliNative;
-  const actualBridgeVersion = resolveInstalledNativeBridgeVersion(metadata);
-  if (actualBridgeVersion !== CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion) {
-    return false;
-  }
-
-  // Packages published before runtimeVersion existed can still be accepted
-  // through the legacy protocolVersion bridge gate on exact CLI version.
-  if (
-    metadata?.bridgeVersion &&
-    metadata.runtimeVersion?.trim() !== CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion
-  ) {
-    return false;
-  }
-
-  const protocolProfile = metadata?.protocolProfile?.trim();
-  if (protocolProfile && protocolProfile !== CLI_PROTOCOL_PROFILE.profile) {
-    return false;
-  }
-
-  return true;
-}
-
-function resolveInstalledNativeBridgeVersion(
-  metadata: NativePackageJson["privacyPoolsCliNative"],
-): string | null {
-  // Older preview artifacts used protocolVersion for bridge compatibility.
-  // Keep accepting that alias for rollback compatibility, but publish only
-  // bridgeVersion in new native packages.
-  return metadata?.bridgeVersion?.trim() || metadata?.protocolVersion?.trim() || null;
+  return hasCompatibleNativeMetadata(packageJson, {
+    nativeBridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+    runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
+    protocolProfile: CLI_PROTOCOL_PROFILE.profile,
+  });
 }
 
 export function resolveInstalledNativeBinary(
@@ -195,9 +131,11 @@ export function resolveInstalledNativeBinary(
       return null;
     }
 
-    const binaryPath = resolvePackageBinaryPath(packageJsonPath, packageJson);
+    const binaryPath = resolveNativeBinaryPath(packageJsonPath, packageJson, {
+      allowLegacyBin: true,
+    });
     if (!binaryPath) return null;
-    if (!hasValidInstalledNativeChecksum(packageJson, binaryPath)) {
+    if (!hasValidNativeChecksum(packageJson, binaryPath)) {
       return null;
     }
 
@@ -265,7 +203,7 @@ export function resolveLaunchTarget(
   // Same-version packaged native binaries are preferred by default once they
   // pass the checksum/version gates. Keep reading the legacy preview opt-in so
   // older automation can continue exporting it as a benign no-op.
-  void usesLegacyNativePreviewOptIn(env);
+  void isFlagEnabled(env[ENV_CLI_ENABLE_NATIVE]);
   const nativeBinary = resolveInstalledNativeBinaryFn(pkg);
   if (nativeBinary) {
     return {
@@ -405,7 +343,7 @@ export const launcherTestInternals = {
   defaultJsWorkerPath,
   hasCompatibleInstalledNativeMetadata,
   isFlagEnabled,
-  hasValidInstalledNativeChecksum,
+  hasValidInstalledNativeChecksum: hasValidNativeChecksum,
   nativePackageName,
   nativeTriplet,
   resolveInstalledNativeBinary,

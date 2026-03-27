@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -12,6 +11,11 @@ const nativeDistributionModulePath = join(
   repoRoot,
   "src",
   "native-distribution.js",
+);
+const nativePackageMetadataModulePath = join(
+  repoRoot,
+  "src",
+  "native-package-metadata.js",
 );
 const runtimeContractModulePath = join(
   repoRoot,
@@ -27,6 +31,9 @@ const {
   getNativeDistributionByTriplet,
 } = await import(
   pathToFileURL(nativeDistributionModulePath).href
+);
+const { sha256File } = await import(
+  pathToFileURL(nativePackageMetadataModulePath).href
 );
 const protocolProfileModulePath = join(
   repoRoot,
@@ -49,10 +56,6 @@ function parseArgs(argv) {
     result[key.slice(2)] = value;
   }
   return result;
-}
-
-function sha256File(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
 function usageAndExit() {
