@@ -36,6 +36,13 @@ describe("human-mode output contracts", () => {
     expect(result.stdout.trim()).toBe("");
   });
 
+  test("capabilities --quiet stays fully silent", () => {
+    const result = runCli(["--quiet", "capabilities"], { home: createTempHome() });
+    expect(result.status).toBe(0);
+    expect(result.stderr.trim()).toBe("");
+    expect(result.stdout.trim()).toBe("");
+  });
+
   test("status without init writes readiness warnings to stderr", () => {
     const result = runCli(["--no-banner", "status"], { home: createTempHome() });
     expect(result.status).toBe(0);

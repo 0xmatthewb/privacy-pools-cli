@@ -43,6 +43,12 @@ defineScenarioSuite("output-mode acceptance", [
       expect(stderr).toContain("Typical Agent Workflow:");
     }),
   ]),
+  defineScenario("capabilities stays fully silent in quiet mode", [
+    runCliStep(["--quiet", "capabilities"]),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderrEmpty(),
+  ]),
   defineScenario("status without init writes readiness warnings to stderr", [
     runCliStep(["--no-banner", "status"]),
     assertExit(0),

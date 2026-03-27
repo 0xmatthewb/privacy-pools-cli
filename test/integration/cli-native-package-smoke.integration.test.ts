@@ -27,6 +27,8 @@ const currentTriplet = launcherTestInternals.nativeTriplet();
 const currentPackageName = launcherTestInternals.nativePackageName();
 const nativePackageSmokeTest =
   CARGO_AVAILABLE && currentTriplet && currentPackageName ? test : test.skip;
+const BANNER_SENTINEL =
+  ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
 
 describe("native package smoke", () => {
   let nativeBinary: string;
@@ -119,6 +121,45 @@ describe("native package smoke", () => {
     });
     expect(statusResult.status).toBe(0);
     expect(parseJsonOutput<{ success: boolean }>(statusResult.stdout).success).toBe(true);
+  });
+
+  nativePackageSmokeTest("packaged launcher keeps bare welcome output on stdout and only prints the banner once per session", () => {
+    const termSessionId = `pp-native-package-welcome-${Date.now()}`;
+    const env = {
+      TERM_SESSION_ID: termSessionId,
+    };
+
+    const firstResult = runBuiltCli([], {
+      cwd: snapshotRoot,
+      env,
+    });
+
+    expect(firstResult.status).toBe(0);
+    expect(firstResult.stdout).toContain("Explore (no wallet needed)");
+    expect(firstResult.stdout).toContain("For large transactions, use privacypools.com.");
+    expect(firstResult.stderr).toContain(BANNER_SENTINEL);
+    expect(firstResult.stderr).toContain(
+      "A compliant way to transact privately on Ethereum.",
+    );
+
+    const secondResult = runBuiltCli([], {
+      cwd: snapshotRoot,
+      env,
+    });
+
+    expect(secondResult.status).toBe(0);
+    expect(secondResult.stdout).toContain("Explore (no wallet needed)");
+    expect(secondResult.stderr).not.toContain(BANNER_SENTINEL);
+  });
+
+  nativePackageSmokeTest("packaged native honors quiet mode for human capabilities output", () => {
+    const result = runBuiltCli(["--quiet", "capabilities"], {
+      cwd: snapshotRoot,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("");
+    expect(result.stderr.trim()).toBe("");
   });
 
   nativePackageSmokeTest("packaged native still serves native-owned help when the JS worker path is broken", () => {
