@@ -18,6 +18,11 @@ Use `--runtime js` for the pure JS launcher path, `--runtime native` for the
 launcher + native shell path, or `--runtime both` to print both lanes in one
 report.
 
+The `native` lane still includes `status --json --no-check`, but that command
+is intentionally JS-owned for the fund-safety boundary. Its native timing
+therefore measures launcher + native-shell forwarding overhead rather than a
+Rust implementation.
+
 It keeps the setup intentionally lightweight:
 
 - no extra dependencies

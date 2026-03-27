@@ -86,7 +86,8 @@ src/
   index.ts        npm entry point; serves root fast paths and delegates
   types.ts        Shared TypeScript types
 native/
-  shell/          Rust shell for manifest-driven help/discovery/read-only paths
+  shell/          Rust shell for manifest-driven help/discovery and approved
+                  read-only paths; sensitive wallet/account state stays in JS
 test/
   unit/           Unit tests for individual modules
   integration/    Integration tests (CLI invocation via subprocess)
