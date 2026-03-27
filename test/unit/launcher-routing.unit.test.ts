@@ -14,6 +14,7 @@ import {
   NATIVE_JS_BRIDGE_ENV,
 } from "../../src/runtime/current.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
+import { parseRootArgv } from "../../src/utils/root-argv.ts";
 
 const PKG = { version: "1.7.0" };
 
@@ -143,6 +144,50 @@ describe("launcher routing", () => {
     expect(target.kind).toBe("native-binary");
     expect(target.command).toBe("/tmp/privacy-pools-native");
     expect(target.args).toEqual(["--help"]);
+  });
+
+  test("knows which invocations still require the js worker under native launch", () => {
+    expect(
+      launcherTestInternals.invocationRequiresJsWorker(
+        parseRootArgv(["--agent", "status", "--no-check"]),
+      ),
+    ).toBe(true);
+
+    expect(
+      launcherTestInternals.invocationRequiresJsWorker(
+        parseRootArgv(["flow", "--help"]),
+      ),
+    ).toBe(false);
+
+    expect(
+      launcherTestInternals.invocationRequiresJsWorker(
+        parseRootArgv(["help", "flow"]),
+      ),
+    ).toBe(false);
+
+    expect(
+      launcherTestInternals.invocationRequiresJsWorker(
+        parseRootArgv(["stats", "pool", "--asset", "ETH"]),
+      ),
+    ).toBe(false);
+
+    expect(
+      launcherTestInternals.invocationRequiresJsWorker(
+        parseRootArgv(["pools", "ETH"]),
+      ),
+    ).toBe(true);
+
+    expect(
+      launcherTestInternals.invocationRequiresJsWorker(parseRootArgv([])),
+    ).toBe(true);
+  });
+
+  test("validates broken js worker paths with a cli-friendly error", () => {
+    expect(() =>
+      launcherTestInternals.validateJsWorkerPath({
+        PRIVACY_POOLS_CLI_JS_WORKER: "/tmp/pp-missing-worker.js",
+      }),
+    ).toThrow("The JS runtime worker is unavailable.");
   });
 
   test("resolves an installed native binary only on exact version match", () => {

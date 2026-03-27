@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { extname } from "node:path";
 import type { CliPackageInfo } from "./package-info.js";
 import { CLI_PROTOCOL_PROFILE } from "./config/protocol-profile.js";
 import {
@@ -23,7 +24,10 @@ import {
   hasValidNativeChecksum,
   resolveNativeBinaryPath,
 } from "./native-package-metadata.js";
+import type { ParsedRootArgv } from "./utils/root-argv.js";
 import { parseRootArgv } from "./utils/root-argv.js";
+import { GENERATED_COMMAND_MANIFEST } from "./utils/command-manifest.js";
+import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
 
@@ -74,6 +78,12 @@ function defaultJsWorkerArgs(workerPath: string): string[] {
   return process.versions.bun
     ? ["--no-env-file", workerPath]
     : [workerPath];
+}
+
+function resolveConfiguredJsWorkerPath(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return env[ENV_CLI_JS_WORKER]?.trim() || defaultJsWorkerPath();
 }
 
 function nativeTriplet(
@@ -149,7 +159,7 @@ function createJsWorkerTarget(
   argv: string[],
   env: NodeJS.ProcessEnv = process.env,
 ): LaunchTarget {
-  const workerPath = env[ENV_CLI_JS_WORKER]?.trim() || defaultJsWorkerPath();
+  const workerPath = resolveConfiguredJsWorkerPath(env);
   const childArgs = defaultJsWorkerArgs(workerPath);
   return {
     kind: "js-worker",
@@ -165,7 +175,7 @@ function createJsWorkerTarget(
 function createNativeForwardingEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
-  const workerPath = env[ENV_CLI_JS_WORKER]?.trim() || defaultJsWorkerPath();
+  const workerPath = resolveConfiguredJsWorkerPath(env);
   const workerArgs = defaultJsWorkerArgs(workerPath);
   return {
     ...env,
@@ -238,6 +248,113 @@ function applyLauncherEnvironment(argv: string[]): void {
   }
 }
 
+function resolveCommandRoute(tokens: string[]): string | null {
+  const candidateTokens = tokens[0] === "help" ? tokens.slice(1) : tokens;
+  if (candidateTokens.length === 0) return null;
+
+  const normalizedTokens = [...candidateTokens];
+  const aliasedFirstToken =
+    GENERATED_COMMAND_MANIFEST.aliasMap[normalizedTokens[0] ?? ""];
+  if (aliasedFirstToken) {
+    normalizedTokens.splice(0, 1, ...aliasedFirstToken.split(" "));
+  }
+
+  let bestRoute: string | null = null;
+  for (const route of GENERATED_COMMAND_MANIFEST.commandPaths) {
+    const routeTokens = route.split(" ");
+    if (routeTokens.length > normalizedTokens.length) continue;
+    if (!routeTokens.every((token, index) => normalizedTokens[index] === token)) {
+      continue;
+    }
+    if (!bestRoute || routeTokens.length > bestRoute.split(" ").length) {
+      bestRoute = route;
+    }
+  }
+
+  return bestRoute;
+}
+
+function isHybridInvocationNative(
+  route: string,
+  parsed: ParsedRootArgv,
+  nativeModes: readonly string[],
+): boolean {
+  if (parsed.isHelpLike) {
+    return nativeModes.includes("help");
+  }
+
+  if (route === "pools") {
+    const isDetailView = parsed.nonOptionTokens.length > 1;
+    if (isDetailView) return false;
+    if (parsed.isStructuredOutputMode) {
+      return nativeModes.includes("structured-list");
+    }
+    if (parsed.isCsvMode) {
+      return nativeModes.includes("csv-list");
+    }
+    return nativeModes.includes("default-list");
+  }
+
+  if (parsed.isStructuredOutputMode) {
+    return nativeModes.some((mode) => mode.startsWith("structured"));
+  }
+  if (parsed.isCsvMode) {
+    return nativeModes.includes("csv");
+  }
+  return nativeModes.includes("default");
+}
+
+function invocationRequiresJsWorker(parsed: ParsedRootArgv): boolean {
+  if (parsed.isVersionLike && parsed.firstCommandToken === undefined) {
+    return false;
+  }
+
+  if (parsed.isRootHelpInvocation) {
+    return false;
+  }
+
+  const route = resolveCommandRoute(parsed.nonOptionTokens);
+  if (!route) {
+    return parsed.firstCommandToken !== undefined || parsed.nonOptionTokens.length === 0;
+  }
+
+  const commandRoute = GENERATED_COMMAND_MANIFEST.commandRoutes[
+    route as keyof typeof GENERATED_COMMAND_MANIFEST.commandRoutes
+  ];
+
+  if (commandRoute.owner === "native-shell") {
+    return false;
+  }
+
+  if (commandRoute.owner === "js-runtime") {
+    return !parsed.isHelpLike || !commandRoute.nativeModes.includes("help");
+  }
+
+  return !isHybridInvocationNative(route, parsed, commandRoute.nativeModes);
+}
+
+function validateJsWorkerPath(
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  const workerPath = resolveConfiguredJsWorkerPath(env);
+  const hasSourceTwin =
+    extname(workerPath) === ".js" &&
+    existsSync(workerPath.slice(0, -3) + ".ts");
+  if (existsSync(workerPath) || hasSourceTwin) {
+    return;
+  }
+
+  const overrideHint = env[ENV_CLI_JS_WORKER]?.trim()
+    ? `Unset ${ENV_CLI_JS_WORKER} or point it at a valid worker file, then retry.`
+    : "Reinstall the CLI or restore the packaged JS worker, then retry.";
+
+  throw new CLIError(
+    "The JS runtime worker is unavailable.",
+    "INPUT",
+    overrideHint,
+  );
+}
+
 async function spawnLaunchTarget(target: LaunchTarget): Promise<void> {
   const { code, signal } = await new Promise<{
     code: number | null;
@@ -295,42 +412,53 @@ export async function runLauncher(
   const parsed = parseRootArgv(argv);
   const target = resolveLaunchTarget(pkg, argv);
 
-  if (target.kind === "native-binary") {
-    await spawnLaunchTarget(target);
+  if (target.kind !== "native-binary") {
+    if (parsed.isVersionLike && parsed.firstCommandToken === undefined) {
+      await writeVersionOutput(pkg, parsed.isStructuredOutputMode);
+      process.exit(0);
+    }
+
+    if (parsed.isRootHelpInvocation) {
+      const { runStaticRootHelp } = await import("./static-discovery.js");
+      await runStaticRootHelp(parsed.isStructuredOutputMode);
+      process.exit(0);
+    }
+
+    if (
+      !parsed.isHelpLike &&
+      !parsed.isVersionLike &&
+      parsed.firstCommandToken === "completion"
+    ) {
+      const { runStaticCompletionQuery } = await import("./static-discovery.js");
+      if (await runStaticCompletionQuery(argv)) {
+        process.exit(0);
+      }
+    }
+
+    if (
+      !parsed.isHelpLike &&
+      !parsed.isVersionLike &&
+      STATIC_DISCOVERY_COMMANDS.has(parsed.firstCommandToken ?? "")
+    ) {
+      const { runStaticDiscoveryCommand } = await import("./static-discovery.js");
+      if (await runStaticDiscoveryCommand(argv)) {
+        process.exit(0);
+      }
+    }
+  }
+
+  try {
+    if (target.kind === "js-worker" || invocationRequiresJsWorker(parsed)) {
+      validateJsWorkerPath(target.env);
+    }
+  } catch (error) {
+    printError(error, parsed.isStructuredOutputMode);
     return;
   }
 
-  if (parsed.isVersionLike && parsed.firstCommandToken === undefined) {
-    await writeVersionOutput(pkg, parsed.isStructuredOutputMode);
-    process.exit(0);
-  }
-
-  if (parsed.isRootHelpInvocation) {
-    const { runStaticRootHelp } = await import("./static-discovery.js");
-    await runStaticRootHelp(parsed.isStructuredOutputMode);
-    process.exit(0);
-  }
-
-  if (
-    !parsed.isHelpLike &&
-    !parsed.isVersionLike &&
-    parsed.firstCommandToken === "completion"
-  ) {
-    const { runStaticCompletionQuery } = await import("./static-discovery.js");
-    if (await runStaticCompletionQuery(argv)) {
-      process.exit(0);
-    }
-  }
-
-  if (
-    !parsed.isHelpLike &&
-    !parsed.isVersionLike &&
-    STATIC_DISCOVERY_COMMANDS.has(parsed.firstCommandToken ?? "")
-  ) {
-    const { runStaticDiscoveryCommand } = await import("./static-discovery.js");
-    if (await runStaticDiscoveryCommand(argv)) {
-      process.exit(0);
-    }
+  if (target.kind === "native-binary") {
+    await spawnLaunchTarget(target);
+    return;
   }
 
   await spawnLaunchTarget(target);
@@ -341,12 +469,16 @@ export const launcherTestInternals = {
   createNativeForwardingEnv,
   createJsWorkerTarget,
   defaultJsWorkerPath,
+  invocationRequiresJsWorker,
   hasCompatibleInstalledNativeMetadata,
   isFlagEnabled,
   hasValidInstalledNativeChecksum: hasValidNativeChecksum,
   nativePackageName,
   nativeTriplet,
+  resolveConfiguredJsWorkerPath,
+  resolveCommandRoute,
   resolveInstalledNativeBinary,
   resolveLaunchTarget,
+  validateJsWorkerPath,
   writeVersionOutput,
 };

@@ -187,6 +187,46 @@ describe("native package smoke", () => {
     expect(result.status).not.toBe(0);
   });
 
+  nativePackageSmokeTest("packaged native returns a structured js-runtime error when the worker path is broken", () => {
+    const result = runBuiltCli(["--agent", "status", "--no-check"], {
+      cwd: snapshotRoot,
+      env: {
+        PRIVACY_POOLS_CLI_JS_WORKER: join(snapshotRoot, "missing-worker.js"),
+      },
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim()).toBe("");
+    expect(result.stdout).not.toContain("MODULE_NOT_FOUND");
+
+    const payload = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      errorMessage: string;
+      error: { category: string; hint?: string };
+    }>(result.stdout);
+    expect(payload.success).toBe(false);
+    expect(payload.errorCode).toBe("INPUT_ERROR");
+    expect(payload.error.category).toBe("INPUT");
+    expect(payload.errorMessage).toContain("JS runtime worker is unavailable");
+    expect(payload.error.hint).toContain("PRIVACY_POOLS_CLI_JS_WORKER");
+  });
+
+  nativePackageSmokeTest("packaged native keeps broken bare invocation human-readable when the worker path is broken", () => {
+    const result = runBuiltCli([], {
+      cwd: snapshotRoot,
+      env: {
+        PRIVACY_POOLS_CLI_JS_WORKER: join(snapshotRoot, "missing-worker.js"),
+      },
+    });
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("The JS runtime worker is unavailable.");
+    expect(result.stderr).not.toContain("MODULE_NOT_FOUND");
+    expect(result.stderr).not.toContain("ERR_MODULE_NOT_FOUND");
+  });
+
   nativePackageSmokeTest("prepared native package keeps its binary internal to avoid shadowing the public launcher", () => {
     const packageJsonPath = join(
       snapshotRoot,
