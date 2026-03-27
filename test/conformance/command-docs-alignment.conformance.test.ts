@@ -450,9 +450,11 @@ describe("command docs alignment", () => {
     const normalizedSkill = normalizeWhitespace(skill);
     const normalizedReference = normalizeWhitespace(reference);
 
+    expect(normalizedSkill).toContain("npm i -g privacy-pools-cli");
+    expect(normalizedSkill).toContain("bun add -g privacy-pools-cli");
     expect(normalizedSkill).toContain("github:0xmatthewb/privacy-pools-cli");
     expect(normalizedReference).toContain("https://github.com/0xmatthewb/privacy-pools-cli");
-    expect(normalizedSkill).not.toContain("privacy-pools-cli on npm");
+    expect(normalizedSkill).toContain("For unreleased or source builds");
     expect(normalizedReference).not.toContain("npmjs.com/package/privacy-pools-cli");
 
     expect(normalizedSkill).toContain("RPC_RATE_LIMITED");

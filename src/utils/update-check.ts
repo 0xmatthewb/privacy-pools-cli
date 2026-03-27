@@ -17,7 +17,6 @@ import { homedir } from "os";
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const PACKAGE_NAME = "privacy-pools-cli";
-const INSTALL_HINT_REPO = "github:0xmatthewb/privacy-pools-cli";
 const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const FETCH_TIMEOUT_MS = 5_000;
@@ -103,7 +102,7 @@ export function getUpdateNotice(currentVersion: string): string | null {
 
   return (
     `  Update available: ${currentVersion} \u2192 ${cache.latestVersion}  ` +
-    `(npm i -g ${INSTALL_HINT_REPO}#v${cache.latestVersion})`
+    `(npm i -g ${PACKAGE_NAME}@${cache.latestVersion})`
   );
 }
 

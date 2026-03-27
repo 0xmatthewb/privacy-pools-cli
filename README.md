@@ -107,7 +107,8 @@ bun run start -- --help
 
 ## Runtime Requirements
 
-- Supported runtime: Node 22.x, 24.x, and 25.x
+- Supported runtime range: Node >=22 <26
+- CI-tested runtimes: Node 22.x, 24.x, and 25.x
 - Recommended dev/CI runtime: Node 25.x
 - Recommended Bun version for repo workflows: 1.3.11
 

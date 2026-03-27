@@ -12,6 +12,7 @@ import {
   GENERATED_COMMAND_PATHS,
   GENERATED_COMMAND_ROUTES,
 } from "../../src/utils/command-manifest.ts";
+import { guideText } from "../../src/utils/help.ts";
 
 const nativeManifestPath = join(
   CLI_ROOT,
@@ -21,6 +22,10 @@ const nativeManifestPath = join(
   "manifest.json",
 );
 const packageJsonPath = join(CLI_ROOT, "package.json");
+
+function stripAnsi(text: string): string {
+  return text.replace(/\x1B\[[0-9;]*m/g, "");
+}
 
 describe("native manifest conformance", () => {
   test("generated native manifest stays aligned with the JS manifest contract", () => {
@@ -33,6 +38,7 @@ describe("native manifest conformance", () => {
       commandPaths: string[];
       aliasMap: Record<string, string>;
       structuredRootHelp: string;
+      guideHumanText: string;
       helpTextByPath: Record<string, string>;
       routes: {
         commandRoutes: Record<string, { owner: string; nativeModes: string[] }>;
@@ -60,6 +66,9 @@ describe("native manifest conformance", () => {
       [...GENERATED_COMMAND_PATHS].sort(),
     );
     expect(nativeManifest.structuredRootHelp).toContain("Usage: privacy-pools");
+    expect(nativeManifest.guideHumanText.trim()).toBe(
+      stripAnsi(guideText()).trim(),
+    );
     expect(nativeManifest.runtimeConfig.chainNames).toEqual(CHAIN_NAMES);
     expect(nativeManifest.runtimeConfig.mainnetChainNames).toEqual(
       MAINNET_CHAIN_NAMES,
