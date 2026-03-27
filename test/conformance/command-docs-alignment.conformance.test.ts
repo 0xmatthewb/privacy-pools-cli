@@ -6,12 +6,15 @@ import {
   getDocumentedAgentMarkers,
   type CommandPath,
 } from "../../src/utils/command-metadata.ts";
+import { jsonContractDocRelativePath } from "../../src/utils/json.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
+
+const JSON_CONTRACT_DOC_PATH = `${CLI_ROOT}/${jsonContractDocRelativePath()}`;
 
 function expectContainsAll(section: string, markers: readonly string[]): void {
   for (const marker of markers) {
@@ -354,10 +357,7 @@ describe("command docs alignment", () => {
     const depositNotes = getCommandMetadata("deposit").help?.agentWorkflowNotes ?? [];
     const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
     const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
-    const contract = readFileSync(
-      `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.5.0.json`,
-      "utf8",
-    );
+    const contract = readFileSync(JSON_CONTRACT_DOC_PATH, "utf8");
     const normalizedSkill = normalizeWhitespace(skill);
     const normalizedContract = normalizeWhitespace(contract);
 
@@ -426,7 +426,7 @@ describe("command docs alignment", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
     const contract = JSON.parse(
-      readFileSync(`${CLI_ROOT}/docs/contracts/cli-json-contract.v1.5.0.json`, "utf8"),
+      readFileSync(JSON_CONTRACT_DOC_PATH, "utf8"),
     ) as {
       commands?: { sync?: { successFields?: Record<string, string> } };
     };

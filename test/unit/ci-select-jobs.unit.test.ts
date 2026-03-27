@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { evaluateJobSelection } from "../../scripts/ci/lib.mjs";
+import { jsonContractDocRelativePath } from "../../src/utils/json.ts";
+
+const JSON_CONTRACT_DOC_RELATIVE_PATH = jsonContractDocRelativePath();
 
 describe("ci job selection", () => {
   test("pull requests skip unrelated jobs", () => {
@@ -38,6 +41,17 @@ describe("ci job selection", () => {
   test("flake lane follows the same changed-path filtering on pull requests", () => {
     const decision = evaluateJobSelection({
       job: "flake-core",
+      eventName: "pull_request",
+      changedFiles: ["src/commands/withdraw.ts"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("src/commands/withdraw.ts");
+  });
+
+  test("npm-test follows the core changed-path filtering on pull requests", () => {
+    const decision = evaluateJobSelection({
+      job: "npm-test",
       eventName: "pull_request",
       changedFiles: ["src/commands/withdraw.ts"],
     });
@@ -121,11 +135,9 @@ describe("ci job selection", () => {
     const nativeDecision = evaluateJobSelection({
       job: "native-smoke",
       eventName: "pull_request",
-      changedFiles: ["docs/contracts/cli-json-contract.v1.5.0.json"],
+      changedFiles: [JSON_CONTRACT_DOC_RELATIVE_PATH],
     });
     expect(nativeDecision.shouldRun).toBe(true);
-    expect(nativeDecision.reason).toContain(
-      "docs/contracts/cli-json-contract.v1.5.0.json",
-    );
+    expect(nativeDecision.reason).toContain(JSON_CONTRACT_DOC_RELATIVE_PATH);
   });
 });

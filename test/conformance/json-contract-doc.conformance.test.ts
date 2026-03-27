@@ -23,7 +23,7 @@ interface ContractDoc {
 describe("external JSON contract doc conformance", () => {
   test("doc version is explicit and aligned with runtime schema version", () => {
     const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
-    expect(doc.version).toBe("1.5.0");
+    expect(doc.version).toBe(JSON_SCHEMA_VERSION);
     expect(doc.schemaVersion).toBe(JSON_SCHEMA_VERSION);
   });
 

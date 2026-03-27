@@ -26,6 +26,16 @@ const JOB_RULES = {
     "bunfig.toml",
     ".github/workflows/ci.yml",
   ],
+  "npm-test": [
+    "src/",
+    "test/",
+    "scripts/",
+    "package.json",
+    "bun.lock",
+    "tsconfig.json",
+    "bunfig.toml",
+    ".github/workflows/ci.yml",
+  ],
   "packaged-smoke": [
     "src/",
     "scripts/start-built-cli.mjs",

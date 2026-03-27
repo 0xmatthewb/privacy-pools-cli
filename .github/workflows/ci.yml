@@ -132,7 +132,7 @@ jobs:
 
       - name: Select npm-test
         id: select
-        run: node scripts/ci/select-jobs.mjs --job linux-core >> "$GITHUB_OUTPUT"
+        run: node scripts/ci/select-jobs.mjs --job npm-test >> "$GITHUB_OUTPUT"
 
       - name: Skip npm-test
         if: steps.select.outputs.should_run != 'true'
