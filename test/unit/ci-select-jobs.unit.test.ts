@@ -218,4 +218,15 @@ describe("ci job selection", () => {
     expect(nativeDecision.shouldRun).toBe(true);
     expect(nativeDecision.reason).toContain(JSON_CONTRACT_DOC_RELATIVE_PATH);
   });
+
+  test("conformance-core runs when verification scripts change", () => {
+    const decision = evaluateJobSelection({
+      job: "conformance-core",
+      eventName: "pull_request",
+      changedFiles: ["scripts/verify-registry-install.mjs"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("scripts/verify-registry-install.mjs");
+  });
 });

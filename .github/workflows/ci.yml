@@ -196,10 +196,6 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
 
-      - name: Build package
-        if: steps.select.outputs.should_run == 'true'
-        run: npm run build
-
       - name: Run packaged smoke tests
         if: steps.select.outputs.should_run == 'true'
         run: npm run test:smoke
@@ -250,10 +246,6 @@ jobs:
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
-
-      - name: Build package
-        if: steps.select.outputs.should_run == 'true'
-        run: npm run build
 
       - name: Run native package smoke tests
         if: steps.select.outputs.should_run == 'true'
