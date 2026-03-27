@@ -1087,9 +1087,8 @@
         ]
       },
       "status": {
-        "owner": "hybrid",
+        "owner": "js-runtime",
         "nativeModes": [
-          "structured-no-check",
           "help"
         ]
       },

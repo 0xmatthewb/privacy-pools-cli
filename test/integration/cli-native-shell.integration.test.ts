@@ -17,7 +17,14 @@ import {
   ensureNativeShellBinary,
 } from "../helpers/native.ts";
 
+const TEST_RECIPIENT = "0x000000000000000000000000000000000000dEaD";
 const nativeTest = CARGO_AVAILABLE ? test : test.skip;
+
+interface ForwardingParityCase {
+  label: string;
+  args: string[];
+  envFactory?: (fixture: FixtureServer) => Record<string, string>;
+}
 
 function runNativeBuiltCli(
   nativeBinary: string,
@@ -94,12 +101,25 @@ describe("native shell parity", () => {
     expectStreamParity(nativeBinary, ["--help"]);
   });
 
+  nativeTest("version output stays identical across launcher and native shell", () => {
+    expectStreamParity(nativeBinary, ["--version"]);
+    expectJsonParity(nativeBinary, ["--json", "--version"]);
+  });
+
   nativeTest("structured root help stays machine-readable", () => {
     expectJsonParity(nativeBinary, ["--json", "--help"]);
   });
 
   nativeTest("subcommand help is manifest-driven but output-identical", () => {
     expectStreamParity(nativeBinary, ["withdraw", "quote", "--help"]);
+  });
+
+  nativeTest("guide, capabilities, and structured describe outputs stay identical", () => {
+    expectStreamParity(nativeBinary, ["guide"]);
+    expectJsonParity(nativeBinary, ["--agent", "guide"]);
+    expectStreamParity(nativeBinary, ["capabilities"]);
+    expectJsonParity(nativeBinary, ["--agent", "capabilities"]);
+    expectJsonParity(nativeBinary, ["--agent", "describe", "stats", "global"]);
   });
 
   nativeTest("describe human output matches JS without loading the full runtime", () => {
@@ -121,7 +141,7 @@ describe("native shell parity", () => {
     ]);
   });
 
-  nativeTest("status --agent --no-check stays JSON-identical", () => {
+  nativeTest("status --agent --no-check stays JS-owned through native forwarding", () => {
     const jsHome = createTempHome("pp-native-status-js-");
     const nativeHome = createTempHome("pp-native-status-native-");
     expectJsonParity(
@@ -170,4 +190,90 @@ describe("native shell parity", () => {
       native: { home: nativeHome },
     });
   });
+
+  const forwardingCases: ForwardingParityCase[] = [
+    {
+      label: "stats pool detail",
+      args: ["--agent", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      envFactory: fixtureEnv,
+    },
+    {
+      label: "pools detail",
+      args: ["--agent", "--chain", "sepolia", "pools", "ETH"],
+      envFactory: fixtureEnv,
+    },
+    {
+      label: "flow status latest",
+      args: ["--agent", "flow", "status", "latest"],
+    },
+    {
+      label: "flow watch latest",
+      args: ["--agent", "flow", "watch", "latest"],
+    },
+    {
+      label: "flow ragequit latest",
+      args: ["--agent", "flow", "ragequit", "latest"],
+    },
+    {
+      label: "flow start",
+      args: ["--agent", "flow", "start", "0.1", "ETH", "--to", TEST_RECIPIENT],
+    },
+    {
+      label: "deposit",
+      args: ["--agent", "deposit", "0.1", "ETH"],
+    },
+    {
+      label: "withdraw quote",
+      args: [
+        "--agent",
+        "--chain",
+        "not-a-chain",
+        "withdraw",
+        "quote",
+        "0.1",
+        "ETH",
+        "--to",
+        TEST_RECIPIENT,
+      ],
+    },
+    {
+      label: "withdraw",
+      args: ["--agent", "withdraw", "0.1", "ETH", "--to", TEST_RECIPIENT],
+    },
+    {
+      label: "ragequit",
+      args: ["--agent", "ragequit", "ETH", "--from-pa", "PA-1"],
+    },
+    {
+      label: "accounts",
+      args: ["--agent", "accounts"],
+    },
+    {
+      label: "history",
+      args: ["--agent", "history"],
+    },
+    {
+      label: "sync",
+      args: ["--agent", "sync"],
+    },
+    {
+      label: "migrate status",
+      args: ["--agent", "migrate", "status"],
+    },
+  ];
+
+  for (const { label, args, envFactory } of forwardingCases) {
+    nativeTest(`${label} stays identical through native forwarding`, () => {
+      const jsHome = createTempHome(`pp-native-${label.replaceAll(" ", "-")}-js-`);
+      const nativeHome = createTempHome(
+        `pp-native-${label.replaceAll(" ", "-")}-native-`,
+      );
+      const env = envFactory ? envFactory(fixture!) : undefined;
+
+      expectJsonParity(nativeBinary, args, {
+        js: { home: jsHome, env },
+        native: { home: nativeHome, env },
+      });
+    });
+  }
 });

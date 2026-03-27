@@ -213,9 +213,8 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "status": {
-    "owner": "hybrid",
+    "owner": "js-runtime",
     "nativeModes": [
-      "structured-no-check",
       "help"
     ]
   },

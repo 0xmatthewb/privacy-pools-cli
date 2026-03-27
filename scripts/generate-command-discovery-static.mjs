@@ -107,8 +107,8 @@ function buildCommandRoute(path) {
 
   if (path === "status") {
     return {
-      owner: "hybrid",
-      nativeModes: ["structured-no-check", "help"],
+      owner: "js-runtime",
+      nativeModes: ["help"],
     };
   }
 
