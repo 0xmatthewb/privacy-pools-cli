@@ -18,6 +18,10 @@ const crossPlatformWorkflow = readFileSync(
   join(CLI_ROOT, ".github", "workflows", "cross-platform.yml"),
   "utf8",
 );
+const packNativeTarballScript = readFileSync(
+  join(CLI_ROOT, "scripts", "pack-native-tarball.mjs"),
+  "utf8",
+);
 const packageJson = JSON.parse(
   readFileSync(join(CLI_ROOT, "package.json"), "utf8"),
 ) as {
@@ -73,6 +77,7 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain('- "25.x"');
     expect(ciWorkflow).toContain("windows-11-arm");
     expect(ciWorkflow).toContain("macos-15-intel");
+    expect(ciWorkflow).toContain("node scripts/pack-native-tarball.mjs");
     expect(ciWorkflow).toContain("node scripts/verify-release-install.mjs");
     expect(extractCrossPlatformLabels(ciWorkflow)).toEqual(
       expectedNativeTriplets(),
@@ -98,10 +103,10 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("SHA256SUMS.txt.sig");
     expect(releaseWorkflow).toContain("SHA256SUMS.txt.pem");
     expect(releaseWorkflow).toContain("id-token: write");
-    expect(releaseWorkflow).toContain(
-      "node scripts/verify-packed-native-package.mjs",
-    );
+    expect(releaseWorkflow).toContain("node scripts/pack-native-tarball.mjs");
     expect(releaseWorkflow).toContain("node scripts/verify-release-install.mjs");
+    expect(packNativeTarballScript).toContain("prepare-native-package.mjs");
+    expect(packNativeTarballScript).toContain("verify-packed-native-package.mjs");
   });
 
   test("release workflow publishes native optional packages to npm", () => {

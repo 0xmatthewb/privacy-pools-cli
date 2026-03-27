@@ -132,6 +132,24 @@ describe("ci job selection", () => {
     expect(installDecision.reason).toContain(
       "scripts/verify-release-install.mjs",
     );
+
+    const packDecision = evaluateJobSelection({
+      job: "cross-platform",
+      eventName: "pull_request",
+      changedFiles: ["scripts/pack-native-tarball.mjs"],
+    });
+    expect(packDecision.shouldRun).toBe(true);
+    expect(packDecision.reason).toContain("scripts/pack-native-tarball.mjs");
+
+    const sharedInstallDecision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/lib/install-verification.mjs"],
+    });
+    expect(sharedInstallDecision.shouldRun).toBe(true);
+    expect(sharedInstallDecision.reason).toContain(
+      "scripts/lib/install-verification.mjs",
+    );
   });
 
   test("anvil smoke runs when installed-cli anvil verification changes", () => {

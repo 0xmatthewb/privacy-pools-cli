@@ -1,58 +1,25 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-
-const scriptDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = dirname(scriptDir);
-const rootPackageJson = JSON.parse(
-  readFileSync(join(repoRoot, "package.json"), "utf8"),
-);
-const nativeDistributionModulePath = join(
+import { join } from "node:path";
+import {
+  assertInstalledLauncherBasics,
+  currentNativePackageName,
+  fail,
+  npmCommand,
+  packageInstallPath,
+  parseArgs,
+  parseJson,
+  rootPackageJson,
+  runInstalledCli,
   repoRoot,
-  "src",
-  "native-distribution.js",
-);
-const { nativePackageName: resolveNativePackageName } = await import(
-  pathToFileURL(nativeDistributionModulePath).href
-);
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-
-function currentNativePackageName(
-  platform = process.platform,
-  arch = process.arch,
-) {
-  return resolveNativePackageName(platform, arch);
-}
-
-function parseArgs(argv) {
-  const result = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const token = argv[i];
-    if (!token.startsWith("--")) continue;
-    const [key, inlineValue] = token.split("=", 2);
-    const value = inlineValue ?? argv[i + 1];
-    if (inlineValue === undefined) i += 1;
-    result[key.slice(2)] = value;
-  }
-  return result;
-}
+} from "./lib/install-verification.mjs";
 
 function usageAndExit() {
   process.stderr.write(
     "Usage: node scripts/verify-registry-install.mjs [--package <name>] [--version <version>] [--timeout-ms <ms>]\n",
   );
   process.exit(2);
-}
-
-function fail(message) {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
-}
-
-function packageInstallPath(installRoot, packageName) {
-  return join(installRoot, "node_modules", ...packageName.split("/"));
 }
 
 function run(command, args, options = {}) {
@@ -77,61 +44,6 @@ function run(command, args, options = {}) {
   }
 
   return result;
-}
-
-function parseJson(stdout, label) {
-  try {
-    return JSON.parse(stdout);
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    fail(`${label} did not emit valid JSON:\n${reason}\n${stdout}`);
-  }
-}
-
-function resolveInstalledCliCommand(installRoot, args) {
-  const binDir = join(installRoot, "node_modules", ".bin");
-  if (process.platform === "win32") {
-    return {
-      command: join(binDir, "privacy-pools.cmd"),
-      args,
-      shell: true,
-    };
-  }
-
-  return {
-    command: join(binDir, "privacy-pools"),
-    args,
-    shell: false,
-  };
-}
-
-function runCli(installRoot, homeDir, args, options = {}) {
-  const invocation = resolveInstalledCliCommand(installRoot, args);
-  const result = spawnSync(invocation.command, invocation.args, {
-    cwd: installRoot,
-    encoding: "utf8",
-    timeout: options.timeout ?? 60_000,
-    maxBuffer: 10 * 1024 * 1024,
-    shell: invocation.shell,
-    env: {
-      ...process.env,
-      PP_NO_UPDATE_CHECK: "1",
-      NO_COLOR: "1",
-      PRIVACY_POOLS_HOME: homeDir,
-      ...options.env,
-    },
-    input: options.input,
-  });
-
-  if (result.error) {
-    fail(
-      `Failed to execute privacy-pools ${args.join(" ")}:\n${result.error.message}`,
-    );
-  }
-
-  return result;
-}
-
 async function waitForRegistryPackage(packageName, version, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
 
@@ -234,57 +146,15 @@ try {
     );
   }
 
-  const versionResult = runCli(installRoot, homeDir, ["--version"]);
-  if (versionResult.status !== 0 || versionResult.stdout.trim() !== expectedVersion) {
-    fail(
-      `Installed registry CLI returned an unexpected version:\nstatus=${versionResult.status}\nstdout=${versionResult.stdout}\nstderr=${versionResult.stderr}`,
-    );
-  }
-
-  const helpResult = runCli(installRoot, homeDir, ["--help"]);
-  if (helpResult.status !== 0 || !helpResult.stdout.includes("privacy-pools")) {
-    fail(
-      `Installed registry CLI help failed:\nstatus=${helpResult.status}\nstdout=${helpResult.stdout}\nstderr=${helpResult.stderr}`,
-    );
-  }
-
-  const nativeResolutionResult = runCli(
+  assertInstalledLauncherBasics({
     installRoot,
     homeDir,
-    ["flow", "--help"],
-    {
-      env: {
-        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
-      },
-    },
-  );
-  if (
-    nativeResolutionResult.status !== 0 ||
-    !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
-  ) {
-    fail(
-      `Installed registry CLI failed native launcher resolution:\nstatus=${nativeResolutionResult.status}\nstdout=${nativeResolutionResult.stdout}\nstderr=${nativeResolutionResult.stderr}`,
-    );
-  }
+    expectedVersion,
+    missingWorkerPath,
+    label: "Installed registry CLI",
+  });
 
-  const disabledNativeResolutionResult = runCli(
-    installRoot,
-    homeDir,
-    ["flow", "--help"],
-    {
-      env: {
-        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
-        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
-      },
-    },
-  );
-  if (disabledNativeResolutionResult.status === 0) {
-    fail(
-      `Installed registry CLI no longer distinguishes native resolution from JS fallback:\nstdout=${disabledNativeResolutionResult.stdout}\nstderr=${disabledNativeResolutionResult.stderr}`,
-    );
-  }
-
-  const statusResult = runCli(
+  const statusResult = runInstalledCli(
     installRoot,
     homeDir,
     ["--agent", "status", "--no-check"],

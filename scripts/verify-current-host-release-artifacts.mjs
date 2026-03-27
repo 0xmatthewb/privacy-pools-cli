@@ -91,10 +91,8 @@ if (!existsSync(distIndexPath)) {
 const tempRoot = mkdtempSync(join(tmpdir(), "pp-release-artifacts-host-"));
 const cliTarballDir = join(tempRoot, "cli");
 const nativePackageDir = join(tempRoot, "native-package");
-const nativeTarballDir = join(tempRoot, "native-tarball");
 
 mkdirSync(cliTarballDir, { recursive: true });
-mkdirSync(nativeTarballDir, { recursive: true });
 
 try {
   run(cargoCommand, [
@@ -106,25 +104,16 @@ try {
 
   const cliTarball = packTarball(repoRoot, cliTarballDir);
 
-  run("node", [
-    join(repoRoot, "scripts", "prepare-native-package.mjs"),
+  const nativePackResult = run("node", [
+    join(repoRoot, "scripts", "pack-native-tarball.mjs"),
     "--triplet",
     triplet,
-    "--binary",
-    nativeBinaryPath(),
     "--out-dir",
     nativePackageDir,
+    "--binary",
+    nativeBinaryPath(),
   ]);
-
-  const nativeTarball = packTarball(nativePackageDir, nativeTarballDir);
-
-  run("node", [
-    join(repoRoot, "scripts", "verify-packed-native-package.mjs"),
-    "--triplet",
-    triplet,
-    "--tarball",
-    nativeTarball,
-  ]);
+  const nativeTarball = nativePackResult.stdout.trim();
 
   run("node", [
     join(repoRoot, "scripts", "verify-release-install.mjs"),

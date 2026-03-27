@@ -2,69 +2,40 @@ import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
-  readFileSync,
-  readdirSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import {
+  assertInstalledLauncherBasics,
+  currentNativePackageName,
+  fail,
+  packageInstallPath,
+  parseArgs,
+  parseJson,
+  rootPackageJson,
+  runInstalledCli,
+  spawnInstalledCli,
+  stopInstalledCliChild,
+  waitForWorkflowPhase,
+  npmCommand,
+  repoRoot,
+} from "./lib/install-verification.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = dirname(scriptDir);
-const rootPackageJson = JSON.parse(
-  readFileSync(join(repoRoot, "package.json"), "utf8"),
-);
-const nativeDistributionModulePath = join(
-  repoRoot,
-  "src",
-  "native-distribution.js",
-);
-const { nativePackageName: resolveNativePackageName } = await import(
-  pathToFileURL(nativeDistributionModulePath).href
-);
 const TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
 const TEST_PRIVATE_KEY =
   "0x1111111111111111111111111111111111111111111111111111111111111111";
 const TEST_RECIPIENT = "0x4444444444444444444444444444444444444444";
 
-function currentNativePackageName(
-  platform = process.platform,
-  arch = process.arch,
-) {
-  return resolveNativePackageName(platform, arch);
-}
-
-function parseArgs(argv) {
-  const result = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const token = argv[i];
-    if (!token.startsWith("--")) continue;
-    const [key, inlineValue] = token.split("=", 2);
-    const value = inlineValue ?? argv[i + 1];
-    if (inlineValue === undefined) i += 1;
-    result[key.slice(2)] = value;
-  }
-  return result;
-}
-
 function usageAndExit() {
   process.stderr.write(
     "Usage: node scripts/verify-release-install.mjs --cli-tarball <path> --native-tarball <path> [--version <version>]\n",
   );
   process.exit(2);
-}
-
-function fail(message) {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
-}
-
-function packageInstallPath(installRoot, packageName) {
-  return join(installRoot, "node_modules", ...packageName.split("/"));
 }
 
 function writeInstallProjectManifest(
@@ -87,177 +58,6 @@ function writeInstallProjectManifest(
     }),
     "utf8",
   );
-}
-
-function parseJson(stdout, label) {
-  try {
-    return JSON.parse(stdout);
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    fail(`${label} did not emit valid JSON:\n${reason}\n${stdout}`);
-  }
-}
-
-function readLatestWorkflowSnapshot(homeDir) {
-  const workflowsDir = join(homeDir, "workflows");
-  if (!existsSync(workflowsDir)) {
-    return null;
-  }
-
-  const snapshots = readdirSync(workflowsDir)
-    .filter((entry) => entry.endsWith(".json"))
-    .map((entry) => {
-      const filePath = join(workflowsDir, entry);
-      try {
-        const snapshot = JSON.parse(readFileSync(filePath, "utf8"));
-        const updatedAt =
-          typeof snapshot.updatedAt === "string" ? Date.parse(snapshot.updatedAt) : Number.NaN;
-        const createdAt =
-          typeof snapshot.createdAt === "string" ? Date.parse(snapshot.createdAt) : Number.NaN;
-        const timestamp = Number.isFinite(updatedAt)
-          ? updatedAt
-          : Number.isFinite(createdAt)
-            ? createdAt
-            : statSync(filePath).mtimeMs;
-        return { snapshot, timestamp };
-      } catch {
-        return null;
-      }
-    })
-    .filter((entry) => entry !== null)
-    .sort((left, right) => right.timestamp - left.timestamp);
-
-  return snapshots[0]?.snapshot ?? null;
-}
-
-async function waitForWorkflowPhase(homeDir, phase, options = {}) {
-  const timeoutMs = options.timeoutMs ?? 60_000;
-  const intervalMs = options.intervalMs ?? 250;
-  const child = options.child ?? null;
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    const snapshot = readLatestWorkflowSnapshot(homeDir);
-    if (snapshot?.phase === phase) {
-      return snapshot;
-    }
-    if (child && (child.exitCode !== null || child.signalCode !== null)) {
-      throw new Error(
-        `Installed workflow process exited before reaching phase ${phase} (code=${child.exitCode}, signal=${child.signalCode}).`,
-      );
-    }
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, intervalMs));
-  }
-
-  if (child && (child.exitCode !== null || child.signalCode !== null)) {
-    throw new Error(
-      `Installed workflow process exited before reaching phase ${phase} (code=${child.exitCode}, signal=${child.signalCode}).`,
-    );
-  }
-
-  throw new Error(`Timed out waiting for installed workflow phase ${phase}.`);
-}
-
-function resolveInstalledCliCommand(installRoot, args) {
-  const binDir = join(installRoot, "node_modules", ".bin");
-  if (process.platform === "win32") {
-    return {
-      command: join(binDir, "privacy-pools.cmd"),
-      args,
-      shell: true,
-    };
-  }
-
-  return {
-    command: join(binDir, "privacy-pools"),
-    args,
-    shell: false,
-  };
-}
-
-function runCli(installRoot, homeDir, args, options = {}) {
-  const invocation = resolveInstalledCliCommand(installRoot, args);
-  const result = spawnSync(invocation.command, invocation.args, {
-    cwd: installRoot,
-    encoding: "utf8",
-    timeout: options.timeout ?? 60_000,
-    maxBuffer: 10 * 1024 * 1024,
-    shell: invocation.shell,
-    env: {
-      ...process.env,
-      PP_NO_UPDATE_CHECK: "1",
-      NO_COLOR: "1",
-      PRIVACY_POOLS_HOME: homeDir,
-      ...options.env,
-    },
-    input: options.input,
-  });
-
-  if (result.error) {
-    fail(
-      `Failed to execute privacy-pools ${args.join(" ")}:\n${result.error.message}`,
-    );
-  }
-
-  return result;
-}
-
-function spawnCli(installRoot, homeDir, args, options = {}) {
-  const invocation = resolveInstalledCliCommand(installRoot, args);
-  const child = spawn(invocation.command, invocation.args, {
-    cwd: installRoot,
-    shell: invocation.shell,
-    stdio: ["ignore", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      PP_NO_UPDATE_CHECK: "1",
-      NO_COLOR: "1",
-      PRIVACY_POOLS_HOME: homeDir,
-      ...options.env,
-    },
-  });
-
-  child.stdout.setEncoding("utf8");
-  child.stderr.setEncoding("utf8");
-
-  let stdout = "";
-  let stderr = "";
-  child.stdout.on("data", (chunk) => {
-    stdout += chunk;
-  });
-  child.stderr.on("data", (chunk) => {
-    stderr += chunk;
-  });
-
-  return {
-    child,
-    getStdout() {
-      return stdout;
-    },
-    getStderr() {
-      return stderr;
-    },
-  };
-}
-
-async function stopCliChild(handle) {
-  const { child } = handle;
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return;
-  }
-
-  await new Promise((resolvePromise) => {
-    const timer = setTimeout(() => {
-      if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGKILL");
-      }
-    }, 5_000);
-    child.once("exit", () => {
-      clearTimeout(timer);
-      resolvePromise();
-    });
-    child.kill("SIGINT");
-  });
 }
 
 async function launchAspFixtureServer() {
@@ -347,7 +147,6 @@ const cliTarballPath = resolve(cliTarball);
 const nativeTarballPath = resolve(nativeTarball);
 const installRoot = mkdtempSync(join(tmpdir(), "pp-release-install-"));
 const npmCacheDir = join(installRoot, ".npm-cache");
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const homeDir = join(installRoot, ".privacy-pools");
 const stdinHomeDir = join(installRoot, ".privacy-pools-stdin");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
@@ -416,57 +215,15 @@ async function main() {
     // Resolve the root package's installed bin target from its own package.json.
     // The installed public privacy-pools shim must remain owned by the root JS
     // launcher even when the optional native package is present.
-    const versionResult = runCli(installRoot, homeDir, ["--version"]);
-    if (versionResult.status !== 0 || versionResult.stdout.trim() !== expectedVersion) {
-      fail(
-        `Installed release CLI returned an unexpected version:\nstatus=${versionResult.status}\nstdout=${versionResult.stdout}\nstderr=${versionResult.stderr}`,
-      );
-    }
-
-    const helpResult = runCli(installRoot, homeDir, ["--help"]);
-    if (helpResult.status !== 0 || !helpResult.stdout.includes("privacy-pools")) {
-      fail(
-        `Installed release CLI help failed:\nstatus=${helpResult.status}\nstdout=${helpResult.stdout}\nstderr=${helpResult.stderr}`,
-      );
-    }
-
-    const nativeResolutionResult = runCli(
+    assertInstalledLauncherBasics({
       installRoot,
       homeDir,
-      ["flow", "--help"],
-      {
-        env: {
-          PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
-        },
-      },
-    );
-    if (
-      nativeResolutionResult.status !== 0 ||
-      !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
-    ) {
-      fail(
-        `Installed release CLI failed native launcher resolution:\nstatus=${nativeResolutionResult.status}\nstdout=${nativeResolutionResult.stdout}\nstderr=${nativeResolutionResult.stderr}`,
-      );
-    }
+      expectedVersion,
+      missingWorkerPath,
+      label: "Installed release CLI",
+    });
 
-    const disabledNativeResolutionResult = runCli(
-      installRoot,
-      homeDir,
-      ["flow", "--help"],
-      {
-        env: {
-          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
-          PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
-        },
-      },
-    );
-    if (disabledNativeResolutionResult.status === 0) {
-      fail(
-        `Installed release CLI no longer distinguishes native resolution from JS fallback:\nstdout=${disabledNativeResolutionResult.stdout}\nstderr=${disabledNativeResolutionResult.stderr}`,
-      );
-    }
-
-    const initResult = runCli(
+    const initResult = runInstalledCli(
       installRoot,
       stdinHomeDir,
       [
@@ -502,7 +259,7 @@ async function main() {
     }
 
     aspFixture = await launchAspFixtureServer();
-    const statsSuccessResult = runCli(
+    const statsSuccessResult = runInstalledCli(
       installRoot,
       homeDir,
       ["--agent", "stats"],
@@ -529,7 +286,7 @@ async function main() {
     await aspFixture.close();
     aspFixture = null;
 
-    const statusResult = runCli(
+    const statusResult = runInstalledCli(
       installRoot,
       stdinHomeDir,
       ["--agent", "status", "--no-check"],
@@ -548,7 +305,7 @@ async function main() {
 
     aspFixture = await launchAspFixtureServer();
     const exportPath = join(installRoot, "installed-flow-wallet.txt");
-    const flowStartHandle = spawnCli(
+    const flowStartHandle = spawnInstalledCli(
       installRoot,
       stdinHomeDir,
       [
@@ -586,7 +343,7 @@ async function main() {
         );
       }
 
-      const flowStatusResult = runCli(
+      const flowStatusResult = runInstalledCli(
         installRoot,
         stdinHomeDir,
         ["--agent", "flow", "status", "latest", "--chain", "sepolia"],
@@ -616,12 +373,12 @@ async function main() {
         `Installed release CLI failed JS-forwarded flow setup parity:\n${reason}\nstdout=${flowStartHandle.getStdout()}\nstderr=${flowStartHandle.getStderr()}`,
       );
     } finally {
-      await stopCliChild(flowStartHandle);
+      await stopInstalledCliChild(flowStartHandle);
       await aspFixture.close();
       aspFixture = null;
     }
 
-    const statsResult = runCli(
+    const statsResult = runInstalledCli(
       installRoot,
       homeDir,
       ["--agent", "stats"],

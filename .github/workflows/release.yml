@@ -281,25 +281,8 @@ jobs:
       - name: Pack native package
         shell: bash
         run: |
-          case "${{ matrix.triplet }}" in
-            win32-*)
-              BIN="native/shell/target/release/privacy-pools-cli-native-shell.exe"
-              ;;
-            *)
-              BIN="native/shell/target/release/privacy-pools-cli-native-shell"
-              ;;
-          esac
-
-          OUT_DIR="dist-native/${{ matrix.triplet }}"
-          node scripts/prepare-native-package.mjs --triplet "${{ matrix.triplet }}" --binary "$BIN" --out-dir "$OUT_DIR"
-
-          pushd "$OUT_DIR" > /dev/null
-          TARBALL="$(npm pack --silent)"
-          popd > /dev/null
-
-          mv "$OUT_DIR/$TARBALL" "dist-native/$TARBALL"
-          node scripts/verify-packed-native-package.mjs --triplet "${{ matrix.triplet }}" --tarball "dist-native/$TARBALL"
-          echo "Packed dist-native/$TARBALL"
+          TARBALL="$(node scripts/pack-native-tarball.mjs --triplet "${{ matrix.triplet }}" --out-dir "dist-native/${{ matrix.triplet }}")"
+          echo "Packed ${TARBALL}"
 
       - name: Upload native package artifact
         uses: actions/upload-artifact@v6
