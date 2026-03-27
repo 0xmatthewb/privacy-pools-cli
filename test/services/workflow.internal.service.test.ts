@@ -20,6 +20,7 @@ import {
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import type { FlowSnapshot } from "../../src/services/workflow.ts";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import { captureAsyncOutput } from "../helpers/output.ts";
 import {
   cleanupTrackedTempDirs,
@@ -346,7 +347,7 @@ function sampleSnapshot(
   patch: Partial<FlowSnapshot> = {},
 ): FlowSnapshot {
   return {
-    schemaVersion: "1.5.0",
+    schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
     workflowId: "wf-internal",
     createdAt: "2026-03-24T12:00:00.000Z",
     updatedAt: "2026-03-24T12:00:00.000Z",

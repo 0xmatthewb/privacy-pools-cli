@@ -8,6 +8,7 @@ import {
   resolveLatestWorkflowId,
   type FlowSnapshot,
 } from "../../src/services/workflow.ts";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
@@ -24,7 +25,7 @@ function sampleWorkflow(
 ): FlowSnapshot {
   const now = "2026-03-24T12:00:00.000Z";
   return {
-    schemaVersion: "1.5.0",
+    schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
     workflowId,
     createdAt: now,
     updatedAt: now,
@@ -191,10 +192,38 @@ describe("workflow service", () => {
     writeWorkflow(home, sampleWorkflow("legacy"));
 
     const snapshot = loadWorkflowSnapshot("legacy");
+    expect(snapshot.schemaVersion).toBe(WORKFLOW_SNAPSHOT_VERSION);
     expect(snapshot.walletMode).toBe("configured");
     expect(snapshot.walletAddress).toBeNull();
     expect(snapshot.requiredNativeFunding).toBeNull();
     expect(snapshot.requiredTokenFunding).toBeNull();
     expect(snapshot.backupConfirmed).toBe(false);
+  });
+
+  test("loadWorkflowSnapshot accepts legacy workflow schema versions", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    writeWorkflow(
+      home,
+      sampleWorkflow("legacy-version", { schemaVersion: "1.5.0" }),
+    );
+
+    const snapshot = loadWorkflowSnapshot("legacy-version");
+    expect(snapshot.schemaVersion).toBe(WORKFLOW_SNAPSHOT_VERSION);
+  });
+
+  test("loadWorkflowSnapshot rejects unsupported workflow schema versions", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    writeWorkflow(
+      home,
+      sampleWorkflow("future-version", { schemaVersion: "999" }),
+    );
+
+    expect(() => loadWorkflowSnapshot("future-version")).toThrow(
+      "Workflow file uses an unsupported schema version: 999",
+    );
   });
 });

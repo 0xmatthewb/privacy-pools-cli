@@ -30,6 +30,10 @@ import {
   expectSilentOutput,
 } from "../helpers/output.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
+import {
+  WORKFLOW_SECRET_RECORD_VERSION,
+  WORKFLOW_SNAPSHOT_VERSION,
+} from "../../src/services/workflow-storage-version.ts";
 
 const realConfig = await import("../../src/services/config.ts");
 const realAccount = await import("../../src/services/account.ts");
@@ -785,7 +789,7 @@ function writeWorkflowSnapshot(workflowId: string, patch: Record<string, unknown
   realConfig.ensureConfigDir();
   const workflowsDir = realConfig.getWorkflowsDir();
   const snapshot = {
-    schemaVersion: "1.5.0",
+    schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
     workflowId,
     createdAt: "2026-03-24T12:00:00.000Z",
     updatedAt: "2026-03-24T12:00:00.000Z",
@@ -814,7 +818,7 @@ function writeWorkflowSecret(workflowId: string): void {
     join(realConfig.getWorkflowSecretsDir(), `${workflowId}.json`),
     JSON.stringify(
       {
-        schemaVersion: "1.5.0",
+        schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
         workflowId,
         chain: "sepolia",
         walletAddress: NEW_WALLET_ADDRESS,
@@ -2241,7 +2245,7 @@ describe("workflow service mocked coverage", () => {
       join(realConfig.getWorkflowSecretsDir(), "wf-invalid-secret-ragequit.json"),
       JSON.stringify(
         {
-          schemaVersion: "1.5.0",
+          schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
           workflowId: "wf-invalid-secret-ragequit",
           chain: "sepolia",
           walletAddress: NEW_WALLET_ADDRESS,

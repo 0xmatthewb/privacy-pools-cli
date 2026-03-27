@@ -40,6 +40,10 @@ import {
   type FlowSnapshot,
 } from "../../src/services/workflow.ts";
 import {
+  WORKFLOW_SECRET_RECORD_VERSION,
+  WORKFLOW_SNAPSHOT_VERSION,
+} from "../../src/services/workflow-storage-version.ts";
+import {
   ensureConfigDir,
   getWorkflowSecretsDir,
   saveSignerKey,
@@ -67,7 +71,7 @@ function sampleWorkflow(
 ): FlowSnapshot {
   const now = "2026-03-24T12:00:00.000Z";
   return {
-    schemaVersion: "1.5.0",
+    schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
     workflowId,
     createdAt: now,
     updatedAt: now,
@@ -213,12 +217,33 @@ describe("workflow helper coverage", () => {
     );
   });
 
+  test("loadWorkflowSecretRecord rejects unsupported secret schema versions", () => {
+    useIsolatedHome();
+
+    writeFileSync(
+      join(getWorkflowSecretsDir(), "future-secret.json"),
+      JSON.stringify({
+        schemaVersion: "999",
+        workflowId: "future-secret",
+        chain: "mainnet",
+        walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
+        privateKey: WORKFLOW_SIGNER,
+      }),
+      "utf-8",
+    );
+
+    expect(() => loadWorkflowSecretRecord("future-secret")).toThrow(
+      "Workflow wallet secret uses an unsupported schema version: 999",
+    );
+  });
+
   test("loadWorkflowSecretRecord and getFlowSignerAddress use the workflow secret for new-wallet flows", () => {
     useIsolatedHome();
 
     writeFileSync(
       join(getWorkflowSecretsDir(), "wf-secret.json"),
       JSON.stringify({
+        schemaVersion: "1.5.0",
         workflowId: "wf-secret",
         chain: "mainnet",
         walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
@@ -560,6 +585,7 @@ describe("workflow helper coverage", () => {
     expect(unchanged).toBe(saved);
 
     const secret = saveWorkflowSecretRecord({
+      schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
       workflowId: "wf-persist",
       chain: "mainnet",
       walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
@@ -707,12 +733,14 @@ describe("workflow helper coverage", () => {
   test("cleanupTerminalWorkflowSecret removes only terminal new-wallet secrets", () => {
     useIsolatedHome();
     saveWorkflowSecretRecord({
+      schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
       workflowId: "wf-terminal",
       chain: "mainnet",
       walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
       privateKey: WORKFLOW_SIGNER,
     });
     saveWorkflowSecretRecord({
+      schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
       workflowId: "wf-nonterminal",
       chain: "mainnet",
       walletAddress: privateKeyToAccount(CONFIGURED_SIGNER).address,

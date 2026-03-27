@@ -75,7 +75,6 @@ import {
   verbose,
   warn,
 } from "../utils/format.js";
-import { JSON_SCHEMA_VERSION } from "../utils/json.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import { getConfirmationTimeoutMs, type ResolvedGlobalMode } from "../utils/mode.js";
 import {
@@ -101,6 +100,12 @@ import {
 } from "../commands/withdraw.js";
 import { toRagequitSolidityProof } from "../utils/unsigned.js";
 import type { GlobalOptions } from "../types.js";
+import {
+  LEGACY_WORKFLOW_SECRET_RECORD_VERSIONS,
+  LEGACY_WORKFLOW_SNAPSHOT_VERSIONS,
+  WORKFLOW_SECRET_RECORD_VERSION,
+  WORKFLOW_SNAPSHOT_VERSION,
+} from "./workflow-storage-version.js";
 
 const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -154,6 +159,14 @@ const WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE =
   "Public deposit was submitted, but the workflow could not checkpoint it locally.";
 const WORKFLOW_DEPOSIT_CHECKPOINT_AMBIGUOUS_MESSAGE =
   "This workflow may have submitted a public deposit, but the transaction hash was not checkpointed locally.";
+const SUPPORTED_WORKFLOW_SNAPSHOT_VERSIONS = new Set<string>([
+  WORKFLOW_SNAPSHOT_VERSION,
+  ...LEGACY_WORKFLOW_SNAPSHOT_VERSIONS,
+]);
+const SUPPORTED_WORKFLOW_SECRET_RECORD_VERSIONS = new Set<string>([
+  WORKFLOW_SECRET_RECORD_VERSION,
+  ...LEGACY_WORKFLOW_SECRET_RECORD_VERSIONS,
+]);
 
 export type FlowPhase =
   | "awaiting_funding"
@@ -551,6 +564,19 @@ export function loadWorkflowSecretRecord(workflowId: string): FlowSecretRecord {
     );
   }
 
+  const schemaVersion = (parsed as FlowSecretRecord).schemaVersion;
+  if (
+    typeof schemaVersion === "string" &&
+    schemaVersion.trim().length > 0 &&
+    !SUPPORTED_WORKFLOW_SECRET_RECORD_VERSIONS.has(schemaVersion)
+  ) {
+    throw new CLIError(
+      `Workflow wallet secret uses an unsupported schema version: ${schemaVersion}`,
+      "INPUT",
+      "Upgrade the CLI to a compatible version, or restore the workflow wallet from a newer backup format.",
+    );
+  }
+
   return parsed as FlowSecretRecord;
 }
 
@@ -579,6 +605,7 @@ function isNewWalletFlow(snapshot: FlowSnapshot): boolean {
 export function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
   return {
     ...snapshot,
+    schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
     walletMode: snapshot.walletMode ?? "configured",
     walletAddress: snapshot.walletAddress ?? null,
     assetDecimals: snapshot.assetDecimals ?? null,
@@ -696,6 +723,18 @@ function parseWorkflowSnapshot(raw: string, filePath: string): FlowSnapshot {
       `Workflow file has invalid structure: ${filePath}`,
       "INPUT",
       "Remove the broken workflow file or resolve the JSON manually, then retry.",
+    );
+  }
+
+  if (
+    typeof snapshot.schemaVersion === "string" &&
+    snapshot.schemaVersion.trim().length > 0 &&
+    !SUPPORTED_WORKFLOW_SNAPSHOT_VERSIONS.has(snapshot.schemaVersion)
+  ) {
+    throw new CLIError(
+      `Workflow file uses an unsupported schema version: ${snapshot.schemaVersion}`,
+      "INPUT",
+      "Upgrade the CLI to a compatible version, or remove the outdated workflow file if you no longer need it.",
     );
   }
 
@@ -1252,7 +1291,7 @@ export function createInitialSnapshot(params: {
 }): FlowSnapshot {
   const now = workflowNow();
   return normalizeWorkflowSnapshot({
-    schemaVersion: JSON_SCHEMA_VERSION,
+    schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
     workflowId: params.workflowId ?? randomUUID(),
     createdAt: now,
     updatedAt: now,
@@ -2746,7 +2785,7 @@ export async function setupNewWalletWorkflow(params: {
   let backupConfirmedAt: string | undefined;
 
   const secretRecord: FlowSecretRecord = {
-    schemaVersion: JSON_SCHEMA_VERSION,
+    schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
     workflowId,
     chain: chainConfig.name,
     walletAddress: account.address,
