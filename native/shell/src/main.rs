@@ -1,0 +1,3903 @@
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use num_bigint::BigUint;
+use num_traits::{ToPrimitive, Zero};
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
+use serde::Deserialize;
+use serde_json::{json, Map, Value};
+use std::collections::{BTreeSet, HashMap};
+use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::OnceLock;
+use std::time::{Duration, UNIX_EPOCH};
+use tiny_keccak::{Hasher, Keccak};
+
+const JSON_SCHEMA_VERSION: &str = "1.5.0";
+const WORKER_REQUEST_ENV: &str = "PRIVACY_POOLS_WORKER_REQUEST_B64";
+const ENV_JS_WORKER_PATH: &str = "PRIVACY_POOLS_CLI_JS_WORKER";
+const ENV_JS_WORKER_COMMAND: &str = "PRIVACY_POOLS_CLI_JS_WORKER_COMMAND";
+const ENV_JS_WORKER_ARGS_B64: &str = "PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64";
+
+const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+const CSV_SUPPORTED_COMMANDS: [&str; 5] =
+    ["pools", "accounts", "activity", "stats", "history"];
+
+#[derive(Clone, Copy)]
+enum ErrorCategory {
+    Input,
+    Rpc,
+    Asp,
+    Relayer,
+    Proof,
+    Contract,
+    Unknown,
+}
+
+impl ErrorCategory {
+    fn as_str(self) -> &'static str {
+        match self {
+            ErrorCategory::Input => "INPUT",
+            ErrorCategory::Rpc => "RPC",
+            ErrorCategory::Asp => "ASP",
+            ErrorCategory::Relayer => "RELAYER",
+            ErrorCategory::Proof => "PROOF",
+            ErrorCategory::Contract => "CONTRACT",
+            ErrorCategory::Unknown => "UNKNOWN",
+        }
+    }
+
+    fn exit_code(self) -> i32 {
+        match self {
+            ErrorCategory::Unknown => 1,
+            ErrorCategory::Input => 2,
+            ErrorCategory::Rpc => 3,
+            ErrorCategory::Asp => 4,
+            ErrorCategory::Relayer => 5,
+            ErrorCategory::Proof => 6,
+            ErrorCategory::Contract => 7,
+        }
+    }
+
+    fn default_code(self) -> &'static str {
+        match self {
+            ErrorCategory::Input => "INPUT_ERROR",
+            ErrorCategory::Rpc => "RPC_ERROR",
+            ErrorCategory::Asp => "ASP_ERROR",
+            ErrorCategory::Relayer => "RELAYER_ERROR",
+            ErrorCategory::Proof => "PROOF_ERROR",
+            ErrorCategory::Contract => "CONTRACT_ERROR",
+            ErrorCategory::Unknown => "UNKNOWN_ERROR",
+        }
+    }
+}
+
+#[derive(Clone)]
+struct CliError {
+    category: ErrorCategory,
+    code: String,
+    message: String,
+    hint: Option<String>,
+    retryable: bool,
+}
+
+impl CliError {
+    fn new(
+        category: ErrorCategory,
+        message: impl Into<String>,
+        hint: Option<String>,
+        code: Option<&str>,
+        retryable: bool,
+    ) -> Self {
+        let category_code = category.default_code().to_string();
+        Self {
+            category,
+            code: code.unwrap_or(&category_code).to_string(),
+            message: message.into(),
+            hint,
+            retryable,
+        }
+    }
+
+    fn input(message: impl Into<String>, hint: impl Into<Option<String>>) -> Self {
+        Self::new(ErrorCategory::Input, message, hint.into(), None, false)
+    }
+
+    fn rpc(message: impl Into<String>, hint: impl Into<Option<String>>, code: Option<&str>) -> Self {
+        Self::new(ErrorCategory::Rpc, message, hint.into(), code, false)
+    }
+
+    fn asp(
+        message: impl Into<String>,
+        hint: impl Into<Option<String>>,
+        code: Option<&str>,
+        retryable: bool,
+    ) -> Self {
+        Self::new(ErrorCategory::Asp, message, hint.into(), code, retryable)
+    }
+
+    fn unknown(message: impl Into<String>, hint: impl Into<Option<String>>) -> Self {
+        Self::new(ErrorCategory::Unknown, message, hint.into(), None, false)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ParsedRootArgv {
+    argv: Vec<String>,
+    first_command_token: Option<String>,
+    non_option_tokens: Vec<String>,
+    format_flag_value: Option<String>,
+    is_json: bool,
+    is_csv_mode: bool,
+    is_agent: bool,
+    is_unsigned: bool,
+    is_machine_mode: bool,
+    is_structured_output_mode: bool,
+    is_help_like: bool,
+    is_version_like: bool,
+    is_root_help_invocation: bool,
+    is_quiet: bool,
+    suppress_banner: bool,
+    is_welcome: bool,
+}
+
+#[derive(Debug, Clone)]
+struct CliConfig {
+    default_chain: String,
+    rpc_overrides: HashMap<u64, String>,
+}
+
+#[derive(Debug, Clone)]
+struct NextAction {
+    command: String,
+    reason: String,
+    when: String,
+    args: Option<Vec<String>>,
+    options: Option<Map<String, Value>>,
+    runnable: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+struct StatusResult {
+    config_exists: bool,
+    config_dir: Option<String>,
+    default_chain: Option<String>,
+    selected_chain: Option<String>,
+    rpc_url: Option<String>,
+    rpc_is_custom: bool,
+    recovery_phrase_set: bool,
+    signer_key_set: bool,
+    signer_key_valid: bool,
+    signer_address: Option<String>,
+    entrypoint: Option<String>,
+    asp_host: Option<String>,
+    account_files: Vec<(String, u64)>,
+}
+
+#[derive(Debug, Clone)]
+struct NativeMode {
+    format: OutputFormat,
+    is_agent: bool,
+    is_quiet: bool,
+}
+
+impl NativeMode {
+    fn is_json(&self) -> bool {
+        matches!(self.format, OutputFormat::Json)
+    }
+
+    fn is_csv(&self) -> bool {
+        matches!(self.format, OutputFormat::Csv)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum OutputFormat {
+    Table,
+    Csv,
+    Json,
+}
+
+#[derive(Debug, Clone)]
+struct PoolsCommandOptions {
+    all_chains: bool,
+    search: Option<String>,
+    sort: String,
+}
+
+#[derive(Debug, Clone)]
+struct ActivityCommandOptions {
+    asset: Option<String>,
+    page: u64,
+    per_page: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct Manifest {
+    #[serde(rename = "protocolVersion")]
+    protocol_version: String,
+    #[serde(rename = "cliVersion")]
+    cli_version: String,
+    #[serde(rename = "commandPaths")]
+    command_paths: Vec<String>,
+    #[serde(rename = "aliasMap")]
+    alias_map: HashMap<String, String>,
+    #[serde(rename = "rootHelp")]
+    root_help: String,
+    #[serde(rename = "structuredRootHelp")]
+    structured_root_help: String,
+    #[serde(rename = "helpTextByPath")]
+    help_text_by_path: HashMap<String, String>,
+    #[serde(rename = "guideHumanText")]
+    guide_human_text: String,
+    #[serde(rename = "capabilitiesHumanText")]
+    capabilities_human_text: String,
+    #[serde(rename = "describeHumanTextByPath")]
+    describe_human_text_by_path: HashMap<String, String>,
+    #[serde(rename = "completionSpec")]
+    completion_spec: CompletionCommandSpec,
+    #[serde(rename = "completionScripts")]
+    completion_scripts: HashMap<String, String>,
+    #[serde(rename = "runtimeConfig")]
+    runtime_config: RuntimeConfig,
+    #[serde(rename = "capabilitiesPayload")]
+    capabilities_payload: Value,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct RuntimeConfig {
+    #[serde(rename = "chainEnvSuffixes")]
+    chain_env_suffixes: HashMap<u64, String>,
+    #[serde(rename = "defaultRpcUrls")]
+    default_rpc_urls: HashMap<u64, Vec<String>>,
+    #[serde(rename = "chainNames")]
+    chain_names: Vec<String>,
+    #[serde(rename = "mainnetChainNames")]
+    mainnet_chain_names: Vec<String>,
+    #[serde(rename = "nativeAssetAddress")]
+    native_asset_address: String,
+    #[serde(rename = "knownPools")]
+    known_pools: HashMap<u64, HashMap<String, String>>,
+    #[serde(rename = "explorerUrls")]
+    explorer_urls: HashMap<u64, String>,
+    chains: HashMap<String, ChainDefinition>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ChainDefinition {
+    id: u64,
+    name: String,
+    entrypoint: String,
+    #[serde(rename = "startBlock")]
+    start_block: String,
+    #[serde(rename = "aspHost")]
+    asp_host: String,
+    #[serde(rename = "relayerHost")]
+    relayer_host: String,
+    #[serde(rename = "isTestnet")]
+    is_testnet: bool,
+    #[serde(rename = "avgBlockTimeSec")]
+    avg_block_time_sec: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct CompletionCommandSpec {
+    name: String,
+    #[serde(default)]
+    aliases: Vec<String>,
+    #[serde(default)]
+    options: Vec<CompletionOptionSpec>,
+    #[serde(default)]
+    subcommands: Vec<CompletionCommandSpec>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct CompletionOptionSpec {
+    names: Vec<String>,
+    #[serde(rename = "takesValue")]
+    takes_value: bool,
+    #[serde(default)]
+    values: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct CompletionNode {
+    options: Vec<CompletionOptionSpec>,
+    subcommands: HashMap<String, CompletionNode>,
+}
+
+#[derive(Debug, Clone)]
+struct PoolListingEntry {
+    chain: String,
+    chain_id: u64,
+    asset: String,
+    token_address: String,
+    pool: String,
+    scope: String,
+    decimals: u32,
+    minimum_deposit: String,
+    vetting_fee_bps: String,
+    max_relay_fee_bps: String,
+    total_in_pool_value: Option<String>,
+    total_in_pool_value_usd: Option<String>,
+    total_deposits_value: Option<String>,
+    total_deposits_value_usd: Option<String>,
+    accepted_deposits_value: Option<String>,
+    accepted_deposits_value_usd: Option<String>,
+    pending_deposits_value: Option<String>,
+    pending_deposits_value_usd: Option<String>,
+    total_deposits_count: Option<u64>,
+    accepted_deposits_count: Option<u64>,
+    pending_deposits_count: Option<u64>,
+    growth24h: Option<f64>,
+    pending_growth24h: Option<f64>,
+}
+
+#[derive(Debug, Clone)]
+struct PoolWarning {
+    chain: String,
+    category: String,
+    message: String,
+}
+
+#[derive(Debug, Clone)]
+struct ChainSummary {
+    chain: String,
+    pools: usize,
+    error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct NormalizedActivityEvent {
+    event_type: String,
+    tx_hash: Option<String>,
+    explorer_url: Option<String>,
+    review_status: String,
+    amount_raw: Option<String>,
+    amount_formatted: String,
+    pool_symbol: Option<String>,
+    pool_address: Option<String>,
+    chain_id: Option<u64>,
+    timestamp_iso: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct NativePoolResolution {
+    symbol: String,
+    asset_address: String,
+    pool_address: String,
+    scope: String,
+    decimals: u32,
+    minimum_deposit_amount: String,
+    vetting_fee_bps: String,
+    max_relay_fee_bps: String,
+}
+
+fn main() {
+    let argv: Vec<String> = env::args().skip(1).collect();
+    let parsed = parse_root_argv(&argv);
+
+    match run(&argv, &parsed) {
+        Ok(code) => std::process::exit(code),
+        Err(error) => print_error_and_exit(&error, parsed.is_structured_output_mode),
+    }
+}
+
+fn manifest() -> &'static Manifest {
+    static MANIFEST: OnceLock<Manifest> = OnceLock::new();
+    MANIFEST.get_or_init(|| {
+        serde_json::from_str(include_str!("../generated/manifest.json"))
+            .expect("native shell manifest must deserialize")
+    })
+}
+
+fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
+    let manifest = manifest();
+    if manifest.protocol_version != "1" {
+        return Err(CliError::unknown(
+            "Native shell manifest protocol version mismatch.",
+            Some("Rebuild the CLI and native shell together.".to_string()),
+        ));
+    }
+
+    if parsed.is_version_like && parsed.first_command_token.is_none() {
+        emit_version(&manifest.cli_version, parsed.is_structured_output_mode);
+        return Ok(0);
+    }
+
+    if parsed.is_root_help_invocation {
+        emit_help(
+            if parsed.is_structured_output_mode {
+                &manifest.structured_root_help
+            } else {
+                &manifest.root_help
+            },
+            parsed.is_structured_output_mode,
+        );
+        return Ok(0);
+    }
+
+    if parsed.is_structured_output_mode
+        && !parsed.is_help_like
+        && !parsed.is_version_like
+        && parsed.first_command_token.is_none()
+    {
+        emit_help(&manifest.structured_root_help, true);
+        return Ok(0);
+    }
+
+    if parsed.is_help_like {
+        if let Some(help_path) = resolve_help_path(parsed, manifest) {
+            if let Some(help_text) = manifest.help_text_by_path.get(&help_path) {
+                emit_help(help_text, parsed.is_structured_output_mode);
+                return Ok(0);
+            }
+        }
+
+        if parsed.first_command_token.as_deref() == Some("help") {
+            let requested = parsed
+                .non_option_tokens
+                .iter()
+                .skip(1)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" ");
+            return Err(CliError::input(
+                format!("Unknown command path: {requested}"),
+                Some(format!(
+                    "Valid command paths: {}",
+                    manifest.command_paths.join(", ")
+                )),
+            ));
+        }
+    }
+
+    let Some(first_command) = parsed.first_command_token.as_deref() else {
+        return forward_to_js_worker(argv);
+    };
+
+    match first_command {
+        "guide" => handle_guide(parsed, manifest),
+        "capabilities" => handle_capabilities(parsed, manifest),
+        "describe" => handle_describe(parsed, manifest),
+        "completion" => handle_completion(argv, parsed, manifest),
+        "status" if should_handle_status_native(parsed) => handle_status_native(parsed, manifest),
+        "activity" if should_handle_structured_public_command(parsed) => {
+            handle_activity_native(argv, parsed, manifest)
+        }
+        "stats" if should_handle_structured_public_command(parsed) => {
+            handle_stats_native(argv, parsed, manifest)
+        }
+        "pools" if should_handle_native_pools(argv, parsed) => {
+            handle_pools_native(argv, parsed, manifest)
+        }
+        _ if is_known_root_command(first_command, manifest) => forward_to_js_worker(argv),
+        _ => Err(CliError::input(
+            format!("unknown command '{first_command}'"),
+            Some("Use --help to see usage and examples.".to_string()),
+        )),
+    }
+}
+
+fn handle_guide(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i32, CliError> {
+    guard_csv_unsupported(parsed, "guide")?;
+
+    if parsed.non_option_tokens.len() > 1 {
+        return forward_to_js_worker(&parsed.argv);
+    }
+
+    if parsed.is_structured_output_mode {
+        print_json_success(json!({
+            "mode": "help",
+            "help": manifest.guide_human_text.trim()
+        }));
+        return Ok(0);
+    }
+
+    if is_static_quiet_mode(parsed) {
+        return Ok(0);
+    }
+
+    write_stderr_block_text(&manifest.guide_human_text);
+    Ok(0)
+}
+
+fn handle_capabilities(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i32, CliError> {
+    guard_csv_unsupported(parsed, "capabilities")?;
+
+    if parsed.non_option_tokens.len() > 1 {
+        return forward_to_js_worker(&parsed.argv);
+    }
+
+    if parsed.is_structured_output_mode {
+        print_json_success(manifest.capabilities_payload.clone());
+        return Ok(0);
+    }
+
+    write_stderr_block_text(&manifest.capabilities_human_text);
+    Ok(0)
+}
+
+fn handle_describe(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i32, CliError> {
+    guard_csv_unsupported(parsed, "describe")?;
+
+    let command_tokens = parsed
+        .non_option_tokens
+        .iter()
+        .skip(1)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    if command_tokens.is_empty() {
+        return forward_to_js_worker(&parsed.argv);
+    }
+
+    let Some(command_path) = resolve_command_path(&command_tokens, manifest) else {
+        return Err(CliError::input(
+            format!("Unknown command path: {}", command_tokens.join(" ")),
+            Some(format!(
+                "Valid command paths: {}",
+                manifest.command_paths.join(", ")
+            )),
+        ));
+    };
+
+    if parsed.is_structured_output_mode {
+        let descriptor = manifest
+            .capabilities_payload
+            .get("commandDetails")
+            .and_then(|value| value.get(&command_path))
+            .cloned()
+            .ok_or_else(|| {
+                CliError::unknown(
+                    format!("Missing command descriptor for '{command_path}'."),
+                    Some("Regenerate the command manifest.".to_string()),
+                )
+            })?;
+        print_json_success(descriptor);
+        return Ok(0);
+    }
+
+    if is_static_quiet_mode(parsed) {
+        return Ok(0);
+    }
+
+    let text = manifest
+        .describe_human_text_by_path
+        .get(&command_path)
+        .ok_or_else(|| {
+            CliError::unknown(
+                format!("Missing describe text for '{command_path}'."),
+                Some("Regenerate the command manifest.".to_string()),
+            )
+        })?;
+    write_stderr_block_text(text);
+    Ok(0)
+}
+
+fn handle_completion(
+    argv: &[String],
+    parsed: &ParsedRootArgv,
+    manifest: &Manifest,
+) -> Result<i32, CliError> {
+    guard_csv_unsupported(parsed, "completion")?;
+
+    if let Some(query) = parse_completion_query(argv)? {
+        let candidates = query_completion_candidates(
+            &query.words,
+            query.cword,
+            &manifest.completion_spec,
+        );
+
+        if parsed.is_structured_output_mode {
+            print_json_success(json!({
+                "mode": "completion-query",
+                "shell": query.shell,
+                "cword": query.cword,
+                "candidates": candidates,
+            }));
+        } else if !candidates.is_empty() {
+            std::io::Write::write_all(
+                &mut std::io::stdout(),
+                format!("{}\n", candidates.join("\n")).as_bytes(),
+            )
+            .ok();
+        }
+
+        return Ok(0);
+    }
+
+    let spec = parse_completion_script_spec(argv)?;
+    let shell = spec
+        .shell
+        .unwrap_or_else(detect_completion_shell);
+    let script = manifest
+        .completion_scripts
+        .get(&shell)
+        .cloned()
+        .ok_or_else(|| {
+            CliError::unknown(
+                format!("Missing completion script for shell '{shell}'."),
+                Some("Regenerate the command manifest.".to_string()),
+            )
+        })?;
+
+    if parsed.is_structured_output_mode {
+        print_json_success(json!({
+            "mode": "completion-script",
+            "shell": shell,
+            "completionScript": script,
+        }));
+    } else {
+        write_stdout_text(&script);
+    }
+
+    Ok(0)
+}
+
+fn handle_status_native(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i32, CliError> {
+    let config_dir = config_home();
+    let config_exists = config_file_path(&config_dir).exists();
+    let config = if config_exists {
+        Some(load_config()?)
+    } else {
+        None
+    };
+    let selected_chain_key = parsed
+        .global_chain()
+        .or_else(|| config.as_ref().map(|value| value.default_chain.clone()));
+    let selected_chain = selected_chain_key
+        .as_deref()
+        .map(|value| resolve_chain(value, manifest))
+        .transpose()?;
+
+    let signer_key = load_signer_key(&config_dir);
+    let (signer_key_valid, signer_address) = signer_key
+        .as_deref()
+        .map(derive_signer_address)
+        .unwrap_or((false, None));
+
+    let rpc_is_custom = selected_chain
+        .as_ref()
+        .map(|chain| {
+            parsed.global_rpc_url().is_some()
+                || resolve_rpc_env_var(chain.id, &manifest.runtime_config).is_some()
+                || config
+                    .as_ref()
+                    .map(|value| value.rpc_overrides.contains_key(&chain.id))
+                    .unwrap_or(false)
+        })
+        .unwrap_or(false);
+
+    let config_for_rpc = config.clone().unwrap_or(CliConfig {
+        default_chain: "mainnet".to_string(),
+        rpc_overrides: HashMap::new(),
+    });
+
+    let mut result = StatusResult {
+        config_exists,
+        config_dir: if config_exists {
+            Some(config_dir.to_string_lossy().to_string())
+        } else {
+            None
+        },
+        default_chain: config.as_ref().map(|value| value.default_chain.clone()),
+        selected_chain: selected_chain.as_ref().map(|chain| chain.name.clone()),
+        rpc_url: selected_chain
+            .as_ref()
+            .map(|chain| {
+                get_rpc_url(
+                    chain.id,
+                    parsed.global_rpc_url(),
+                    &config_for_rpc,
+                    &manifest.runtime_config,
+                )
+            })
+            .transpose()?,
+        rpc_is_custom,
+        recovery_phrase_set: mnemonic_file_path(&config_dir).exists(),
+        signer_key_set: signer_key.is_some(),
+        signer_key_valid,
+        signer_address,
+        entrypoint: selected_chain.as_ref().map(|chain| chain.entrypoint.clone()),
+        asp_host: selected_chain.as_ref().map(|chain| chain.asp_host.clone()),
+        account_files: vec![],
+    };
+
+    for chain_name in &manifest.runtime_config.chain_names {
+        let Some(chain) = manifest.runtime_config.chains.get(chain_name) else {
+            continue;
+        };
+        if account_has_deposits(&config_dir, chain.id)? {
+            result
+                .account_files
+                .push((chain.name.clone(), chain.id));
+        }
+    }
+
+    print_json_success(render_status_json(&result, manifest));
+    Ok(0)
+}
+
+fn handle_activity_native(
+    argv: &[String],
+    parsed: &ParsedRootArgv,
+    manifest: &Manifest,
+) -> Result<i32, CliError> {
+    let mode = resolve_mode(parsed);
+    if !mode.is_json() {
+        return forward_to_js_worker(argv);
+    }
+
+    let opts = parse_activity_options(argv)?;
+    let config = load_config()?;
+    let timeout_ms = parse_timeout_ms(argv);
+
+    if let Some(asset) = opts.asset.as_deref() {
+        let explicit_chain = parsed
+            .global_chain()
+            .unwrap_or_else(|| config.default_chain.clone());
+        let chain = resolve_chain(&explicit_chain, manifest)?;
+        let pool = resolve_pool_native(&chain, asset, parsed.global_rpc_url(), &config, manifest, timeout_ms)?;
+        let response = fetch_pool_events(&chain, &pool.scope, opts.page, opts.per_page, timeout_ms)?;
+        let events = normalize_activity_events(
+            response.get("events").cloned().unwrap_or_else(|| json!([])),
+            Some(pool.symbol.as_str()),
+            manifest,
+        )?;
+        print_json_success(json!({
+            "mode": "pool-activity",
+            "chain": chain.name,
+            "page": parse_json_u64(response.get("page")).unwrap_or(opts.page),
+            "perPage": parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+            "total": parse_json_u64(response.get("total")),
+            "totalPages": parse_json_u64(response.get("totalPages")),
+            "events": events.into_iter().map(activity_event_to_json).collect::<Vec<_>>(),
+            "asset": pool.symbol,
+            "pool": pool.pool_address,
+            "scope": pool.scope,
+        }));
+        return Ok(0);
+    }
+
+    if let Some(explicit_chain) = parsed.global_chain() {
+        let chain = resolve_chain(&explicit_chain, manifest)?;
+        let response = fetch_global_events(&chain, opts.page, opts.per_page, timeout_ms)?;
+        let events = normalize_activity_events(
+            response.get("events").cloned().unwrap_or_else(|| json!([])),
+            None,
+            manifest,
+        )?
+        .into_iter()
+        .filter(|event| event.chain_id.is_none() || event.chain_id == Some(chain.id))
+        .map(activity_event_to_json)
+        .collect::<Vec<_>>();
+
+        print_json_success(json!({
+            "mode": "global-activity",
+            "chain": chain.name,
+            "page": parse_json_u64(response.get("page")).unwrap_or(opts.page),
+            "perPage": parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+            "total": Value::Null,
+            "totalPages": Value::Null,
+            "events": events,
+            "chainFiltered": true,
+            "note": "Pagination totals are unavailable when filtering by chain. Results may be sparse.",
+        }));
+        return Ok(0);
+    }
+
+    let chains = default_read_only_chains(manifest);
+    let representative_chain = chains.first().ok_or_else(|| {
+        CliError::unknown(
+            "No default read-only chains configured.",
+            Some("Regenerate the native command manifest.".to_string()),
+        )
+    })?;
+    let response = fetch_global_events(representative_chain, opts.page, opts.per_page, timeout_ms)?;
+    let events = normalize_activity_events(
+        response.get("events").cloned().unwrap_or_else(|| json!([])),
+        None,
+        manifest,
+    )?
+    .into_iter()
+    .map(activity_event_to_json)
+    .collect::<Vec<_>>();
+
+    print_json_success(json!({
+        "mode": "global-activity",
+        "chain": "all-mainnets",
+        "chains": chains.iter().map(|chain| chain.name.clone()).collect::<Vec<_>>(),
+        "page": parse_json_u64(response.get("page")).unwrap_or(opts.page),
+        "perPage": parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+        "total": parse_json_u64(response.get("total")),
+        "totalPages": parse_json_u64(response.get("totalPages")),
+        "events": events,
+    }));
+
+    Ok(0)
+}
+
+fn handle_stats_native(
+    argv: &[String],
+    parsed: &ParsedRootArgv,
+    manifest: &Manifest,
+) -> Result<i32, CliError> {
+    let mode = resolve_mode(parsed);
+    if !mode.is_json() {
+        return forward_to_js_worker(argv);
+    }
+
+    let stats_subcommand = resolve_stats_subcommand(parsed);
+    if stats_subcommand == StatsSubcommand::Pool {
+        return forward_to_js_worker(argv);
+    }
+
+    if parsed.global_chain().is_some() {
+        return Err(CliError::input(
+            "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
+            Some(
+                "For chain-specific data use: privacy-pools stats pool --asset <symbol> --chain <chain>"
+                    .to_string(),
+            ),
+        ));
+    }
+
+    let chains = default_read_only_chains(manifest);
+    let representative_chain = chains.first().ok_or_else(|| {
+        CliError::unknown(
+            "No default read-only chains configured.",
+            Some("Regenerate the native command manifest.".to_string()),
+        )
+    })?;
+    let response = fetch_global_statistics(representative_chain, parse_timeout_ms(argv))?;
+
+    print_json_success(json!({
+        "mode": "global-stats",
+        "chain": "all-mainnets",
+        "chains": chains.iter().map(|chain| chain.name.clone()).collect::<Vec<_>>(),
+        "cacheTimestamp": response.get("cacheTimestamp").cloned().unwrap_or(Value::Null),
+        "allTime": response.get("allTime").cloned().unwrap_or(Value::Null),
+        "last24h": response.get("last24h").cloned().unwrap_or(Value::Null),
+    }));
+
+    Ok(0)
+}
+
+fn handle_pools_native(
+    argv: &[String],
+    parsed: &ParsedRootArgv,
+    manifest: &Manifest,
+) -> Result<i32, CliError> {
+    let mode = resolve_mode(parsed);
+    if !mode.is_json() {
+        return forward_to_js_worker(argv);
+    }
+
+    let opts = parse_pools_options(argv)?;
+    let config = load_config()?;
+    let timeout_ms = parse_timeout_ms(argv);
+    let explicit_chain = parsed.global_chain();
+    let is_multi_chain = opts.all_chains || explicit_chain.is_none();
+
+    if is_multi_chain && parsed.global_rpc_url().is_some() {
+        return Err(CliError::input(
+            "--rpc-url cannot be combined with multi-chain queries.",
+            Some("Use --chain <name> to target a single chain with --rpc-url.".to_string()),
+        ));
+    }
+
+    let chains_to_query = if opts.all_chains {
+        all_chains_with_overrides(manifest)
+    } else if let Some(chain_name) = explicit_chain {
+        vec![resolve_chain(&chain_name, manifest)?]
+    } else {
+        default_read_only_chains(manifest)
+    };
+
+    let mut entries = Vec::<PoolListingEntry>::new();
+    let mut warnings = Vec::<PoolWarning>::new();
+    let mut chain_summaries = Vec::<ChainSummary>::new();
+    let mut first_error: Option<CliError> = None;
+
+    for chain in &chains_to_query {
+        match list_pools_native(chain, parsed.global_rpc_url(), &config, manifest, timeout_ms) {
+            Ok(chain_entries) => {
+                chain_summaries.push(ChainSummary {
+                    chain: chain.name.clone(),
+                    pools: chain_entries.len(),
+                    error: None,
+                });
+                entries.extend(chain_entries);
+            }
+            Err(error) => {
+                if first_error.is_none() {
+                    first_error = Some(error.clone());
+                }
+                warnings.push(PoolWarning {
+                    chain: chain.name.clone(),
+                    category: error.category.as_str().to_string(),
+                    message: error.message.clone(),
+                });
+                chain_summaries.push(ChainSummary {
+                    chain: chain.name.clone(),
+                    pools: 0,
+                    error: Some(error.message.clone()),
+                });
+            }
+        }
+    }
+
+    if entries.is_empty() {
+        if let Some(error) = first_error {
+            return Err(error);
+        }
+
+        if is_multi_chain {
+            print_json_success(json!({
+                "allChains": true,
+                "search": opts.search,
+                "sort": opts.sort,
+                "pools": [],
+            }));
+        } else {
+            print_json_success(json!({
+                "chain": chains_to_query[0].name,
+                "search": opts.search,
+                "sort": opts.sort,
+                "pools": [],
+            }));
+        }
+        return Ok(0);
+    }
+
+    let mut filtered = apply_pool_search(entries, opts.search.as_deref());
+    sort_pools(&mut filtered, &opts.sort);
+
+    if is_multi_chain {
+        print_json_success(json!({
+            "allChains": true,
+            "search": opts.search,
+            "sort": opts.sort,
+            "chains": chain_summaries.into_iter().map(chain_summary_to_json).collect::<Vec<_>>(),
+            "pools": filtered.into_iter().map(|entry| pool_entry_to_json(&entry, true)).collect::<Vec<_>>(),
+            "warnings": if warnings.is_empty() {
+                Value::Null
+            } else {
+                Value::Array(warnings.into_iter().map(pool_warning_to_json).collect::<Vec<_>>())
+            },
+        }));
+    } else {
+        print_json_success(json!({
+            "chain": chains_to_query[0].name,
+            "search": opts.search,
+            "sort": opts.sort,
+            "pools": filtered.into_iter().map(|entry| pool_entry_to_json(&entry, false)).collect::<Vec<_>>(),
+        }));
+    }
+
+    Ok(0)
+}
+
+fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
+    let worker_command = env::var(ENV_JS_WORKER_COMMAND)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            env::var(ENV_JS_WORKER_PATH)
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .ok_or_else(|| {
+            CliError::unknown(
+                "JS worker bootstrap is unavailable.",
+                Some(
+                    "Run the native shell through the npm launcher so it can forward JS-owned commands."
+                        .to_string(),
+                ),
+            )
+        })?;
+
+    let worker_args = env::var(ENV_JS_WORKER_ARGS_B64)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .map(|encoded| decode_string_array(&encoded))
+        .transpose()?
+        .unwrap_or_default();
+
+    let request = json!({
+        "protocolVersion": "1",
+        "argv": argv,
+    });
+    let encoded_request = BASE64.encode(
+        serde_json::to_vec(&request).map_err(|error| {
+            CliError::unknown(
+                format!("Failed to encode worker request: {error}"),
+                Some("Please report this issue.".to_string()),
+            )
+        })?,
+    );
+
+    let mut child = Command::new(worker_command);
+    child
+        .args(worker_args)
+        .env(WORKER_REQUEST_ENV, encoded_request)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
+
+    let status = child.status().map_err(|error| {
+        CliError::unknown(
+            format!("Failed to launch JS worker: {error}"),
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
+        )
+    })?;
+
+    Ok(exit_code_from_status(status))
+}
+
+fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
+    let first_command_token = first_non_option_token(argv);
+    let non_option_tokens = all_non_option_tokens(argv);
+    let format_flag_value = read_long_option_value(argv, "--format").map(|value| value.to_lowercase());
+    let is_json = has_long_flag(argv, "--json")
+        || has_short_flag(argv, 'j')
+        || format_flag_value.as_deref() == Some("json");
+    let is_csv_mode = format_flag_value.as_deref() == Some("csv");
+    let is_agent = has_long_flag(argv, "--agent");
+    let is_unsigned = has_long_flag(argv, "--unsigned");
+    let is_machine_mode = is_json || is_csv_mode || is_unsigned || is_agent;
+    let is_structured_output_mode = is_json || is_unsigned || is_agent;
+    let is_help_like =
+        argv.iter().any(|token| token == "--help") || has_short_flag(argv, 'h') || first_command_token.as_deref() == Some("help");
+    let is_version_like = argv.iter().any(|token| token == "--version") || has_short_flag(argv, 'V');
+    let is_root_help_invocation = is_help_like
+        && (non_option_tokens.is_empty()
+            || (non_option_tokens.len() == 1 && non_option_tokens[0] == "help"));
+    let suppress_banner = argv.iter().any(|token| token == "--no-banner");
+    let is_quiet = argv.iter().any(|token| token == "--quiet") || has_short_flag(argv, 'q');
+    let is_welcome = is_welcome_flag_only_invocation(argv) && (!is_machine_mode || is_csv_mode);
+
+    ParsedRootArgv {
+        argv: argv.to_vec(),
+        first_command_token,
+        non_option_tokens,
+        format_flag_value,
+        is_json,
+        is_csv_mode,
+        is_agent,
+        is_unsigned,
+        is_machine_mode,
+        is_structured_output_mode,
+        is_help_like,
+        is_version_like,
+        is_root_help_invocation,
+        is_quiet,
+        suppress_banner,
+        is_welcome,
+    }
+}
+
+impl ParsedRootArgv {
+    fn global_chain(&self) -> Option<String> {
+        read_long_option_value(&self.argv, "--chain").or_else(|| read_short_option_value(&self.argv, "-c"))
+    }
+
+    fn global_rpc_url(&self) -> Option<String> {
+        read_long_option_value(&self.argv, "--rpc-url").or_else(|| read_short_option_value(&self.argv, "-r"))
+    }
+}
+
+fn has_short_flag(argv: &[String], flag: char) -> bool {
+    for token in argv {
+        if !token.starts_with('-') || token.starts_with("--") {
+            continue;
+        }
+
+        if token == &format!("-{flag}") {
+            return true;
+        }
+
+        if token.starts_with('-') && token.len() > 2 && token.chars().skip(1).all(|value| value.is_ascii_alphabetic()) {
+            if token.contains(flag) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+fn has_long_flag(argv: &[String], flag: &str) -> bool {
+    argv.iter()
+        .any(|token| token == flag || token.starts_with(&format!("{flag}=")))
+}
+
+fn read_long_option_value(argv: &[String], flag: &str) -> Option<String> {
+    for index in 0..argv.len() {
+        let token = &argv[index];
+        if token == flag {
+            return argv.get(index + 1).cloned();
+        }
+        let prefix = format!("{flag}=");
+        if token.starts_with(&prefix) {
+            return Some(token[prefix.len()..].to_string());
+        }
+    }
+    None
+}
+
+fn read_short_option_value(argv: &[String], flag: &str) -> Option<String> {
+    for index in 0..argv.len() {
+        if argv[index] == flag {
+            return argv.get(index + 1).cloned();
+        }
+    }
+    None
+}
+
+fn all_non_option_tokens(argv: &[String]) -> Vec<String> {
+    let mut tokens = vec![];
+    let mut index = 0;
+
+    while index < argv.len() {
+        let token = &argv[index];
+        if !token.starts_with('-') {
+            tokens.push(token.clone());
+            index += 1;
+            continue;
+        }
+
+        if root_option_takes_value(token) {
+            index += 2;
+            continue;
+        }
+
+        if token.starts_with("--chain=")
+            || token.starts_with("--format=")
+            || token.starts_with("--rpc-url=")
+            || token.starts_with("--timeout=")
+        {
+            index += 1;
+            continue;
+        }
+
+        index += 1;
+    }
+
+    tokens
+}
+
+fn first_non_option_token(argv: &[String]) -> Option<String> {
+    let mut index = 0;
+
+    while index < argv.len() {
+        let token = &argv[index];
+        if !token.starts_with('-') {
+            return Some(token.clone());
+        }
+
+        if root_option_takes_value(token) {
+            index += 2;
+        } else {
+            index += 1;
+        }
+    }
+
+    None
+}
+
+fn root_option_takes_value(token: &str) -> bool {
+    matches!(token, "-c" | "--chain" | "--format" | "-r" | "--rpc-url" | "--timeout")
+}
+
+fn is_welcome_flag_only_invocation(argv: &[String]) -> bool {
+    if argv.is_empty() {
+        return true;
+    }
+
+    let mut index = 0;
+    while index < argv.len() {
+        let token = &argv[index];
+
+        if root_option_takes_value(token) {
+            if index + 1 >= argv.len() {
+                return false;
+            }
+            index += 2;
+            continue;
+        }
+
+        if token.starts_with("--chain=")
+            || token.starts_with("--format=")
+            || token.starts_with("--rpc-url=")
+            || token.starts_with("--timeout=")
+        {
+            index += 1;
+            continue;
+        }
+
+        if matches!(
+            token.as_str(),
+            "-q" | "--quiet" | "-v" | "--verbose" | "-y" | "--yes" | "--no-banner" | "--no-color"
+        ) || is_welcome_short_flag_bundle(token)
+        {
+            index += 1;
+            continue;
+        }
+
+        return false;
+    }
+
+    true
+}
+
+fn is_welcome_short_flag_bundle(token: &str) -> bool {
+    if !token.starts_with('-') || token.starts_with("--") || token.len() < 3 {
+        return false;
+    }
+
+    token
+        .chars()
+        .skip(1)
+        .all(|flag| matches!(flag, 'q' | 'v' | 'y'))
+}
+
+fn resolve_mode(parsed: &ParsedRootArgv) -> NativeMode {
+    let format = if parsed.is_csv_mode {
+        OutputFormat::Csv
+    } else if parsed.is_structured_output_mode {
+        OutputFormat::Json
+    } else {
+        OutputFormat::Table
+    };
+
+    NativeMode {
+        format,
+        is_agent: parsed.is_agent,
+        is_quiet: parsed.is_quiet || parsed.is_agent,
+    }
+}
+
+fn is_static_quiet_mode(parsed: &ParsedRootArgv) -> bool {
+    let mode = resolve_mode(parsed);
+    mode.is_quiet || mode.is_json() || mode.is_csv()
+}
+
+fn should_handle_status_native(parsed: &ParsedRootArgv) -> bool {
+    if !parsed.is_structured_output_mode || parsed.is_help_like {
+        return false;
+    }
+
+    let has_no_check = parsed.argv.iter().any(|token| token == "--no-check");
+    let has_positive_check = parsed.argv.iter().any(|token| {
+        token == "--check"
+            || token == "--check-rpc"
+            || token == "--check-asp"
+            || token.starts_with("--check=")
+            || token.starts_with("--check-rpc=")
+            || token.starts_with("--check-asp=")
+    });
+
+    has_no_check && !has_positive_check
+}
+
+fn should_handle_structured_public_command(parsed: &ParsedRootArgv) -> bool {
+    parsed.is_structured_output_mode && !parsed.is_help_like
+}
+
+fn should_handle_native_pools(argv: &[String], parsed: &ParsedRootArgv) -> bool {
+    if !parsed.is_structured_output_mode || parsed.is_help_like {
+        return false;
+    }
+
+    let non_option_tokens = all_non_option_tokens(argv);
+    non_option_tokens.len() == 1 && non_option_tokens.first().map(|value| value == "pools").unwrap_or(false)
+}
+
+fn resolve_help_path(parsed: &ParsedRootArgv, manifest: &Manifest) -> Option<String> {
+    let tokens = if parsed.first_command_token.as_deref() == Some("help") {
+        parsed.non_option_tokens.iter().skip(1).cloned().collect::<Vec<_>>()
+    } else {
+        parsed.non_option_tokens.clone()
+    };
+
+    if tokens.is_empty() {
+        return None;
+    }
+
+    for length in (1..=tokens.len()).rev() {
+        let candidate = tokens.iter().take(length).cloned().collect::<Vec<_>>().join(" ");
+        let canonical = canonicalize_command_path(&candidate, manifest);
+        if manifest.help_text_by_path.contains_key(&canonical) {
+            return Some(canonical);
+        }
+    }
+
+    None
+}
+
+fn canonicalize_command_path(candidate: &str, manifest: &Manifest) -> String {
+    manifest
+        .alias_map
+        .get(candidate)
+        .cloned()
+        .unwrap_or_else(|| candidate.to_string())
+}
+
+fn resolve_command_path(tokens: &[String], manifest: &Manifest) -> Option<String> {
+    if tokens.is_empty() {
+        return None;
+    }
+
+    let joined = tokens.join(" ");
+    let canonical = canonicalize_command_path(&joined, manifest);
+    if manifest.command_paths.iter().any(|path| path == &canonical) {
+        return Some(canonical);
+    }
+
+    None
+}
+
+fn is_known_root_command(command: &str, manifest: &Manifest) -> bool {
+    manifest
+        .command_paths
+        .iter()
+        .filter(|path| !path.contains(' '))
+        .any(|path| path == command)
+        || manifest.alias_map.contains_key(command)
+}
+
+fn emit_help(text: &str, structured: bool) {
+    if structured {
+        print_json_success(json!({
+            "mode": "help",
+            "help": text.trim_end()
+        }));
+    } else {
+        write_stdout_text(text);
+    }
+}
+
+fn emit_version(version: &str, structured: bool) {
+    if structured {
+        print_json_success(json!({
+            "mode": "version",
+            "version": version
+        }));
+    } else {
+        std::io::Write::write_all(
+            &mut std::io::stdout(),
+            format!("{version}\n").as_bytes(),
+        )
+        .ok();
+    }
+}
+
+fn write_stdout_text(text: &str) {
+    let mut value = text.to_string();
+    if !value.ends_with('\n') {
+        value.push('\n');
+    }
+    std::io::Write::write_all(&mut std::io::stdout(), value.as_bytes()).ok();
+}
+
+fn write_stderr_text(text: &str) {
+    let mut value = text.to_string();
+    if !value.ends_with('\n') {
+        value.push('\n');
+    }
+    std::io::Write::write_all(&mut std::io::stderr(), value.as_bytes()).ok();
+}
+
+fn write_stderr_block_text(text: &str) {
+    let mut value = text.to_string();
+    if !value.ends_with("\n\n") {
+        value.push('\n');
+        value.push('\n');
+    }
+    std::io::Write::write_all(&mut std::io::stderr(), value.as_bytes()).ok();
+}
+
+fn print_json_success(payload: Value) {
+    let mut object = payload.as_object().cloned().unwrap_or_default();
+    object.insert(
+        "schemaVersion".to_string(),
+        Value::String(JSON_SCHEMA_VERSION.to_string()),
+    );
+    object.insert("success".to_string(), Value::Bool(true));
+    let output = Value::Object(object);
+    write_stdout_text(&serde_json::to_string(&output).expect("json success must serialize"));
+}
+
+fn print_error_and_exit(error: &CliError, structured: bool) -> ! {
+    if structured {
+        let payload = json!({
+            "schemaVersion": JSON_SCHEMA_VERSION,
+            "success": false,
+            "errorCode": error.code,
+            "errorMessage": error.message,
+            "error": {
+                "category": error.category.as_str(),
+                "message": error.message,
+                "hint": error.hint,
+                "retryable": error.retryable,
+                "code": error.code,
+            }
+        });
+        write_stdout_text(
+            &serde_json::to_string(&payload).expect("json error must serialize"),
+        );
+    } else {
+        write_stderr_text(&format!("Error [{}]: {}", error.category.as_str(), error.message));
+        if let Some(hint) = &error.hint {
+            write_stderr_text(&format!("Hint: {hint}"));
+        }
+    }
+
+    std::process::exit(error.category.exit_code());
+}
+
+fn decode_string_array(encoded: &str) -> Result<Vec<String>, CliError> {
+    let bytes = BASE64.decode(encoded).map_err(|error| {
+        CliError::unknown(
+            format!("Invalid worker-args payload: {error}"),
+            Some("Reinstall the CLI and retry.".to_string()),
+        )
+    })?;
+    serde_json::from_slice::<Vec<String>>(&bytes).map_err(|error| {
+        CliError::unknown(
+            format!("Invalid worker-args JSON: {error}"),
+            Some("Reinstall the CLI and retry.".to_string()),
+        )
+    })
+}
+
+fn resolve_chain(name: &str, manifest: &Manifest) -> Result<ChainDefinition, CliError> {
+    let base = manifest
+        .runtime_config
+        .chains
+        .get(name)
+        .cloned()
+        .ok_or_else(|| {
+            CliError::input(
+                format!("Unsupported chain: {name}."),
+                Some(format!(
+                    "Supported chains: {}",
+                    manifest.runtime_config.chain_names.join(", ")
+                )),
+            )
+        })?;
+
+    Ok(apply_chain_overrides(base))
+}
+
+fn apply_chain_overrides(mut chain: ChainDefinition) -> ChainDefinition {
+    if let Some(asp_host) = resolve_host_override("ASP_HOST", &chain.name) {
+        chain.asp_host = asp_host;
+    }
+    if let Some(relayer_host) = resolve_host_override("RELAYER_HOST", &chain.name) {
+        chain.relayer_host = relayer_host;
+    }
+    chain
+}
+
+fn resolve_host_override(kind: &str, chain_name: &str) -> Option<String> {
+    let chain_suffix = normalized_chain_env_suffix(chain_name);
+    env::var(format!("PRIVACY_POOLS_{kind}_{chain_suffix}"))
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            env::var(format!("PP_{kind}_{chain_suffix}"))
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .or_else(|| {
+            env::var(format!("PRIVACY_POOLS_{kind}"))
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .or_else(|| {
+            env::var(format!("PP_{kind}"))
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+}
+
+fn normalized_chain_env_suffix(chain_name: &str) -> String {
+    chain_name
+        .chars()
+        .map(|char| {
+            if char.is_ascii_alphanumeric() {
+                char.to_ascii_uppercase()
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+fn config_home() -> PathBuf {
+    if let Ok(value) = env::var("PRIVACY_POOLS_HOME") {
+        if !value.trim().is_empty() {
+            return PathBuf::from(value);
+        }
+    }
+    if let Ok(value) = env::var("PRIVACY_POOLS_CONFIG_DIR") {
+        if !value.trim().is_empty() {
+            return PathBuf::from(value);
+        }
+    }
+
+    env::var("HOME")
+        .map(PathBuf::from)
+        .or_else(|_| env::var("USERPROFILE").map(PathBuf::from))
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join(".privacy-pools")
+}
+
+fn config_file_path(config_dir: &Path) -> PathBuf {
+    config_dir.join("config.json")
+}
+
+fn mnemonic_file_path(config_dir: &Path) -> PathBuf {
+    config_dir.join(".mnemonic")
+}
+
+fn signer_file_path(config_dir: &Path) -> PathBuf {
+    config_dir.join(".signer")
+}
+
+fn accounts_dir(config_dir: &Path) -> PathBuf {
+    config_dir.join("accounts")
+}
+
+fn load_config() -> Result<CliConfig, CliError> {
+    let config_dir = config_home();
+    let config_path = config_file_path(&config_dir);
+
+    if !config_path.exists() {
+        return Ok(CliConfig {
+            default_chain: "mainnet".to_string(),
+            rpc_overrides: HashMap::new(),
+        });
+    }
+
+    let raw = fs::read_to_string(&config_path).map_err(|_| {
+        CliError::input(
+            "Config file is not valid JSON.",
+            Some(format!(
+                "Fix or remove {}, then run 'privacy-pools init'.",
+                config_path.display()
+            )),
+        )
+    })?;
+
+    let parsed: Value = serde_json::from_str(&raw).map_err(|_| {
+        CliError::input(
+            "Config file is not valid JSON.",
+            Some(format!(
+                "Fix or remove {}, then run 'privacy-pools init'.",
+                config_path.display()
+            )),
+        )
+    })?;
+
+    let object = parsed.as_object().ok_or_else(|| {
+        CliError::input(
+            "Config file has invalid structure.",
+            Some(format!(
+                "Fix or remove {}, then run 'privacy-pools init'.",
+                config_path.display()
+            )),
+        )
+    })?;
+
+    let default_chain = object
+        .get("defaultChain")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            CliError::input(
+                "Config file is missing a valid defaultChain.",
+                Some(format!(
+                    "Fix or remove {}, then run 'privacy-pools init'.",
+                    config_path.display()
+                )),
+            )
+        })?
+        .to_string();
+
+    let mut rpc_overrides = HashMap::new();
+    if let Some(overrides) = object.get("rpcOverrides") {
+        let overrides_object = overrides.as_object().ok_or_else(|| {
+            CliError::input(
+                "Config rpcOverrides must be an object.",
+                Some(format!(
+                    "Fix or remove {}, then run 'privacy-pools init'.",
+                    config_path.display()
+                )),
+            )
+        })?;
+
+        for (key, value) in overrides_object {
+            let override_value = value
+                .as_str()
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| {
+                    CliError::input(
+                        format!("Config rpcOverrides contains invalid value for chain key \"{key}\"."),
+                        Some(format!(
+                            "Fix or remove {}, then run 'privacy-pools init'.",
+                            config_path.display()
+                        )),
+                    )
+                })?;
+
+            let chain_id = key.parse::<u64>().map_err(|_| {
+                CliError::input(
+                    format!("Config rpcOverrides contains invalid chain key \"{key}\"."),
+                    Some(format!(
+                        "Fix or remove {}, then run 'privacy-pools init'.",
+                        config_path.display()
+                    )),
+                )
+            })?;
+
+            rpc_overrides.insert(chain_id, override_value.to_string());
+        }
+    }
+
+    Ok(CliConfig {
+        default_chain,
+        rpc_overrides,
+    })
+}
+
+fn load_signer_key(config_dir: &Path) -> Option<String> {
+    env::var("PRIVACY_POOLS_PRIVATE_KEY")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            fs::read_to_string(signer_file_path(config_dir))
+                .ok()
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+        })
+}
+
+fn derive_signer_address(raw_key: &str) -> (bool, Option<String>) {
+    let trimmed = raw_key.trim();
+    let normalized = trimmed.strip_prefix("0x").unwrap_or(trimmed);
+    if normalized.len() != 64 || !normalized.chars().all(|char| char.is_ascii_hexdigit()) {
+        return (false, None);
+    }
+
+    let Ok(bytes) = hex::decode(normalized) else {
+        return (false, None);
+    };
+    let Ok(secret_bytes) = <[u8; 32]>::try_from(bytes.as_slice()) else {
+        return (false, None);
+    };
+    let Ok(secret_key) = SecretKey::from_byte_array(secret_bytes) else {
+        return (false, None);
+    };
+
+    let secp = Secp256k1::new();
+    let public_key = PublicKey::from_secret_key(&secp, &secret_key);
+    let serialized = public_key.serialize_uncompressed();
+    let mut hash = [0u8; 32];
+    let mut keccak = Keccak::v256();
+    keccak.update(&serialized[1..]);
+    keccak.finalize(&mut hash);
+    let address = format!("0x{}", hex::encode(&hash[12..]));
+    (true, Some(address))
+}
+
+fn account_has_deposits(config_dir: &Path, chain_id: u64) -> Result<bool, CliError> {
+    let path = accounts_dir(config_dir).join(format!("{chain_id}.json"));
+    if !path.exists() {
+        return Ok(false);
+    }
+
+    let raw = fs::read_to_string(&path).map_err(|error| {
+        CliError::input(
+            format!("Account file is corrupt or unreadable: {}", path.display()),
+            Some(format!(
+                "Back up and remove the file, then run 'privacy-pools sync' to rebuild from onchain data. ({error})"
+            )),
+        )
+    })?;
+
+    let parsed: Value = serde_json::from_str(&raw).map_err(|error| {
+        CliError::input(
+            format!("Account file is corrupt or unreadable: {}", path.display()),
+            Some(format!(
+                "Back up and remove the file, then run 'privacy-pools sync' to rebuild from onchain data. ({error})"
+            )),
+        )
+    })?;
+
+    Ok(map_has_entries(parsed.get("commitments")) || map_has_entries(parsed.get("poolAccounts")))
+}
+
+fn map_has_entries(value: Option<&Value>) -> bool {
+    let Some(value) = value else {
+        return false;
+    };
+
+    if let Some(object) = value.as_object() {
+        if object
+            .get("__type")
+            .and_then(Value::as_str)
+            .map(|value| value == "map")
+            .unwrap_or(false)
+        {
+            return object
+                .get("value")
+                .and_then(Value::as_array)
+                .map(|values| !values.is_empty())
+                .unwrap_or(false);
+        }
+
+        return !object.is_empty();
+    }
+
+    false
+}
+
+fn resolve_rpc_env_var(chain_id: u64, runtime_config: &RuntimeConfig) -> Option<String> {
+    if let Some(suffix) = runtime_config.chain_env_suffixes.get(&chain_id) {
+        env::var(format!("PRIVACY_POOLS_RPC_URL_{suffix}"))
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| {
+                env::var(format!("PP_RPC_URL_{suffix}"))
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            })
+            .or_else(|| {
+                env::var("PRIVACY_POOLS_RPC_URL")
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            })
+            .or_else(|| {
+                env::var("PP_RPC_URL")
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            })
+    } else {
+        env::var("PRIVACY_POOLS_RPC_URL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| {
+                env::var("PP_RPC_URL")
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            })
+    }
+}
+
+fn get_rpc_urls(
+    chain_id: u64,
+    override_from_flag: Option<String>,
+    config: &CliConfig,
+    runtime_config: &RuntimeConfig,
+) -> Result<Vec<String>, CliError> {
+    if let Some(value) = override_from_flag.filter(|value| !value.trim().is_empty()) {
+        return Ok(vec![value]);
+    }
+
+    if let Some(value) = resolve_rpc_env_var(chain_id, runtime_config) {
+        return Ok(vec![value]);
+    }
+
+    if let Some(value) = config.rpc_overrides.get(&chain_id) {
+        return Ok(vec![value.clone()]);
+    }
+
+    runtime_config
+        .default_rpc_urls
+        .get(&chain_id)
+        .cloned()
+        .filter(|values| !values.is_empty())
+        .ok_or_else(|| {
+            CliError::rpc(
+                format!("No RPC URL configured for chain {chain_id}."),
+                Some(
+                    "Pass --rpc-url <url> on the command, or set PP_RPC_URL in your environment."
+                        .to_string(),
+                ),
+                None,
+            )
+        })
+}
+
+fn get_rpc_url(
+    chain_id: u64,
+    override_from_flag: Option<String>,
+    config: &CliConfig,
+    runtime_config: &RuntimeConfig,
+) -> Result<String, CliError> {
+    Ok(get_rpc_urls(chain_id, override_from_flag, config, runtime_config)?
+        .into_iter()
+        .next()
+        .unwrap_or_default())
+}
+
+fn render_status_json(result: &StatusResult, manifest: &Manifest) -> Value {
+    let ready_for_deposit =
+        result.config_exists && result.recovery_phrase_set && result.signer_key_valid;
+    let ready_for_unsigned = result.config_exists && result.recovery_phrase_set;
+    let workflow_chain = result
+        .selected_chain
+        .clone()
+        .or_else(|| result.default_chain.clone());
+    let not_ready = !result.config_exists || !result.recovery_phrase_set;
+    let unsigned_only = ready_for_unsigned && !ready_for_deposit;
+    let chain_overridden = result.selected_chain.is_some() && result.selected_chain != result.default_chain;
+
+    let mainnet_names = manifest
+        .runtime_config
+        .mainnet_chain_names
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let has_on_selected = result
+        .selected_chain
+        .as_ref()
+        .map(|selected| {
+            result
+                .account_files
+                .iter()
+                .any(|(name, _)| name == selected)
+        })
+        .unwrap_or(false);
+    let has_on_mainnets = result
+        .account_files
+        .iter()
+        .any(|(name, _)| mainnet_names.contains(name));
+
+    let (has_accounts_reachable, accounts_chain_opt, accounts_needs_all_chains) = if chain_overridden {
+        (has_on_selected, result.selected_chain.clone(), false)
+    } else if has_on_selected {
+        let selected_is_mainnet = result
+            .selected_chain
+            .as_ref()
+            .map(|chain| mainnet_names.contains(chain))
+            .unwrap_or(false);
+        if selected_is_mainnet {
+            (true, None, false)
+        } else if has_on_mainnets {
+            (true, None, true)
+        } else {
+            (true, result.selected_chain.clone(), false)
+        }
+    } else if has_on_mainnets {
+        (true, None, false)
+    } else if !result.account_files.is_empty() {
+        (true, None, true)
+    } else {
+        (false, None, false)
+    };
+
+    let is_default_testnet = result
+        .default_chain
+        .as_ref()
+        .and_then(|chain| manifest.runtime_config.chains.get(chain))
+        .map(|chain| chain.is_testnet)
+        .unwrap_or(false);
+
+    let init_agent_chain_opts = workflow_chain
+        .clone()
+        .map(|chain| map_with_string("defaultChain", chain))
+        .unwrap_or_default();
+    let pools_agent_chain_opts = workflow_chain
+        .clone()
+        .map(|chain| map_with_string("chain", chain))
+        .unwrap_or_default();
+
+    let mut accounts_agent_chain_opts = Map::new();
+    if accounts_needs_all_chains {
+        accounts_agent_chain_opts.insert("allChains".to_string(), Value::Bool(true));
+    } else if let Some(chain) = accounts_chain_opt.clone() {
+        accounts_agent_chain_opts.insert("chain".to_string(), Value::String(chain));
+    }
+
+    let next_actions = if not_ready {
+        vec![create_next_action(
+            "init",
+            "Complete CLI setup before transacting.",
+            "status_not_ready",
+            None,
+            Some(merge_option_maps(
+                map_with_bool("agent", true),
+                merge_option_maps(map_with_bool("showMnemonic", true), init_agent_chain_opts),
+            )),
+            None,
+        )]
+    } else if unsigned_only && !has_accounts_reachable {
+        vec![create_next_action(
+            "pools",
+            "Browse pools in read-only mode. Configure a valid signer key before depositing.",
+            "status_unsigned_no_accounts",
+            None,
+            Some(merge_option_maps(
+                map_with_bool("agent", true),
+                pools_agent_chain_opts,
+            )),
+            None,
+        )]
+    } else if unsigned_only {
+        vec![create_next_action(
+            "accounts",
+            "Review existing deposits. Configure a valid signer key before depositing or withdrawing.",
+            "status_unsigned_has_accounts",
+            None,
+            Some(merge_option_maps(
+                map_with_bool("agent", true),
+                accounts_agent_chain_opts,
+            )),
+            None,
+        )]
+    } else if !has_accounts_reachable {
+        vec![create_next_action(
+            "pools",
+            "Browse pools to make your first deposit.",
+            "status_ready_no_accounts",
+            None,
+            Some(merge_option_maps(
+                map_with_bool("agent", true),
+                pools_agent_chain_opts,
+            )),
+            None,
+        )]
+    } else {
+        vec![create_next_action(
+            "accounts",
+            "Check on your existing deposits.",
+            "status_ready_has_accounts",
+            None,
+            Some(merge_option_maps(
+                map_with_bool("agent", true),
+                accounts_agent_chain_opts,
+            )),
+            None,
+        )]
+    };
+
+    let mut payload = Map::new();
+    payload.insert("configExists".to_string(), Value::Bool(result.config_exists));
+    payload.insert(
+        "configDir".to_string(),
+        result
+            .config_dir
+            .as_ref()
+            .map(|value| Value::String(value.clone()))
+            .unwrap_or(Value::Null),
+    );
+    payload.insert(
+        "defaultChain".to_string(),
+        result
+            .default_chain
+            .as_ref()
+            .map(|value| Value::String(value.clone()))
+            .unwrap_or(Value::Null),
+    );
+    payload.insert(
+        "selectedChain".to_string(),
+        result
+            .selected_chain
+            .as_ref()
+            .map(|value| Value::String(value.clone()))
+            .unwrap_or(Value::Null),
+    );
+    payload.insert(
+        "rpcUrl".to_string(),
+        result
+            .rpc_url
+            .as_ref()
+            .map(|value| Value::String(value.clone()))
+            .unwrap_or(Value::Null),
+    );
+    payload.insert("rpcIsCustom".to_string(), Value::Bool(result.rpc_is_custom));
+    payload.insert(
+        "recoveryPhraseSet".to_string(),
+        Value::Bool(result.recovery_phrase_set),
+    );
+    payload.insert("signerKeySet".to_string(), Value::Bool(result.signer_key_set));
+    payload.insert(
+        "signerKeyValid".to_string(),
+        Value::Bool(result.signer_key_valid),
+    );
+    payload.insert(
+        "signerAddress".to_string(),
+        result
+            .signer_address
+            .as_ref()
+            .map(|value| Value::String(value.clone()))
+            .unwrap_or(Value::Null),
+    );
+    payload.insert(
+        "entrypoint".to_string(),
+        result
+            .entrypoint
+            .as_ref()
+            .map(|value| Value::String(value.clone()))
+            .unwrap_or(Value::Null),
+    );
+    payload.insert(
+        "aspHost".to_string(),
+        result
+            .asp_host
+            .as_ref()
+            .map(|value| Value::String(value.clone()))
+            .unwrap_or(Value::Null),
+    );
+    payload.insert(
+        "accountFiles".to_string(),
+        Value::Array(
+            result
+                .account_files
+                .iter()
+                .map(|(chain, chain_id)| {
+                    json!({
+                        "chain": chain,
+                        "chainId": chain_id
+                    })
+                })
+                .collect(),
+        ),
+    );
+    payload.insert(
+        "nextActions".to_string(),
+        Value::Array(next_actions.into_iter().map(next_action_to_json).collect()),
+    );
+    payload.insert(
+        "readyForDeposit".to_string(),
+        Value::Bool(ready_for_deposit),
+    );
+    payload.insert(
+        "readyForWithdraw".to_string(),
+        Value::Bool(ready_for_deposit),
+    );
+    payload.insert(
+        "readyForUnsigned".to_string(),
+        Value::Bool(ready_for_unsigned),
+    );
+
+    let _ = is_default_testnet;
+    Value::Object(payload)
+}
+
+fn map_with_string(key: &str, value: String) -> Map<String, Value> {
+    let mut map = Map::new();
+    map.insert(key.to_string(), Value::String(value));
+    map
+}
+
+fn map_with_bool(key: &str, value: bool) -> Map<String, Value> {
+    let mut map = Map::new();
+    map.insert(key.to_string(), Value::Bool(value));
+    map
+}
+
+fn merge_option_maps(mut left: Map<String, Value>, right: Map<String, Value>) -> Map<String, Value> {
+    for (key, value) in right {
+        left.insert(key, value);
+    }
+    left
+}
+
+fn create_next_action(
+    command: &str,
+    reason: &str,
+    when: &str,
+    args: Option<Vec<String>>,
+    options: Option<Map<String, Value>>,
+    runnable: Option<bool>,
+) -> NextAction {
+    NextAction {
+        command: command.to_string(),
+        reason: reason.to_string(),
+        when: when.to_string(),
+        args,
+        options,
+        runnable,
+    }
+}
+
+fn next_action_to_json(action: NextAction) -> Value {
+    let mut object = Map::new();
+    object.insert("command".to_string(), Value::String(action.command));
+    object.insert("reason".to_string(), Value::String(action.reason));
+    object.insert("when".to_string(), Value::String(action.when));
+    if let Some(args) = action.args {
+        object.insert(
+            "args".to_string(),
+            Value::Array(args.into_iter().map(Value::String).collect()),
+        );
+    }
+    if let Some(options) = action.options {
+        if !options.is_empty() {
+            object.insert("options".to_string(), Value::Object(options));
+        }
+    }
+    if let Some(runnable) = action.runnable {
+        if !runnable {
+            object.insert("runnable".to_string(), Value::Bool(false));
+        }
+    }
+    Value::Object(object)
+}
+
+fn guard_csv_unsupported(parsed: &ParsedRootArgv, command_name: &str) -> Result<(), CliError> {
+    if parsed.is_csv_mode {
+        return Err(CliError::input(
+            format!("--format csv is not supported for '{command_name}'."),
+            Some(format!(
+                "CSV output is available for: {}.",
+                CSV_SUPPORTED_COMMANDS.join(", ")
+            )),
+        ));
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct CompletionQuerySpec {
+    shell: String,
+    cword: Option<usize>,
+    words: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct CompletionScriptSpec {
+    shell: Option<String>,
+}
+
+fn parse_completion_query(argv: &[String]) -> Result<Option<CompletionQuerySpec>, CliError> {
+    let mut index = 0usize;
+    while index < argv.len() {
+        let token = &argv[index];
+        if token == "completion" {
+            index += 1;
+            break;
+        }
+
+        if token == "--" {
+            return Ok(None);
+        }
+
+        if token.starts_with("--") {
+            if root_option_takes_value(token) && !token.contains('=') {
+                index += 2;
+            } else {
+                index += 1;
+            }
+            continue;
+        }
+
+        if token.starts_with('-') {
+            if matches!(token.as_str(), "-c" | "-r") {
+                index += 2;
+            } else {
+                index += 1;
+            }
+            continue;
+        }
+
+        return Ok(None);
+    }
+
+    if index >= argv.len() {
+        return Ok(None);
+    }
+
+    let mut shell_flag: Option<String> = None;
+    let mut shell_arg: Option<String> = None;
+    let mut query = false;
+    let mut cword_raw: Option<String> = None;
+    let mut words: Option<Vec<String>> = None;
+
+    while index < argv.len() {
+        let token = &argv[index];
+        if token == "--" {
+            words = Some(argv[index + 1..].to_vec());
+            break;
+        }
+        if token == "--query" {
+            query = true;
+            index += 1;
+            continue;
+        }
+        if token == "--shell" || token == "-s" {
+            let value = argv.get(index + 1).cloned().ok_or_else(|| {
+                CliError::input(
+                    "Missing shell value for completion command.",
+                    Some("Use: privacy-pools completion [shell]".to_string()),
+                )
+            })?;
+            shell_flag = Some(value);
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--shell=") {
+            shell_flag = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        if token == "--cword" {
+            let value = argv.get(index + 1).cloned().ok_or_else(|| {
+                CliError::input(
+                    "Missing --cword value.",
+                    Some("Expected a non-negative integer.".to_string()),
+                )
+            })?;
+            cword_raw = Some(value);
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--cword=") {
+            cword_raw = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        if token.starts_with('-') {
+            return Ok(None);
+        }
+        if shell_arg.is_none() {
+            shell_arg = Some(token.clone());
+            index += 1;
+            continue;
+        }
+        return Ok(None);
+    }
+
+    if !query || words.is_none() {
+        return Ok(None);
+    }
+    if shell_flag.is_some() && shell_arg.is_some() && shell_flag != shell_arg {
+        return Ok(None);
+    }
+
+    let shell = match shell_flag.or(shell_arg) {
+        Some(value) => parse_completion_shell(&value)?,
+        None => detect_completion_shell(),
+    };
+    let cword = match cword_raw {
+        Some(raw) => Some(parse_non_negative_int(&raw, "--cword")? as usize),
+        None => None,
+    };
+
+    Ok(Some(CompletionQuerySpec {
+        shell,
+        cword,
+        words: words.unwrap_or_default(),
+    }))
+}
+
+fn parse_completion_script_spec(argv: &[String]) -> Result<CompletionScriptSpec, CliError> {
+    let mut tokens = vec![];
+    let mut index = 0usize;
+    while index < argv.len() {
+        let token = &argv[index];
+        if !token.starts_with('-') {
+            tokens.push(token.clone());
+            index += 1;
+            continue;
+        }
+        if root_option_takes_value(token) && !token.contains('=') {
+            index += 2;
+        } else {
+            index += 1;
+        }
+    }
+
+    if tokens.first().map(|value| value.as_str()) != Some("completion") {
+        return forward_completion_to_js_as_error();
+    }
+
+    let mut index = argv
+        .iter()
+        .position(|token| token == "completion")
+        .map(|value| value + 1)
+        .unwrap_or(argv.len());
+    let mut positional_shell: Option<String> = None;
+    let mut shell_flag: Option<String> = None;
+
+    while index < argv.len() {
+        let token = &argv[index];
+        if token == "--" {
+            break;
+        }
+        if token == "--query" {
+            index += 1;
+            continue;
+        }
+        if token == "--shell" || token == "-s" {
+            let value = argv.get(index + 1).cloned().ok_or_else(|| {
+                CliError::input(
+                    "Missing shell value for completion command.",
+                    Some("Use: privacy-pools completion [shell]".to_string()),
+                )
+            })?;
+            shell_flag = Some(parse_completion_shell(&value)?);
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--shell=") {
+            shell_flag = Some(parse_completion_shell(value)?);
+            index += 1;
+            continue;
+        }
+        if token == "--cword" {
+            index += 2;
+            continue;
+        }
+        if token.starts_with("--cword=") {
+            index += 1;
+            continue;
+        }
+        if token.starts_with('-') {
+            index += 1;
+            continue;
+        }
+        if positional_shell.is_none() {
+            positional_shell = Some(token.clone());
+            index += 1;
+            continue;
+        }
+        return Err(CliError::input(
+            "Too many arguments for completion command.",
+            Some("Use: privacy-pools completion [shell]".to_string()),
+        ));
+    }
+
+    if let (Some(flag_shell), Some(positional_shell)) = (&shell_flag, &positional_shell) {
+        if flag_shell != positional_shell {
+            return Err(CliError::input(
+                "Conflicting shell values from --shell and positional argument.",
+                Some(
+                    "Specify shell either as positional argument or via --shell, but not both."
+                        .to_string(),
+                ),
+            ));
+        }
+    }
+
+    let shell = match (shell_flag, positional_shell) {
+        (Some(shell), _) => Some(shell),
+        (None, Some(shell)) => Some(parse_completion_shell(&shell)?),
+        (None, None) => None,
+    };
+    Ok(CompletionScriptSpec { shell })
+}
+
+fn forward_completion_to_js_as_error<T>() -> Result<T, CliError> {
+    Err(CliError::input(
+        "Invalid completion invocation.",
+        Some("Use: privacy-pools completion [shell]".to_string()),
+    ))
+}
+
+fn parse_completion_shell(value: &str) -> Result<String, CliError> {
+    match value {
+        "bash" | "zsh" | "fish" | "powershell" => Ok(value.to_string()),
+        _ => Err(CliError::input(
+            format!("Unsupported shell '{value}'."),
+            Some("Supported shells: bash, zsh, fish, powershell".to_string()),
+        )),
+    }
+}
+
+fn detect_completion_shell() -> String {
+    let shell = env::var("SHELL").unwrap_or_default().to_lowercase();
+    if shell.contains("zsh") {
+        "zsh".to_string()
+    } else if shell.contains("fish") {
+        "fish".to_string()
+    } else {
+        "bash".to_string()
+    }
+}
+
+fn parse_non_negative_int(raw: &str, flag: &str) -> Result<u64, CliError> {
+    let parsed = raw.parse::<u64>().map_err(|_| {
+        CliError::input(
+            format!("Invalid {flag} value '{raw}'."),
+            Some("Expected a non-negative integer.".to_string()),
+        )
+    })?;
+    Ok(parsed)
+}
+
+fn build_completion_tree(spec: &CompletionCommandSpec) -> CompletionNode {
+    let mut subcommands = HashMap::new();
+    for subcommand in &spec.subcommands {
+        let node = build_completion_tree(subcommand);
+        let mut names = vec![subcommand.name.clone()];
+        names.extend(subcommand.aliases.clone());
+        for name in names {
+            subcommands.insert(name, node.clone());
+        }
+    }
+
+    CompletionNode {
+        options: spec.options.clone(),
+        subcommands,
+    }
+}
+
+fn query_completion_candidates(
+    words_input: &[String],
+    cword_input: Option<usize>,
+    root_spec: &CompletionCommandSpec,
+) -> Vec<String> {
+    let tree = build_completion_tree(root_spec);
+    let command_name = if root_spec.name.is_empty() {
+        "privacy-pools".to_string()
+    } else {
+        root_spec.name.clone()
+    };
+    let accepted_command_names = vec![command_name.clone(), "privacy-pools".to_string()];
+    let words = normalize_completion_words(words_input, &command_name, &accepted_command_names);
+    let cword = normalize_completion_cword(cword_input, words.len());
+    let current_token = words.get(cword).cloned().unwrap_or_default();
+
+    let (current, expecting_value_for) = resolve_completion_context(&tree, &words, cword);
+
+    if current_token.starts_with('-') && current_token.contains('=') {
+        let mut parts = current_token.splitn(2, '=');
+        let flag = parts.next().unwrap_or_default();
+        let value_prefix = parts.next().unwrap_or_default();
+        if let Some(option) = find_completion_option(flag, &current, &tree) {
+            if !option.values.is_empty() {
+                return filter_completion_candidates(
+                    option
+                        .values
+                        .iter()
+                        .map(|value| format!("{flag}={value}"))
+                        .collect(),
+                    value_prefix,
+                );
+            }
+        }
+    }
+
+    if let Some(option) = expecting_value_for {
+        if option.values.is_empty() {
+            return vec![];
+        }
+        return filter_completion_candidates(option.values.clone(), &current_token);
+    }
+
+    let mut candidates = vec![];
+    candidates.extend(current.subcommands.keys().cloned());
+    candidates.extend(
+        merged_completion_options(&current, &tree)
+            .into_iter()
+            .flat_map(|option| option.names),
+    );
+    filter_completion_candidates(candidates, &current_token)
+}
+
+fn normalize_completion_words(
+    words: &[String],
+    command_name: &str,
+    accepted_command_names: &[String],
+) -> Vec<String> {
+    if words.is_empty() {
+        return vec![command_name.to_string()];
+    }
+
+    if accepted_command_names.iter().any(|value| value == &words[0]) {
+        let mut normalized = vec![command_name.to_string()];
+        normalized.extend(words.iter().skip(1).cloned());
+        return normalized;
+    }
+
+    let mut normalized = vec![command_name.to_string()];
+    normalized.extend(words.iter().cloned());
+    normalized
+}
+
+fn normalize_completion_cword(cword: Option<usize>, words_length: usize) -> usize {
+    let fallback = words_length.saturating_sub(1);
+    match cword {
+        Some(value) => value.min(words_length),
+        None => fallback,
+    }
+}
+
+fn resolve_completion_context(
+    root: &CompletionNode,
+    words: &[String],
+    cword: usize,
+) -> (CompletionNode, Option<CompletionOptionSpec>) {
+    let mut current = root.clone();
+    let mut expecting_value_for: Option<CompletionOptionSpec> = None;
+    let boundary = cword.min(words.len()).max(1);
+
+    for token in words.iter().take(boundary).skip(1) {
+        if expecting_value_for.is_some() {
+            expecting_value_for = None;
+            continue;
+        }
+
+        if token.starts_with('-') {
+            let flag = token.split('=').next().unwrap_or_default();
+            if let Some(option) = find_completion_option(flag, &current, root) {
+                if option.takes_value && !token.contains('=') {
+                    expecting_value_for = Some(option);
+                }
+            }
+            continue;
+        }
+
+        if let Some(subcommand) = current.subcommands.get(token) {
+            current = subcommand.clone();
+        }
+    }
+
+    (current, expecting_value_for)
+}
+
+fn find_completion_option(
+    token: &str,
+    current: &CompletionNode,
+    root: &CompletionNode,
+) -> Option<CompletionOptionSpec> {
+    merged_completion_options(current, root)
+        .into_iter()
+        .find(|option| option.names.iter().any(|name| name == token))
+}
+
+fn merged_completion_options(current: &CompletionNode, root: &CompletionNode) -> Vec<CompletionOptionSpec> {
+    let option_lists = if std::ptr::eq(current, root) {
+        vec![current.options.clone()]
+    } else {
+        vec![root.options.clone(), current.options.clone()]
+    };
+
+    let mut merged = HashMap::<String, CompletionOptionSpec>::new();
+    for options in option_lists {
+        for option in options {
+            let key = option.names.join("|");
+            merged.entry(key).or_insert(option);
+        }
+    }
+    merged.into_values().collect()
+}
+
+fn filter_completion_candidates(candidates: Vec<String>, prefix: &str) -> Vec<String> {
+    let mut values = candidates
+        .into_iter()
+        .filter(|candidate| prefix.is_empty() || candidate.starts_with(prefix))
+        .collect::<Vec<_>>();
+    values.sort_by(|left, right| {
+        left.to_ascii_lowercase()
+            .cmp(&right.to_ascii_lowercase())
+            .then_with(|| {
+                left.chars()
+                    .any(|value| value.is_ascii_uppercase())
+                    .cmp(&right.chars().any(|value| value.is_ascii_uppercase()))
+            })
+            .then_with(|| left.cmp(right))
+    });
+    values.dedup();
+    values
+}
+
+fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandOptions, CliError> {
+    let mut asset = None;
+    let mut page = None;
+    let mut per_page = None;
+    let mut index = argv
+        .iter()
+        .position(|token| token == "activity")
+        .map(|value| value + 1)
+        .unwrap_or(argv.len());
+
+    while index < argv.len() {
+        let token = &argv[index];
+        if token == "--" {
+            break;
+        }
+        if token == "--asset" || token == "-a" {
+            asset = argv.get(index + 1).cloned();
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--asset=") {
+            asset = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        if token == "--page" {
+            page = argv.get(index + 1).cloned();
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--page=") {
+            page = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        if token == "--limit" {
+            per_page = argv.get(index + 1).cloned();
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--limit=") {
+            per_page = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        if token.starts_with('-') {
+            index += 1;
+            continue;
+        }
+        index += 1;
+    }
+
+    Ok(ActivityCommandOptions {
+        asset,
+        page: parse_positive_int(page.as_deref(), "page", 1)?,
+        per_page: parse_positive_int(per_page.as_deref(), "limit", 12)?,
+    })
+}
+
+fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError> {
+    let mut all_chains = false;
+    let mut search = None;
+    let mut sort = None;
+    let mut index = argv
+        .iter()
+        .position(|token| token == "pools")
+        .map(|value| value + 1)
+        .unwrap_or(argv.len());
+
+    while index < argv.len() {
+        let token = &argv[index];
+        if token == "--all-chains" {
+            all_chains = true;
+            index += 1;
+            continue;
+        }
+        if token == "--search" {
+            search = argv.get(index + 1).cloned();
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--search=") {
+            search = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        if token == "--sort" {
+            sort = argv.get(index + 1).cloned();
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--sort=") {
+            sort = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        index += 1;
+    }
+
+    let sort_value = sort.unwrap_or_else(|| "tvl-desc".to_string()).to_lowercase();
+    let supported = [
+        "asset-asc",
+        "asset-desc",
+        "tvl-desc",
+        "tvl-asc",
+        "deposits-desc",
+        "deposits-asc",
+        "chain-asset",
+        "default",
+    ];
+    if !supported.contains(&sort_value.as_str()) {
+        return Err(CliError::input(
+            format!("Invalid --sort value: {sort_value}."),
+            Some(format!("Use one of: {}.", supported.join(", "))),
+        ));
+    }
+
+    Ok(PoolsCommandOptions {
+        all_chains,
+        search: search.map(|value| value.trim().to_string()).filter(|value| !value.is_empty()),
+        sort: sort_value,
+    })
+}
+
+fn parse_positive_int(raw: Option<&str>, field_name: &str, fallback: u64) -> Result<u64, CliError> {
+    let value = raw.unwrap_or_else(|| if field_name == "page" { "1" } else { "12" });
+    let parsed = value.parse::<u64>().ok().filter(|value| *value > 0).unwrap_or(0);
+    if parsed == 0 {
+        return Err(CliError::input(
+            format!("Invalid --{field_name} value: {value}."),
+            Some(format!("--{field_name} must be a positive integer.")),
+        ));
+    }
+    Ok(if raw.is_some() { parsed } else { fallback })
+}
+
+fn resolve_stats_subcommand(parsed: &ParsedRootArgv) -> StatsSubcommand {
+    match parsed.non_option_tokens.get(1).map(String::as_str) {
+        Some("pool") => StatsSubcommand::Pool,
+        Some("global") => StatsSubcommand::Global,
+        _ => StatsSubcommand::Default,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StatsSubcommand {
+    Default,
+    Global,
+    Pool,
+}
+
+fn default_read_only_chains(manifest: &Manifest) -> Vec<ChainDefinition> {
+    manifest
+        .runtime_config
+        .mainnet_chain_names
+        .iter()
+        .filter_map(|name| manifest.runtime_config.chains.get(name))
+        .cloned()
+        .map(apply_chain_overrides)
+        .collect()
+}
+
+fn all_chains_with_overrides(manifest: &Manifest) -> Vec<ChainDefinition> {
+    manifest
+        .runtime_config
+        .chain_names
+        .iter()
+        .filter_map(|name| manifest.runtime_config.chains.get(name))
+        .cloned()
+        .map(apply_chain_overrides)
+        .collect()
+}
+
+fn parse_timeout_ms(argv: &[String]) -> u64 {
+    read_long_option_value(argv, "--timeout")
+        .or_else(|| read_short_option_value(argv, "-t"))
+        .and_then(|value| value.parse::<f64>().ok())
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .map(|value| (value * 1000.0).round() as u64)
+        .unwrap_or(DEFAULT_TIMEOUT_MS)
+}
+
+fn http_get_json(
+    url: &str,
+    headers: &[(&str, String)],
+    timeout_ms: u64,
+) -> Result<Value, CliError> {
+    let mut request = ureq::get(url).timeout(Duration::from_millis(timeout_ms));
+    for (key, value) in headers {
+        request = request.set(key, value);
+    }
+
+    let response = request.call().map_err(|error| classify_network_error(error, url, ErrorCategory::Asp))?;
+    serde_json::from_reader(response.into_reader()).map_err(|error| {
+        CliError::unknown(
+            format!("Invalid JSON response from {url}: {error}"),
+            Some("Retry the command once; if it persists, report the issue.".to_string()),
+        )
+    })
+}
+
+fn http_post_json(
+    url: &str,
+    body: &Value,
+    timeout_ms: u64,
+) -> Result<Value, CliError> {
+    let response = ureq::post(url)
+        .timeout(Duration::from_millis(timeout_ms))
+        .set("Content-Type", "application/json")
+        .send_string(
+            &serde_json::to_string(body).map_err(|error| {
+                CliError::unknown(
+                    format!("Failed to serialize JSON request: {error}"),
+                    Some("Please report this issue.".to_string()),
+                )
+            })?,
+        )
+        .map_err(|error| classify_network_error(error, url, ErrorCategory::Rpc))?;
+
+    serde_json::from_reader(response.into_reader()).map_err(|error| {
+        CliError::unknown(
+            format!("Invalid JSON response from {url}: {error}"),
+            Some("Retry the command once; if it persists, report the issue.".to_string()),
+        )
+    })
+}
+
+fn classify_network_error(
+    error: ureq::Error,
+    url: &str,
+    category: ErrorCategory,
+) -> CliError {
+    match error {
+        ureq::Error::Status(404, _) if matches!(category, ErrorCategory::Asp) => CliError::asp(
+            "ASP service: resource not found.",
+            Some("The pool may not be registered yet. Run 'privacy-pools pools' to verify.".to_string()),
+            None,
+            false,
+        ),
+        ureq::Error::Status(400, _) if matches!(category, ErrorCategory::Asp) => CliError::asp(
+            "ASP service returned an error.",
+            Some("Try 'privacy-pools sync' and retry. If it persists, the CLI may be out of date.".to_string()),
+            None,
+            false,
+        ),
+        ureq::Error::Status(429, _) | ureq::Error::Status(403, _) if matches!(category, ErrorCategory::Asp) => {
+            CliError::asp(
+                "ASP service is temporarily rate-limiting requests.",
+                Some("Wait a moment and try again.".to_string()),
+                None,
+                false,
+            )
+        }
+        other => match category {
+            ErrorCategory::Asp => CliError::asp(
+                format!("Could not reach the ASP service."),
+                Some(
+                    "Check your network connection. If it persists, the service may be temporarily down."
+                        .to_string(),
+                ),
+                None,
+                matches!(other, ureq::Error::Status(code, _) if code >= 500),
+            ),
+            ErrorCategory::Rpc => CliError::rpc(
+                format!("Network error: {url}"),
+                Some(
+                    "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable."
+                        .to_string(),
+                ),
+                Some("RPC_NETWORK_ERROR"),
+            ),
+            _ => CliError::unknown(
+                "Unexpected network failure.",
+                Some("Retry the command once; if it persists, report the issue.".to_string()),
+            ),
+        },
+    }
+}
+
+fn fetch_pool_events(
+    chain: &ChainDefinition,
+    scope: &str,
+    page: u64,
+    per_page: u64,
+    timeout_ms: u64,
+) -> Result<Value, CliError> {
+    let url = format!(
+        "{}/{}/public/events?page={page}&perPage={per_page}",
+        chain.asp_host, chain.id
+    );
+    http_get_json(&url, &[("X-Pool-Scope", scope.to_string())], timeout_ms)
+}
+
+fn fetch_global_events(
+    chain: &ChainDefinition,
+    page: u64,
+    per_page: u64,
+    timeout_ms: u64,
+) -> Result<Value, CliError> {
+    let url = format!(
+        "{}/global/public/events?page={page}&perPage={per_page}",
+        chain.asp_host
+    );
+    http_get_json(&url, &[], timeout_ms)
+}
+
+fn fetch_global_statistics(chain: &ChainDefinition, timeout_ms: u64) -> Result<Value, CliError> {
+    let url = format!("{}/global/public/statistics", chain.asp_host);
+    http_get_json(&url, &[], timeout_ms)
+}
+
+fn fetch_pools_stats(chain: &ChainDefinition, timeout_ms: u64) -> Result<Value, CliError> {
+    let url = format!("{}/{}/public/pools-stats", chain.asp_host, chain.id);
+    http_get_json(&url, &[], timeout_ms)
+}
+
+fn normalize_activity_events(
+    events_value: Value,
+    fallback_symbol: Option<&str>,
+    manifest: &Manifest,
+) -> Result<Vec<NormalizedActivityEvent>, CliError> {
+    let events = events_value.as_array().cloned().unwrap_or_default();
+    events
+        .into_iter()
+        .map(|event| normalize_activity_event(event, fallback_symbol, manifest))
+        .collect()
+}
+
+fn normalize_activity_event(
+    event: Value,
+    fallback_symbol: Option<&str>,
+    manifest: &Manifest,
+) -> Result<NormalizedActivityEvent, CliError> {
+    let pool = event.get("pool").and_then(Value::as_object).cloned().unwrap_or_default();
+    let chain_id = parse_json_u64(pool.get("chainId"));
+    let amount_raw = event
+        .get("amount")
+        .and_then(Value::as_str)
+        .map(|value| value.to_string())
+        .or_else(|| {
+            event
+                .get("publicAmount")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string())
+        });
+    let symbol = pool
+        .get("tokenSymbol")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.to_string())
+        .or_else(|| fallback_symbol.map(|value| value.to_string()));
+    let decimals = parse_json_u64(pool.get("denomination")).unwrap_or(18) as u32;
+    let amount_formatted = amount_raw
+        .as_deref()
+        .and_then(|value| value.parse::<BigUint>().ok())
+        .map(|value| format_amount(&value, decimals, symbol.as_deref(), Some(2)))
+        .unwrap_or_else(|| amount_raw.clone().unwrap_or_else(|| "-".to_string()));
+    let timestamp_ms = event
+        .get("timestamp")
+        .and_then(json_numberish)
+        .map(|value| if value < 1_000_000_000_000f64 { (value * 1000.0).floor() as u64 } else { value.floor() as u64 });
+    let tx_hash = event.get("txHash").and_then(Value::as_str).map(|value| value.to_string());
+    let pool_address = pool.get("poolAddress").and_then(Value::as_str).map(|value| value.to_string());
+    let event_type = event.get("type").and_then(Value::as_str).unwrap_or("unknown").to_string();
+    let raw_review_status = extract_public_event_review_status(event.get("reviewStatus"));
+    let review_status = normalize_public_event_review_status(&event_type, raw_review_status.as_deref());
+    let explorer_url = tx_hash
+        .as_ref()
+        .and_then(|tx_hash| chain_id.and_then(|id| explorer_tx_url(id, tx_hash, manifest)));
+
+    Ok(NormalizedActivityEvent {
+        event_type,
+        tx_hash,
+        explorer_url,
+        review_status,
+        amount_raw,
+        amount_formatted,
+        pool_symbol: symbol,
+        pool_address,
+        chain_id,
+        timestamp_iso: timestamp_ms.map(ms_to_iso_timestamp),
+    })
+}
+
+fn activity_event_to_json(event: NormalizedActivityEvent) -> Value {
+    json!({
+        "type": event.event_type,
+        "txHash": event.tx_hash,
+        "explorerUrl": event.explorer_url,
+        "reviewStatus": event.review_status,
+        "amountRaw": event.amount_raw,
+        "amountFormatted": event.amount_formatted,
+        "poolSymbol": event.pool_symbol,
+        "poolAddress": event.pool_address,
+        "chainId": event.chain_id,
+        "timestamp": event.timestamp_iso,
+    })
+}
+
+fn explorer_tx_url(chain_id: u64, tx_hash: &str, manifest: &Manifest) -> Option<String> {
+    manifest
+        .runtime_config
+        .explorer_urls
+        .get(&chain_id)
+        .map(|base| format!("{base}/tx/{tx_hash}"))
+}
+
+fn extract_public_event_review_status(value: Option<&Value>) -> Option<String> {
+    match value {
+        Some(Value::String(status)) if !status.trim().is_empty() => Some(status.clone()),
+        Some(Value::Object(object)) => object
+            .get("decisionStatus")
+            .and_then(Value::as_str)
+            .or_else(|| object.get("reviewStatus").and_then(Value::as_str))
+            .or_else(|| object.get("status").and_then(Value::as_str))
+            .map(|value| value.to_string())
+            .filter(|value| !value.trim().is_empty()),
+        _ => None,
+    }
+}
+
+fn normalize_public_event_review_status(event_type: &str, raw_status: Option<&str>) -> String {
+    let normalized_type = event_type.trim().to_lowercase();
+    if matches!(normalized_type.as_str(), "withdrawal" | "ragequit" | "exit") {
+        return "approved".to_string();
+    }
+
+    let normalized = normalize_asp_approval_status(raw_status);
+    if normalized != "unknown" {
+        return normalized.to_string();
+    }
+
+    if raw_status.map(|value| !value.trim().is_empty()).unwrap_or(false) {
+        "unknown".to_string()
+    } else {
+        "pending".to_string()
+    }
+}
+
+fn normalize_asp_approval_status(raw_status: Option<&str>) -> &'static str {
+    match raw_status.unwrap_or_default().trim().to_lowercase().as_str() {
+        "approved" | "accepted" => "approved",
+        "pending" => "pending",
+        "poi_required" => "poi_required",
+        "declined" | "rejected" | "denied" => "declined",
+        _ => "unknown",
+    }
+}
+
+fn json_numberish(value: &Value) -> Option<f64> {
+    match value {
+        Value::Number(number) => number.as_f64(),
+        Value::String(string) => string.trim().parse::<f64>().ok(),
+        _ => None,
+    }
+}
+
+fn parse_json_u64(value: Option<&Value>) -> Option<u64> {
+    value.and_then(json_numberish).and_then(|value| {
+        if value.is_finite() && value >= 0.0 {
+            Some(value as u64)
+        } else {
+            None
+        }
+    })
+}
+
+fn ms_to_iso_timestamp(timestamp_ms: u64) -> String {
+    let seconds = timestamp_ms / 1000;
+    let milliseconds = timestamp_ms % 1000;
+    let datetime = chrono_like_iso(seconds as i64, milliseconds as u32);
+    datetime
+}
+
+fn chrono_like_iso(seconds: i64, milliseconds: u32) -> String {
+    // Minimal RFC3339 formatter without bringing in chrono.
+    let datetime = UNIX_EPOCH + Duration::from_secs(seconds.max(0) as u64);
+    let elapsed = datetime
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0));
+    let secs = elapsed.as_secs() as i64;
+    let days = secs.div_euclid(86_400);
+    let seconds_of_day = secs.rem_euclid(86_400);
+
+    let (year, month, day) = civil_from_days(days);
+    let hour = seconds_of_day / 3_600;
+    let minute = (seconds_of_day % 3_600) / 60;
+    let second = seconds_of_day % 60;
+
+    format!(
+        "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}.{milliseconds:03}Z"
+    )
+}
+
+fn civil_from_days(days: i64) -> (i64, i64, i64) {
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = mp + if mp < 10 { 3 } else { -9 };
+    let year = y + if m <= 2 { 1 } else { 0 };
+    (year, m, d)
+}
+
+fn list_pools_native(
+    chain: &ChainDefinition,
+    rpc_override: Option<String>,
+    config: &CliConfig,
+    manifest: &Manifest,
+    timeout_ms: u64,
+) -> Result<Vec<PoolListingEntry>, CliError> {
+    let stats_data = fetch_pools_stats(chain, timeout_ms)?;
+    let stats_entries = normalize_pool_stats_entries(&stats_data);
+    if stats_entries.is_empty() {
+        return Err(CliError::asp(
+            format!("Cannot reach ASP ({}) to discover pools.", chain.asp_host),
+            Some("Check your network connection, or try again later.".to_string()),
+            None,
+            false,
+        ));
+    }
+
+    let rpc_urls = get_rpc_urls(chain.id, rpc_override, config, &manifest.runtime_config)?;
+    let mut entries = vec![];
+    for stats_entry in stats_entries {
+        let Some(asset_address) = resolve_pool_asset_address(&stats_entry) else {
+            continue;
+        };
+        let asset_config = read_asset_config(chain, &asset_address, &rpc_urls, timeout_ms)?;
+        let scope = read_pool_scope(&asset_config.pool_address, &rpc_urls, timeout_ms)?;
+        let token_metadata = resolve_token_metadata(
+            &asset_address,
+            &rpc_urls,
+            &manifest.runtime_config.native_asset_address,
+            timeout_ms,
+        );
+        entries.push(PoolListingEntry {
+            chain: chain.name.clone(),
+            chain_id: chain.id,
+            asset: token_metadata.symbol,
+            token_address: asset_address,
+            pool: asset_config.pool_address,
+            scope,
+            decimals: token_metadata.decimals,
+            minimum_deposit: asset_config.minimum_deposit_amount,
+            vetting_fee_bps: asset_config.vetting_fee_bps,
+            max_relay_fee_bps: asset_config.max_relay_fee_bps,
+            total_in_pool_value: parse_json_decimal_string(stats_entry.get("totalInPoolValue")),
+            total_in_pool_value_usd: parse_json_string(stats_entry.get("totalInPoolValueUsd")),
+            total_deposits_value: parse_json_decimal_string(stats_entry.get("totalDepositsValue")),
+            total_deposits_value_usd: parse_json_string(stats_entry.get("totalDepositsValueUsd")),
+            accepted_deposits_value: parse_json_decimal_string(stats_entry.get("acceptedDepositsValue")),
+            accepted_deposits_value_usd: parse_json_string(stats_entry.get("acceptedDepositsValueUsd")),
+            pending_deposits_value: parse_json_decimal_string(stats_entry.get("pendingDepositsValue")),
+            pending_deposits_value_usd: parse_json_string(stats_entry.get("pendingDepositsValueUsd")),
+            total_deposits_count: parse_json_u64(stats_entry.get("totalDepositsCount")),
+            accepted_deposits_count: parse_json_u64(stats_entry.get("acceptedDepositsCount")),
+            pending_deposits_count: parse_json_u64(stats_entry.get("pendingDepositsCount")),
+            growth24h: parse_json_number(stats_entry.get("growth24h")),
+            pending_growth24h: parse_json_number(stats_entry.get("pendingGrowth24h")),
+        });
+    }
+
+    if entries.is_empty() {
+        return Err(CliError::rpc(
+            format!("Failed to resolve pools on {} due to RPC errors.", chain.name),
+            Some("Check your RPC connection and try again.".to_string()),
+            None,
+        ));
+    }
+
+    Ok(deduplicate_pool_entries(entries))
+}
+
+fn normalize_pool_stats_entries(stats_data: &Value) -> Vec<Map<String, Value>> {
+    if let Some(array) = stats_data.as_array() {
+        return array
+            .iter()
+            .filter_map(|entry| entry.as_object().cloned())
+            .collect();
+    }
+
+    if let Some(object) = stats_data.as_object() {
+        if let Some(pools) = object.get("pools").and_then(Value::as_array) {
+            return pools
+                .iter()
+                .filter_map(|entry| entry.as_object().cloned())
+                .collect();
+        }
+
+        return object
+            .iter()
+            .filter_map(|(key, value)| {
+                if key == "pools" {
+                    None
+                } else {
+                    value.as_object().cloned()
+                }
+            })
+            .collect();
+    }
+
+    vec![]
+}
+
+fn resolve_pool_asset_address(entry: &Map<String, Value>) -> Option<String> {
+    entry.get("assetAddress")
+        .and_then(Value::as_str)
+        .or_else(|| entry.get("tokenAddress").and_then(Value::as_str))
+        .filter(|value| is_hex_address(value))
+        .map(|value| value.to_string())
+}
+
+fn parse_json_string(value: Option<&Value>) -> Option<String> {
+    value.and_then(Value::as_str).map(|value| value.to_string())
+}
+
+fn parse_json_decimal_string(value: Option<&Value>) -> Option<String> {
+    match value {
+        Some(Value::String(string)) if is_decimal_string(string) => Some(string.to_string()),
+        Some(Value::Number(number)) => Some(number.to_string()),
+        _ => None,
+    }
+}
+
+fn parse_json_number(value: Option<&Value>) -> Option<f64> {
+    value.and_then(json_numberish)
+}
+
+fn deduplicate_pool_entries(entries: Vec<PoolListingEntry>) -> Vec<PoolListingEntry> {
+    let mut seen = BTreeSet::new();
+    let mut deduped = vec![];
+    for entry in entries {
+        let key = entry.pool.to_lowercase();
+        if seen.insert(key) {
+            deduped.push(entry);
+        }
+    }
+    deduped
+}
+
+fn apply_pool_search(entries: Vec<PoolListingEntry>, query: Option<&str>) -> Vec<PoolListingEntry> {
+    let Some(query) = query else {
+        return entries;
+    };
+    let terms = query
+        .trim()
+        .to_lowercase()
+        .split_whitespace()
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>();
+    if terms.is_empty() {
+        return entries;
+    }
+
+    entries
+        .into_iter()
+        .filter(|entry| {
+            let haystack = format!(
+                "{} {} {} {} {} {}",
+                entry.chain, entry.chain_id, entry.asset, entry.token_address, entry.pool, entry.scope
+            )
+            .to_lowercase();
+            terms.iter().all(|term| haystack.contains(term))
+        })
+        .collect()
+}
+
+fn sort_pools(entries: &mut [PoolListingEntry], sort_mode: &str) {
+    entries.sort_by(|left, right| {
+        let ordering = match sort_mode {
+            "asset-asc" => left.asset.cmp(&right.asset),
+            "asset-desc" => right.asset.cmp(&left.asset),
+            "tvl-desc" => compare_optional_biguint(
+                left.total_in_pool_value
+                    .as_deref()
+                    .or(left.accepted_deposits_value.as_deref()),
+                right
+                    .total_in_pool_value
+                    .as_deref()
+                    .or(right.accepted_deposits_value.as_deref()),
+                true,
+            ),
+            "tvl-asc" => compare_optional_biguint(
+                left.total_in_pool_value
+                    .as_deref()
+                    .or(left.accepted_deposits_value.as_deref()),
+                right
+                    .total_in_pool_value
+                    .as_deref()
+                    .or(right.accepted_deposits_value.as_deref()),
+                false,
+            ),
+            "deposits-desc" => right.total_deposits_count.cmp(&left.total_deposits_count),
+            "deposits-asc" => left.total_deposits_count.cmp(&right.total_deposits_count),
+            "chain-asset" => left.chain.cmp(&right.chain).then(left.asset.cmp(&right.asset)),
+            _ => std::cmp::Ordering::Equal,
+        };
+
+        if ordering != std::cmp::Ordering::Equal {
+            ordering
+        } else {
+            left.chain
+                .cmp(&right.chain)
+                .then(left.asset.cmp(&right.asset))
+                .then(left.pool.cmp(&right.pool))
+        }
+    });
+}
+
+fn compare_optional_biguint(
+    left: Option<&str>,
+    right: Option<&str>,
+    descending: bool,
+) -> std::cmp::Ordering {
+    let left_value = left.and_then(parse_biguint).unwrap_or_else(BigUint::zero);
+    let right_value = right.and_then(parse_biguint).unwrap_or_else(BigUint::zero);
+    if descending {
+        right_value.cmp(&left_value)
+    } else {
+        left_value.cmp(&right_value)
+    }
+}
+
+fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {
+    let mut object = Map::new();
+    if include_chain {
+        object.insert("chain".to_string(), Value::String(entry.chain.clone()));
+    }
+    object.insert("asset".to_string(), Value::String(entry.asset.clone()));
+    object.insert(
+        "tokenAddress".to_string(),
+        Value::String(entry.token_address.clone()),
+    );
+    object.insert("pool".to_string(), Value::String(entry.pool.clone()));
+    object.insert("scope".to_string(), Value::String(entry.scope.clone()));
+    object.insert(
+        "decimals".to_string(),
+        Value::Number(entry.decimals.into()),
+    );
+    object.insert(
+        "minimumDeposit".to_string(),
+        Value::String(entry.minimum_deposit.clone()),
+    );
+    object.insert(
+        "vettingFeeBPS".to_string(),
+        Value::String(entry.vetting_fee_bps.clone()),
+    );
+    object.insert(
+        "maxRelayFeeBPS".to_string(),
+        Value::String(entry.max_relay_fee_bps.clone()),
+    );
+    insert_optional_string(&mut object, "totalInPoolValue", entry.total_in_pool_value.clone());
+    insert_optional_string(
+        &mut object,
+        "totalInPoolValueUsd",
+        entry.total_in_pool_value_usd.clone(),
+    );
+    insert_optional_string(
+        &mut object,
+        "totalDepositsValue",
+        entry.total_deposits_value.clone(),
+    );
+    insert_optional_string(
+        &mut object,
+        "totalDepositsValueUsd",
+        entry.total_deposits_value_usd.clone(),
+    );
+    insert_optional_string(
+        &mut object,
+        "acceptedDepositsValue",
+        entry.accepted_deposits_value.clone(),
+    );
+    insert_optional_string(
+        &mut object,
+        "acceptedDepositsValueUsd",
+        entry.accepted_deposits_value_usd.clone(),
+    );
+    insert_optional_string(
+        &mut object,
+        "pendingDepositsValue",
+        entry.pending_deposits_value.clone(),
+    );
+    insert_optional_string(
+        &mut object,
+        "pendingDepositsValueUsd",
+        entry.pending_deposits_value_usd.clone(),
+    );
+    insert_optional_u64(&mut object, "totalDepositsCount", entry.total_deposits_count);
+    insert_optional_u64(
+        &mut object,
+        "acceptedDepositsCount",
+        entry.accepted_deposits_count,
+    );
+    insert_optional_u64(
+        &mut object,
+        "pendingDepositsCount",
+        entry.pending_deposits_count,
+    );
+    insert_optional_f64(&mut object, "growth24h", entry.growth24h);
+    insert_optional_f64(&mut object, "pendingGrowth24h", entry.pending_growth24h);
+    Value::Object(object)
+}
+
+fn pool_warning_to_json(warning: PoolWarning) -> Value {
+    json!({
+        "chain": warning.chain,
+        "category": warning.category,
+        "message": warning.message,
+    })
+}
+
+fn chain_summary_to_json(summary: ChainSummary) -> Value {
+    json!({
+        "chain": summary.chain,
+        "pools": summary.pools,
+        "error": summary.error,
+    })
+}
+
+fn insert_optional_string(object: &mut Map<String, Value>, key: &str, value: Option<String>) {
+    object.insert(
+        key.to_string(),
+        value.map(Value::String).unwrap_or(Value::Null),
+    );
+}
+
+fn insert_optional_u64(object: &mut Map<String, Value>, key: &str, value: Option<u64>) {
+    object.insert(
+        key.to_string(),
+        value
+            .map(|value| Value::Number(value.into()))
+            .unwrap_or(Value::Null),
+    );
+}
+
+fn insert_optional_f64(object: &mut Map<String, Value>, key: &str, value: Option<f64>) {
+    object.insert(
+        key.to_string(),
+        value
+            .and_then(serde_json::Number::from_f64)
+            .map(Value::Number)
+            .unwrap_or(Value::Null),
+    );
+}
+
+#[derive(Debug, Clone)]
+struct AssetConfigResult {
+    pool_address: String,
+    minimum_deposit_amount: String,
+    vetting_fee_bps: String,
+    max_relay_fee_bps: String,
+}
+
+#[derive(Debug, Clone)]
+struct TokenMetadataResult {
+    symbol: String,
+    decimals: u32,
+}
+
+fn read_asset_config(
+    chain: &ChainDefinition,
+    asset_address: &str,
+    rpc_urls: &[String],
+    timeout_ms: u64,
+) -> Result<AssetConfigResult, CliError> {
+    let selector = function_selector("assetConfig(address)");
+    let data = format!(
+        "0x{}{}",
+        hex::encode(selector),
+        encode_address_word(asset_address)?
+    );
+    let response = rpc_call(rpc_urls, &chain.entrypoint, &data, timeout_ms)?;
+    let words = decode_abi_words(&response)?;
+    if words.len() < 4 {
+        return Err(CliError::rpc(
+            "Malformed RPC response while resolving pool asset config.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        ));
+    }
+
+    Ok(AssetConfigResult {
+        pool_address: checksum_address(&decode_address_word(&words[0])?)?,
+        minimum_deposit_amount: decode_uint256_word(&words[1]).to_string(),
+        vetting_fee_bps: decode_uint256_word(&words[2]).to_string(),
+        max_relay_fee_bps: decode_uint256_word(&words[3]).to_string(),
+    })
+}
+
+fn read_pool_scope(pool_address: &str, rpc_urls: &[String], timeout_ms: u64) -> Result<String, CliError> {
+    let selector = function_selector("SCOPE()");
+    let data = format!("0x{}", hex::encode(selector));
+    let response = rpc_call(rpc_urls, pool_address, &data, timeout_ms)?;
+    let words = decode_abi_words(&response)?;
+    let first = words.first().ok_or_else(|| {
+        CliError::rpc(
+            "Malformed RPC response while resolving pool scope.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        )
+    })?;
+    Ok(decode_uint256_word(first).to_string())
+}
+
+fn resolve_token_metadata(
+    asset_address: &str,
+    rpc_urls: &[String],
+    native_asset_address: &str,
+    timeout_ms: u64,
+) -> TokenMetadataResult {
+    if asset_address.eq_ignore_ascii_case(native_asset_address) {
+        return TokenMetadataResult {
+            symbol: "ETH".to_string(),
+            decimals: 18,
+        };
+    }
+
+    let symbol_selector = function_selector("symbol()");
+    let decimals_selector = function_selector("decimals()");
+    let symbol_result = rpc_call(
+        rpc_urls,
+        asset_address,
+        &format!("0x{}", hex::encode(symbol_selector)),
+        timeout_ms,
+    )
+    .ok()
+    .and_then(|value| decode_abi_string(&value).ok());
+    let decimals_result = rpc_call(
+        rpc_urls,
+        asset_address,
+        &format!("0x{}", hex::encode(decimals_selector)),
+        timeout_ms,
+    )
+    .ok()
+    .and_then(|value| decode_abi_words(&value).ok())
+    .and_then(|words| words.first().cloned())
+    .map(|word| decode_uint256_word(&word))
+    .and_then(|value| value.to_u32_digits().first().copied());
+
+    TokenMetadataResult {
+        symbol: symbol_result.unwrap_or_else(|| "???".to_string()),
+        decimals: decimals_result.unwrap_or(18),
+    }
+}
+
+fn rpc_call(
+    rpc_urls: &[String],
+    to: &str,
+    data: &str,
+    timeout_ms: u64,
+) -> Result<String, CliError> {
+    let body = json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "eth_call",
+        "params": [
+            {
+                "to": to,
+                "data": data,
+            },
+            "latest"
+        ]
+    });
+
+    let mut last_error = None;
+    for rpc_url in rpc_urls {
+        match http_post_json(rpc_url, &body, timeout_ms) {
+            Ok(response) => {
+                if let Some(result) = response.get("result").and_then(Value::as_str) {
+                    return Ok(result.to_string());
+                }
+
+                if let Some(error_message) = response
+                    .get("error")
+                    .and_then(Value::as_object)
+                    .and_then(|error| error.get("message"))
+                    .and_then(Value::as_str)
+                {
+                    last_error = Some(CliError::rpc(
+                        format!("RPC error: {error_message}"),
+                        Some("Check your RPC connection and try again.".to_string()),
+                        None,
+                    ));
+                    continue;
+                }
+            }
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        CliError::rpc(
+            "RPC pool resolution failed.",
+            Some("Check your RPC connection and try again.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        )
+    }))
+}
+
+fn function_selector(signature: &str) -> [u8; 4] {
+    let mut hash = [0u8; 32];
+    let mut keccak = Keccak::v256();
+    keccak.update(signature.as_bytes());
+    keccak.finalize(&mut hash);
+    [hash[0], hash[1], hash[2], hash[3]]
+}
+
+fn encode_address_word(address: &str) -> Result<String, CliError> {
+    let normalized = address.strip_prefix("0x").unwrap_or(address);
+    if normalized.len() != 40 || !normalized.chars().all(|char| char.is_ascii_hexdigit()) {
+        return Err(CliError::input(
+            format!("Invalid asset address: {address}."),
+            Some("Use a 0x-prefixed 20-byte address.".to_string()),
+        ));
+    }
+    Ok(format!("{:0>64}", normalized.to_lowercase()))
+}
+
+fn decode_abi_words(hex_data: &str) -> Result<Vec<String>, CliError> {
+    let normalized = hex_data.strip_prefix("0x").unwrap_or(hex_data);
+    if normalized.is_empty() {
+        return Ok(vec![]);
+    }
+    if normalized.len() % 64 != 0 {
+        return Err(CliError::rpc(
+            "Malformed ABI response from RPC.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        ));
+    }
+    Ok(normalized
+        .as_bytes()
+        .chunks(64)
+        .map(|chunk| String::from_utf8_lossy(chunk).to_string())
+        .collect())
+}
+
+fn decode_uint256_word(word: &str) -> BigUint {
+    BigUint::parse_bytes(word.as_bytes(), 16).unwrap_or_else(BigUint::zero)
+}
+
+fn decode_address_word(word: &str) -> Result<String, CliError> {
+    if word.len() != 64 {
+        return Err(CliError::rpc(
+            "Malformed ABI address response from RPC.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        ));
+    }
+    Ok(format!("0x{}", &word[24..]))
+}
+
+fn checksum_address(address: &str) -> Result<String, CliError> {
+    let normalized = address.strip_prefix("0x").unwrap_or(address);
+    if normalized.len() != 40 || !normalized.chars().all(|char| char.is_ascii_hexdigit()) {
+        return Err(CliError::rpc(
+            "Malformed address returned from RPC.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        ));
+    }
+
+    let lowercase = normalized.to_lowercase();
+    let mut hash = [0u8; 32];
+    let mut keccak = Keccak::v256();
+    keccak.update(lowercase.as_bytes());
+    keccak.finalize(&mut hash);
+    let hash_hex = hex::encode(hash);
+    let mut checksummed = String::from("0x");
+    for (index, character) in lowercase.chars().enumerate() {
+        let nibble = u8::from_str_radix(&hash_hex[index..index + 1], 16).unwrap_or(0);
+        if character.is_ascii_alphabetic() && nibble >= 8 {
+            checksummed.push(character.to_ascii_uppercase());
+        } else {
+            checksummed.push(character);
+        }
+    }
+    Ok(checksummed)
+}
+
+fn decode_abi_string(hex_data: &str) -> Result<String, CliError> {
+    let words = decode_abi_words(hex_data)?;
+    if words.len() < 2 {
+        return Err(CliError::rpc(
+            "Malformed ABI string response from RPC.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        ));
+    }
+
+    let offset = decode_uint256_word(&words[0])
+        .to_usize()
+        .ok_or_else(|| {
+            CliError::rpc(
+                "Invalid ABI string offset from RPC.",
+                Some("Retry the command or switch RPC providers.".to_string()),
+                Some("RPC_POOL_RESOLUTION_FAILED"),
+            )
+        })?;
+    if offset % 32 != 0 {
+        return Err(CliError::rpc(
+            "Invalid ABI string offset alignment from RPC.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        ));
+    }
+    let index = offset / 32;
+    let length_word = words.get(index).ok_or_else(|| {
+        CliError::rpc(
+            "Malformed ABI string length from RPC.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        )
+    })?;
+    let length = decode_uint256_word(length_word)
+        .to_usize()
+        .ok_or_else(|| {
+            CliError::rpc(
+                "Invalid ABI string length from RPC.",
+                Some("Retry the command or switch RPC providers.".to_string()),
+                Some("RPC_POOL_RESOLUTION_FAILED"),
+            )
+        })?;
+
+    let mut bytes = vec![];
+    let required_words = (length + 31) / 32;
+    for word_index in 0..required_words {
+        let word = words.get(index + 1 + word_index).ok_or_else(|| {
+            CliError::rpc(
+                "Malformed ABI string payload from RPC.",
+                Some("Retry the command or switch RPC providers.".to_string()),
+                Some("RPC_POOL_RESOLUTION_FAILED"),
+            )
+        })?;
+        let decoded = hex::decode(word).map_err(|_| {
+            CliError::rpc(
+                "Invalid ABI string payload from RPC.",
+                Some("Retry the command or switch RPC providers.".to_string()),
+                Some("RPC_POOL_RESOLUTION_FAILED"),
+            )
+        })?;
+        bytes.extend(decoded);
+    }
+    bytes.truncate(length);
+    String::from_utf8(bytes).map_err(|_| {
+        CliError::rpc(
+            "ABI string payload was not valid UTF-8.",
+            Some("Retry the command or switch RPC providers.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        )
+    })
+}
+
+fn is_hex_address(value: &str) -> bool {
+    value.len() == 42 && value.starts_with("0x") && value[2..].chars().all(|char| char.is_ascii_hexdigit())
+}
+
+fn is_decimal_string(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(|char| char.is_ascii_digit())
+}
+
+fn parse_biguint(value: &str) -> Option<BigUint> {
+    if value.is_empty() {
+        return None;
+    }
+    if value.starts_with("0x") {
+        BigUint::parse_bytes(value.trim_start_matches("0x").as_bytes(), 16)
+    } else {
+        BigUint::parse_bytes(value.as_bytes(), 10)
+    }
+}
+
+fn format_amount(
+    value: &BigUint,
+    decimals: u32,
+    symbol: Option<&str>,
+    max_decimals: Option<usize>,
+) -> String {
+    let mut digits = value.to_string();
+    let decimals = decimals as usize;
+    let formatted = if decimals == 0 {
+        digits
+    } else if digits.len() <= decimals {
+        let padding = "0".repeat(decimals + 1 - digits.len());
+        digits = format!("{padding}{digits}");
+        format!(
+            "{}.{}",
+            &digits[..digits.len() - decimals],
+            &digits[digits.len() - decimals..]
+        )
+    } else {
+        format!(
+            "{}.{}",
+            &digits[..digits.len() - decimals],
+            &digits[digits.len() - decimals..]
+        )
+    };
+
+    let formatted = truncate_decimals(&formatted, max_decimals.unwrap_or(decimals));
+    match symbol {
+        Some(symbol) => format!("{formatted} {symbol}"),
+        None => formatted,
+    }
+}
+
+fn truncate_decimals(value: &str, max: usize) -> String {
+    let Some(dot_index) = value.find('.') else {
+        return value.to_string();
+    };
+    let int_part = &value[..dot_index];
+    let dec_part = &value[dot_index + 1..];
+    if dec_part.len() <= max {
+        let trimmed = dec_part.trim_end_matches('0');
+        return if trimmed.is_empty() {
+            int_part.to_string()
+        } else {
+            format!("{int_part}.{trimmed}")
+        };
+    }
+
+    let mut digits = max;
+    if int_part == "0" && dec_part[..max].chars().all(|char| char == '0') {
+        if let Some(first_sig) = dec_part.find(|char| char != '0') {
+            if first_sig >= max {
+                digits = first_sig + 1;
+            }
+        }
+    }
+
+    let truncated = &dec_part[..digits];
+    let trimmed = truncated.trim_end_matches('0');
+    if trimmed.is_empty() {
+        int_part.to_string()
+    } else {
+        format!("{int_part}.{trimmed}")
+    }
+}
+
+fn resolve_pool_native(
+    chain: &ChainDefinition,
+    asset: &str,
+    rpc_override: Option<String>,
+    config: &CliConfig,
+    manifest: &Manifest,
+    timeout_ms: u64,
+) -> Result<NativePoolResolution, CliError> {
+    let rpc_urls = get_rpc_urls(chain.id, rpc_override, config, &manifest.runtime_config)?;
+    let asset_address = if is_hex_address(asset) {
+        asset.to_string()
+    } else {
+        manifest
+            .runtime_config
+            .known_pools
+            .get(&chain.id)
+            .and_then(|pools| pools.get(&asset.to_uppercase()))
+            .cloned()
+            .ok_or_else(|| {
+                CliError::input(
+                    format!("Unknown asset '{asset}' on {}.", chain.name),
+                    Some("Run 'privacy-pools pools' to list supported assets.".to_string()),
+                )
+            })?
+    };
+
+    let asset_config = read_asset_config(chain, &asset_address, &rpc_urls, timeout_ms)?;
+    let scope = read_pool_scope(&asset_config.pool_address, &rpc_urls, timeout_ms)?;
+    let token_metadata = resolve_token_metadata(
+        &asset_address,
+        &rpc_urls,
+        &manifest.runtime_config.native_asset_address,
+        timeout_ms,
+    );
+
+    Ok(NativePoolResolution {
+        symbol: token_metadata.symbol,
+        asset_address,
+        pool_address: asset_config.pool_address,
+        scope,
+        decimals: token_metadata.decimals,
+        minimum_deposit_amount: asset_config.minimum_deposit_amount,
+        vetting_fee_bps: asset_config.vetting_fee_bps,
+        max_relay_fee_bps: asset_config.max_relay_fee_bps,
+    })
+}
+
+fn exit_code_from_status(status: std::process::ExitStatus) -> i32 {
+    if let Some(code) = status.code() {
+        return code;
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            return match signal {
+                2 => 130,
+                15 => 143,
+                value => 128 + value,
+            };
+        }
+    }
+
+    1
+}

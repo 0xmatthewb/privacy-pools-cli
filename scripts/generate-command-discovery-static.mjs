@@ -1,4 +1,6 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -19,12 +21,28 @@ const sourceMetadataModulePath = join(
   "command-discovery-metadata.ts",
 );
 
+const distProgramModulePath = join(
+  repoRoot,
+  "dist",
+  "program.js",
+);
+
 const manifestModulePath = join(
   repoRoot,
   "src",
   "utils",
   "command-manifest.ts",
 );
+
+const nativeShellManifestPath = join(
+  repoRoot,
+  "native",
+  "shell",
+  "generated",
+  "manifest.json",
+);
+
+const packageJsonPath = join(repoRoot, "package.json");
 
 const metadataModulePath = existsSync(distModulePath)
   ? distModulePath
@@ -35,6 +53,10 @@ const { COMMAND_PATHS, buildCapabilitiesPayload } = await import(
 );
 
 const capabilitiesPayload = buildCapabilitiesPayload();
+const packageJson = JSON.parse(
+  readFileSync(packageJsonPath, "utf8"),
+);
+const cliVersion = packageJson.version;
 const rootCommandPaths = COMMAND_PATHS.filter((path) => !path.includes(" "));
 const rootCommands = rootCommandPaths.map((path) => {
   const descriptor = capabilitiesPayload.commandDetails[path];
@@ -53,16 +75,236 @@ const aliasEntries = COMMAND_PATHS.flatMap((path) =>
 );
 
 const aliasMap = Object.fromEntries(aliasEntries);
-const commandOwners = Object.fromEntries(
-  COMMAND_PATHS.map((path) => [path, "js-runtime"]),
-);
 const staticLocalCommands = ["guide", "capabilities", "describe", "completion"];
+const directNativeCommands = new Set([
+  "guide",
+  "capabilities",
+  "describe",
+  "completion",
+]);
+
+function buildCommandRoute(path) {
+  if (directNativeCommands.has(path)) {
+    return {
+      owner: "native-shell",
+      nativeModes: ["default", "help"],
+    };
+  }
+
+  if (path === "stats") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured-default", "structured-global", "help"],
+    };
+  }
+
+  if (path === "stats global") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured", "help"],
+    };
+  }
+
+  if (path === "status") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured-no-check", "help"],
+    };
+  }
+
+  if (path === "pools") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured-list", "help"],
+    };
+  }
+
+  if (path === "activity") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured", "help"],
+    };
+  }
+
+  return {
+    owner: "js-runtime",
+    nativeModes: ["help"],
+  };
+}
+
+const commandRoutes = Object.fromEntries(
+  COMMAND_PATHS.map((path) => [path, buildCommandRoute(path)]),
+);
+
+function sanitizeEnv(baseEnv = process.env) {
+  const env = { ...baseEnv };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith("PRIVACY_POOLS_") || key.startsWith("PP_")) {
+      delete env[key];
+    }
+  }
+  env.NO_COLOR = "1";
+  env.PP_NO_UPDATE_CHECK = "1";
+  env.PRIVACY_POOLS_CLI_DISABLE_NATIVE = "1";
+  return env;
+}
+
+function captureBuiltCli(args) {
+  const builtCliPath = join(repoRoot, "dist", "index.js");
+  const tempHome = mkdtempSync(join(tmpdir(), "pp-native-manifest-"));
+
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [builtCliPath, ...args],
+      {
+        cwd: repoRoot,
+        env: {
+          ...sanitizeEnv(),
+          PRIVACY_POOLS_HOME: join(tempHome, ".privacy-pools"),
+        },
+        encoding: "utf8",
+        timeout: 60_000,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+    );
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    if (result.status !== 0) {
+      throw new Error(
+        `Built CLI capture failed for '${args.join(" ")}' with status ${result.status}.\n` +
+        `stdout:\n${result.stdout ?? ""}\n` +
+        `stderr:\n${result.stderr ?? ""}`,
+      );
+    }
+
+    return {
+      stdout: (result.stdout ?? "").trimEnd(),
+      stderr: (result.stderr ?? "").trimEnd(),
+    };
+  } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function buildNativeShellManifest() {
+  if (!existsSync(distModulePath) || !existsSync(distProgramModulePath)) {
+    return null;
+  }
+
+  const {
+    STATIC_COMPLETION_SPEC,
+    SUPPORTED_COMPLETION_SHELLS,
+  } = await import(
+    pathToFileURL(join(repoRoot, "dist", "utils", "completion-query.js")).href
+  );
+  const {
+    CHAINS,
+    CHAIN_NAMES,
+    MAINNET_CHAIN_NAMES,
+    KNOWN_POOLS,
+    NATIVE_ASSET_ADDRESS,
+    EXPLORER_URLS,
+    POA_PORTAL_URL,
+  } = await import(
+    pathToFileURL(join(repoRoot, "dist", "config", "chains.js")).href
+  );
+  const {
+    CHAIN_ID_ENV_SUFFIX,
+    DEFAULT_RPC_URLS,
+  } = await import(
+    pathToFileURL(join(repoRoot, "dist", "services", "config.js")).href
+  );
+
+  const rootHelp = captureBuiltCli(["--help"]).stdout;
+  const structuredRootHelp = JSON.parse(
+    captureBuiltCli(["--json", "--help"]).stdout,
+  ).help;
+  const guideHumanText = captureBuiltCli(["guide"]).stderr;
+  const capabilitiesHumanText = captureBuiltCli(["capabilities"]).stderr;
+
+  const helpTextByPath = Object.fromEntries(
+    COMMAND_PATHS.map((path) => [
+      path,
+      captureBuiltCli([...path.split(" "), "--help"]).stdout,
+    ]),
+  );
+
+  const describeHumanTextByPath = Object.fromEntries(
+    COMMAND_PATHS.map((path) => [
+      path,
+      captureBuiltCli(["describe", ...path.split(" ")]).stderr,
+    ]),
+  );
+
+  const completionScripts = Object.fromEntries(
+    SUPPORTED_COMPLETION_SHELLS.map((shell) => [
+      shell,
+      captureBuiltCli(["completion", shell]).stdout,
+    ]),
+  );
+
+  return {
+    protocolVersion: "1",
+    cliVersion,
+    commandPaths: COMMAND_PATHS,
+    aliasMap,
+    rootHelp,
+    structuredRootHelp,
+    helpTextByPath,
+    guideHumanText,
+    capabilitiesHumanText,
+    describeHumanTextByPath,
+    completionSpec: STATIC_COMPLETION_SPEC,
+    completionScripts,
+    runtimeConfig: {
+      chainEnvSuffixes: CHAIN_ID_ENV_SUFFIX,
+      defaultRpcUrls: DEFAULT_RPC_URLS,
+      chainNames: CHAIN_NAMES,
+      mainnetChainNames: MAINNET_CHAIN_NAMES,
+      nativeAssetAddress: NATIVE_ASSET_ADDRESS,
+      knownPools: KNOWN_POOLS,
+      explorerUrls: EXPLORER_URLS,
+      poaPortalUrl: POA_PORTAL_URL,
+      chains: Object.fromEntries(
+        Object.entries(CHAINS).map(([name, chain]) => [
+          name,
+          {
+            id: chain.id,
+            name: chain.name,
+            entrypoint: chain.entrypoint,
+            startBlock: chain.startBlock.toString(),
+            aspHost: chain.aspHost,
+            relayerHost: chain.relayerHost,
+            isTestnet: chain.isTestnet,
+            avgBlockTimeSec: chain.avgBlockTimeSec,
+          },
+        ]),
+      ),
+    },
+    routes: {
+      staticLocalCommands,
+      directNativeCommands: [...directNativeCommands],
+      helpCommandPaths: COMMAND_PATHS,
+      commandRoutes,
+    },
+    capabilitiesPayload,
+  };
+}
 
 const fileContents = `/* AUTO-GENERATED by scripts/generate-command-discovery-static.mjs - DO NOT EDIT */
 
 import type { CapabilitiesPayload } from "../types.js";
 
-export type GeneratedCommandOwner = "js-runtime";
+export type GeneratedCommandOwner = "js-runtime" | "native-shell" | "hybrid";
+
+export interface GeneratedCommandRoute {
+  owner: GeneratedCommandOwner;
+  nativeModes: readonly string[];
+}
 
 export const GENERATED_COMMAND_PATHS = ${JSON.stringify(COMMAND_PATHS, null, 2)} as const;
 
@@ -74,7 +316,7 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = ${JSON.stringify(staticLocalComma
 
 export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = ${JSON.stringify(aliasMap, null, 2)};
 
-export const GENERATED_COMMAND_OWNERS: Record<GeneratedCommandPath, GeneratedCommandOwner> = ${JSON.stringify(commandOwners, null, 2)};
+export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = ${JSON.stringify(commandRoutes, null, 2)};
 
 export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = ${JSON.stringify(capabilitiesPayload, null, 2)};
 
@@ -84,10 +326,20 @@ export const GENERATED_COMMAND_MANIFEST = {
   rootCommands: GENERATED_ROOT_COMMANDS,
   staticLocalCommands: GENERATED_STATIC_LOCAL_COMMANDS,
   aliasMap: GENERATED_COMMAND_ALIAS_MAP,
-  commandOwners: GENERATED_COMMAND_OWNERS,
+  commandRoutes: GENERATED_COMMAND_ROUTES,
   capabilitiesPayload: GENERATED_CAPABILITIES_PAYLOAD,
 } as const;
 `;
 
 mkdirSync(dirname(manifestModulePath), { recursive: true });
 writeFileSync(manifestModulePath, fileContents, "utf8");
+
+const nativeShellManifest = await buildNativeShellManifest();
+if (nativeShellManifest) {
+  mkdirSync(dirname(nativeShellManifestPath), { recursive: true });
+  writeFileSync(
+    nativeShellManifestPath,
+    `${JSON.stringify(nativeShellManifest, null, 2)}\n`,
+    "utf8",
+  );
+}

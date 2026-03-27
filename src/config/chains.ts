@@ -205,7 +205,7 @@ export const KNOWN_POOLS: Record<number, Record<string, Address>> = {
   },
 };
 
-const EXPLORER_URLS: Record<number, string> = {
+export const EXPLORER_URLS: Record<number, string> = {
   1: "https://etherscan.io",
   42161: "https://arbiscan.io",
   10: "https://optimistic.etherscan.io",

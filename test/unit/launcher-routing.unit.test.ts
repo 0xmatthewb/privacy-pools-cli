@@ -56,6 +56,8 @@ describe("launcher routing", () => {
     expect(target.kind).toBe("native-binary");
     expect(target.command).toBe("/tmp/privacy-pools-native");
     expect(target.args).toEqual(["status", "--json"]);
+    expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_COMMAND).toBe(process.execPath);
+    expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64).toBeTruthy();
   });
 
   test("resolves an installed native binary only on exact version match", () => {

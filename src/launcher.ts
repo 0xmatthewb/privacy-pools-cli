@@ -17,6 +17,10 @@ const ENV_CLI_BINARY = "PRIVACY_POOLS_CLI_BINARY";
 const ENV_CLI_DISABLE_NATIVE = "PRIVACY_POOLS_CLI_DISABLE_NATIVE";
 const ENV_CLI_ENABLE_NATIVE = "PRIVACY_POOLS_CLI_ENABLE_NATIVE";
 const ENV_CLI_JS_WORKER = "PRIVACY_POOLS_CLI_JS_WORKER";
+const ENV_INTERNAL_JS_WORKER_COMMAND =
+  "PRIVACY_POOLS_CLI_JS_WORKER_COMMAND";
+const ENV_INTERNAL_JS_WORKER_ARGS_B64 =
+  "PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64";
 
 const STATIC_DISCOVERY_COMMANDS = new Set<string>(
   [...GENERATED_STATIC_LOCAL_COMMANDS].filter((command) => command !== "completion"),
@@ -45,6 +49,16 @@ function isFlagEnabled(value: string | undefined): boolean {
 
 function defaultJsWorkerPath(): string {
   return fileURLToPath(new URL("./runtime/v1/worker-main.js", import.meta.url));
+}
+
+function defaultJsWorkerArgs(workerPath: string): string[] {
+  return process.versions.bun
+    ? ["--no-env-file", workerPath]
+    : [workerPath];
+}
+
+function encodeJsWorkerArgs(args: string[]): string {
+  return Buffer.from(JSON.stringify(args), "utf8").toString("base64");
 }
 
 function nativeTriplet(
@@ -118,9 +132,7 @@ function createJsWorkerTarget(
   env: NodeJS.ProcessEnv = process.env,
 ): LaunchTarget {
   const workerPath = env[ENV_CLI_JS_WORKER]?.trim() || defaultJsWorkerPath();
-  const childArgs = process.versions.bun
-    ? ["--no-env-file", workerPath]
-    : [workerPath];
+  const childArgs = defaultJsWorkerArgs(workerPath);
   return {
     kind: "js-worker",
     command: process.execPath,
@@ -129,6 +141,21 @@ function createJsWorkerTarget(
       ...env,
       [WORKER_REQUEST_ENV]: encodeWorkerRequestV1(createWorkerRequestV1(argv)),
     },
+  };
+}
+
+function createNativeForwardingEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const workerPath = env[ENV_CLI_JS_WORKER]?.trim() || defaultJsWorkerPath();
+  return {
+    ...env,
+    [ENV_CLI_JS_WORKER]: workerPath,
+    [ENV_INTERNAL_JS_WORKER_COMMAND]:
+      env[ENV_INTERNAL_JS_WORKER_COMMAND]?.trim() || process.execPath,
+    [ENV_INTERNAL_JS_WORKER_ARGS_B64]:
+      env[ENV_INTERNAL_JS_WORKER_ARGS_B64]?.trim() ||
+      encodeJsWorkerArgs(defaultJsWorkerArgs(workerPath)),
   };
 }
 
@@ -147,7 +174,7 @@ export function resolveLaunchTarget(
       kind: "native-binary",
       command: explicitBinary,
       args: [...argv],
-      env,
+      env: createNativeForwardingEnv(env),
     };
   }
 
@@ -158,7 +185,7 @@ export function resolveLaunchTarget(
         kind: "native-binary",
         command: nativeBinary,
         args: [...argv],
-        env,
+        env: createNativeForwardingEnv(env),
       };
     }
   }
@@ -242,6 +269,12 @@ export async function runLauncher(
   applyLauncherEnvironment(argv);
 
   const parsed = parseRootArgv(argv);
+  const target = resolveLaunchTarget(pkg, argv);
+
+  if (target.kind === "native-binary") {
+    await spawnLaunchTarget(target);
+    return;
+  }
 
   if (parsed.isVersionLike && parsed.firstCommandToken === undefined) {
     await writeVersionOutput(pkg, parsed.isStructuredOutputMode);
@@ -276,12 +309,12 @@ export async function runLauncher(
     }
   }
 
-  const target = resolveLaunchTarget(pkg, argv);
   await spawnLaunchTarget(target);
 }
 
 export const launcherTestInternals = {
   applyLauncherEnvironment,
+  createNativeForwardingEnv,
   createJsWorkerTarget,
   defaultJsWorkerPath,
   isFlagEnabled,

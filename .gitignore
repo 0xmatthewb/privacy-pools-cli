@@ -12,3 +12,4 @@ coverage-tmp/
 privacy-pools-recovery.txt
 .mnemonic
 .signer
+native/shell/target/

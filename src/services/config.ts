@@ -221,7 +221,7 @@ export function saveSignerKey(key: string): void {
 }
 
 // Env var suffix for a given chain ID, matching the PP_*_<CHAIN> convention.
-const CHAIN_ID_ENV_SUFFIX: Record<number, string> = {
+export const CHAIN_ID_ENV_SUFFIX: Record<number, string> = {
   1: "ETHEREUM",
   42161: "ARBITRUM",
   10: "OPTIMISM",
@@ -245,7 +245,7 @@ export function resolveRpcEnvVar(chainId: number): string | undefined {
 
 // Default public RPCs per chain (primary + fallbacks).
 // Users can override per chain via init --rpc-url or config.json.
-const DEFAULT_RPC_URLS: Record<number, string[]> = {
+export const DEFAULT_RPC_URLS: Record<number, string[]> = {
   1: [
     "https://mainnet.gateway.tenderly.co",
     "https://gateway.tenderly.co/public/mainnet",

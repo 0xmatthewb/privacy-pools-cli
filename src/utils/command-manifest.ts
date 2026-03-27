@@ -2,7 +2,12 @@
 
 import type { CapabilitiesPayload } from "../types.js";
 
-export type GeneratedCommandOwner = "js-runtime";
+export type GeneratedCommandOwner = "js-runtime" | "native-shell" | "hybrid";
+
+export interface GeneratedCommandRoute {
+  owner: GeneratedCommandOwner;
+  nativeModes: readonly string[];
+}
 
 export const GENERATED_COMMAND_PATHS = [
   "init",
@@ -135,32 +140,167 @@ export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> =
   "exit": "ragequit"
 };
 
-export const GENERATED_COMMAND_OWNERS: Record<GeneratedCommandPath, GeneratedCommandOwner> = {
-  "init": "js-runtime",
-  "flow": "js-runtime",
-  "flow start": "js-runtime",
-  "flow watch": "js-runtime",
-  "flow status": "js-runtime",
-  "flow ragequit": "js-runtime",
-  "pools": "js-runtime",
-  "activity": "js-runtime",
-  "stats": "js-runtime",
-  "stats global": "js-runtime",
-  "stats pool": "js-runtime",
-  "status": "js-runtime",
-  "capabilities": "js-runtime",
-  "describe": "js-runtime",
-  "guide": "js-runtime",
-  "deposit": "js-runtime",
-  "withdraw": "js-runtime",
-  "withdraw quote": "js-runtime",
-  "ragequit": "js-runtime",
-  "accounts": "js-runtime",
-  "migrate": "js-runtime",
-  "migrate status": "js-runtime",
-  "history": "js-runtime",
-  "sync": "js-runtime",
-  "completion": "js-runtime"
+export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = {
+  "init": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "flow": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "flow start": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "flow watch": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "flow status": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "flow ragequit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "pools": {
+    "owner": "hybrid",
+    "nativeModes": [
+      "structured-list",
+      "help"
+    ]
+  },
+  "activity": {
+    "owner": "hybrid",
+    "nativeModes": [
+      "structured",
+      "help"
+    ]
+  },
+  "stats": {
+    "owner": "hybrid",
+    "nativeModes": [
+      "structured-default",
+      "structured-global",
+      "help"
+    ]
+  },
+  "stats global": {
+    "owner": "hybrid",
+    "nativeModes": [
+      "structured",
+      "help"
+    ]
+  },
+  "stats pool": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "status": {
+    "owner": "hybrid",
+    "nativeModes": [
+      "structured-no-check",
+      "help"
+    ]
+  },
+  "capabilities": {
+    "owner": "native-shell",
+    "nativeModes": [
+      "default",
+      "help"
+    ]
+  },
+  "describe": {
+    "owner": "native-shell",
+    "nativeModes": [
+      "default",
+      "help"
+    ]
+  },
+  "guide": {
+    "owner": "native-shell",
+    "nativeModes": [
+      "default",
+      "help"
+    ]
+  },
+  "deposit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw quote": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "ragequit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "accounts": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "migrate": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "migrate status": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "history": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "sync": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "completion": {
+    "owner": "native-shell",
+    "nativeModes": [
+      "default",
+      "help"
+    ]
+  }
 };
 
 export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
@@ -1742,6 +1882,6 @@ export const GENERATED_COMMAND_MANIFEST = {
   rootCommands: GENERATED_ROOT_COMMANDS,
   staticLocalCommands: GENERATED_STATIC_LOCAL_COMMANDS,
   aliasMap: GENERATED_COMMAND_ALIAS_MAP,
-  commandOwners: GENERATED_COMMAND_OWNERS,
+  commandRoutes: GENERATED_COMMAND_ROUTES,
   capabilitiesPayload: GENERATED_CAPABILITIES_PAYLOAD,
 } as const;
