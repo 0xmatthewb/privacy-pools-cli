@@ -80,18 +80,28 @@ describe("release workflow conformance", () => {
   });
 
   test("blocking CI includes supported-target artifact install smoke", () => {
+    const supportedSectionStart = ciWorkflow.indexOf("supported-native-smoke:");
+    expect(supportedSectionStart).toBeGreaterThanOrEqual(0);
+    const supportedSectionEnd = ciWorkflow.indexOf("anvil-e2e-smoke:", supportedSectionStart);
+    const supportedSection = ciWorkflow.slice(
+      supportedSectionStart,
+      supportedSectionEnd === -1 ? ciWorkflow.length : supportedSectionEnd,
+    );
+
     expect(ciWorkflow).toContain("supported-native-smoke:");
     expect(ciWorkflow).toContain(
       'node scripts/ci/select-jobs.mjs --job supported-native-smoke',
     );
-    expect(ciWorkflow).toContain('name: supported-native-smoke-${{ matrix.label }}-node-${{ matrix.node-version }}');
-    expect(ciWorkflow).toContain('- "22.x"');
-    expect(ciWorkflow).toContain('- "24.x"');
-    expect(ciWorkflow).toContain('- "25.x"');
-    expect(ciWorkflow).toContain("windows-11-arm");
-    expect(ciWorkflow).toContain("macos-15-intel");
-    expect(ciWorkflow).toContain("node scripts/pack-native-tarball.mjs");
-    expect(ciWorkflow).toContain("node scripts/verify-release-install.mjs");
+    expect(supportedSection).toContain(
+      'name: supported-native-smoke-${{ matrix.label }}-node-${{ matrix.node-version }}',
+    );
+    expect(supportedSection).toContain('- "25.x"');
+    expect(supportedSection).not.toContain('- "22.x"');
+    expect(supportedSection).not.toContain('- "24.x"');
+    expect(supportedSection).toContain("windows-11-arm");
+    expect(supportedSection).toContain("macos-15-intel");
+    expect(supportedSection).toContain("node scripts/pack-native-tarball.mjs");
+    expect(supportedSection).toContain("node scripts/verify-release-install.mjs");
     expect(extractCrossPlatformLabels(ciWorkflow)).toEqual(
       expectedNativeTriplets(),
     );
@@ -174,9 +184,9 @@ describe("release workflow conformance", () => {
 
   test("cross-platform smoke includes the windows arm64 native lane", () => {
     expect(crossPlatformWorkflow).toContain('name: smoke-${{ matrix.label }}-node-${{ matrix.node-version }}');
-    expect(crossPlatformWorkflow).toContain('- "22.x"');
-    expect(crossPlatformWorkflow).toContain('- "24.x"');
     expect(crossPlatformWorkflow).toContain('- "25.x"');
+    expect(crossPlatformWorkflow).not.toContain('- "22.x"');
+    expect(crossPlatformWorkflow).not.toContain('- "24.x"');
     expect(crossPlatformWorkflow).toContain("windows-11-arm");
     expect(crossPlatformWorkflow).toContain("win32-arm64-msvc");
     expect(crossPlatformWorkflow).toContain("npm run test:smoke:native:package");

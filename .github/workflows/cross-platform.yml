@@ -8,7 +8,8 @@
 # WHAT does it do?
 #   Runs the packaged JS smoke tests and the native package smoke lane
 #   on Linux x64, Windows x64, Windows ARM64, Apple Silicon, and
-#   Intel macOS in
+#   Intel macOS on the recommended CI runtime while the faster Linux smoke
+#   lanes continue to cover the full supported Node range.
 #   parallel. This catches target-specific bugs (e.g. path separators,
 #   line endings, missing system libraries, native package resolution)
 #   before release day.
@@ -48,8 +49,6 @@ jobs:
       fail-fast: false
       matrix:
         node-version:
-          - "22.x"
-          - "24.x"
           - "25.x"
         include:
           - label: linux-x64-gnu

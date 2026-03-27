@@ -309,7 +309,9 @@ jobs:
         run: npm run test:native
 
   # -----------------------------------------------------------
-  # Job 6: installed root-plus-native verification on supported hosts
+  # Job 6: installed root-plus-native verification on supported hosts.
+  # Linux smoke already covers Node 22/24/25, so this heavier cross-OS
+  # install lane stays on the recommended CI runtime to avoid tripling cost.
   # -----------------------------------------------------------
   supported-native-smoke:
     name: supported-native-smoke-${{ matrix.label }}-node-${{ matrix.node-version }}
@@ -319,8 +321,6 @@ jobs:
       fail-fast: false
       matrix:
         node-version:
-          - "22.x"
-          - "24.x"
           - "25.x"
         include:
           - label: linux-x64-gnu

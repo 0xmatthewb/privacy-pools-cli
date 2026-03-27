@@ -245,6 +245,40 @@ describe("ci job selection", () => {
     expect(suiteDecision.reason).toContain(
       "test/integration/cli.packaged-smoke.integration.test.ts",
     );
+
+    const runnerDecision = evaluateJobSelection({
+      job: "packaged-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/run-bun-tests.mjs"],
+    });
+    expect(runnerDecision.shouldRun).toBe(true);
+    expect(runnerDecision.reason).toContain("scripts/run-bun-tests.mjs");
+  });
+
+  test("native package smoke matrices run when the shared bun runner changes", () => {
+    const nativeSmokeDecision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/run-bun-tests.mjs"],
+    });
+    expect(nativeSmokeDecision.shouldRun).toBe(true);
+    expect(nativeSmokeDecision.reason).toContain("scripts/run-bun-tests.mjs");
+
+    const supportedNativeDecision = evaluateJobSelection({
+      job: "supported-native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/run-bun-tests.mjs"],
+    });
+    expect(supportedNativeDecision.shouldRun).toBe(true);
+    expect(supportedNativeDecision.reason).toContain("scripts/run-bun-tests.mjs");
+
+    const crossPlatformDecision = evaluateJobSelection({
+      job: "cross-platform",
+      eventName: "pull_request",
+      changedFiles: ["scripts/run-bun-tests.mjs"],
+    });
+    expect(crossPlatformDecision.shouldRun).toBe(true);
+    expect(crossPlatformDecision.reason).toContain("scripts/run-bun-tests.mjs");
   });
 
   test("anvil lanes run when shared CLI helpers change", () => {
