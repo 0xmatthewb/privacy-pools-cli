@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
+import { EventEmitter } from "node:events";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CLI_PROTOCOL_PROFILE } from "../../src/config/protocol-profile.js";
@@ -258,6 +259,330 @@ describe("launcher routing", () => {
         delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
       } else {
         process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
+      }
+    }
+  });
+
+  test("runLauncher spawns a configured JS worker override without exiting on success", async () => {
+    const tempDir = createTrackedTempDir("pp-worker-override-");
+    const workerPath = join(tempDir, "worker.js");
+    const originalWorkerOverride = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    const spawnMock = mock(
+      (
+        _command: string,
+        _args: string[],
+        _options: {
+          env: NodeJS.ProcessEnv;
+          stdio: "inherit";
+        },
+      ) => {
+        const child = new EventEmitter() as EventEmitter & {
+          exitCode: number | null;
+          signalCode: NodeJS.Signals | null;
+          kill: (signal?: NodeJS.Signals) => boolean;
+        };
+        child.exitCode = null;
+        child.signalCode = null;
+        child.kill = () => true;
+        queueMicrotask(() => {
+          process.stdout.write(JSON.stringify({ success: true, mode: "help" }));
+          child.emit("exit", 0, null);
+        });
+        return child;
+      },
+    );
+    writeFileSync(workerPath, "// mocked worker path\n", "utf8");
+    launcherTestInternals.setSpawnImplementationForTests(
+      spawnMock as unknown as typeof import("node:child_process").spawn,
+    );
+    process.env.PRIVACY_POOLS_CLI_JS_WORKER = workerPath;
+
+    try {
+      const { json, stderr } = await captureAsyncJsonOutput(() =>
+        runLauncher(PKG, ["guide", "--agent"]),
+      );
+
+      expect(json).toMatchObject({ success: true, mode: "help" });
+      expect(stderr).toBe("");
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+    } finally {
+      launcherTestInternals.resetSpawnImplementationForTests();
+      if (originalWorkerOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
+      }
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("runLauncher spawns a native launch target without exiting on success", async () => {
+    const originalBinaryOverride = process.env.PRIVACY_POOLS_CLI_BINARY;
+    const spawnMock = mock(
+      (
+        _command: string,
+        _args: string[],
+        _options: {
+          env: NodeJS.ProcessEnv;
+          stdio: "inherit";
+        },
+      ) => {
+        const child = new EventEmitter() as EventEmitter & {
+          exitCode: number | null;
+          signalCode: NodeJS.Signals | null;
+          kill: (signal?: NodeJS.Signals) => boolean;
+        };
+        child.exitCode = null;
+        child.signalCode = null;
+        child.kill = () => true;
+        queueMicrotask(() => child.emit("exit", 0, null));
+        return child;
+      },
+    );
+    launcherTestInternals.setSpawnImplementationForTests(
+      spawnMock as unknown as typeof import("node:child_process").spawn,
+    );
+    process.env.PRIVACY_POOLS_CLI_BINARY = "/tmp/privacy-pools-native";
+
+    try {
+      await runLauncher(PKG, ["flow", "--help"]);
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+    } finally {
+      launcherTestInternals.resetSpawnImplementationForTests();
+      if (originalBinaryOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_BINARY;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_BINARY = originalBinaryOverride;
+      }
+    }
+  });
+
+  test("tryRunLocalFastPath skips local handling when an explicit native binary is configured", async () => {
+    const result = await launcherTestInternals.tryRunLocalFastPath(
+      PKG,
+      ["--help"],
+      parseRootArgv(["--help"]),
+      {
+        PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+      },
+    );
+
+    expect(result).toBe(false);
+  });
+
+  test("tryRunLocalFastPath serves root help through the static discovery helper", async () => {
+    const runStaticRootHelp = mock(async () => undefined);
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticRootHelp,
+    }));
+
+    try {
+      const { exitCode, stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+        launcherTestInternals.tryRunLocalFastPath(
+          PKG,
+          ["--help"],
+          parseRootArgv(["--help"]),
+        ),
+      );
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+      expect(runStaticRootHelp).toHaveBeenCalledWith(false);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  test("tryRunLocalFastPath exits once static completion accepts the argv", async () => {
+    const runStaticCompletionQuery = mock(async () => true);
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticCompletionQuery,
+    }));
+
+    try {
+      const argv = ["completion", "query", "privacy-pools"];
+      const { exitCode, stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+        launcherTestInternals.tryRunLocalFastPath(
+          PKG,
+          argv,
+          parseRootArgv(argv),
+        ),
+      );
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+      expect(runStaticCompletionQuery).toHaveBeenCalledWith(argv);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  test("tryRunLocalFastPath keeps falling through when static completion declines the argv", async () => {
+    const runStaticCompletionQuery = mock(async () => false);
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticCompletionQuery,
+    }));
+
+    try {
+      const argv = ["completion", "query", "privacy-pools"];
+      const result = await launcherTestInternals.tryRunLocalFastPath(
+        PKG,
+        argv,
+        parseRootArgv(argv),
+      );
+
+      expect(result).toBe(false);
+      expect(runStaticCompletionQuery).toHaveBeenCalledWith(argv);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  test("tryRunLocalFastPath exits once static discovery accepts a local command", async () => {
+    const runStaticDiscoveryCommand = mock(async () => true);
+    mock.module("../../src/static-discovery.ts", () => ({
+      runStaticDiscoveryCommand,
+    }));
+
+    try {
+      const argv = ["guide"];
+      const { exitCode, stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+        launcherTestInternals.tryRunLocalFastPath(
+          PKG,
+          argv,
+          parseRootArgv(argv),
+        ),
+      );
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+      expect(runStaticDiscoveryCommand).toHaveBeenCalledWith(argv);
+    } finally {
+      mock.restore();
+    }
+  });
+
+  test("runLauncher spawns an explicit js worker override when one is configured", async () => {
+    const tempDir = createTrackedTempDir("pp-worker-override-");
+    const workerPath = join(tempDir, "worker.js");
+    const originalWorkerOverride = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    const spawnMock = mock(
+      (
+        _command: string,
+        _args: string[],
+        _options: {
+          env: NodeJS.ProcessEnv;
+          stdio: "inherit";
+        },
+      ) => {
+        const child = new EventEmitter() as EventEmitter & {
+          exitCode: number | null;
+          signalCode: NodeJS.Signals | null;
+          kill: (signal?: NodeJS.Signals) => boolean;
+        };
+        child.exitCode = null;
+        child.signalCode = null;
+        child.kill = () => true;
+
+        queueMicrotask(() => {
+          process.stdout.write(
+            JSON.stringify({
+              success: true,
+              mode: "help",
+              help: "worker override",
+            }),
+          );
+          child.emit("exit", 0, null);
+        });
+
+        return child;
+      },
+    );
+    writeFileSync(workerPath, "// mocked worker path\n", "utf8");
+    launcherTestInternals.setSpawnImplementationForTests(
+      spawnMock as unknown as typeof import("node:child_process").spawn,
+    );
+    process.env.PRIVACY_POOLS_CLI_JS_WORKER = workerPath;
+
+    try {
+      const { json, stderr } = await captureAsyncJsonOutput(() =>
+        runLauncher(PKG, ["guide", "--agent"]),
+      );
+
+      expect(json).toMatchObject({
+        success: true,
+        mode: "help",
+        help: "worker override",
+      });
+      expect(stderr).toBe("");
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      const [command, args] = spawnMock.mock.calls[0] as [string, string[]];
+      expect(command).toBe(process.execPath);
+      expect(args.at(-1)).toBe(workerPath);
+    } finally {
+      launcherTestInternals.resetSpawnImplementationForTests();
+      if (originalWorkerOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
+      }
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("runLauncher preserves non-zero exit codes from explicit native binaries", async () => {
+    const originalBinaryOverride = process.env.PRIVACY_POOLS_CLI_BINARY;
+    const spawnMock = mock(
+      (
+        _command: string,
+        _args: string[],
+        _options: {
+          env: NodeJS.ProcessEnv;
+          stdio: "inherit";
+        },
+      ) => {
+        const child = new EventEmitter() as EventEmitter & {
+          exitCode: number | null;
+          signalCode: NodeJS.Signals | null;
+          kill: (signal?: NodeJS.Signals) => boolean;
+        };
+        child.exitCode = null;
+        child.signalCode = null;
+        child.kill = () => true;
+
+        queueMicrotask(() => {
+          child.emit("exit", 7, null);
+        });
+
+        return child;
+      },
+    );
+    launcherTestInternals.setSpawnImplementationForTests(
+      spawnMock as unknown as typeof import("node:child_process").spawn,
+    );
+    process.env.PRIVACY_POOLS_CLI_BINARY = "/tmp/privacy-pools-native";
+
+    try {
+      const { exitCode, stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+        runLauncher(PKG, ["flow", "--help"]),
+      );
+
+      expect(exitCode).toBe(7);
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+      const [command, args] = spawnMock.mock.calls[0] as [string, string[]];
+      expect(command).toBe("/tmp/privacy-pools-native");
+      expect(args).toEqual(["flow", "--help"]);
+    } finally {
+      launcherTestInternals.resetSpawnImplementationForTests();
+      if (originalBinaryOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_BINARY;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_BINARY = originalBinaryOverride;
       }
     }
   });

@@ -75,6 +75,9 @@ export interface LaunchTarget {
 }
 
 type CliPackageInfoSource = CliPackageInfo | (() => CliPackageInfo);
+type SpawnImplementation = typeof spawn;
+
+let spawnImplementation: SpawnImplementation = spawn;
 
 function isFlagEnabled(value: string | undefined): boolean {
   return value?.trim() === "1";
@@ -455,7 +458,7 @@ async function spawnLaunchTarget(target: LaunchTarget): Promise<void> {
     code: number | null;
     signal: NodeJS.Signals | null;
   }>((resolve, reject) => {
-    const child = spawn(target.command, target.args, {
+    const child = spawnImplementation(target.command, target.args, {
       env: target.env,
       stdio: "inherit",
     });
@@ -555,7 +558,13 @@ export const launcherTestInternals = {
   resolveCommandRoute,
   resolveInstalledNativeBinary,
   resolveLaunchTarget,
+  resetSpawnImplementationForTests: (): void => {
+    spawnImplementation = spawn;
+  },
   tryRunLocalFastPath,
+  setSpawnImplementationForTests: (nextSpawn: SpawnImplementation): void => {
+    spawnImplementation = nextSpawn;
+  },
   validateJsWorkerPath,
   writeVersionOutput,
 };

@@ -146,6 +146,7 @@ describe("test runner arg helpers", () => {
       "workflow-internal",
       "init-interactive",
       "bootstrap-runtime",
+      "launcher-runtime",
     ]);
   });
 });

@@ -473,4 +473,155 @@ describe("read-only output renderers", () => {
     expect(stderr).toContain("unsigned mode only");
     expect(stderr).toContain("accounts --chain sepolia");
   });
+
+  test("renderStatus warns on invalid signer keys and mixed health-check results", () => {
+    const ctx = createOutputContext(makeMode(), true);
+
+    const { stderr } = captureOutput(() =>
+      renderStatus(ctx, {
+        configExists: true,
+        configDir: "/tmp/privacy-pools",
+        defaultChain: "mainnet",
+        selectedChain: "mainnet",
+        rpcUrl: "https://rpc.example",
+        rpcIsCustom: false,
+        recoveryPhraseSet: true,
+        signerKeySet: true,
+        signerKeyValid: false,
+        signerAddress: null,
+        entrypoint: "0x1111111111111111111111111111111111111111",
+        aspHost: "https://asp.example",
+        aspLive: false,
+        rpcLive: true,
+        rpcBlockNumber: 77n,
+        healthChecksEnabled: { rpc: true, asp: true },
+        accountFiles: [],
+      }),
+    );
+
+    expect(stderr).toContain("Signer key is set but invalid");
+    expect(stderr).toContain("ASP (https://asp.example): unreachable");
+    expect(stderr).toContain("RPC: connected (block 77)");
+  });
+
+  test("renderAccounts human summary covers spent and exited-only groups", () => {
+    const ctx = createOutputContext(makeMode());
+
+    const { stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "mainnet",
+        groups: [
+          {
+            chain: "mainnet",
+            chainId: 1,
+            symbol: "ETH",
+            poolAddress: "0x3333333333333333333333333333333333333333",
+            decimals: 18,
+            scope: 3n,
+            tokenPrice: null,
+            poolAccounts: [
+              {
+                paNumber: 5,
+                paId: "PA-5",
+                status: "spent",
+                aspStatus: "approved",
+                commitment: { hash: 505n, label: 605n, value: 0n },
+                label: 605n,
+                value: 0n,
+                blockNumber: 132n,
+                txHash: "0x" + "ee".repeat(32),
+              },
+              {
+                paNumber: 6,
+                paId: "PA-6",
+                status: "exited",
+                aspStatus: "approved",
+                commitment: { hash: 506n, label: 606n, value: 0n },
+                label: 606n,
+                value: 0n,
+                blockNumber: 133n,
+                txHash: "0x" + "ff".repeat(32),
+              },
+            ],
+          },
+        ],
+        showDetails: false,
+        showSummary: true,
+        showPendingOnly: false,
+      }),
+    );
+
+    expect(stderr).toContain("Pool Account summary on mainnet");
+    expect(stderr).toContain("Spent");
+    expect(stderr).toContain("Exited");
+    expect(stderr).toContain("No Pool Accounts with remaining balance found");
+  });
+
+  test("renderAccounts pending-only mode groups multi-chain output and explains the disappearing-state behavior", () => {
+    const ctx = createOutputContext(makeMode());
+
+    const { stderr } = captureOutput(() =>
+      renderAccounts(ctx, {
+        chain: "all-mainnets",
+        allChains: true,
+        chains: ["mainnet", "arbitrum"],
+        groups: [
+          {
+            chain: "mainnet",
+            chainId: 1,
+            symbol: "ETH",
+            poolAddress: "0x4444444444444444444444444444444444444444",
+            decimals: 18,
+            scope: 4n,
+            tokenPrice: null,
+            poolAccounts: [
+              {
+                paNumber: 7,
+                paId: "PA-7",
+                status: "pending",
+                aspStatus: "pending",
+                commitment: { hash: 507n, label: 607n, value: 100000000000000000n },
+                label: 607n,
+                value: 100000000000000000n,
+                blockNumber: 140n,
+                txHash: "0x" + "12".repeat(32),
+              },
+            ],
+          },
+          {
+            chain: "mainnet",
+            chainId: 1,
+            symbol: "USDC",
+            poolAddress: "0x5555555555555555555555555555555555555555",
+            decimals: 6,
+            scope: 5n,
+            tokenPrice: 1,
+            poolAccounts: [
+              {
+                paNumber: 8,
+                paId: "PA-8",
+                status: "pending",
+                aspStatus: "pending",
+                commitment: { hash: 508n, label: 608n, value: 25000000n },
+                label: 608n,
+                value: 25000000n,
+                blockNumber: 141n,
+                txHash: "0x" + "13".repeat(32),
+              },
+            ],
+          },
+        ],
+        showDetails: false,
+        showSummary: false,
+        showPendingOnly: true,
+      }),
+    );
+
+    expect(stderr).toContain("Pending Pool Accounts across all chains");
+    expect(stderr).toContain("mainnet:");
+    expect(stderr).toContain("ETH Pool");
+    expect(stderr).toContain("USDC Pool");
+    expect(stderr).toContain("PA IDs are chain-local");
+    expect(stderr).toContain("Pending-only mode hides final states once review completes");
+  });
 });

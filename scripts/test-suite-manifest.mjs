@@ -74,6 +74,8 @@ export const ACCOUNT_READONLY_HANDLERS_TEST =
   "./test/unit/account-readonly-command-handlers.unit.test.ts";
 export const BOOTSTRAP_RUNTIME_TEST =
   "./test/unit/bootstrap-runtime.unit.test.ts";
+export const LAUNCHER_RUNTIME_TEST =
+  "./test/unit/launcher-runtime.unit.test.ts";
 export const INIT_INTERACTIVE_TEST =
   "./test/unit/init-command-interactive.unit.test.ts";
 export const DEPOSIT_HANDLER_TEST =
@@ -245,6 +247,15 @@ export const ISOLATED_SUITES = [
     reason:
       "mock.module() interception of cli-main transitive imports is not safely reversible in-process across Bun versions",
   },
+  {
+    label: "launcher-runtime",
+    tests: [LAUNCHER_RUNTIME_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun's lcov writer is deterministic for the launcher/runtime source suite only when it runs in its own coverage process",
+  },
 ];
 
 export const DEFAULT_TEST_ISOLATED_SUITES = ISOLATED_SUITES.filter(
@@ -265,4 +276,5 @@ export const DEFAULT_MAIN_EXCLUDED_TESTS = [
 export const COVERAGE_MAIN_EXCLUDED_TESTS = [
   ...ANVIL_E2E_TESTS,
   ...COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests),
+  "./test/unit/launcher-routing.unit.test.ts",
 ];

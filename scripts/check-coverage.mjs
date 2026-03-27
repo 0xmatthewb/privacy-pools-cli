@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
+  existsSync,
   readdirSync,
   mkdirSync,
   mkdtempSync,
@@ -17,6 +18,7 @@ import {
   COVERAGE_MAIN_EXCLUDED_TESTS,
   COVERAGE_MAIN_TEST_TARGETS,
 } from "./test-suite-manifest.mjs";
+import { buildCoverageMainSuites } from "./coverage-suite-plan.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -24,6 +26,7 @@ const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
 
 const coverageRootDir = mkdtempSync(join(tmpdir(), "pp-coverage-"));
 const keepCoverageRoot = process.env.PP_KEEP_COVERAGE_ROOT === "1";
+const MAX_COVERAGE_LCOV_RETRIES = 3;
 
 function normalizePath(path) {
   return path.replaceAll("\\", "/");
@@ -256,51 +259,74 @@ function runCoverageSuite(args, coverageDir, envOverrides = {}) {
   );
 }
 
-try {
-  const coverageDirs = {
-    main: join(coverageRootDir, "main"),
-  };
-  const isolatedHomes = {
-    main: join(coverageRootDir, "home-main"),
-  };
+function runCoverageSuiteWithFallback(label, tests, attempt = 1) {
+  const attemptLabel = attempt === 1 ? label : `${label}-retry-${attempt}`;
+  const coverageDir = join(coverageRootDir, attemptLabel);
+  const homeDir = join(coverageRootDir, `home-${attemptLabel}`);
+  mkdirSync(homeDir, { recursive: true });
 
-  for (const suite of COVERAGE_ISOLATED_SUITES) {
-    coverageDirs[suite.label] = join(coverageRootDir, suite.label);
-    isolatedHomes[suite.label] = join(coverageRootDir, `home-${suite.label}`);
-  }
-
-  for (const path of Object.values(isolatedHomes)) {
-    mkdirSync(path, { recursive: true });
-  }
-
-  const mainArgs = [...COVERAGE_MAIN_TEST_TARGETS, ...COMMAND_SURFACE_TESTS];
-  for (const excluded of COVERAGE_MAIN_EXCLUDED_TESTS) {
-    mainArgs.push("--exclude", excluded);
-  }
-
-  const mainResult = runCoverageSuite(mainArgs, coverageDirs.main, {
-    PRIVACY_POOLS_HOME: isolatedHomes.main,
+  const result = runCoverageSuite(tests, coverageDir, {
+    PRIVACY_POOLS_HOME: homeDir,
   });
-  if (mainResult.error) throw mainResult.error;
-  if (mainResult.status !== 0) {
-    process.exit(mainResult.status ?? 1);
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+
+  const lcovPath = join(coverageDir, "lcov.info");
+  if (existsSync(lcovPath)) {
+    return [lcovPath];
+  }
+
+  if (attempt < MAX_COVERAGE_LCOV_RETRIES) {
+    process.stdout.write(
+      `[coverage] ${label} emitted no lcov on attempt ${attempt}; retrying the same suite\n`,
+    );
+    return runCoverageSuiteWithFallback(label, tests, attempt + 1);
+  }
+
+  if (tests.length <= 1) {
+    throw new Error(
+      `Coverage suite ${label} completed without writing lcov.info`,
+    );
+  }
+
+  const midpoint = Math.ceil(tests.length / 2);
+  const left = tests.slice(0, midpoint);
+  const right = tests.slice(midpoint);
+  process.stdout.write(
+    `[coverage] ${label} emitted no lcov after ${attempt} attempts; retrying as ${left.length}+${right.length} file batches\n`,
+  );
+
+  return [
+    ...runCoverageSuiteWithFallback(`${label}-a`, left),
+    ...runCoverageSuiteWithFallback(`${label}-b`, right),
+  ];
+}
+
+try {
+  const mainSuites = buildCoverageMainSuites({
+    rootDir: ROOT,
+    testTargets: COVERAGE_MAIN_TEST_TARGETS,
+    commandSurfaceTests: COMMAND_SURFACE_TESTS,
+    excludedTests: COVERAGE_MAIN_EXCLUDED_TESTS,
+  });
+  const coverageArtifacts = [];
+
+  for (const suite of mainSuites) {
+    coverageArtifacts.push(
+      ...runCoverageSuiteWithFallback(suite.label, suite.tests),
+    );
   }
 
   for (const suite of COVERAGE_ISOLATED_SUITES) {
-    const result = runCoverageSuite(suite.tests, coverageDirs[suite.label], {
-      PRIVACY_POOLS_HOME: isolatedHomes[suite.label],
-    });
-    if (result.error) throw result.error;
-    if (result.status !== 0) {
-      process.exit(result.status ?? 1);
-    }
+    coverageArtifacts.push(
+      ...runCoverageSuiteWithFallback(suite.label, suite.tests),
+    );
   }
 
   const mergedCoverage = mergeCoverageMaps(
-    parseLcovFile(join(coverageDirs.main, "lcov.info")),
-    ...COVERAGE_ISOLATED_SUITES.map((suite) =>
-      parseLcovFile(join(coverageDirs[suite.label], "lcov.info")),
-    ),
+    ...coverageArtifacts.map((artifactPath) => parseLcovFile(artifactPath)),
   );
 
   if (keepCoverageRoot) {

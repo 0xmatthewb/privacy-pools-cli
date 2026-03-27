@@ -50,6 +50,13 @@ Current coverage-only isolated suites:
 
 - `workflow-service`
 - `bootstrap-runtime`
+- `launcher-runtime`
+
+Coverage also runs the remaining shared source suites in deterministic fixed-size batches via
+[`scripts/coverage-suite-plan.mjs`](../scripts/coverage-suite-plan.mjs). If Bun finishes a batch
+without writing `lcov.info`, the coverage guard retries that exact batch before splitting it into
+smaller batches, so missing coverage artifacts fail closed without turning one flaky suite into a
+global coverage failure.
 
 When to use preload:
 

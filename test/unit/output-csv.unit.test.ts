@@ -162,6 +162,22 @@ describe("accounts CSV", () => {
     expect(stderr).toBe("");
   });
 
+  test("renderAccountsNoPools: CSV summary renders the zero-count summary row", () => {
+    const ctx = createOutputContext(csvMode());
+    const { stdout, stderr } = captureOutput(() =>
+      renderAccountsNoPools(ctx, {
+        chain: "all-mainnets",
+        allChains: true,
+        chains: ["mainnet", "arbitrum"],
+        summary: true,
+      }),
+    );
+    const lines = stdout.trim().split("\n");
+    expect(lines[0]).toContain("Chain,Asset,Balance,USD,Pool Accounts,Pending,Approved");
+    expect(lines[1]).toContain(",0,0,0,0,0,0,0");
+    expect(stderr).toBe("");
+  });
+
   test("renderAccounts: CSV includes account rows", () => {
     const ctx = createOutputContext(csvMode());
     const { stdout, stderr } = captureOutput(() =>
