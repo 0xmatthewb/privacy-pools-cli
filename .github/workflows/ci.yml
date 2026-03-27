@@ -166,9 +166,15 @@ jobs:
   # Job 3: packaged native smoke on the default Linux triplet
   # -----------------------------------------------------------
   native-smoke:
-    name: native-smoke
+    name: native-smoke-node-${{ matrix.node-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - "22.x"
+          - "25.x"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -178,7 +184,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25.x"
+          node-version: ${{ matrix.node-version }}
 
       - name: Select native-smoke
         id: select

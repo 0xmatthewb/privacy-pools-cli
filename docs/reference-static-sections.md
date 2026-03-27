@@ -79,7 +79,9 @@ src/
     mod.ts        Barrel re-export of all renderers
     <command>.ts  Per-command renderer (e.g., deposit.ts, withdraw.ts)
   config/         Chain configuration and contract addresses
-  runtime/v1/     Versioned JS worker boundary for protocol-owned logic
+  runtime/        Active JS runtime descriptor plus versioned worker boundaries
+    current.ts    Active worker/bridge descriptor used by the launcher
+    v1/           Versioned JS worker boundary for protocol-owned logic
   services/       SDK, wallet, account, ASP, and relayer service wrappers
   utils/          Shared utilities (validation, formatting, errors, mode)
   launcher.ts     Thin launcher that resolves native vs JS runtime targets
@@ -95,6 +97,12 @@ test/
   fuzz/           Fuzz and stress tests
   helpers/        Shared test utilities
 ```
+
+`safeReadOnly` and native execution are intentionally different concepts.
+Use the generated command manifest for execution ownership; `safeReadOnly`
+only describes whether the command avoids wallet-mutating flows.
+
+For future `runtime/vN` work, follow [`docs/runtime-upgrades.md`](runtime-upgrades.md).
 
 ## Development
 

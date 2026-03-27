@@ -170,6 +170,34 @@ jobs:
             exit 1
           fi
 
+      - name: Validate release tag and native dependency versions
+        shell: bash
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          EXPECTED_TAG="v${PKG_VERSION}"
+          if [[ "${TAG}" != "${EXPECTED_TAG}" ]]; then
+            echo "Release tag ${TAG} does not match package.json version ${PKG_VERSION}."
+            exit 1
+          fi
+
+          node - <<'NODE'
+          const pkg = require("./package.json");
+          const expected = pkg.version;
+          const optionalDependencies = pkg.optionalDependencies ?? {};
+          const mismatched = Object.entries(optionalDependencies).filter(
+            ([name, version]) =>
+              name.startsWith("@0xbow/privacy-pools-cli-native-") && version !== expected,
+          );
+          if (mismatched.length > 0) {
+            console.error(
+              "Native optional dependency versions must match package.json version:",
+              mismatched,
+            );
+            process.exit(1);
+          }
+          NODE
+
       # "npm pack" creates a .tgz file — the same format npm uses
       # when you run "npm install <package>".
       - name: Pack npm tarball
@@ -257,6 +285,7 @@ jobs:
           popd > /dev/null
 
           mv "$OUT_DIR/$TARBALL" "dist-native/$TARBALL"
+          node scripts/verify-packed-native-package.mjs --triplet "${{ matrix.triplet }}" --tarball "dist-native/$TARBALL"
           echo "Packed dist-native/$TARBALL"
 
       - name: Upload native package artifact

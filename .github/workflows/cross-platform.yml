@@ -6,7 +6,8 @@
 #
 # WHAT does it do?
 #   Runs the packaged JS smoke tests and the native package smoke lane
-#   on Linux x64, Windows x64, Windows ARM64, and Apple Silicon in
+#   on Linux x64, Windows x64, Windows ARM64, Apple Silicon, and
+#   Intel macOS in
 #   parallel. This catches target-specific bugs (e.g. path separators,
 #   line endings, missing system libraries, native package resolution)
 #   before release day.
@@ -51,6 +52,8 @@ jobs:
             runner: windows-11-arm
           - label: darwin-arm64
             runner: macos-latest
+          - label: darwin-x64
+            runner: macos-15-intel
 
     steps:
       - name: Checkout

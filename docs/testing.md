@@ -134,3 +134,25 @@ CI notes:
 
 - `scripts/ci/test-shards.mjs` uses `scripts/ci/test-shard-weights.json` for deterministic runtime-aware shard balancing.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
+
+## Runtime Upgrade Playbook
+
+Future `runtime/vN` work should start from one source of truth:
+[`src/runtime/runtime-contract.js`](../src/runtime/runtime-contract.js).
+
+Keep these version concepts separate:
+
+- worker request envelope
+- generated native manifest schema
+- launcher/native-shell bridge
+- active runtime generation
+
+Before shipping a new runtime generation, follow
+[`docs/runtime-upgrades.md`](./runtime-upgrades.md) and make sure the
+release/CI gates still exercise:
+
+- JS fallback behavior
+- `npm run test:smoke:native`
+- packed native tarball verification
+- every shipped native triplet
+- supported Node versions on the blocking native-smoke lane
