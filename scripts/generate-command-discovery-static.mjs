@@ -20,6 +20,18 @@ const sourceMetadataModulePath = join(
   "utils",
   "command-discovery-metadata.ts",
 );
+const distRootFlagsModulePath = join(
+  repoRoot,
+  "dist",
+  "utils",
+  "root-global-flags.js",
+);
+const sourceRootFlagsModulePath = join(
+  repoRoot,
+  "src",
+  "utils",
+  "root-global-flags.ts",
+);
 
 const distProgramModulePath = join(
   repoRoot,
@@ -49,12 +61,22 @@ const nativeRuntimeContractPath = join(
   "generated",
   "runtime-contract.json",
 );
+const nativeRootFlagsPath = join(
+  repoRoot,
+  "native",
+  "shell",
+  "generated",
+  "root-flags.json",
+);
 
 const packageJsonPath = join(repoRoot, "package.json");
 
 const metadataModulePath = existsSync(distModulePath)
   ? distModulePath
   : sourceMetadataModulePath;
+const rootFlagsModulePath = existsSync(distRootFlagsModulePath)
+  ? distRootFlagsModulePath
+  : sourceRootFlagsModulePath;
 
 const runtimeContractModulePath = join(
   repoRoot,
@@ -69,6 +91,9 @@ const {
   getCommandExecutionMetadata,
 } = await import(
   pathToFileURL(metadataModulePath).href
+);
+const { ROOT_GLOBAL_FLAG_METADATA } = await import(
+  pathToFileURL(rootFlagsModulePath).href
 );
 const {
   CURRENT_MANIFEST_VERSION,
@@ -313,6 +338,11 @@ mkdirSync(dirname(nativeRuntimeContractPath), { recursive: true });
 writeFileSync(
   nativeRuntimeContractPath,
   `${JSON.stringify(CURRENT_RUNTIME_DESCRIPTOR, null, 2)}\n`,
+  "utf8",
+);
+writeFileSync(
+  nativeRootFlagsPath,
+  `${JSON.stringify(ROOT_GLOBAL_FLAG_METADATA, null, 2)}\n`,
   "utf8",
 );
 

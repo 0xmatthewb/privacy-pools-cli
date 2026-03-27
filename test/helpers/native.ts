@@ -23,6 +23,7 @@ const NATIVE_BUILD_INPUTS = [
   join(CLI_ROOT, "native", "shell", "src", "main.rs"),
   join(CLI_ROOT, "native", "shell", "generated", "manifest.json"),
   join(CLI_ROOT, "native", "shell", "generated", "runtime-contract.json"),
+  join(CLI_ROOT, "native", "shell", "generated", "root-flags.json"),
 ];
 
 export const CARGO_AVAILABLE =

@@ -5,9 +5,6 @@ import { GLOBAL_FLAG_METADATA } from "../../src/utils/command-discovery-metadata
 import { STATIC_COMPLETION_SPEC } from "../../src/utils/completion-query.ts";
 import {
   ROOT_GLOBAL_FLAG_METADATA,
-  ROOT_LONG_OPTIONS_WITH_INLINE_VALUE,
-  ROOT_OPTIONS_WITH_VALUE,
-  ROOT_WELCOME_BOOLEAN_FLAGS,
 } from "../../src/utils/root-global-flags.ts";
 import { rootHelpBaseText } from "../../src/utils/root-help.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
@@ -25,41 +22,17 @@ function splitFlagNames(flag: string): string[] {
     .filter(Boolean);
 }
 
-function extractQuotedTokens(block: string): string[] {
-  return Array.from(block.matchAll(/"([^"]+)"/g), (match) => match[1] ?? "");
-}
-
-function extractRustFnBody(source: string, fnName: string): string {
-  const start = source.indexOf(`fn ${fnName}`);
-  if (start === -1) {
-    throw new Error(`Could not find Rust function ${fnName}`);
-  }
-
-  const braceStart = source.indexOf("{", start);
-  if (braceStart === -1) {
-    throw new Error(`Could not find opening brace for ${fnName}`);
-  }
-
-  let depth = 0;
-  for (let index = braceStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") depth += 1;
-    if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(braceStart, index + 1);
-      }
-    }
-  }
-
-  throw new Error(`Could not find closing brace for ${fnName}`);
-}
-
 describe("root global flags conformance", () => {
   const rustSource = readFileSync(
-    join(CLI_ROOT, "native", "shell", "src", "main.rs"),
+    join(CLI_ROOT, "native", "shell", "src", "root_argv.rs"),
     "utf8",
   );
+  const nativeRootFlags = JSON.parse(
+    readFileSync(
+      join(CLI_ROOT, "native", "shell", "generated", "root-flags.json"),
+      "utf8",
+    ),
+  ) as typeof ROOT_GLOBAL_FLAG_METADATA;
 
   test("JS discovery metadata reuses the shared root flag source of truth", () => {
     expect(GLOBAL_FLAG_METADATA).toEqual(
@@ -91,57 +64,12 @@ describe("root global flags conformance", () => {
     );
   });
 
-  test("native root argv parsing stays aligned with the shared JS root flag contract", () => {
-    const rootOptionBody = extractRustFnBody(rustSource, "root_option_takes_value");
-    expect(sorted(extractQuotedTokens(rootOptionBody))).toEqual(
-      sorted(ROOT_OPTIONS_WITH_VALUE),
-    );
-
-    const welcomeBody = extractRustFnBody(
-      rustSource,
-      "is_welcome_flag_only_invocation",
-    );
-    expect(sorted(extractQuotedTokens(welcomeBody))).toEqual(
-      sorted([
-        ...ROOT_LONG_OPTIONS_WITH_INLINE_VALUE.map((flag) => `${flag}=`),
-        ...ROOT_WELCOME_BOOLEAN_FLAGS,
-      ]),
-    );
+  test("native shell root flag contract is generated from the shared JS source of truth", () => {
+    expect(nativeRootFlags).toEqual(ROOT_GLOBAL_FLAG_METADATA);
   });
 
-  test("native command forwarding stays aligned with the shared JS root flag contract", () => {
-    const valueBody = extractRustFnBody(
-      rustSource,
-      "is_command_global_value_option",
-    );
-    expect(sorted(extractQuotedTokens(valueBody))).toEqual(
-      sorted(ROOT_OPTIONS_WITH_VALUE),
-    );
-
-    const inlineValueBody = extractRustFnBody(
-      rustSource,
-      "is_command_global_inline_value_option",
-    );
-    expect(sorted(extractQuotedTokens(inlineValueBody))).toEqual(
-      sorted(ROOT_LONG_OPTIONS_WITH_INLINE_VALUE.map((flag) => `${flag}=`)),
-    );
-
-    const booleanBody = extractRustFnBody(
-      rustSource,
-      "is_command_global_boolean_option",
-    );
-    expect(sorted(extractQuotedTokens(booleanBody))).toEqual(
-      sorted([
-        "--agent",
-        "--help",
-        "--json",
-        "--no-banner",
-        "--no-color",
-        "--quiet",
-        "--verbose",
-        "--version",
-        "--yes",
-      ]),
-    );
+  test("native root argv module consumes the generated root flag contract", () => {
+    expect(rustSource).toContain("root-flags.json");
+    expect(rustSource).toContain("root_flag_contract()");
   });
 });
