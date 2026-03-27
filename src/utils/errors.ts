@@ -46,6 +46,49 @@ const HOSTNAME_PATTERN = /\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?\b/gi;
 const WINDOWS_PATH_PATTERN = /\b[A-Za-z]:\\[^\s'")]+/g;
 const POSIX_PATH_PATTERN = /(^|[\s(])\/(?:[^/\s'")]+\/)*[^/\s'")]+/g;
 const PRIVATE_KEY_PATTERN = /\b0x[0-9a-fA-F]{64}\b/g;
+const LONG_HEX_PATTERN = /\b0x[0-9a-fA-F]{80,}\b/g;
+const ADDRESS_PATTERN = /\b0x[0-9a-fA-F]{40}\b/g;
+const URL_SAFE_SEGMENT_PATTERN = /^[A-Za-z0-9._~-]+$/;
+
+function isSensitiveEndpointSegment(segment: string): boolean {
+  const decoded = segment.trim();
+  if (!decoded) return false;
+  if (!URL_SAFE_SEGMENT_PATTERN.test(decoded)) return false;
+  if (decoded.length >= 16) return true;
+  return (
+    decoded.length >= 12 &&
+    /[A-Za-z]/.test(decoded) &&
+    /\d/.test(decoded)
+  );
+}
+
+export function sanitizeEndpointForDisplay(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+
+  try {
+    const parsed = new URL(trimmed);
+    const hadExplicitTrailingSlash = /\/\/[^/]+\/$/.test(trimmed);
+    const sanitizedSegments = parsed.pathname
+      .split("/")
+      .filter((segment) => segment.length > 0)
+      .map((segment) => {
+        const decoded = decodeURIComponent(segment);
+        return isSensitiveEndpointSegment(decoded)
+          ? "<redacted-segment>"
+          : segment;
+      });
+    const sanitizedPath =
+      sanitizedSegments.length > 0
+        ? `/${sanitizedSegments.join("/")}`
+        : hadExplicitTrailingSlash
+          ? "/"
+          : "";
+    return `${parsed.protocol}//${parsed.host}${sanitizedPath}`;
+  } catch {
+    return sanitizeDiagnosticText(trimmed);
+  }
+}
 
 export function sanitizeDiagnosticText(value: string): string {
   const trimmed = value.trim();
@@ -54,6 +97,8 @@ export function sanitizeDiagnosticText(value: string): string {
   return trimmed
     .replace(URL_PATTERN, "<redacted-url>")
     .replace(PRIVATE_KEY_PATTERN, "<redacted-private-key>")
+    .replace(LONG_HEX_PATTERN, "<redacted-hex>")
+    .replace(ADDRESS_PATTERN, "<redacted-address>")
     .replace(WINDOWS_PATH_PATTERN, "<redacted-path>")
     .replace(
       POSIX_PATH_PATTERN,

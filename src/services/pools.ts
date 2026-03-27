@@ -5,7 +5,7 @@ import { NATIVE_ASSET_ADDRESS, KNOWN_POOLS } from "../config/chains.js";
 import { resolvePoolDeploymentBlock } from "../config/deployment-hints.js";
 import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
 import { getPublicClient } from "./sdk.js";
-import { CLIError } from "../utils/errors.js";
+import { CLIError, sanitizeEndpointForDisplay } from "../utils/errors.js";
 
 // Entrypoint ABI fragment for read-only calls
 const entrypointAbi = parseAbi([
@@ -262,7 +262,7 @@ export async function listPools(
 
   if (aspUnreachable && statsEntries.length === 0) {
     throw new CLIError(
-      `Cannot reach ASP (${chainConfig.aspHost}) to discover pools.`,
+      `Cannot reach ASP (${sanitizeEndpointForDisplay(chainConfig.aspHost)}) to discover pools.`,
       "ASP",
       "Check your network connection, or try again later."
     );

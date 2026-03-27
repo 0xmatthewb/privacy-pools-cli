@@ -17,6 +17,7 @@ import {
 } from "../helpers/temp.ts";
 
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+const ORIGINAL_ASP_HOST_SEPOLIA = process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA;
 
 function fakeCommand(
   globalOpts: Record<string, unknown> = {},
@@ -39,6 +40,11 @@ afterEach(() => {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
     process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  }
+  if (ORIGINAL_ASP_HOST_SEPOLIA === undefined) {
+    delete process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA;
+  } else {
+    process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA = ORIGINAL_ASP_HOST_SEPOLIA;
   }
   cleanupTrackedTempDirs();
 });
@@ -115,5 +121,32 @@ describe("status command handler", () => {
     expect(stderr).toContain("Privacy Pools CLI Status");
     expect(stderr).toContain("Config not found");
     expect(stderr).toContain("Run 'privacy-pools init'");
+  });
+
+  test("redacts sensitive custom endpoint details in status output", async () => {
+    useIsolatedHome();
+    process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA =
+      "https://user:pass@asp.example.invalid/api/abcdef1234567890?token=secret";
+    saveConfig({
+      defaultChain: "sepolia",
+      rpcOverrides: {
+        11155111:
+          "https://user:pass@rpc.example.invalid/v3/abcdef1234567890?apiKey=secret",
+      },
+    });
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleStatusCommand(
+        { check: false },
+        fakeCommand({ json: true, chain: "sepolia" }),
+      ),
+    );
+
+    expect(json.rpcUrl).toBe(
+      "https://rpc.example.invalid/v3/<redacted-segment>",
+    );
+    expect(json.aspHost).toBe(
+      "https://asp.example.invalid/api/<redacted-segment>",
+    );
   });
 });

@@ -161,7 +161,7 @@ function summarizeInitErrors(
 ): string {
   return initErrors
     .slice(0, 3)
-    .map((e) => `scope ${e.scope.toString()}: ${e.reason}`)
+    .map((e) => `scope ${e.scope.toString()}: ${sanitizeDiagnosticText(e.reason)}`)
     .join("; ");
 }
 

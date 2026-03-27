@@ -10,7 +10,7 @@ import {
 } from "../services/config.js";
 import { CHAINS } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
-import { printError } from "../utils/errors.js";
+import { printError, sanitizeEndpointForDisplay } from "../utils/errors.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
@@ -73,7 +73,9 @@ export async function handleStatusCommand(
       defaultChain: config?.defaultChain ?? null,
       selectedChain: selectedChainConfig?.name ?? null,
       rpcUrl: selectedChainConfig
-        ? getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl)
+        ? sanitizeEndpointForDisplay(
+            getRpcUrl(selectedChainConfig.id, globalOpts?.rpcUrl),
+          )
         : null,
       rpcIsCustom,
       recoveryPhraseSet: hasMnemonic,
@@ -81,7 +83,9 @@ export async function handleStatusCommand(
       signerKeyValid,
       signerAddress,
       entrypoint: selectedChainConfig?.entrypoint ?? null,
-      aspHost: selectedChainConfig?.aspHost ?? null,
+      aspHost: selectedChainConfig
+        ? sanitizeEndpointForDisplay(selectedChainConfig.aspHost)
+        : null,
       accountFiles: [],
     };
 

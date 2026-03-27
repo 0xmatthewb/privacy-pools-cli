@@ -42,6 +42,7 @@ const ENV_CLI_DISABLE_LOCAL_FAST_PATH = "PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PA
 const ENV_CLI_ENABLE_NATIVE = "PRIVACY_POOLS_CLI_ENABLE_NATIVE";
 const ENV_CLI_JS_WORKER = "PRIVACY_POOLS_CLI_JS_WORKER";
 const ENV_PRIVATE_KEY = "PRIVACY_POOLS_PRIVATE_KEY";
+const SECRET_BEARING_FLAGS = new Set(["--mnemonic", "--private-key"]);
 
 const STATIC_DISCOVERY_COMMANDS = new Set<string>(
   [...GENERATED_STATIC_LOCAL_COMMANDS].filter((command) => command !== "completion"),
@@ -115,6 +116,16 @@ function hasExplicitJsWorkerOverride(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
   return Boolean(env[ENV_CLI_JS_WORKER]?.trim());
+}
+
+function invocationContainsInlineSecrets(argv: readonly string[]): boolean {
+  return argv.some((token) => {
+    if (SECRET_BEARING_FLAGS.has(token)) return true;
+    return (
+      token.startsWith("--mnemonic=") ||
+      token.startsWith("--private-key=")
+    );
+  });
 }
 
 function nativeTriplet(
@@ -512,36 +523,57 @@ export async function runLauncher(
   applyLauncherEnvironment(argv);
 
   const parsed = parseRootArgv(argv);
-  if (await tryRunLocalFastPath(pkg, argv, parsed)) {
-    return;
-  }
-  const resolvedPackageInfo = resolveCliPackageInfo(pkg);
-  const target = resolveLaunchTarget(resolvedPackageInfo, argv, process.env, {
-    parsed,
-  });
-
   try {
+    if (await tryRunLocalFastPath(pkg, argv, parsed)) {
+      return;
+    }
+
+    const resolvedPackageInfo = resolveCliPackageInfo(pkg);
+    const target = resolveLaunchTarget(resolvedPackageInfo, argv, process.env, {
+      parsed,
+    });
+
+    if (
+      hasExplicitJsWorkerOverride(target.env) &&
+      invocationContainsInlineSecrets(argv)
+    ) {
+      throw new CLIError(
+        "The JS worker override is unavailable for secret-bearing invocations.",
+        "INPUT",
+        `Unset ${ENV_CLI_JS_WORKER} or use file/stdin secret flags before retrying.`,
+      );
+    }
+
     if (target.kind === "js-worker" && hasExplicitJsWorkerOverride(target.env)) {
       validateJsWorkerPath(target.env);
-    } else if (target.kind === "native-binary" && invocationRequiresJsWorker(parsed)) {
+    } else if (
+      target.kind === "native-binary" &&
+      invocationRequiresJsWorker(parsed)
+    ) {
       validateJsWorkerPath(target.env);
     }
-  } catch (error) {
-    printError(error, parsed.isStructuredOutputMode);
-    return;
-  }
 
-  if (target.kind === "native-binary") {
+    if (target.kind === "native-binary") {
+      await spawnLaunchTarget(target);
+      return;
+    }
+
+    if (!hasExplicitJsWorkerOverride(target.env)) {
+      await runJsWorkerInline(resolvedPackageInfo, argv);
+      return;
+    }
+
     await spawnLaunchTarget(target);
-    return;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      (error as { name?: unknown }).name === "CommandExit"
+    ) {
+      throw error;
+    }
+    printError(error, parsed.isStructuredOutputMode);
   }
-
-  if (!hasExplicitJsWorkerOverride(target.env)) {
-    await runJsWorkerInline(resolvedPackageInfo, argv);
-    return;
-  }
-
-  await spawnLaunchTarget(target);
 }
 
 export const launcherTestInternals = {
@@ -554,6 +586,7 @@ export const launcherTestInternals = {
   invocationRequiresJsWorker,
   hasCompatibleInstalledNativeMetadata,
   isFlagEnabled,
+  invocationContainsInlineSecrets,
   hasValidInstalledNativeChecksum: hasValidNativeChecksum,
   nativePackageName,
   nativeTriplet,

@@ -7,6 +7,7 @@ import {
   defaultErrorCode,
   printError,
   sanitizeDiagnosticText,
+  sanitizeEndpointForDisplay,
 } from "../../src/utils/errors.ts";
 
 function captureStdout(run: () => void): string {
@@ -270,6 +271,34 @@ describe("sanitizeDiagnosticText", () => {
     expect(sanitized).toContain("<redacted-url>");
     expect(sanitized).toContain("<redacted-path>");
     expect(sanitized).toContain("<redacted-private-key>");
+  });
+
+  test("redacts addresses and long hex payloads", () => {
+    const sanitized = sanitizeDiagnosticText(
+      "relayer request for 0x1111111111111111111111111111111111111111 failed with calldata 0x" +
+        "aa".repeat(48),
+    );
+
+    expect(sanitized).not.toContain("0x1111111111111111111111111111111111111111");
+    expect(sanitized).not.toContain("aa".repeat(48));
+    expect(sanitized).toContain("<redacted-address>");
+    expect(sanitized).toContain("<redacted-hex>");
+  });
+});
+
+describe("sanitizeEndpointForDisplay", () => {
+  test("removes userinfo, query strings, and token-like path segments", () => {
+    expect(
+      sanitizeEndpointForDisplay(
+        "https://user:pass@rpc.example.com/v3/abcdef1234567890abcdef1234567890?apiKey=secret",
+      ),
+    ).toBe("https://rpc.example.com/v3/<redacted-segment>");
+  });
+
+  test("preserves ordinary public endpoint paths", () => {
+    expect(
+      sanitizeEndpointForDisplay("https://api.0xbow.io/1/public/pools-stats"),
+    ).toBe("https://api.0xbow.io/1/public/pools-stats");
   });
 });
 

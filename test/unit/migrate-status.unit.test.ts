@@ -228,6 +228,15 @@ describe("migrate command internal helpers", () => {
       ]),
     ).toBe("scope 1: one; scope 2: two; scope 3: three");
     expect(
+      migrateCommandTestInternals.summarizeInitErrors([
+        {
+          scope: 1n,
+          reason:
+            "fetch failed for https://rpc.example.invalid/v3/abcdef1234567890?key=secret",
+        },
+      ]),
+    ).toBe("scope 1: fetch failed for <redacted-url>");
+    expect(
       migrateCommandTestInternals.dedupeSortedChainIds([10, 1, 10, 42161]),
     ).toEqual([1, 10, 42161]);
   });

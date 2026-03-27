@@ -668,6 +668,94 @@ describe("launcher routing", () => {
     ).toThrow("The JS runtime worker is unavailable.");
   });
 
+  test("blocks explicit js worker overrides for secret-bearing invocations", async () => {
+    const tempDir = createTrackedTempDir("pp-worker-override-secret-");
+    const workerPath = join(tempDir, "worker.js");
+    const originalWorkerOverride = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    writeFileSync(workerPath, "// mocked worker path\n", "utf8");
+    process.env.PRIVACY_POOLS_CLI_JS_WORKER = workerPath;
+
+    try {
+      const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+        runLauncher(PKG, [
+          "--agent",
+          "init",
+          "--mnemonic",
+          "test test test test test test test test test test test junk",
+          "--private-key",
+          `0x${"44".repeat(32)}`,
+          "--default-chain",
+          "mainnet",
+        ]),
+      );
+
+      expect(exitCode).toBe(2);
+      expect(stderr).toBe("");
+      expect(json.success).toBe(false);
+      expect(json.errorMessage).toBe(
+        "The JS worker override is unavailable for secret-bearing invocations.",
+      );
+    } finally {
+      if (originalWorkerOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
+      }
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("runLauncher sanitizes launcher spawn failures through the cli error path", async () => {
+    const originalBinaryOverride = process.env.PRIVACY_POOLS_CLI_BINARY;
+    const spawnMock = mock(
+      (
+        _command: string,
+        _args: string[],
+        _options: {
+          env: NodeJS.ProcessEnv;
+          stdio: "inherit";
+        },
+      ) => {
+        const child = new EventEmitter() as EventEmitter & {
+          exitCode: number | null;
+          signalCode: NodeJS.Signals | null;
+          kill: (signal?: NodeJS.Signals) => boolean;
+          once: EventEmitter["once"];
+        };
+        child.exitCode = null;
+        child.signalCode = null;
+        child.kill = () => true;
+        queueMicrotask(() => {
+          child.emit("error", new Error("spawn /tmp/private/native-worker ENOENT"));
+        });
+        return child;
+      },
+    );
+    launcherTestInternals.setSpawnImplementationForTests(
+      spawnMock as unknown as typeof import("node:child_process").spawn,
+    );
+    process.env.PRIVACY_POOLS_CLI_BINARY = "/tmp/privacy-pools-native";
+
+    try {
+      const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+        runLauncher(PKG, ["--agent", "stats"]),
+      );
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toBe("");
+      expect(json.success).toBe(false);
+      expect(json.errorMessage).not.toContain("/tmp/private/native-worker");
+      expect(json.errorMessage).toContain("<redacted-path>");
+    } finally {
+      launcherTestInternals.resetSpawnImplementationForTests();
+      if (originalBinaryOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_BINARY;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_BINARY = originalBinaryOverride;
+      }
+    }
+  });
+
   test("resolves an installed native binary only on exact version match", () => {
     const tempDir = createTrackedTempDir("pp-native-pkg-");
     const packageJsonPath = join(tempDir, "package.json");

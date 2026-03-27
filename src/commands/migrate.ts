@@ -17,7 +17,12 @@ import {
   type MigrationChainStatus,
 } from "../services/migration.js";
 import { spinner } from "../utils/format.js";
-import { CLIError, classifyError, printError } from "../utils/errors.js";
+import {
+  CLIError,
+  classifyError,
+  printError,
+  sanitizeDiagnosticText,
+} from "../utils/errors.js";
 import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
@@ -76,7 +81,10 @@ function summarizeInitErrors(
 ): string {
   return initErrors
     .slice(0, 3)
-    .map((entry) => `scope ${entry.scope.toString()}: ${entry.reason}`)
+    .map(
+      (entry) =>
+        `scope ${entry.scope.toString()}: ${sanitizeDiagnosticText(entry.reason)}`,
+    )
     .join("; ");
 }
 

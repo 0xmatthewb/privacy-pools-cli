@@ -31,7 +31,7 @@ import {
   deriveTokenPrice,
   usdSuffix,
 } from "../utils/format.js";
-import { printError, CLIError } from "../utils/errors.js";
+import { printError, CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
@@ -551,7 +551,7 @@ export async function handleDepositCommand(
             saveSyncMeta(chainConfig.id);
           } catch (saveErr) {
             warn(
-              `Deposit confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`,
+              `Deposit confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
               silent,
             );
             warn(

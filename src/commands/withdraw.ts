@@ -52,7 +52,11 @@ import {
   usdSuffix,
   displayDecimals,
 } from "../utils/format.js";
-import { printError, CLIError } from "../utils/errors.js";
+import {
+  printError,
+  CLIError,
+  sanitizeDiagnosticText,
+} from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
 import {
@@ -1174,7 +1178,7 @@ export async function handleWithdrawCommand(
           } catch (saveErr) {
             if (!silent) {
               process.stderr.write(
-                `\nWarning: withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`,
+                `\nWarning: withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}\n`,
               );
               process.stderr.write(
                 "⚠ Run 'privacy-pools sync' to update your local account state.\n",
@@ -1577,7 +1581,7 @@ export async function handleWithdrawCommand(
           } catch (saveErr) {
             if (!silent) {
               process.stderr.write(
-                `\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}\n`,
+                `\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}\n`,
               );
               process.stderr.write(
                 "⚠ Run 'privacy-pools sync' to update your local account state.\n",
