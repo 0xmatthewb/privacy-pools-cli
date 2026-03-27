@@ -65,6 +65,12 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("native-release-signoff");
   });
 
+  test("release workflow keeps the release and native smoke gates before packaging", () => {
+    expect(releaseWorkflow).toContain("npm run test:release");
+    expect(releaseWorkflow).toContain("Run native smoke test");
+    expect(releaseWorkflow).toContain("npm run test:smoke:native");
+  });
+
   test("cross-platform smoke includes the windows arm64 native lane", () => {
     expect(crossPlatformWorkflow).toContain("windows-11-arm");
     expect(crossPlatformWorkflow).toContain("win32-arm64-msvc");

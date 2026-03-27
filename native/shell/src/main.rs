@@ -13,6 +13,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tiny_keccak::{Hasher, Keccak};
 
 const JSON_SCHEMA_VERSION: &str = "1.5.0";
+const EXPECTED_MANIFEST_VERSION: &str = "1";
+const EXPECTED_RUNTIME_VERSION: &str = "v1";
+const EXPECTED_WORKER_PROTOCOL_VERSION: &str = "1";
 const ENV_JS_WORKER_PATH: &str = "PRIVACY_POOLS_CLI_JS_WORKER";
 const ENV_JS_BRIDGE_B64: &str = "PRIVACY_POOLS_INTERNAL_JS_BRIDGE_B64";
 
@@ -464,6 +467,26 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         return Err(CliError::unknown(
             "Native shell manifest compatibility metadata is missing.",
             Some("Regenerate the native manifest and rebuild the CLI.".to_string()),
+        ));
+    }
+
+    if manifest.manifest_version != EXPECTED_MANIFEST_VERSION {
+        return Err(CliError::unknown(
+            format!(
+                "Native shell manifest version mismatch: expected {EXPECTED_MANIFEST_VERSION}, got {}.",
+                manifest.manifest_version
+            ),
+            Some("Regenerate the native manifest and rebuild the native shell.".to_string()),
+        ));
+    }
+
+    if manifest.runtime_version != EXPECTED_RUNTIME_VERSION {
+        return Err(CliError::unknown(
+            format!(
+                "Native shell runtime version mismatch: expected {EXPECTED_RUNTIME_VERSION}, got {}.",
+                manifest.runtime_version
+            ),
+            Some("Rebuild the CLI so the launcher, manifest, and native shell use the same runtime generation.".to_string()),
         ));
     }
 
@@ -1101,7 +1124,7 @@ fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
                 worker_command,
                 Vec::new(),
                 "PRIVACY_POOLS_WORKER_REQUEST_B64".to_string(),
-                "1".to_string(),
+                EXPECTED_WORKER_PROTOCOL_VERSION.to_string(),
             )
         }
     };
@@ -1677,6 +1700,26 @@ fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliE
     {
         return Err(CliError::unknown(
             "JS bridge descriptor is incomplete.",
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
+        ));
+    }
+
+    if descriptor.runtime_version != EXPECTED_RUNTIME_VERSION {
+        return Err(CliError::unknown(
+            format!(
+                "JS bridge runtime version mismatch: expected {EXPECTED_RUNTIME_VERSION}, got {}.",
+                descriptor.runtime_version
+            ),
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
+        ));
+    }
+
+    if descriptor.worker_protocol_version != EXPECTED_WORKER_PROTOCOL_VERSION {
+        return Err(CliError::unknown(
+            format!(
+                "JS bridge worker protocol mismatch: expected {EXPECTED_WORKER_PROTOCOL_VERSION}, got {}.",
+                descriptor.worker_protocol_version
+            ),
             Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         ));
     }

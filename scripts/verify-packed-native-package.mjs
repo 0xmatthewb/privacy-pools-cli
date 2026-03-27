@@ -20,6 +20,15 @@ const {
   CURRENT_NATIVE_BRIDGE_VERSION,
   CURRENT_RUNTIME_VERSION,
 } = await import(pathToFileURL(runtimeContractModulePath).href);
+const protocolProfileModulePath = join(
+  repoRoot,
+  "src",
+  "config",
+  "protocol-profile.js",
+);
+const { CLI_PROTOCOL_PROFILE } = await import(
+  pathToFileURL(protocolProfileModulePath).href
+);
 
 function parseArgs(argv) {
   const result = {};
@@ -148,6 +157,12 @@ try {
   if (metadata.runtimeVersion !== CURRENT_RUNTIME_VERSION) {
     fail(
       `Packed native package runtime version mismatch: expected ${CURRENT_RUNTIME_VERSION}, got ${metadata.runtimeVersion ?? "<missing>"}.`,
+    );
+  }
+
+  if (metadata.protocolProfile !== CLI_PROTOCOL_PROFILE.profile) {
+    fail(
+      `Packed native package protocol profile mismatch: expected ${CLI_PROTOCOL_PROFILE.profile}, got ${metadata.protocolProfile ?? "<missing>"}.`,
     );
   }
 

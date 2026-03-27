@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import type { CliPackageInfo } from "./package-info.js";
+import { CLI_PROTOCOL_PROFILE } from "./config/protocol-profile.js";
 import {
   CURRENT_RUNTIME_DESCRIPTOR,
 } from "./runtime/runtime-contract.js";
@@ -40,6 +41,7 @@ interface NativePackageJson {
     sha256?: string;
     bridgeVersion?: string;
     protocolVersion?: string;
+    protocolProfile?: string;
     runtimeVersion?: string;
     triplet?: string;
   };
@@ -132,6 +134,11 @@ function hasCompatibleInstalledNativeMetadata(
     metadata?.bridgeVersion &&
     metadata.runtimeVersion?.trim() !== CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion
   ) {
+    return false;
+  }
+
+  const protocolProfile = metadata?.protocolProfile?.trim();
+  if (protocolProfile && protocolProfile !== CLI_PROTOCOL_PROFILE.profile) {
     return false;
   }
 

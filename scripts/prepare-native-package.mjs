@@ -18,6 +18,15 @@ const {
   CURRENT_NATIVE_BRIDGE_VERSION,
   CURRENT_RUNTIME_VERSION,
 } = await import(pathToFileURL(runtimeContractModulePath).href);
+const protocolProfileModulePath = join(
+  repoRoot,
+  "src",
+  "config",
+  "protocol-profile.js",
+);
+const { CLI_PROTOCOL_PROFILE } = await import(
+  pathToFileURL(protocolProfileModulePath).href
+);
 
 const TRIPLET_METADATA = {
   "darwin-arm64": {
@@ -124,6 +133,7 @@ const packageJson = {
     triplet,
     bridgeVersion: CURRENT_NATIVE_BRIDGE_VERSION,
     protocolVersion: CURRENT_NATIVE_BRIDGE_VERSION,
+    protocolProfile: CLI_PROTOCOL_PROFILE.profile,
     runtimeVersion: CURRENT_RUNTIME_VERSION,
     sha256,
   },

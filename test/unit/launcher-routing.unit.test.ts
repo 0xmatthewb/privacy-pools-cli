@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { CLI_PROTOCOL_PROFILE } from "../../src/config/protocol-profile.js";
 import { launcherTestInternals } from "../../src/launcher.ts";
 import {
   CURRENT_RUNTIME_DESCRIPTOR,
@@ -31,6 +32,7 @@ function writeNativePackageJson(
       privacyPoolsCliNative: {
         bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
         protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+        protocolProfile: CLI_PROTOCOL_PROFILE.profile,
         runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
         triplet: "darwin-arm64",
         sha256,
@@ -215,6 +217,33 @@ describe("launcher routing", () => {
     writeNativePackageJson(packageJsonPath, sha256, {
       bridgeVersion: "2",
       protocolVersion: "2",
+    });
+
+    try {
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          requireResolve: () => packageJsonPath,
+        }),
+      ).toBeNull();
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects installed native binaries with a protocol profile mismatch", () => {
+    const tempDir = createTrackedTempDir("pp-native-pkg-protocol-");
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+    writeNativePackageJson(packageJsonPath, sha256, {
+      protocolProfile: "privacy-pools-v999",
     });
 
     try {

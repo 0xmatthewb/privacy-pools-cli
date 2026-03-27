@@ -22,6 +22,7 @@ import {
   CARGO_AVAILABLE,
   ensureNativeShellBinary,
 } from "../helpers/native.ts";
+import { NATIVE_JS_BRIDGE_ENV } from "../../src/runtime/current.ts";
 
 const TEST_RECIPIENT = "0x000000000000000000000000000000000000dEaD";
 const nativeTest = CARGO_AVAILABLE ? test : test.skip;
@@ -242,6 +243,33 @@ describe("native shell parity", () => {
         native: { home: nativeHome },
       },
     );
+  });
+
+  nativeTest("direct native forwarding fails closed on an incompatible JS bridge descriptor", () => {
+    const result = runNativeBinaryDirect(
+      nativeBinary,
+      ["--agent", "status", "--no-check"],
+      {
+        env: {
+          [NATIVE_JS_BRIDGE_ENV]: Buffer.from(
+            JSON.stringify({
+              runtimeVersion: "v999",
+              workerProtocolVersion: "1",
+              workerRequestEnv: "PRIVACY_POOLS_WORKER_REQUEST_B64",
+              workerCommand: process.execPath,
+              workerArgs: [],
+            }),
+            "utf8",
+          ).toString("base64"),
+        },
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(parseJsonOutput<{ errorMessage: string }>(result.stdout).errorMessage).toContain(
+      "JS bridge runtime version mismatch",
+    );
+    expect(result.stderr).toBe("");
   });
 
   nativeTest("status --agent --check stays JS-owned through native forwarding", () => {
