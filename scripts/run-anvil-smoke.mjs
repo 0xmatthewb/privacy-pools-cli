@@ -6,6 +6,11 @@ import { setupSharedAnvilFixture } from "./anvil-shared-fixture.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
+const VERIFY_INSTALLED_CLI = resolve(
+  ROOT,
+  "scripts",
+  "verify-cli-install-anvil.mjs",
+);
 const TEST_FILE = resolve(
   ROOT,
   "test",
@@ -20,7 +25,15 @@ const smokePattern = [
 ].join("|");
 
 const sharedFixture = await setupSharedAnvilFixture();
+const sharedEnv = {
+  ...process.env,
+  PP_ANVIL_E2E: "1",
+  PP_ANVIL_SHARED_CIRCUITS_DIR: sharedFixture.sharedCircuitsDir,
+  PP_ANVIL_SHARED_ENV_FILE: sharedFixture.envFile,
+};
+
 let result;
+let installedArtifactResult;
 try {
   result = spawnSync(
     "node",
@@ -34,14 +47,20 @@ try {
     ],
     {
       stdio: "inherit",
-      env: {
-        ...process.env,
-        PP_ANVIL_E2E: "1",
-        PP_ANVIL_SHARED_CIRCUITS_DIR: sharedFixture.sharedCircuitsDir,
-        PP_ANVIL_SHARED_ENV_FILE: sharedFixture.envFile,
-      },
+      env: sharedEnv,
     }
   );
+
+  if (!result.error && result.status === 0) {
+    installedArtifactResult = spawnSync(
+      "node",
+      [VERIFY_INSTALLED_CLI],
+      {
+        stdio: "inherit",
+        env: sharedEnv,
+      },
+    );
+  }
 } finally {
   await sharedFixture.cleanup();
 }
@@ -51,6 +70,18 @@ if (result.error) {
 }
 
 if (typeof result.status === "number") {
+  if (result.status === 0 && installedArtifactResult) {
+    if (installedArtifactResult.error) {
+      throw installedArtifactResult.error;
+    }
+
+    if (typeof installedArtifactResult.status === "number") {
+      process.exit(installedArtifactResult.status);
+    }
+
+    process.kill(process.pid, installedArtifactResult.signal ?? "SIGTERM");
+  }
+
   process.exit(result.status);
 }
 

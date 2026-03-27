@@ -99,6 +99,7 @@ const JOB_RULES = {
     "src/",
     "scripts/anvil*",
     "scripts/run-anvil*",
+    "scripts/verify-cli-install-anvil.mjs",
     "test/helpers/anvil*",
     "test/helpers/shared-anvil*",
     "test/integration/cli-anvil*",

@@ -123,6 +123,17 @@ describe("ci job selection", () => {
     );
   });
 
+  test("anvil smoke runs when installed-cli anvil verification changes", () => {
+    const decision = evaluateJobSelection({
+      job: "anvil-e2e-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/verify-cli-install-anvil.mjs"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("scripts/verify-cli-install-anvil.mjs");
+  });
+
   test("packaged and native lanes run for shipped runtime contract docs", () => {
     const packagedDecision = evaluateJobSelection({
       job: "packaged-smoke",
