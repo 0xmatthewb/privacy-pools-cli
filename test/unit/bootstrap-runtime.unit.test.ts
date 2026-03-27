@@ -414,6 +414,8 @@ describe("bootstrap runtime coverage", () => {
     const checkForUpdateInBackgroundMock = mock(() => undefined);
     const getUpdateNoticeMock = mock(() => null);
     const program = makeProgram(() => async () => undefined);
+    delete process.env.CI;
+    delete process.env.CODESPACES;
     setTty(true);
 
     mock.module("../../src/program.ts", () => ({
@@ -542,6 +544,8 @@ describe("bootstrap runtime coverage", () => {
     });
     const printBannerMock = mock(async () => undefined);
     const checkForUpdateInBackgroundMock = mock(() => undefined);
+    delete process.env.CI;
+    delete process.env.CODESPACES;
     setTty(true);
 
     mock.module("../../src/program.ts", () => ({
