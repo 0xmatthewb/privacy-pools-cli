@@ -98,6 +98,10 @@ async function renderStaticCapabilities(globalOpts: GlobalOptions): Promise<void
     return;
   }
 
+  if (isQuietMode(globalOpts)) {
+    return;
+  }
+
   process.stderr.write("\nPrivacy Pools CLI: Agent Capabilities\n\n");
   process.stderr.write("Commands:\n");
   for (const command of payload.commands) {

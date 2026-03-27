@@ -5,7 +5,11 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, guardCsvUnsupported } from "./common.js";
+import {
+  printJsonSuccess,
+  isSilent,
+  guardCsvUnsupported,
+} from "./common.js";
 import type { CapabilitiesPayload } from "../types.js";
 
 export type { CapabilitiesPayload } from "../types.js";
@@ -23,6 +27,8 @@ export function renderCapabilities(
     printJsonSuccess(payload);
     return;
   }
+
+  if (isSilent(ctx)) return;
 
   process.stderr.write("\nPrivacy Pools CLI: Agent Capabilities\n\n");
   process.stderr.write("Commands:\n");

@@ -626,6 +626,10 @@ fn handle_capabilities(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i
         return Ok(0);
     }
 
+    if is_static_quiet_mode(parsed) {
+        return Ok(0);
+    }
+
     write_stderr_block_text(&manifest.capabilities_human_text);
     Ok(0)
 }
