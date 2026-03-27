@@ -111,6 +111,7 @@ function mapCommanderError(error: unknown): CLIError | null {
 
 function shouldStartUpdateCheck(
   firstCommandToken: string | undefined,
+  isWelcome: boolean,
   isMachineMode: boolean,
   isQuiet: boolean,
   isHelpLike: boolean,
@@ -118,6 +119,7 @@ function shouldStartUpdateCheck(
 ): boolean {
   if (isMachineMode || isQuiet || isVersionLike) return false;
   if (isHelpLike) return false;
+  if (!isWelcome) return false;
   if (STATIC_LOCAL_COMMANDS.has(firstCommandToken ?? "")) return false;
   if (!process.stdout.isTTY || !process.stderr.isTTY) return false;
   if (process.env.CI || process.env.CODESPACES) return false;
@@ -346,6 +348,7 @@ export async function runCli(
 
   const shouldCheckUpdates = shouldStartUpdateCheck(
     firstCommandToken,
+    isWelcome,
     isMachineMode,
     isQuiet,
     isHelpLike,

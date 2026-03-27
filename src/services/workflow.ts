@@ -62,7 +62,11 @@ import {
   guardCriticalSection,
   releaseCriticalSection,
 } from "../utils/critical-section.js";
-import { classifyError, CLIError } from "../utils/errors.js";
+import {
+  classifyError,
+  CLIError,
+  sanitizeDiagnosticText,
+} from "../utils/errors.js";
 import {
   deriveTokenPrice,
   formatAddress,
@@ -669,7 +673,8 @@ export function cleanupTerminalWorkflowSecret(snapshot: FlowSnapshot): void {
   if (
     isNewWalletFlow(snapshot) &&
     (snapshot.phase === "completed" ||
-      snapshot.phase === "completed_public_recovery")
+      snapshot.phase === "completed_public_recovery" ||
+      snapshot.phase === "stopped_external")
   ) {
     deleteWorkflowSecretRecord(snapshot.workflowId);
   }
@@ -1632,7 +1637,7 @@ export async function refreshWorkflowAccountStateFromChain(params: {
     );
   } catch (error) {
     warn(
-      `Workflow transaction confirmed onchain but local account reconciliation needs a manual refresh: ${error instanceof Error ? error.message : String(error)}`,
+      `Workflow transaction confirmed onchain but local account reconciliation needs a manual refresh: ${sanitizeDiagnosticText(error instanceof Error ? error.message : String(error))}`,
       silent,
     );
     warn(
@@ -2325,7 +2330,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
         saveSyncMeta(chainConfig.id);
       } catch (saveError) {
         warn(
-          `Withdrawal confirmed onchain but failed to update local account state immediately: ${saveError instanceof Error ? saveError.message : String(saveError)}`,
+          `Withdrawal confirmed onchain but failed to update local account state immediately: ${sanitizeDiagnosticText(saveError instanceof Error ? saveError.message : String(saveError))}`,
           silent,
         );
         warn(
@@ -2390,8 +2395,13 @@ export async function continueApprovedWorkflowWithdrawal(params: {
         aspStatus: context.selectedPoolAccount.aspStatus,
       }),
     );
+    const savedStopped = await saveWorkflowSnapshotIfChangedWithLock(
+      snapshot,
+      stopped,
+    );
+    cleanupTerminalWorkflowSecret(savedStopped);
     return {
-      snapshot: await saveWorkflowSnapshotIfChangedWithLock(snapshot, stopped),
+      snapshot: savedStopped,
       continueWatching: false,
     };
   }
@@ -2508,7 +2518,7 @@ async function executeRagequitForFlow(params: {
   } catch (error) {
     if (error instanceof CLIError) throw error;
     verbose(
-      `Could not verify original depositor onchain: ${error instanceof Error ? error.message : String(error)}`,
+      `Could not verify original depositor onchain: ${sanitizeDiagnosticText(error instanceof Error ? error.message : String(error))}`,
       isVerbose,
       silent,
     );
@@ -2586,7 +2596,7 @@ async function executeRagequitForFlow(params: {
       saveSyncMeta(chainConfig.id);
     } catch (saveError) {
       warn(
-        `Workflow ragequit confirmed onchain but failed to update local account state immediately: ${saveError instanceof Error ? saveError.message : String(saveError)}`,
+        `Workflow ragequit confirmed onchain but failed to update local account state immediately: ${sanitizeDiagnosticText(saveError instanceof Error ? saveError.message : String(saveError))}`,
         silent,
       );
       warn(
@@ -2678,6 +2688,7 @@ async function inspectAndAdvanceFlow(params: {
     context.selectedPoolAccount,
   );
   if (mutatedSnapshot) {
+    cleanupTerminalWorkflowSecret(mutatedSnapshot);
     return {
       snapshot: mutatedSnapshot,
       continueWatching: false,

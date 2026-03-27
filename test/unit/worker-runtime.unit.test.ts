@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
   captureAsyncJsonOutput,
+  captureAsyncJsonOutputAllowExit,
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
 import {
@@ -44,6 +45,7 @@ function installWorkerRequest(argv: string[]): void {
 afterEach(() => {
   restoreWorkerEnv();
   restoreConsole();
+  mock.restore();
 });
 
 describe("worker runtime", () => {
@@ -96,7 +98,7 @@ describe("worker runtime", () => {
     expect(stderr).toBe("");
   });
 
-  test("worker-main reports bootstrap failures on stderr and exits 1", async () => {
+  test("worker-main reports bootstrap failures through cli error rendering", async () => {
     delete process.env[WORKER_REQUEST_ENV];
 
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(
@@ -107,10 +109,34 @@ describe("worker runtime", () => {
       },
     );
 
-    expect(exitCode).toBe(1);
+    expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-    expect(stderr).toContain(
-      `privacy-pools worker error: Missing ${WORKER_REQUEST_ENV}.`,
+    expect(stderr).toContain("The JS runtime worker request is missing or invalid.");
+    expect(stderr).toContain("privacy-pools launcher");
+  });
+
+  test("worker-main keeps bootstrap failures structured when the request asked for machine output", async () => {
+    installWorkerRequest(["--agent", "status", "--no-check"]);
+    mock.module("../../src/runtime/v1/worker.ts", () => ({
+      runWorkerFromEnv: async () => {
+        throw new Error("worker boot failed at /tmp/private-path");
+      },
+    }));
+
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(
+      async () => {
+        await import(
+          `../../src/runtime/v1/worker-main.ts?worker-main-structured-failure=${Date.now()}`
+        );
+      },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toBe("");
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("UNKNOWN_ERROR");
+    expect(json.errorMessage).toBe(
+      "The JS runtime worker failed before command execution started.",
     );
   });
 });

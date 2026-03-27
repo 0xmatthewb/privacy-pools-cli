@@ -1867,6 +1867,41 @@ describe("workflow service mocked coverage", () => {
     expect(state.requestQuoteCalls).toHaveLength(0);
   });
 
+  test("watchWorkflow cleans up new-wallet secrets once the workflow stops externally", async () => {
+    writeWorkflowSecret("wf-new-wallet-external-stop");
+    writeWorkflowSnapshot("wf-new-wallet-external-stop", {
+      phase: "awaiting_asp",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      depositLabel: state.label.toString(),
+      committedValue: "1",
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-new-wallet-external-stop",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("stopped_external");
+    expect(
+      existsSync(
+        join(
+          realConfig.getWorkflowSecretsDir(),
+          "wf-new-wallet-external-stop.json",
+        ),
+      ),
+    ).toBe(false);
+  });
+
   test("watchWorkflow keeps paused declined workflows readable during ASP outages", async () => {
     state.aspStatus = "declined";
     state.aspUnavailable = true;

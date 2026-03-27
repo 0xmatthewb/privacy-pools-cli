@@ -12,6 +12,7 @@ import {
   accountMigrationRequiredError,
   accountMigrationReviewIncompleteError,
   accountWebsiteRecoveryRequiredError,
+  sanitizeDiagnosticText,
 } from "../utils/errors.js";
 import {
   buildMigrationChainReadinessFromLegacyAccount,
@@ -119,7 +120,7 @@ function staleAccountRefreshRequiredError(): CLIError {
 
 function staleAccountRefreshFailedError(error: unknown): CLIError {
   return new CLIError(
-    `Stored account state could not be refreshed safely: ${error instanceof Error ? error.message : String(error)}`,
+    `Stored account state could not be refreshed safely: ${sanitizeDiagnosticText(error instanceof Error ? error.message : String(error))}`,
     "RPC",
     "Restore RPC access and rerun 'privacy-pools sync' before using this account.",
     undefined,

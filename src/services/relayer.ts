@@ -5,7 +5,7 @@ import type {
   RelayerQuoteResponse,
   RelayerRequestResponse,
 } from "../types.js";
-import { CLIError } from "../utils/errors.js";
+import { CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 import {
   isTransientNetworkError,
@@ -48,8 +48,11 @@ function isRetryableRelayerError(error: unknown): boolean {
 }
 
 function relayerUnavailableError(message: string): CLIError {
+  const detail = sanitizeDiagnosticText(message);
   return new CLIError(
-    `Relayer request failed: ${message}`,
+    detail === "unknown error"
+      ? "Relayer request failed."
+      : `Relayer request failed: ${detail}`,
     "RELAYER",
     "Check your network connection and try again. If it persists, the relayer may be temporarily down."
   );

@@ -334,42 +334,45 @@ describe("cli main internal helpers", () => {
     expect(cliMainTestInternals.mapCommanderError({ code: "other.error" })).toBeNull();
   });
 
-  test("shouldStartUpdateCheck only enables interactive non-static human commands", () => {
+  test("shouldStartUpdateCheck only enables interactive welcome screens", () => {
     setTty(true);
     delete process.env.CI;
     delete process.env.CODESPACES;
 
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("status", false, false, false, false),
+      cliMainTestInternals.shouldStartUpdateCheck(undefined, true, false, false, false, false),
     ).toBe(true);
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("status", true, false, false, false),
+      cliMainTestInternals.shouldStartUpdateCheck("status", false, false, false, false, false),
     ).toBe(false);
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("status", false, true, false, false),
+      cliMainTestInternals.shouldStartUpdateCheck(undefined, true, true, false, false, false),
     ).toBe(false);
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("guide", false, false, false, false),
+      cliMainTestInternals.shouldStartUpdateCheck(undefined, true, false, true, false, false),
     ).toBe(false);
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("status", false, false, true, false),
+      cliMainTestInternals.shouldStartUpdateCheck("guide", false, false, false, false, false),
     ).toBe(false);
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("status", false, false, false, true),
+      cliMainTestInternals.shouldStartUpdateCheck(undefined, true, false, false, true, false),
+    ).toBe(false);
+    expect(
+      cliMainTestInternals.shouldStartUpdateCheck(undefined, true, false, false, false, true),
     ).toBe(false);
     setTty(false);
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("status", false, false, false, false),
+      cliMainTestInternals.shouldStartUpdateCheck(undefined, true, false, false, false, false),
     ).toBe(false);
     setTty(true);
     process.env.CI = "1";
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("status", false, false, false, false),
+      cliMainTestInternals.shouldStartUpdateCheck(undefined, true, false, false, false, false),
     ).toBe(false);
     delete process.env.CI;
     process.env.CODESPACES = "1";
     expect(
-      cliMainTestInternals.shouldStartUpdateCheck("status", false, false, false, false),
+      cliMainTestInternals.shouldStartUpdateCheck(undefined, true, false, false, false, false),
     ).toBe(false);
   });
 });

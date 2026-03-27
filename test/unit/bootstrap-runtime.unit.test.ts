@@ -472,7 +472,7 @@ describe("bootstrap runtime coverage", () => {
     expect(dotenvConfigMock).not.toHaveBeenCalled();
   });
 
-  test("runCli starts the background update check for interactive runtime commands", async () => {
+  test("runCli keeps the background update check off runtime commands", async () => {
     const checkForUpdateInBackgroundMock = mock(() => undefined);
     const getUpdateNoticeMock = mock(() => null);
     const program = makeProgram(() => async () => undefined);
@@ -491,7 +491,7 @@ describe("bootstrap runtime coverage", () => {
     const { runCli } = await import("../../src/cli-main.ts?update-check-runtime");
     await captureAsyncOutput(() => runCli({ version: "1.2.3" }, ["status"]));
 
-    expect(checkForUpdateInBackgroundMock).toHaveBeenCalledTimes(1);
+    expect(checkForUpdateInBackgroundMock).not.toHaveBeenCalled();
     expect(getUpdateNoticeMock).not.toHaveBeenCalled();
   });
 

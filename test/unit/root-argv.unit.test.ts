@@ -31,4 +31,21 @@ describe("root argv parsing", () => {
       isWelcome: false,
     });
   });
+
+  test("welcome parsing accepts split-value options and bundled welcome flags", () => {
+    expect(
+      parseRootArgv(["--timeout", "30", "-qy", "--no-color"]),
+    ).toMatchObject({
+      isMachineMode: false,
+      isQuiet: true,
+      isWelcome: true,
+    });
+  });
+
+  test("welcome parsing rejects incomplete root options with missing values", () => {
+    expect(parseRootArgv(["--timeout"])).toMatchObject({
+      isMachineMode: false,
+      isWelcome: false,
+    });
+  });
 });

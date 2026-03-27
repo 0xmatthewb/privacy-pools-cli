@@ -3,7 +3,10 @@ import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CLI_PROTOCOL_PROFILE } from "../../src/config/protocol-profile.js";
-import { launcherTestInternals } from "../../src/launcher.ts";
+import {
+  launcherTestInternals,
+  runLauncher,
+} from "../../src/launcher.ts";
 import {
   CURRENT_RUNTIME_DESCRIPTOR,
 } from "../../src/runtime/runtime-contract.js";
@@ -14,6 +17,12 @@ import {
   NATIVE_JS_BRIDGE_ENV,
 } from "../../src/runtime/current.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
+import {
+  captureAsyncJsonOutput,
+  captureAsyncJsonOutputAllowExit,
+  captureAsyncOutput,
+  captureAsyncOutputAllowExit,
+} from "../helpers/output.ts";
 import { parseRootArgv } from "../../src/utils/root-argv.ts";
 
 const PKG = { version: "1.7.0" };
@@ -85,7 +94,7 @@ describe("launcher routing", () => {
   test("uses an explicit binary override when native is not disabled", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,
-      ["status", "--json"],
+      ["flow", "--help"],
       {
         PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
       },
@@ -93,7 +102,7 @@ describe("launcher routing", () => {
 
     expect(target.kind).toBe("native-binary");
     expect(target.command).toBe("/tmp/privacy-pools-native");
-    expect(target.args).toEqual(["status", "--json"]);
+    expect(target.args).toEqual(["flow", "--help"]);
     expect(target.env[NATIVE_JS_BRIDGE_ENV]).toBeTruthy();
     expect(
       decodeNativeJsBridgeDescriptor(String(target.env[NATIVE_JS_BRIDGE_ENV])),
@@ -112,13 +121,15 @@ describe("launcher routing", () => {
   test("native forwarding keeps the public CLI env surface limited to documented keys", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,
-      ["status", "--json"],
+      ["flow", "--help"],
       {
         PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+        PRIVACY_POOLS_PRIVATE_KEY: "0x" + "11".repeat(32),
       },
     );
 
     expect(target.kind).toBe("native-binary");
+    expect(target.env.PRIVACY_POOLS_PRIVATE_KEY).toBeUndefined();
 
     const cliEnvNames = Object.keys(target.env)
       .filter((name) => name.startsWith("PRIVACY_POOLS_CLI_"))
@@ -129,6 +140,101 @@ describe("launcher routing", () => {
     ]);
     expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_COMMAND).toBeUndefined();
     expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64).toBeUndefined();
+  });
+
+  test("resolveCommandRoute strips help and expands aliases to the canonical route", () => {
+    expect(launcherTestInternals.resolveCommandRoute([])).toBeNull();
+    expect(
+      launcherTestInternals.resolveCommandRoute(["help", "exit"]),
+    ).toBe("ragequit");
+    expect(
+      launcherTestInternals.resolveCommandRoute([
+        "withdraw",
+        "quote",
+        "0.1",
+        "ETH",
+      ]),
+    ).toBe("withdraw quote");
+  });
+
+  test("applyLauncherEnvironment only enables NO_COLOR when explicitly requested", () => {
+    const originalNoColor = process.env.NO_COLOR;
+    delete process.env.NO_COLOR;
+
+    try {
+      launcherTestInternals.applyLauncherEnvironment(["guide"]);
+      expect(process.env.NO_COLOR).toBeUndefined();
+
+      launcherTestInternals.applyLauncherEnvironment(["guide", "--no-color"]);
+      expect(process.env.NO_COLOR).toBe("1");
+    } finally {
+      if (originalNoColor === undefined) {
+        delete process.env.NO_COLOR;
+      } else {
+        process.env.NO_COLOR = originalNoColor;
+      }
+    }
+  });
+
+  test("writeVersionOutput prints human and structured version payloads", async () => {
+    const human = await captureAsyncOutput(() =>
+      launcherTestInternals.writeVersionOutput(PKG, false),
+    );
+    expect(human.stdout).toBe("1.7.0\n");
+    expect(human.stderr).toBe("");
+
+    const structured = await captureAsyncJsonOutput(() =>
+      launcherTestInternals.writeVersionOutput(PKG, true),
+    );
+    expect(structured.json).toMatchObject({
+      success: true,
+      mode: "version",
+      version: "1.7.0",
+    });
+    expect(structured.stderr).toBe("");
+  });
+
+  test("runLauncher serves the root version fast path without spawning a child", async () => {
+    const human = await captureAsyncOutputAllowExit(() =>
+      runLauncher(PKG, ["--version"]),
+    );
+    expect(human.exitCode).toBe(0);
+    expect(human.stdout).toBe("1.7.0\n");
+    expect(human.stderr).toBe("");
+
+    const structured = await captureAsyncJsonOutputAllowExit(() =>
+      runLauncher(PKG, ["--agent", "--version"]),
+    );
+    expect(structured.exitCode).toBe(0);
+    expect(structured.json).toMatchObject({
+      success: true,
+      mode: "version",
+      version: "1.7.0",
+    });
+    expect(structured.stderr).toBe("");
+  });
+
+  test("runLauncher renders structured worker-path failures for js-owned commands", async () => {
+    const originalWorkerOverride = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    process.env.PRIVACY_POOLS_CLI_JS_WORKER = "/tmp/pp-missing-worker.js";
+
+    try {
+      const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+        runLauncher(PKG, ["--agent", "status", "--no-check"]),
+      );
+
+      expect(exitCode).toBe(2);
+      expect(stderr).toBe("");
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.errorMessage).toBe("The JS runtime worker is unavailable.");
+    } finally {
+      if (originalWorkerOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
+      }
+    }
   });
 
   test("prefers an installed same-version native package by default", () => {
@@ -144,6 +250,22 @@ describe("launcher routing", () => {
     expect(target.kind).toBe("native-binary");
     expect(target.command).toBe("/tmp/privacy-pools-native");
     expect(target.args).toEqual(["--help"]);
+  });
+
+  test("keeps js-owned routes on the js worker even when native is available", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      PKG,
+      ["--agent", "status", "--no-check"],
+      {
+        PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+      },
+      {
+        resolveInstalledNativeBinary: () => "/tmp/privacy-pools-native",
+      },
+    );
+
+    expect(target.kind).toBe("js-worker");
+    expect(target.command).toBe(process.execPath);
   });
 
   test("knows which invocations still require the js worker under native launch", () => {
@@ -179,6 +301,12 @@ describe("launcher routing", () => {
 
     expect(
       launcherTestInternals.invocationRequiresJsWorker(parseRootArgv([])),
+    ).toBe(true);
+
+    expect(
+      launcherTestInternals.invocationRequiresJsWorker(
+        parseRootArgv(["definitely-unknown-command"]),
+      ),
     ).toBe(true);
   });
 

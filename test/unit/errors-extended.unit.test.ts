@@ -6,6 +6,7 @@ import {
   accountWebsiteRecoveryRequiredError,
   defaultErrorCode,
   printError,
+  sanitizeDiagnosticText,
 } from "../../src/utils/errors.ts";
 
 function captureStdout(run: () => void): string {
@@ -253,6 +254,22 @@ describe("classifyError - edge cases", () => {
   test("object with non-string code → UNKNOWN", () => {
     const err = classifyError({ code: 42 });
     expect(err.category).toBe("UNKNOWN");
+  });
+});
+
+describe("sanitizeDiagnosticText", () => {
+  test("redacts urls, hosts, file paths, and private keys", () => {
+    const sanitized = sanitizeDiagnosticText(
+      "fetch https://rpc.example.com/?token=abc failed at /Users/alice/.privacy-pools/config.json with key 0x" +
+        "11".repeat(32),
+    );
+
+    expect(sanitized).not.toContain("rpc.example.com");
+    expect(sanitized).not.toContain("/Users/alice");
+    expect(sanitized).not.toContain("11".repeat(32));
+    expect(sanitized).toContain("<redacted-url>");
+    expect(sanitized).toContain("<redacted-path>");
+    expect(sanitized).toContain("<redacted-private-key>");
   });
 });
 

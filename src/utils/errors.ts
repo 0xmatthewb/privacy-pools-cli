@@ -40,6 +40,33 @@ export function defaultErrorCode(category: ErrorCategory): string {
   return DEFAULT_CODE_BY_CATEGORY[category];
 }
 
+const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s'")]+/gi;
+const IPV4_HOST_PATTERN = /\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b/g;
+const HOSTNAME_PATTERN = /\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?\b/gi;
+const WINDOWS_PATH_PATTERN = /\b[A-Za-z]:\\[^\s'")]+/g;
+const POSIX_PATH_PATTERN = /(^|[\s(])\/(?:[^/\s'")]+\/)*[^/\s'")]+/g;
+const PRIVATE_KEY_PATTERN = /\b0x[0-9a-fA-F]{64}\b/g;
+
+export function sanitizeDiagnosticText(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "unknown error";
+
+  return trimmed
+    .replace(URL_PATTERN, "<redacted-url>")
+    .replace(PRIVATE_KEY_PATTERN, "<redacted-private-key>")
+    .replace(WINDOWS_PATH_PATTERN, "<redacted-path>")
+    .replace(
+      POSIX_PATH_PATTERN,
+      (_match, prefix: string) => `${prefix}<redacted-path>`,
+    )
+    .replace(
+      /\b(?:ENOTFOUND|EAI_AGAIN)\s+\S+/gi,
+      (match) => `${match.split(/\s+/, 1)[0]} <redacted-host>`,
+    )
+    .replace(IPV4_HOST_PATTERN, "<redacted-host>")
+    .replace(HOSTNAME_PATTERN, "<redacted-host>");
+}
+
 export class CLIError extends Error {
   constructor(
     message: string,
@@ -205,12 +232,13 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
 export function classifyError(error: unknown): CLIError {
   if (error instanceof CLIError) return error;
 
-  const message =
+  const rawMessage =
     error instanceof Error ? error.message : String(error);
+  const message = sanitizeDiagnosticText(rawMessage);
 
   // Check for known contract revert reasons
   for (const [key, mapped] of Object.entries(CONTRACT_ERROR_MAP)) {
-    if (message.includes(key)) {
+    if (rawMessage.includes(key)) {
       return new CLIError(
         mapped.message,
         "CONTRACT",
@@ -244,7 +272,7 @@ export function classifyError(error: unknown): CLIError {
   }
 
   // Network/RPC errors
-  if (message.includes("timeout")) {
+  if (rawMessage.includes("timeout")) {
     return new CLIError(
       `Network error: ${message}`,
       "RPC",
@@ -254,7 +282,10 @@ export function classifyError(error: unknown): CLIError {
     );
   }
 
-  if (message.includes("429") || message.toLowerCase().includes("rate limit")) {
+  if (
+    rawMessage.includes("429") ||
+    rawMessage.toLowerCase().includes("rate limit")
+  ) {
     return new CLIError(
       `RPC rate-limited: ${message}`,
       "RPC",
@@ -270,7 +301,7 @@ export function classifyError(error: unknown): CLIError {
   // handles non-Error values (e.g. raw strings) that contain network tokens.
   if (
     isTransientNetworkError(error) ||
-    /fetch|ECONNREFUSED|ENOTFOUND|ENETUNREACH|EAI_AGAIN/.test(message)
+    /fetch|ECONNREFUSED|ENOTFOUND|ENETUNREACH|EAI_AGAIN/.test(rawMessage)
   ) {
     return new CLIError(
       `Network error: ${message}`,
@@ -283,8 +314,8 @@ export function classifyError(error: unknown): CLIError {
 
   // Insufficient gas / funds from transaction simulation
   if (
-    message.includes("insufficient funds") ||
-    message.includes("exceeds the balance")
+    rawMessage.includes("insufficient funds") ||
+    rawMessage.includes("exceeds the balance")
   ) {
     return new CLIError(
       "Insufficient funds for transaction.",
@@ -296,8 +327,8 @@ export function classifyError(error: unknown): CLIError {
 
   // Nonce errors (concurrent transactions or stuck tx)
   if (
-    message.includes("nonce") &&
-    (message.includes("too low") || message.includes("already known"))
+    rawMessage.includes("nonce") &&
+    (rawMessage.includes("too low") || rawMessage.includes("already known"))
   ) {
     return new CLIError(
       `Transaction nonce conflict: ${message}`,

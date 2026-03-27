@@ -7,7 +7,7 @@ import type {
   WithdrawalProofInput,
 } from "@0xbow/privacy-pools-core-sdk";
 import { getCircuitArtifactPaths } from "./circuits.js";
-import { CLIError } from "../utils/errors.js";
+import { CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
 const SINGLE_THREAD_PROVER_OPTIONS = { singleThread: true } as const;
 
 export async function proveCommitment(
@@ -32,7 +32,9 @@ export async function proveCommitment(
     throw new CLIError(
       "Failed to generate commitment proof.",
       "PROOF",
-      error instanceof Error ? error.message : String(error),
+      sanitizeDiagnosticText(
+        error instanceof Error ? error.message : String(error),
+      ),
       "PROOF_GENERATION_FAILED"
     );
   }
@@ -99,7 +101,9 @@ export async function proveWithdrawal(
     throw new CLIError(
       "Failed to generate withdrawal proof.",
       "PROOF",
-      error instanceof Error ? error.message : String(error),
+      sanitizeDiagnosticText(
+        error instanceof Error ? error.message : String(error),
+      ),
       "PROOF_GENERATION_FAILED"
     );
   }

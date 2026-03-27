@@ -35,6 +35,7 @@ const ENV_CLI_BINARY = "PRIVACY_POOLS_CLI_BINARY";
 const ENV_CLI_DISABLE_NATIVE = "PRIVACY_POOLS_CLI_DISABLE_NATIVE";
 const ENV_CLI_ENABLE_NATIVE = "PRIVACY_POOLS_CLI_ENABLE_NATIVE";
 const ENV_CLI_JS_WORKER = "PRIVACY_POOLS_CLI_JS_WORKER";
+const ENV_PRIVATE_KEY = "PRIVACY_POOLS_PRIVATE_KEY";
 
 const STATIC_DISCOVERY_COMMANDS = new Set<string>(
   [...GENERATED_STATIC_LOCAL_COMMANDS].filter((command) => command !== "completion"),
@@ -177,8 +178,12 @@ function createNativeForwardingEnv(
 ): NodeJS.ProcessEnv {
   const workerPath = resolveConfiguredJsWorkerPath(env);
   const workerArgs = defaultJsWorkerArgs(workerPath);
-  return {
+  const nextEnv = {
     ...env,
+  };
+  delete nextEnv[ENV_PRIVATE_KEY];
+  return {
+    ...nextEnv,
     [ENV_CLI_JS_WORKER]: workerPath,
     [NATIVE_JS_BRIDGE_ENV]: encodeNativeJsBridgeDescriptor(
       createNativeJsBridgeDescriptor(process.execPath, workerArgs),
@@ -195,6 +200,11 @@ export function resolveLaunchTarget(
   } = {},
 ): LaunchTarget {
   if (isFlagEnabled(env[ENV_CLI_DISABLE_NATIVE])) {
+    return createJsWorkerTarget(argv, env);
+  }
+
+  const parsed = parseRootArgv(argv);
+  if (invocationRequiresJsWorker(parsed)) {
     return createJsWorkerTarget(argv, env);
   }
 
