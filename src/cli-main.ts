@@ -9,7 +9,7 @@ import {
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { createRootProgram } from "./program.js";
-import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
+import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-routing-static.js";
 import {
   firstNonOptionToken,
   hasShortFlag,

@@ -16,10 +16,15 @@ import {
 } from "../../src/utils/command-discovery-static.ts";
 import {
   GENERATED_COMMAND_MANIFEST,
-  GENERATED_COMMAND_ROUTES,
   GENERATED_ROOT_COMMANDS,
-  GENERATED_STATIC_LOCAL_COMMANDS,
 } from "../../src/utils/command-manifest.ts";
+import {
+  GENERATED_COMMAND_ALIAS_MAP,
+  GENERATED_COMMAND_PATHS,
+  GENERATED_COMMAND_ROUTES,
+  GENERATED_STATIC_LOCAL_COMMANDS,
+  GENERATED_TOKENIZED_COMMAND_ROUTES,
+} from "../../src/utils/command-routing-static.ts";
 
 describe("command discovery static conformance", () => {
   test("static command path catalog matches runtime discovery metadata", () => {
@@ -53,12 +58,22 @@ describe("command discovery static conformance", () => {
 
   test("generated manifest stays aligned on root commands, static-local commands, and ownership", () => {
     expect(GENERATED_COMMAND_MANIFEST.commandPaths).toEqual(COMMAND_PATHS);
+    expect(GENERATED_COMMAND_PATHS).toEqual(COMMAND_PATHS);
     expect(GENERATED_STATIC_LOCAL_COMMANDS).toEqual([
       "guide",
       "capabilities",
       "describe",
       "completion",
     ]);
+    expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({ exit: "ragequit" });
+    expect(GENERATED_TOKENIZED_COMMAND_ROUTES).toEqual(
+      [...GENERATED_COMMAND_PATHS]
+        .map((route) => ({
+          route,
+          tokens: route.split(" "),
+        }))
+        .sort((left, right) => right.tokens.length - left.tokens.length),
+    );
 
     for (const rootCommand of GENERATED_ROOT_COMMANDS) {
       expect(COMMAND_PATHS).toContain(rootCommand.name);

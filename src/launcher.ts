@@ -27,13 +27,18 @@ import {
 } from "./native-package-metadata.js";
 import type { ParsedRootArgv } from "./utils/root-argv.js";
 import { parseRootArgv } from "./utils/root-argv.js";
-import { GENERATED_COMMAND_MANIFEST } from "./utils/command-manifest.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
-import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
+import {
+  GENERATED_COMMAND_ALIAS_MAP,
+  GENERATED_COMMAND_ROUTES,
+  GENERATED_STATIC_LOCAL_COMMANDS,
+  GENERATED_TOKENIZED_COMMAND_ROUTES,
+} from "./utils/command-routing-static.js";
 
 const ENV_CLI_BINARY = "PRIVACY_POOLS_CLI_BINARY";
 const ENV_CLI_DISABLE_NATIVE = "PRIVACY_POOLS_CLI_DISABLE_NATIVE";
+const ENV_CLI_DISABLE_LOCAL_FAST_PATH = "PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH";
 const ENV_CLI_ENABLE_NATIVE = "PRIVACY_POOLS_CLI_ENABLE_NATIVE";
 const ENV_CLI_JS_WORKER = "PRIVACY_POOLS_CLI_JS_WORKER";
 const ENV_PRIVATE_KEY = "PRIVACY_POOLS_PRIVATE_KEY";
@@ -41,12 +46,7 @@ const ENV_PRIVATE_KEY = "PRIVACY_POOLS_PRIVATE_KEY";
 const STATIC_DISCOVERY_COMMANDS = new Set<string>(
   [...GENERATED_STATIC_LOCAL_COMMANDS].filter((command) => command !== "completion"),
 );
-const TOKENIZED_COMMAND_ROUTES = GENERATED_COMMAND_MANIFEST.commandPaths
-  .map((route) => ({
-    route,
-    tokens: route.split(" "),
-  }))
-  .sort((left, right) => right.tokens.length - left.tokens.length);
+const TOKENIZED_COMMAND_ROUTES = GENERATED_TOKENIZED_COMMAND_ROUTES;
 
 const SIGNAL_EXIT_CODES: Partial<Record<NodeJS.Signals, number>> = {
   SIGINT: 130,
@@ -296,8 +296,7 @@ function resolveCommandRoute(tokens: string[]): string | null {
   if (candidateTokens.length === 0) return null;
 
   const normalizedTokens = [...candidateTokens];
-  const aliasedFirstToken =
-    GENERATED_COMMAND_MANIFEST.aliasMap[normalizedTokens[0] ?? ""];
+  const aliasedFirstToken = GENERATED_COMMAND_ALIAS_MAP[normalizedTokens[0] ?? ""];
   if (aliasedFirstToken) {
     normalizedTokens.splice(0, 1, ...aliasedFirstToken.split(" "));
   }
@@ -356,8 +355,8 @@ function invocationRequiresJsWorker(parsed: ParsedRootArgv): boolean {
     return parsed.firstCommandToken !== undefined || parsed.nonOptionTokens.length === 0;
   }
 
-  const commandRoute = GENERATED_COMMAND_MANIFEST.commandRoutes[
-    route as keyof typeof GENERATED_COMMAND_MANIFEST.commandRoutes
+  const commandRoute = GENERATED_COMMAND_ROUTES[
+    route as keyof typeof GENERATED_COMMAND_ROUTES
   ];
 
   if (commandRoute.owner === "native-shell") {
@@ -399,7 +398,10 @@ async function tryRunLocalFastPath(
   parsed: ParsedRootArgv,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<boolean> {
-  if (hasExplicitBinaryOverride(env)) {
+  if (
+    hasExplicitBinaryOverride(env) ||
+    isFlagEnabled(env[ENV_CLI_DISABLE_LOCAL_FAST_PATH])
+  ) {
     return false;
   }
 

@@ -81,13 +81,32 @@ function detectLinuxLibcFromSharedObjects(sharedObjects = []) {
   return null;
 }
 
-export function detectLinuxLibc(report = process.report?.getReport?.()) {
+function detectLinuxLibcFromReport(report) {
   const header = report?.header ?? {};
   if (header.glibcVersionRuntime || header.glibcVersionCompiler) {
     return "glibc";
   }
 
   return detectLinuxLibcFromSharedObjects(report?.sharedObjects);
+}
+
+let cachedProcessLinuxLibc;
+let hasCachedProcessLinuxLibc = false;
+
+export function detectLinuxLibc(report = undefined) {
+  if (report !== undefined) {
+    return detectLinuxLibcFromReport(report);
+  }
+
+  if (hasCachedProcessLinuxLibc) {
+    return cachedProcessLinuxLibc;
+  }
+
+  cachedProcessLinuxLibc = detectLinuxLibcFromReport(
+    process.report?.getReport?.(),
+  );
+  hasCachedProcessLinuxLibc = true;
+  return cachedProcessLinuxLibc;
 }
 
 export function getNativeDistribution(

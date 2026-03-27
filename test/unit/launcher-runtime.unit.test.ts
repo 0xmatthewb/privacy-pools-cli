@@ -331,6 +331,19 @@ describe("launcher runtime coverage", () => {
     expect(result).toBe(false);
   });
 
+  test("tryRunLocalFastPath can be disabled for launcher-native benchmark coverage", async () => {
+    const result = await launcherTestInternals.tryRunLocalFastPath(
+      PKG,
+      ["--help"],
+      parseRootArgv(["--help"]),
+      {
+        PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH: "1",
+      },
+    );
+
+    expect(result).toBe(false);
+  });
+
   test("tryRunLocalFastPath serves root version and root help through the real fast paths", async () => {
     const versionResult = await captureAsyncOutputAllowExit(() =>
       launcherTestInternals.tryRunLocalFastPath(

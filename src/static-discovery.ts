@@ -2,7 +2,7 @@ import type { GlobalOptions } from "./types.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { resolveGlobalMode } from "./utils/mode.js";
-import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
+import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-routing-static.js";
 
 const STATIC_DISCOVERY_COMMANDS = GENERATED_STATIC_LOCAL_COMMANDS.filter(
   (command): command is Exclude<(typeof GENERATED_STATIC_LOCAL_COMMANDS)[number], "completion"> =>
