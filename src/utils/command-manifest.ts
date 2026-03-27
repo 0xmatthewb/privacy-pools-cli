@@ -180,6 +180,8 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
   "pools": {
     "owner": "hybrid",
     "nativeModes": [
+      "default-list",
+      "csv-list",
       "structured-list",
       "help"
     ]
@@ -187,6 +189,8 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
   "activity": {
     "owner": "hybrid",
     "nativeModes": [
+      "default",
+      "csv",
       "structured",
       "help"
     ]
@@ -194,6 +198,8 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
   "stats": {
     "owner": "hybrid",
     "nativeModes": [
+      "default",
+      "csv",
       "structured-default",
       "structured-global",
       "help"
@@ -202,6 +208,8 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
   "stats global": {
     "owner": "hybrid",
     "nativeModes": [
+      "default",
+      "csv",
       "structured",
       "help"
     ]
@@ -209,6 +217,8 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
   "stats pool": {
     "owner": "hybrid",
     "nativeModes": [
+      "default",
+      "csv",
       "structured",
       "help"
     ]
@@ -944,6 +954,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
+          "default-list",
+          "csv-list",
           "structured-list",
           "help"
         ]
@@ -998,6 +1010,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]
@@ -1045,6 +1059,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured-default",
           "structured-global",
           "help"
@@ -1090,6 +1106,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]
@@ -1130,6 +1148,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]
@@ -1907,6 +1927,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "pools": {
       "owner": "hybrid",
       "nativeModes": [
+        "default-list",
+        "csv-list",
         "structured-list",
         "help"
       ]
@@ -1914,6 +1936,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "activity": {
       "owner": "hybrid",
       "nativeModes": [
+        "default",
+        "csv",
         "structured",
         "help"
       ]
@@ -1921,6 +1945,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "stats": {
       "owner": "hybrid",
       "nativeModes": [
+        "default",
+        "csv",
         "structured-default",
         "structured-global",
         "help"
@@ -1929,6 +1955,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "stats global": {
       "owner": "hybrid",
       "nativeModes": [
+        "default",
+        "csv",
         "structured",
         "help"
       ]
@@ -1936,6 +1964,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "stats pool": {
       "owner": "hybrid",
       "nativeModes": [
+        "default",
+        "csv",
         "structured",
         "help"
       ]

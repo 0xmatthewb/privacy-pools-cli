@@ -296,6 +296,51 @@ describe("native shell parity", () => {
     });
   });
 
+  nativeTest("public read-only human and csv outputs stay stream-identical on fixture data", () => {
+    const env = fixtureEnv(fixture!);
+
+    expectStreamParity(nativeBinary, ["stats"], {
+      js: { env },
+      native: { env },
+    });
+    expectStreamParity(
+      nativeBinary,
+      ["--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      {
+        js: { env },
+        native: { env },
+      },
+    );
+    expectStreamParity(nativeBinary, ["--format", "csv", "stats"], {
+      js: { env },
+      native: { env },
+    });
+    expectStreamParity(
+      nativeBinary,
+      ["--format", "csv", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      {
+        js: { env },
+        native: { env },
+      },
+    );
+    expectStreamParity(nativeBinary, ["activity"], {
+      js: { env },
+      native: { env },
+    });
+    expectStreamParity(nativeBinary, ["--format", "csv", "activity"], {
+      js: { env },
+      native: { env },
+    });
+    expectStreamParity(nativeBinary, ["--chain", "sepolia", "pools"], {
+      js: { env },
+      native: { env },
+    });
+    expectStreamParity(nativeBinary, ["--format", "csv", "--chain", "sepolia", "pools"], {
+      js: { env },
+      native: { env },
+    });
+  });
+
   nativeTest("offline public envelopes and degraded pool discovery stay aligned", () => {
     expectSourceJsonParity(nativeBinary, ["--json", "--chain", "mainnet", "activity"], {
       js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
@@ -380,6 +425,24 @@ describe("native shell parity", () => {
       parseJsonOutput(jsResult.stdout),
     );
     expect(directNativeResult.stderr).toBe(jsResult.stderr);
+  });
+
+  nativeTest("native public render paths work directly without a JS bridge", () => {
+    const env = fixtureEnv(fixture!);
+
+    for (const args of [
+      ["stats"],
+      ["--format", "csv", "stats"],
+      ["--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      ["activity"],
+      ["--format", "csv", "activity"],
+      ["--chain", "sepolia", "pools"],
+      ["--format", "csv", "--chain", "sepolia", "pools"],
+    ]) {
+      const result = runNativeBinaryDirect(nativeBinary, args, { env });
+      expect(result.status).toBe(0);
+      expect(result.stderr).not.toContain("JS worker bootstrap is unavailable");
+    }
   });
 
   nativeTest("stats pool input validation stays identical through the native path", () => {

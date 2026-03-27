@@ -76,7 +76,7 @@
     "stats global": "\nCommand: stats global\n\nDescription: Show global Privacy Pools statistics (all-time and last 24h)\nUsage: privacy-pools stats global\nRequires init: no\nSafe read-only: yes\nExpected latency: medium\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  -q, --quiet\n  -v, --verbose\n  --no-banner\n  --no-color\n  --agent\n  --timeout <seconds>\n\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --agent\n\nJSON fields:\n  { mode, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
     "stats pool": "\nCommand: stats pool\n\nDescription: Show statistics for a specific pool (all-time and last 24h)\nUsage: privacy-pools stats pool --asset <symbol|address>\nRequires init: no\nSafe read-only: yes\nExpected latency: medium\n\nFlags:\n  --asset <symbol|address>\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -c, --chain <name>\n  -r, --rpc-url <url>\n  -q, --quiet\n  -v, --verbose\n  --no-banner\n  --no-color\n  --agent\n  --timeout <seconds>\n\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --agent --chain mainnet\n\nJSON fields:\n  { mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
     "status": "\nCommand: status\n\nDescription: Show configuration and check connection health\nUsage: privacy-pools status\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nFlags:\n  --check\n  --no-check\n  --check-rpc\n  --check-asp\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -c, --chain <name>\n  -r, --rpc-url <url>\n  -q, --quiet\n  -v, --verbose\n  --no-banner\n  --no-color\n  --agent\n  --timeout <seconds>\n\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --agent --check-rpc\n  privacy-pools status --chain mainnet --rpc-url https://...\n\nJSON fields:\n  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
-    "capabilities": "\nCommand: capabilities\n\nDescription: Describe CLI capabilities for agent discovery\nUsage: privacy-pools capabilities\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -c, --chain <name>\n  -r, --rpc-url <url>\n  -q, --quiet\n  -v, --verbose\n  --no-banner\n  --no-color\n  --agent\n  --timeout <seconds>\n\nExamples:\n  privacy-pools capabilities\n  privacy-pools capabilities --agent\n\nJSON fields:\n  { commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
+    "capabilities": "\nCommand: capabilities\n\nDescription: Describe CLI capabilities for agent discovery\nUsage: privacy-pools capabilities\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -c, --chain <name>\n  -r, --rpc-url <url>\n  -q, --quiet\n  -v, --verbose\n  --no-banner\n  --no-color\n  --agent\n  --timeout <seconds>\n\nExamples:\n  privacy-pools capabilities\n  privacy-pools capabilities --agent\n\nJSON fields:\n  { commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
     "describe": "\nCommand: describe\n\nDescription: Describe one command for runtime agent introspection\nUsage: privacy-pools describe <command...>\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nFlags:\n  <command...>\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -c, --chain <name>\n  -r, --rpc-url <url>\n  -q, --quiet\n  -v, --verbose\n  --no-banner\n  --no-color\n  --agent\n  --timeout <seconds>\n\nExamples:\n  privacy-pools describe withdraw\n  privacy-pools describe withdraw quote --agent\n  privacy-pools describe stats global --agent\n\nJSON fields:\n  { command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
     "guide": "\nCommand: guide\n\nDescription: Show usage guide, workflow, and reference\nUsage: privacy-pools guide\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -c, --chain <name>\n  -r, --rpc-url <url>\n  -q, --quiet\n  -v, --verbose\n  --no-banner\n  --no-color\n  --agent\n  --timeout <seconds>\n\nExamples:\n  privacy-pools guide\n  privacy-pools guide --agent\n\nJSON fields:\n  { mode: \"help\", help }",
     "deposit": "\nCommand: deposit\n\nDescription: Deposit into a pool\nUsage: privacy-pools deposit <amount> [asset]\nRequires init: yes\nSafe read-only: no\nExpected latency: slow\n\nFlags:\n  --asset <symbol|address>\n  --unsigned [envelope|tx]\n  --dry-run\n  --ignore-unique-amount\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -c, --chain <name>\n  -r, --rpc-url <url>\n  -q, --quiet\n  -v, --verbose\n  --no-banner\n  --no-color\n  --agent\n  --timeout <seconds>\n\nPrerequisites:\n  init\n\nExamples:\n  privacy-pools deposit 0.1 ETH\n  privacy-pools deposit 100 USDC\n  privacy-pools deposit 0.05 ETH --agent\n  privacy-pools deposit 0.1 ETH --unsigned\n  privacy-pools deposit 0.1 ETH --dry-run\n  privacy-pools deposit 0.1 --asset ETH --chain mainnet\n\nJSON fields:\n  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }\n\nJSON variants:\n  --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }\n  --unsigned tx: [{ to, data, value, valueHex, chainId }]\n  --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }\n\nSafety notes:\n  Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.\n  A vetting fee is deducted from the deposit amount by the pool's ASP.\n  Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.\n\nAgent workflow:\n  Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.\n\nAdditional modes:\n  --unsigned builds transaction payloads without submitting.\n  --dry-run validates the operation without submitting it.",
@@ -1055,6 +1055,8 @@
       "pools": {
         "owner": "hybrid",
         "nativeModes": [
+          "default-list",
+          "csv-list",
           "structured-list",
           "help"
         ]
@@ -1062,6 +1064,8 @@
       "activity": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]
@@ -1069,6 +1073,8 @@
       "stats": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured-default",
           "structured-global",
           "help"
@@ -1077,6 +1083,8 @@
       "stats global": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]
@@ -1084,6 +1092,8 @@
       "stats pool": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]
@@ -1819,6 +1829,8 @@
         "execution": {
           "owner": "hybrid",
           "nativeModes": [
+            "default-list",
+            "csv-list",
             "structured-list",
             "help"
           ]
@@ -1873,6 +1885,8 @@
         "execution": {
           "owner": "hybrid",
           "nativeModes": [
+            "default",
+            "csv",
             "structured",
             "help"
           ]
@@ -1920,6 +1934,8 @@
         "execution": {
           "owner": "hybrid",
           "nativeModes": [
+            "default",
+            "csv",
             "structured-default",
             "structured-global",
             "help"
@@ -1965,6 +1981,8 @@
         "execution": {
           "owner": "hybrid",
           "nativeModes": [
+            "default",
+            "csv",
             "structured",
             "help"
           ]
@@ -2005,6 +2023,8 @@
         "execution": {
           "owner": "hybrid",
           "nativeModes": [
+            "default",
+            "csv",
             "structured",
             "help"
           ]
@@ -2782,6 +2802,8 @@
       "pools": {
         "owner": "hybrid",
         "nativeModes": [
+          "default-list",
+          "csv-list",
           "structured-list",
           "help"
         ]
@@ -2789,6 +2811,8 @@
       "activity": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]
@@ -2796,6 +2820,8 @@
       "stats": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured-default",
           "structured-global",
           "help"
@@ -2804,6 +2830,8 @@
       "stats global": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]
@@ -2811,6 +2839,8 @@
       "stats pool": {
         "owner": "hybrid",
         "nativeModes": [
+          "default",
+          "csv",
           "structured",
           "help"
         ]

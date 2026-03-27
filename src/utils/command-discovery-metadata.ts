@@ -795,21 +795,21 @@ function defaultExecutionMetadata(path: CommandPath): CommandExecutionDescriptor
   if (path === "stats") {
     return {
       owner: "hybrid",
-      nativeModes: ["structured-default", "structured-global", "help"],
+      nativeModes: ["default", "csv", "structured-default", "structured-global", "help"],
     };
   }
 
   if (path === "stats global" || path === "stats pool" || path === "activity") {
     return {
       owner: "hybrid",
-      nativeModes: ["structured", "help"],
+      nativeModes: ["default", "csv", "structured", "help"],
     };
   }
 
   if (path === "pools") {
     return {
       owner: "hybrid",
-      nativeModes: ["structured-list", "help"],
+      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
     };
   }
 

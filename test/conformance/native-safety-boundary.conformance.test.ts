@@ -22,7 +22,7 @@ const nativeManifest = JSON.parse(
 const EXPECTED_NON_JS_ROUTES = {
   activity: {
     owner: "hybrid",
-    nativeModes: ["structured", "help"],
+    nativeModes: ["default", "csv", "structured", "help"],
   },
   capabilities: {
     owner: "native-shell",
@@ -42,19 +42,19 @@ const EXPECTED_NON_JS_ROUTES = {
   },
   pools: {
     owner: "hybrid",
-    nativeModes: ["structured-list", "help"],
+    nativeModes: ["default-list", "csv-list", "structured-list", "help"],
   },
   stats: {
     owner: "hybrid",
-    nativeModes: ["structured-default", "structured-global", "help"],
+    nativeModes: ["default", "csv", "structured-default", "structured-global", "help"],
   },
   "stats global": {
     owner: "hybrid",
-    nativeModes: ["structured", "help"],
+    nativeModes: ["default", "csv", "structured", "help"],
   },
   "stats pool": {
     owner: "hybrid",
-    nativeModes: ["structured", "help"],
+    nativeModes: ["default", "csv", "structured", "help"],
   },
 } as const;
 
@@ -111,24 +111,24 @@ describe("native safety boundary conformance", () => {
   test("pools stays nativeized only for public list mode, not detail mode", () => {
     expect(GENERATED_COMMAND_ROUTES.pools).toEqual({
       owner: "hybrid",
-      nativeModes: ["structured-list", "help"],
+      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
     });
 
     expect(nativeManifest.routes.commandRoutes.pools).toEqual({
       owner: "hybrid",
-      nativeModes: ["structured-list", "help"],
+      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
     });
   });
 
-  test("stats pool is the only additional nativeized public read-only route", () => {
+  test("stats pool keeps native ownership limited to public render-only modes", () => {
     expect(GENERATED_COMMAND_ROUTES["stats pool"]).toEqual({
       owner: "hybrid",
-      nativeModes: ["structured", "help"],
+      nativeModes: ["default", "csv", "structured", "help"],
     });
 
     expect(nativeManifest.routes.commandRoutes["stats pool"]).toEqual({
       owner: "hybrid",
-      nativeModes: ["structured", "help"],
+      nativeModes: ["default", "csv", "structured", "help"],
     });
   });
 

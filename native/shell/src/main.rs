@@ -9,7 +9,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tiny_keccak::{Hasher, Keccak};
 
 const JSON_SCHEMA_VERSION: &str = "1.5.0";
@@ -367,6 +367,22 @@ struct ChainSummary {
 }
 
 #[derive(Debug, Clone)]
+struct ActivityRenderData {
+    mode: &'static str,
+    chain: String,
+    chains: Option<Vec<String>>,
+    page: u64,
+    per_page: u64,
+    total: Option<u64>,
+    total_pages: Option<u64>,
+    events: Vec<NormalizedActivityEvent>,
+    asset: Option<String>,
+    pool: Option<String>,
+    scope: Option<String>,
+    chain_filtered: bool,
+}
+
+#[derive(Debug, Clone)]
 struct NormalizedActivityEvent {
     event_type: String,
     tx_hash: Option<String>,
@@ -377,7 +393,39 @@ struct NormalizedActivityEvent {
     pool_symbol: Option<String>,
     pool_address: Option<String>,
     chain_id: Option<u64>,
+    timestamp_ms: Option<u64>,
     timestamp_iso: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct GlobalStatsRenderData {
+    chain: String,
+    chains: Vec<String>,
+    cache_timestamp: Value,
+    all_time: Value,
+    last_24h: Value,
+}
+
+#[derive(Debug, Clone)]
+struct PoolStatsRenderData {
+    chain: String,
+    asset: String,
+    pool: String,
+    scope: String,
+    cache_timestamp: Value,
+    all_time: Value,
+    last_24h: Value,
+}
+
+#[derive(Debug, Clone)]
+struct PoolsRenderData {
+    all_chains: bool,
+    chain_name: String,
+    search: Option<String>,
+    sort: String,
+    filtered_pools: Vec<PoolListingEntry>,
+    chain_summaries: Option<Vec<ChainSummary>>,
+    warnings: Vec<PoolWarning>,
 }
 
 #[derive(Debug, Clone)]
@@ -491,19 +539,13 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         "completion" if manifest_allows_native_mode("completion", "default", manifest) => {
             handle_completion(argv, parsed, manifest)
         }
-        "activity"
-            if should_handle_structured_public_command(parsed)
-                && manifest_allows_native_mode("activity", "structured", manifest) =>
-        {
+        "activity" if activity_native_mode(parsed, manifest).is_some() => {
             handle_activity_native(argv, parsed, manifest)
         }
         "stats" if stats_native_mode(argv, parsed, manifest).is_some() => {
             handle_stats_native(argv, parsed, manifest)
         }
-        "pools"
-            if should_handle_native_pools(argv, parsed)
-                && manifest_allows_native_mode("pools", "structured-list", manifest) =>
-        {
+        "pools" if pools_native_mode(argv, parsed, manifest).is_some() => {
             handle_pools_native(argv, parsed, manifest)
         }
         _ if is_known_root_command(first_command, manifest) => forward_to_js_worker(argv),
@@ -671,13 +713,12 @@ fn handle_activity_native(
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
     let mode = resolve_mode(parsed);
-    if !mode.is_json() {
-        return forward_to_js_worker(argv);
-    }
-
     let opts = parse_activity_options(argv)?;
     let config = load_config()?;
     let timeout_ms = parse_timeout_ms(argv);
+    if !mode.is_json() && !mode.is_quiet {
+        write_stderr_text("- Fetching public activity...");
+    }
 
     if let Some(asset) = opts.asset.as_deref() {
         let explicit_chain = parsed
@@ -699,18 +740,27 @@ fn handle_activity_native(
             Some(pool.symbol.as_str()),
             manifest,
         )?;
-        print_json_success(json!({
-            "mode": "pool-activity",
-            "chain": chain.name,
-            "page": parse_json_u64(response.get("page")).unwrap_or(opts.page),
-            "perPage": parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
-            "total": parse_json_u64(response.get("total")),
-            "totalPages": parse_json_u64(response.get("totalPages")),
-            "events": events.into_iter().map(activity_event_to_json).collect::<Vec<_>>(),
-            "asset": pool.symbol,
-            "pool": pool.pool_address,
-            "scope": pool.scope,
-        }));
+        let page = parse_json_u64(response.get("page")).unwrap_or(opts.page);
+        let per_page = parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page);
+        let total = parse_json_u64(response.get("total"));
+        let total_pages = parse_json_u64(response.get("totalPages"));
+        render_activity_output(
+            &mode,
+            ActivityRenderData {
+                mode: "pool-activity",
+                chain: chain.name.clone(),
+                chains: None,
+                page,
+                per_page,
+                total,
+                total_pages,
+                events,
+                asset: Some(pool.symbol),
+                pool: Some(pool.pool_address),
+                scope: Some(pool.scope),
+                chain_filtered: false,
+            },
+        );
         return Ok(0);
     }
 
@@ -724,20 +774,24 @@ fn handle_activity_native(
         )?
         .into_iter()
         .filter(|event| event.chain_id.is_none() || event.chain_id == Some(chain.id))
-        .map(activity_event_to_json)
         .collect::<Vec<_>>();
-
-        print_json_success(json!({
-            "mode": "global-activity",
-            "chain": chain.name,
-            "page": parse_json_u64(response.get("page")).unwrap_or(opts.page),
-            "perPage": parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
-            "total": Value::Null,
-            "totalPages": Value::Null,
-            "events": events,
-            "chainFiltered": true,
-            "note": "Pagination totals are unavailable when filtering by chain. Results may be sparse.",
-        }));
+        render_activity_output(
+            &mode,
+            ActivityRenderData {
+                mode: "global-activity",
+                chain: chain.name,
+                chains: None,
+                page: parse_json_u64(response.get("page")).unwrap_or(opts.page),
+                per_page: parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+                total: None,
+                total_pages: None,
+                events,
+                asset: None,
+                pool: None,
+                scope: None,
+                chain_filtered: true,
+            },
+        );
         return Ok(0);
     }
 
@@ -753,21 +807,30 @@ fn handle_activity_native(
         response.get("events").cloned().unwrap_or_else(|| json!([])),
         None,
         manifest,
-    )?
-    .into_iter()
-    .map(activity_event_to_json)
-    .collect::<Vec<_>>();
+    )?;
 
-    print_json_success(json!({
-        "mode": "global-activity",
-        "chain": "all-mainnets",
-        "chains": chains.iter().map(|chain| chain.name.clone()).collect::<Vec<_>>(),
-        "page": parse_json_u64(response.get("page")).unwrap_or(opts.page),
-        "perPage": parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
-        "total": parse_json_u64(response.get("total")),
-        "totalPages": parse_json_u64(response.get("totalPages")),
-        "events": events,
-    }));
+    render_activity_output(
+        &mode,
+        ActivityRenderData {
+            mode: "global-activity",
+            chain: "all-mainnets".to_string(),
+            chains: Some(
+                chains
+                    .iter()
+                    .map(|chain| chain.name.clone())
+                    .collect::<Vec<_>>(),
+            ),
+            page: parse_json_u64(response.get("page")).unwrap_or(opts.page),
+            per_page: parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+            total: parse_json_u64(response.get("total")),
+            total_pages: parse_json_u64(response.get("totalPages")),
+            events,
+            asset: None,
+            pool: None,
+            scope: None,
+            chain_filtered: false,
+        },
+    );
 
     Ok(0)
 }
@@ -778,8 +841,13 @@ fn handle_stats_native(
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
     let mode = resolve_mode(parsed);
-    if !mode.is_json() {
-        return forward_to_js_worker(argv);
+    if !mode.is_json() && !mode.is_quiet {
+        let message = if resolve_stats_subcommand(parsed) == StatsSubcommand::Pool {
+            "- Fetching pool statistics..."
+        } else {
+            "- Fetching global statistics..."
+        };
+        write_stderr_text(message);
     }
 
     let stats_subcommand = resolve_stats_subcommand(parsed);
@@ -807,22 +875,24 @@ fn handle_stats_native(
         let response = fetch_pool_statistics(&chain, &pool.scope, timeout_ms)?;
         let pool_stats = response.get("pool").and_then(Value::as_object);
 
-        print_json_success(json!({
-            "mode": "pool-stats",
-            "chain": chain.name,
-            "asset": pool.symbol,
-            "pool": pool.pool_address,
-            "scope": pool.scope,
-            "cacheTimestamp": response.get("cacheTimestamp").cloned().unwrap_or(Value::Null),
-            "allTime": pool_stats
-                .and_then(|stats| stats.get("allTime"))
-                .cloned()
-                .unwrap_or(Value::Null),
-            "last24h": pool_stats
-                .and_then(|stats| stats.get("last24h"))
-                .cloned()
-                .unwrap_or(Value::Null),
-        }));
+        render_pool_stats_output(
+            &mode,
+            PoolStatsRenderData {
+                chain: chain.name,
+                asset: pool.symbol,
+                pool: pool.pool_address,
+                scope: pool.scope,
+                cache_timestamp: response.get("cacheTimestamp").cloned().unwrap_or(Value::Null),
+                all_time: pool_stats
+                    .and_then(|stats| stats.get("allTime"))
+                    .cloned()
+                    .unwrap_or(Value::Null),
+                last_24h: pool_stats
+                    .and_then(|stats| stats.get("last24h"))
+                    .cloned()
+                    .unwrap_or(Value::Null),
+            },
+        );
 
         return Ok(0);
     }
@@ -846,14 +916,19 @@ fn handle_stats_native(
     })?;
     let response = fetch_global_statistics(representative_chain, parse_timeout_ms(argv))?;
 
-    print_json_success(json!({
-        "mode": "global-stats",
-        "chain": "all-mainnets",
-        "chains": chains.iter().map(|chain| chain.name.clone()).collect::<Vec<_>>(),
-        "cacheTimestamp": response.get("cacheTimestamp").cloned().unwrap_or(Value::Null),
-        "allTime": response.get("allTime").cloned().unwrap_or(Value::Null),
-        "last24h": response.get("last24h").cloned().unwrap_or(Value::Null),
-    }));
+    render_global_stats_output(
+        &mode,
+        GlobalStatsRenderData {
+            chain: "all-mainnets".to_string(),
+            chains: chains
+                .iter()
+                .map(|chain| chain.name.clone())
+                .collect::<Vec<_>>(),
+            cache_timestamp: response.get("cacheTimestamp").cloned().unwrap_or(Value::Null),
+            all_time: response.get("allTime").cloned().unwrap_or(Value::Null),
+            last_24h: response.get("last24h").cloned().unwrap_or(Value::Null),
+        },
+    );
 
     Ok(0)
 }
@@ -864,10 +939,6 @@ fn handle_pools_native(
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
     let mode = resolve_mode(parsed);
-    if !mode.is_json() {
-        return forward_to_js_worker(argv);
-    }
-
     let opts = parse_pools_options(argv)?;
     let config = load_config()?;
     let timeout_ms = parse_timeout_ms(argv);
@@ -888,6 +959,14 @@ fn handle_pools_native(
     } else {
         default_read_only_chains(manifest)
     };
+    if !mode.is_json() && !mode.is_quiet && !mode.is_csv() {
+        let message = if is_multi_chain {
+            "- Fetching pools across chains...".to_string()
+        } else {
+            format!("- Fetching pools for {}...", chains_to_query[0].name)
+        };
+        write_stderr_text(&message);
+    }
 
     let mut entries = Vec::<PoolListingEntry>::new();
     let mut warnings = Vec::<PoolWarning>::new();
@@ -934,19 +1013,31 @@ fn handle_pools_native(
         }
 
         if is_multi_chain {
-            print_json_success(json!({
-                "allChains": true,
-                "search": opts.search,
-                "sort": opts.sort,
-                "pools": [],
-            }));
+            render_pools_empty_output(
+                &mode,
+                PoolsRenderData {
+                    all_chains: true,
+                    chain_name: String::new(),
+                    search: opts.search.clone(),
+                    sort: opts.sort.clone(),
+                    filtered_pools: vec![],
+                    chain_summaries: Some(chain_summaries),
+                    warnings,
+                },
+            );
         } else {
-            print_json_success(json!({
-                "chain": chains_to_query[0].name,
-                "search": opts.search,
-                "sort": opts.sort,
-                "pools": [],
-            }));
+            render_pools_empty_output(
+                &mode,
+                PoolsRenderData {
+                    all_chains: false,
+                    chain_name: chains_to_query[0].name.clone(),
+                    search: opts.search.clone(),
+                    sort: opts.sort.clone(),
+                    filtered_pools: vec![],
+                    chain_summaries: None,
+                    warnings,
+                },
+            );
         }
         return Ok(0);
     }
@@ -954,27 +1045,26 @@ fn handle_pools_native(
     let mut filtered = apply_pool_search(entries, opts.search.as_deref());
     sort_pools(&mut filtered, &opts.sort);
 
-    if is_multi_chain {
-        print_json_success(json!({
-            "allChains": true,
-            "search": opts.search,
-            "sort": opts.sort,
-            "chains": chain_summaries.into_iter().map(chain_summary_to_json).collect::<Vec<_>>(),
-            "pools": filtered.into_iter().map(|entry| pool_entry_to_json(&entry, true)).collect::<Vec<_>>(),
-            "warnings": if warnings.is_empty() {
-                Value::Null
+    render_pools_output(
+        &mode,
+        PoolsRenderData {
+            all_chains: is_multi_chain,
+            chain_name: if is_multi_chain {
+                String::new()
             } else {
-                Value::Array(warnings.into_iter().map(pool_warning_to_json).collect::<Vec<_>>())
+                chains_to_query[0].name.clone()
             },
-        }));
-    } else {
-        print_json_success(json!({
-            "chain": chains_to_query[0].name,
-            "search": opts.search,
-            "sort": opts.sort,
-            "pools": filtered.into_iter().map(|entry| pool_entry_to_json(&entry, false)).collect::<Vec<_>>(),
-        }));
-    }
+            search: opts.search,
+            sort: opts.sort,
+            filtered_pools: filtered,
+            chain_summaries: if is_multi_chain {
+                Some(chain_summaries)
+            } else {
+                None
+            },
+            warnings,
+        },
+    );
 
     Ok(0)
 }
@@ -1301,15 +1391,7 @@ fn is_static_quiet_mode(parsed: &ParsedRootArgv) -> bool {
     mode.is_quiet || mode.is_json() || mode.is_csv()
 }
 
-fn should_handle_structured_public_command(parsed: &ParsedRootArgv) -> bool {
-    parsed.is_structured_output_mode && !parsed.is_help_like
-}
-
-fn should_handle_native_pools(argv: &[String], parsed: &ParsedRootArgv) -> bool {
-    if !parsed.is_structured_output_mode || parsed.is_help_like {
-        return false;
-    }
-
+fn should_handle_native_pools(argv: &[String]) -> bool {
     let non_option_tokens = all_non_option_tokens(argv);
     non_option_tokens.len() == 1
         && non_option_tokens
@@ -1318,23 +1400,71 @@ fn should_handle_native_pools(argv: &[String], parsed: &ParsedRootArgv) -> bool 
             .unwrap_or(false)
 }
 
+fn activity_native_mode(parsed: &ParsedRootArgv, manifest: &Manifest) -> Option<&'static str> {
+    if parsed.is_help_like {
+        return None;
+    }
+    let native_mode = match resolve_mode(parsed).format {
+        OutputFormat::Json => "structured",
+        OutputFormat::Csv => "csv",
+        OutputFormat::Table => "default",
+    };
+    manifest_allows_native_mode("activity", native_mode, manifest).then_some(native_mode)
+}
+
+fn pools_native_mode(
+    argv: &[String],
+    parsed: &ParsedRootArgv,
+    manifest: &Manifest,
+) -> Option<&'static str> {
+    if parsed.is_help_like || !should_handle_native_pools(argv) {
+        return None;
+    }
+
+    let native_mode = match resolve_mode(parsed).format {
+        OutputFormat::Json => "structured-list",
+        OutputFormat::Csv => "csv-list",
+        OutputFormat::Table => "default-list",
+    };
+    manifest_allows_native_mode("pools", native_mode, manifest).then_some(native_mode)
+}
+
 fn stats_native_mode(
     argv: &[String],
     parsed: &ParsedRootArgv,
     manifest: &Manifest,
 ) -> Option<&'static str> {
-    if !should_handle_structured_public_command(parsed) {
+    if parsed.is_help_like {
         return None;
     }
 
     let command_path = resolve_command_path_prefix(&all_non_option_tokens(argv), manifest)?;
+    let mode = resolve_mode(parsed);
     match command_path.as_str() {
-        "stats" => manifest_allows_native_mode("stats", "structured-default", manifest)
-            .then_some("structured-default"),
-        "stats global" => manifest_allows_native_mode("stats global", "structured", manifest)
-            .then_some("structured"),
-        "stats pool" => manifest_allows_native_mode("stats pool", "structured", manifest)
-            .then_some("structured"),
+        "stats" => {
+            let native_mode = match mode.format {
+                OutputFormat::Json => "structured-default",
+                OutputFormat::Csv => "csv",
+                OutputFormat::Table => "default",
+            };
+            manifest_allows_native_mode("stats", native_mode, manifest).then_some(native_mode)
+        }
+        "stats global" => {
+            let native_mode = match mode.format {
+                OutputFormat::Json => "structured",
+                OutputFormat::Csv => "csv",
+                OutputFormat::Table => "default",
+            };
+            manifest_allows_native_mode("stats global", native_mode, manifest).then_some(native_mode)
+        }
+        "stats pool" => {
+            let native_mode = match mode.format {
+                OutputFormat::Json => "structured",
+                OutputFormat::Csv => "csv",
+                OutputFormat::Table => "default",
+            };
+            manifest_allows_native_mode("stats pool", native_mode, manifest).then_some(native_mode)
+        }
         _ => None,
     }
 }
@@ -2717,6 +2847,7 @@ fn normalize_activity_event(
         pool_symbol: symbol,
         pool_address,
         chain_id,
+        timestamp_ms,
         timestamp_iso: timestamp_ms.map(ms_to_iso_timestamp),
     })
 }
@@ -3206,6 +3337,677 @@ fn chain_summary_to_json(summary: ChainSummary) -> Value {
         "pools": summary.pools,
         "error": summary.error,
     })
+}
+
+fn render_activity_output(mode: &NativeMode, data: ActivityRenderData) {
+    if mode.is_json() {
+        let mut payload = Map::new();
+        payload.insert("mode".to_string(), Value::String(data.mode.to_string()));
+        payload.insert("chain".to_string(), Value::String(data.chain.clone()));
+        if let Some(chains) = data.chains {
+            payload.insert(
+                "chains".to_string(),
+                Value::Array(chains.into_iter().map(Value::String).collect::<Vec<_>>()),
+            );
+        }
+        payload.insert("page".to_string(), Value::Number(data.page.into()));
+        payload.insert("perPage".to_string(), Value::Number(data.per_page.into()));
+        insert_optional_u64(&mut payload, "total", data.total);
+        insert_optional_u64(&mut payload, "totalPages", data.total_pages);
+        payload.insert(
+            "events".to_string(),
+            Value::Array(
+                data.events
+                    .into_iter()
+                    .map(activity_event_to_json)
+                    .collect::<Vec<_>>(),
+            ),
+        );
+        if data.mode == "pool-activity" {
+            insert_optional_string(&mut payload, "asset", data.asset);
+            insert_optional_string(&mut payload, "pool", data.pool);
+            insert_optional_string(&mut payload, "scope", data.scope);
+        }
+        if data.chain_filtered {
+            payload.insert("chainFiltered".to_string(), Value::Bool(true));
+            payload.insert(
+                "note".to_string(),
+                Value::String(
+                    "Pagination totals are unavailable when filtering by chain. Results may be sparse."
+                        .to_string(),
+                ),
+            );
+        }
+        print_json_success(Value::Object(payload));
+        return;
+    }
+
+    if mode.is_csv() {
+        let mut rows = Vec::<Vec<String>>::new();
+        for event in &data.events {
+            rows.push(vec![
+                event.event_type.clone(),
+                activity_pool_label(event),
+                event.amount_formatted.clone(),
+                event.review_status.clone(),
+                format_time_ago(event.timestamp_ms),
+                event.tx_hash
+                    .as_deref()
+                    .map(|tx| format_address(tx, 8))
+                    .unwrap_or_else(|| "-".to_string()),
+            ]);
+        }
+        print_csv(
+            vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"],
+            rows,
+        );
+        return;
+    }
+
+    if data.mode == "pool-activity" {
+        write_stderr_text(&format!(
+            "\nActivity for {} on {}:\n\n",
+            data.asset.as_deref().unwrap_or("unknown"),
+            data.chain
+        ));
+    } else {
+        let chain_label = data
+            .chains
+            .as_ref()
+            .map(|chains| chains.join(", "))
+            .unwrap_or_else(|| data.chain.clone());
+        write_stderr_text(&format!("\nGlobal activity ({chain_label}):\n\n"));
+    }
+
+    if data.events.is_empty() {
+        write_stderr_text("No activity found.");
+        return;
+    }
+
+    let rows = data
+        .events
+        .iter()
+        .map(|event| {
+            vec![
+                event.event_type.clone(),
+                activity_pool_label(event),
+                event.amount_formatted.clone(),
+                format_asp_approval_status_label(&event.review_status),
+                format_time_ago(event.timestamp_ms),
+                event.tx_hash
+                    .as_deref()
+                    .map(|tx| format_address(tx, 8))
+                    .unwrap_or_else(|| "-".to_string()),
+            ]
+        })
+        .collect::<Vec<_>>();
+    print_table(
+        vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"],
+        rows,
+    );
+
+    if let Some(total_pages) = data.total_pages {
+        if total_pages > 1 {
+            let total_suffix = data
+                .total
+                .map(|total| format!(" ({total} events)"))
+                .unwrap_or_default();
+            let next_suffix = if data.page < total_pages {
+                format!(". Next: --page {}", data.page + 1)
+            } else {
+                String::new()
+            };
+            write_stderr_text(&format!(
+                "\n  Page {} of {}{}{}\n",
+                data.page, total_pages, total_suffix, next_suffix
+            ));
+        }
+    }
+
+    if data.chain_filtered {
+        write_stderr_text(&format!(
+            "\n  Note: Results filtered to {}. Some pages may be sparse.\n",
+            data.chain
+        ));
+    }
+}
+
+fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
+    if mode.is_json() {
+        print_json_success(json!({
+            "mode": "global-stats",
+            "chain": data.chain,
+            "chains": data.chains,
+            "cacheTimestamp": data.cache_timestamp,
+            "allTime": data.all_time,
+            "last24h": data.last_24h,
+        }));
+        return;
+    }
+
+    let rows = stats_rows(&data.all_time, &data.last_24h);
+    if mode.is_csv() {
+        print_csv(vec!["Metric", "All Time", "Last 24h"], rows);
+        return;
+    }
+
+    write_stderr_text(&format!("\nGlobal statistics ({}):\n\n", data.chain));
+    print_table(vec!["Metric", "All Time", "Last 24h"], rows);
+}
+
+fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
+    if mode.is_json() {
+        print_json_success(json!({
+            "mode": "pool-stats",
+            "chain": data.chain,
+            "asset": data.asset,
+            "pool": data.pool,
+            "scope": data.scope,
+            "cacheTimestamp": data.cache_timestamp,
+            "allTime": data.all_time,
+            "last24h": data.last_24h,
+        }));
+        return;
+    }
+
+    let rows = stats_rows(&data.all_time, &data.last_24h);
+    if mode.is_csv() {
+        print_csv(vec!["Metric", "All Time", "Last 24h"], rows);
+        return;
+    }
+
+    write_stderr_text(&format!(
+        "\nPool statistics for {} on {}:\n\n",
+        data.asset, data.chain
+    ));
+    print_table(vec!["Metric", "All Time", "Last 24h"], rows);
+}
+
+fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData) {
+    if mode.is_json() {
+        if data.all_chains {
+            print_json_success(json!({
+                "allChains": true,
+                "search": data.search,
+                "sort": data.sort,
+                "pools": [],
+            }));
+        } else {
+            print_json_success(json!({
+                "chain": data.chain_name,
+                "search": data.search,
+                "sort": data.sort,
+                "pools": [],
+            }));
+        }
+        return;
+    }
+
+    if mode.is_csv() {
+        print_csv(
+            vec![
+                "Chain",
+                "Asset",
+                "Total Deposits",
+                "Pool Balance",
+                "USD Value",
+                "Pending",
+                "Min Deposit",
+                "Vetting Fee",
+            ],
+            vec![],
+        );
+        return;
+    }
+
+    if data.all_chains {
+        write_info("No pools found across supported chains.");
+    } else {
+        write_info(&format!("No pools found on {}.", data.chain_name));
+    }
+}
+
+fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
+    if mode.is_json() {
+        if data.all_chains {
+            print_json_success(json!({
+                "allChains": true,
+                "search": data.search,
+                "sort": data.sort,
+                "chains": data
+                    .chain_summaries
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(chain_summary_to_json)
+                    .collect::<Vec<_>>(),
+                "pools": data
+                    .filtered_pools
+                    .iter()
+                    .map(|entry| pool_entry_to_json(entry, true))
+                    .collect::<Vec<_>>(),
+                "warnings": if data.warnings.is_empty() {
+                    Value::Null
+                } else {
+                    Value::Array(
+                        data.warnings
+                            .into_iter()
+                            .map(pool_warning_to_json)
+                            .collect::<Vec<_>>(),
+                    )
+                },
+            }));
+        } else {
+            print_json_success(json!({
+                "chain": data.chain_name,
+                "search": data.search,
+                "sort": data.sort,
+                "pools": data
+                    .filtered_pools
+                    .iter()
+                    .map(|entry| pool_entry_to_json(entry, false))
+                    .collect::<Vec<_>>(),
+            }));
+        }
+        return;
+    }
+
+    if mode.is_csv() {
+        let headers = if data.all_chains {
+            vec![
+                "Chain",
+                "Asset",
+                "Total Deposits",
+                "Pool Balance",
+                "USD Value",
+                "Pending",
+                "Min Deposit",
+                "Vetting Fee",
+            ]
+        } else {
+            vec![
+                "Asset",
+                "Total Deposits",
+                "Pool Balance",
+                "USD Value",
+                "Pending",
+                "Min Deposit",
+                "Vetting Fee",
+            ]
+        };
+        let rows = data
+            .filtered_pools
+            .iter()
+            .map(|entry| pool_listing_row(entry, data.all_chains))
+            .collect::<Vec<_>>();
+        print_csv(headers, rows);
+        return;
+    }
+
+    if data.all_chains {
+        write_stderr_text("\nPools across supported chains:\n\n");
+    } else {
+        write_stderr_text(&format!("\nPools on {}:\n\n", data.chain_name));
+    }
+
+    for warning in &data.warnings {
+        write_warn(&format!(
+            "{} ({}): {}",
+            warning.chain, warning.category, warning.message
+        ));
+    }
+    if !data.warnings.is_empty() {
+        write_stderr_text("");
+    }
+
+    if data.filtered_pools.is_empty() {
+        if let Some(search) = data.search {
+            if !search.is_empty() {
+                write_info(&format!("No pools matched search query \"{search}\"."));
+                return;
+            }
+        }
+        write_info("No pools found.");
+        return;
+    }
+
+    let headers = if data.all_chains {
+        vec![
+            "Chain",
+            "Asset",
+            "Total Deposits",
+            "Pool Balance",
+            "USD Value",
+            "Pending",
+            "Min Deposit",
+            "Vetting Fee",
+        ]
+    } else {
+        vec![
+            "Asset",
+            "Total Deposits",
+            "Pool Balance",
+            "USD Value",
+            "Pending",
+            "Min Deposit",
+            "Vetting Fee",
+        ]
+    };
+    let rows = data
+        .filtered_pools
+        .iter()
+        .map(|entry| pool_listing_row(entry, data.all_chains))
+        .collect::<Vec<_>>();
+    print_table(headers, rows);
+    write_stderr_text(
+        "\nVetting fees are deducted on deposit.\nPool Balance: current total value in the pool (accepted + pending deposits).\nPending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
+    );
+}
+
+fn stats_rows(all_time: &Value, last_24h: &Value) -> Vec<Vec<String>> {
+    vec![
+        vec![
+            "Current TVL".to_string(),
+            parse_usd_value(all_time.get("tvlUsd")),
+            parse_usd_value(last_24h.get("tvlUsd")),
+        ],
+        vec![
+            "Avg Deposit Size".to_string(),
+            parse_usd_value(all_time.get("avgDepositSizeUsd")),
+            parse_usd_value(last_24h.get("avgDepositSizeUsd")),
+        ],
+        vec![
+            "Total Deposits".to_string(),
+            parse_count_value(all_time.get("totalDepositsCount")),
+            parse_count_value(last_24h.get("totalDepositsCount")),
+        ],
+        vec![
+            "Total Withdrawals".to_string(),
+            parse_count_value(all_time.get("totalWithdrawalsCount")),
+            parse_count_value(last_24h.get("totalWithdrawalsCount")),
+        ],
+    ]
+}
+
+fn activity_pool_label(event: &NormalizedActivityEvent) -> String {
+    match (&event.pool_symbol, event.chain_id) {
+        (Some(symbol), Some(chain_id)) => format!("{symbol}@{chain_id}"),
+        (Some(symbol), None) => symbol.clone(),
+        (None, Some(chain_id)) => format!("chain-{chain_id}"),
+        (None, None) => "-".to_string(),
+    }
+}
+
+fn pool_listing_row(entry: &PoolListingEntry, include_chain: bool) -> Vec<String> {
+    let mut row = Vec::new();
+    if include_chain {
+        row.push(entry.chain.clone());
+    }
+    row.push(entry.asset.clone());
+    row.push(format_pool_deposits_count(entry));
+    row.push(format_pool_stat_amount(
+        entry.total_in_pool_value
+            .as_deref()
+            .or(entry.accepted_deposits_value.as_deref()),
+        entry.decimals,
+        &entry.asset,
+    ));
+    row.push(parse_usd_string(
+        entry.total_in_pool_value_usd
+            .as_deref()
+            .or(entry.accepted_deposits_value_usd.as_deref()),
+    ));
+    row.push(format_pool_stat_amount(
+        entry.pending_deposits_value.as_deref(),
+        entry.decimals,
+        &entry.asset,
+    ));
+    row.push(format_pool_minimum_deposit(entry));
+    row.push(format_bps_value(&entry.vetting_fee_bps));
+    row
+}
+
+fn format_pool_deposits_count(entry: &PoolListingEntry) -> String {
+    entry
+        .total_deposits_count
+        .map(format_count_number)
+        .unwrap_or_else(|| "-".to_string())
+}
+
+fn format_pool_stat_amount(value: Option<&str>, decimals: u32, symbol: &str) -> String {
+    value
+        .and_then(parse_biguint)
+        .map(|value| format_amount(&value, decimals, Some(symbol), Some(2)))
+        .unwrap_or_else(|| "-".to_string())
+}
+
+fn format_pool_minimum_deposit(entry: &PoolListingEntry) -> String {
+    parse_biguint(&entry.minimum_deposit)
+        .map(|value| format_amount(&value, entry.decimals, Some(&entry.asset), Some(2)))
+        .unwrap_or_else(|| entry.minimum_deposit.clone())
+}
+
+fn format_bps_value(value: &str) -> String {
+    value
+        .trim()
+        .parse::<f64>()
+        .ok()
+        .map(|bps| format!("{:.2}%", bps / 100.0))
+        .unwrap_or_else(|| value.to_string())
+}
+
+fn format_asp_approval_status_label(status: &str) -> String {
+    match status.trim().to_lowercase().as_str() {
+        "approved" => "Approved".to_string(),
+        "pending" => "Pending".to_string(),
+        "poi_required" => "PoA Needed".to_string(),
+        "declined" => "Declined".to_string(),
+        _ => "Unknown".to_string(),
+    }
+}
+
+fn parse_usd_value(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::String(raw)) if !raw.trim().is_empty() => raw
+            .replace(',', "")
+            .parse::<f64>()
+            .ok()
+            .filter(|parsed| parsed.is_finite())
+            .map(|parsed| format!("${}", format_count_number(parsed.trunc() as u64)))
+            .unwrap_or_else(|| "-".to_string()),
+        Some(Value::Number(number)) => number
+            .as_f64()
+            .filter(|parsed| parsed.is_finite())
+            .map(|parsed| format!("${}", format_count_number(parsed.trunc() as u64)))
+            .unwrap_or_else(|| "-".to_string()),
+        _ => "-".to_string(),
+    }
+}
+
+fn parse_usd_string(value: Option<&str>) -> String {
+    match value {
+        Some(raw) if !raw.trim().is_empty() => raw
+            .replace(',', "")
+            .parse::<f64>()
+            .ok()
+            .filter(|parsed| parsed.is_finite())
+            .map(|parsed| format!("${}", format_count_number(parsed.trunc() as u64)))
+            .unwrap_or_else(|| "-".to_string()),
+        _ => "-".to_string(),
+    }
+}
+
+fn parse_count_value(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::Number(number)) => number
+            .as_u64()
+            .map(format_count_number)
+            .unwrap_or_else(|| "-".to_string()),
+        Some(Value::String(raw)) if !raw.trim().is_empty() => raw
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|parsed| parsed.is_finite())
+            .map(|parsed| format_count_number(parsed.trunc() as u64))
+            .unwrap_or_else(|| "-".to_string()),
+        _ => "-".to_string(),
+    }
+}
+
+fn format_count_number(value: u64) -> String {
+    let digits = value.to_string();
+    let mut output = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, character) in digits.chars().rev().enumerate() {
+        if index > 0 && index % 3 == 0 {
+            output.push(',');
+        }
+        output.push(character);
+    }
+    output.chars().rev().collect()
+}
+
+fn format_address(value: &str, chars: usize) -> String {
+    if value.chars().count() <= chars * 2 + 2 {
+        return value.to_string();
+    }
+    let prefix = value.chars().take(chars + 2).collect::<String>();
+    let suffix = value
+        .chars()
+        .rev()
+        .take(chars)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    format!("{prefix}...{suffix}")
+}
+
+fn format_time_ago(timestamp_ms: Option<u64>) -> String {
+    let Some(timestamp_ms) = timestamp_ms else {
+        return "-".to_string();
+    };
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_millis() as u64;
+    let delta_ms = now_ms.saturating_sub(timestamp_ms);
+    let seconds = delta_ms / 1000;
+    if seconds < 60 {
+        return format!("{seconds}s ago");
+    }
+    let minutes = seconds / 60;
+    if minutes < 60 {
+        return format!("{minutes}m ago");
+    }
+    let hours = minutes / 60;
+    if hours < 24 {
+        return format!("{hours}h ago");
+    }
+    let days = hours / 24;
+    format!("{days}d ago")
+}
+
+fn print_csv(headers: Vec<&str>, rows: Vec<Vec<String>>) {
+    let mut lines = Vec::with_capacity(rows.len() + 1);
+    lines.push(
+        headers
+            .into_iter()
+            .map(escape_csv_field)
+            .collect::<Vec<_>>()
+            .join(","),
+    );
+    for row in rows {
+        lines.push(
+            row.iter()
+                .map(|cell| escape_csv_field(cell))
+                .collect::<Vec<_>>()
+                .join(","),
+        );
+    }
+    write_stdout_text(&lines.join("\n"));
+}
+
+fn escape_csv_field(value: &str) -> String {
+    if value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r') {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_string()
+    }
+}
+
+fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
+    let headers = headers
+        .into_iter()
+        .map(|header| header.to_string())
+        .collect::<Vec<_>>();
+    let mut widths = headers
+        .iter()
+        .map(|header| header.chars().count())
+        .collect::<Vec<_>>();
+    for row in &rows {
+        for (index, cell) in row.iter().enumerate() {
+            widths[index] = widths[index].max(cell.chars().count());
+        }
+    }
+
+    let top = table_border('┌', '┬', '┐', &widths);
+    let middle = table_border('├', '┼', '┤', &widths);
+    let bottom = table_border('└', '┴', '┘', &widths);
+    let header_row = table_row(&headers, &widths);
+
+    let mut output = String::new();
+    output.push_str(&top);
+    output.push('\n');
+    output.push_str(&header_row);
+    output.push('\n');
+    output.push_str(&middle);
+    if rows.is_empty() {
+        output.push('\n');
+        output.push_str(&bottom);
+        write_stderr_text(&output);
+        return;
+    }
+
+    output.push('\n');
+    for (index, row) in rows.iter().enumerate() {
+        output.push_str(&table_row(row, &widths));
+        if index + 1 < rows.len() {
+            output.push('\n');
+            output.push_str(&middle);
+            output.push('\n');
+        } else {
+            output.push('\n');
+        }
+    }
+    output.push_str(&bottom);
+    write_stderr_text(&output);
+}
+
+fn table_border(left: char, middle: char, right: char, widths: &[usize]) -> String {
+    let segments = widths
+        .iter()
+        .map(|width| "─".repeat(width + 2))
+        .collect::<Vec<_>>();
+    format!("{left}{}{right}", segments.join(&middle.to_string()))
+}
+
+fn table_row(row: &[String], widths: &[usize]) -> String {
+    let cells = row
+        .iter()
+        .enumerate()
+        .map(|(index, cell)| {
+            let padding = widths[index].saturating_sub(cell.chars().count());
+            format!(" {}{} ", cell, " ".repeat(padding))
+        })
+        .collect::<Vec<_>>();
+    format!("│{}│", cells.join("│"))
+}
+
+fn write_info(message: &str) {
+    write_stderr_text(&format!("ℹ {message}"));
+}
+
+fn write_warn(message: &str) {
+    write_stderr_text(&format!("⚠ {message}"));
 }
 
 fn insert_optional_string(object: &mut Map<String, Value>, key: &str, value: Option<String>) {

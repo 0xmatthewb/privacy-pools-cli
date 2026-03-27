@@ -181,6 +181,38 @@ describe("native package smoke", () => {
     ).toMatchObject({
       success: true,
     });
+
+    const humanStatsResult = runBuiltCli(["stats"], {
+      cwd: snapshotRoot,
+      env,
+    });
+    expect(humanStatsResult.status).toBe(0);
+    expect(humanStatsResult.stdout).toBe("");
+    expect(humanStatsResult.stderr).toContain("Global statistics (all-mainnets):");
+
+    const csvStatsResult = runBuiltCli(["--format", "csv", "stats"], {
+      cwd: snapshotRoot,
+      env,
+    });
+    expect(csvStatsResult.status).toBe(0);
+    expect(csvStatsResult.stderr).toContain("Fetching global statistics");
+    expect(csvStatsResult.stdout).toContain("Metric,All Time,Last 24h");
+
+    const humanActivityResult = runBuiltCli(["activity"], {
+      cwd: snapshotRoot,
+      env,
+    });
+    expect(humanActivityResult.status).toBe(0);
+    expect(humanActivityResult.stdout).toBe("");
+    expect(humanActivityResult.stderr).toContain("Global activity");
+
+    const csvPoolsResult = runBuiltCli(["--format", "csv", "--chain", "sepolia", "pools"], {
+      cwd: snapshotRoot,
+      env,
+    });
+    expect(csvPoolsResult.status).toBe(0);
+    expect(csvPoolsResult.stderr).toBe("");
+    expect(csvPoolsResult.stdout).toContain("Asset,Total Deposits,Pool Balance");
   });
 
   nativePackageSmokeTest("packaged native preserves stdin secret forwarding without leaking secrets", () => {
