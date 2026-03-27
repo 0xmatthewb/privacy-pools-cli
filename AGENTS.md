@@ -52,6 +52,10 @@ and, when present, an exact-version optional native shell package for the host:
 Node/npm still use `darwin` and `win32` internally in `os` selectors because
 those are the official Node platform ids. `darwin` means macOS.
 
+Linux native packaging currently targets x64 glibc hosts. Alpine and other
+musl-based environments fall back to the JS launcher automatically instead of
+loading an incompatible native package.
+
 ## Core Concepts
 
 **Agent mode**: Pass `--agent` to any command. This is equivalent to `--json --yes --quiet`: machine-readable JSON on stdout, no interactive prompts, no banners or progress text.

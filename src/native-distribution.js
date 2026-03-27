@@ -66,33 +66,66 @@ const DISTRIBUTION_BY_TRIPLET = new Map(
   ]),
 );
 
-const DISTRIBUTION_BY_PLATFORM_ARCH = new Map(
-  SUPPORTED_NATIVE_DISTRIBUTIONS.map((distribution) => [
-    `${distribution.platform}/${distribution.arch}`,
-    distribution,
-  ]),
-);
-
 export function getNativeDistributionByTriplet(triplet) {
   return triplet ? DISTRIBUTION_BY_TRIPLET.get(triplet) ?? null : null;
+}
+
+function detectLinuxLibcFromSharedObjects(sharedObjects = []) {
+  for (const entry of sharedObjects) {
+    const normalized = String(entry).toLowerCase();
+    if (normalized.includes("musl")) {
+      return "musl";
+    }
+  }
+
+  return null;
+}
+
+export function detectLinuxLibc(report = process.report?.getReport?.()) {
+  const header = report?.header ?? {};
+  if (header.glibcVersionRuntime || header.glibcVersionCompiler) {
+    return "glibc";
+  }
+
+  return detectLinuxLibcFromSharedObjects(report?.sharedObjects);
 }
 
 export function getNativeDistribution(
   platform = process.platform,
   arch = process.arch,
+  libc = platform === "linux" ? detectLinuxLibc() : null,
 ) {
-  return DISTRIBUTION_BY_PLATFORM_ARCH.get(`${platform}/${arch}`) ?? null;
+  for (const distribution of SUPPORTED_NATIVE_DISTRIBUTIONS) {
+    if (distribution.platform !== platform || distribution.arch !== arch) {
+      continue;
+    }
+
+    if (distribution.libc?.length) {
+      if (!libc || !distribution.libc.includes(libc)) {
+        continue;
+      }
+    }
+
+    return distribution;
+  }
+
+  return null;
 }
 
-export function nativeTriplet(platform = process.platform, arch = process.arch) {
-  return getNativeDistribution(platform, arch)?.triplet ?? null;
+export function nativeTriplet(
+  platform = process.platform,
+  arch = process.arch,
+  libc = platform === "linux" ? detectLinuxLibc() : null,
+) {
+  return getNativeDistribution(platform, arch, libc)?.triplet ?? null;
 }
 
 export function nativePackageName(
   platform = process.platform,
   arch = process.arch,
+  libc = platform === "linux" ? detectLinuxLibc() : null,
 ) {
-  return getNativeDistribution(platform, arch)?.packageName ?? null;
+  return getNativeDistribution(platform, arch, libc)?.packageName ?? null;
 }
 
 export function nativePackageNameForTriplet(triplet) {

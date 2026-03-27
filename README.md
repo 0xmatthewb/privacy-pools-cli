@@ -86,6 +86,10 @@ Node/npm still use `darwin` and `win32` internally in package metadata because
 the `os` field expects Node platform identifiers. There is full macOS support:
 `darwin` is simply Node's platform name for macOS.
 
+Linux native packaging currently targets x64 glibc hosts. Alpine and other
+musl-based environments fall back to the JS launcher automatically instead of
+loading an incompatible native package.
+
 Or run from source:
 
 ```bash

@@ -51,6 +51,18 @@ describe("launcher runtime coverage", () => {
   test("native distribution helpers map supported and unsupported targets", () => {
     expect(launcherTestInternals.nativeTriplet("darwin", "arm64")).toBe("darwin-arm64");
     expect(launcherTestInternals.nativePackageName("win32", "x64")).toContain("windows-x64-msvc");
+    expect(launcherTestInternals.nativeTriplet("linux", "x64", "glibc")).toBe(
+      "linux-x64-gnu",
+    );
+    expect(
+      launcherTestInternals.nativePackageName("linux", "x64", "glibc"),
+    ).toContain("linux-x64-gnu");
+    expect(launcherTestInternals.nativeTriplet("linux", "x64", "musl")).toBeNull();
+    expect(
+      launcherTestInternals.nativePackageName("linux", "x64", "musl"),
+    ).toBeNull();
+    expect(launcherTestInternals.nativeTriplet("linux", "x64", null)).toBeNull();
+    expect(launcherTestInternals.nativePackageName("linux", "x64", null)).toBeNull();
     expect(launcherTestInternals.nativeTriplet("linux", "arm64")).toBeNull();
     expect(launcherTestInternals.nativePackageName("linux", "arm64")).toBeNull();
   });

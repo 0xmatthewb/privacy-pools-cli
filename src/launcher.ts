@@ -120,15 +120,17 @@ function hasExplicitJsWorkerOverride(
 function nativeTriplet(
   platform: NodeJS.Platform = process.platform,
   arch: NodeJS.Architecture = process.arch,
+  libc: string | null | undefined = platform === "linux" ? undefined : null,
 ): string | null {
-  return resolveNativeTriplet(platform, arch);
+  return resolveNativeTriplet(platform, arch, libc);
 }
 
 function nativePackageName(
   platform: NodeJS.Platform = process.platform,
   arch: NodeJS.Architecture = process.arch,
+  libc: string | null | undefined = platform === "linux" ? undefined : null,
 ): string | null {
-  return resolveNativePackageName(platform, arch);
+  return resolveNativePackageName(platform, arch, libc);
 }
 
 function hasCompatibleInstalledNativeMetadata(
