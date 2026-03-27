@@ -470,4 +470,66 @@ describe("native package smoke", () => {
       writeFileSync(packageJsonPath, originalPackageJson, "utf8");
     }
   });
+
+  nativePackageSmokeTest("incompatible packaged native metadata still falls back to successful JS-owned commands", () => {
+    const packageJsonPath = join(
+      snapshotRoot,
+      "node_modules",
+      ...currentPackageName!.split("/"),
+      "package.json",
+    );
+    const originalPackageJson = readFileSync(packageJsonPath, "utf8");
+    const parsed = JSON.parse(originalPackageJson) as {
+      privacyPoolsCliNative?: Record<string, unknown>;
+    };
+    parsed.privacyPoolsCliNative = {
+      ...parsed.privacyPoolsCliNative,
+      bridgeVersion: "999",
+      protocolVersion: "999",
+    };
+    writeFileSync(packageJsonPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+
+    const home = createTempHome("pp-native-package-incompatible-fallback-");
+
+    try {
+      const initResult = runBuiltCli(
+        [
+          "--agent",
+          "init",
+          "--mnemonic",
+          TEST_MNEMONIC,
+          "--private-key",
+          TEST_PRIVATE_KEY,
+          "--default-chain",
+          "sepolia",
+          "--yes",
+        ],
+        {
+          cwd: snapshotRoot,
+          home,
+          timeoutMs: 60_000,
+        },
+      );
+
+      expect(initResult.status).toBe(0);
+      expect(parseJsonOutput<{ success: boolean }>(initResult.stdout).success).toBe(true);
+
+      const statusResult = runBuiltCli(["--agent", "status", "--no-check"], {
+        cwd: snapshotRoot,
+        home,
+      });
+
+      expect(statusResult.status).toBe(0);
+      expect(
+        parseJsonOutput<{ success: boolean; recoveryPhraseSet: boolean }>(
+          statusResult.stdout,
+        ),
+      ).toMatchObject({
+        success: true,
+        recoveryPhraseSet: true,
+      });
+    } finally {
+      writeFileSync(packageJsonPath, originalPackageJson, "utf8");
+    }
+  });
 });
