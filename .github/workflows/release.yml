@@ -267,7 +267,7 @@ jobs:
           path: dist-root
 
       - name: Run native smoke test
-        run: npm run test:smoke:native
+        run: npm run test:smoke:native:package
 
       - name: Build release native shell
         run: npm run native:build:release

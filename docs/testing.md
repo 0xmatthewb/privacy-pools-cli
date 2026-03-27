@@ -136,6 +136,7 @@ CI notes:
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
 - `npm run test:ci` now includes the current-host packed-artifact install check so local verification exercises the same installed launcher/native path that blocking CI enforces on supported targets.
 - `npm run test:release` adds the same current-host artifact check plus `npm run bench:gate:release`, matching the release workflow's pinned performance gate.
+- `npm run test:smoke:native:package` is the packaged native smoke lane. `npm run test:artifacts:host` is the installed-artifact lane. `npm run test:smoke:native` remains as a compatibility alias for the packaged smoke lane.
 
 ## Runtime Upgrade Playbook
 
@@ -154,7 +155,7 @@ Before shipping a new runtime generation, follow
 release/CI gates still exercise:
 
 - JS fallback behavior
-- `npm run test:smoke:native`
+- `npm run test:smoke:native:package`
 - packed native tarball verification
 - every shipped native triplet
 - supported Node versions on the blocking native-smoke lane

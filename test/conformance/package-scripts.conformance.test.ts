@@ -10,6 +10,24 @@ const packageJson = JSON.parse(
 };
 
 describe("package scripts conformance", () => {
+  test("native package smoke scripts distinguish packaged smoke from installed-artifact checks", () => {
+    expect(packageJson.scripts?.["test:smoke:native"]).toBe(
+      "npm run test:smoke:native:package",
+    );
+    expect(packageJson.scripts?.["test:smoke:native:package"]).toBe(
+      "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000",
+    );
+    expect(packageJson.scripts?.["test:ci"]).toContain(
+      "npm run test:smoke:native:package",
+    );
+    expect(packageJson.scripts?.["test:release"]).toContain(
+      "npm run test:smoke:native:package",
+    );
+    expect(packageJson.scripts?.["test:all"]).toContain(
+      "npm run test:smoke:native:package",
+    );
+  });
+
   test("test:ci mirrors the current-host installed-artifact gate", () => {
     expect(packageJson.scripts?.["test:artifacts:host"]).toBe(
       "node scripts/verify-current-host-release-artifacts.mjs",

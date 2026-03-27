@@ -257,7 +257,7 @@ jobs:
 
       - name: Run native package smoke tests
         if: steps.select.outputs.should_run == 'true'
-        run: npm run test:smoke:native
+        run: npm run test:smoke:native:package
 
   supported-native-smoke:
     name: supported-native-smoke-${{ matrix.label }}-node-${{ matrix.node-version }}

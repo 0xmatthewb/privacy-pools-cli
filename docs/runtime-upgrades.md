@@ -50,8 +50,8 @@ version literals.
 - `npm run build`
 - `npm run discovery:generate`
 - `npm run test:artifacts:host`
+- `npm run test:smoke:native:package`
 - `node scripts/run-bun-tests.mjs ./test/unit/launcher-routing.unit.test.ts ./test/unit/worker-request.unit.test.ts ./test/unit/bootstrap-runtime.unit.test.ts ./test/unit/runtime-current.unit.test.ts ./test/unit/root-argv.unit.test.ts ./test/conformance/native-manifest.conformance.test.ts ./test/conformance/command-discovery-static.conformance.test.ts --timeout 240000`
-- `npm run test:smoke:native`
 - `npm run docs:check`
 - `npm run test:release`
 

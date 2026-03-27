@@ -48,7 +48,7 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain("run: npm test");
     expect(ciWorkflow).toContain("native-smoke:");
     expect(ciWorkflow).toContain('node scripts/ci/select-jobs.mjs --job native-smoke');
-    expect(ciWorkflow).toContain("npm run test:smoke:native");
+    expect(ciWorkflow).toContain("npm run test:smoke:native:package");
     expect(ciWorkflow).toContain('- "22.x"');
     expect(ciWorkflow).toContain('- "25.x"');
   });
@@ -88,7 +88,7 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).not.toContain("Run benchmark gate against v1.7.0 baseline");
     expect(releaseWorkflow).not.toContain("run: npm run bench:gate:release");
     expect(releaseWorkflow).toContain("Run native smoke test");
-    expect(releaseWorkflow).toContain("npm run test:smoke:native");
+    expect(releaseWorkflow).toContain("npm run test:smoke:native:package");
   });
 
   test("cross-platform smoke includes the windows arm64 native lane", () => {
@@ -97,7 +97,7 @@ describe("release workflow conformance", () => {
     expect(crossPlatformWorkflow).toContain('- "25.x"');
     expect(crossPlatformWorkflow).toContain("windows-11-arm");
     expect(crossPlatformWorkflow).toContain("win32-arm64-msvc");
-    expect(crossPlatformWorkflow).toContain("npm run test:smoke:native");
+    expect(crossPlatformWorkflow).toContain("npm run test:smoke:native:package");
   });
 
   test("cross-platform smoke also runs on main pushes", () => {
