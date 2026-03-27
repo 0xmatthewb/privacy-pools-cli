@@ -476,7 +476,7 @@ async function runJsWorkerInline(
   await runWorkerRequest(
     createCurrentWorkerRequest(argv),
     resolveCliPackageInfo(pkg),
-    { installConsoleGuard: false },
+    { installConsoleGuard: true },
   );
 }
 

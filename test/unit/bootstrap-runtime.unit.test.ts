@@ -93,7 +93,7 @@ function expectInlineWorkerRequestArgv(
     argv: expectedArgv,
   });
   expect(options).toEqual({
-    installConsoleGuard: false,
+    installConsoleGuard: true,
   });
 }
 
@@ -668,7 +668,6 @@ describe("bootstrap runtime coverage", () => {
     const runStaticCompletionQueryMock = mock(async () => false);
     const runStaticDiscoveryCommandMock = mock(async () => false);
     const runCliMock = mock(async () => undefined);
-    const installConsoleGuardMock = mock(() => undefined);
 
     mock.module("../../src/static-discovery.ts", () => ({
       runStaticRootHelp: runStaticRootHelpMock,
@@ -678,10 +677,6 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/cli-main.ts", () => ({
       runCli: runCliMock,
     }));
-    mock.module("../../src/utils/console-guard.ts", () => ({
-      ...realConsoleGuard,
-      installConsoleGuard: installConsoleGuardMock,
-    }));
 
     process.argv = ["node", "privacy-pools", "--help"];
 
@@ -690,7 +685,6 @@ describe("bootstrap runtime coverage", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(installConsoleGuardMock).toHaveBeenCalledTimes(1);
     expect(runStaticRootHelpMock).toHaveBeenCalledWith(false);
     expect(runCliMock).not.toHaveBeenCalled();
   });
@@ -765,6 +759,7 @@ describe("bootstrap runtime coverage", () => {
     }));
     mock.module("../../src/runtime/v1/worker.ts", () => ({
       runWorkerRequest: runWorkerRequestMock,
+      runWorkerFromEnv: async () => undefined,
     }));
 
     process.argv = [
@@ -827,6 +822,7 @@ describe("bootstrap runtime coverage", () => {
     }));
     mock.module("../../src/runtime/v1/worker.ts", () => ({
       runWorkerRequest: runWorkerRequestMock,
+      runWorkerFromEnv: async () => undefined,
     }));
 
     process.argv = ["node", "privacy-pools", "guide", "--json"];
@@ -938,6 +934,7 @@ describe("bootstrap runtime coverage", () => {
 
     mock.module("../../src/runtime/v1/worker.ts", () => ({
       runWorkerRequest: runWorkerRequestMock,
+      runWorkerFromEnv: async () => undefined,
     }));
 
     process.argv = ["node", "privacy-pools", "--no-color", "status"];
@@ -953,14 +950,10 @@ describe("bootstrap runtime coverage", () => {
   test("index delegates non-fast invocations to the worker boundary", async () => {
     forceJsLauncherFallback();
     const runWorkerRequestMock = mock(async () => undefined);
-    const installConsoleGuardMock = mock(() => undefined);
 
     mock.module("../../src/runtime/v1/worker.ts", () => ({
       runWorkerRequest: runWorkerRequestMock,
-    }));
-    mock.module("../../src/utils/console-guard.ts", () => ({
-      ...realConsoleGuard,
-      installConsoleGuard: installConsoleGuardMock,
+      runWorkerFromEnv: async () => undefined,
     }));
 
     process.argv = ["node", "privacy-pools", "status", "--json"];
@@ -969,7 +962,6 @@ describe("bootstrap runtime coverage", () => {
       await import(`../../src/index.ts?full-cli-path=${Date.now()}`);
     });
 
-    expect(installConsoleGuardMock).toHaveBeenCalledTimes(1);
     expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
     expectInlineWorkerRequestArgv(runWorkerRequestMock, ["status", "--json"]);
   });

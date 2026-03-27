@@ -67,7 +67,7 @@ describe("lazy startup conformance", () => {
 
     expect(entrySource).not.toContain("./services/account.js");
     expect(entrySource).not.toContain('from "dotenv"');
-    expect(entrySource).toContain("installConsoleGuard");
+    expect(entrySource).not.toContain("installConsoleGuard");
     expect(entrySource).toContain('from "./launcher.js"');
 
     expect(launcherSource).not.toContain("./services/account.js");
