@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -11,15 +11,23 @@ const VERIFY_ROOT_ONLY_INSTALL = join(
   "scripts",
   "verify-root-only-install.mjs",
 );
+const installVerificationModulePath = join(
+  repoRoot,
+  "scripts",
+  "lib",
+  "install-verification.mjs",
+);
 const nativeDistributionModulePath = join(
   repoRoot,
   "src",
   "native-distribution.js",
 );
+const { packTarball } = await import(
+  pathToFileURL(installVerificationModulePath).href
+);
 const { nativeTriplet } = await import(
   pathToFileURL(nativeDistributionModulePath).href
 );
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const cargoCommand = process.platform === "win32" ? "cargo.exe" : "cargo";
 
 function nativeBinaryPath() {
@@ -59,15 +67,6 @@ function run(command, args, options = {}) {
   return result;
 }
 
-function packTarball(cwd, destinationDir) {
-  const packResult = run(npmCommand, ["pack", "--silent"], { cwd });
-  const tarballName = packResult.stdout.trim();
-  const tarballSource = join(cwd, tarballName);
-  const tarballDestination = join(destinationDir, tarballName);
-  renameSync(tarballSource, tarballDestination);
-  return tarballDestination;
-}
-
 const triplet = nativeTriplet();
 const cargoCheck = triplet
   ? spawnSync(cargoCommand, ["--version"], {
@@ -88,7 +87,9 @@ const nativePackageDir = join(tempRoot, "native-package");
 mkdirSync(cliTarballDir, { recursive: true });
 
 try {
-  const cliTarball = packTarball(repoRoot, cliTarballDir);
+  const cliTarball = packTarball(repoRoot, cliTarballDir, {
+    npmStateRoot: tempRoot,
+  });
   run("node", [
     VERIFY_ROOT_ONLY_INSTALL,
     "--cli-tarball",

@@ -1,8 +1,10 @@
 import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   statSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -48,6 +50,45 @@ export function currentNativePackageName(
   arch = process.arch,
 ) {
   return resolveNativePackageName(platform, arch);
+}
+
+export function npmProcessEnv(stateRoot, env = {}) {
+  return {
+    ...process.env,
+    npm_config_cache: join(stateRoot, ".npm-cache"),
+    npm_config_userconfig: join(stateRoot, ".npmrc"),
+    npm_config_update_notifier: "false",
+    ...env,
+  };
+}
+
+export function packTarball(cwd, destinationDir, options = {}) {
+  mkdirSync(destinationDir, { recursive: true });
+  const packResult = spawnSync(npmCommand, ["pack", "--silent"], {
+    cwd,
+    encoding: "utf8",
+    timeout: options.timeout ?? 300_000,
+    maxBuffer: options.maxBuffer ?? 10 * 1024 * 1024,
+    env: npmProcessEnv(options.npmStateRoot ?? destinationDir, options.env),
+  });
+
+  if (packResult.error) {
+    fail(
+      `Failed to execute ${npmCommand} pack --silent:\n${packResult.error.message}`,
+    );
+  }
+
+  if (packResult.status !== 0) {
+    fail(
+      `Command failed: ${npmCommand} pack --silent\n${packResult.stderr ?? ""}\n${packResult.stdout ?? ""}`.trim(),
+    );
+  }
+
+  const tarballName = packResult.stdout.trim();
+  const tarballSource = join(cwd, tarballName);
+  const tarballDestination = join(destinationDir, tarballName);
+  renameSync(tarballSource, tarballDestination);
+  return tarballDestination;
 }
 
 export function packageInstallPath(installRoot, packageName) {

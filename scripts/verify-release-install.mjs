@@ -22,6 +22,7 @@ import {
   stopInstalledCliChild,
   waitForWorkflowPhase,
   npmCommand,
+  npmProcessEnv,
   repoRoot,
 } from "./lib/install-verification.mjs";
 
@@ -147,7 +148,6 @@ const expectedVersion = args.version?.trim() || rootPackageJson.version;
 const cliTarballPath = resolve(cliTarball);
 const nativeTarballPath = resolve(nativeTarball);
 const installRoot = mkdtempSync(join(tmpdir(), "pp-release-install-"));
-const npmCacheDir = join(installRoot, ".npm-cache");
 const homeDir = join(installRoot, ".privacy-pools");
 const stdinHomeDir = join(installRoot, ".privacy-pools-stdin");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
@@ -184,10 +184,7 @@ async function main() {
         encoding: "utf8",
         timeout: 180_000,
         maxBuffer: 10 * 1024 * 1024,
-        env: {
-          ...process.env,
-          npm_config_cache: npmCacheDir,
-        },
+        env: npmProcessEnv(installRoot),
       },
     );
 

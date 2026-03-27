@@ -5,6 +5,7 @@ import {
   assertInstalledStatusSuccess,
   fail,
   npmCommand,
+  npmProcessEnv,
   parseArgs,
   parseJson,
   rootPackageJson,
@@ -34,7 +35,6 @@ if (!cliTarball) {
 const expectedVersion = args.version?.trim() || rootPackageJson.version;
 const cliTarballPath = resolve(cliTarball);
 const installRoot = mkdtempSync(join(tmpdir(), "pp-root-install-"));
-const npmCacheDir = join(installRoot, ".npm-cache");
 const homeDir = join(installRoot, ".privacy-pools");
 
 try {
@@ -70,10 +70,7 @@ try {
       encoding: "utf8",
       timeout: 180_000,
       maxBuffer: 10 * 1024 * 1024,
-      env: {
-        ...process.env,
-        npm_config_cache: npmCacheDir,
-      },
+      env: npmProcessEnv(installRoot),
     },
   );
 

@@ -4,13 +4,16 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  npmProcessEnv,
+  packTarball,
+} from "./lib/install-verification.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
@@ -93,15 +96,6 @@ function readSharedFixtureEnv(sharedEnvFile) {
   }
 }
 
-function packTarball(cwd, destinationDir) {
-  const packResult = run(npmCommand, ["pack", "--silent"], { cwd });
-  const tarballName = packResult.stdout.trim();
-  const tarballSource = join(cwd, tarballName);
-  const tarballDestination = join(destinationDir, tarballName);
-  renameSync(tarballSource, tarballDestination);
-  return tarballDestination;
-}
-
 function resolveInstalledCliCommand(installRoot, args) {
   const binDir = join(installRoot, "node_modules", ".bin");
   if (process.platform === "win32") {
@@ -173,7 +167,6 @@ const nativePackageDir = join(tempRoot, "native-package");
 const nativeTarballDir = join(tempRoot, "native-tarball");
 const installRoot = join(tempRoot, "install");
 const homeDir = join(installRoot, ".privacy-pools");
-const npmCacheDir = join(tempRoot, ".npm-cache");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
 
 mkdirSync(cliTarballDir, { recursive: true });
@@ -213,7 +206,9 @@ try {
     "--release",
   ]);
 
-  const cliTarball = packTarball(repoRoot, cliTarballDir);
+  const cliTarball = packTarball(repoRoot, cliTarballDir, {
+    npmStateRoot: tempRoot,
+  });
   run("node", [
     join(repoRoot, "scripts", "prepare-native-package.mjs"),
     "--triplet",
@@ -223,7 +218,9 @@ try {
     "--out-dir",
     nativePackageDir,
   ]);
-  const nativeTarball = packTarball(nativePackageDir, nativeTarballDir);
+  const nativeTarball = packTarball(nativePackageDir, nativeTarballDir, {
+    npmStateRoot: tempRoot,
+  });
   const nativePackageName = currentNativePackageName(currentTriplet);
   if (!nativePackageName) {
     fail(`Unsupported native package triplet ${currentTriplet}.`);
@@ -256,10 +253,7 @@ try {
     ],
     {
       cwd: installRoot,
-      env: {
-        ...process.env,
-        npm_config_cache: npmCacheDir,
-      },
+      env: npmProcessEnv(tempRoot),
     },
   );
 

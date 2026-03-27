@@ -9,6 +9,7 @@ import {
   currentNativePackageName,
   fail,
   npmCommand,
+  npmProcessEnv,
   packageInstallPath,
   parseArgs,
   parseJson,
@@ -144,6 +145,7 @@ async function waitForRegistryPackage(packageName, version, timeoutMs) {
         encoding: "utf8",
         timeout: 30_000,
         maxBuffer: 1024 * 1024,
+        env: npmProcessEnv(installRoot),
       },
     );
 
@@ -181,7 +183,6 @@ if (!nativePackageName) {
 const installRoot = mkdtempSync(join(tmpdir(), "pp-registry-install-"));
 const homeDir = join(installRoot, ".privacy-pools");
 const seededHomeDir = join(installRoot, ".privacy-pools-seeded");
-const npmCacheDir = join(installRoot, ".npm-cache");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
 
 try {
@@ -217,10 +218,7 @@ try {
     ],
     {
       cwd: installRoot,
-      env: {
-        ...process.env,
-        npm_config_cache: npmCacheDir,
-      },
+      env: npmProcessEnv(installRoot),
     },
   );
 

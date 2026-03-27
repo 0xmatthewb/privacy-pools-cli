@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { npmProcessEnv } from "./lib/install-verification.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
@@ -82,7 +83,6 @@ if (!triplet || !tarball) {
 const expectedVersion = args.version?.trim() || rootPackageJson.version;
 const tarballPath = resolve(tarball);
 const installRoot = mkdtempSync(join(tmpdir(), "pp-native-tarball-"));
-const npmCacheDir = join(installRoot, ".npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const packageName = nativePackageNameForTriplet(triplet);
 
@@ -116,10 +116,7 @@ try {
       encoding: "utf8",
       timeout: 180_000,
       maxBuffer: 10 * 1024 * 1024,
-      env: {
-        ...process.env,
-        npm_config_cache: npmCacheDir,
-      },
+      env: npmProcessEnv(installRoot),
     },
   );
 

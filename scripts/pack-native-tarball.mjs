@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, renameSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   fail,
-  npmCommand,
+  packTarball,
   parseArgs,
   repoRoot,
 } from "./lib/install-verification.mjs";
@@ -73,11 +73,7 @@ run("node", [
   outDir,
 ]);
 
-const packResult = run(npmCommand, ["pack", "--silent"], { cwd: outDir });
-const tarballName = packResult.stdout.trim();
-const tarballSource = join(outDir, tarballName);
-const tarballDestination = join(dirname(outDir), tarballName);
-renameSync(tarballSource, tarballDestination);
+const tarballDestination = packTarball(outDir, dirname(outDir));
 
 run("node", [
   join(scriptDir, "verify-packed-native-package.mjs"),
