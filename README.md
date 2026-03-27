@@ -166,6 +166,7 @@ For unsigned transaction payloads, error taxonomy, and the full integration guid
 ## Further Reading
 
 - [docs/reference.md](docs/reference.md): flags, configuration, environment variables, project structure
+- [docs/runtime-upgrades.md](docs/runtime-upgrades.md): native runtime troubleshooting, fallback controls, upgrade playbook
 - [AGENTS.md](AGENTS.md): agent integration guide, JSON payloads, unsigned mode
 - [CHANGELOG.md](CHANGELOG.md): release history and migration notes
 

@@ -30,7 +30,7 @@ triggers:
 
 SDK-powered CLI for [Privacy Pools v1](https://privacypools.com). Compliant, private transactions on Ethereum, Arbitrum, and Optimism.
 
-Install: `npm i -g privacy-pools-cli` or `bun add -g privacy-pools-cli`. For unreleased or source builds, use `npm i -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`.
+Install: `npm i -g privacy-pools-cli` or `bun add -g privacy-pools-cli`. For unreleased or source builds, use `npm i -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`. For native runtime troubleshooting or fallback controls, see `docs/runtime-upgrades.md`.
 
 ## Quick reference
 

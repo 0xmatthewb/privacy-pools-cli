@@ -2,7 +2,7 @@
 
 This document is for AI agents, bots, and programmatic consumers of the Privacy Pools CLI. For human users, see [`README.md`](README.md) or run `privacy-pools guide`.
 
-For flags, configuration, and environment variables, see [`docs/reference.md`](docs/reference.md). For release history, see [`CHANGELOG.md`](CHANGELOG.md).
+For flags, configuration, and environment variables, see [`docs/reference.md`](docs/reference.md). For native runtime troubleshooting and fallback controls, see [`docs/runtime-upgrades.md`](docs/runtime-upgrades.md). For release history, see [`CHANGELOG.md`](CHANGELOG.md).
 
 > **Skill files**: For Bankr, Claude Code, and other skill-aware agents, see [`skills/privacy-pools-cli/SKILL.md`](skills/privacy-pools-cli/SKILL.md) and [`skills/privacy-pools-cli/reference.md`](skills/privacy-pools-cli/reference.md).
 
@@ -108,7 +108,7 @@ When a human delegates CLI operations to an agent:
 | `-y, --yes` | Skip confirmation prompts |
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-r, --rpc-url <url>` | Override RPC URL |
-| `-q, --quiet` | Suppress most human-readable success output; errors still print |
+| `-q, --quiet` | Suppress human-readable success output; errors still print |
 | `-v, --verbose` | Enable verbose/debug output |
 | `--no-banner` | Disable ASCII banner output |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |

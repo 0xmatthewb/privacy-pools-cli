@@ -93,9 +93,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools init --yes --default-chain mainnet",
         "privacy-pools init --force --yes --default-chain mainnet",
         "privacy-pools init --agent --default-chain mainnet --show-mnemonic",
-        "privacy-pools init --mnemonic \"word ...\" --private-key 0x...",
         "privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key.txt",
         "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet",
+        "printf '%s\\n' 0x... | privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-stdin --yes --default-chain mainnet",
       ],
       jsonFields:
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",

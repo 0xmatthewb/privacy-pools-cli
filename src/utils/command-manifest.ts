@@ -676,9 +676,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools init --yes --default-chain mainnet",
         "privacy-pools init --force --yes --default-chain mainnet",
         "privacy-pools init --agent --default-chain mainnet --show-mnemonic",
-        "privacy-pools init --mnemonic \"word ...\" --private-key 0x...",
         "privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key.txt",
-        "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet"
+        "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet",
+        "printf '%s\\n' 0x... | privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-stdin --yes --default-chain mainnet"
       ],
       "jsonFields": "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       "jsonVariants": [],
@@ -2086,7 +2086,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "flag": "-q, --quiet",
-      "description": "Suppress most human-readable success output; errors still print"
+      "description": "Suppress human-readable success output; errors still print"
     },
     {
       "flag": "--no-banner",
