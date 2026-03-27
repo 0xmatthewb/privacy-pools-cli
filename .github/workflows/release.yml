@@ -194,7 +194,7 @@ jobs:
           const optionalDependencies = pkg.optionalDependencies ?? {};
           const mismatched = Object.entries(optionalDependencies).filter(
             ([name, version]) =>
-              name.startsWith("@0xbow/privacy-pools-cli-native-") && version !== expected,
+              name.startsWith("@0xmatthewb/privacy-pools-cli-native-") && version !== expected,
           );
           if (mismatched.length > 0) {
             console.error(
@@ -388,7 +388,7 @@ jobs:
         with:
           node-version: "25.x"
           registry-url: "https://registry.npmjs.org"
-          scope: "@0xbow"
+          scope: "@0xmatthewb"
 
       - name: Ensure npm publish token is configured
         shell: bash
@@ -501,7 +501,7 @@ jobs:
         with:
           node-version: "25.x"
           registry-url: "https://registry.npmjs.org"
-          scope: "@0xbow"
+          scope: "@0xmatthewb"
 
       - name: Verify npm registry install
         shell: bash

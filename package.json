@@ -87,11 +87,11 @@
     "url": "https://github.com/0xmatthewb/privacy-pools-cli"
   },
   "optionalDependencies": {
-    "@0xbow/privacy-pools-cli-native-macos-arm64": "1.7.0",
-    "@0xbow/privacy-pools-cli-native-macos-x64": "1.7.0",
-    "@0xbow/privacy-pools-cli-native-linux-x64-gnu": "1.7.0",
-    "@0xbow/privacy-pools-cli-native-windows-arm64-msvc": "1.7.0",
-    "@0xbow/privacy-pools-cli-native-windows-x64-msvc": "1.7.0"
+    "@0xmatthewb/privacy-pools-cli-native-macos-arm64": "1.7.0",
+    "@0xmatthewb/privacy-pools-cli-native-macos-x64": "1.7.0",
+    "@0xmatthewb/privacy-pools-cli-native-linux-x64-gnu": "1.7.0",
+    "@0xmatthewb/privacy-pools-cli-native-windows-arm64-msvc": "1.7.0",
+    "@0xmatthewb/privacy-pools-cli-native-windows-x64-msvc": "1.7.0"
   },
   "overrides": {
     "jsonpath": "1.3.0",

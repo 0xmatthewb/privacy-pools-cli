@@ -4,7 +4,7 @@ const WINDOWS_BINARY_FILE = "privacy-pools-cli-native-shell.exe";
 export const SUPPORTED_NATIVE_DISTRIBUTIONS = Object.freeze([
   Object.freeze({
     triplet: "darwin-arm64",
-    packageName: "@0xbow/privacy-pools-cli-native-macos-arm64",
+    packageName: "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
     platform: "darwin",
     arch: "arm64",
     os: Object.freeze(["darwin"]),
@@ -15,7 +15,7 @@ export const SUPPORTED_NATIVE_DISTRIBUTIONS = Object.freeze([
   }),
   Object.freeze({
     triplet: "darwin-x64",
-    packageName: "@0xbow/privacy-pools-cli-native-macos-x64",
+    packageName: "@0xmatthewb/privacy-pools-cli-native-macos-x64",
     platform: "darwin",
     arch: "x64",
     os: Object.freeze(["darwin"]),
@@ -26,7 +26,7 @@ export const SUPPORTED_NATIVE_DISTRIBUTIONS = Object.freeze([
   }),
   Object.freeze({
     triplet: "linux-x64-gnu",
-    packageName: "@0xbow/privacy-pools-cli-native-linux-x64-gnu",
+    packageName: "@0xmatthewb/privacy-pools-cli-native-linux-x64-gnu",
     platform: "linux",
     arch: "x64",
     os: Object.freeze(["linux"]),
@@ -37,7 +37,7 @@ export const SUPPORTED_NATIVE_DISTRIBUTIONS = Object.freeze([
   }),
   Object.freeze({
     triplet: "win32-x64-msvc",
-    packageName: "@0xbow/privacy-pools-cli-native-windows-x64-msvc",
+    packageName: "@0xmatthewb/privacy-pools-cli-native-windows-x64-msvc",
     platform: "win32",
     arch: "x64",
     os: Object.freeze(["win32"]),
@@ -48,7 +48,7 @@ export const SUPPORTED_NATIVE_DISTRIBUTIONS = Object.freeze([
   }),
   Object.freeze({
     triplet: "win32-arm64-msvc",
-    packageName: "@0xbow/privacy-pools-cli-native-windows-arm64-msvc",
+    packageName: "@0xmatthewb/privacy-pools-cli-native-windows-arm64-msvc",
     platform: "win32",
     arch: "arm64",
     os: Object.freeze(["win32"]),
