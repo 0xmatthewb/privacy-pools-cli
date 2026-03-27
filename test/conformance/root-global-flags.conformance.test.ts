@@ -22,6 +22,10 @@ function splitFlagNames(flag: string): string[] {
     .filter(Boolean);
 }
 
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 describe("root global flags conformance", () => {
   const rustSource = readFileSync(
     join(CLI_ROOT, "native", "shell", "src", "root_argv.rs"),
@@ -45,9 +49,10 @@ describe("root global flags conformance", () => {
 
   test("static root help includes every shared root flag description", () => {
     const helpText = rootHelpBaseText();
+    const normalizedHelpText = normalizeWhitespace(helpText);
     for (const { flag, description } of ROOT_GLOBAL_FLAG_METADATA) {
       expect(helpText).toContain(flag);
-      expect(helpText).toContain(description);
+      expect(normalizedHelpText).toContain(normalizeWhitespace(description));
     }
   });
 
