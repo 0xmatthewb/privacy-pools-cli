@@ -4,15 +4,7 @@ import {
   rootHelpFooterStyled,
 } from "./utils/root-help-footer.js";
 import { rootGlobalFlagDescription } from "./utils/root-global-flags.js";
-
-const ROOT_OPTIONS_WITH_VALUE = new Set([
-  "-c",
-  "--chain",
-  "--format",
-  "-r",
-  "--rpc-url",
-  "--timeout",
-]);
+import { allNonOptionTokens } from "./utils/root-argv.js";
 
 const ROOT_COMMAND_NAMES = [
   "init",
@@ -70,19 +62,6 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   completion: async () =>
     (await import("./command-shells/completion.js")).createCompletionCommand(),
 };
-
-function allNonOptionTokens(args: string[]): string[] {
-  const tokens: string[] = [];
-  for (let i = 0; i < args.length; i++) {
-    const token = args[i];
-    if (!token.startsWith("-")) {
-      tokens.push(token);
-      continue;
-    }
-    if (ROOT_OPTIONS_WITH_VALUE.has(token)) i++;
-  }
-  return tokens;
-}
 
 function resolveRootCommandName(token: string | undefined): RootCommandName | null {
   if (!token) return null;

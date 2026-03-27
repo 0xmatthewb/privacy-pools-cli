@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { join } from "path";
 import { homedir } from "os";
+import type { CliPackageInfo } from "./package-info.js";
 import {
   checkForUpdateInBackground,
   getUpdateNotice,
@@ -8,11 +9,15 @@ import {
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { createRootProgram } from "./program.js";
-
-export interface CliPackageInfo {
-  version: string;
-  repository?: unknown;
-}
+import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
+import {
+  firstNonOptionToken,
+  hasShortFlag,
+  isWelcomeFlagOnlyInvocation,
+  isWelcomeShortFlagBundle,
+  parseRootArgv,
+  readLongOptionValue,
+} from "./utils/root-argv.js";
 
 function normalizeRepositoryUrl(repository: unknown): string | null {
   const raw =
@@ -35,49 +40,6 @@ function normalizeRepositoryUrl(repository: unknown): string | null {
     .replace(/\.git$/, "");
 }
 
-function hasShortFlag(args: string[], flag: string): boolean {
-  for (const token of args) {
-    if (!token.startsWith("-") || token.startsWith("--")) continue;
-    if (token === `-${flag}`) return true;
-    // Support bundled short flags, e.g. -jy or -qV
-    if (/^-[A-Za-z]+$/.test(token) && token.includes(flag)) return true;
-  }
-  return false;
-}
-
-const ROOT_OPTIONS_WITH_VALUE = new Set([
-  "-c",
-  "--chain",
-  "--format",
-  "-r",
-  "--rpc-url",
-  "--timeout",
-]);
-
-const ROOT_LONG_OPTIONS_WITH_INLINE_VALUE = [
-  "--chain",
-  "--format",
-  "--rpc-url",
-  "--timeout",
-] as const;
-
-function hasLongFlag(args: string[], flag: string): boolean {
-  return args.some((token) => token === flag || token.startsWith(`${flag}=`));
-}
-
-function readLongOptionValue(args: string[], flag: string): string | null {
-  for (let i = 0; i < args.length; i++) {
-    const token = args[i];
-    if (token === flag) {
-      return i + 1 < args.length ? args[i + 1] ?? null : null;
-    }
-    if (token.startsWith(`${flag}=`)) {
-      return token.slice(flag.length + 1);
-    }
-  }
-  return null;
-}
-
 const WELCOME_BOOLEAN_FLAGS = new Set([
   "-q",
   "--quiet",
@@ -89,53 +51,7 @@ const WELCOME_BOOLEAN_FLAGS = new Set([
   "--no-color",
 ]);
 
-const STATIC_LOCAL_COMMANDS = new Set([
-  "guide",
-  "capabilities",
-  "describe",
-  "completion",
-]);
-
-function isWelcomeShortFlagBundle(token: string): boolean {
-  if (!/^-[A-Za-z]+$/.test(token) || token.startsWith("--")) return false;
-  return token
-    .slice(1)
-    .split("")
-    .every((flag) => flag === "q" || flag === "v" || flag === "y");
-}
-
-function firstNonOptionToken(args: string[]): string | undefined {
-  for (let i = 0; i < args.length; i++) {
-    const token = args[i];
-    if (!token.startsWith("-")) return token;
-    if (ROOT_OPTIONS_WITH_VALUE.has(token)) i++;
-  }
-  return undefined;
-}
-
-function isWelcomeFlagOnlyInvocation(args: string[]): boolean {
-  if (args.length === 0) return true;
-  for (let i = 0; i < args.length; i++) {
-    const token = args[i];
-    if (ROOT_OPTIONS_WITH_VALUE.has(token)) {
-      if (i + 1 >= args.length) return false;
-      i++;
-      continue;
-    }
-    if (
-      ROOT_LONG_OPTIONS_WITH_INLINE_VALUE.some((flag) =>
-        token.startsWith(`${flag}=`)
-      )
-    ) {
-      continue;
-    }
-    if (WELCOME_BOOLEAN_FLAGS.has(token) || isWelcomeShortFlagBundle(token)) {
-      continue;
-    }
-    return false;
-  }
-  return true;
-}
+const STATIC_LOCAL_COMMANDS = new Set<string>(GENERATED_STATIC_LOCAL_COMMANDS);
 
 function configHome(): string {
   return (
@@ -364,29 +280,21 @@ export async function runCli(
   pkg: CliPackageInfo,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
-  const firstCommandToken = firstNonOptionToken(argv);
-  const formatFlagValue = readLongOptionValue(argv, "--format")?.toLowerCase() ?? null;
-  const isJson =
-    hasLongFlag(argv, "--json") ||
-    hasShortFlag(argv, "j") ||
-    formatFlagValue === "json";
-  const isCsvMode = formatFlagValue === "csv";
-  const isAgent = hasLongFlag(argv, "--agent");
-  const isUnsigned = hasLongFlag(argv, "--unsigned");
-  const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
-  const isStructuredOutputMode = isJson || isUnsigned || isAgent;
+  const parsedArgv = parseRootArgv(argv);
+  const {
+    firstCommandToken,
+    isCsvMode,
+    isMachineMode,
+    isStructuredOutputMode,
+    isHelpLike,
+    isVersionLike,
+    isQuiet,
+    isWelcome,
+    suppressBanner,
+  } = parsedArgv;
   const shouldStyleHelp = !isStructuredOutputMode;
-  const isHelpLike =
-    argv.includes("--help") ||
-    hasShortFlag(argv, "h") ||
-    firstCommandToken === "help";
-  const isVersionLike = argv.includes("--version") || hasShortFlag(argv, "V");
   const captureMachineOutput =
     isStructuredOutputMode && (isHelpLike || isVersionLike);
-  const suppressBanner = argv.includes("--no-banner");
-  const isQuiet = argv.includes("--quiet") || hasShortFlag(argv, "q");
-  const isWelcome =
-    isWelcomeFlagOnlyInvocation(argv) && (!isMachineMode || isCsvMode);
   const machineOutput = { value: "" };
   const [chalk, dangerTone, styleCommanderHelp] = shouldStyleHelp
     ? await Promise.all([
@@ -445,7 +353,7 @@ export async function runCli(
   );
 
   try {
-    await program.parseAsync();
+    await program.parseAsync(argv, { from: "user" });
     if (shouldCheckUpdates) {
       checkForUpdateInBackground();
     }
@@ -513,9 +421,11 @@ export const cliMainTestInternals = {
   normalizeRepositoryUrl,
   hasShortFlag,
   readLongOptionValue,
+  WELCOME_BOOLEAN_FLAGS,
   isWelcomeShortFlagBundle,
   firstNonOptionToken,
   isWelcomeFlagOnlyInvocation,
+  parseRootArgv,
   configHome,
   maybeLoadConfigEnv,
   mapCommanderError,

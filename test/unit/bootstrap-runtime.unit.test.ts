@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
+import { EventEmitter } from "node:events";
 import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
@@ -9,6 +10,7 @@ import {
   captureModuleExports,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
+import { decodeWorkerRequestV1 } from "../../src/runtime/v1/request.ts";
 
 const realProgram = captureModuleExports(await import("../../src/program.ts"));
 const realBanner = captureModuleExports(
@@ -24,6 +26,7 @@ const realStaticDiscovery = captureModuleExports(
   await import("../../src/static-discovery.ts"),
 );
 const realCliMain = captureModuleExports(await import("../../src/cli-main.ts"));
+const realChildProcess = captureModuleExports(await import("node:child_process"));
 const realConsoleGuard = captureModuleExports(
   await import("../../src/utils/console-guard.ts"),
 );
@@ -40,6 +43,7 @@ const BOOTSTRAP_RUNTIME_MODULE_RESTORES = [
   ["dotenv", realDotenv],
   ["../../src/static-discovery.ts", realStaticDiscovery],
   ["../../src/cli-main.ts", realCliMain],
+  ["node:child_process", realChildProcess],
   ["../../src/utils/console-guard.ts", realConsoleGuard],
   ["../../src/utils/update-check.ts", realUpdateCheck],
 ] as const;
@@ -68,6 +72,48 @@ function makeCommanderExit(code: string) {
   const error = new Error(code) as Error & { code: string };
   error.code = code;
   return error;
+}
+
+function makeSpawnChild(exitCode: number = 0) {
+  const child = new EventEmitter() as EventEmitter & {
+    exitCode: number | null;
+    signalCode: NodeJS.Signals | null;
+    kill: ReturnType<typeof mock>;
+  };
+
+  child.exitCode = null;
+  child.signalCode = null;
+  child.kill = mock(() => undefined);
+
+  queueMicrotask(() => {
+    child.exitCode = exitCode;
+    child.emit("exit", exitCode, null);
+  });
+
+  return child;
+}
+
+function expectWorkerRequestArgv(
+  spawnMock: ReturnType<typeof mock>,
+  expectedArgv: string[],
+): void {
+  const [, args, options] = spawnMock.mock.calls[0] as [
+    string,
+    string[],
+    { env?: NodeJS.ProcessEnv }
+  ];
+
+  expect(Array.isArray(args)).toBe(true);
+  expect(options?.env?.PRIVACY_POOLS_WORKER_REQUEST_B64).toBeTruthy();
+
+  const request = decodeWorkerRequestV1(
+    String(options?.env?.PRIVACY_POOLS_WORKER_REQUEST_B64),
+  );
+
+  expect(request).toEqual({
+    protocolVersion: "1",
+    argv: expectedArgv,
+  });
 }
 
 function makeProgram(
@@ -719,16 +765,17 @@ describe("bootstrap runtime coverage", () => {
     expect(runStaticRootHelpMock).not.toHaveBeenCalled();
   });
 
-  test("index falls back to runCli when the completion fast path declines the argv", async () => {
-    const runCliMock = mock(async () => undefined);
+  test("index falls back to the worker boundary when the completion fast path declines the argv", async () => {
+    const spawnMock = mock(() => makeSpawnChild());
 
     mock.module("../../src/static-discovery.ts", () => ({
       runStaticRootHelp: async () => undefined,
       runStaticCompletionQuery: async () => false,
       runStaticDiscoveryCommand: async () => false,
     }));
-    mock.module("../../src/cli-main.ts", () => ({
-      runCli: runCliMock,
+    mock.module("node:child_process", () => ({
+      ...realChildProcess,
+      spawn: spawnMock,
     }));
 
     process.argv = [
@@ -744,10 +791,13 @@ describe("bootstrap runtime coverage", () => {
       await import(`../../src/index.ts?completion-fallthrough=${Date.now()}`);
     });
 
-    expect(runCliMock).toHaveBeenCalledWith(
-      expect.objectContaining({ version: expect.any(String) }),
-      ["completion", "--query", "--words", "privacy-pools st"],
-    );
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expectWorkerRequestArgv(spawnMock, [
+      "completion",
+      "--query",
+      "--words",
+      "privacy-pools st",
+    ]);
   });
 
   test("index routes guide through the static discovery command fast path", async () => {
@@ -776,16 +826,17 @@ describe("bootstrap runtime coverage", () => {
     expect(runCliMock).not.toHaveBeenCalled();
   });
 
-  test("index falls back to runCli when the static discovery fast path declines", async () => {
-    const runCliMock = mock(async () => undefined);
+  test("index falls back to the worker boundary when the static discovery fast path declines", async () => {
+    const spawnMock = mock(() => makeSpawnChild());
 
     mock.module("../../src/static-discovery.ts", () => ({
       runStaticRootHelp: async () => undefined,
       runStaticCompletionQuery: async () => false,
       runStaticDiscoveryCommand: async () => false,
     }));
-    mock.module("../../src/cli-main.ts", () => ({
-      runCli: runCliMock,
+    mock.module("node:child_process", () => ({
+      ...realChildProcess,
+      spawn: spawnMock,
     }));
 
     process.argv = ["node", "privacy-pools", "guide", "--json"];
@@ -794,10 +845,8 @@ describe("bootstrap runtime coverage", () => {
       await import(`../../src/index.ts?discovery-fallthrough=${Date.now()}`);
     });
 
-    expect(runCliMock).toHaveBeenCalledWith(
-      expect.objectContaining({ version: expect.any(String) }),
-      ["guide", "--json"],
-    );
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expectWorkerRequestArgv(spawnMock, ["guide", "--json"]);
   });
 
   test("index serves the root version fast path in human and structured modes", async () => {
@@ -887,12 +936,15 @@ describe("bootstrap runtime coverage", () => {
   });
 
   test("index sets NO_COLOR before delegating to the full cli path", async () => {
-    const runCliMock = mock(async () => {
+    const spawnMock = mock((_command: string, _args: string[], options?: { env?: NodeJS.ProcessEnv }) => {
       expect(process.env.NO_COLOR).toBe("1");
+      expect(options?.env?.NO_COLOR).toBe("1");
+      return makeSpawnChild();
     });
 
-    mock.module("../../src/cli-main.ts", () => ({
-      runCli: runCliMock,
+    mock.module("node:child_process", () => ({
+      ...realChildProcess,
+      spawn: spawnMock,
     }));
 
     process.argv = ["node", "privacy-pools", "--no-color", "status"];
@@ -901,18 +953,17 @@ describe("bootstrap runtime coverage", () => {
       await import(`../../src/index.ts?no-color-delegation=${Date.now()}`);
     });
 
-    expect(runCliMock).toHaveBeenCalledWith(
-      expect.objectContaining({ version: expect.any(String) }),
-      ["--no-color", "status"],
-    );
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expectWorkerRequestArgv(spawnMock, ["--no-color", "status"]);
   });
 
-  test("index delegates non-fast invocations to runCli", async () => {
-    const runCliMock = mock(async () => undefined);
+  test("index delegates non-fast invocations to the worker boundary", async () => {
+    const spawnMock = mock(() => makeSpawnChild());
     const installConsoleGuardMock = mock(() => undefined);
 
-    mock.module("../../src/cli-main.ts", () => ({
-      runCli: runCliMock,
+    mock.module("node:child_process", () => ({
+      ...realChildProcess,
+      spawn: spawnMock,
     }));
     mock.module("../../src/utils/console-guard.ts", () => ({
       ...realConsoleGuard,
@@ -926,9 +977,7 @@ describe("bootstrap runtime coverage", () => {
     });
 
     expect(installConsoleGuardMock).toHaveBeenCalledTimes(1);
-    expect(runCliMock).toHaveBeenCalledWith(
-      expect.objectContaining({ version: expect.any(String) }),
-      ["status", "--json"],
-    );
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expectWorkerRequestArgv(spawnMock, ["status", "--json"]);
   });
 });

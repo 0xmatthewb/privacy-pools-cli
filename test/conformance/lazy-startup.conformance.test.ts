@@ -62,13 +62,18 @@ function readSource(relPath: string): string {
 
 describe("lazy startup conformance", () => {
   test("entrypoint stays free of heavy startup imports", () => {
-    const source = readSource("src/index.ts");
+    const entrySource = readSource("src/index.ts");
+    const launcherSource = readSource("src/launcher.ts");
 
-    expect(source).not.toContain("./services/account.js");
-    expect(source).not.toContain('from "dotenv"');
-    expect(source).toContain("installConsoleGuard");
-    expect(source).toContain('await import("./static-discovery.js")');
-    expect(source).toContain('await import("./cli-main.js")');
+    expect(entrySource).not.toContain("./services/account.js");
+    expect(entrySource).not.toContain('from "dotenv"');
+    expect(entrySource).toContain("installConsoleGuard");
+    expect(entrySource).toContain('from "./launcher.js"');
+
+    expect(launcherSource).not.toContain("./services/account.js");
+    expect(launcherSource).not.toContain('from "dotenv"');
+    expect(launcherSource).toContain('await import("./static-discovery.js")');
+    expect(launcherSource).not.toContain('from "./cli-main.js"');
   });
 
   test("full cli path keeps dotenv lazy", () => {
