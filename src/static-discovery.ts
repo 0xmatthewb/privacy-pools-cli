@@ -1,6 +1,7 @@
 import type { GlobalOptions } from "./types.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
+import type { ParsedRootArgv } from "./utils/root-argv.js";
 import {
   invalidOutputFormatMessage,
   isSupportedOutputFormat,
@@ -25,6 +26,17 @@ interface ParsedStaticCompletionQuery {
   shell: "bash" | "zsh" | "fish" | "powershell";
   cword: number | undefined;
   words: string[];
+}
+
+function staticGlobalOptsFromParsedRootArgv(
+  parsed: ParsedRootArgv,
+): GlobalOptions {
+  return {
+    json: parsed.isJson || undefined,
+    agent: parsed.isAgent || undefined,
+    quiet: parsed.isQuiet || undefined,
+    format: parsed.formatFlagValue ?? undefined,
+  };
 }
 
 function isKnownCompletionShell(
@@ -428,10 +440,35 @@ function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {
   return { command, commandTokens, globalOpts };
 }
 
-export async function runStaticDiscoveryCommand(argv: string[]): Promise<boolean> {
+function parseStaticCommandFromRootArgv(
+  parsed: ParsedRootArgv,
+): ParsedStaticCommand | null {
+  const commandToken = parsed.firstCommandToken;
+  if (!commandToken || parsed.isHelpLike || parsed.isVersionLike) return null;
+  if (!STATIC_DISCOVERY_COMMAND_SET.has(commandToken)) return null;
+
+  const command = commandToken as ParsedStaticCommand["command"];
+  const commandTokens = parsed.nonOptionTokens.slice(1);
+  if (command === "guide" && commandTokens.length > 0) return null;
+  if (command === "capabilities" && commandTokens.length > 0) return null;
+  if (command === "describe" && commandTokens.length === 0) return null;
+
+  return {
+    command,
+    commandTokens,
+    globalOpts: staticGlobalOptsFromParsedRootArgv(parsed),
+  };
+}
+
+export async function runStaticDiscoveryCommand(
+  argv: string[],
+  parsedRootArgv?: ParsedRootArgv,
+): Promise<boolean> {
   let parsed: ParsedStaticCommand | null = null;
   try {
-    parsed = parseStaticCommand(argv);
+    parsed = parsedRootArgv
+      ? parseStaticCommandFromRootArgv(parsedRootArgv)
+      : parseStaticCommand(argv);
     if (!parsed) return false;
     assertSupportedOutputFormat(parsed.globalOpts);
 
@@ -449,7 +486,9 @@ export async function runStaticDiscoveryCommand(argv: string[]): Promise<boolean
   } catch (error) {
     printError(
       error,
-      parsed ? resolveGlobalMode(parsed.globalOpts).isJson : fallbackJsonModeFromArgv(argv),
+      parsed
+        ? resolveGlobalMode(parsed.globalOpts).isJson
+        : parsedRootArgv?.isJson ?? fallbackJsonModeFromArgv(argv),
     );
     return true;
   }
@@ -649,9 +688,11 @@ export const staticDiscoveryTestInternals = {
   isKnownCompletionShell,
   detectStaticCompletionShell,
   fallbackJsonModeFromArgv,
+  staticGlobalOptsFromParsedRootArgv,
   parseLongOption,
   parseShortOption,
   parseShortFlagBundle,
   parseStaticCommand,
+  parseStaticCommandFromRootArgv,
   parseCompletionQuery,
 };

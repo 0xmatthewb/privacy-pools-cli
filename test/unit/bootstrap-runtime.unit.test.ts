@@ -807,7 +807,14 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(0);
     expect(runStaticCompletionQueryMock).not.toHaveBeenCalled();
-    expect(runStaticDiscoveryCommandMock).toHaveBeenCalledWith(["guide", "--json"]);
+    expect(runStaticDiscoveryCommandMock).toHaveBeenCalledWith(
+      ["guide", "--json"],
+      expect.objectContaining({
+        firstCommandToken: "guide",
+        nonOptionTokens: ["guide"],
+        isJson: true,
+      }),
+    );
     expect(runCliMock).not.toHaveBeenCalled();
   });
 

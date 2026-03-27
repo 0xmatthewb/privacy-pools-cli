@@ -5,6 +5,7 @@ import {
   runStaticRootHelp,
   staticDiscoveryTestInternals,
 } from "../../src/static-discovery.ts";
+import { parseRootArgv } from "../../src/utils/root-argv.ts";
 import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
@@ -105,6 +106,11 @@ describe("static discovery runtime", () => {
     expect(staticDiscoveryTestInternals.parseStaticCommand(["help", "guide"])).toBe(
       null,
     );
+    expect(
+      staticDiscoveryTestInternals.parseStaticCommandFromRootArgv(
+        parseRootArgv(["help", "guide"]),
+      ),
+    ).toBeNull();
 
     expect(
       staticDiscoveryTestInternals.parseCompletionQuery(["completion"]),
@@ -152,6 +158,40 @@ describe("static discovery runtime", () => {
     expect(stderr).toContain("Commands:");
     expect(stderr).toContain("Global Flags:");
     expect(stderr).toContain("Typical Agent Workflow:");
+  });
+
+  test("can reuse parsed root argv for static discovery commands", async () => {
+    const parsed = parseRootArgv(["--json", "describe", "withdraw", "quote"]);
+    expect(
+      staticDiscoveryTestInternals.staticGlobalOptsFromParsedRootArgv(parsed),
+    ).toEqual({
+      json: true,
+      agent: undefined,
+      quiet: undefined,
+      format: undefined,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseStaticCommandFromRootArgv(parsed),
+    ).toEqual({
+      command: "describe",
+      commandTokens: ["withdraw", "quote"],
+      globalOpts: {
+        json: true,
+        agent: undefined,
+        quiet: undefined,
+        format: undefined,
+      },
+    });
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand(
+        ["--json", "describe", "withdraw", "quote"],
+        parsed,
+      ),
+    );
+    expect(json.success).toBe(true);
+    expect(json.command).toBe("withdraw quote");
+    expect(stderr).toBe("");
   });
 
   test("renders capabilities in agent mode", async () => {

@@ -459,7 +459,7 @@ async function tryRunLocalFastPath(
     STATIC_DISCOVERY_COMMANDS.has(parsed.firstCommandToken ?? "")
   ) {
     const { runStaticDiscoveryCommand } = await import("./static-discovery.js");
-    if (await runStaticDiscoveryCommand(argv)) {
+    if (await runStaticDiscoveryCommand(argv, parsed)) {
       process.exit(0);
       return true;
     }

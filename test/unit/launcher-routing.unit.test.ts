@@ -459,7 +459,10 @@ describe("launcher routing", () => {
       expect(exitCode).toBe(0);
       expect(stdout).toBe("");
       expect(stderr).toBe("");
-      expect(runStaticDiscoveryCommand).toHaveBeenCalledWith(argv);
+      expect(runStaticDiscoveryCommand).toHaveBeenCalledWith(
+        argv,
+        parseRootArgv(argv),
+      );
     } finally {
       mock.restore();
     }
