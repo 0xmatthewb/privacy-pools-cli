@@ -1230,6 +1230,77 @@ describe("withdraw command handler", () => {
     expect(stderr).toContain("0x4444");
   });
 
+  test("prompts for the recipient only after asset and pool-account selection", async () => {
+    useIsolatedHome({ withSigner: true });
+    const alternateApproved = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 3,
+      paId: "PA-3",
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 503n,
+        label: 603n,
+        value: 2000000000000000000n,
+      },
+      label: 603n,
+      value: 2000000000000000000n,
+    };
+    buildPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      alternateApproved,
+    ]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      alternateApproved,
+    ]);
+    fetchMerkleLeavesMock.mockImplementation(async () => ({
+      aspLeaves: ["601", "603"],
+      stateTreeLeaves: ["501", "503"],
+    }));
+    buildLoadedAspDepositReviewStateMock.mockImplementation(() => ({
+      approvedLabels: new Set<string>(["601", "603"]),
+      reviewStatuses: new Map<string, string>([
+        ["601", "approved"],
+        ["603", "approved"],
+      ]),
+    }));
+
+    const events: string[] = [];
+    selectPromptMock
+      .mockImplementationOnce(async () => {
+        events.push("asset");
+        return "ETH";
+      })
+      .mockImplementationOnce(async () => {
+        events.push("pool-account");
+        return 3;
+      });
+    inputPromptMock.mockImplementationOnce(async () => {
+      events.push("recipient");
+      return "0x4444444444444444444444444444444444444444";
+    });
+    confirmPromptMock.mockImplementationOnce(async () => {
+      events.push("confirm");
+      return true;
+    });
+
+    await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        undefined,
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(events).toEqual([
+      "asset",
+      "pool-account",
+      "recipient",
+      "confirm",
+    ]);
+  });
+
   test("lets humans choose among multiple approved Pool Accounts", async () => {
     useIsolatedHome({ withSigner: true });
     const alternateApproved = {
@@ -1299,6 +1370,7 @@ describe("withdraw command handler", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("NOT privacy-preserving");
     expect(stderr).toContain("Withdrawal cancelled.");
+    expect(proveWithdrawalMock).not.toHaveBeenCalled();
     expect(withdrawDirectMock).not.toHaveBeenCalled();
   });
 

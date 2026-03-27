@@ -434,42 +434,28 @@ export async function handleWithdrawCommand(
     // In unsigned/dry-run modes, do NOT touch the key file at all — the signer is optional
     verbose(`Signer: ${signerAddress ?? "(unsigned mode)"}`, isVerbose, silent);
 
-    // Validate --to / --direct constraints
-    let recipientAddress: Address;
-    if (!isDirect && !opts.to) {
-      if (!skipPrompts) {
-        const prompted = await input({
-          message: "Recipient address:",
-          validate: (val) => {
-            try {
-              validateAddress(val, "Recipient");
-              return true;
-            } catch (e) {
-              return e instanceof Error ? e.message : "Invalid address.";
-            }
-          },
-        });
-        recipientAddress = validateAddress(prompted, "Recipient");
-      } else {
-        throw new CLIError(
-          "Relayed withdrawals require --to <address>.",
-          "INPUT",
-          "Specify a recipient with --to. Note: --direct is available but not recommended, as it publicly links your deposit and withdrawal addresses.",
-        );
-      }
-    } else if (isDirect && !opts.to && !signerAddress) {
+    // Validate --to / --direct constraints. Human relayed mode can prompt later
+    // once the asset and Pool Account have been selected.
+    let recipientAddress: Address | null = null;
+    if (opts.to) {
+      recipientAddress = validateAddress(opts.to, "Recipient");
+    } else if (isDirect && !signerAddress) {
       throw new CLIError(
         "Direct withdrawal requires --to <address> in unsigned mode (no signer key available).",
         "INPUT",
         "Specify a recipient address with --to 0x...",
       );
-    } else {
-      recipientAddress = opts.to
-        ? validateAddress(opts.to, "Recipient")
-        : signerAddress!;
+    } else if (isDirect) {
+      recipientAddress = signerAddress!;
+    } else if (skipPrompts) {
+      throw new CLIError(
+        "Relayed withdrawals require --to <address>.",
+        "INPUT",
+        "Specify a recipient with --to. Note: --direct is available but not recommended, as it publicly links your deposit and withdrawal addresses.",
+      );
     }
 
-    if (isDirect && opts.to && signerAddress) {
+    if (isDirect && recipientAddress && opts.to && signerAddress) {
       if (recipientAddress.toLowerCase() !== signerAddress.toLowerCase()) {
         throw new CLIError(
           "Direct withdrawal --to must match your signer address.",
@@ -670,7 +656,7 @@ export async function handleWithdrawCommand(
       stageHeader(
         2,
         withdrawSteps,
-        "Fetching ASP data and building proofs",
+        "Fetching ASP data",
         silent,
       );
       spin.text = "Fetching ASP data...";
@@ -930,6 +916,32 @@ export async function handleWithdrawCommand(
         { silent },
       );
 
+      if (!isDirect && !recipientAddress) {
+        spin.stop();
+        const prompted = await input({
+          message: "Recipient address:",
+          validate: (val) => {
+            try {
+              validateAddress(val, "Recipient");
+              return true;
+            } catch (e) {
+              return e instanceof Error ? e.message : "Invalid address.";
+            }
+          },
+        });
+        recipientAddress = validateAddress(prompted, "Recipient");
+        spin.start();
+      }
+
+      if (!recipientAddress) {
+        throw new CLIError(
+          "Relayed withdrawals require --to <address>.",
+          "INPUT",
+          "Specify a recipient with --to. Note: --direct is available but not recommended, as it publicly links your deposit and withdrawal addresses.",
+        );
+      }
+      const resolvedRecipientAddress = recipientAddress;
+
       // Anonymity set info (non-fatal)
       let anonymitySet:
         | { eligible: number; total: number; percentage: number }
@@ -1011,7 +1023,7 @@ export async function handleWithdrawCommand(
           await checkHasGas(publicClient, signerAddress!);
         }
 
-        const directAddress = recipientAddress;
+        const directAddress = resolvedRecipientAddress;
         const withdrawal = {
           processooor: directAddress,
           data: "0x" as Hex,
@@ -1021,6 +1033,24 @@ export async function handleWithdrawCommand(
           calculateContext(withdrawal, pool.scope as unknown as SDKHash),
         );
         verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
+
+        if (!skipPrompts) {
+          spin.stop();
+          warn(
+            `Direct withdrawal sends funds to your signer address (${formatAddress(directAddress)}). This is NOT privacy-preserving. Your deposit address will be linked to your withdrawal onchain.`,
+            silent,
+          );
+          process.stderr.write("\n");
+          const ok = await confirm({
+            message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}${withdrawalUsd} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}? (no privacy)`,
+            default: false,
+          });
+          if (!ok) {
+            info("Withdrawal cancelled.", silent);
+            return;
+          }
+          spin.start();
+        }
 
         // Re-verify parity right before proving
         stageHeader(3, withdrawSteps, "Generating ZK proof", silent);
@@ -1104,24 +1134,6 @@ export async function handleWithdrawCommand(
           return;
         }
 
-        if (!skipPrompts) {
-          spin.stop();
-          warn(
-            `Direct withdrawal sends funds to your signer address (${formatAddress(directAddress)}). This is NOT privacy-preserving. Your deposit address will be linked to your withdrawal onchain.`,
-            silent,
-          );
-          process.stderr.write("\n");
-          const ok = await confirm({
-            message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}${withdrawalUsd} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}? (no privacy)`,
-            default: false,
-          });
-          if (!ok) {
-            info("Withdrawal cancelled.", silent);
-            return;
-          }
-          spin.start();
-        }
-
         await assertLatestRootUnchanged(
           "Pool state changed before submission. Re-run withdrawal to generate a fresh proof.",
           "Run 'privacy-pools sync' then retry the withdrawal.",
@@ -1196,7 +1208,7 @@ export async function handleWithdrawCommand(
           txHash: tx.hash,
           blockNumber: receipt.blockNumber,
           amount: withdrawalAmount,
-          recipient: recipientAddress,
+          recipient: resolvedRecipientAddress,
           asset: pool.symbol,
           chain: chainConfig.name,
           decimals: pool.decimals,
@@ -1248,7 +1260,7 @@ export async function handleWithdrawCommand(
           amount: withdrawalAmount,
           asset: pool.asset,
           extraGas: effectiveExtraGas,
-          recipient: recipientAddress,
+          recipient: resolvedRecipientAddress,
         });
         verbose(
           `Relayer quote: feeBPS=${quote.feeBPS} baseFeeBPS=${quote.baseFeeBPS}`,
@@ -1274,7 +1286,7 @@ export async function handleWithdrawCommand(
               amount: withdrawalAmount,
               asset: pool.asset,
               extraGas: effectiveExtraGas,
-              recipient: recipientAddress,
+              recipient: resolvedRecipientAddress,
             }),
             maxRelayFeeBPS: pool.maxRelayFeeBPS,
           });
@@ -1333,7 +1345,7 @@ export async function handleWithdrawCommand(
               `  From:            ${selectedPoolAccount.paId} (balance: ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol, dd)})\n`,
             );
             process.stderr.write(
-              `  To:              ${formatAddress(recipientAddress)}\n`,
+              `  To:              ${formatAddress(resolvedRecipientAddress)}\n`,
             );
             process.stderr.write(`  Chain:           ${chainConfig.name}\n`);
             process.stderr.write(
@@ -1394,7 +1406,7 @@ export async function handleWithdrawCommand(
             { name: "feeRecipient", type: "address" },
             { name: "relayFeeBPS", type: "uint256" },
           ],
-          [recipientAddress, details.feeReceiverAddress, quoteFeeBPS],
+          [resolvedRecipientAddress, details.feeReceiverAddress, quoteFeeBPS],
         );
 
         const withdrawal = {
@@ -1475,7 +1487,7 @@ export async function handleWithdrawCommand(
             from: signerAddress,
             entrypoint: chainConfig.entrypoint,
             scope: pool.scope,
-            recipient: recipientAddress,
+            recipient: resolvedRecipientAddress,
             selectedCommitmentLabel: commitmentLabel,
             selectedCommitmentValue: commitment.value,
             feeBPS: quote.feeBPS,
@@ -1515,7 +1527,7 @@ export async function handleWithdrawCommand(
             asset: pool.symbol,
             chain: chainConfig.name,
             decimals: pool.decimals,
-            recipient: recipientAddress,
+            recipient: resolvedRecipientAddress,
             poolAccountNumber: selectedPoolAccount.paNumber,
             poolAccountId: selectedPoolAccount.paId,
             selectedCommitmentLabel: commitmentLabel,
@@ -1599,7 +1611,7 @@ export async function handleWithdrawCommand(
           txHash: result.txHash,
           blockNumber: receipt.blockNumber,
           amount: withdrawalAmount,
-          recipient: recipientAddress,
+          recipient: resolvedRecipientAddress,
           asset: pool.symbol,
           chain: chainConfig.name,
           decimals: pool.decimals,
