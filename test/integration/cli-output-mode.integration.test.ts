@@ -16,6 +16,7 @@ describe("human-mode output contracts", () => {
     expect(result.status).toBe(0);
     expect(result.stderr).toContain("Quick Start");
     expect(result.stderr).toContain("Workflow");
+    expect(result.stderr).toContain("npm i -g privacy-pools-cli");
     expect(result.stdout.trim()).toBe("");
   });
 
@@ -120,6 +121,7 @@ describe("--agent mode output contracts", () => {
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.mode).toBe("help");
+    expect(json.help).toContain("npm i -g privacy-pools-cli");
     expect(json.help).toContain("privacy-pools capabilities --agent");
   });
 

@@ -10,9 +10,12 @@ For flags, configuration, and environment variables, see [`docs/reference.md`](d
 
 ```bash
 # Install
-npm i -g github:0xmatthewb/privacy-pools-cli
+npm i -g privacy-pools-cli
 # or
-bun add -g github:0xmatthewb/privacy-pools-cli
+bun add -g privacy-pools-cli
+
+# Unreleased/source builds
+npm i -g github:0xmatthewb/privacy-pools-cli
 
 # Discover capabilities (no wallet needed)
 privacy-pools capabilities --agent

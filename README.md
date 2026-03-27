@@ -65,8 +65,11 @@ The manual commands (`deposit`, `accounts`, `withdraw`) remain available when yo
 ## Install
 
 ```bash
+npm i -g privacy-pools-cli
+# or: bun add -g privacy-pools-cli
+
+# unreleased/source builds
 npm i -g github:0xmatthewb/privacy-pools-cli
-# or: bun add -g github:0xmatthewb/privacy-pools-cli
 ```
 
 ## Distribution

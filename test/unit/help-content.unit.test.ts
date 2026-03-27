@@ -32,6 +32,14 @@ describe("help content", () => {
     expect(guide).toContain("dedicated per-workflow wallet");
   });
 
+  test("guideText prefers the packaged install path and keeps the github fallback", () => {
+    const guide = guideText();
+    expect(guide).toContain("npm i -g privacy-pools-cli");
+    expect(guide).toContain("bun add -g privacy-pools-cli");
+    expect(guide).toContain("github:0xmatthewb/privacy-pools-cli");
+    expect(guide).toContain("unreleased/source builds");
+  });
+
   test("welcomeScreen includes bun link hint when running from source with bun", () => {
     process.env.npm_lifecycle_event = "dev";
     process.env.npm_execpath = "/usr/local/bin/bun";
