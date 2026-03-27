@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -10,40 +10,77 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
 const repoNodeModules = join(repoRoot, "node_modules");
 const repoNodeModulesBin = join(repoNodeModules, ".bin");
+const fixtureServerScript = join(repoRoot, "test", "helpers", "fixture-server.ts");
 
 const DEFAULT_BASE_REF = "origin/main";
 const DEFAULT_RUNS = 10;
 const DEFAULT_WARMUP = 1;
 
+const STRIPPED_ENV_PREFIXES = ["PRIVACY_POOLS_", "PP_"];
+
 const COMMANDS = [
   {
     label: "--help",
     args: ["--help"],
-    env: {},
   },
   {
     label: "--version",
     args: ["--version"],
-    env: {},
-  },
-  {
-    label: "status --json --no-check",
-    args: ["status", "--json", "--no-check"],
-    env: {
-      PRIVACY_POOLS_HOME: "", // filled per-run with an isolated temp home
-    },
   },
   {
     label: "capabilities --agent",
     args: ["capabilities", "--agent"],
-    env: {},
+  },
+  {
+    label: "describe withdraw quote --agent",
+    args: ["describe", "withdraw", "quote", "--agent"],
   },
   {
     label: "flow --help",
     args: ["flow", "--help"],
-    env: {},
+  },
+  {
+    label: "migrate --help",
+    args: ["migrate", "--help"],
+  },
+  {
+    label: "status --json --no-check",
+    args: ["status", "--json", "--no-check"],
+    isolateHome: true,
+  },
+  {
+    label: "pools --agent --chain sepolia",
+    args: ["--chain", "sepolia", "pools", "--agent"],
+    env: ({ fixtureUrl }) => ({
+      PRIVACY_POOLS_ASP_HOST: fixtureUrl,
+      PRIVACY_POOLS_RPC_URL_SEPOLIA: fixtureUrl,
+    }),
+  },
+  {
+    label: "activity --agent",
+    args: ["activity", "--agent"],
+    env: ({ fixtureUrl }) => ({
+      PRIVACY_POOLS_ASP_HOST: fixtureUrl,
+    }),
+  },
+  {
+    label: "stats --agent",
+    args: ["stats", "--agent"],
+    env: ({ fixtureUrl }) => ({
+      PRIVACY_POOLS_ASP_HOST: fixtureUrl,
+    }),
   },
 ];
+
+function sanitizedProcessEnv() {
+  const env = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value === undefined) continue;
+    if (STRIPPED_ENV_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
+    env[key] = value;
+  }
+  return env;
+}
 
 function printUsageAndExit(exitCode = 0) {
   process.stdout.write(
@@ -154,12 +191,62 @@ function spawnOrThrow(command, args, opts = {}) {
 
 function withRepoBinPath(env = {}) {
   return {
-    ...process.env,
+    ...sanitizedProcessEnv(),
     PATH: `${repoNodeModulesBin}:${process.env.PATH ?? ""}`,
     PP_NO_UPDATE_CHECK: "1",
     NO_COLOR: "1",
+    PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
     ...env,
   };
+}
+
+function launchFixtureServer() {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("bun", ["run", fixtureServerScript], {
+      stdio: ["ignore", "pipe", "ignore"],
+      env: withRepoBinPath(),
+    });
+
+    let output = "";
+    const timeout = setTimeout(() => {
+      proc.kill();
+      reject(new Error("Fixture server did not start within 10s"));
+    }, 10_000);
+
+    proc.stdout.on("data", (chunk) => {
+      output += chunk.toString();
+      const match = output.match(/FIXTURE_PORT=(\d+)/);
+      if (!match) return;
+
+      clearTimeout(timeout);
+      resolve({
+        proc,
+        url: `http://127.0.0.1:${Number(match[1])}`,
+      });
+    });
+
+    proc.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    proc.once("exit", (code) => {
+      clearTimeout(timeout);
+      reject(new Error(`Fixture server exited early with code ${code}`));
+    });
+  });
+}
+
+function stopFixtureServer(fixture) {
+  return new Promise((resolve) => {
+    if (!fixture) {
+      resolve();
+      return;
+    }
+
+    fixture.proc.once("exit", () => resolve());
+    fixture.proc.kill();
+  });
 }
 
 function buildCheckout(cwd) {
@@ -267,81 +354,90 @@ try {
   try {
     buildCheckout(baselineWorktree);
 
-    const currentDist = join(repoRoot, "dist", "index.js");
-    const baselineDist = join(baselineWorktree, "dist", "index.js");
-    const currentBaseEnv = withRepoBinPath();
-    const baselineBaseEnv = withRepoBinPath();
+    const fixture = await launchFixtureServer();
+    try {
+      const currentDist = join(repoRoot, "dist", "index.js");
+      const baselineDist = join(baselineWorktree, "dist", "index.js");
+      const currentBaseEnv = withRepoBinPath();
+      const baselineBaseEnv = withRepoBinPath();
 
-    process.stdout.write(
-      [
-        `CLI benchmark comparison`,
-        `base ref: ${commandArgs.baseRef}`,
-        `runs: ${commandArgs.runs}`,
-        `warmup: ${commandArgs.warmup}`,
-        "",
+      process.stdout.write(
         [
-          "command",
-          "base median",
-          "current median",
-          "delta",
-          "delta %",
-        ].join("\t"),
-      ].join("\n") + "\n",
-    );
-
-    for (const command of COMMANDS) {
-      const currentEnv = {
-        ...currentBaseEnv,
-        ...command.env,
-      };
-      const baseEnv = {
-        ...baselineBaseEnv,
-        ...command.env,
-      };
-      const tempHomes = [];
-
-      if (command.label === "status --json --no-check") {
-        const currentHome = mkdtempSync(join(tmpdir(), "pp-cli-bench-home-"));
-        const baseHome = mkdtempSync(join(tmpdir(), "pp-cli-bench-home-"));
-        currentEnv.PRIVACY_POOLS_HOME = currentHome;
-        baseEnv.PRIVACY_POOLS_HOME = baseHome;
-        tempHomes.push(currentHome, baseHome);
-      }
-
-      try {
-        const base = runBench(
-          baselineDist,
-          baselineWorktree,
-          command.args,
-          baseEnv,
-          commandArgs.warmup,
-          commandArgs.runs,
-        );
-        const current = runBench(
-          currentDist,
-          repoRoot,
-          command.args,
-          currentEnv,
-          commandArgs.warmup,
-          commandArgs.runs,
-        );
-        const delta = current.median - base.median;
-        const deltaPct = (delta / base.median) * 100;
-
-        process.stdout.write(
+          `CLI benchmark comparison`,
+          `base ref: ${commandArgs.baseRef}`,
+          `runs: ${commandArgs.runs}`,
+          `warmup: ${commandArgs.warmup}`,
+          "",
           [
-            command.label,
-            formatMs(base.median),
-            formatMs(current.median),
-            `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} ms`,
-            `${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%`,
-          ].join("\t") + "\n",
-        );
-      } finally {
-        for (const tempHome of tempHomes) {
-          rmSync(tempHome, { recursive: true, force: true });
+            "command",
+            "base median",
+            "current median",
+            "delta",
+            "delta %",
+          ].join("\t"),
+        ].join("\n") + "\n",
+      );
+
+      for (const command of COMMANDS) {
+        const extraEnv =
+          typeof command.env === "function"
+            ? command.env({ fixtureUrl: fixture.url })
+            : {};
+        const currentEnv = {
+          ...currentBaseEnv,
+          ...extraEnv,
+        };
+        const baseEnv = {
+          ...baselineBaseEnv,
+          ...extraEnv,
+        };
+        const tempHomes = [];
+
+        if (command.isolateHome) {
+          const currentHome = mkdtempSync(join(tmpdir(), "pp-cli-bench-home-"));
+          const baseHome = mkdtempSync(join(tmpdir(), "pp-cli-bench-home-"));
+          currentEnv.PRIVACY_POOLS_HOME = currentHome;
+          baseEnv.PRIVACY_POOLS_HOME = baseHome;
+          tempHomes.push(currentHome, baseHome);
+        }
+
+        try {
+          const base = runBench(
+            baselineDist,
+            baselineWorktree,
+            command.args,
+            baseEnv,
+            commandArgs.warmup,
+            commandArgs.runs,
+          );
+          const current = runBench(
+            currentDist,
+            repoRoot,
+            command.args,
+            currentEnv,
+            commandArgs.warmup,
+            commandArgs.runs,
+          );
+          const delta = current.median - base.median;
+          const deltaPct = (delta / base.median) * 100;
+
+          process.stdout.write(
+            [
+              command.label,
+              formatMs(base.median),
+              formatMs(current.median),
+              `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} ms`,
+              `${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%`,
+            ].join("\t") + "\n",
+          );
+        } finally {
+          for (const tempHome of tempHomes) {
+            rmSync(tempHome, { recursive: true, force: true });
+          }
         }
       }
+    } finally {
+      await stopFixtureServer(fixture);
     }
   } finally {
     cleanupBaselineWorktree(baselineWorktree);
