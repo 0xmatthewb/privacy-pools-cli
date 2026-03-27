@@ -9,7 +9,6 @@ import {
   createTempHome,
   mustInitSeededHome,
   parseJsonOutput,
-  runCli,
   runBuiltCli,
 } from "../helpers/cli.ts";
 import {
@@ -130,7 +129,7 @@ function expectJsonParity(
   expect(nativeResult.stderr).toBe(jsResult.stderr);
 }
 
-function expectSourceJsonParity(
+function expectDirectNativeBuiltJsonParity(
   nativeBinary: string,
   args: string[],
   options: {
@@ -138,8 +137,8 @@ function expectSourceJsonParity(
     native?: CliRunOptions;
   } = {},
 ): void {
-  const jsResult = runCli(args, options.js);
-  const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
+  const jsResult = runBuiltCli(args, withJsFallback(options.js));
+  const nativeResult = runNativeBinaryDirect(nativeBinary, args, options.native);
 
   expect(nativeResult.status).toBe(jsResult.status);
   expect(parseJsonOutput(nativeResult.stdout)).toEqual(
@@ -370,11 +369,11 @@ describe("native shell parity", () => {
   });
 
   nativeTest("offline public envelopes and degraded pool discovery stay aligned", () => {
-    expectSourceJsonParity(nativeBinary, ["--json", "--chain", "mainnet", "activity"], {
+    expectJsonParity(nativeBinary, ["--json", "--chain", "mainnet", "activity"], {
       js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
       native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
     });
-    expectSourceJsonParity(
+    expectJsonParity(
       nativeBinary,
       ["--json", "--chain", "mainnet", "stats", "pool", "--asset", "ETH"],
       {
@@ -392,7 +391,7 @@ describe("native shell parity", () => {
         },
       },
     );
-    expectSourceJsonParity(
+    expectJsonParity(
       nativeBinary,
       ["--json", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
       {
@@ -410,15 +409,15 @@ describe("native shell parity", () => {
         },
       },
     );
-    expectSourceJsonParity(nativeBinary, ["--json", "stats"], {
+    expectJsonParity(nativeBinary, ["--json", "stats"], {
       js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
       native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
     });
-    expectSourceJsonParity(nativeBinary, ["--json", "--chain", "sepolia", "pools"], {
+    expectJsonParity(nativeBinary, ["--json", "--chain", "sepolia", "pools"], {
       js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
       native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
     });
-    expectSourceJsonParity(
+    expectJsonParity(
       nativeBinary,
       ["--json", "--chain", "sepolia", "pools"],
       {
@@ -445,7 +444,7 @@ describe("native shell parity", () => {
       PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture!.url,
     };
 
-    const jsResult = runCli(args, { env });
+    const jsResult = runBuiltCli(args, withJsFallback({ env }));
     const directNativeResult = runNativeBinaryDirect(nativeBinary, args, { env });
 
     expect(directNativeResult.status).toBe(jsResult.status);
@@ -474,13 +473,65 @@ describe("native shell parity", () => {
   });
 
   nativeTest("stats pool input validation stays identical through the native path", () => {
-    expectSourceJsonParity(
+    expectJsonParity(
       nativeBinary,
       ["--json", "stats", "pool", "--chain", "sepolia"],
       {
         js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
         native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
       },
+    );
+  });
+
+  nativeTest("direct native offline error paths stay JSON-identical without a JS bridge", () => {
+    expectDirectNativeBuiltJsonParity(
+      nativeBinary,
+      ["--json", "stats"],
+      {
+        js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+        native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+      },
+    );
+    expectDirectNativeBuiltJsonParity(
+      nativeBinary,
+      ["--json", "--chain", "mainnet", "activity"],
+      {
+        js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+        native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
+      },
+    );
+    expectDirectNativeBuiltJsonParity(
+      nativeBinary,
+      ["--json", "--chain", "sepolia", "pools"],
+      {
+        js: {
+          env: {
+            PRIVACY_POOLS_ASP_HOST: fixture!.url,
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
+          },
+        },
+        native: {
+          env: {
+            PRIVACY_POOLS_ASP_HOST: fixture!.url,
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
+          },
+        },
+      },
+    );
+  });
+
+  nativeTest("direct native public routes reject unsupported argv edge cases with JS parity", () => {
+    expectDirectNativeBuiltJsonParity(
+      nativeBinary,
+      ["--agent", "pools", "--", "--search", "ETH"],
+    );
+    expectDirectNativeBuiltJsonParity(
+      nativeBinary,
+      ["--agent", "activity", "-t", "1"],
+    );
+    expectDirectNativeBuiltJsonParity(
+      nativeBinary,
+      ["--agent", "stats", "-t", "1"],
     );
   });
 

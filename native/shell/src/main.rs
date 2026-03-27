@@ -21,8 +21,6 @@ const ENV_JS_BRIDGE_B64: &str = "PRIVACY_POOLS_INTERNAL_JS_BRIDGE_B64";
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
-const JS_UNKNOWN_ERROR_HINT: &str =
-    "If this persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues.";
 
 #[derive(Clone, Copy)]
 enum ErrorCategory {
@@ -562,7 +560,7 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         "completion" if manifest_allows_native_mode("completion", "default", manifest) => {
             handle_completion(argv, parsed, manifest)
         }
-        "activity" if activity_native_mode(parsed, manifest).is_some() => {
+        "activity" if activity_native_mode(argv, parsed, manifest).is_some() => {
             handle_activity_native(argv, parsed, manifest)
         }
         "stats" if stats_native_mode(argv, parsed, manifest).is_some() => {
@@ -863,6 +861,10 @@ fn handle_stats_native(
     parsed: &ParsedRootArgv,
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
+    if has_short_flag(argv, 't') {
+        return Err(commander_unknown_option_error("-t"));
+    }
+
     let mode = resolve_mode(parsed);
     if !mode.is_json() && !mode.is_quiet {
         let message = if resolve_stats_subcommand(parsed) == StatsSubcommand::Pool {
@@ -905,7 +907,10 @@ fn handle_stats_native(
                 asset: pool.symbol,
                 pool: pool.pool_address,
                 scope: pool.scope,
-                cache_timestamp: response.get("cacheTimestamp").cloned().unwrap_or(Value::Null),
+                cache_timestamp: response
+                    .get("cacheTimestamp")
+                    .cloned()
+                    .unwrap_or(Value::Null),
                 all_time: pool_stats
                     .and_then(|stats| stats.get("allTime"))
                     .cloned()
@@ -947,7 +952,10 @@ fn handle_stats_native(
                 .iter()
                 .map(|chain| chain.name.clone())
                 .collect::<Vec<_>>(),
-            cache_timestamp: response.get("cacheTimestamp").cloned().unwrap_or(Value::Null),
+            cache_timestamp: response
+                .get("cacheTimestamp")
+                .cloned()
+                .unwrap_or(Value::Null),
             all_time: response.get("allTime").cloned().unwrap_or(Value::Null),
             last_24h: response.get("last24h").cloned().unwrap_or(Value::Null),
         },
@@ -1423,7 +1431,11 @@ fn should_handle_native_pools(argv: &[String]) -> bool {
             .unwrap_or(false)
 }
 
-fn activity_native_mode(parsed: &ParsedRootArgv, manifest: &Manifest) -> Option<&'static str> {
+fn activity_native_mode(
+    argv: &[String],
+    parsed: &ParsedRootArgv,
+    manifest: &Manifest,
+) -> Option<&'static str> {
     if parsed.is_help_like {
         return None;
     }
@@ -1478,7 +1490,8 @@ fn stats_native_mode(
                 OutputFormat::Csv => "csv",
                 OutputFormat::Table => "default",
             };
-            manifest_allows_native_mode("stats global", native_mode, manifest).then_some(native_mode)
+            manifest_allows_native_mode("stats global", native_mode, manifest)
+                .then_some(native_mode)
         }
         "stats pool" => {
             let native_mode = match mode.format {
@@ -1516,7 +1529,11 @@ fn resolve_help_path(parsed: &ParsedRootArgv, manifest: &Manifest) -> Option<Str
             .collect::<Vec<_>>()
             .join(" ");
         let canonical = canonicalize_command_path(&candidate, manifest);
-        if manifest.routes.help_command_paths.iter().any(|path| path == &canonical)
+        if manifest
+            .routes
+            .help_command_paths
+            .iter()
+            .any(|path| path == &canonical)
             && manifest.help_text_by_path.contains_key(&canonical)
         {
             return Some(canonical);
@@ -2449,10 +2466,76 @@ fn filter_completion_candidates(candidates: Vec<String>, prefix: &str) -> Vec<St
     values
 }
 
+fn commander_unknown_option_error(token: &str) -> CliError {
+    CliError::input(
+        format!("unknown option '{token}'"),
+        Some("Use --help to see usage and examples.".to_string()),
+    )
+}
+
+fn commander_too_many_arguments_error(
+    command_name: &str,
+    expected_args: usize,
+    received_args: usize,
+) -> CliError {
+    let noun = if expected_args == 1 {
+        "argument"
+    } else {
+        "arguments"
+    };
+    CliError::input(
+        format!(
+            "too many arguments for '{command_name}'. Expected {expected_args} {noun} but got {received_args}."
+        ),
+        Some("Use --help to see usage and examples.".to_string()),
+    )
+}
+
+fn is_command_global_boolean_option(token: &str) -> bool {
+    matches!(
+        token,
+        "--json"
+            | "--agent"
+            | "--quiet"
+            | "--verbose"
+            | "--yes"
+            | "--no-banner"
+            | "--no-color"
+            | "--help"
+            | "--version"
+    ) || is_command_global_boolean_short_bundle(token)
+}
+
+fn is_command_global_boolean_short_bundle(token: &str) -> bool {
+    if !token.starts_with('-') || token.starts_with("--") || token.len() < 2 {
+        return false;
+    }
+
+    token
+        .chars()
+        .skip(1)
+        .all(|flag| matches!(flag, 'j' | 'q' | 'v' | 'y' | 'h' | 'V'))
+}
+
+fn is_command_global_value_option(token: &str) -> bool {
+    matches!(
+        token,
+        "-c" | "--chain" | "--format" | "-r" | "--rpc-url" | "--timeout"
+    )
+}
+
+fn is_command_global_inline_value_option(token: &str) -> bool {
+    token.starts_with("--chain=")
+        || token.starts_with("--format=")
+        || token.starts_with("--rpc-url=")
+        || token.starts_with("--timeout=")
+}
+
 fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandOptions, CliError> {
     let mut asset = None;
     let mut page = None;
     let mut per_page = None;
+    let mut unexpected_args = 0;
     let mut index = argv
         .iter()
         .position(|token| token == "activity")
@@ -2462,6 +2545,7 @@ fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandOptions, Cli
     while index < argv.len() {
         let token = &argv[index];
         if token == "--" {
+            unexpected_args += argv.len().saturating_sub(index + 1);
             break;
         }
         if token == "--asset" || token == "-a" {
@@ -2494,11 +2578,27 @@ fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandOptions, Cli
             index += 1;
             continue;
         }
-        if token.starts_with('-') {
+        if is_command_global_value_option(token) {
+            index += 2;
+            continue;
+        }
+        if is_command_global_inline_value_option(token) || is_command_global_boolean_option(token) {
             index += 1;
             continue;
         }
+        if token.starts_with('-') {
+            return Err(commander_unknown_option_error(token));
+        }
+        unexpected_args += 1;
         index += 1;
+    }
+
+    if unexpected_args > 0 {
+        return Err(commander_too_many_arguments_error(
+            "activity",
+            0,
+            unexpected_args,
+        ));
     }
 
     Ok(ActivityCommandOptions {
@@ -2512,6 +2612,7 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
     let mut all_chains = false;
     let mut search = None;
     let mut sort = None;
+    let mut unexpected_args = 0;
     let mut index = argv
         .iter()
         .position(|token| token == "pools")
@@ -2520,6 +2621,10 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
 
     while index < argv.len() {
         let token = &argv[index];
+        if token == "--" {
+            unexpected_args += argv.len().saturating_sub(index + 1);
+            break;
+        }
         if token == "--all-chains" {
             all_chains = true;
             index += 1;
@@ -2545,7 +2650,27 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
             index += 1;
             continue;
         }
+        if is_command_global_value_option(token) {
+            index += 2;
+            continue;
+        }
+        if is_command_global_inline_value_option(token) || is_command_global_boolean_option(token) {
+            index += 1;
+            continue;
+        }
+        if token.starts_with('-') {
+            return Err(commander_unknown_option_error(token));
+        }
+        unexpected_args += 1;
         index += 1;
+    }
+
+    if unexpected_args > 0 {
+        return Err(commander_too_many_arguments_error(
+            "pools",
+            1,
+            unexpected_args,
+        ));
     }
 
     let sort_value = sort
@@ -2632,7 +2757,6 @@ fn all_chains_with_overrides(manifest: &Manifest) -> Vec<ChainDefinition> {
 
 fn parse_timeout_ms(argv: &[String]) -> u64 {
     read_long_option_value(argv, "--timeout")
-        .or_else(|| read_short_option_value(argv, "-t"))
         .and_then(|value| value.parse::<f64>().ok())
         .filter(|value| value.is_finite() && *value > 0.0)
         .map(|value| (value * 1000.0).round() as u64)
@@ -2660,10 +2784,14 @@ fn http_get_json(
     })
 }
 
-fn js_like_unknown_transport_error() -> CliError {
-    CliError::unknown(
-        "Unable to connect. Is the computer able to access the url?",
-        Some(JS_UNKNOWN_ERROR_HINT.to_string()),
+fn js_like_rpc_network_error() -> CliError {
+    CliError::rpc_retryable(
+        "Network error: fetch failed",
+        Some(
+            "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable."
+                .to_string(),
+        ),
+        Some("RPC_NETWORK_ERROR"),
     )
 }
 
@@ -2679,7 +2807,7 @@ fn http_get_json_with_js_transport_error(
 
     let response = match request.call() {
         Ok(response) => response,
-        Err(ureq::Error::Transport(_)) => return Err(js_like_unknown_transport_error()),
+        Err(ureq::Error::Transport(_)) => return Err(js_like_rpc_network_error()),
         Err(error) => return Err(classify_network_error(error, url, ErrorCategory::Asp)),
     };
 
@@ -3116,7 +3244,14 @@ fn list_pools_native(
     }
 
     if entries.is_empty() && rpc_read_failures > 0 {
-        return Ok(vec![]);
+        return Err(CliError::rpc_retryable(
+            format!(
+                "Failed to resolve pools on {} due to RPC errors.",
+                chain.name
+            ),
+            Some("Check your RPC URL and network connectivity, then retry.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        ));
     }
 
     Ok(deduplicate_pool_entries(entries))
@@ -3434,16 +3569,14 @@ fn render_activity_output(mode: &NativeMode, data: ActivityRenderData) {
                 event.amount_formatted.clone(),
                 event.review_status.clone(),
                 format_time_ago(event.timestamp_ms),
-                event.tx_hash
+                event
+                    .tx_hash
                     .as_deref()
                     .map(|tx| format_address(tx, 8))
                     .unwrap_or_else(|| "-".to_string()),
             ]);
         }
-        print_csv(
-            vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"],
-            rows,
-        );
+        print_csv(vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"], rows);
         return;
     }
 
@@ -3477,17 +3610,15 @@ fn render_activity_output(mode: &NativeMode, data: ActivityRenderData) {
                 event.amount_formatted.clone(),
                 format_asp_approval_status_label(&event.review_status),
                 format_time_ago(event.timestamp_ms),
-                event.tx_hash
+                event
+                    .tx_hash
                     .as_deref()
                     .map(|tx| format_address(tx, 8))
                     .unwrap_or_else(|| "-".to_string()),
             ]
         })
         .collect::<Vec<_>>();
-    print_table(
-        vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"],
-        rows,
-    );
+    print_table(vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"], rows);
 
     if let Some(total_pages) = data.total_pages {
         if total_pages > 1 {
@@ -3788,14 +3919,16 @@ fn pool_listing_row(entry: &PoolListingEntry, include_chain: bool) -> Vec<String
     row.push(entry.asset.clone());
     row.push(format_pool_deposits_count(entry));
     row.push(format_pool_stat_amount(
-        entry.total_in_pool_value
+        entry
+            .total_in_pool_value
             .as_deref()
             .or(entry.accepted_deposits_value.as_deref()),
         entry.decimals,
         &entry.asset,
     ));
     row.push(parse_usd_string(
-        entry.total_in_pool_value_usd
+        entry
+            .total_in_pool_value_usd
             .as_deref()
             .or(entry.accepted_deposits_value_usd.as_deref()),
     ));
