@@ -15,6 +15,7 @@ const fixtureServerScript = join(repoRoot, "test", "helpers", "fixture-server.ts
 const DEFAULT_BASE_REF = "origin/main";
 const DEFAULT_RUNS = 10;
 const DEFAULT_WARMUP = 1;
+const DEFAULT_RUNTIME = "js";
 
 const STRIPPED_ENV_PREFIXES = ["PRIVACY_POOLS_", "PP_"];
 
@@ -85,20 +86,25 @@ function sanitizedProcessEnv() {
 function printUsageAndExit(exitCode = 0) {
   process.stdout.write(
     [
-      "Usage: node scripts/bench-cli.mjs [--base <ref>] [--runs <n>] [--warmup <n>]",
+      "Usage: node scripts/bench-cli.mjs [--base <ref>] [--runs <n>] [--warmup <n>] [--runtime <js|native|both>]",
       "",
       "Compares the current checkout against a git ref by building both and timing",
       "a small read-only command matrix.",
+      "Base timings always use the JS fallback path so native preview branches",
+      "can be measured directly against the current npm baseline.",
       "",
       "Options:",
       `  --base <ref>    Git ref to compare against (default: ${DEFAULT_BASE_REF})`,
       `  --runs <n>      Timed runs per command (default: ${DEFAULT_RUNS})`,
       `  --warmup <n>    Warmup runs before timing (default: ${DEFAULT_WARMUP})`,
+      `  --runtime <m>   Current checkout runtime: js, native, or both (default: ${DEFAULT_RUNTIME})`,
       "  --help          Show this message",
       "",
       "Examples:",
       "  node scripts/bench-cli.mjs",
       "  node scripts/bench-cli.mjs --base origin/main --runs 12",
+      "  node scripts/bench-cli.mjs --runtime native",
+      "  node scripts/bench-cli.mjs --runtime both --runs 6",
     ].join("\n") + "\n",
   );
   process.exit(exitCode);
@@ -117,6 +123,7 @@ function parseArgs(argv) {
     baseRef: DEFAULT_BASE_REF,
     runs: DEFAULT_RUNS,
     warmup: DEFAULT_WARMUP,
+    runtime: DEFAULT_RUNTIME,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -157,7 +164,22 @@ function parseArgs(argv) {
       options.warmup = parseInteger(token.slice("--warmup=".length), "--warmup");
       continue;
     }
+    if (token === "--runtime") {
+      const value = argv[i + 1];
+      if (!value) throw new Error("--runtime requires a value");
+      options.runtime = value;
+      i += 1;
+      continue;
+    }
+    if (token.startsWith("--runtime=")) {
+      options.runtime = token.slice("--runtime=".length);
+      continue;
+    }
     throw new Error(`Unknown argument: ${token}`);
+  }
+
+  if (!["js", "native", "both"].includes(options.runtime)) {
+    throw new Error("--runtime must be one of: js, native, both");
   }
 
   return options;
@@ -189,13 +211,16 @@ function spawnOrThrow(command, args, opts = {}) {
   return result;
 }
 
-function withRepoBinPath(env = {}) {
+function withRepoBinPath(
+  env = {},
+  { disableNative = true } = {},
+) {
   return {
     ...sanitizedProcessEnv(),
     PATH: `${repoNodeModulesBin}:${process.env.PATH ?? ""}`,
     PP_NO_UPDATE_CHECK: "1",
     NO_COLOR: "1",
-    PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+    ...(disableNative ? { PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1" } : {}),
     ...env,
   };
 }
@@ -254,6 +279,44 @@ function buildCheckout(cwd) {
     cwd,
     env: withRepoBinPath(),
   });
+}
+
+function nativeShellBinaryName(platform = process.platform) {
+  return platform === "win32"
+    ? "privacy-pools-cli-native-shell.exe"
+    : "privacy-pools-cli-native-shell";
+}
+
+function assertNativeSupported() {
+  const supported =
+    (process.platform === "darwin" &&
+      (process.arch === "arm64" || process.arch === "x64")) ||
+    (process.platform === "linux" && process.arch === "x64") ||
+    (process.platform === "win32" &&
+      (process.arch === "arm64" || process.arch === "x64"));
+  if (!supported) {
+    throw new Error(
+      `Native benchmarking is not supported on ${process.platform}/${process.arch}.`,
+    );
+  }
+}
+
+function buildNativeShell(cwd) {
+  spawnOrThrow("cargo", ["build", "--manifest-path", "native/shell/Cargo.toml", "--release"], {
+    cwd,
+    env: withRepoBinPath({}, { disableNative: false }),
+  });
+}
+
+function nativeShellBinaryPath(cwd) {
+  return join(
+    cwd,
+    "native",
+    "shell",
+    "target",
+    "release",
+    nativeShellBinaryName(),
+  );
 }
 
 function createBaselineWorktree(baseRef) {
@@ -360,6 +423,15 @@ try {
       const baselineDist = join(baselineWorktree, "dist", "index.js");
       const currentBaseEnv = withRepoBinPath();
       const baselineBaseEnv = withRepoBinPath();
+      const runtimes =
+        commandArgs.runtime === "both" ? ["js", "native"] : [commandArgs.runtime];
+      let currentNativeBinary = null;
+
+      if (runtimes.includes("native")) {
+        assertNativeSupported();
+        buildNativeShell(repoRoot);
+        currentNativeBinary = nativeShellBinaryPath(repoRoot);
+      }
 
       process.stdout.write(
         [
@@ -367,8 +439,11 @@ try {
           `base ref: ${commandArgs.baseRef}`,
           `runs: ${commandArgs.runs}`,
           `warmup: ${commandArgs.warmup}`,
+          `base runtime: js`,
+          `current runtime: ${commandArgs.runtime}`,
           "",
           [
+            "runtime",
             "command",
             "base median",
             "current median",
@@ -378,61 +453,73 @@ try {
         ].join("\n") + "\n",
       );
 
-      for (const command of COMMANDS) {
-        const extraEnv =
-          typeof command.env === "function"
-            ? command.env({ fixtureUrl: fixture.url })
-            : {};
-        const currentEnv = {
-          ...currentBaseEnv,
-          ...extraEnv,
-        };
-        const baseEnv = {
-          ...baselineBaseEnv,
-          ...extraEnv,
-        };
-        const tempHomes = [];
+      for (const runtime of runtimes) {
+        for (const command of COMMANDS) {
+          const extraEnv =
+            typeof command.env === "function"
+              ? command.env({ fixtureUrl: fixture.url })
+              : {};
+          const currentEnv =
+            runtime === "native"
+              ? withRepoBinPath(
+                  {
+                    ...extraEnv,
+                    PRIVACY_POOLS_CLI_BINARY: currentNativeBinary,
+                  },
+                  { disableNative: false },
+                )
+              : {
+                  ...currentBaseEnv,
+                  ...extraEnv,
+                };
+          const baseEnv = {
+            ...baselineBaseEnv,
+            ...extraEnv,
+          };
+          const tempHomes = [];
 
-        if (command.isolateHome) {
-          const currentHome = mkdtempSync(join(tmpdir(), "pp-cli-bench-home-"));
-          const baseHome = mkdtempSync(join(tmpdir(), "pp-cli-bench-home-"));
-          currentEnv.PRIVACY_POOLS_HOME = currentHome;
-          baseEnv.PRIVACY_POOLS_HOME = baseHome;
-          tempHomes.push(currentHome, baseHome);
-        }
+          if (command.isolateHome) {
+            const currentHome = mkdtempSync(join(tmpdir(), "pp-cli-bench-home-"));
+            const baseHome = mkdtempSync(join(tmpdir(), "pp-cli-bench-home-"));
+            currentEnv.PRIVACY_POOLS_HOME = currentHome;
+            baseEnv.PRIVACY_POOLS_HOME = baseHome;
+            tempHomes.push(currentHome, baseHome);
+          }
 
-        try {
-          const base = runBench(
-            baselineDist,
-            baselineWorktree,
-            command.args,
-            baseEnv,
-            commandArgs.warmup,
-            commandArgs.runs,
-          );
-          const current = runBench(
-            currentDist,
-            repoRoot,
-            command.args,
-            currentEnv,
-            commandArgs.warmup,
-            commandArgs.runs,
-          );
-          const delta = current.median - base.median;
-          const deltaPct = (delta / base.median) * 100;
+          try {
+            const base = runBench(
+              baselineDist,
+              baselineWorktree,
+              command.args,
+              baseEnv,
+              commandArgs.warmup,
+              commandArgs.runs,
+            );
+            const current = runBench(
+              currentDist,
+              repoRoot,
+              command.args,
+              currentEnv,
+              commandArgs.warmup,
+              commandArgs.runs,
+            );
+            const delta = current.median - base.median;
+            const deltaPct = (delta / base.median) * 100;
 
-          process.stdout.write(
-            [
-              command.label,
-              formatMs(base.median),
-              formatMs(current.median),
-              `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} ms`,
-              `${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%`,
-            ].join("\t") + "\n",
-          );
-        } finally {
-          for (const tempHome of tempHomes) {
-            rmSync(tempHome, { recursive: true, force: true });
+            process.stdout.write(
+              [
+                runtime,
+                command.label,
+                formatMs(base.median),
+                formatMs(current.median),
+                `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} ms`,
+                `${deltaPct >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%`,
+              ].join("\t") + "\n",
+            );
+          } finally {
+            for (const tempHome of tempHomes) {
+              rmSync(tempHome, { recursive: true, force: true });
+            }
           }
         }
       }

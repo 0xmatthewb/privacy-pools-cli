@@ -4,12 +4,14 @@
 #   - When you push a git tag that starts with "v" (e.g. v1.2.3)
 #   - Manually via the "Run workflow" button (you type an existing tag)
 #
-# WHAT does it do?  (three sequential stages)
+# WHAT does it do?  (four sequential stages)
 #   1. validate  — runs the release-readiness suite as `npm run test:release`
 #                  to make sure the tagged code is healthy.
 #   2. package   — creates an npm tarball (.tgz) of the CLI.
-#   3. release   — attaches the tarball to a GitHub Release page so
-#                  users can download it.
+#   3. package-native — builds exact-version native package tarballs for the
+#                  supported host triplets.
+#   4. release   — attaches the npm tarball, native tarballs, and checksum
+#                  manifest to a GitHub Release page.
 #
 # HOW to create a release:
 #   In your terminal:
@@ -114,7 +116,6 @@ jobs:
     timeout-minutes: 20
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
-      tarball: ${{ steps.pack.outputs.tarball }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -182,17 +183,98 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v6
         with:
-          name: npm-package-${{ steps.meta.outputs.tag }}
+          name: npm-package
           path: ${{ steps.pack.outputs.tarball }}
           if-no-files-found: error
 
   # -----------------------------------------------------------
+  # Stage 2b: Build the native shell packages for each supported host triplet
+  # -----------------------------------------------------------
+  package-native:
+    name: native-${{ matrix.triplet }}
+    needs: package
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triplet: darwin-arm64
+            runner: macos-latest
+          - triplet: darwin-x64
+            runner: macos-15-intel
+          - triplet: linux-x64-gnu
+            runner: ubuntu-latest
+          - triplet: win32-x64-msvc
+            runner: windows-latest
+          - triplet: win32-arm64-msvc
+            runner: windows-11-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run native smoke test
+        run: npm run test:smoke:native
+
+      - name: Build release native shell
+        run: npm run native:build:release
+
+      - name: Pack native package
+        shell: bash
+        run: |
+          case "${{ matrix.triplet }}" in
+            win32-*)
+              BIN="native/shell/target/release/privacy-pools-cli-native-shell.exe"
+              ;;
+            *)
+              BIN="native/shell/target/release/privacy-pools-cli-native-shell"
+              ;;
+          esac
+
+          OUT_DIR="dist-native/${{ matrix.triplet }}"
+          node scripts/prepare-native-package.mjs --triplet "${{ matrix.triplet }}" --binary "$BIN" --out-dir "$OUT_DIR"
+
+          pushd "$OUT_DIR" > /dev/null
+          TARBALL="$(npm pack --silent)"
+          popd > /dev/null
+
+          mv "$OUT_DIR/$TARBALL" "dist-native/$TARBALL"
+          echo "Packed dist-native/$TARBALL"
+
+      - name: Upload native package artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: native-package-${{ matrix.triplet }}
+          path: dist-native/*.tgz
+          if-no-files-found: error
+
+  # -----------------------------------------------------------
   # Stage 3: Create or update the GitHub Release page
-  # This only runs after "package" succeeds.
+  # This only runs after the JS and native package jobs succeed.
   # -----------------------------------------------------------
   release:
     name: github-release
-    needs: package
+    needs:
+      - package
+      - package-native
     runs-on: ubuntu-latest
     # This job needs write access to create the Release page.
     permissions:
@@ -201,12 +283,52 @@ jobs:
       - name: Download package artifact
         uses: actions/download-artifact@v6
         with:
-          name: npm-package-${{ needs.package.outputs.tag }}
+          name: npm-package
+          path: release-artifacts/npm
+
+      - name: Download native darwin-arm64 artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-darwin-arm64
+          path: release-artifacts/native/darwin-arm64
+
+      - name: Download native darwin-x64 artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-darwin-x64
+          path: release-artifacts/native/darwin-x64
+
+      - name: Download native linux-x64-gnu artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-linux-x64-gnu
+          path: release-artifacts/native/linux-x64-gnu
+
+      - name: Download native win32-x64-msvc artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-win32-x64-msvc
+          path: release-artifacts/native/win32-x64-msvc
+
+      - name: Download native win32-arm64-msvc artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-win32-arm64-msvc
+          path: release-artifacts/native/win32-arm64-msvc
+
+      - name: Generate checksum manifest
+        shell: bash
+        working-directory: release-artifacts
+        run: |
+          find . -type f -name '*.tgz' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
       - name: Attach tarball to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.package.outputs.tag }}
-          files: ${{ needs.package.outputs.tarball }}
+          files: |
+            release-artifacts/npm/*.tgz
+            release-artifacts/native/**/*.tgz
+            release-artifacts/SHA256SUMS.txt
           generate_release_notes: true
           overwrite_files: true

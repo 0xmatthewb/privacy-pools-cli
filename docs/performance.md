@@ -6,10 +6,19 @@ Use the local benchmark harness to compare the current checkout against a git re
 node scripts/bench-cli.mjs
 node scripts/bench-cli.mjs --base origin/main
 node scripts/bench-cli.mjs --base origin/main --runs 12
+node scripts/bench-cli.mjs --runtime native
+node scripts/bench-cli.mjs --runtime both --runs 6
 ```
 
 The harness builds both checkouts, runs a read-only command matrix, and prints
-median timing deltas. It keeps the setup intentionally lightweight:
+median timing deltas. Base timings always use the JS fallback path so native
+preview branches can be compared directly against the current npm baseline.
+
+Use `--runtime js` for the pure JS launcher path, `--runtime native` for the
+launcher + native shell path, or `--runtime both` to print both lanes in one
+report.
+
+It keeps the setup intentionally lightweight:
 
 - no extra dependencies
 - no external benchmark runner

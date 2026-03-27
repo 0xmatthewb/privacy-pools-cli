@@ -615,6 +615,10 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
+| `PRIVACY_POOLS_CLI_ENABLE_NATIVE` | Set to `1` to prefer the same-version installed native shell package when available |
+| `PRIVACY_POOLS_CLI_DISABLE_NATIVE` | Set to `1` to force the pure JS runtime path |
+| `PRIVACY_POOLS_CLI_BINARY` | Override the launcher target with an explicit native shell binary path |
+| `PRIVACY_POOLS_CLI_JS_WORKER` | Override the JS worker entrypoint used by the launcher/native shell bridge |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
 
@@ -633,10 +637,14 @@ src/
     mod.ts        Barrel re-export of all renderers
     <command>.ts  Per-command renderer (e.g., deposit.ts, withdraw.ts)
   config/         Chain configuration and contract addresses
+  runtime/v1/     Versioned JS worker boundary for protocol-owned logic
   services/       SDK, wallet, account, ASP, and relayer service wrappers
   utils/          Shared utilities (validation, formatting, errors, mode)
-  index.ts        Entry point; registers all commands
+  launcher.ts     Thin launcher that resolves native vs JS runtime targets
+  index.ts        npm entry point; serves root fast paths and delegates
   types.ts        Shared TypeScript types
+native/
+  shell/          Rust shell for manifest-driven help/discovery/read-only paths
 test/
   unit/           Unit tests for individual modules
   integration/    Integration tests (CLI invocation via subprocess)

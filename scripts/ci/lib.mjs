@@ -94,14 +94,17 @@ const JOB_RULES = {
   ],
   "cross-platform": [
     "src/",
+    "native/",
     "scripts/start-built-cli.mjs",
     "scripts/clean-dist.mjs",
+    "scripts/prepare-native-package.mjs",
     "package.json",
     "bun.lock",
     "AGENTS.md",
     "CHANGELOG.md",
     "docs/reference.md",
     "skills/",
+    "test/integration/cli-native-package-smoke.integration.test.ts",
     ".github/workflows/cross-platform.yml",
   ],
   "frontend-parity": [

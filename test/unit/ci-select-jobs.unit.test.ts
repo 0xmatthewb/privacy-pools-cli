@@ -45,4 +45,15 @@ describe("ci job selection", () => {
     expect(decision.shouldRun).toBe(true);
     expect(decision.reason).toContain("src/commands/withdraw.ts");
   });
+
+  test("cross-platform runs for native packaging changes", () => {
+    const decision = evaluateJobSelection({
+      job: "cross-platform",
+      eventName: "pull_request",
+      changedFiles: ["native/shell/src/main.rs"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("native/shell/src/main.rs");
+  });
 });

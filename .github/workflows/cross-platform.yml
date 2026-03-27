@@ -5,9 +5,10 @@
 #   - Manually via the "Run workflow" button on GitHub
 #
 # WHAT does it do?
-#   Runs the packaged smoke tests on Ubuntu, Windows, and macOS
-#   in parallel. This catches OS-specific bugs (e.g., path separators,
-#   line endings, missing system libraries).
+#   Runs the packaged JS smoke tests and the native package smoke lane
+#   on Ubuntu, Windows, and macOS in parallel. This catches OS-specific
+#   bugs (e.g., path separators, line endings, missing system libraries)
+#   before release day.
 #
 # WHY "non-blocking"?
 #   These tests are informational. They won't block you from merging
@@ -72,6 +73,10 @@ jobs:
         with:
           bun-version: "1.3.11"
 
+      - name: Setup Rust
+        if: steps.select.outputs.should_run == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile
@@ -87,3 +92,7 @@ jobs:
       - name: Run packaged smoke tests
         if: steps.select.outputs.should_run == 'true'
         run: npm run test:smoke
+
+      - name: Run native package smoke tests
+        if: steps.select.outputs.should_run == 'true'
+        run: npm run test:smoke:native
