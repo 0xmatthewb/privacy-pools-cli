@@ -100,6 +100,22 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("@0xbow/privacy-pools-cli-native-${TRIPLET}");
   });
 
+  test("release workflow publishes the root launcher package to npm", () => {
+    expect(releaseWorkflow).toContain("publish-root:");
+    expect(releaseWorkflow).toContain(
+      "NPM_TOKEN secret is required to publish the root npm package.",
+    );
+    expect(releaseWorkflow).toContain(
+      'PACKAGE="$(node -p "require(\'./package.json\').name")"',
+    );
+    expect(releaseWorkflow).toContain(
+      'CLI_TARBALL="$(echo release-artifacts/npm/*.tgz)"',
+    );
+    expect(releaseWorkflow).toContain('npm publish "${CLI_TARBALL}" --access public');
+    expect(releaseWorkflow).toContain('npm view "${PACKAGE}@${VERSION}" version');
+    expect(releaseWorkflow).toContain("- publish-root");
+  });
+
   test("release workflow keeps an explicit native release signoff gate", () => {
     expect(releaseWorkflow).toContain("environment:");
     expect(releaseWorkflow).toContain("native-release-signoff");

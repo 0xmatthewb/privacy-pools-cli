@@ -4,15 +4,17 @@
 #   - When you push a git tag that starts with "v" (e.g. v1.2.3)
 #   - Manually via the "Run workflow" button (you type an existing tag)
 #
-# WHAT does it do?  (five sequential stages)
+# WHAT does it do?  (six sequential stages)
 #   1. validate  — runs the release-readiness suite as `npm run test:release`
 #                  to make sure the tagged code is healthy.
 #   2. package   — creates an npm tarball (.tgz) of the CLI.
 #   3. package-native — builds exact-version native package tarballs for the
 #                  supported host triplets.
-#   4. publish-native — publishes the native optional packages to npm and
+#   4. publish-root — publishes the root JS launcher package to npm and
+#                  verifies it resolves at the tagged version.
+#   5. publish-native — publishes the native optional packages to npm and
 #                  verifies they resolve at the tagged version.
-#   5. release   — attaches the npm tarball, native tarballs, and checksum
+#   6. release   — attaches the npm tarball, native tarballs, and checksum
 #                  manifest to a GitHub Release page.
 #
 # HOW to create a release:
@@ -314,7 +316,64 @@ jobs:
             --native-tarball "${NATIVE_TARBALL}"
 
   # -----------------------------------------------------------
-  # Stage 3: Publish the native optional packages to npm
+  # Stage 3: Publish the root JS launcher package to npm
+  # This only runs after the root package tarball is built.
+  # -----------------------------------------------------------
+  publish-root:
+    name: publish-root
+    needs: package
+    runs-on: ubuntu-latest
+    environment:
+      name: native-release-signoff
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Ensure npm publish token is configured
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -z "${NODE_AUTH_TOKEN}" ]]; then
+            echo "NPM_TOKEN secret is required to publish the root npm package."
+            exit 1
+          fi
+
+      - name: Download root npm package artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: npm-package
+          path: release-artifacts/npm
+
+      - name: Publish and verify root npm package
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          PACKAGE="$(node -p "require('./package.json').name")"
+          CLI_TARBALL="$(echo release-artifacts/npm/*.tgz)"
+
+          if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+            echo "${PACKAGE}@${VERSION} already published; verifying registry entry."
+          else
+            npm publish "${CLI_TARBALL}" --access public
+          fi
+
+          npm view "${PACKAGE}@${VERSION}" version
+
+  # -----------------------------------------------------------
+  # Stage 4: Publish the native optional packages to npm
   # This only runs after the native package jobs succeed.
   # -----------------------------------------------------------
   publish-native:
@@ -407,7 +466,7 @@ jobs:
           done
 
   # -----------------------------------------------------------
-  # Stage 4: Create or update the GitHub Release page
+  # Stage 5: Create or update the GitHub Release page
   # This only runs after the JS package, native package, and npm publish jobs succeed.
   # -----------------------------------------------------------
   release:
@@ -415,6 +474,7 @@ jobs:
     needs:
       - package
       - package-native
+      - publish-root
       - publish-native
     runs-on: ubuntu-latest
     environment:
