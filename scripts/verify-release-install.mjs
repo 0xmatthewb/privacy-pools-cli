@@ -23,6 +23,28 @@ const TEST_PRIVATE_KEY =
   "0x1111111111111111111111111111111111111111111111111111111111111111";
 const TEST_RECIPIENT = "0x4444444444444444444444444444444444444444";
 
+function currentNativePackageName(
+  platform = process.platform,
+  arch = process.arch,
+) {
+  if (platform === "darwin" && arch === "arm64") {
+    return "@0xbow/privacy-pools-cli-native-darwin-arm64";
+  }
+  if (platform === "darwin" && arch === "x64") {
+    return "@0xbow/privacy-pools-cli-native-darwin-x64";
+  }
+  if (platform === "linux" && arch === "x64") {
+    return "@0xbow/privacy-pools-cli-native-linux-x64-gnu";
+  }
+  if (platform === "win32" && arch === "x64") {
+    return "@0xbow/privacy-pools-cli-native-win32-x64-msvc";
+  }
+  if (platform === "win32" && arch === "arm64") {
+    return "@0xbow/privacy-pools-cli-native-win32-arm64-msvc";
+  }
+  return null;
+}
+
 function parseArgs(argv) {
   const result = {};
   for (let i = 0; i < argv.length; i += 1) {
@@ -46,6 +68,32 @@ function usageAndExit() {
 function fail(message) {
   process.stderr.write(`${message}\n`);
   process.exit(1);
+}
+
+function packageInstallPath(installRoot, packageName) {
+  return join(installRoot, "node_modules", ...packageName.split("/"));
+}
+
+function writeInstallProjectManifest(
+  installRoot,
+  cliTarballPath,
+  nativePackageName,
+  nativeTarballPath,
+) {
+  writeFileSync(
+    join(installRoot, "package.json"),
+    JSON.stringify({
+      name: "pp-release-install-check",
+      private: true,
+      dependencies: {
+        "privacy-pools-cli": `file:${cliTarballPath}`,
+      },
+      overrides: {
+        [nativePackageName]: `file:${nativeTarballPath}`,
+      },
+    }),
+    "utf8",
+  );
 }
 
 function parseJson(stdout, label) {
@@ -310,17 +358,22 @@ const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const homeDir = join(installRoot, ".privacy-pools");
 const stdinHomeDir = join(installRoot, ".privacy-pools-stdin");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
+const nativePackageName = currentNativePackageName();
+
+if (!nativePackageName) {
+  fail(
+    `Installed release verification requires a supported native host, got ${process.platform}/${process.arch}.`,
+  );
+}
 
 async function main() {
   let aspFixture = null;
   try {
-    writeFileSync(
-      join(installRoot, "package.json"),
-      JSON.stringify({
-        name: "pp-release-install-check",
-        private: true,
-      }),
-      "utf8",
+    writeInstallProjectManifest(
+      installRoot,
+      cliTarballPath,
+      nativePackageName,
+      nativeTarballPath,
     );
 
     const installResult = spawnSync(
@@ -332,8 +385,6 @@ async function main() {
         "--ignore-scripts",
         "--no-audit",
         "--no-fund",
-        cliTarballPath,
-        nativeTarballPath,
       ],
       {
         cwd: installRoot,
@@ -356,6 +407,16 @@ async function main() {
     if (installResult.status !== 0) {
       fail(
         `Failed to install release tarballs:\n${installResult.stderr}\n${installResult.stdout}`,
+      );
+    }
+
+    const installedNativePackagePath = packageInstallPath(
+      installRoot,
+      nativePackageName,
+    );
+    if (!existsSync(installedNativePackagePath)) {
+      fail(
+        `Installed release CLI did not resolve ${nativePackageName} through npm optional dependencies.`,
       );
     }
 
@@ -392,6 +453,23 @@ async function main() {
     ) {
       fail(
         `Installed release CLI failed native launcher resolution:\nstatus=${nativeResolutionResult.status}\nstdout=${nativeResolutionResult.stdout}\nstderr=${nativeResolutionResult.stderr}`,
+      );
+    }
+
+    const disabledNativeResolutionResult = runCli(
+      installRoot,
+      homeDir,
+      ["flow", "--help"],
+      {
+        env: {
+          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+          PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+        },
+      },
+    );
+    if (disabledNativeResolutionResult.status === 0) {
+      fail(
+        `Installed release CLI no longer distinguishes native resolution from JS fallback:\nstdout=${disabledNativeResolutionResult.stdout}\nstderr=${disabledNativeResolutionResult.stderr}`,
       );
     }
 

@@ -134,6 +134,18 @@ describe("native package smoke", () => {
     expect(result.stderr).toBe("");
   });
 
+  nativePackageSmokeTest("broken-worker help check still distinguishes native from js fallback", () => {
+    const result = runBuiltCli(["flow", "--help"], {
+      cwd: snapshotRoot,
+      env: {
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+        PRIVACY_POOLS_CLI_JS_WORKER: join(snapshotRoot, "missing-worker.js"),
+      },
+    });
+
+    expect(result.status).not.toBe(0);
+  });
+
   nativePackageSmokeTest("prepared native package keeps its binary internal to avoid shadowing the public launcher", () => {
     const packageJsonPath = join(
       snapshotRoot,
