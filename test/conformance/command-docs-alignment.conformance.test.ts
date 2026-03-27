@@ -486,6 +486,10 @@ describe("command docs alignment", () => {
       "PP_ASP_HOST_<CHAIN>",
       "PP_RELAYER_HOST_<CHAIN>",
       "PRIVACY_POOLS_CONFIG_DIR",
+      "PRIVACY_POOLS_CLI_ENABLE_NATIVE",
+      "PRIVACY_POOLS_CLI_DISABLE_NATIVE",
+      "PRIVACY_POOLS_CLI_BINARY",
+      "PRIVACY_POOLS_CLI_JS_WORKER",
     ];
 
     for (const marker of requiredMarkers) {
@@ -493,6 +497,50 @@ describe("command docs alignment", () => {
       expect(skill).toContain(marker);
       expect(skillReference).toContain(marker);
     }
+  });
+
+  test("native capabilities help keeps agent usage examples syntactically clean", () => {
+    const nativeManifest = JSON.parse(
+      readFileSync(`${CLI_ROOT}/native/shell/generated/manifest.json`, "utf8"),
+    ) as { capabilitiesHumanText: string };
+
+    expect(nativeManifest.capabilitiesHumanText).toContain(
+      "privacy-pools flow start <amount> <asset> --to <address> --agent [--watch] [--new-wallet] [--export-new-wallet <path>]",
+    );
+    expect(nativeManifest.capabilitiesHumanText).toContain(
+      "privacy-pools flow watch [workflowId|latest] --agent",
+    );
+    expect(nativeManifest.capabilitiesHumanText).toContain(
+      "privacy-pools flow status [workflowId|latest] --agent",
+    );
+    expect(nativeManifest.capabilitiesHumanText).toContain(
+      "privacy-pools flow ragequit [workflowId|latest] --agent",
+    );
+    expect(nativeManifest.capabilitiesHumanText).toContain(
+      "privacy-pools stats pool --asset <symbol|address> --agent",
+    );
+    expect(nativeManifest.capabilitiesHumanText).toContain(
+      "privacy-pools describe <command...> --agent",
+    );
+
+    expect(nativeManifest.capabilitiesHumanText).not.toContain(
+      "privacy-pools flow start <amount> <asset> --to <address> --agent --to <address>",
+    );
+    expect(nativeManifest.capabilitiesHumanText).not.toContain(
+      "privacy-pools flow watch [workflowId|latest] --agent [workflowId|latest]",
+    );
+    expect(nativeManifest.capabilitiesHumanText).not.toContain(
+      "privacy-pools flow status [workflowId|latest] --agent [workflowId|latest]",
+    );
+    expect(nativeManifest.capabilitiesHumanText).not.toContain(
+      "privacy-pools flow ragequit [workflowId|latest] --agent [workflowId|latest]",
+    );
+    expect(nativeManifest.capabilitiesHumanText).not.toContain(
+      "privacy-pools stats pool --asset <symbol|address> --agent --asset <symbol>",
+    );
+    expect(nativeManifest.capabilitiesHumanText).not.toContain(
+      "privacy-pools describe <command...> --agent <command...>",
+    );
   });
 
   test("published docs do not contain malformed privacy-pools command examples", () => {

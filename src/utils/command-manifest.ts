@@ -358,7 +358,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
-      "agentFlags": "--agent --to <address> [--watch] [--new-wallet] [--export-new-wallet <path>]",
+      "agentFlags": "--agent [--watch] [--new-wallet] [--export-new-wallet <path>]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -369,7 +369,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "[workflowId|latest]"
       ],
-      "agentFlags": "--agent [workflowId|latest]",
+      "agentFlags": "--agent",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -380,7 +380,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "[workflowId|latest]"
       ],
-      "agentFlags": "--agent [workflowId|latest]",
+      "agentFlags": "--agent",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -391,7 +391,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "[workflowId|latest]"
       ],
-      "agentFlags": "--agent [workflowId|latest]",
+      "agentFlags": "--agent",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -449,7 +449,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "--asset <symbol|address>"
       ],
-      "agentFlags": "--agent --asset <symbol>",
+      "agentFlags": "--agent",
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -460,7 +460,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "<command...>"
       ],
-      "agentFlags": "--agent <command...>",
+      "agentFlags": "--agent",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },

@@ -185,7 +185,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "flow start <amount> <asset> --to <address>",
       flags: ["--to <address>", "--watch", "--new-wallet", "--export-new-wallet <path>"],
-      agentFlags: "--agent --to <address> [--watch] [--new-wallet] [--export-new-wallet <path>]",
+      agentFlags: "--agent [--watch] [--new-wallet] [--export-new-wallet <path>]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -219,7 +219,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "flow watch [workflowId|latest]",
       flags: ["[workflowId|latest]"],
-      agentFlags: "--agent [workflowId|latest]",
+      agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -243,7 +243,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "flow status [workflowId|latest]",
       flags: ["[workflowId|latest]"],
-      agentFlags: "--agent [workflowId|latest]",
+      agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -272,7 +272,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "flow ragequit [workflowId|latest]",
       flags: ["[workflowId|latest]"],
-      agentFlags: "--agent [workflowId|latest]",
+      agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -384,7 +384,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "stats pool --asset <symbol|address>",
       flags: ["--asset <symbol|address>"],
-      agentFlags: "--agent --asset <symbol>",
+      agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
@@ -449,7 +449,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "describe <command...>",
       flags: ["<command...>"],
-      agentFlags: "--agent <command...>",
+      agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
