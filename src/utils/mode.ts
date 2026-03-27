@@ -15,10 +15,11 @@ export function resolveGlobalMode(
   globalOpts?: GlobalOptions
 ): ResolvedGlobalMode {
   const isAgent = globalOpts?.agent ?? false;
+  const hasStructuredJsonFlag = (globalOpts?.json ?? false) || isAgent;
   const explicitFormat = globalOpts?.format?.toLowerCase() as OutputFormat | undefined;
   const format: OutputFormat =
+    explicitFormat === "json" || hasStructuredJsonFlag ? "json" :
     explicitFormat === "csv" ? "csv" :
-    explicitFormat === "json" || (globalOpts?.json ?? false) || isAgent ? "json" :
     "table";
   const isJson = format === "json";
   const isCsv = format === "csv";

@@ -76,6 +76,36 @@ defineScenarioSuite("machine-mode acceptance", [
       expect(typeof json.help).toBe("string");
     }),
   ]),
+  defineScenario("agent guide stays structured when csv is also requested", [
+    runCliStep(["--agent", "--format", "csv", "guide"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      mode: string;
+      help: string;
+    }>((json) => {
+      expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(json.success).toBe(true);
+      expect(json.mode).toBe("help");
+      expect(json.help).toContain("Privacy Pools: Quick Guide");
+    }),
+  ]),
+  defineScenario("json capabilities stays structured when csv is also requested", [
+    runCliStep(["--json", "--format", "csv", "capabilities"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      commands: unknown[];
+    }>((json) => {
+      expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(json.success).toBe(true);
+      expect(json.commands.length).toBeGreaterThan(0);
+    }),
+  ]),
   defineScenario("agent root help returns a JSON envelope", [
     runCliStep(["--agent", "help"]),
     assertExit(0),

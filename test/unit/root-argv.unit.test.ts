@@ -21,4 +21,14 @@ describe("root argv parsing", () => {
       isHelpLike: false,
     });
   });
+
+  test("structured machine flags outrank csv mode", () => {
+    expect(parseRootArgv(["--agent", "--format", "csv", "guide"])).toMatchObject({
+      isAgent: true,
+      isJson: true,
+      isCsvMode: false,
+      isStructuredOutputMode: true,
+      isWelcome: false,
+    });
+  });
 });

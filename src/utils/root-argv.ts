@@ -120,12 +120,13 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
   const nonOptionTokens = allNonOptionTokens(argv);
   const formatFlagValue =
     readLongOptionValue(argv, "--format")?.toLowerCase() ?? null;
+  const isAgent = hasLongFlag(argv, "--agent");
   const isJson =
     hasLongFlag(argv, "--json") ||
     hasShortFlag(argv, "j") ||
-    formatFlagValue === "json";
-  const isCsvMode = formatFlagValue === "csv";
-  const isAgent = hasLongFlag(argv, "--agent");
+    formatFlagValue === "json" ||
+    isAgent;
+  const isCsvMode = formatFlagValue === "csv" && !isJson;
   const isUnsigned = hasLongFlag(argv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
   const isStructuredOutputMode = isJson || isUnsigned || isAgent;
@@ -141,8 +142,7 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
       (nonOptionTokens.length === 1 && nonOptionTokens[0] === "help"));
   const suppressBanner = rootArgs.includes("--no-banner");
   const isQuiet = rootArgs.includes("--quiet") || hasShortFlag(argv, "q");
-  const isWelcome =
-    isWelcomeFlagOnlyInvocation(argv) && (!isMachineMode || isCsvMode);
+  const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
 
   return {
     argv,

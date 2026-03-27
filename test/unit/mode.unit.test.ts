@@ -73,6 +73,22 @@ describe("resolveGlobalMode", () => {
     expect(result.skipPrompts).toBe(true);
   });
 
+  test("--agent takes precedence over --format csv", () => {
+    const result = resolveGlobalMode({ agent: true, format: "csv" });
+    expect(result.isAgent).toBe(true);
+    expect(result.isJson).toBe(true);
+    expect(result.isCsv).toBe(false);
+    expect(result.format).toBe("json");
+    expect(result.isQuiet).toBe(true);
+  });
+
+  test("--json takes precedence over --format csv", () => {
+    const result = resolveGlobalMode({ json: true, format: "csv" });
+    expect(result.isJson).toBe(true);
+    expect(result.isCsv).toBe(false);
+    expect(result.format).toBe("json");
+  });
+
   test("--format json is equivalent to --json", () => {
     const result = resolveGlobalMode({ format: "json" });
     expect(result.isJson).toBe(true);

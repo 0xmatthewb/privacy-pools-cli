@@ -63,6 +63,42 @@ describe("machine-mode command envelopes", () => {
     expect(typeof json.help).toBe("string");
   });
 
+  test("machine flags override csv for guide discovery", () => {
+    const result = runCli(["--agent", "--format", "csv", "guide"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr.trim()).toBe("");
+
+    const json = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      mode: string;
+      help: string;
+    }>(result.stdout);
+    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("help");
+    expect(json.help).toContain("Privacy Pools: Quick Guide");
+  });
+
+  test("machine flags override csv for capabilities discovery", () => {
+    const result = runCli(["--json", "--format", "csv", "capabilities"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr.trim()).toBe("");
+
+    const json = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      commands: unknown[];
+    }>(result.stdout);
+    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(json.success).toBe(true);
+    expect(json.commands.length).toBeGreaterThan(0);
+  });
+
   const rootModes = [
     ["--agent", "help"],
     ["--json", "help"],

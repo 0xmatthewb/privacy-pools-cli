@@ -65,6 +65,13 @@ describe("static discovery runtime", () => {
       staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--format", "csv"]),
     ).toBe(false);
     expect(
+      staticDiscoveryTestInternals.fallbackJsonModeFromArgv([
+        "--agent",
+        "--format",
+        "csv",
+      ]),
+    ).toBe(true);
+    expect(
       staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--verbose"]),
     ).toBe(false);
 
@@ -251,6 +258,27 @@ describe("static discovery runtime", () => {
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
     expect(stderr).toContain("--format csv is not supported for 'guide'");
+  });
+
+  test("machine flags keep static discovery structured even when csv is also requested", async () => {
+    const guide = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand(["--agent", "--format", "csv", "guide"]),
+    );
+    expect(guide.json.success).toBe(true);
+    expect(guide.json.mode).toBe("help");
+    expect(guide.stderr).toBe("");
+
+    const capabilities = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand([
+        "--json",
+        "--format",
+        "csv",
+        "capabilities",
+      ]),
+    );
+    expect(capabilities.json.success).toBe(true);
+    expect(Array.isArray(capabilities.json.commands)).toBe(true);
+    expect(capabilities.stderr).toBe("");
   });
 
   test("returns false for malformed static discovery invocations", async () => {
@@ -576,7 +604,7 @@ describe("static discovery runtime", () => {
       expect(stderr).toBe("");
     }
 
-    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(async () => {
       const handled = await runStaticCompletionQuery([
         "--json",
         "--format",
@@ -590,9 +618,9 @@ describe("static discovery runtime", () => {
       expect(handled).toBe(true);
     });
 
-    expect(exitCode).toBe(2);
-    expect(stdout).toBe("");
-    expect(stderr).toContain("--format csv is not supported for 'completion'");
+    expect(json.success).toBe(true);
+    expect(Array.isArray(json.candidates)).toBe(true);
+    expect(stderr).toBe("");
   });
 
   test("rejects conflicting completion shell declarations and keeps empty human completions silent", async () => {
