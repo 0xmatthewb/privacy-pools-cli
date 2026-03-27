@@ -197,10 +197,9 @@ export async function resolveTokenMetadata(
     tokenCache.set(cacheKey, result);
     return result;
   } catch {
-    // Fallback for non-standard tokens
-    const result = { symbol: "???", decimals: 18 };
-    tokenCache.set(cacheKey, result);
-    return result;
+    // Fallback is intentionally not cached so transient RPC failures
+    // or partial test doubles do not poison later successful reads.
+    return { symbol: "???", decimals: 18 };
   }
 }
 

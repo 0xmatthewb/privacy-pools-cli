@@ -354,4 +354,53 @@ describe("resolveTokenMetadata", () => {
     expect(result.symbol).toBe("???");
     expect(result.decimals).toBe(18);
   });
+
+  test("does not let fallback metadata poison later successful reads", async () => {
+    const { createPublicClient, http } = await import("viem");
+    const { mainnet } = await import("viem/chains");
+
+    const asset = "0x00000000000000000000000000000000000000dd" as Address;
+    const chainId = 31363;
+    const fallbackServer = await startMockServer(chainId, {
+      rpcHandler: ({ to, data }) => {
+        if (
+          to === asset.toLowerCase()
+          && (data.startsWith("0x95d89b41") || data.startsWith("0x313ce567"))
+        ) {
+          return "0x";
+        }
+        return null;
+      },
+    });
+    toClose.push(fallbackServer);
+
+    const fallbackClient = createPublicClient({
+      chain: { ...mainnet, id: chainId },
+      transport: http(fallbackServer.url),
+    });
+
+    const fallbackResult = await resolveTokenMetadata(fallbackClient, asset);
+    expect(fallbackResult).toEqual({ symbol: "???", decimals: 18 });
+
+    const successServer = await startMockServer(chainId, {
+      rpcHandler: ({ to, data }) => {
+        if (to === asset.toLowerCase() && data.startsWith("0x95d89b41")) {
+          return encodeAbiParameters([{ type: "string" }], ["USDC"]);
+        }
+        if (to === asset.toLowerCase() && data.startsWith("0x313ce567")) {
+          return encodeAbiParameters([{ type: "uint8" }], [6]);
+        }
+        return null;
+      },
+    });
+    toClose.push(successServer);
+
+    const successClient = createPublicClient({
+      chain: { ...mainnet, id: chainId },
+      transport: http(successServer.url),
+    });
+
+    const successResult = await resolveTokenMetadata(successClient, asset);
+    expect(successResult).toEqual({ symbol: "USDC", decimals: 6 });
+  });
 });
