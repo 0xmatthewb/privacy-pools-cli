@@ -507,9 +507,9 @@ privacy-pools init --agent --mnemonic-file ./recovery.txt --default-chain mainne
 cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
 privacy-pools init --agent --private-key-file ./key.txt --default-chain mainnet
 printf '%s\n' 0x... | privacy-pools init --agent --mnemonic-file ./recovery.txt --private-key-stdin --default-chain mainnet
-# unsafe fallback: visible in process lists and shell history
-privacy-pools init --agent --mnemonic "word1 word2 ..." --private-key 0x...
 ```
+
+Inline `--mnemonic` and `--private-key` remain available as a last resort, but the preferred file/stdin flows above avoid leaking secrets into shell history or process listings.
 
 ```json
 {

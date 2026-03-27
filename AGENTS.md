@@ -235,8 +235,6 @@ privacy-pools init --agent --mnemonic-file ./recovery.txt --default-chain mainne
 cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
 privacy-pools init --agent --private-key-file ./signer-key.txt --default-chain mainnet
 printf '%s\n' 0x... | privacy-pools init --agent --mnemonic-file ./recovery.txt --private-key-stdin --default-chain mainnet
-# unsafe fallback: visible in process lists and shell history
-privacy-pools init --agent --mnemonic "word1 word2 ..." --private-key 0x...
 ```
 
 JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
@@ -252,6 +250,8 @@ When `init` imports an existing recovery phrase, `nextActions` points to `accoun
 > **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
 
 Use only one secret stdin source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
+
+Inline `--mnemonic` and `--private-key` are still supported as a last resort, but they are intentionally omitted from the primary examples because shell history and process listings can expose them.
 
 Proof commands provision circuit artifacts automatically on first use (~60s one-time), caching them under `~/.privacy-pools/circuits/v<sdk-version>` by default and verifying them against the shipped checksum manifest before use. Set `PRIVACY_POOLS_CIRCUITS_DIR` to use a pre-provisioned directory.
 
