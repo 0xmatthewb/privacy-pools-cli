@@ -73,6 +73,10 @@ const STUB_CAPABILITIES: CapabilitiesPayload = {
       command: "test-cmd",
       description: "Test command",
       aliases: [],
+      execution: {
+        owner: "native-shell",
+        nativeModes: ["default", "help"],
+      },
       usage: "test-cmd",
       flags: ["--flag"],
       globalFlags: ["-j, --json"],
@@ -87,6 +91,12 @@ const STUB_CAPABILITIES: CapabilitiesPayload = {
       supportsUnsigned: false,
       supportsDryRun: false,
       agentWorkflowNotes: [],
+    },
+  },
+  executionRoutes: {
+    "test-cmd": {
+      owner: "native-shell",
+      nativeModes: ["default", "help"],
     },
   },
   globalFlags: [{ flag: "-j, --json", description: "JSON output" }],

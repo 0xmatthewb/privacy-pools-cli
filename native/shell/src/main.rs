@@ -441,6 +441,9 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         && !parsed.is_version_like
         && parsed.first_command_token.is_none()
     {
+        if root_argv_slice(argv).len() != argv.len() {
+            return forward_to_js_worker(argv);
+        }
         emit_help(&manifest.structured_root_help, true);
         return Ok(0);
     }
@@ -1324,7 +1327,7 @@ fn stats_native_mode(
         return None;
     }
 
-    let command_path = resolve_command_path(&all_non_option_tokens(argv), manifest)?;
+    let command_path = resolve_command_path_prefix(&all_non_option_tokens(argv), manifest)?;
     match command_path.as_str() {
         "stats" => manifest_allows_native_mode("stats", "structured-default", manifest)
             .then_some("structured-default"),
@@ -1387,6 +1390,27 @@ fn resolve_command_path(tokens: &[String], manifest: &Manifest) -> Option<String
     let canonical = canonicalize_command_path(&joined, manifest);
     if manifest.command_paths.iter().any(|path| path == &canonical) {
         return Some(canonical);
+    }
+
+    None
+}
+
+fn resolve_command_path_prefix(tokens: &[String], manifest: &Manifest) -> Option<String> {
+    if tokens.is_empty() {
+        return None;
+    }
+
+    for length in (1..=tokens.len()).rev() {
+        let candidate = tokens
+            .iter()
+            .take(length)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let canonical = canonicalize_command_path(&candidate, manifest);
+        if manifest.command_paths.iter().any(|path| path == &canonical) {
+            return Some(canonical);
+        }
     }
 
     None

@@ -1,6 +1,9 @@
+import { spawnSync } from "node:child_process";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { CliRunOptions, CliRunResult } from "../helpers/cli.ts";
 import {
+  CLI_CWD,
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY,
   createTempHome,
@@ -14,6 +17,7 @@ import {
   killFixtureServer,
   launchFixtureServer,
 } from "../helpers/fixture-server.ts";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import {
   CARGO_AVAILABLE,
   ensureNativeShellBinary,
@@ -40,6 +44,45 @@ function runNativeBuiltCli(
       PRIVACY_POOLS_CLI_BINARY: nativeBinary,
     },
   });
+}
+
+function runNativeBinaryDirect(
+  nativeBinary: string,
+  args: string[],
+  options: CliRunOptions = {},
+): CliRunResult {
+  const home = options.home ?? createTempHome("pp-native-direct-");
+  const timeoutMs = options.timeoutMs ?? 20_000;
+  const cwd = options.cwd ?? CLI_CWD;
+  const start = Date.now();
+  const result = spawnSync(nativeBinary, args, {
+    cwd,
+    env: buildChildProcessEnv({
+      PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+      ...options.env,
+    }),
+    encoding: "utf8",
+    input: options.input,
+    timeout: timeoutMs,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+
+  const elapsedMs = Date.now() - start;
+  const timedOut =
+    result.status === null &&
+    result.signal === "SIGTERM" &&
+    typeof result.error?.message === "string" &&
+    result.error.message.includes("ETIMEDOUT");
+
+  return {
+    status: result.status,
+    signal: result.signal,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    elapsedMs,
+    timedOut,
+    errorMessage: result.error?.message,
+  };
 }
 
 function withJsFallback(options: CliRunOptions = {}): CliRunOptions {
@@ -138,6 +181,10 @@ describe("native shell parity", () => {
 
   nativeTest("structured root help stays machine-readable", () => {
     expectJsonParity(nativeBinary, ["--json", "--help"]);
+  });
+
+  nativeTest("root argv parsing stops at -- consistently across JS and native", () => {
+    expectJsonParity(nativeBinary, ["--json", "--", "status", "--json"]);
   });
 
   nativeTest("subcommand help is manifest-driven but output-identical", () => {
@@ -316,6 +363,23 @@ describe("native shell parity", () => {
         },
       },
     );
+  });
+
+  nativeTest("stats pool stays native-owned when option values follow the command path", () => {
+    const args = ["--json", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"];
+    const env = {
+      PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+      PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture!.url,
+    };
+
+    const jsResult = runCli(args, { env });
+    const directNativeResult = runNativeBinaryDirect(nativeBinary, args, { env });
+
+    expect(directNativeResult.status).toBe(jsResult.status);
+    expect(parseJsonOutput(directNativeResult.stdout)).toEqual(
+      parseJsonOutput(jsResult.stdout),
+    );
+    expect(directNativeResult.stderr).toBe(jsResult.stderr);
   });
 
   nativeTest("stats pool input validation stays identical through the native path", () => {

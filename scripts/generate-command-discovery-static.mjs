@@ -55,7 +55,11 @@ const runtimeContractModulePath = join(
   "runtime-contract.js",
 );
 
-const { COMMAND_PATHS, buildCapabilitiesPayload } = await import(
+const {
+  COMMAND_PATHS,
+  buildCapabilitiesPayload,
+  getCommandExecutionMetadata,
+} = await import(
   pathToFileURL(metadataModulePath).href
 );
 const {
@@ -87,71 +91,14 @@ const aliasEntries = COMMAND_PATHS.flatMap((path) =>
 
 const aliasMap = Object.fromEntries(aliasEntries);
 const staticLocalCommands = ["guide", "capabilities", "describe", "completion"];
-const directNativeCommands = new Set([
-  "guide",
-  "capabilities",
-  "describe",
-  "completion",
-]);
-
-function buildCommandRoute(path) {
-  if (directNativeCommands.has(path)) {
-    return {
-      owner: "native-shell",
-      nativeModes: ["default", "help"],
-    };
-  }
-
-  if (path === "stats") {
-    return {
-      owner: "hybrid",
-      nativeModes: ["structured-default", "structured-global", "help"],
-    };
-  }
-
-  if (path === "stats global") {
-    return {
-      owner: "hybrid",
-      nativeModes: ["structured", "help"],
-    };
-  }
-
-  if (path === "stats pool") {
-    return {
-      owner: "hybrid",
-      nativeModes: ["structured", "help"],
-    };
-  }
-
-  if (path === "status") {
-    return {
-      owner: "js-runtime",
-      nativeModes: ["help"],
-    };
-  }
-
-  if (path === "pools") {
-    return {
-      owner: "hybrid",
-      nativeModes: ["structured-list", "help"],
-    };
-  }
-
-  if (path === "activity") {
-    return {
-      owner: "hybrid",
-      nativeModes: ["structured", "help"],
-    };
-  }
-
-  return {
-    owner: "js-runtime",
-    nativeModes: ["help"],
-  };
-}
-
 const commandRoutes = Object.fromEntries(
-  COMMAND_PATHS.map((path) => [path, buildCommandRoute(path)]),
+  COMMAND_PATHS.map((path) => [path, getCommandExecutionMetadata(path)]),
+);
+const directNativeCommands = new Set(
+  COMMAND_PATHS.filter((path) => {
+    const route = commandRoutes[path];
+    return route.owner === "native-shell" && route.nativeModes.includes("default");
+  }),
 );
 
 function sanitizeEnv(baseEnv = process.env) {

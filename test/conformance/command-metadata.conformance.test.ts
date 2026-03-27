@@ -4,6 +4,7 @@ import { createRootProgram } from "../../src/program.ts";
 import {
   buildCapabilitiesPayload,
   COMMAND_PATHS,
+  getCommandExecutionMetadata,
   getCommandMetadata,
   GLOBAL_FLAG_METADATA,
 } from "../../src/utils/command-metadata.ts";
@@ -68,6 +69,12 @@ describe("command metadata conformance", () => {
     expect(payload.commands.map((command) => command.name)).toContain("describe");
     expect(payload.commandDetails["withdraw quote"]?.command).toBe("withdraw quote");
     expect(payload.commandDetails["describe"]?.globalFlags).toContain("--agent");
+    expect(payload.commandDetails["status"]?.execution.owner).toBe("js-runtime");
+    expect(payload.commandDetails["capabilities"]?.execution.owner).toBe("native-shell");
+    expect(payload.commandDetails["stats pool"]?.execution.owner).toBe("hybrid");
+    expect(payload.executionRoutes["pools"]).toEqual(
+      getCommandExecutionMetadata("pools"),
+    );
     expect(payload.commandDetails["flow"]?.safeReadOnly).toBe(false);
     expect(payload.commandDetails["flow status"]?.safeReadOnly).toBe(true);
     expect(payload.commandDetails["guide"]?.safeReadOnly).toBe(true);

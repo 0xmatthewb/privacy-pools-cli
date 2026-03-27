@@ -14,6 +14,7 @@ export {
   CAPABILITIES_SCHEMAS,
   COMMAND_PATHS,
   getDocumentedAgentMarkers,
+  getCommandExecutionMetadata,
   GLOBAL_FLAG_METADATA,
   listCommandPaths,
   resolveCommandPath,

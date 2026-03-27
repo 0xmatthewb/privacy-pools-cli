@@ -626,6 +626,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "init",
       "description": "Initialize wallet and configuration",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "init",
       "flags": [
         "--mnemonic <phrase>",
@@ -682,6 +688,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "flow",
       "description": "Run the easy-path deposit-to-withdraw workflow",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "flow",
       "flags": [
         "start <amount> <asset> --to <address>",
@@ -727,6 +739,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "flow start",
       "description": "Deposit now and save a later private withdrawal workflow",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "flow start <amount> <asset> --to <address>",
       "flags": [
         "--to <address>",
@@ -779,6 +797,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "flow watch",
       "description": "Poll ASP approval and withdraw privately when ready",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "flow watch [workflowId|latest]",
       "flags": [
         "[workflowId|latest]"
@@ -824,6 +848,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "flow status",
       "description": "Show the saved easy-path workflow state",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "flow status [workflowId|latest]",
       "flags": [
         "[workflowId|latest]"
@@ -863,6 +893,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "flow ragequit",
       "description": "Recover a saved workflow publicly via ragequit",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
         "[workflowId|latest]"
@@ -905,6 +941,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "pools",
       "description": "List available pools and assets",
       "aliases": [],
+      "execution": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured-list",
+          "help"
+        ]
+      },
       "usage": "pools",
       "flags": [
         "--all-chains",
@@ -952,6 +995,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "activity",
       "description": "Show public activity feed",
       "aliases": [],
+      "execution": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured",
+          "help"
+        ]
+      },
       "usage": "activity",
       "flags": [
         "--asset <symbol|address>",
@@ -992,6 +1042,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "stats",
       "description": "Show public statistics",
       "aliases": [],
+      "execution": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured-default",
+          "structured-global",
+          "help"
+        ]
+      },
       "usage": "stats",
       "flags": [
         "global",
@@ -1029,6 +1087,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "stats global",
       "description": "Show global Privacy Pools statistics (all-time and last 24h)",
       "aliases": [],
+      "execution": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured",
+          "help"
+        ]
+      },
       "usage": "stats global",
       "flags": [],
       "globalFlags": [
@@ -1062,6 +1127,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "stats pool",
       "description": "Show statistics for a specific pool (all-time and last 24h)",
       "aliases": [],
+      "execution": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured",
+          "help"
+        ]
+      },
       "usage": "stats pool --asset <symbol|address>",
       "flags": [
         "--asset <symbol|address>"
@@ -1098,6 +1170,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "status",
       "description": "Show configuration and check connection health",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "status",
       "flags": [
         "--check",
@@ -1140,6 +1218,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "capabilities",
       "description": "Describe CLI capabilities for agent discovery",
       "aliases": [],
+      "execution": {
+        "owner": "native-shell",
+        "nativeModes": [
+          "default",
+          "help"
+        ]
+      },
       "usage": "capabilities",
       "flags": [],
       "globalFlags": [
@@ -1163,7 +1248,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools capabilities",
         "privacy-pools capabilities --agent"
       ],
-      "jsonFields": "{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
+      "jsonFields": "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -1174,6 +1259,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "describe",
       "description": "Describe one command for runtime agent introspection",
       "aliases": [],
+      "execution": {
+        "owner": "native-shell",
+        "nativeModes": [
+          "default",
+          "help"
+        ]
+      },
       "usage": "describe <command...>",
       "flags": [
         "<command...>"
@@ -1211,6 +1303,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "guide",
       "description": "Show usage guide, workflow, and reference",
       "aliases": [],
+      "execution": {
+        "owner": "native-shell",
+        "nativeModes": [
+          "default",
+          "help"
+        ]
+      },
       "usage": "guide",
       "flags": [],
       "globalFlags": [
@@ -1245,6 +1344,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "deposit",
       "description": "Deposit into a pool",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "deposit <amount> [asset]",
       "flags": [
         "--asset <symbol|address>",
@@ -1300,6 +1405,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "withdraw",
       "description": "Withdraw from a pool",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "withdraw [amount] [asset] --to <address>",
       "flags": [
         "--asset <symbol|address>",
@@ -1361,6 +1472,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "withdraw quote",
       "description": "Request relayer quote and limits without generating a proof",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "withdraw quote <amount|asset> [amount]",
       "flags": [
         "--asset <symbol|address>",
@@ -1404,6 +1521,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "aliases": [
         "exit"
       ],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "ragequit [asset] --from-pa <PA-#>",
       "flags": [
         "--asset <symbol|address>",
@@ -1453,6 +1576,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "accounts",
       "description": "List your Pool Accounts (individual deposit lineages) with balances",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "accounts",
       "flags": [
         "--no-sync",
@@ -1507,6 +1636,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "migrate",
       "description": "Inspect legacy migration readiness on CLI-supported chains",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "migrate",
       "flags": [
         "status [--all-chains]"
@@ -1546,6 +1681,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "migrate status",
       "description": "Show legacy migration readiness on CLI-supported chains",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "migrate status",
       "flags": [
         "--all-chains"
@@ -1591,6 +1732,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "history",
       "description": "Show chronological event history (deposits, withdrawals, ragequits)",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "history",
       "flags": [
         "--no-sync",
@@ -1632,6 +1779,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "sync",
       "description": "Force-sync local account state from onchain events",
       "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
       "usage": "sync",
       "flags": [
         "-a, --asset <symbol|address>"
@@ -1671,6 +1824,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "completion",
       "description": "Generate shell completion script",
       "aliases": [],
+      "execution": {
+        "owner": "native-shell",
+        "nativeModes": [
+          "default",
+          "help"
+        ]
+      },
       "usage": "completion",
       "flags": [
         "[shell]",
@@ -1705,6 +1865,168 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
+    }
+  },
+  "executionRoutes": {
+    "init": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "flow": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "flow start": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "flow watch": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "flow status": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "flow ragequit": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "pools": {
+      "owner": "hybrid",
+      "nativeModes": [
+        "structured-list",
+        "help"
+      ]
+    },
+    "activity": {
+      "owner": "hybrid",
+      "nativeModes": [
+        "structured",
+        "help"
+      ]
+    },
+    "stats": {
+      "owner": "hybrid",
+      "nativeModes": [
+        "structured-default",
+        "structured-global",
+        "help"
+      ]
+    },
+    "stats global": {
+      "owner": "hybrid",
+      "nativeModes": [
+        "structured",
+        "help"
+      ]
+    },
+    "stats pool": {
+      "owner": "hybrid",
+      "nativeModes": [
+        "structured",
+        "help"
+      ]
+    },
+    "status": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "capabilities": {
+      "owner": "native-shell",
+      "nativeModes": [
+        "default",
+        "help"
+      ]
+    },
+    "describe": {
+      "owner": "native-shell",
+      "nativeModes": [
+        "default",
+        "help"
+      ]
+    },
+    "guide": {
+      "owner": "native-shell",
+      "nativeModes": [
+        "default",
+        "help"
+      ]
+    },
+    "deposit": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "withdraw": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "withdraw quote": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "ragequit": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "accounts": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "migrate": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "migrate status": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "history": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "sync": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "completion": {
+      "owner": "native-shell",
+      "nativeModes": [
+        "default",
+        "help"
+      ]
     }
   },
   "globalFlags": [

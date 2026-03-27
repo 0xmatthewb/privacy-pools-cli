@@ -102,9 +102,13 @@ describe("external JSON contract doc conformance", () => {
 
     const capabilities = commands.capabilities as { successFields?: Record<string, string> };
     expect(capabilities.successFields?.commandDetails).toBe("Record<string, DetailedCommandDescriptor>");
+    expect(capabilities.successFields?.executionRoutes).toBe(
+      "Record<string, { owner, nativeModes }>",
+    );
 
     const describe = commands.describe as { successFields?: Record<string, string> };
     expect(describe.successFields?.command).toContain("canonical command path");
     expect(describe.successFields?.globalFlags).toBe("string[]");
+    expect(describe.successFields?.execution).toContain('"js-runtime"|"native-shell"|"hybrid"');
   });
 });

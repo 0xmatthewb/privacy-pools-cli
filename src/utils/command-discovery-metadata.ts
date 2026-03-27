@@ -1,6 +1,7 @@
 import { CHAINS, CHAIN_NAMES, POA_PORTAL_URL } from "../config/chains.js";
 import type {
   CapabilitiesPayload,
+  CommandExecutionDescriptor,
   CommandLatencyClass,
   DetailedCommandDescriptor,
 } from "../types.js";
@@ -64,6 +65,7 @@ export interface CommandMetadata {
   aliases?: string[];
   help?: CommandHelpConfig;
   capabilities?: CommandCapabilityMetadata;
+  execution?: CommandExecutionDescriptor;
   safeReadOnly?: boolean;
   agentsDocMarker?: string;
 }
@@ -412,7 +414,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools capabilities --agent",
       ],
       jsonFields:
-        "{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
+        "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
     },
     capabilities: {
       flags: [],
@@ -777,6 +779,60 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
   },
 };
 
+function defaultExecutionMetadata(path: CommandPath): CommandExecutionDescriptor {
+  if (
+    path === "guide" ||
+    path === "capabilities" ||
+    path === "describe" ||
+    path === "completion"
+  ) {
+    return {
+      owner: "native-shell",
+      nativeModes: ["default", "help"],
+    };
+  }
+
+  if (path === "stats") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured-default", "structured-global", "help"],
+    };
+  }
+
+  if (path === "stats global" || path === "stats pool" || path === "activity") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured", "help"],
+    };
+  }
+
+  if (path === "pools") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["structured-list", "help"],
+    };
+  }
+
+  return {
+    owner: "js-runtime",
+    nativeModes: ["help"],
+  };
+}
+
+export function getCommandExecutionMetadata(
+  path: CommandPath,
+): CommandExecutionDescriptor {
+  const explicit = COMMAND_METADATA[path].execution;
+  if (explicit) {
+    return {
+      owner: explicit.owner,
+      nativeModes: [...explicit.nativeModes],
+    };
+  }
+
+  return defaultExecutionMetadata(path);
+}
+
 export const COMMAND_PATHS = Object.keys(COMMAND_METADATA) as CommandPath[];
 
 export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
@@ -936,6 +992,7 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     command: path,
     description: seed.description,
     aliases: seed.aliases,
+    execution: getCommandExecutionMetadata(path),
     usage: seed.usage,
     flags: seed.flags,
     globalFlags: seed.globalFlags,
@@ -1003,6 +1060,9 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
     }),
     commandDetails: Object.fromEntries(
       COMMAND_PATHS.map((path) => [path, buildCommandDescriptor(path)])
+    ),
+    executionRoutes: Object.fromEntries(
+      COMMAND_PATHS.map((path) => [path, getCommandExecutionMetadata(path)]),
     ),
     globalFlags: GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({ flag, description })),
     agentWorkflow: AGENT_WORKFLOW,

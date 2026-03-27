@@ -68,6 +68,12 @@ export interface NextAction {
 }
 
 export type CommandLatencyClass = "fast" | "medium" | "slow";
+export type CommandExecutionOwner = "js-runtime" | "native-shell" | "hybrid";
+
+export interface CommandExecutionDescriptor {
+  owner: CommandExecutionOwner;
+  nativeModes: string[];
+}
 
 export interface CapabilityCommandSummary {
   name: string;
@@ -84,6 +90,7 @@ export interface DetailedCommandDescriptor {
   command: string;
   description: string;
   aliases: string[];
+  execution: CommandExecutionDescriptor;
   usage: string;
   flags: string[];
   globalFlags: string[];
@@ -103,6 +110,7 @@ export interface DetailedCommandDescriptor {
 export interface CapabilitiesPayload {
   commands: CapabilityCommandSummary[];
   commandDetails: Record<string, DetailedCommandDescriptor>;
+  executionRoutes: Record<string, CommandExecutionDescriptor>;
   globalFlags: Array<{ flag: string; description: string }>;
   agentWorkflow: string[];
   agentNotes?: Record<string, string>;

@@ -458,6 +458,7 @@
       "successFields": {
         "commands": "Command[]",
         "commandDetails": "Record<string, DetailedCommandDescriptor>",
+        "executionRoutes": "Record<string, { owner, nativeModes }>",
         "globalFlags": "Flag[]",
         "agentWorkflow": "string[]",
         "jsonOutputContract": "string (descriptive contract summary)",
@@ -472,6 +473,7 @@
         "command": "string (canonical command path)",
         "description": "string",
         "aliases": "string[]",
+        "execution": "{ owner: \"js-runtime\"|\"native-shell\"|\"hybrid\", nativeModes: string[] }",
         "usage": "string",
         "flags": "string[]",
         "globalFlags": "string[]",

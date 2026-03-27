@@ -105,10 +105,12 @@ describe("agent-focused improvements", () => {
       commands: Array<{ name: string }>;
       commandDetails: Record<string, {
         command: string;
+        execution: { owner: string; nativeModes: string[] };
         flags: string[];
         globalFlags: string[];
         safeReadOnly: boolean;
       }>;
+      executionRoutes: Record<string, { owner: string; nativeModes: string[] }>;
       safeReadOnlyCommands: string[];
     }>(result.stdout);
     expect(json.commands.map((command) => command.name)).toContain("stats global");
@@ -119,6 +121,9 @@ describe("agent-focused improvements", () => {
     expect(json.commandDetails["stats global"]?.globalFlags).not.toContain("-c, --chain <name>");
     expect(json.commandDetails["guide"]?.globalFlags).toContain("--format <format>");
     expect(json.commandDetails["capabilities"]?.globalFlags).toContain("--format <format>");
+    expect(json.commandDetails["status"]?.execution.owner).toBe("js-runtime");
+    expect(json.commandDetails["capabilities"]?.execution.owner).toBe("native-shell");
+    expect(json.executionRoutes["stats pool"]?.owner).toBe("hybrid");
     expect(json.commandDetails["guide"]?.safeReadOnly).toBe(true);
     expect(json.commandDetails["completion"]?.safeReadOnly).toBe(true);
     expect(json.safeReadOnlyCommands).toContain("guide");

@@ -47,7 +47,7 @@
     "stats global": "Usage: privacy-pools stats global [options]\n\nShow global Privacy Pools statistics (all-time and last 24h)\n\nOptions:\n  -h, --help  display help for command\n\nAlways returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data.\n\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --agent\n\nJSON output (--json):\n  { mode, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
     "stats pool": "Usage: privacy-pools stats pool [options]\n\nShow statistics for a specific pool (all-time and last 24h)\n\nOptions:\n  -a, --asset <symbol|address>  Pool asset (symbol like ETH, USDC, or token\n                                address)\n  -h, --help                    display help for command\n\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --agent --chain mainnet\n\nJSON output (--json):\n  { mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
     "status": "Usage: privacy-pools status [options]\n\nShow configuration and check connection health\n\nOptions:\n  --check      Run both RPC and ASP health checks\n  --no-check   Suppress default health checks\n  --check-rpc  Actively test RPC connectivity\n  --check-asp  Actively test ASP liveness\n  -h, --help   display help for command\n\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --agent --check-rpc\n  privacy-pools status --chain mainnet --rpc-url https://...\n\nJSON output (--json):\n  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
-    "capabilities": "Usage: privacy-pools capabilities [options]\n\nDescribe CLI capabilities for agent discovery\n\nOptions:\n  -h, --help  display help for command\n\nExamples:\n  privacy-pools capabilities\n  privacy-pools capabilities --agent\n\nJSON output (--json):\n  { commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
+    "capabilities": "Usage: privacy-pools capabilities [options]\n\nDescribe CLI capabilities for agent discovery\n\nOptions:\n  -h, --help  display help for command\n\nExamples:\n  privacy-pools capabilities\n  privacy-pools capabilities --agent\n\nJSON output (--json):\n  { commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
     "describe": "Usage: privacy-pools describe [options] <command...>\n\nDescribe one command for runtime agent introspection\n\nArguments:\n  command     Command path to describe\n\nOptions:\n  -h, --help  display help for command\n\nUseful when a human or agent wants the runtime contract for one command without parsing long-form docs. Accepts spaced command paths like 'withdraw quote' and 'stats global'.\n\nExamples:\n  privacy-pools describe withdraw\n  privacy-pools describe withdraw quote --agent\n  privacy-pools describe stats global --agent\n\nJSON output (--json):\n  { command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
     "guide": "Usage: privacy-pools guide [options]\n\nShow usage guide, workflow, and reference\n\nOptions:\n  -h, --help  display help for command",
     "deposit": "Usage: privacy-pools deposit [options] <amount> [asset]\n\nDeposit into a pool\n\nArguments:\n  amount                        Amount to deposit (e.g. 0.1)\n  asset                         Asset symbol (e.g. ETH, USDC)\n\nOptions:\n  -a, --asset <symbol|address>  Asset to deposit (symbol like ETH, USDC, or\n                                contract address)\n  --unsigned [format]           Build unsigned payload; format: envelope\n                                (default) or tx (choices: \"envelope\", \"tx\")\n  --dry-run                     Validate and preview the transaction without\n                                submitting\n  --ignore-unique-amount        Bypass the non-round amount privacy check\n  -h, --help                    display help for command\n\nDeposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may provision checksum-verified circuit artifacts (~60s). Subsequent runs typically complete in 10-30s.\n\nNon-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.\n\nExamples:\n  privacy-pools deposit 0.1 ETH\n  privacy-pools deposit 100 USDC\n  privacy-pools deposit 0.05 ETH --agent\n  privacy-pools deposit 0.1 ETH --unsigned\n  privacy-pools deposit 0.1 ETH --dry-run\n  privacy-pools deposit 0.1 --asset ETH --chain mainnet\n\nPrerequisites:\n  Requires: init\n\nSafety notes:\n  Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.\n  A vetting fee is deducted from the deposit amount by the pool's ASP.\n  Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.\n\nAgent workflow:\n  Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.\n\nJSON output (--json):\n  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }\n  --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }\n  --unsigned tx: [{ to, data, value, valueHex, chainId }]\n  --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }\n\nAdditional modes:\n  --unsigned builds transaction payloads without submitting.\n  --dry-run validates the operation without submitting it.",
@@ -983,9 +983,9 @@
       "completion"
     ],
     "directNativeCommands": [
-      "guide",
       "capabilities",
       "describe",
+      "guide",
       "completion"
     ],
     "helpCommandPaths": [
@@ -1501,6 +1501,12 @@
         "command": "init",
         "description": "Initialize wallet and configuration",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "init",
         "flags": [
           "--mnemonic <phrase>",
@@ -1557,6 +1563,12 @@
         "command": "flow",
         "description": "Run the easy-path deposit-to-withdraw workflow",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "flow",
         "flags": [
           "start <amount> <asset> --to <address>",
@@ -1602,6 +1614,12 @@
         "command": "flow start",
         "description": "Deposit now and save a later private withdrawal workflow",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "flow start <amount> <asset> --to <address>",
         "flags": [
           "--to <address>",
@@ -1654,6 +1672,12 @@
         "command": "flow watch",
         "description": "Poll ASP approval and withdraw privately when ready",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "flow watch [workflowId|latest]",
         "flags": [
           "[workflowId|latest]"
@@ -1699,6 +1723,12 @@
         "command": "flow status",
         "description": "Show the saved easy-path workflow state",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "flow status [workflowId|latest]",
         "flags": [
           "[workflowId|latest]"
@@ -1738,6 +1768,12 @@
         "command": "flow ragequit",
         "description": "Recover a saved workflow publicly via ragequit",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "flow ragequit [workflowId|latest]",
         "flags": [
           "[workflowId|latest]"
@@ -1780,6 +1816,13 @@
         "command": "pools",
         "description": "List available pools and assets",
         "aliases": [],
+        "execution": {
+          "owner": "hybrid",
+          "nativeModes": [
+            "structured-list",
+            "help"
+          ]
+        },
         "usage": "pools",
         "flags": [
           "--all-chains",
@@ -1827,6 +1870,13 @@
         "command": "activity",
         "description": "Show public activity feed",
         "aliases": [],
+        "execution": {
+          "owner": "hybrid",
+          "nativeModes": [
+            "structured",
+            "help"
+          ]
+        },
         "usage": "activity",
         "flags": [
           "--asset <symbol|address>",
@@ -1867,6 +1917,14 @@
         "command": "stats",
         "description": "Show public statistics",
         "aliases": [],
+        "execution": {
+          "owner": "hybrid",
+          "nativeModes": [
+            "structured-default",
+            "structured-global",
+            "help"
+          ]
+        },
         "usage": "stats",
         "flags": [
           "global",
@@ -1904,6 +1962,13 @@
         "command": "stats global",
         "description": "Show global Privacy Pools statistics (all-time and last 24h)",
         "aliases": [],
+        "execution": {
+          "owner": "hybrid",
+          "nativeModes": [
+            "structured",
+            "help"
+          ]
+        },
         "usage": "stats global",
         "flags": [],
         "globalFlags": [
@@ -1937,6 +2002,13 @@
         "command": "stats pool",
         "description": "Show statistics for a specific pool (all-time and last 24h)",
         "aliases": [],
+        "execution": {
+          "owner": "hybrid",
+          "nativeModes": [
+            "structured",
+            "help"
+          ]
+        },
         "usage": "stats pool --asset <symbol|address>",
         "flags": [
           "--asset <symbol|address>"
@@ -1973,6 +2045,12 @@
         "command": "status",
         "description": "Show configuration and check connection health",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "status",
         "flags": [
           "--check",
@@ -2015,6 +2093,13 @@
         "command": "capabilities",
         "description": "Describe CLI capabilities for agent discovery",
         "aliases": [],
+        "execution": {
+          "owner": "native-shell",
+          "nativeModes": [
+            "default",
+            "help"
+          ]
+        },
         "usage": "capabilities",
         "flags": [],
         "globalFlags": [
@@ -2038,7 +2123,7 @@
           "privacy-pools capabilities",
           "privacy-pools capabilities --agent"
         ],
-        "jsonFields": "{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
+        "jsonFields": "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
         "jsonVariants": [],
         "safetyNotes": [],
         "supportsUnsigned": false,
@@ -2049,6 +2134,13 @@
         "command": "describe",
         "description": "Describe one command for runtime agent introspection",
         "aliases": [],
+        "execution": {
+          "owner": "native-shell",
+          "nativeModes": [
+            "default",
+            "help"
+          ]
+        },
         "usage": "describe <command...>",
         "flags": [
           "<command...>"
@@ -2086,6 +2178,13 @@
         "command": "guide",
         "description": "Show usage guide, workflow, and reference",
         "aliases": [],
+        "execution": {
+          "owner": "native-shell",
+          "nativeModes": [
+            "default",
+            "help"
+          ]
+        },
         "usage": "guide",
         "flags": [],
         "globalFlags": [
@@ -2120,6 +2219,12 @@
         "command": "deposit",
         "description": "Deposit into a pool",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "deposit <amount> [asset]",
         "flags": [
           "--asset <symbol|address>",
@@ -2175,6 +2280,12 @@
         "command": "withdraw",
         "description": "Withdraw from a pool",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "withdraw [amount] [asset] --to <address>",
         "flags": [
           "--asset <symbol|address>",
@@ -2236,6 +2347,12 @@
         "command": "withdraw quote",
         "description": "Request relayer quote and limits without generating a proof",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "withdraw quote <amount|asset> [amount]",
         "flags": [
           "--asset <symbol|address>",
@@ -2279,6 +2396,12 @@
         "aliases": [
           "exit"
         ],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "ragequit [asset] --from-pa <PA-#>",
         "flags": [
           "--asset <symbol|address>",
@@ -2328,6 +2451,12 @@
         "command": "accounts",
         "description": "List your Pool Accounts (individual deposit lineages) with balances",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "accounts",
         "flags": [
           "--no-sync",
@@ -2382,6 +2511,12 @@
         "command": "migrate",
         "description": "Inspect legacy migration readiness on CLI-supported chains",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "migrate",
         "flags": [
           "status [--all-chains]"
@@ -2421,6 +2556,12 @@
         "command": "migrate status",
         "description": "Show legacy migration readiness on CLI-supported chains",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "migrate status",
         "flags": [
           "--all-chains"
@@ -2466,6 +2607,12 @@
         "command": "history",
         "description": "Show chronological event history (deposits, withdrawals, ragequits)",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "history",
         "flags": [
           "--no-sync",
@@ -2507,6 +2654,12 @@
         "command": "sync",
         "description": "Force-sync local account state from onchain events",
         "aliases": [],
+        "execution": {
+          "owner": "js-runtime",
+          "nativeModes": [
+            "help"
+          ]
+        },
         "usage": "sync",
         "flags": [
           "-a, --asset <symbol|address>"
@@ -2546,6 +2699,13 @@
         "command": "completion",
         "description": "Generate shell completion script",
         "aliases": [],
+        "execution": {
+          "owner": "native-shell",
+          "nativeModes": [
+            "default",
+            "help"
+          ]
+        },
         "usage": "completion",
         "flags": [
           "[shell]",
@@ -2580,6 +2740,168 @@
         "supportsUnsigned": false,
         "supportsDryRun": false,
         "agentWorkflowNotes": []
+      }
+    },
+    "executionRoutes": {
+      "init": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "flow": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "flow start": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "flow watch": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "flow status": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "flow ragequit": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "pools": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured-list",
+          "help"
+        ]
+      },
+      "activity": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured",
+          "help"
+        ]
+      },
+      "stats": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured-default",
+          "structured-global",
+          "help"
+        ]
+      },
+      "stats global": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured",
+          "help"
+        ]
+      },
+      "stats pool": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "structured",
+          "help"
+        ]
+      },
+      "status": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "capabilities": {
+        "owner": "native-shell",
+        "nativeModes": [
+          "default",
+          "help"
+        ]
+      },
+      "describe": {
+        "owner": "native-shell",
+        "nativeModes": [
+          "default",
+          "help"
+        ]
+      },
+      "guide": {
+        "owner": "native-shell",
+        "nativeModes": [
+          "default",
+          "help"
+        ]
+      },
+      "deposit": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "withdraw": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "withdraw quote": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "ragequit": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "accounts": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "migrate": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "migrate status": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "history": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "sync": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "completion": {
+        "owner": "native-shell",
+        "nativeModes": [
+          "default",
+          "help"
+        ]
       }
     },
     "globalFlags": [
