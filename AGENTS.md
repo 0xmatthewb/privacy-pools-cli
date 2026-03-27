@@ -36,6 +36,22 @@ privacy-pools migrate status --agent --all-chains               # read-only lega
 privacy-pools withdraw --all ETH --to 0xRecipient --agent
 ```
 
+## Distribution
+
+The public npm entrypoint is `privacy-pools-cli`. It installs the JS launcher
+and, when present, an exact-version optional native shell package for the host:
+
+| Human OS | Native package |
+| ---- | ---- |
+| macOS (Apple Silicon) | `@0xbow/privacy-pools-cli-native-macos-arm64` |
+| macOS (Intel) | `@0xbow/privacy-pools-cli-native-macos-x64` |
+| Linux (x64, glibc) | `@0xbow/privacy-pools-cli-native-linux-x64-gnu` |
+| Windows (x64, MSVC) | `@0xbow/privacy-pools-cli-native-windows-x64-msvc` |
+| Windows (ARM64, MSVC) | `@0xbow/privacy-pools-cli-native-windows-arm64-msvc` |
+
+Node/npm still use `darwin` and `win32` internally in `os` selectors because
+those are the official Node platform ids. `darwin` means macOS.
+
 ## Core Concepts
 
 **Agent mode**: Pass `--agent` to any command. This is equivalent to `--json --yes --quiet`: machine-readable JSON on stdout, no interactive prompts, no banners or progress text.

@@ -10,10 +10,19 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
+const nativeDistributionModulePath = join(
+  repoRoot,
+  "src",
+  "native-distribution.js",
+);
+const {
+  nativePackageNameForTriplet,
+  nativeTriplet,
+} = await import(pathToFileURL(nativeDistributionModulePath).href);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const cargoCommand = process.platform === "win32" ? "cargo.exe" : "cargo";
 // Use a deterministic wallet that does not collide with the shared-Anvil smoke
@@ -61,15 +70,6 @@ function parseJson(stdout, label) {
   }
 }
 
-function currentNativeTriplet(platform = process.platform, arch = process.arch) {
-  if (platform === "darwin" && arch === "arm64") return "darwin-arm64";
-  if (platform === "darwin" && arch === "x64") return "darwin-x64";
-  if (platform === "linux" && arch === "x64") return "linux-x64-gnu";
-  if (platform === "win32" && arch === "x64") return "win32-x64-msvc";
-  if (platform === "win32" && arch === "arm64") return "win32-arm64-msvc";
-  return null;
-}
-
 function currentNativeBinaryPath() {
   const binName =
     process.platform === "win32"
@@ -79,7 +79,7 @@ function currentNativeBinaryPath() {
 }
 
 function currentNativePackageName(triplet) {
-  return `@0xbow/privacy-pools-cli-native-${triplet}`;
+  return nativePackageNameForTriplet(triplet);
 }
 
 function readSharedFixtureEnv(sharedEnvFile) {
@@ -164,7 +164,7 @@ if (!sharedEnvFile) {
 }
 
 const sharedEnv = readSharedFixtureEnv(sharedEnvFile);
-const nativeTriplet = currentNativeTriplet();
+const currentTriplet = nativeTriplet();
 
 const distIndexPath = join(repoRoot, "dist", "index.js");
 const tempRoot = mkdtempSync(join(tmpdir(), "pp-installed-cli-anvil-"));
@@ -187,7 +187,7 @@ try {
     fail("dist/index.js not found after build.");
   }
 
-  if (!nativeTriplet) {
+  if (!currentTriplet) {
     process.stdout.write(
       `Skipping installed CLI + native Anvil verification on unsupported host ${process.platform}/${process.arch}.\n`,
     );
@@ -217,14 +217,17 @@ try {
   run("node", [
     join(repoRoot, "scripts", "prepare-native-package.mjs"),
     "--triplet",
-    nativeTriplet,
+    currentTriplet,
     "--binary",
     currentNativeBinaryPath(),
     "--out-dir",
     nativePackageDir,
   ]);
   const nativeTarball = packTarball(nativePackageDir, nativeTarballDir);
-  const nativePackageName = currentNativePackageName(nativeTriplet);
+  const nativePackageName = currentNativePackageName(currentTriplet);
+  if (!nativePackageName) {
+    fail(`Unsupported native package triplet ${currentTriplet}.`);
+  }
 
   writeFileSync(
     join(installRoot, "package.json"),
@@ -263,8 +266,7 @@ try {
   const installedNativePackagePath = join(
     installRoot,
     "node_modules",
-    "@0xbow",
-    `privacy-pools-cli-native-${nativeTriplet}`,
+    ...nativePackageName.split("/"),
     "package.json",
   );
   if (!existsSync(installedNativePackagePath)) {

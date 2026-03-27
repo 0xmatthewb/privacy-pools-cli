@@ -8,6 +8,11 @@ const repoRoot = dirname(scriptDir);
 const rootPackageJson = JSON.parse(
   readFileSync(join(repoRoot, "package.json"), "utf8"),
 );
+const nativeDistributionModulePath = join(
+  repoRoot,
+  "src",
+  "native-distribution.js",
+);
 const runtimeContractModulePath = join(
   repoRoot,
   "src",
@@ -17,6 +22,12 @@ const runtimeContractModulePath = join(
 const {
   CURRENT_RUNTIME_DESCRIPTOR,
 } = await import(pathToFileURL(runtimeContractModulePath).href);
+const {
+  SUPPORTED_NATIVE_DISTRIBUTIONS,
+  getNativeDistributionByTriplet,
+} = await import(
+  pathToFileURL(nativeDistributionModulePath).href
+);
 const protocolProfileModulePath = join(
   repoRoot,
   "src",
@@ -26,39 +37,6 @@ const protocolProfileModulePath = join(
 const { CLI_PROTOCOL_PROFILE } = await import(
   pathToFileURL(protocolProfileModulePath).href
 );
-
-const TRIPLET_METADATA = {
-  "darwin-arm64": {
-    os: ["darwin"],
-    cpu: ["arm64"],
-    libc: undefined,
-    binaryFileName: "privacy-pools-cli-native-shell",
-  },
-  "darwin-x64": {
-    os: ["darwin"],
-    cpu: ["x64"],
-    libc: undefined,
-    binaryFileName: "privacy-pools-cli-native-shell",
-  },
-  "linux-x64-gnu": {
-    os: ["linux"],
-    cpu: ["x64"],
-    libc: ["glibc"],
-    binaryFileName: "privacy-pools-cli-native-shell",
-  },
-  "win32-x64-msvc": {
-    os: ["win32"],
-    cpu: ["x64"],
-    libc: undefined,
-    binaryFileName: "privacy-pools-cli-native-shell.exe",
-  },
-  "win32-arm64-msvc": {
-    os: ["win32"],
-    cpu: ["arm64"],
-    libc: undefined,
-    binaryFileName: "privacy-pools-cli-native-shell.exe",
-  },
-};
 
 function parseArgs(argv) {
   const result = {};
@@ -92,10 +70,10 @@ if (!triplet || !binary) {
   usageAndExit();
 }
 
-const metadata = TRIPLET_METADATA[triplet];
+const metadata = getNativeDistributionByTriplet(triplet);
 if (!metadata) {
   process.stderr.write(
-    `Unsupported triplet '${triplet}'. Supported triplets: ${Object.keys(TRIPLET_METADATA).join(", ")}\n`,
+    `Unsupported triplet '${triplet}'. Supported triplets: ${SUPPORTED_NATIVE_DISTRIBUTIONS.map((distribution) => distribution.triplet).join(", ")}\n`,
   );
   process.exit(2);
 }
@@ -116,9 +94,9 @@ if (!targetBinary.endsWith(".exe")) {
 
 const sha256 = sha256File(targetBinary);
 const packageJson = {
-  name: `@0xbow/privacy-pools-cli-native-${triplet}`,
+  name: metadata.packageName,
   version,
-  description: `Privacy Pools CLI native shell (${triplet})`,
+  description: `Privacy Pools CLI native shell (${metadata.displayName})`,
   license: rootPackageJson.license,
   repository: rootPackageJson.repository,
   os: metadata.os,
@@ -143,7 +121,7 @@ writeFileSync(
 
 writeFileSync(
   join(outputDir, "README.md"),
-  `# ${packageJson.name}\n\nNative shell package for Privacy Pools CLI ${version} (${triplet}).\n`,
+  `# ${packageJson.name}\n\nNative shell package for Privacy Pools CLI ${version} on ${metadata.displayName}.\n\nImplementation target: \`${triplet}\`\n\nnpm platform selectors: \`os=${metadata.os.join(",")}\`, \`cpu=${metadata.cpu.join(",")}\`${metadata.libc ? `, \`libc=${metadata.libc.join(",")}\`` : ""}\n`,
   "utf8",
 );
 

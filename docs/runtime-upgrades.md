@@ -40,6 +40,8 @@ version literals.
   [`scripts/prepare-native-package.mjs`](../scripts/prepare-native-package.mjs)
 - verify [`package.json`](../package.json) optional native dependencies match the
   root package version
+- keep package naming human-facing (`macos`, `windows`, `linux`) even though npm
+  `os` selectors must still use Node platform ids like `darwin` and `win32`
 - keep release triplets aligned across:
   - [`package.json`](../package.json)
   - [`.github/workflows/release.yml`](../.github/workflows/release.yml)

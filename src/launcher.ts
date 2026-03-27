@@ -16,6 +16,10 @@ import {
   NATIVE_JS_BRIDGE_ENV,
   resolveCurrentWorkerPath,
 } from "./runtime/current.js";
+import {
+  nativePackageName as resolveNativePackageName,
+  nativeTriplet as resolveNativeTriplet,
+} from "./native-distribution.js";
 import { parseRootArgv } from "./utils/root-argv.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
@@ -77,22 +81,16 @@ function defaultJsWorkerArgs(workerPath: string): string[] {
 
 function nativeTriplet(
   platform: NodeJS.Platform = process.platform,
-  arch: string = process.arch,
+  arch: NodeJS.Architecture = process.arch,
 ): string | null {
-  if (platform === "darwin" && arch === "arm64") return "darwin-arm64";
-  if (platform === "darwin" && arch === "x64") return "darwin-x64";
-  if (platform === "linux" && arch === "x64") return "linux-x64-gnu";
-  if (platform === "win32" && arch === "x64") return "win32-x64-msvc";
-  if (platform === "win32" && arch === "arm64") return "win32-arm64-msvc";
-  return null;
+  return resolveNativeTriplet(platform, arch);
 }
 
 function nativePackageName(
   platform: NodeJS.Platform = process.platform,
-  arch: string = process.arch,
+  arch: NodeJS.Architecture = process.arch,
 ): string | null {
-  const triplet = nativeTriplet(platform, arch);
-  return triplet ? `@0xbow/privacy-pools-cli-native-${triplet}` : null;
+  return resolveNativePackageName(platform, arch);
 }
 
 function resolvePackageBinaryPath(
@@ -170,7 +168,7 @@ export function resolveInstalledNativeBinary(
   pkg: CliPackageInfo,
   options: {
     platform?: NodeJS.Platform;
-    arch?: string;
+    arch?: NodeJS.Architecture;
     requireResolve?: (id: string) => string;
   } = {},
 ): string | null {

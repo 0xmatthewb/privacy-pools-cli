@@ -69,6 +69,23 @@ npm i -g github:0xmatthewb/privacy-pools-cli
 # or: bun add -g github:0xmatthewb/privacy-pools-cli
 ```
 
+## Distribution
+
+The public npm package is `privacy-pools-cli`. It installs the JS launcher and,
+when available, an exact-version optional native shell package for your host OS.
+
+| Human OS | Native package |
+|---------|----------------|
+| macOS (Apple Silicon) | `@0xbow/privacy-pools-cli-native-macos-arm64` |
+| macOS (Intel) | `@0xbow/privacy-pools-cli-native-macos-x64` |
+| Linux (x64, glibc) | `@0xbow/privacy-pools-cli-native-linux-x64-gnu` |
+| Windows (x64, MSVC) | `@0xbow/privacy-pools-cli-native-windows-x64-msvc` |
+| Windows (ARM64, MSVC) | `@0xbow/privacy-pools-cli-native-windows-arm64-msvc` |
+
+Node/npm still use `darwin` and `win32` internally in package metadata because
+the `os` field expects Node platform identifiers. There is full macOS support:
+`darwin` is simply Node's platform name for macOS.
+
 Or run from source:
 
 ```bash

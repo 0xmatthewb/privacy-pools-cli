@@ -14,11 +14,19 @@ const runtimeContractModulePath = join(
   "runtime",
   "runtime-contract.js",
 );
+const nativeDistributionModulePath = join(
+  repoRoot,
+  "src",
+  "native-distribution.js",
+);
 
 const rootPackageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 const {
   CURRENT_RUNTIME_DESCRIPTOR,
 } = await import(pathToFileURL(runtimeContractModulePath).href);
+const { nativePackageNameForTriplet } = await import(
+  pathToFileURL(nativeDistributionModulePath).href
+);
 const protocolProfileModulePath = join(
   repoRoot,
   "src",
@@ -71,7 +79,11 @@ const tarballPath = resolve(tarball);
 const installRoot = mkdtempSync(join(tmpdir(), "pp-native-tarball-"));
 const npmCacheDir = join(installRoot, ".npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-const packageName = `@0xbow/privacy-pools-cli-native-${triplet}`;
+const packageName = nativePackageNameForTriplet(triplet);
+
+if (!packageName) {
+  fail(`Unsupported native triplet ${triplet}.`);
+}
 
 function resolveNativeBridgeVersion(metadata = {}) {
   return metadata.bridgeVersion ?? metadata.protocolVersion;
@@ -135,8 +147,7 @@ try {
   const installedPackageJsonPath = join(
     installRoot,
     "node_modules",
-    "@0xbow",
-    `privacy-pools-cli-native-${triplet}`,
+    ...packageName.split("/"),
     "package.json",
   );
 

@@ -10,12 +10,20 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
 const rootPackageJson = JSON.parse(
   readFileSync(join(repoRoot, "package.json"), "utf8"),
+);
+const nativeDistributionModulePath = join(
+  repoRoot,
+  "src",
+  "native-distribution.js",
+);
+const { nativePackageName: resolveNativePackageName } = await import(
+  pathToFileURL(nativeDistributionModulePath).href
 );
 const TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
@@ -27,22 +35,7 @@ function currentNativePackageName(
   platform = process.platform,
   arch = process.arch,
 ) {
-  if (platform === "darwin" && arch === "arm64") {
-    return "@0xbow/privacy-pools-cli-native-darwin-arm64";
-  }
-  if (platform === "darwin" && arch === "x64") {
-    return "@0xbow/privacy-pools-cli-native-darwin-x64";
-  }
-  if (platform === "linux" && arch === "x64") {
-    return "@0xbow/privacy-pools-cli-native-linux-x64-gnu";
-  }
-  if (platform === "win32" && arch === "x64") {
-    return "@0xbow/privacy-pools-cli-native-win32-x64-msvc";
-  }
-  if (platform === "win32" && arch === "arm64") {
-    return "@0xbow/privacy-pools-cli-native-win32-arm64-msvc";
-  }
-  return null;
+  return resolveNativePackageName(platform, arch);
 }
 
 function parseArgs(argv) {

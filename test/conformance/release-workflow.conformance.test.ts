@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CLI_ROOT } from "../helpers/paths.ts";
+import {
+  SUPPORTED_NATIVE_DISTRIBUTIONS,
+} from "../../src/native-distribution.js";
 
 const releaseWorkflow = readFileSync(
   join(CLI_ROOT, ".github", "workflows", "release.yml"),
@@ -39,9 +42,12 @@ function extractCrossPlatformLabels(workflow: string): string[] {
 }
 
 function expectedNativeTriplets(): string[] {
-  return Object.keys(packageJson.optionalDependencies ?? {})
-    .filter((name) => name.startsWith("@0xbow/privacy-pools-cli-native-"))
-    .map((name) => name.replace("@0xbow/privacy-pools-cli-native-", ""))
+  return SUPPORTED_NATIVE_DISTRIBUTIONS.map((distribution) => distribution.triplet)
+    .sort();
+}
+
+function expectedNativePackageNames(): string[] {
+  return SUPPORTED_NATIVE_DISTRIBUTIONS.map((distribution) => distribution.packageName)
     .sort();
 }
 
@@ -101,7 +107,8 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain('registry-url: "https://registry.npmjs.org"');
     expect(releaseWorkflow).toContain("npm publish");
     expect(releaseWorkflow).toContain("npm view");
-    expect(releaseWorkflow).toContain("@0xbow/privacy-pools-cli-native-${TRIPLET}");
+    expect(releaseWorkflow).toContain("nativePackageNameForTriplet");
+    expect(releaseWorkflow).toContain("Unsupported native triplet ${TRIPLET}.");
   });
 
   test("release workflow publishes the root launcher package to npm", () => {
@@ -164,6 +171,9 @@ describe("release workflow conformance", () => {
     expect(extractCrossPlatformLabels(crossPlatformWorkflow)).toEqual(
       expectedTriplets,
     );
+    expect(
+      Object.keys(packageJson.optionalDependencies ?? {}).sort(),
+    ).toEqual(expectedNativePackageNames());
   });
 
   test("release workflow validates the tag against package.json version", () => {

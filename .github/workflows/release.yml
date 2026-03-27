@@ -458,7 +458,14 @@ jobs:
             win32-x64-msvc \
             win32-arm64-msvc
           do
-            PACKAGE="@0xbow/privacy-pools-cli-native-${TRIPLET}"
+            PACKAGE="$(
+              TRIPLET="${TRIPLET}" node --input-type=module -e \
+                "import { nativePackageNameForTriplet } from './src/native-distribution.js'; process.stdout.write(nativePackageNameForTriplet(process.env.TRIPLET) ?? '');"
+            )"
+            if [[ -z "${PACKAGE}" ]]; then
+              echo "Unsupported native triplet ${TRIPLET}."
+              exit 1
+            fi
             TARBALL="$(echo release-artifacts/native/${TRIPLET}/*.tgz)"
 
             if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then

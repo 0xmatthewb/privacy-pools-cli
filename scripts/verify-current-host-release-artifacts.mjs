@@ -2,24 +2,20 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
+const nativeDistributionModulePath = join(
+  repoRoot,
+  "src",
+  "native-distribution.js",
+);
+const { nativeTriplet } = await import(
+  pathToFileURL(nativeDistributionModulePath).href
+);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const cargoCommand = process.platform === "win32" ? "cargo.exe" : "cargo";
-
-function nativeTriplet(
-  platform = process.platform,
-  arch = process.arch,
-) {
-  if (platform === "darwin" && arch === "arm64") return "darwin-arm64";
-  if (platform === "darwin" && arch === "x64") return "darwin-x64";
-  if (platform === "linux" && arch === "x64") return "linux-x64-gnu";
-  if (platform === "win32" && arch === "x64") return "win32-x64-msvc";
-  if (platform === "win32" && arch === "arm64") return "win32-arm64-msvc";
-  return null;
-}
 
 function nativeBinaryPath() {
   const binName =

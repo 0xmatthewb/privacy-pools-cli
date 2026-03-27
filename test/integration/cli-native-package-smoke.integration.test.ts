@@ -24,8 +24,9 @@ import {
 import { launcherTestInternals } from "../../src/launcher.ts";
 
 const currentTriplet = launcherTestInternals.nativeTriplet();
+const currentPackageName = launcherTestInternals.nativePackageName();
 const nativePackageSmokeTest =
-  CARGO_AVAILABLE && currentTriplet ? test : test.skip;
+  CARGO_AVAILABLE && currentTriplet && currentPackageName ? test : test.skip;
 
 describe("native package smoke", () => {
   let nativeBinary: string;
@@ -41,8 +42,7 @@ describe("native package smoke", () => {
     const outputDir = join(
       snapshotRoot,
       "node_modules",
-      "@0xbow",
-      `privacy-pools-cli-native-${currentTriplet}`,
+      ...currentPackageName!.split("/"),
     );
     const result = spawnSync(
       "node",
@@ -150,8 +150,7 @@ describe("native package smoke", () => {
     const packageJsonPath = join(
       snapshotRoot,
       "node_modules",
-      "@0xbow",
-      `privacy-pools-cli-native-${currentTriplet}`,
+      ...currentPackageName!.split("/"),
       "package.json",
     );
     const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
@@ -390,8 +389,7 @@ describe("native package smoke", () => {
     const packageJsonPath = join(
       snapshotRoot,
       "node_modules",
-      "@0xbow",
-      `privacy-pools-cli-native-${currentTriplet}`,
+      ...currentPackageName!.split("/"),
       "package.json",
     );
     const originalPackageJson = readFileSync(packageJsonPath, "utf8");
