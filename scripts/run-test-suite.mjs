@@ -13,6 +13,7 @@ import {
   DEFAULT_MAIN_TEST_TARGETS,
   DEFAULT_TEST_ISOLATED_SUITES,
 } from "./test-suite-manifest.mjs";
+import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 import { collectTestFiles } from "./test-file-collector.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -26,7 +27,7 @@ function runSuite(label, args) {
   const result = spawnSync("node", [RUNNER, ...args], {
     cwd: ROOT,
     stdio: "inherit",
-    env: process.env,
+    env: buildTestRunnerEnv(),
   });
 
   if (result.error) {

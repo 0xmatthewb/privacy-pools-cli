@@ -7,6 +7,7 @@ import {
   hasExplicitTestTarget,
   hasExplicitTimeoutArg,
 } from "./test-runner-args.mjs";
+import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
 const runId = `${process.pid}-${Date.now()}`;
 const TEMP_PREFIX = "pp-";
@@ -117,10 +118,9 @@ let result;
 try {
   result = spawnSync("bun", ["test", ...bunArgs], {
     stdio: "inherit",
-    env: {
-      ...process.env,
+    env: buildTestRunnerEnv({
       PP_TEST_RUN_ID: runId,
-    },
+    }),
   });
 } finally {
   cleanupRunTempDirs();
