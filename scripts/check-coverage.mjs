@@ -43,6 +43,7 @@ function stripLcovSourceSearchAndHash(source) {
 
 const EXCLUDED_SOURCES = new Set([
   normalizePath(resolve(ROOT, "src/utils/command-discovery-static.ts")),
+  normalizePath(resolve(ROOT, "src/utils/command-manifest.ts")),
   normalizePath(resolve(ROOT, "src/services/circuit-checksums.js")),
   normalizePath(resolve(ROOT, "src/types.ts")),
 ]);

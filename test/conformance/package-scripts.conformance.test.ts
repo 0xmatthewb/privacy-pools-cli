@@ -10,6 +10,10 @@ const packageJson = JSON.parse(
 };
 
 describe("package scripts conformance", () => {
+  test("top-level test wrapper remains the shared suite runner", () => {
+    expect(packageJson.scripts?.test).toBe("node scripts/run-test-suite.mjs");
+  });
+
   test("conformance and release scripts route through the shared profile runner", () => {
     expect(packageJson.scripts?.["test:scripts"]).toBe(
       "node scripts/check-node-scripts.mjs",
