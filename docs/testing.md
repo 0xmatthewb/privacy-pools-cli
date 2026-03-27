@@ -136,8 +136,9 @@ CI notes:
 - `scripts/ci/test-shards.mjs` uses `scripts/ci/test-shard-weights.json` for deterministic runtime-aware shard balancing.
 - `npm run test:scripts` runs `node --check` across `scripts/**/*.mjs` and is included in the conformance path so broken release/install helpers fail in blocking CI before release day.
 - `npm run test:install` is the shared install/distribution contract: packaged JS smoke, packaged native smoke, then current-host installed-artifact verification.
-- `npm run test:native` runs the Rust-native unit tests directly against `native/shell`.
+- `npm run test:native` runs the Rust-native suite directly against `native/shell`, including binary integration tests for the compiled native shell.
 - `npm run test:coverage:native` is the Rust line-coverage guard for the native bootstrap/parser/routing modules. It requires `cargo-llvm-cov` (`cargo install cargo-llvm-cov --locked`).
+- `scripts/run-test-profile.mjs` is the shared source of truth for the higher-level repo test profiles (`test:install`, `test:conformance`, `test:ci`, `test:release`, `test:all`) so gate ordering only has to change in one place.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
 - `.github/workflows/flake-anvil.yml` is the separate heavier flake lane for shared-Anvil smoke reruns. It is informational and changed-path selected on pull requests so the fast flake job stays lightweight.
 - `.github/workflows/native-coverage.yml` is the separate informative Rust-native coverage lane. Blocking CI keeps the faster `native-unit` lane so PR feedback stays quick while native coverage drift is still visible on pull requests and `main`.

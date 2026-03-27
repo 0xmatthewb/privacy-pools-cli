@@ -1,12 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, extname, join, relative, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DEFAULT_MAIN_EXCLUDED_TESTS,
   DEFAULT_MAIN_TEST_TARGETS,
   DEFAULT_TEST_ISOLATED_SUITES,
 } from "../test-suite-manifest.mjs";
+import { collectTestFiles } from "../test-file-collector.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..", "..");
@@ -347,39 +348,13 @@ export function resolveChangedFiles({
   }
 }
 
-function collectTestFiles(pathArg) {
-  const absolute = resolve(ROOT, pathArg);
-  const stat = statSync(absolute);
-  if (stat.isFile()) {
-    return [normalizePath(pathArg)];
-  }
-
-  const files = [];
-  const queue = [absolute];
-  while (queue.length > 0) {
-    const current = queue.pop();
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const entryPath = join(current, entry.name);
-      if (entry.isDirectory()) {
-        queue.push(entryPath);
-        continue;
-      }
-      if (entry.isFile() && entry.name.endsWith(".test.ts")) {
-        files.push(`./${normalizePath(relative(ROOT, entryPath))}`);
-      }
-    }
-  }
-
-  return files.sort((a, b) => a.localeCompare(b));
-}
-
 export function collectLinuxCoreTestFiles(rootDir = ROOT) {
   const excluded = new Set(
     DEFAULT_MAIN_EXCLUDED_TESTS.map((filePath) => resolve(rootDir, filePath)),
   );
 
   const mainFiles = DEFAULT_MAIN_TEST_TARGETS.flatMap((target) =>
-    collectTestFiles(target).filter(
+    collectTestFiles(target, rootDir).filter(
       (candidate) => !excluded.has(resolve(rootDir, candidate)),
     ),
   );

@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readdirSync, statSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   groupTargetsByIsolation,
@@ -14,37 +13,12 @@ import {
   DEFAULT_MAIN_TEST_TARGETS,
   DEFAULT_TEST_ISOLATED_SUITES,
 } from "./test-suite-manifest.mjs";
+import { collectTestFiles } from "./test-file-collector.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
 const forwardedArgs = process.argv.slice(2);
-
-function collectTestFiles(pathArg) {
-  const absolute = resolve(ROOT, pathArg);
-  const stat = statSync(absolute);
-  if (stat.isFile()) {
-    return [pathArg];
-  }
-
-  const files = [];
-  const queue = [absolute];
-  while (queue.length > 0) {
-    const current = queue.pop();
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const entryPath = resolve(current, entry.name);
-      if (entry.isDirectory()) {
-        queue.push(entryPath);
-        continue;
-      }
-      if (entry.isFile() && entry.name.endsWith(".test.ts")) {
-        files.push(`./${relative(ROOT, entryPath).replaceAll("\\", "/")}`);
-      }
-    }
-  }
-
-  return files.sort();
-}
 
 function runSuite(label, args) {
   process.stdout.write(`\n[test] ${label}\n`);
@@ -71,7 +45,7 @@ function runSuite(label, args) {
 if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs, ROOT)) {
   const { sharedArgs, targetFiles } = splitExplicitTargets(
     forwardedArgs,
-    collectTestFiles,
+    (pathArg) => collectTestFiles(pathArg, ROOT),
     ROOT,
   );
   const { mainTargets, isolatedGroups } = groupTargetsByIsolation(

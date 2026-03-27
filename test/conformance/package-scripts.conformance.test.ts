@@ -10,36 +10,41 @@ const packageJson = JSON.parse(
 };
 
 describe("package scripts conformance", () => {
-  test("conformance and release scripts include the node-script syntax gate", () => {
+  test("conformance and release scripts route through the shared profile runner", () => {
     expect(packageJson.scripts?.["test:scripts"]).toBe(
       "node scripts/check-node-scripts.mjs",
     );
-    expect(packageJson.scripts?.["test:conformance"]).toContain(
-      "npm run test:scripts",
+    expect(packageJson.scripts?.["test:install"]).toBe(
+      "node scripts/run-test-profile.mjs install",
     );
-    expect(packageJson.scripts?.["test:conformance:all"]).toContain(
-      "npm run test:scripts",
+    expect(packageJson.scripts?.["test:conformance"]).toBe(
+      "node scripts/run-test-profile.mjs conformance",
     );
-    expect(packageJson.scripts?.["test:ci"]).toContain("npm run test:scripts");
-    expect(packageJson.scripts?.["test:release"]).toContain(
-      "npm run test:scripts",
+    expect(packageJson.scripts?.["test:conformance:all"]).toBe(
+      "node scripts/run-test-profile.mjs conformance-all",
     );
-    expect(packageJson.scripts?.["test:all"]).toContain("npm run test:scripts");
+    expect(packageJson.scripts?.["test:ci"]).toBe(
+      "node scripts/run-test-profile.mjs ci",
+    );
+    expect(packageJson.scripts?.["test:release"]).toBe(
+      "node scripts/run-test-profile.mjs release",
+    );
+    expect(packageJson.scripts?.["test:all"]).toBe(
+      "node scripts/run-test-profile.mjs all",
+    );
   });
 
   test("top-level test wrappers compose shared install and native lanes", () => {
-    expect(packageJson.scripts?.["test:install"]).toBe(
-      "npm run test:smoke && npm run test:smoke:native:package && npm run test:artifacts:host",
-    );
     expect(packageJson.scripts?.["test:native"]).toBe(
       "cargo test --manifest-path native/shell/Cargo.toml",
     );
-    expect(packageJson.scripts?.["test:ci"]).toContain("npm run test:install");
-    expect(packageJson.scripts?.["test:ci"]).toContain("npm run test:native");
-    expect(packageJson.scripts?.["test:release"]).toContain("npm run test:install");
-    expect(packageJson.scripts?.["test:release"]).toContain("npm run test:native");
-    expect(packageJson.scripts?.["test:all"]).toContain("npm run test:install");
-    expect(packageJson.scripts?.["test:all"]).toContain("npm run test:native");
+    expect(packageJson.scripts?.["test:ci"]).toBe("node scripts/run-test-profile.mjs ci");
+    expect(packageJson.scripts?.["test:release"]).toBe(
+      "node scripts/run-test-profile.mjs release",
+    );
+    expect(packageJson.scripts?.["test:all"]).toBe(
+      "node scripts/run-test-profile.mjs all",
+    );
   });
 
   test("native package smoke scripts distinguish packaged smoke from installed-artifact checks", () => {
@@ -49,35 +54,26 @@ describe("package scripts conformance", () => {
     expect(packageJson.scripts?.["test:smoke:native:package"]).toBe(
       "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000",
     );
-    expect(packageJson.scripts?.["test:install"]).toContain(
-      "npm run test:smoke:native:package",
-    );
-    expect(packageJson.scripts?.["test:ci"]).toContain("npm run test:install");
-    expect(packageJson.scripts?.["test:release"]).toContain("npm run test:install");
-    expect(packageJson.scripts?.["test:all"]).toContain("npm run test:install");
   });
 
   test("test:install mirrors the current-host installed-artifact gate", () => {
     expect(packageJson.scripts?.["test:artifacts:host"]).toBe(
       "node scripts/verify-current-host-release-artifacts.mjs",
     );
-    expect(packageJson.scripts?.["test:install"]).toContain(
-      "npm run test:artifacts:host",
+    expect(packageJson.scripts?.["test:install"]).toBe(
+      "node scripts/run-test-profile.mjs install",
     );
-    expect(packageJson.scripts?.["test:ci"]).toContain("npm run test:install");
   });
 
   test("test:release includes the shared install gate and release benchmark gate", () => {
     expect(packageJson.scripts?.["bench:gate:release"]).toBe(
       "node scripts/bench-cli.mjs --base v1.7.0 --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
     );
-    expect(packageJson.scripts?.["test:release"]).toContain("npm run test:install");
-    expect(packageJson.scripts?.["test:release"]).toContain(
-      "npm run bench:gate:release",
+    expect(packageJson.scripts?.["test:release"]).toBe(
+      "node scripts/run-test-profile.mjs release",
     );
-    expect(packageJson.scripts?.["test:all"]).toContain("npm run test:install");
-    expect(packageJson.scripts?.["test:all"]).toContain(
-      "npm run bench:gate:release",
+    expect(packageJson.scripts?.["test:all"]).toBe(
+      "node scripts/run-test-profile.mjs all",
     );
   });
 
