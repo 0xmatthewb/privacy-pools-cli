@@ -50,7 +50,10 @@ describe("package scripts conformance", () => {
     );
   });
 
-  test("test:flake covers packaged native and installed-artifact lanes", () => {
+  test("test:flake covers packaged js, packaged native, and installed-artifact lanes", () => {
+    expect(packageJson.scripts?.["test:flake"]).toContain(
+      "npm run test:smoke",
+    );
     expect(packageJson.scripts?.["test:flake"]).toContain(
       "npm run test:smoke:native:package",
     );

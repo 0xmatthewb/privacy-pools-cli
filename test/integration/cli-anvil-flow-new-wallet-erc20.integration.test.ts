@@ -42,9 +42,11 @@ import {
   decodeDepositEvent,
   sharedCliEnv,
 } from "../helpers/shared-anvil-cli.ts";
+import { CARGO_AVAILABLE, ensureNativeShellBinary } from "../helpers/native.ts";
 
 const ANVIL_E2E_ENABLED = process.env.PP_ANVIL_E2E === "1";
 const anvilTest = ANVIL_E2E_ENABLED ? test : test.skip;
+const nativeAnvilTest = ANVIL_E2E_ENABLED && CARGO_AVAILABLE ? test : test.skip;
 
 const aspPostman = "0x696fe46495688fc9e99bad2daf2133b33de364ea" as const;
 const dummyCid = "bafybeigdyrzt5erc20sharedanviltests1234567890";
@@ -67,6 +69,7 @@ const erc20Abi = parseAbi([
 let sharedEnv: SharedAnvilEnv | null = null;
 let anvilClient: ReturnType<typeof createPublicClient> | null = null;
 let chainConfig = resolveChain("sepolia");
+let nativeBinary: string | null = null;
 
 function requireSharedEnv(): SharedAnvilEnv {
   if (!sharedEnv) throw new Error("Shared Anvil environment is not initialized");
@@ -76,6 +79,11 @@ function requireSharedEnv(): SharedAnvilEnv {
 function requireAnvilClient() {
   if (!anvilClient) throw new Error("Anvil client is not initialized");
   return anvilClient;
+}
+
+function requireNativeBinary(): string {
+  if (!nativeBinary) throw new Error("Native shell binary is not initialized");
+  return nativeBinary;
 }
 
 async function readRelayerState(): Promise<{
@@ -115,11 +123,19 @@ function createAnvilHome(prefix: string): string {
   return home;
 }
 
-function runAnvilCli(home: string, args: string[], timeoutMs = 240_000) {
+function runAnvilCli(
+  home: string,
+  args: string[],
+  timeoutMs = 240_000,
+  env: Record<string, string | undefined> = {},
+) {
   return runCli(args, {
     home,
     timeoutMs,
-    env: sharedCliEnv(requireSharedEnv()),
+    env: {
+      ...sharedCliEnv(requireSharedEnv()),
+      ...env,
+    },
   });
 }
 
@@ -139,10 +155,143 @@ function parseSuccessfulAgentResult<T>(
   args: string[],
   label: string,
   timeoutMs?: number,
+  env?: Record<string, string | undefined>,
 ): T {
-  const result = runAnvilCli(home, args, timeoutMs);
+  const result = runAnvilCli(home, args, timeoutMs, env);
   expectSuccessStatus(result, label);
   return parseJsonOutput<T>(result.stdout);
+}
+
+function nativeLauncherEnv(enabled: boolean | undefined): Record<string, string | undefined> {
+  return enabled
+    ? {
+        PRIVACY_POOLS_CLI_BINARY: requireNativeBinary(),
+      }
+    : {};
+}
+
+async function expectManualErc20JourneyCompletes(
+  home: string,
+  options: {
+    useNativeLauncher?: boolean;
+    expectLabel?: string;
+  } = {},
+): Promise<void> {
+  const label = options.expectLabel ?? "erc20";
+  const env = nativeLauncherEnv(options.useNativeLauncher);
+  const recipientTokenBalanceBefore = await requireAnvilClient().readContract({
+    address: requireSharedEnv().pools.erc20.assetAddress,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [relayedRecipient],
+  }) as bigint;
+
+  await mintErc20(privateKeyToAccount(requireSharedEnv().signerPrivateKey).address, 100_000_000n);
+
+  const depositJson = parseSuccessfulAgentResult<{
+    success: boolean;
+    txHash: `0x${string}`;
+    poolAccountId: string;
+  }>(
+    home,
+    ["--agent", "deposit", "100", "USDC", "--chain", "sepolia"],
+    `${label} deposit`,
+    300_000,
+    env,
+  );
+  expect(depositJson.success).toBe(true);
+
+  const depositEvent = await decodeDepositEvent({
+    publicClient: requireAnvilClient(),
+    txHash: depositJson.txHash,
+    poolAddress: requireSharedEnv().pools.erc20.poolAddress,
+    depositedEventAbi,
+  });
+  appendInsertedStateTreeLeaf(requireSharedEnv(), "erc20", depositEvent.commitment);
+  await approveErc20Label(depositEvent.label);
+
+  const withdrawJson = parseSuccessfulAgentResult<{
+    success: boolean;
+    mode: string;
+    asset: string;
+    extraGas?: boolean;
+    txHash: string;
+  }>(
+    home,
+    [
+      "--agent",
+      "withdraw",
+      "--all",
+      "USDC",
+      "--to",
+      relayedRecipient,
+      "--from-pa",
+      depositJson.poolAccountId,
+      "--chain",
+      "sepolia",
+    ],
+    `${label} withdraw`,
+    300_000,
+    env,
+  );
+  expect(withdrawJson.success).toBe(true);
+  expect(withdrawJson.mode).toBe("relayed");
+  expect(withdrawJson.asset).toBe("USDC");
+  expect(withdrawJson.extraGas, label).toBe(true);
+  expect(withdrawJson.txHash).toMatch(/^0x[0-9a-f]{64}$/);
+
+  const recipientTokenBalanceAfter = await requireAnvilClient().readContract({
+    address: requireSharedEnv().pools.erc20.assetAddress,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [relayedRecipient],
+  }) as bigint;
+  const relayerState = await readRelayerState();
+  expect(recipientTokenBalanceAfter).toBeGreaterThan(recipientTokenBalanceBefore);
+  expect(relayerState.quoteRequests).toBeGreaterThan(0);
+  expect(relayerState.lastQuoteRequest?.extraGas, label).toBe(true);
+  expect(relayerState.lastQuoteRequest?.asset?.toLowerCase()).toBe(
+    requireSharedEnv().pools.erc20.assetAddress.toLowerCase(),
+  );
+  expect(relayerState.lastQuoteRequest?.recipient?.toLowerCase()).toBe(
+    relayedRecipient.toLowerCase(),
+  );
+}
+
+function spawnFlowStartProcess(
+  home: string,
+  exportPath: string,
+  options: {
+    useNativeLauncher?: boolean;
+  } = {},
+) {
+  return spawn(
+    "bun",
+    [
+      "src/index.ts",
+      "--agent",
+      "flow",
+      "start",
+      "100",
+      "USDC",
+      "--to",
+      relayedRecipient,
+      "--new-wallet",
+      "--export-new-wallet",
+      exportPath,
+      "--chain",
+      "sepolia",
+    ],
+    {
+      cwd: process.cwd(),
+      env: buildChildProcessEnv({
+        PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+        ...nativeLauncherEnv(options.useNativeLauncher),
+        ...sharedCliEnv(requireSharedEnv()),
+      }),
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
 }
 
 async function parseWorkflowWalletBackup(filePath: string): Promise<{
@@ -197,6 +346,9 @@ async function approveErc20Label(label: bigint): Promise<void> {
 
 beforeAll(async () => {
   if (!ANVIL_E2E_ENABLED) return;
+  if (CARGO_AVAILABLE) {
+    nativeBinary = ensureNativeShellBinary();
+  }
   sharedEnv = loadSharedAnvilEnv();
   Object.assign(process.env, sharedCliEnv(sharedEnv));
   chainConfig = resolveChain("sepolia");
@@ -215,112 +367,50 @@ beforeEach(async () => {
 describe("flow and manual ERC20 journeys on shared Anvil", () => {
   anvilTest("manual ERC20 deposit -> approve -> relayed withdraw succeeds with extra gas", async () => {
     const home = createAnvilHome("pp-anvil-erc20-manual-");
-    const recipientTokenBalanceBefore = await requireAnvilClient().readContract({
-      address: requireSharedEnv().pools.erc20.assetAddress,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [relayedRecipient],
-    }) as bigint;
+    await expectManualErc20JourneyCompletes(home);
+  });
 
-    await mintErc20(privateKeyToAccount(requireSharedEnv().signerPrivateKey).address, 100_000_000n);
-
-    const depositJson = parseSuccessfulAgentResult<{
-      success: boolean;
-      txHash: `0x${string}`;
-      poolAccountId: string;
-    }>(
-      home,
-      ["--agent", "deposit", "100", "USDC", "--chain", "sepolia"],
-      "erc20 deposit",
-      300_000,
-    );
-    expect(depositJson.success).toBe(true);
-
-    const depositEvent = await decodeDepositEvent({
-      publicClient: requireAnvilClient(),
-      txHash: depositJson.txHash,
-      poolAddress: requireSharedEnv().pools.erc20.poolAddress,
-      depositedEventAbi,
+  nativeAnvilTest("native launcher: manual ERC20 deposit -> approve -> relayed withdraw succeeds with extra gas", async () => {
+    const home = createAnvilHome("pp-anvil-native-erc20-manual-");
+    await expectManualErc20JourneyCompletes(home, {
+      useNativeLauncher: true,
+      expectLabel: "native erc20",
     });
-    appendInsertedStateTreeLeaf(requireSharedEnv(), "erc20", depositEvent.commitment);
-    await approveErc20Label(depositEvent.label);
-
-    const withdrawJson = parseSuccessfulAgentResult<{
-      success: boolean;
-      mode: string;
-      asset: string;
-      extraGas?: boolean;
-      txHash: string;
-    }>(
-      home,
-      [
-        "--agent",
-        "withdraw",
-        "--all",
-        "USDC",
-        "--to",
-        relayedRecipient,
-        "--from-pa",
-        depositJson.poolAccountId,
-        "--chain",
-        "sepolia",
-      ],
-      "erc20 withdraw",
-      300_000,
-    );
-    expect(withdrawJson.success).toBe(true);
-    expect(withdrawJson.mode).toBe("relayed");
-    expect(withdrawJson.asset).toBe("USDC");
-    expect(withdrawJson.extraGas).toBe(true);
-    expect(withdrawJson.txHash).toMatch(/^0x[0-9a-f]{64}$/);
-
-    const recipientTokenBalanceAfter = await requireAnvilClient().readContract({
-      address: requireSharedEnv().pools.erc20.assetAddress,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [relayedRecipient],
-    }) as bigint;
-    const relayerState = await readRelayerState();
-    expect(recipientTokenBalanceAfter).toBeGreaterThan(recipientTokenBalanceBefore);
-    expect(relayerState.quoteRequests).toBeGreaterThan(0);
-    expect(relayerState.lastQuoteRequest?.extraGas).toBe(true);
-    expect(relayerState.lastQuoteRequest?.asset?.toLowerCase()).toBe(
-      requireSharedEnv().pools.erc20.assetAddress.toLowerCase(),
-    );
-    expect(relayerState.lastQuoteRequest?.recipient?.toLowerCase()).toBe(
-      relayedRecipient.toLowerCase(),
-    );
   });
 
   anvilTest("flow start --new-wallet stays awaiting_funding when ERC20 token funding is missing", async () => {
     const home = createAnvilHome("pp-anvil-erc20-missing-token-");
     const exportPath = join(home, "flow-wallet.txt");
-    const child = spawn(
-      "bun",
-      [
-        "src/index.ts",
-        "--agent",
-        "flow",
-        "start",
-        "100",
-        "USDC",
-        "--to",
-        relayedRecipient,
-        "--new-wallet",
-        "--export-new-wallet",
-        exportPath,
-        "--chain",
-        "sepolia",
-      ],
-      {
-        cwd: process.cwd(),
-        env: buildChildProcessEnv({
-          PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-          ...sharedCliEnv(requireSharedEnv()),
-        }),
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+    const child = spawnFlowStartProcess(home, exportPath);
+
+    try {
+      const awaitingFunding = await waitForWorkflowSnapshotPhase(home, "awaiting_funding");
+      expect(awaitingFunding.walletMode).toBe("new_wallet");
+      expect(awaitingFunding.requiredNativeFunding).toMatch(/^\d+$/);
+      expect(awaitingFunding.requiredTokenFunding).toMatch(/^\d+$/);
+
+      const backup = await parseWorkflowWalletBackup(exportPath);
+      await setBalance(
+        requireSharedEnv().rpcUrl,
+        backup.walletAddress,
+        BigInt(awaitingFunding.requiredNativeFunding as string) + EXTRA_ETH_BUFFER,
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      const snapshot = readWorkflowSnapshot(home, awaitingFunding.workflowId as string);
+      expect(snapshot.phase).toBe("awaiting_funding");
+      expect(snapshot.requiredTokenFunding).toBe(awaitingFunding.requiredTokenFunding);
+    } finally {
+      await terminateChildProcess(child);
+    }
+  });
+
+  nativeAnvilTest("native launcher: flow start --new-wallet stays awaiting_funding when ERC20 token funding is missing", async () => {
+    const home = createAnvilHome("pp-anvil-native-erc20-missing-token-");
+    const exportPath = join(home, "flow-wallet.txt");
+    const child = spawnFlowStartProcess(home, exportPath, {
+      useNativeLauncher: true,
+    });
 
     try {
       const awaitingFunding = await waitForWorkflowSnapshotPhase(home, "awaiting_funding");

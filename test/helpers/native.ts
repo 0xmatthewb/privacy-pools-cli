@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { CLI_ROOT } from "./paths.ts";
@@ -18,9 +18,8 @@ const BINARY_PATH = join(
   "debug",
   BIN_NAME,
 );
-const NATIVE_BUILD_INPUTS = [
-  MANIFEST_PATH,
-  join(CLI_ROOT, "native", "shell", "src", "main.rs"),
+const NATIVE_SRC_DIR = join(CLI_ROOT, "native", "shell", "src");
+const NATIVE_GENERATED_INPUTS = [
   join(CLI_ROOT, "native", "shell", "generated", "manifest.json"),
   join(CLI_ROOT, "native", "shell", "generated", "runtime-contract.json"),
   join(CLI_ROOT, "native", "shell", "generated", "root-flags.json"),
@@ -36,11 +35,21 @@ export const CARGO_AVAILABLE =
 
 let cachedNativeBinaryPath: string | null = null;
 
+function nativeBuildInputs(): string[] {
+  const sourceFiles = existsSync(NATIVE_SRC_DIR)
+    ? readdirSync(NATIVE_SRC_DIR)
+        .filter((entry) => entry.endsWith(".rs"))
+        .map((entry) => join(NATIVE_SRC_DIR, entry))
+    : [];
+
+  return [MANIFEST_PATH, ...sourceFiles, ...NATIVE_GENERATED_INPUTS];
+}
+
 function binaryIsCurrent(binaryPath: string): boolean {
   if (!existsSync(binaryPath)) return false;
 
   const binaryMtimeMs = statSync(binaryPath).mtimeMs;
-  return NATIVE_BUILD_INPUTS.every(
+  return nativeBuildInputs().every(
     (path) => !existsSync(path) || statSync(path).mtimeMs <= binaryMtimeMs,
   );
 }
