@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   resolveProfile,
+  TEST_PROFILE_FRAGMENTS,
   TEST_PROFILES,
 } from "../../scripts/test-profiles.mjs";
 
@@ -17,11 +18,12 @@ describe("test profiles", () => {
   });
 
   test("install profile stays shared across higher-cost profiles", () => {
-    expect(resolveProfile("install")).toEqual([
+    expect(TEST_PROFILE_FRAGMENTS.install).toEqual([
       ["npm", ["run", "test:smoke"]],
       ["npm", ["run", "test:smoke:native:package"]],
       ["npm", ["run", "test:artifacts:host"]],
     ]);
+    expect(resolveProfile("install")).toEqual(TEST_PROFILE_FRAGMENTS.install);
 
     expect(resolveProfile("ci")).toContainEqual(["npm", ["run", "test:install"]]);
     expect(resolveProfile("release")).toContainEqual([
@@ -32,15 +34,53 @@ describe("test profiles", () => {
   });
 
   test("conformance profiles stay syntax-gated and reference-checked", () => {
-    expect(resolveProfile("conformance")).toEqual([
+    expect(TEST_PROFILE_FRAGMENTS.build).toEqual([
       ["bun", ["run", "build"]],
+    ]);
+    expect(TEST_PROFILE_FRAGMENTS["repo-conformance-core"]).toEqual([
       ["npm", ["run", "test:scripts"]],
       ["node", ["scripts/run-conformance-suite.mjs", "core"]],
     ]);
-    expect(resolveProfile("conformance-all")).toEqual([
-      ["bun", ["run", "build"]],
+    expect(TEST_PROFILE_FRAGMENTS["repo-conformance-all"]).toEqual([
       ["npm", ["run", "test:scripts"]],
       ["node", ["scripts/run-conformance-suite.mjs", "all"]],
+    ]);
+    expect(resolveProfile("conformance")).toEqual([
+      ...TEST_PROFILE_FRAGMENTS.build,
+      ...TEST_PROFILE_FRAGMENTS["repo-conformance-core"],
+    ]);
+    expect(resolveProfile("conformance-all")).toEqual([
+      ...TEST_PROFILE_FRAGMENTS.build,
+      ...TEST_PROFILE_FRAGMENTS["repo-conformance-all"],
+    ]);
+  });
+
+  test("higher-cost profiles compose native, e2e, and repo-validation fragments", () => {
+    expect(TEST_PROFILE_FRAGMENTS["native-core"]).toEqual([
+      ["npm", ["run", "test:native:fmt"]],
+      ["npm", ["run", "test:native:lint"]],
+      ["npm", ["run", "test:native"]],
+    ]);
+    expect(TEST_PROFILE_FRAGMENTS.coverage).toEqual([
+      ["npm", ["run", "test:coverage"]],
+    ]);
+    expect(TEST_PROFILE_FRAGMENTS["docs-reference-check"]).toEqual([
+      ["node", ["scripts/generate-reference.mjs", "--check"]],
+    ]);
+    expect(TEST_PROFILE_FRAGMENTS["anvil-smoke"]).toEqual([
+      ["npm", ["run", "test:e2e:anvil:smoke"]],
+    ]);
+    expect(TEST_PROFILE_FRAGMENTS["anvil-full"]).toEqual([
+      ["npm", ["run", "test:e2e:anvil"]],
+    ]);
+    expect(TEST_PROFILE_FRAGMENTS["release-bench"]).toEqual([
+      ["npm", ["run", "bench:gate:release"]],
+    ]);
+
+    expect(resolveProfile("ci")).toContainEqual(["npm", ["run", "test:native"]]);
+    expect(resolveProfile("release")).toContainEqual([
+      "npm",
+      ["run", "bench:gate:release"],
     ]);
   });
 

@@ -64,6 +64,12 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Restore Rust cache
+        if: steps.select.outputs.should_run == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/shell
+
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: bun install --frozen-lockfile

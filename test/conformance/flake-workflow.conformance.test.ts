@@ -27,6 +27,8 @@ describe("flake workflow conformance", () => {
     expect(flakeWorkflow).toContain("run: npm run test:flake");
     expect(flakeWorkflow).toContain("Setup Rust");
     expect(flakeWorkflow).toContain("dtolnay/rust-toolchain@stable");
+    expect(flakeWorkflow).toContain("Restore Rust cache");
+    expect(flakeWorkflow).toContain("Swatinem/rust-cache@v2");
     expect(flakeWorkflow).toContain("PP_FLAKE_SEED:");
     expect(flakeWorkflow).not.toContain("Run randomized suite");
     expect(flakeWorkflow).not.toContain("Re-run stateful suites");
@@ -41,6 +43,8 @@ describe("flake workflow conformance", () => {
     expect(flakeAnvilWorkflow).toContain("Select flake-anvil");
     expect(flakeAnvilWorkflow).toContain("Install Foundry");
     expect(flakeAnvilWorkflow).toContain("Setup Rust");
+    expect(flakeAnvilWorkflow).toContain("Restore Rust cache");
+    expect(flakeAnvilWorkflow).toContain("Swatinem/rust-cache@v2");
     expect(flakeAnvilWorkflow).toContain("PP_CONTRACTS_ROOT:");
   });
 });

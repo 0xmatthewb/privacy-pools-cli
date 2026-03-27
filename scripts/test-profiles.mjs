@@ -6,65 +6,69 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(__dirname, "..");
 export const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
-export const TEST_PROFILES = {
+export const TEST_PROFILE_FRAGMENTS = {
   install: [
     ["npm", ["run", "test:smoke"]],
     ["npm", ["run", "test:smoke:native:package"]],
     ["npm", ["run", "test:artifacts:host"]],
   ],
-  conformance: [
-    ["bun", ["run", "build"]],
+  build: [["bun", ["run", "build"]]],
+  "docs-reference-check": [["node", ["scripts/generate-reference.mjs", "--check"]]],
+  "repo-conformance-core": [
     ["npm", ["run", "test:scripts"]],
     ["node", ["scripts/run-conformance-suite.mjs", "core"]],
   ],
-  "conformance-all": [
-    ["bun", ["run", "build"]],
+  "repo-conformance-all": [
     ["npm", ["run", "test:scripts"]],
     ["node", ["scripts/run-conformance-suite.mjs", "all"]],
   ],
-  ci: [
-    ["npm", ["test"]],
-    ["npm", ["run", "test:install"]],
+  "native-core": [
     ["npm", ["run", "test:native:fmt"]],
     ["npm", ["run", "test:native:lint"]],
     ["npm", ["run", "test:native"]],
-    ["npm", ["run", "test:coverage"]],
-    ["npm", ["run", "test:e2e:anvil:smoke"]],
-    ["node", ["scripts/run-bun-tests.mjs", "./test/evals", "--timeout", "120000"]],
-    ["bun", ["run", "build"]],
-    ["node", ["scripts/generate-reference.mjs", "--check"]],
-    ["npm", ["run", "test:scripts"]],
-    ["node", ["scripts/run-conformance-suite.mjs", "core"]],
+  ],
+  coverage: [["npm", ["run", "test:coverage"]]],
+  "anvil-smoke": [["npm", ["run", "test:e2e:anvil:smoke"]]],
+  "anvil-full": [["npm", ["run", "test:e2e:anvil"]]],
+  evals: [["node", ["scripts/run-bun-tests.mjs", "./test/evals", "--timeout", "120000"]]],
+  "release-bench": [["npm", ["run", "bench:gate:release"]]],
+};
+
+function composeProfile(...fragmentNames) {
+  return fragmentNames.flatMap((name) => TEST_PROFILE_FRAGMENTS[name] ?? []);
+}
+
+export const TEST_PROFILES = {
+  install: composeProfile("install"),
+  conformance: composeProfile("build", "repo-conformance-core"),
+  "conformance-all": composeProfile("build", "repo-conformance-all"),
+  ci: [
+    ["npm", ["test"]],
+    ["npm", ["run", "test:install"]],
+    ...composeProfile("native-core", "coverage", "anvil-smoke", "evals"),
+    ...composeProfile("build", "docs-reference-check", "repo-conformance-core"),
   ],
   release: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
-    ["npm", ["run", "test:native:fmt"]],
-    ["npm", ["run", "test:native:lint"]],
-    ["npm", ["run", "test:native"]],
-    ["npm", ["run", "test:coverage"]],
-    ["npm", ["run", "test:e2e:anvil"]],
-    ["node", ["scripts/run-bun-tests.mjs", "./test/evals", "--timeout", "120000"]],
-    ["bun", ["run", "build"]],
-    ["node", ["scripts/generate-reference.mjs", "--check"]],
-    ["npm", ["run", "test:scripts"]],
-    ["node", ["scripts/run-conformance-suite.mjs", "core"]],
-    ["npm", ["run", "bench:gate:release"]],
+    ...composeProfile("native-core", "coverage", "anvil-full", "evals"),
+    ...composeProfile(
+      "build",
+      "docs-reference-check",
+      "repo-conformance-core",
+      "release-bench",
+    ),
   ],
   all: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
-    ["npm", ["run", "test:native:fmt"]],
-    ["npm", ["run", "test:native:lint"]],
-    ["npm", ["run", "test:native"]],
-    ["npm", ["run", "test:coverage"]],
-    ["npm", ["run", "test:e2e:anvil"]],
-    ["node", ["scripts/run-bun-tests.mjs", "./test/evals", "--timeout", "120000"]],
-    ["bun", ["run", "build"]],
-    ["node", ["scripts/generate-reference.mjs", "--check"]],
-    ["npm", ["run", "test:scripts"]],
-    ["node", ["scripts/run-conformance-suite.mjs", "all"]],
-    ["npm", ["run", "bench:gate:release"]],
+    ...composeProfile("native-core", "coverage", "anvil-full", "evals"),
+    ...composeProfile(
+      "build",
+      "docs-reference-check",
+      "repo-conformance-all",
+      "release-bench",
+    ),
   ],
 };
 
