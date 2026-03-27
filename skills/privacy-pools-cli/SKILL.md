@@ -2,11 +2,12 @@
 name: privacy-pools-cli
 version: 1.7.0
 description: >
-  Deposit, withdraw, and manage funds in Privacy Pools v1 on Ethereum, Arbitrum,
-  and Optimism. Use when the user or agent needs to interact with Privacy Pools:
-  browsing pools, running the easy-path flow, depositing, withdrawing, checking
-  accounts and balances, building unsigned transaction payloads for external
-  signers, or querying on-chain activity.
+  Deposit, withdraw, and manage funds in Privacy Pools v1 across the CLI's
+  supported mainnet and testnet chains, including Ethereum, Arbitrum,
+  Optimism, Sepolia, and OP Sepolia. Use when the user or agent needs to
+  interact with Privacy Pools: browsing pools, running the easy-path flow,
+  depositing, withdrawing, checking accounts and balances, building unsigned
+  transaction payloads for external signers, or querying on-chain activity.
 author: matthewb
 permissions:
   - filesystem:read
@@ -28,7 +29,7 @@ triggers:
 
 # Privacy Pools CLI
 
-SDK-powered CLI for [Privacy Pools v1](https://privacypools.com). Compliant, private transactions on Ethereum, Arbitrum, and Optimism.
+SDK-powered CLI for [Privacy Pools v1](https://privacypools.com). Compliant, private transactions across the CLI's supported mainnet and testnet chains, including Ethereum, Arbitrum, Optimism, Sepolia, and OP Sepolia.
 
 Install: `npm i -g privacy-pools-cli` or `bun add -g privacy-pools-cli`. For unreleased or source builds, use `npm i -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`. For native runtime troubleshooting or fallback controls, see `docs/runtime-upgrades.md`.
 
