@@ -16,7 +16,7 @@ import {
 } from "../../src/utils/command-discovery-static.ts";
 import {
   GENERATED_COMMAND_MANIFEST,
-  GENERATED_COMMAND_OWNERS,
+  GENERATED_COMMAND_ROUTES,
   GENERATED_ROOT_COMMANDS,
   GENERATED_STATIC_LOCAL_COMMANDS,
 } from "../../src/utils/command-manifest.ts";
@@ -68,7 +68,9 @@ describe("command discovery static conformance", () => {
     }
 
     for (const path of COMMAND_PATHS) {
-      expect(GENERATED_COMMAND_OWNERS[path]).toBe("js-runtime");
+      expect(GENERATED_COMMAND_MANIFEST.commandRoutes[path]).toEqual(
+        GENERATED_COMMAND_ROUTES[path],
+      );
     }
   });
 });
