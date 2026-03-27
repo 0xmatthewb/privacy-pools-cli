@@ -217,6 +217,107 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         run: npm run test:smoke:native
 
+  supported-native-smoke:
+    name: supported-native-smoke-${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux-x64-gnu
+            runner: ubuntu-latest
+          - label: win32-x64-msvc
+            runner: windows-latest
+          - label: win32-arm64-msvc
+            runner: windows-11-arm
+          - label: darwin-arm64
+            runner: macos-latest
+          - label: darwin-x64
+            runner: macos-15-intel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+
+      - name: Select supported-native-smoke
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job supported-native-smoke >> "$GITHUB_OUTPUT"
+
+      - name: Skip supported-native-smoke
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping supported-native-smoke: ${{ steps.select.outputs.reason }}"
+
+      - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Setup Rust
+        if: steps.select.outputs.should_run == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Build package
+        if: steps.select.outputs.should_run == 'true'
+        run: npm run build
+
+      - name: Pack root CLI tarball
+        if: steps.select.outputs.should_run == 'true'
+        id: pack-cli
+        shell: bash
+        run: |
+          FILE="$(npm pack --silent)"
+          echo "tarball=${FILE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build release native shell
+        if: steps.select.outputs.should_run == 'true'
+        run: npm run native:build:release
+
+      - name: Pack and verify native tarball
+        if: steps.select.outputs.should_run == 'true'
+        id: pack-native
+        shell: bash
+        run: |
+          case "${{ matrix.label }}" in
+            win32-*)
+              BIN="native/shell/target/release/privacy-pools-cli-native-shell.exe"
+              ;;
+            *)
+              BIN="native/shell/target/release/privacy-pools-cli-native-shell"
+              ;;
+          esac
+
+          OUT_DIR="dist-native/${{ matrix.label }}"
+          node scripts/prepare-native-package.mjs --triplet "${{ matrix.label }}" --binary "$BIN" --out-dir "$OUT_DIR"
+
+          pushd "$OUT_DIR" > /dev/null
+          TARBALL="$(npm pack --silent)"
+          popd > /dev/null
+
+          mv "$OUT_DIR/$TARBALL" "dist-native/$TARBALL"
+          node scripts/verify-packed-native-package.mjs --triplet "${{ matrix.label }}" --tarball "dist-native/$TARBALL"
+          echo "tarball=dist-native/$TARBALL" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify installed release artifacts
+        if: steps.select.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          node scripts/verify-release-install.mjs \
+            --cli-tarball "${{ steps.pack-cli.outputs.tarball }}" \
+            --native-tarball "${{ steps.pack-native.outputs.tarball }}"
+
   # -----------------------------------------------------------
   # Job 4: self-contained happy-path smoke coverage via Anvil
   # -----------------------------------------------------------

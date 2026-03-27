@@ -50,6 +50,16 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain('- "25.x"');
   });
 
+  test("blocking CI includes supported-target artifact install smoke", () => {
+    expect(ciWorkflow).toContain("supported-native-smoke:");
+    expect(ciWorkflow).toContain(
+      'node scripts/ci/select-jobs.mjs --job supported-native-smoke',
+    );
+    expect(ciWorkflow).toContain("windows-11-arm");
+    expect(ciWorkflow).toContain("macos-15-intel");
+    expect(ciWorkflow).toContain("node scripts/verify-release-install.mjs");
+  });
+
   test("release workflow signs and publishes the checksum manifest", () => {
     expect(releaseWorkflow).toContain("sigstore/cosign-installer");
     expect(releaseWorkflow).toContain("SHA256SUMS.txt.sig");
@@ -58,6 +68,7 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain(
       "node scripts/verify-packed-native-package.mjs",
     );
+    expect(releaseWorkflow).toContain("node scripts/verify-release-install.mjs");
   });
 
   test("release workflow keeps an explicit native release signoff gate", () => {
@@ -67,6 +78,7 @@ describe("release workflow conformance", () => {
 
   test("release workflow keeps the release and native smoke gates before packaging", () => {
     expect(releaseWorkflow).toContain("npm run test:release");
+    expect(releaseWorkflow).toContain("npm run bench:gate");
     expect(releaseWorkflow).toContain("Run native smoke test");
     expect(releaseWorkflow).toContain("npm run test:smoke:native");
   });

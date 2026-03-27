@@ -70,6 +70,7 @@ if (!triplet || !tarball) {
 const expectedVersion = args.version?.trim() || rootPackageJson.version;
 const tarballPath = resolve(tarball);
 const installRoot = mkdtempSync(join(tmpdir(), "pp-native-tarball-"));
+const npmCacheDir = join(installRoot, ".npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const packageName = `@0xbow/privacy-pools-cli-native-${triplet}`;
 
@@ -99,8 +100,18 @@ try {
       encoding: "utf8",
       timeout: 180_000,
       maxBuffer: 10 * 1024 * 1024,
+      env: {
+        ...process.env,
+        npm_config_cache: npmCacheDir,
+      },
     },
   );
+
+  if (installResult.error) {
+    fail(
+      `Failed to execute npm install for packed native tarball ${tarballPath}:\n${installResult.error.message}`,
+    );
+  }
 
   if (installResult.status !== 0) {
     fail(

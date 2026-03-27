@@ -105,6 +105,9 @@ jobs:
           PP_CONTRACTS_ROOT: ${{ github.workspace }}/privacy-pools-core/packages/contracts
         run: npm run test:release
 
+      - name: Run benchmark gate
+        run: npm run bench:gate
+
   # -----------------------------------------------------------
   # Stage 2: Create the distributable npm package
   # This only runs after "validate" passes.
@@ -259,6 +262,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Download root npm package artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: npm-package
+          path: dist-root
+
       - name: Run native smoke test
         run: npm run test:smoke:native
 
@@ -294,6 +303,15 @@ jobs:
           name: native-package-${{ matrix.triplet }}
           path: dist-native/*.tgz
           if-no-files-found: error
+
+      - name: Verify installed release artifacts
+        shell: bash
+        run: |
+          CLI_TARBALL="$(echo dist-root/*.tgz)"
+          NATIVE_TARBALL="$(echo dist-native/*.tgz)"
+          node scripts/verify-release-install.mjs \
+            --cli-tarball "${CLI_TARBALL}" \
+            --native-tarball "${NATIVE_TARBALL}"
 
   # -----------------------------------------------------------
   # Stage 3: Create or update the GitHub Release page

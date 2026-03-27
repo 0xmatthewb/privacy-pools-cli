@@ -68,6 +68,17 @@ describe("ci job selection", () => {
     expect(decision.reason).toContain("native/shell/src/main.rs");
   });
 
+  test("supported-native-smoke runs for native packaging changes", () => {
+    const decision = evaluateJobSelection({
+      job: "supported-native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["native/shell/src/main.rs"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("native/shell/src/main.rs");
+  });
+
   test("native lanes run when their helpers or verifier change", () => {
     const helperDecision = evaluateJobSelection({
       job: "native-smoke",
@@ -85,6 +96,16 @@ describe("ci job selection", () => {
     expect(verifierDecision.shouldRun).toBe(true);
     expect(verifierDecision.reason).toContain(
       "scripts/verify-packed-native-package.mjs",
+    );
+
+    const installDecision = evaluateJobSelection({
+      job: "supported-native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/verify-release-install.mjs"],
+    });
+    expect(installDecision.shouldRun).toBe(true);
+    expect(installDecision.reason).toContain(
+      "scripts/verify-release-install.mjs",
     );
   });
 
