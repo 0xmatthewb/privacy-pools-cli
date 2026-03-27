@@ -37,6 +37,7 @@ import {
   decodeDepositEvent,
   sharedCliEnv,
 } from "../helpers/shared-anvil-cli.ts";
+import { CARGO_AVAILABLE, ensureNativeShellBinary } from "../helpers/native.ts";
 import {
   createTempHome,
   mustInitSeededHome,
@@ -45,6 +46,7 @@ import {
 
 const ANVIL_E2E_ENABLED = process.env.PP_ANVIL_E2E === "1";
 const anvilTest = ANVIL_E2E_ENABLED ? test : test.skip;
+const nativeAnvilTest = ANVIL_E2E_ENABLED && CARGO_AVAILABLE ? test : test.skip;
 
 const relayedRecipient = "0x4444444444444444444444444444444444444444" as const;
 const EXTRA_ETH_BUFFER = 10n ** 16n;
@@ -69,6 +71,7 @@ const erc20Abi = parseAbi([
 let sharedEnv: SharedAnvilEnv | null = null;
 let anvilClient: ReturnType<typeof createPublicClient> | null = null;
 let chainConfig = resolveChain("sepolia");
+let nativeBinary: string | null = null;
 
 function requireSharedEnv(): SharedAnvilEnv {
   if (!sharedEnv) throw new Error("Shared Anvil environment is not initialized");
@@ -78,6 +81,11 @@ function requireSharedEnv(): SharedAnvilEnv {
 function requireAnvilClient() {
   if (!anvilClient) throw new Error("Anvil client is not initialized");
   return anvilClient;
+}
+
+function requireNativeBinary(): string {
+  if (!nativeBinary) throw new Error("Native shell binary is not initialized");
+  return nativeBinary;
 }
 
 function computeMerkleRoot(leaves: readonly string[]): bigint {
@@ -145,8 +153,121 @@ async function approveUsdcLabel(label: bigint): Promise<void> {
   });
 }
 
+function spawnFlowStartProcess(
+  home: string,
+  exportPath: string,
+  options: { useNativeLauncher?: boolean } = {},
+) {
+  return spawn(
+    "bun",
+    [
+      "src/index.ts",
+      "--agent",
+      "flow",
+      "start",
+      FLOW_AMOUNT,
+      "USDC",
+      "--to",
+      relayedRecipient,
+      "--new-wallet",
+      "--export-new-wallet",
+      exportPath,
+      "--chain",
+      "sepolia",
+    ],
+    {
+      cwd: process.cwd(),
+      env: buildChildProcessEnv({
+        PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+        ...(options.useNativeLauncher
+          ? { PRIVACY_POOLS_CLI_BINARY: requireNativeBinary() }
+          : {}),
+        ...sharedCliEnv(requireSharedEnv()),
+      }),
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+}
+
+async function expectNewWalletUsdcJourneyCompletes(
+  home: string,
+  exportPath: string,
+  options: {
+    useNativeLauncher?: boolean;
+    expectLabel?: string;
+  } = {},
+): Promise<void> {
+  const recipientBalanceBefore = await requireAnvilClient().readContract({
+    address: requireSharedEnv().pools.erc20.assetAddress,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [relayedRecipient],
+  }) as bigint;
+
+  const child = spawnFlowStartProcess(home, exportPath, options);
+
+  try {
+    const awaitingFunding = await waitForWorkflowSnapshotPhase(home, "awaiting_funding");
+    expect(awaitingFunding.walletMode).toBe("new_wallet");
+    expect(awaitingFunding.requiredNativeFunding).toMatch(/^\d+$/);
+    expect(awaitingFunding.requiredTokenFunding).toBe(FLOW_AMOUNT_RAW.toString());
+
+    const backup = await parseWorkflowWalletBackup(exportPath);
+    expect(awaitingFunding.walletAddress).toBe(backup.walletAddress);
+
+    await setBalance(
+      requireSharedEnv().rpcUrl,
+      backup.walletAddress,
+      BigInt(awaitingFunding.requiredNativeFunding as string) + EXTRA_ETH_BUFFER,
+    );
+    await mintUsdc(backup.walletAddress, FLOW_AMOUNT_RAW);
+
+    const awaitingAsp = await waitForWorkflowSnapshotPhase(home, "awaiting_asp");
+    const depositEvent = await decodeDepositEvent({
+      publicClient: requireAnvilClient(),
+      txHash: awaitingAsp.depositTxHash as `0x${string}`,
+      poolAddress: requireSharedEnv().pools.erc20.poolAddress,
+      depositedEventAbi,
+    });
+    appendInsertedStateTreeLeaf(
+      requireSharedEnv(),
+      "erc20",
+      depositEvent.commitment,
+    );
+    await approveUsdcLabel(depositEvent.label);
+
+    const childResult = await waitForChildProcessResult(child, 300_000);
+    expect(childResult.code).toBe(0);
+    const json = parseJsonOutput<{
+      success: boolean;
+      phase: string;
+      asset: string;
+      walletMode: string;
+      withdrawTxHash: string;
+    }>(childResult.stdout);
+    expect(json.success).toBe(true);
+    expect(json.phase, options.expectLabel).toBe("completed");
+    expect(json.asset).toBe("USDC");
+    expect(json.walletMode).toBe("new_wallet");
+    expect(json.withdrawTxHash).toMatch(/^0x[0-9a-f]{64}$/);
+
+    const recipientBalanceAfter = await requireAnvilClient().readContract({
+      address: requireSharedEnv().pools.erc20.assetAddress,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [relayedRecipient],
+    }) as bigint;
+    expect(recipientBalanceAfter).toBeGreaterThan(recipientBalanceBefore);
+  } finally {
+    await terminateChildProcess(child);
+  }
+}
+
 beforeAll(async () => {
   if (!ANVIL_E2E_ENABLED) return;
+  if (CARGO_AVAILABLE) {
+    nativeBinary = ensureNativeShellBinary();
+  }
   sharedEnv = loadSharedAnvilEnv();
   Object.assign(process.env, sharedCliEnv(sharedEnv));
   chainConfig = resolveChain("sepolia");
@@ -166,127 +287,23 @@ describe("flow --new-wallet USDC journey on shared Anvil", () => {
   anvilTest("flow start --new-wallet supports USDC funding and completes", async () => {
     const home = createAnvilHome("pp-anvil-flow-new-wallet-usdc-");
     const exportPath = join(home, "flow-wallet.txt");
-    const recipientBalanceBefore = await requireAnvilClient().readContract({
-      address: requireSharedEnv().pools.erc20.assetAddress,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [relayedRecipient],
-    }) as bigint;
+    await expectNewWalletUsdcJourneyCompletes(home, exportPath);
+  });
 
-    const child = spawn(
-      "bun",
-      [
-        "src/index.ts",
-        "--agent",
-        "flow",
-        "start",
-        FLOW_AMOUNT,
-        "USDC",
-        "--to",
-        relayedRecipient,
-        "--new-wallet",
-        "--export-new-wallet",
-        exportPath,
-        "--chain",
-        "sepolia",
-      ],
-      {
-        cwd: process.cwd(),
-        env: buildChildProcessEnv({
-          PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-          ...sharedCliEnv(requireSharedEnv()),
-        }),
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
-
-    try {
-      const awaitingFunding = await waitForWorkflowSnapshotPhase(home, "awaiting_funding");
-      expect(awaitingFunding.walletMode).toBe("new_wallet");
-      expect(awaitingFunding.requiredNativeFunding).toMatch(/^\d+$/);
-      expect(awaitingFunding.requiredTokenFunding).toBe(FLOW_AMOUNT_RAW.toString());
-
-      const backup = await parseWorkflowWalletBackup(exportPath);
-      expect(awaitingFunding.walletAddress).toBe(backup.walletAddress);
-
-      await setBalance(
-        requireSharedEnv().rpcUrl,
-        backup.walletAddress,
-        BigInt(awaitingFunding.requiredNativeFunding as string) + EXTRA_ETH_BUFFER,
-      );
-      await mintUsdc(backup.walletAddress, FLOW_AMOUNT_RAW);
-
-      const awaitingAsp = await waitForWorkflowSnapshotPhase(home, "awaiting_asp");
-      const depositEvent = await decodeDepositEvent({
-        publicClient: requireAnvilClient(),
-        txHash: awaitingAsp.depositTxHash as `0x${string}`,
-        poolAddress: requireSharedEnv().pools.erc20.poolAddress,
-        depositedEventAbi,
-      });
-      appendInsertedStateTreeLeaf(
-        requireSharedEnv(),
-        "erc20",
-        depositEvent.commitment,
-      );
-      await approveUsdcLabel(depositEvent.label);
-
-      const childResult = await waitForChildProcessResult(child, 300_000);
-      expect(childResult.code).toBe(0);
-      const json = parseJsonOutput<{
-        success: boolean;
-        phase: string;
-        asset: string;
-        walletMode: string;
-        withdrawTxHash: string;
-      }>(childResult.stdout);
-      expect(json.success).toBe(true);
-      expect(json.phase).toBe("completed");
-      expect(json.asset).toBe("USDC");
-      expect(json.walletMode).toBe("new_wallet");
-      expect(json.withdrawTxHash).toMatch(/^0x[0-9a-f]{64}$/);
-
-      const recipientBalanceAfter = await requireAnvilClient().readContract({
-        address: requireSharedEnv().pools.erc20.assetAddress,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [relayedRecipient],
-      }) as bigint;
-      expect(recipientBalanceAfter).toBeGreaterThan(recipientBalanceBefore);
-    } finally {
-      await terminateChildProcess(child);
-    }
+  nativeAnvilTest("native launcher: flow start --new-wallet supports USDC funding and completes", async () => {
+    const home = createAnvilHome("pp-anvil-native-flow-new-wallet-usdc-");
+    const exportPath = join(home, "flow-wallet.txt");
+    await expectNewWalletUsdcJourneyCompletes(home, exportPath, {
+      useNativeLauncher: true,
+      expectLabel: "native flow start --new-wallet",
+    });
   });
 
   anvilTest("flow start --new-wallet stays awaiting_funding when native gas funding is missing for USDC", async () => {
     const home = createAnvilHome("pp-anvil-flow-new-wallet-usdc-missing-eth-");
     const exportPath = join(home, "flow-wallet.txt");
 
-    const child = spawn(
-      "bun",
-      [
-        "src/index.ts",
-        "--agent",
-        "flow",
-        "start",
-        FLOW_AMOUNT,
-        "USDC",
-        "--to",
-        relayedRecipient,
-        "--new-wallet",
-        "--export-new-wallet",
-        exportPath,
-        "--chain",
-        "sepolia",
-      ],
-      {
-        cwd: process.cwd(),
-        env: buildChildProcessEnv({
-          PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-          ...sharedCliEnv(requireSharedEnv()),
-        }),
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+    const child = spawnFlowStartProcess(home, exportPath);
 
     try {
       const awaitingFunding = await waitForWorkflowSnapshotPhase(home, "awaiting_funding");
