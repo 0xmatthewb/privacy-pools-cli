@@ -153,26 +153,23 @@ try {
 
   // If the launcher failed to resolve the installed native package and fell
   // back to JS, this would fail before executing because the JS worker path is
-  // invalid. A successful static command proves same-version native resolution.
+  // invalid. Use subcommand help here because root help/capabilities/describe
+  // can succeed through the launcher's static JS fast paths without proving
+  // same-version native package resolution.
   const nativeResolutionResult = runCli(
     cliEntryPath,
     installRoot,
     homeDir,
-    ["--agent", "capabilities"],
+    ["flow", "--help"],
     {
       env: {
         PRIVACY_POOLS_CLI_JS_WORKER: join(installRoot, "missing-worker.js"),
       },
     },
   );
-  const capabilitiesPayload = parseJson(
-    nativeResolutionResult.stdout,
-    "capabilities --agent",
-  );
   if (
     nativeResolutionResult.status !== 0 ||
-    capabilitiesPayload.success !== true ||
-    capabilitiesPayload.runtime?.cliVersion !== expectedVersion
+    !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
   ) {
     fail(
       `Installed release CLI failed native launcher resolution:\nstatus=${nativeResolutionResult.status}\nstdout=${nativeResolutionResult.stdout}\nstderr=${nativeResolutionResult.stderr}`,

@@ -48,5 +48,10 @@ native-owned public read-only commands. The JS-owned `status --json --no-check`
 benchmark remains in the report for visibility, but it is intentionally
 informational-only under the current safety boundary.
 
+The local `bench:gate` script defaults to comparing the direct native shell
+against the current checkout's JS fallback path. The release workflow overrides
+that baseline to `v1.7.0` so the ship gate stays anchored to the roadmap's
+historical target.
+
 If you want to compare a different ref, pass `--base <ref>` such as `HEAD~1`,
 `origin/main`, or a release tag.
