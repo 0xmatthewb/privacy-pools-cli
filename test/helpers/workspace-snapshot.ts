@@ -38,6 +38,12 @@ export function createWorkspaceSnapshot(
     filter(source) {
       const relative = source.slice(CLI_ROOT.length).replace(/^[/\\]/, "");
       if (relative === "") return true;
+      if (
+        relative === "native/shell/target" ||
+        relative.startsWith("native/shell/target/")
+      ) {
+        return false;
+      }
 
       const topLevel = relative.split(/[/\\]/)[0];
       return topLevel !== ".git" && topLevel !== "node_modules" && topLevel !== "dist";
