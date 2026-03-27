@@ -284,3 +284,36 @@ export function assertInstalledLauncherBasics({
     );
   }
 }
+
+export function assertInstalledStatusSuccess({
+  installRoot,
+  homeDir,
+  label,
+  env = {},
+  expectRecoveryPhraseSet = true,
+  expectSignerKeyValid = true,
+}) {
+  const statusResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "status", "--no-check"],
+    { env },
+  );
+  const statusPayload = parseJson(
+    statusResult.stdout,
+    "status --agent --no-check",
+  );
+
+  if (
+    statusResult.status !== 0 ||
+    statusPayload.success !== true ||
+    statusPayload.recoveryPhraseSet !== expectRecoveryPhraseSet ||
+    statusPayload.signerKeyValid !== expectSignerKeyValid
+  ) {
+    fail(
+      `${label} failed status parity:\nstatus=${statusResult.status}\nstdout=${statusResult.stdout}\nstderr=${statusResult.stderr}`,
+    );
+  }
+
+  return statusPayload;
+}

@@ -10,6 +10,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   assertInstalledLauncherBasics,
+  assertInstalledStatusSuccess,
   currentNativePackageName,
   fail,
   packageInstallPath,
@@ -286,22 +287,20 @@ async function main() {
     await aspFixture.close();
     aspFixture = null;
 
-    const statusResult = runInstalledCli(
+    assertInstalledStatusSuccess({
       installRoot,
-      stdinHomeDir,
-      ["--agent", "status", "--no-check"],
-    );
-    const statusPayload = parseJson(statusResult.stdout, "status --agent --no-check");
-    if (
-      statusResult.status !== 0 ||
-      statusPayload.success !== true ||
-      statusPayload.recoveryPhraseSet !== true ||
-      statusPayload.signerKeyValid !== true
-    ) {
-      fail(
-        `Installed release CLI failed JS-forwarded status:\nstatus=${statusResult.status}\nstdout=${statusResult.stdout}\nstderr=${statusResult.stderr}`,
-      );
-    }
+      homeDir: stdinHomeDir,
+      label: "Installed release CLI",
+    });
+
+    assertInstalledStatusSuccess({
+      installRoot,
+      homeDir: stdinHomeDir,
+      label: "Installed release CLI with native disabled",
+      env: {
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+      },
+    });
 
     aspFixture = await launchAspFixtureServer();
     const exportPath = join(installRoot, "installed-flow-wallet.txt");

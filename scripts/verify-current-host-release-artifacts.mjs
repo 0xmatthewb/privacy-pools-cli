@@ -6,6 +6,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
+const VERIFY_ROOT_ONLY_INSTALL = join(
+  repoRoot,
+  "scripts",
+  "verify-root-only-install.mjs",
+);
 const nativeDistributionModulePath = join(
   repoRoot,
   "src",
@@ -64,25 +69,13 @@ function packTarball(cwd, destinationDir) {
 }
 
 const triplet = nativeTriplet();
-if (!triplet) {
-  process.stdout.write(
-    `Skipping current-host release artifact verification on unsupported host ${process.platform}/${process.arch}.\n`,
-  );
-  process.exit(0);
-}
-
-const cargoCheck = spawnSync(cargoCommand, ["--version"], {
-  cwd: repoRoot,
-  encoding: "utf8",
-  timeout: 15_000,
-});
-
-if (cargoCheck.error || cargoCheck.status !== 0) {
-  process.stdout.write(
-    `Skipping current-host release artifact verification because cargo is unavailable on ${process.platform}/${process.arch}.\n`,
-  );
-  process.exit(0);
-}
+const cargoCheck = triplet
+  ? spawnSync(cargoCommand, ["--version"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      timeout: 15_000,
+    })
+  : null;
 
 const distIndexPath = join(repoRoot, "dist", "index.js");
 if (!existsSync(distIndexPath)) {
@@ -95,36 +88,52 @@ const nativePackageDir = join(tempRoot, "native-package");
 mkdirSync(cliTarballDir, { recursive: true });
 
 try {
-  run(cargoCommand, [
-    "build",
-    "--manifest-path",
-    "native/shell/Cargo.toml",
-    "--release",
-  ]);
-
   const cliTarball = packTarball(repoRoot, cliTarballDir);
-
-  const nativePackResult = run("node", [
-    join(repoRoot, "scripts", "pack-native-tarball.mjs"),
-    "--triplet",
-    triplet,
-    "--out-dir",
-    nativePackageDir,
-    "--binary",
-    nativeBinaryPath(),
-  ]);
-  const nativeTarball = nativePackResult.stdout.trim();
-
   run("node", [
-    join(repoRoot, "scripts", "verify-release-install.mjs"),
+    VERIFY_ROOT_ONLY_INSTALL,
     "--cli-tarball",
     cliTarball,
-    "--native-tarball",
-    nativeTarball,
   ]);
 
+  if (!triplet) {
+    process.stdout.write(
+      `Skipped native current-host artifact verification on unsupported host ${process.platform}/${process.arch}; root-only launcher path verified.\n`,
+    );
+  } else if (!cargoCheck || cargoCheck.error || cargoCheck.status !== 0) {
+    process.stdout.write(
+      `Skipped native current-host artifact verification because cargo is unavailable on ${process.platform}/${process.arch}; root-only launcher path verified.\n`,
+    );
+  } else {
+    run(cargoCommand, [
+      "build",
+      "--manifest-path",
+      "native/shell/Cargo.toml",
+      "--release",
+    ]);
+
+    const nativePackResult = run("node", [
+      join(repoRoot, "scripts", "pack-native-tarball.mjs"),
+      "--triplet",
+      triplet,
+      "--out-dir",
+      nativePackageDir,
+      "--binary",
+      nativeBinaryPath(),
+    ]);
+    const nativeTarball = nativePackResult.stdout.trim();
+
+    run("node", [
+      join(repoRoot, "scripts", "verify-release-install.mjs"),
+      "--cli-tarball",
+      cliTarball,
+      "--native-tarball",
+      nativeTarball,
+    ]);
+  }
+
+  const hostLabel = triplet ?? `${process.platform}/${process.arch}`;
   process.stdout.write(
-    `Verified current-host release artifacts for ${triplet} using ${distIndexPath}\n`,
+    `Verified current-host release artifacts for ${hostLabel} using ${distIndexPath}\n`,
   );
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

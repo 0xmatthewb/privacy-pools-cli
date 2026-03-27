@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   assertInstalledLauncherBasics,
+  assertInstalledStatusSuccess,
   currentNativePackageName,
   fail,
   npmCommand,
@@ -13,6 +14,9 @@ import {
   parseJson,
   rootPackageJson,
   runInstalledCli,
+  spawnInstalledCli,
+  stopInstalledCliChild,
+  waitForWorkflowPhase,
   repoRoot,
 } from "./lib/install-verification.mjs";
 
@@ -21,6 +25,7 @@ const TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
 const TEST_PRIVATE_KEY =
   "0x1111111111111111111111111111111111111111111111111111111111111111";
+const TEST_RECIPIENT = "0x4444444444444444444444444444444444444444";
 
 function usageAndExit() {
   process.stderr.write(
@@ -299,21 +304,94 @@ try {
     fail("Installed registry CLI leaked the stdin private key");
   }
 
-  const statusResult = runInstalledCli(
+  assertInstalledStatusSuccess({
+    installRoot,
+    homeDir: seededHomeDir,
+    label: "Installed registry CLI",
+  });
+
+  assertInstalledStatusSuccess({
+    installRoot,
+    homeDir: seededHomeDir,
+    label: "Installed registry CLI with native disabled",
+    env: {
+      PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+    },
+  });
+
+  aspFixture = await launchAspFixtureServer();
+  const exportPath = join(installRoot, "registry-flow-wallet.txt");
+  const flowStartHandle = spawnInstalledCli(
     installRoot,
     seededHomeDir,
-    ["--agent", "status", "--no-check"],
+    [
+      "--agent",
+      "flow",
+      "start",
+      "100",
+      "USDC",
+      "--to",
+      TEST_RECIPIENT,
+      "--new-wallet",
+      "--export-new-wallet",
+      exportPath,
+      "--chain",
+      "sepolia",
+    ],
+    {
+      env: {
+        PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+      },
+    },
   );
-  const statusPayload = parseJson(statusResult.stdout, "status --agent --no-check");
-  if (
-    statusResult.status !== 0 ||
-    statusPayload.success !== true ||
-    statusPayload.recoveryPhraseSet !== true ||
-    statusPayload.signerKeyValid !== true
-  ) {
-    fail(
-      `Installed registry CLI failed JS-forwarded status:\nstatus=${statusResult.status}\nstdout=${statusResult.stdout}\nstderr=${statusResult.stderr}`,
+
+  try {
+    const awaitingFunding = await waitForWorkflowPhase(
+      seededHomeDir,
+      "awaiting_funding",
+      {
+        child: flowStartHandle.child,
+      },
     );
+    if (awaitingFunding.walletMode !== "new_wallet") {
+      fail(
+        `Installed registry CLI created an unexpected workflow wallet mode:\n${JSON.stringify(awaitingFunding, null, 2)}`,
+      );
+    }
+
+    const flowStatusResult = runInstalledCli(
+      installRoot,
+      seededHomeDir,
+      ["--agent", "flow", "status", "latest", "--chain", "sepolia"],
+      {
+        env: {
+          PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+        },
+      },
+    );
+    const flowStatusPayload = parseJson(
+      flowStatusResult.stdout,
+      "flow status latest --agent",
+    );
+    if (
+      flowStatusResult.status !== 0 ||
+      flowStatusPayload.success !== true ||
+      flowStatusPayload.phase !== "awaiting_funding" ||
+      flowStatusPayload.walletMode !== "new_wallet"
+    ) {
+      fail(
+        `Installed registry CLI failed JS-forwarded flow status parity:\nstatus=${flowStatusResult.status}\nstdout=${flowStatusResult.stdout}\nstderr=${flowStatusResult.stderr}`,
+      );
+    }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    fail(
+      `Installed registry CLI failed JS-forwarded flow setup parity:\n${reason}\nstdout=${flowStartHandle.getStdout()}\nstderr=${flowStartHandle.getStderr()}`,
+    );
+  } finally {
+    await stopInstalledCliChild(flowStartHandle);
+    await aspFixture.close();
+    aspFixture = null;
   }
 
   const statsErrorResult = runInstalledCli(
