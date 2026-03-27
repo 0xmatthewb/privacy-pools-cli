@@ -17,6 +17,12 @@ const OFFLINE_ENV = {
 };
 
 defineScenarioSuite("output-mode acceptance", [
+  defineScenario("bare welcome stays silent in quiet mode", [
+    runCliStep(["--quiet"]),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderrEmpty(),
+  ]),
   defineScenario("guide writes guide text to stderr in human mode", [
     runCliStep(["guide"]),
     assertExit(0),

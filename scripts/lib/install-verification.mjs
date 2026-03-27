@@ -414,16 +414,50 @@ export function assertInstalledLauncherBasics({
   label,
 }) {
   const versionResult = runInstalledCli(installRoot, homeDir, ["--version"]);
-  if (versionResult.status !== 0 || versionResult.stdout.trim() !== expectedVersion) {
+  if (
+    versionResult.status !== 0 ||
+    versionResult.stdout.trim() !== expectedVersion ||
+    versionResult.stderr.trim() !== ""
+  ) {
     fail(
       `${label} returned an unexpected version:\n${formatResultDiagnostics(versionResult)}`,
     );
   }
 
+  const welcomeResult = runInstalledCli(installRoot, homeDir, []);
+  if (
+    welcomeResult.status !== 0 ||
+    !welcomeResult.stdout.includes("Explore (no wallet needed)") ||
+    !welcomeResult.stdout.includes("Get started:      privacy-pools init") ||
+    !welcomeResult.stderr.includes("A compliant way to transact privately on Ethereum.") ||
+    welcomeResult.stdout.includes("Running from source?")
+  ) {
+    fail(
+      `${label} bare welcome output failed:\n${formatResultDiagnostics(welcomeResult)}`,
+    );
+  }
+
   const helpResult = runInstalledCli(installRoot, homeDir, ["--help"]);
-  if (helpResult.status !== 0 || !helpResult.stdout.includes("privacy-pools")) {
+  if (
+    helpResult.status !== 0 ||
+    !helpResult.stdout.includes("privacy-pools") ||
+    helpResult.stderr.trim() !== ""
+  ) {
     fail(
       `${label} help failed:\n${formatResultDiagnostics(helpResult)}`,
+    );
+  }
+
+  const guideResult = runInstalledCli(installRoot, homeDir, ["--agent", "guide"]);
+  const guidePayload = parseJson(guideResult.stdout, "guide --agent");
+  if (
+    guideResult.status !== 0 ||
+    guideResult.stderr.trim() !== "" ||
+    guidePayload.success !== true ||
+    guidePayload.mode !== "help"
+  ) {
+    fail(
+      `${label} guide discovery failed:\n${formatResultDiagnostics(guideResult)}`,
     );
   }
 

@@ -1,12 +1,27 @@
 import chalk from "chalk";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { accent, accentBold, dangerTone, highlight, notice, subtle, successTone } from "./theme.js";
 export { styleCommanderHelp } from "./root-help.js";
+
+function defaultPackageRoot(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+}
+
+function shouldShowPathRegistrationHint(
+  packageRoot: string = defaultPackageRoot(),
+): boolean {
+  return Boolean(process.env.npm_lifecycle_event) && existsSync(join(packageRoot, ".git"));
+}
 
 /**
  * Condensed welcome screen shown on bare `privacy-pools` (no args).
  * Orients the user quickly without the full Commander listing.
  */
-export function welcomeScreen(): string {
+export function welcomeScreen(
+  options: { packageRoot?: string } = {},
+): string {
   const lines = [
     chalk.bold("  Explore (no wallet needed)"),
     `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}  ${highlight("describe")}`,
@@ -20,7 +35,7 @@ export function welcomeScreen(): string {
   ];
 
   // Nudge from-source users to register the CLI commands on their PATH.
-  if (process.env.npm_lifecycle_event) {
+  if (shouldShowPathRegistrationHint(options.packageRoot)) {
     const isBun = !!(process.versions.bun || process.env.npm_execpath?.includes("bun"));
     const linkCmd = isBun ? "bun link" : "npm link";
     lines.push(
@@ -63,7 +78,8 @@ export function guideText(): string {
     `  ${accent("privacy-pools deposit 0.1 ETH")}`,
     `  ${accent("privacy-pools accounts")}                                       ${chalk.dim("(confirm approved vs declined vs PoA-needed)")}`,
     `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-1")}`,
-    chalk.dim("  Commands use your default chain (set during init). Add --chain <name> to override."),
+    chalk.dim("  Transaction commands use your default chain (set during init)."),
+    chalk.dim("  Read-only dashboards like pools/activity/stats/accounts default to all mainnet chains unless you pass --chain."),
     "",
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
     chalk.dim("  Most deposits are approved within 1 hour; some may take up to 7 days."),
@@ -107,7 +123,7 @@ export function guideText(): string {
     `  ${notice("--format <fmt>")}        Output format: table (default), csv, json`,
     `  ${notice("--no-color")}            Disable colored output (also respects NO_COLOR env var)`,
     `  ${notice("-y, --yes")}             Skip confirmation prompts`,
-    `  ${notice("-q, --quiet")}           Suppress spinners and non-essential output`,
+    `  ${notice("-q, --quiet")}           Suppress most human-readable success output ${chalk.dim("(errors still print)")}`,
     `  ${notice("-v, --verbose")}         Enable verbose/debug output`,
     `  ${notice("--agent")}               Alias for --json --yes --quiet (agent/automation mode)`,
     `  ${notice("--timeout <seconds>")}  Network/transaction timeout (default: 30)`,
@@ -205,6 +221,11 @@ export interface CommandHelpConfig {
   safetyNotes?: string[];
   agentWorkflowNotes?: string[];
 }
+
+export const helpTestInternals = {
+  defaultPackageRoot,
+  shouldShowPathRegistrationHint,
+};
 
 export function commandHelpText(config: CommandHelpConfig): string {
   const lines: string[] = [];

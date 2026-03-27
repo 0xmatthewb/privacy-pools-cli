@@ -2086,7 +2086,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "flag": "-q, --quiet",
-      "description": "Suppress non-essential stderr output"
+      "description": "Suppress most human-readable success output; errors still print"
     },
     {
       "flag": "--no-banner",

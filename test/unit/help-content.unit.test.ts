@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { guideText, welcomeScreen } from "../../src/utils/help.ts";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { guideText, helpTestInternals, welcomeScreen } from "../../src/utils/help.ts";
 
 const ORIGINAL_ENV = {
   npm_lifecycle_event: process.env.npm_lifecycle_event,
@@ -32,18 +35,54 @@ describe("help content", () => {
   test("welcomeScreen includes bun link hint when running from source with bun", () => {
     process.env.npm_lifecycle_event = "dev";
     process.env.npm_execpath = "/usr/local/bin/bun";
+    const packageRoot = join(tmpdir(), `pp-help-source-${Date.now()}`);
+    mkdirSync(packageRoot, { recursive: true });
+    writeFileSync(join(packageRoot, ".git"), "gitdir: test\n", "utf8");
 
-    const welcome = welcomeScreen();
-    expect(welcome).toContain("Running from source?");
-    expect(welcome).toContain("bun link");
+    try {
+      const welcome = welcomeScreen({ packageRoot });
+      expect(welcome).toContain("Running from source?");
+      expect(welcome).toContain("bun link");
+      expect(helpTestInternals.shouldShowPathRegistrationHint(packageRoot)).toBe(
+        true,
+      );
+    } finally {
+      rmSync(packageRoot, { recursive: true, force: true });
+    }
   });
 
   test("welcomeScreen prefers bun link when bun is the active runtime", () => {
     process.env.npm_lifecycle_event = "dev";
     process.env.npm_execpath = "/usr/local/bin/npm";
+    const packageRoot = join(tmpdir(), `pp-help-source-${Date.now()}-bun`);
+    mkdirSync(packageRoot, { recursive: true });
+    writeFileSync(join(packageRoot, ".git"), "gitdir: test\n", "utf8");
 
-    const welcome = welcomeScreen();
-    expect(welcome).toContain("Running from source?");
-    expect(welcome).toContain("bun link");
+    try {
+      const welcome = welcomeScreen({ packageRoot });
+      expect(welcome).toContain("Running from source?");
+      expect(welcome).toContain("bun link");
+    } finally {
+      rmSync(packageRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("welcomeScreen skips the source-link hint for installed package roots", () => {
+    process.env.npm_lifecycle_event = "dev";
+    process.env.npm_execpath = "/usr/local/bin/npm";
+    const packageRoot = join(tmpdir(), `pp-help-installed-${Date.now()}`);
+    mkdirSync(packageRoot, { recursive: true });
+
+    try {
+      expect(helpTestInternals.shouldShowPathRegistrationHint(packageRoot)).toBe(
+        false,
+      );
+      const welcome = welcomeScreen({ packageRoot });
+      expect(welcome).not.toContain("Running from source?");
+      expect(welcome).not.toContain("npm link");
+      expect(welcome).not.toContain("bun link");
+    } finally {
+      rmSync(packageRoot, { recursive: true, force: true });
+    }
   });
 });
