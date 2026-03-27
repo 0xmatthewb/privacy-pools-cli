@@ -7,6 +7,7 @@ pub(crate) struct ParsedRootArgv {
     pub(crate) argv: Vec<String>,
     pub(crate) first_command_token: Option<String>,
     pub(crate) non_option_tokens: Vec<String>,
+    pub(crate) format_flag_value: Option<String>,
     pub(crate) is_csv_mode: bool,
     pub(crate) is_agent: bool,
     pub(crate) is_structured_output_mode: bool,
@@ -25,6 +26,13 @@ impl ParsedRootArgv {
     pub(crate) fn global_rpc_url(&self) -> Option<String> {
         read_long_option_value(&self.argv, "--rpc-url")
             .or_else(|| read_short_option_value(&self.argv, "-r"))
+    }
+
+    pub(crate) fn has_invalid_output_format(&self) -> bool {
+        self.format_flag_value
+            .as_deref()
+            .map(|value| value != "table" && value != "csv" && value != "json")
+            .unwrap_or(false)
     }
 }
 
@@ -138,6 +146,7 @@ pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
         argv: argv.to_vec(),
         first_command_token,
         non_option_tokens,
+        format_flag_value,
         is_csv_mode,
         is_agent,
         is_structured_output_mode,
@@ -372,6 +381,14 @@ mod tests {
         let parsed = parse_root_argv(&argv(&["--json", "--format", "csv", "capabilities"]));
         assert!(!parsed.is_csv_mode);
         assert!(parsed.is_structured_output_mode);
+    }
+
+    #[test]
+    fn invalid_output_formats_are_flagged_without_breaking_machine_mode() {
+        let parsed = parse_root_argv(&argv(&["--json", "--format", "yaml", "guide"]));
+        assert_eq!(parsed.format_flag_value.as_deref(), Some("yaml"));
+        assert!(parsed.is_structured_output_mode);
+        assert!(parsed.has_invalid_output_format());
     }
 
     #[test]

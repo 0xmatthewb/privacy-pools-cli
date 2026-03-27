@@ -281,6 +281,36 @@ describe("static discovery runtime", () => {
     expect(capabilities.stderr).toBe("");
   });
 
+  test("invalid output formats fail cleanly for static discovery and completion", async () => {
+    const discovery = await captureAsyncJsonOutputAllowExit(() =>
+      runStaticDiscoveryCommand(["--json", "--format", "yaml", "guide"]),
+    );
+    expect(discovery.exitCode).toBe(2);
+    expect(discovery.stderr).toBe("");
+    expect(discovery.json.success).toBe(false);
+    expect(discovery.json.errorCode).toBe("INPUT_ERROR");
+    expect(discovery.json.errorMessage).toContain("argument 'yaml' is invalid");
+
+    const completion = await captureAsyncJsonOutputAllowExit(() =>
+      runStaticCompletionQuery([
+        "--json",
+        "--format",
+        "yaml",
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--",
+        "privacy-pools",
+      ]),
+    );
+    expect(completion.exitCode).toBe(2);
+    expect(completion.stderr).toBe("");
+    expect(completion.json.success).toBe(false);
+    expect(completion.json.errorCode).toBe("INPUT_ERROR");
+    expect(completion.json.errorMessage).toContain("argument 'yaml' is invalid");
+  });
+
   test("returns false for malformed static discovery invocations", async () => {
     const cases = [
       ["--help"],

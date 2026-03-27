@@ -69,8 +69,12 @@ pub fn missing_worker_path() -> String {
 }
 
 pub fn runtime_contract_fixture() -> RuntimeContractFixture {
-    let contract_path = format!("{}/generated/runtime-contract.json", env!("CARGO_MANIFEST_DIR"));
-    let raw = std::fs::read_to_string(&contract_path).expect("runtime contract fixture should exist");
+    let contract_path = format!(
+        "{}/generated/runtime-contract.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let raw =
+        std::fs::read_to_string(&contract_path).expect("runtime contract fixture should exist");
     serde_json::from_str(&raw).expect("runtime contract fixture should parse")
 }
 

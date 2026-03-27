@@ -169,7 +169,9 @@ fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
     ];
 
     let pool_activity = run_native_with_env(
-        &["--chain", "sepolia", "activity", "--asset", "ETH", "--agent"],
+        &[
+            "--chain", "sepolia", "activity", "--asset", "ETH", "--agent",
+        ],
         &env,
     );
     assert!(pool_activity.status.success());
@@ -224,23 +226,17 @@ fn invalid_native_read_only_flag_combinations_fail_cleanly() {
         stats_global_payload["errorCode"],
         Value::String("INPUT_ERROR".to_string())
     );
-    assert!(
-        stats_global_payload["errorMessage"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("Global statistics are aggregated across all chains"),
-    );
-    assert!(
-        stats_global_payload["error"]["hint"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("For chain-specific data use: privacy-pools stats pool"),
-    );
+    assert!(stats_global_payload["errorMessage"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("Global statistics are aggregated across all chains"),);
+    assert!(stats_global_payload["error"]["hint"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("For chain-specific data use: privacy-pools stats pool"),);
 
-    let pools_with_rpc_url = run_native_with_env(
-        &["--agent", "pools", "--rpc-url", fixture.base_url()],
-        &[],
-    );
+    let pools_with_rpc_url =
+        run_native_with_env(&["--agent", "pools", "--rpc-url", fixture.base_url()], &[]);
     assert_eq!(pools_with_rpc_url.status.code(), Some(2));
     assert!(stderr_string(&pools_with_rpc_url).trim().is_empty());
     let pools_payload = parse_stdout_json(&pools_with_rpc_url);
@@ -249,18 +245,14 @@ fn invalid_native_read_only_flag_combinations_fail_cleanly() {
         pools_payload["errorCode"],
         Value::String("INPUT_ERROR".to_string())
     );
-    assert!(
-        pools_payload["errorMessage"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("--rpc-url cannot be combined with multi-chain queries"),
-    );
-    assert!(
-        pools_payload["error"]["hint"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("Use --chain <name> to target a single chain with --rpc-url"),
-    );
+    assert!(pools_payload["errorMessage"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("--rpc-url cannot be combined with multi-chain queries"),);
+    assert!(pools_payload["error"]["hint"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("Use --chain <name> to target a single chain with --rpc-url"),);
 }
 
 #[test]

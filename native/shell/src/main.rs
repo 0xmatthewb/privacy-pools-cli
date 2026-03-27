@@ -29,6 +29,7 @@ use tiny_keccak::{Hasher, Keccak};
 
 const JSON_SCHEMA_VERSION: &str = "1.5.0";
 const ENV_JS_WORKER_PATH: &str = "PRIVACY_POOLS_CLI_JS_WORKER";
+const OUTPUT_FORMAT_CHOICES: &str = "table, csv, json";
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
@@ -454,6 +455,18 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
             ),
             Some("Rebuild the CLI so the launcher, manifest, and native shell use the same runtime generation.".to_string()),
         ));
+    }
+
+    if let Some(format_value) = parsed.format_flag_value.as_deref() {
+        if parsed.has_invalid_output_format() {
+            return Err(CliError::input(
+                format!(
+                    "option '--format <format>' argument '{}' is invalid. Allowed choices are {}.",
+                    format_value, OUTPUT_FORMAT_CHOICES
+                ),
+                Some("Use --help to see usage and examples.".to_string()),
+            ));
+        }
     }
 
     if parsed.is_version_like && parsed.first_command_token.is_none() {

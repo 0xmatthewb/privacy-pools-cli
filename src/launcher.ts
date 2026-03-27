@@ -27,6 +27,7 @@ import {
 } from "./native-package-metadata.js";
 import type { ParsedRootArgv } from "./utils/root-argv.js";
 import { parseRootArgv } from "./utils/root-argv.js";
+import { invalidOutputFormatMessage, isSupportedOutputFormat } from "./utils/mode.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import {
@@ -414,6 +415,17 @@ async function tryRunLocalFastPath(
     isFlagEnabled(env[ENV_CLI_DISABLE_LOCAL_FAST_PATH])
   ) {
     return false;
+  }
+
+  if (
+    parsed.formatFlagValue &&
+    !isSupportedOutputFormat(parsed.formatFlagValue)
+  ) {
+    throw new CLIError(
+      invalidOutputFormatMessage(parsed.formatFlagValue),
+      "INPUT",
+      "Use --help to see usage and examples.",
+    );
   }
 
   if (parsed.isVersionLike && parsed.firstCommandToken === undefined) {

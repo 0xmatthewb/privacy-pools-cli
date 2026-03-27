@@ -1,6 +1,10 @@
 import type { GlobalOptions } from "../types.js";
 
-export type OutputFormat = "table" | "csv" | "json";
+export const OUTPUT_FORMATS = ["table", "csv", "json"] as const;
+
+export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
+
+const OUTPUT_FORMAT_SET = new Set<string>(OUTPUT_FORMATS);
 
 export interface ResolvedGlobalMode {
   isAgent: boolean;
@@ -11,12 +15,32 @@ export interface ResolvedGlobalMode {
   skipPrompts: boolean;
 }
 
+export function normalizeOutputFormat(
+  value: string | null | undefined,
+): OutputFormat | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.toLowerCase();
+  return OUTPUT_FORMAT_SET.has(normalized)
+    ? (normalized as OutputFormat)
+    : null;
+}
+
+export function isSupportedOutputFormat(
+  value: string | null | undefined,
+): boolean {
+  return normalizeOutputFormat(value) !== null;
+}
+
+export function invalidOutputFormatMessage(value: string): string {
+  return `option '--format <format>' argument '${value}' is invalid. Allowed choices are ${OUTPUT_FORMATS.join(", ")}.`;
+}
+
 export function resolveGlobalMode(
   globalOpts?: GlobalOptions
 ): ResolvedGlobalMode {
   const isAgent = globalOpts?.agent ?? false;
   const hasStructuredJsonFlag = (globalOpts?.json ?? false) || isAgent;
-  const explicitFormat = globalOpts?.format?.toLowerCase() as OutputFormat | undefined;
+  const explicitFormat = normalizeOutputFormat(globalOpts?.format);
   const format: OutputFormat =
     explicitFormat === "json" || hasStructuredJsonFlag ? "json" :
     explicitFormat === "csv" ? "csv" :

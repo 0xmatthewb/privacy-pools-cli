@@ -391,6 +391,25 @@ describe("launcher runtime coverage", () => {
     expect(helpResult.stderr).toBe("");
   });
 
+  test("tryRunLocalFastPath rejects invalid output formats before serving fast paths", async () => {
+    const version = await captureAsyncJsonOutputAllowExit(() =>
+      runLauncher(PKG, ["--json", "--format", "yaml", "--version"]),
+    );
+    expect(version.exitCode).toBe(2);
+    expect(version.stderr).toBe("");
+    expect(version.json.success).toBe(false);
+    expect(version.json.errorCode).toBe("INPUT_ERROR");
+    expect(version.json.errorMessage).toContain("argument 'yaml' is invalid");
+
+    const guide = await captureAsyncJsonOutputAllowExit(() =>
+      runLauncher(PKG, ["--json", "--format", "yaml", "guide"]),
+    );
+    expect(guide.exitCode).toBe(2);
+    expect(guide.stderr).toBe("");
+    expect(guide.json.success).toBe(false);
+    expect(guide.json.errorCode).toBe("INPUT_ERROR");
+  });
+
   test("tryRunLocalFastPath serves real completion and static discovery commands", async () => {
     const completionArgv = [
       "--json",

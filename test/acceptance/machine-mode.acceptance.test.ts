@@ -106,6 +106,22 @@ defineScenarioSuite("machine-mode acceptance", [
       expect(json.commands.length).toBeGreaterThan(0);
     }),
   ]),
+  defineScenario("invalid format is rejected on static machine routes", [
+    runCliStep(["--json", "--format", "yaml", "guide"]),
+    assertExit(2),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      errorCode: string;
+      errorMessage: string;
+    }>((json) => {
+      expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.errorMessage).toContain("argument 'yaml' is invalid");
+    }),
+  ]),
   defineScenario("agent root help returns a JSON envelope", [
     runCliStep(["--agent", "help"]),
     assertExit(0),

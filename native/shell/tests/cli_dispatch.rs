@@ -53,6 +53,33 @@ fn machine_mode_beats_csv_for_native_discovery_commands() {
 }
 
 #[test]
+fn invalid_output_formats_fail_cleanly_for_native_fast_paths() {
+    let guide = run_native(&["--json", "--format", "yaml", "guide"]);
+    assert_eq!(guide.status.code(), Some(2));
+    assert!(stderr_string(&guide).trim().is_empty());
+    let guide_payload = parse_stdout_json(&guide);
+    assert_eq!(guide_payload["success"], Value::Bool(false));
+    assert_eq!(
+        guide_payload["errorCode"],
+        Value::String("INPUT_ERROR".to_string())
+    );
+    assert!(guide_payload["errorMessage"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("argument 'yaml' is invalid"),);
+
+    let version = run_native(&["--json", "--format", "yaml", "--version"]);
+    assert_eq!(version.status.code(), Some(2));
+    assert!(stderr_string(&version).trim().is_empty());
+    let version_payload = parse_stdout_json(&version);
+    assert_eq!(version_payload["success"], Value::Bool(false));
+    assert_eq!(
+        version_payload["errorCode"],
+        Value::String("INPUT_ERROR".to_string())
+    );
+}
+
+#[test]
 fn completion_contracts_hold_for_human_and_agent_modes() {
     let human = run_native(&["completion", "bash"]);
     assert!(human.status.success());
@@ -124,12 +151,10 @@ fn malformed_bridge_descriptor_fails_cleanly_in_agent_mode() {
     assert!(stderr_string(&output).trim().is_empty());
     let payload = parse_stdout_json(&output);
     assert_eq!(payload["success"], Value::Bool(false));
-    assert!(
-        payload["errorMessage"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("Failed to decode JS bridge descriptor"),
-    );
+    assert!(payload["errorMessage"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("Failed to decode JS bridge descriptor"),);
 }
 
 #[test]
@@ -172,18 +197,19 @@ fn bridge_runtime_and_worker_env_mismatches_fail_cleanly() {
     }));
     let runtime_output = run_native_with_env(
         &["--agent", "status", "--no-check"],
-        &[(contract.native_bridge_env.as_str(), runtime_mismatch.as_str())],
+        &[(
+            contract.native_bridge_env.as_str(),
+            runtime_mismatch.as_str(),
+        )],
     );
     assert_eq!(runtime_output.status.code(), Some(1));
     assert!(stderr_string(&runtime_output).trim().is_empty());
     let runtime_payload = parse_stdout_json(&runtime_output);
     assert_eq!(runtime_payload["success"], Value::Bool(false));
-    assert!(
-        runtime_payload["errorMessage"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("JS bridge runtime version mismatch"),
-    );
+    assert!(runtime_payload["errorMessage"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("JS bridge runtime version mismatch"),);
 
     let request_env_mismatch = encode_bridge_descriptor(json!({
         "runtimeVersion": contract.runtime_version,
@@ -195,18 +221,19 @@ fn bridge_runtime_and_worker_env_mismatches_fail_cleanly() {
     }));
     let request_env_output = run_native_with_env(
         &["--agent", "status", "--no-check"],
-        &[(contract.native_bridge_env.as_str(), request_env_mismatch.as_str())],
+        &[(
+            contract.native_bridge_env.as_str(),
+            request_env_mismatch.as_str(),
+        )],
     );
     assert_eq!(request_env_output.status.code(), Some(1));
     assert!(stderr_string(&request_env_output).trim().is_empty());
     let request_env_payload = parse_stdout_json(&request_env_output);
     assert_eq!(request_env_payload["success"], Value::Bool(false));
-    assert!(
-        request_env_payload["errorMessage"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("JS bridge worker request env mismatch"),
-    );
+    assert!(request_env_payload["errorMessage"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("JS bridge worker request env mismatch"),);
 }
 
 #[test]
@@ -229,10 +256,8 @@ fn valid_bridge_descriptor_still_fails_cleanly_when_the_worker_is_missing() {
     assert!(stderr_string(&output).trim().is_empty());
     let payload = parse_stdout_json(&output);
     assert_eq!(payload["success"], Value::Bool(false));
-    assert!(
-        payload["errorMessage"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("Failed to launch JS worker"),
-    );
+    assert!(payload["errorMessage"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("Failed to launch JS worker"),);
 }

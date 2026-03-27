@@ -1,7 +1,11 @@
 import type { GlobalOptions } from "./types.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
-import { resolveGlobalMode } from "./utils/mode.js";
+import {
+  invalidOutputFormatMessage,
+  isSupportedOutputFormat,
+  resolveGlobalMode,
+} from "./utils/mode.js";
 import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-routing-static.js";
 
 const STATIC_DISCOVERY_COMMANDS = GENERATED_STATIC_LOCAL_COMMANDS.filter(
@@ -70,6 +74,19 @@ function fallbackJsonModeFromArgv(argv: string[]): boolean {
 function isQuietMode(globalOpts: GlobalOptions): boolean {
   const mode = resolveGlobalMode(globalOpts);
   return mode.isQuiet || mode.isJson || mode.isCsv;
+}
+
+function assertSupportedOutputFormat(globalOpts: GlobalOptions): void {
+  if (
+    globalOpts.format !== undefined &&
+    !isSupportedOutputFormat(globalOpts.format)
+  ) {
+    throw new CLIError(
+      invalidOutputFormatMessage(globalOpts.format),
+      "INPUT",
+      "Use --help to see usage and examples.",
+    );
+  }
 }
 
 function guardStaticCsvUnsupported(
@@ -412,10 +429,12 @@ function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {
 }
 
 export async function runStaticDiscoveryCommand(argv: string[]): Promise<boolean> {
-  const parsed = parseStaticCommand(argv);
-  if (!parsed) return false;
-
+  let parsed: ParsedStaticCommand | null = null;
   try {
+    parsed = parseStaticCommand(argv);
+    if (!parsed) return false;
+    assertSupportedOutputFormat(parsed.globalOpts);
+
     switch (parsed.command) {
       case "guide":
         await renderStaticGuide(parsed.globalOpts);
@@ -428,7 +447,10 @@ export async function runStaticDiscoveryCommand(argv: string[]): Promise<boolean
         return true;
     }
   } catch (error) {
-    printError(error, resolveGlobalMode(parsed.globalOpts).isJson);
+    printError(
+      error,
+      parsed ? resolveGlobalMode(parsed.globalOpts).isJson : fallbackJsonModeFromArgv(argv),
+    );
     return true;
   }
 }
@@ -563,6 +585,7 @@ export async function runStaticCompletionQuery(
   try {
     parsed = parseCompletionQuery(argv);
     if (!parsed) return false;
+    assertSupportedOutputFormat(parsed.globalOpts);
 
     const mode = resolveGlobalMode(parsed.globalOpts);
     if (mode.isCsv) {
