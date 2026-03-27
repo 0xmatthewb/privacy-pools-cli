@@ -190,6 +190,32 @@ describe("ci job selection", () => {
     );
   });
 
+  test("docs-only changes do not fan out to expensive native matrices", () => {
+    const nativeSmokeDecision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["AGENTS.md"],
+    });
+    expect(nativeSmokeDecision.shouldRun).toBe(false);
+    expect(nativeSmokeDecision.reason).toContain("No changes matched");
+
+    const supportedNativeDecision = evaluateJobSelection({
+      job: "supported-native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["docs/reference.md"],
+    });
+    expect(supportedNativeDecision.shouldRun).toBe(false);
+    expect(supportedNativeDecision.reason).toContain("No changes matched");
+
+    const crossPlatformDecision = evaluateJobSelection({
+      job: "cross-platform",
+      eventName: "pull_request",
+      changedFiles: ["skills/privacy-pools-cli/reference.md"],
+    });
+    expect(crossPlatformDecision.shouldRun).toBe(false);
+    expect(crossPlatformDecision.reason).toContain("No changes matched");
+  });
+
   test("anvil smoke runs when installed-cli anvil verification changes", () => {
     const decision = evaluateJobSelection({
       job: "anvil-e2e-smoke",

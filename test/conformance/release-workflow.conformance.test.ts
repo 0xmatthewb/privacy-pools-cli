@@ -75,6 +75,7 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain('node scripts/ci/select-jobs.mjs --job native-smoke');
     expect(ciWorkflow).toContain("npm run test:smoke:native:package");
     expect(ciWorkflow).toContain('- "22.x"');
+    expect(ciWorkflow).toContain('- "24.x"');
     expect(ciWorkflow).toContain('- "25.x"');
   });
 
@@ -85,6 +86,7 @@ describe("release workflow conformance", () => {
     );
     expect(ciWorkflow).toContain('name: supported-native-smoke-${{ matrix.label }}-node-${{ matrix.node-version }}');
     expect(ciWorkflow).toContain('- "22.x"');
+    expect(ciWorkflow).toContain('- "24.x"');
     expect(ciWorkflow).toContain('- "25.x"');
     expect(ciWorkflow).toContain("windows-11-arm");
     expect(ciWorkflow).toContain("macos-15-intel");
@@ -173,6 +175,7 @@ describe("release workflow conformance", () => {
   test("cross-platform smoke includes the windows arm64 native lane", () => {
     expect(crossPlatformWorkflow).toContain('name: smoke-${{ matrix.label }}-node-${{ matrix.node-version }}');
     expect(crossPlatformWorkflow).toContain('- "22.x"');
+    expect(crossPlatformWorkflow).toContain('- "24.x"');
     expect(crossPlatformWorkflow).toContain('- "25.x"');
     expect(crossPlatformWorkflow).toContain("windows-11-arm");
     expect(crossPlatformWorkflow).toContain("win32-arm64-msvc");

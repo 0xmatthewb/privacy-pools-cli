@@ -169,6 +169,7 @@ jobs:
       matrix:
         node-version:
           - "22.x"
+          - "24.x"
           - "25.x"
     steps:
       - name: Checkout
@@ -216,6 +217,7 @@ jobs:
       matrix:
         node-version:
           - "22.x"
+          - "24.x"
           - "25.x"
     steps:
       - name: Checkout
@@ -318,6 +320,7 @@ jobs:
       matrix:
         node-version:
           - "22.x"
+          - "24.x"
           - "25.x"
         include:
           - label: linux-x64-gnu
