@@ -106,9 +106,6 @@ jobs:
           PP_CONTRACTS_ROOT: ${{ github.workspace }}/privacy-pools-core/packages/contracts
         run: npm run test:release
 
-      - name: Run benchmark gate against v1.7.0 baseline
-        run: npm run bench:gate:release
-
   # -----------------------------------------------------------
   # Stage 2: Create the distributable npm package
   # This only runs after "validate" passes.

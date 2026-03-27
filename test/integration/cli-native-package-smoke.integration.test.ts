@@ -325,16 +325,53 @@ describe("native package smoke", () => {
   });
 
   nativePackageSmokeTest("disable-native still forces the js fallback when a packaged binary exists", () => {
-    const result = runBuiltCli(["--help"], {
+    const helpResult = runBuiltCli(["--help"], {
       cwd: snapshotRoot,
       env: {
         PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
       },
     });
 
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain("privacy-pools");
-    expect(result.stderr.trim()).toBe("");
+    expect(helpResult.status).toBe(0);
+    expect(helpResult.stdout).toContain("privacy-pools");
+    expect(helpResult.stderr.trim()).toBe("");
+
+    const home = createTempHome("pp-native-package-disable-native-");
+    const initResult = runBuiltCli(
+      [
+        "--agent",
+        "init",
+        "--mnemonic",
+        TEST_MNEMONIC,
+        "--private-key",
+        TEST_PRIVATE_KEY,
+        "--default-chain",
+        "sepolia",
+        "--yes",
+      ],
+      {
+        cwd: snapshotRoot,
+        home,
+        timeoutMs: 60_000,
+        env: {
+          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+        },
+      },
+    );
+
+    expect(initResult.status).toBe(0);
+    expect(parseJsonOutput<{ success: boolean }>(initResult.stdout).success).toBe(true);
+
+    const statusResult = runBuiltCli(["--agent", "status", "--no-check"], {
+      cwd: snapshotRoot,
+      home,
+      env: {
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+      },
+    });
+
+    expect(statusResult.status).toBe(0);
+    expect(parseJsonOutput<{ success: boolean }>(statusResult.stdout).success).toBe(true);
   });
 
   nativePackageSmokeTest("launcher falls back to JS when the packaged native bridge metadata is incompatible", () => {

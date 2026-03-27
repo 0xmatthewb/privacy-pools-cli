@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -87,6 +87,136 @@ function runCli(installRoot, homeDir, args, options = {}) {
   return result;
 }
 
+async function launchAspFixtureServer() {
+  const globalStatistics = {
+    cacheTimestamp: "2025-01-01T00:00:00.000Z",
+    allTime: {
+      tvlUsd: "150000",
+      avgDepositSizeUsd: "3000",
+      totalDepositsCount: 100,
+      totalWithdrawalsCount: 50,
+      totalDepositsValue: "200000000000000000000",
+      totalWithdrawalsValue: "100000000000000000000",
+      totalDepositsValueUsd: "600000",
+      totalWithdrawalsValueUsd: "300000",
+    },
+    last24h: {
+      tvlUsd: "150000",
+      avgDepositSizeUsd: "3000",
+      totalDepositsCount: 5,
+      totalWithdrawalsCount: 2,
+      totalDepositsValue: "10000000000000000000",
+      totalWithdrawalsValue: "4000000000000000000",
+      totalDepositsValueUsd: "30000",
+      totalWithdrawalsValueUsd: "12000",
+    },
+  };
+
+  const child = spawn(
+    process.execPath,
+    [
+      "-e",
+      `
+const { createServer } = require("node:http");
+const payload = ${JSON.stringify(globalStatistics)};
+const server = createServer((req, res) => {
+  const url = new URL(req.url || "/", "http://127.0.0.1");
+  if (req.method === "GET" && url.pathname === "/global/public/statistics") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(payload));
+    return;
+  }
+
+  res.writeHead(404, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "not found" }));
+});
+
+server.listen(0, "127.0.0.1", () => {
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    process.stderr.write("failed to resolve fixture port\\n");
+    process.exit(1);
+    return;
+  }
+
+  process.stdout.write(\`FIXTURE_PORT=\${address.port}\\n\`);
+});
+
+process.on("SIGTERM", () => {
+  server.close(() => process.exit(0));
+});
+      `,
+    ],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+
+  const port = await new Promise((resolvePromise, rejectPromise) => {
+    let stdout = "";
+    let stderr = "";
+    const readyTimeout = setTimeout(() => {
+      rejectPromise(
+        new Error(
+          `Timed out waiting for installed-artifact ASP fixture.\nstderr:\n${stderr}`,
+        ),
+      );
+    }, 10_000);
+
+    const settle = (callback) => {
+      clearTimeout(readyTimeout);
+      child.stdout.removeAllListeners("data");
+      child.stderr.removeAllListeners("data");
+      child.removeAllListeners("error");
+      child.removeAllListeners("exit");
+      callback();
+    };
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      const match = stdout.match(/FIXTURE_PORT=(\d+)/);
+      if (match) {
+        settle(() => resolvePromise(Number(match[1])));
+      }
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    child.once("error", (error) => {
+      settle(() => rejectPromise(error));
+    });
+
+    child.once("exit", (code, signal) => {
+      settle(() =>
+        rejectPromise(
+          new Error(
+            `Installed-artifact ASP fixture exited before startup (code=${code}, signal=${signal}).\nstderr:\n${stderr}`,
+          ),
+        ),
+      );
+    });
+  });
+
+  return {
+    url: `http://127.0.0.1:${port}`,
+    async close() {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        return;
+      }
+
+      await new Promise((resolvePromise) => {
+        child.once("exit", () => resolvePromise());
+        child.kill("SIGTERM");
+      });
+    },
+  };
+}
+
 const args = parseArgs(process.argv.slice(2));
 const cliTarball = args["cli-tarball"]?.trim();
 const nativeTarball = args["native-tarball"]?.trim();
@@ -102,125 +232,165 @@ const installRoot = mkdtempSync(join(tmpdir(), "pp-release-install-"));
 const npmCacheDir = join(installRoot, ".npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const homeDir = join(installRoot, ".privacy-pools");
+const missingWorkerPath = join(installRoot, "missing-worker.js");
+
+async function main() {
+  let aspFixture = null;
+  try {
+    writeFileSync(
+      join(installRoot, "package.json"),
+      JSON.stringify({
+        name: "pp-release-install-check",
+        private: true,
+      }),
+      "utf8",
+    );
+
+    const installResult = spawnSync(
+      npmCommand,
+      [
+        "install",
+        "--silent",
+        "--no-package-lock",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        cliTarballPath,
+        nativeTarballPath,
+      ],
+      {
+        cwd: installRoot,
+        encoding: "utf8",
+        timeout: 180_000,
+        maxBuffer: 10 * 1024 * 1024,
+        env: {
+          ...process.env,
+          npm_config_cache: npmCacheDir,
+        },
+      },
+    );
+
+    if (installResult.error) {
+      fail(
+        `Failed to execute npm install for release tarballs:\n${installResult.error.message}`,
+      );
+    }
+
+    if (installResult.status !== 0) {
+      fail(
+        `Failed to install release tarballs:\n${installResult.stderr}\n${installResult.stdout}`,
+      );
+    }
+
+    // Resolve the root package's installed bin target from its own package.json.
+    // The installed public privacy-pools shim must remain owned by the root JS
+    // launcher even when the optional native package is present.
+    const versionResult = runCli(installRoot, homeDir, ["--version"]);
+    if (versionResult.status !== 0 || versionResult.stdout.trim() !== expectedVersion) {
+      fail(
+        `Installed release CLI returned an unexpected version:\nstatus=${versionResult.status}\nstdout=${versionResult.stdout}\nstderr=${versionResult.stderr}`,
+      );
+    }
+
+    const helpResult = runCli(installRoot, homeDir, ["--help"]);
+    if (helpResult.status !== 0 || !helpResult.stdout.includes("privacy-pools")) {
+      fail(
+        `Installed release CLI help failed:\nstatus=${helpResult.status}\nstdout=${helpResult.stdout}\nstderr=${helpResult.stderr}`,
+      );
+    }
+
+    const nativeResolutionResult = runCli(
+      installRoot,
+      homeDir,
+      ["flow", "--help"],
+      {
+        env: {
+          PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+        },
+      },
+    );
+    if (
+      nativeResolutionResult.status !== 0 ||
+      !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
+    ) {
+      fail(
+        `Installed release CLI failed native launcher resolution:\nstatus=${nativeResolutionResult.status}\nstdout=${nativeResolutionResult.stdout}\nstderr=${nativeResolutionResult.stderr}`,
+      );
+    }
+
+    aspFixture = await launchAspFixtureServer();
+    const statsSuccessResult = runCli(
+      installRoot,
+      homeDir,
+      ["--agent", "stats"],
+      {
+        env: {
+          PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+          PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+        },
+      },
+    );
+    const statsSuccessPayload = parseJson(
+      statsSuccessResult.stdout,
+      "stats --agent",
+    );
+    if (
+      statsSuccessResult.status !== 0 ||
+      statsSuccessPayload.success !== true ||
+      statsSuccessPayload.mode !== "global-stats"
+    ) {
+      fail(
+        `Installed release CLI failed native read-only success parity:\nstatus=${statsSuccessResult.status}\nstdout=${statsSuccessResult.stdout}\nstderr=${statsSuccessResult.stderr}`,
+      );
+    }
+    await aspFixture.close();
+    aspFixture = null;
+
+    const statusResult = runCli(
+      installRoot,
+      homeDir,
+      ["--agent", "status", "--no-check"],
+    );
+    const statusPayload = parseJson(statusResult.stdout, "status --agent --no-check");
+    if (statusResult.status !== 0 || statusPayload.success !== true) {
+      fail(
+        `Installed release CLI failed JS-forwarded status:\nstatus=${statusResult.status}\nstdout=${statusResult.stdout}\nstderr=${statusResult.stderr}`,
+      );
+    }
+
+    const statsResult = runCli(
+      installRoot,
+      homeDir,
+      ["--agent", "stats"],
+      {
+        env: {
+          PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+        },
+      },
+    );
+    const statsPayload = parseJson(statsResult.stdout, "stats --agent");
+    if (
+      statsResult.status !== 3 ||
+      statsPayload.success !== false ||
+      statsPayload.errorCode !== "RPC_NETWORK_ERROR"
+    ) {
+      fail(
+        `Installed release CLI failed native read-only error parity:\nstatus=${statsResult.status}\nstdout=${statsResult.stdout}\nstderr=${statsResult.stderr}`,
+      );
+    }
+
+    process.stdout.write(
+      `verified installed release artifacts for privacy-pools-cli@${expectedVersion}\n`,
+    );
+  } finally {
+    if (aspFixture) {
+      await aspFixture.close();
+    }
+  }
+}
 
 try {
-  writeFileSync(
-    join(installRoot, "package.json"),
-    JSON.stringify({
-      name: "pp-release-install-check",
-      private: true,
-    }),
-    "utf8",
-  );
-
-  const installResult = spawnSync(
-    npmCommand,
-    [
-      "install",
-      "--silent",
-      "--no-package-lock",
-      "--ignore-scripts",
-      "--no-audit",
-      "--no-fund",
-      cliTarballPath,
-      nativeTarballPath,
-    ],
-    {
-      cwd: installRoot,
-      encoding: "utf8",
-      timeout: 180_000,
-      maxBuffer: 10 * 1024 * 1024,
-      env: {
-        ...process.env,
-        npm_config_cache: npmCacheDir,
-      },
-    },
-  );
-
-  if (installResult.error) {
-    fail(
-      `Failed to execute npm install for release tarballs:\n${installResult.error.message}`,
-    );
-  }
-
-  if (installResult.status !== 0) {
-    fail(
-      `Failed to install release tarballs:\n${installResult.stderr}\n${installResult.stdout}`,
-    );
-  }
-
-  // Resolve the root package's installed bin target from its own package.json.
-  // The installed public privacy-pools shim must remain owned by the root JS
-  // launcher even when the optional native package is present.
-  const versionResult = runCli(installRoot, homeDir, ["--version"]);
-  if (versionResult.status !== 0 || versionResult.stdout.trim() !== expectedVersion) {
-    fail(
-      `Installed release CLI returned an unexpected version:\nstatus=${versionResult.status}\nstdout=${versionResult.stdout}\nstderr=${versionResult.stderr}`,
-    );
-  }
-
-  const helpResult = runCli(installRoot, homeDir, ["--help"]);
-  if (helpResult.status !== 0 || !helpResult.stdout.includes("privacy-pools")) {
-    fail(
-      `Installed release CLI help failed:\nstatus=${helpResult.status}\nstdout=${helpResult.stdout}\nstderr=${helpResult.stderr}`,
-    );
-  }
-
-  const nativeResolutionResult = runCli(
-    installRoot,
-    homeDir,
-    ["flow", "--help"],
-    {
-      env: {
-        PRIVACY_POOLS_CLI_JS_WORKER: join(installRoot, "missing-worker.js"),
-      },
-    },
-  );
-  if (
-    nativeResolutionResult.status !== 0 ||
-    !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
-  ) {
-    fail(
-      `Installed release CLI failed native launcher resolution:\nstatus=${nativeResolutionResult.status}\nstdout=${nativeResolutionResult.stdout}\nstderr=${nativeResolutionResult.stderr}`,
-    );
-  }
-
-  const statusResult = runCli(
-    installRoot,
-    homeDir,
-    ["--agent", "status", "--no-check"],
-  );
-  const statusPayload = parseJson(statusResult.stdout, "status --agent --no-check");
-  if (statusResult.status !== 0 || statusPayload.success !== true) {
-    fail(
-      `Installed release CLI failed JS-forwarded status:\nstatus=${statusResult.status}\nstdout=${statusResult.stdout}\nstderr=${statusResult.stderr}`,
-    );
-  }
-
-  const statsResult = runCli(
-    installRoot,
-    homeDir,
-    ["--agent", "stats"],
-    {
-      env: {
-        PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
-      },
-    },
-  );
-  const statsPayload = parseJson(statsResult.stdout, "stats --agent");
-  if (
-    statsResult.status !== 3 ||
-    statsPayload.success !== false ||
-    statsPayload.errorCode !== "RPC_NETWORK_ERROR"
-  ) {
-    fail(
-      `Installed release CLI failed native read-only error parity:\nstatus=${statsResult.status}\nstdout=${statsResult.stdout}\nstderr=${statsResult.stderr}`,
-    );
-  }
-
-  process.stdout.write(
-    `verified installed release artifacts for privacy-pools-cli@${expectedVersion}\n`,
-  );
+  await main();
 } finally {
   rmSync(installRoot, { recursive: true, force: true });
 }

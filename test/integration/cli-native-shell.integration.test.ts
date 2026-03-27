@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { CliRunOptions, CliRunResult } from "../helpers/cli.ts";
@@ -21,6 +22,7 @@ import {
   CARGO_AVAILABLE,
   ensureNativeShellBinary,
 } from "../helpers/native.ts";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import { NATIVE_JS_BRIDGE_ENV } from "../../src/runtime/current.ts";
 import { CURRENT_RUNTIME_DESCRIPTOR } from "../../src/runtime/runtime-contract.js";
 
@@ -153,6 +155,38 @@ function fixtureEnv(fixture: FixtureServer): Record<string, string> {
     PRIVACY_POOLS_ASP_HOST: fixture.url,
     PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture.url,
   };
+}
+
+function seedSavedWorkflow(home: string): void {
+  const workflowsDir = join(home, ".privacy-pools", "workflows");
+  mkdirSync(workflowsDir, { recursive: true });
+  writeFileSync(
+    join(workflowsDir, "wf-latest.json"),
+    JSON.stringify(
+      {
+        schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+        workflowId: "wf-latest",
+        createdAt: "2026-03-27T12:00:00.000Z",
+        updatedAt: "2026-03-27T12:00:00.000Z",
+        phase: "awaiting_asp",
+        chain: "sepolia",
+        asset: "ETH",
+        depositAmount: "100000000000000000",
+        recipient: TEST_RECIPIENT,
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        depositTxHash:
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        depositBlockNumber: "12345",
+        depositExplorerUrl: "https://example.test/tx/0xaaaaaaaa",
+        committedValue: "99500000000000000",
+        aspStatus: "pending",
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
 }
 
 describe("native shell parity", () => {
@@ -581,6 +615,18 @@ describe("native shell parity", () => {
     const nativeHome = createTempHome("pp-native-init-native-");
 
     expectJsonParity(nativeBinary, args, {
+      js: { home: jsHome },
+      native: { home: nativeHome },
+    });
+  });
+
+  nativeTest("flow status latest succeeds identically through native forwarding", () => {
+    const jsHome = createTempHome("pp-native-flow-status-success-js-");
+    const nativeHome = createTempHome("pp-native-flow-status-success-native-");
+    seedSavedWorkflow(jsHome);
+    seedSavedWorkflow(nativeHome);
+
+    expectJsonParity(nativeBinary, ["--agent", "flow", "status", "latest"], {
       js: { home: jsHome },
       native: { home: nativeHome },
     });

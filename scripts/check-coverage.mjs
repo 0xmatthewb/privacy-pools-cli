@@ -62,6 +62,15 @@ const thresholds = [
       "src/static-discovery.ts",
     ],
   },
+  {
+    label: "launcher-runtime",
+    min: 85,
+    matchers: [
+      "src/launcher.ts",
+      "src/runtime/",
+      "src/utils/root-argv.ts",
+    ],
+  },
   { label: "config", min: 95, matchers: ["src/config/"] },
 ];
 

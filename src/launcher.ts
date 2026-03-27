@@ -59,6 +59,12 @@ function isFlagEnabled(value: string | undefined): boolean {
   return value?.trim() === "1";
 }
 
+function usesLegacyNativePreviewOptIn(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return isFlagEnabled(env[ENV_CLI_ENABLE_NATIVE]);
+}
+
 function defaultJsWorkerPath(): string {
   return resolveCurrentWorkerPath();
 }
@@ -259,9 +265,9 @@ export function resolveLaunchTarget(
   const resolveInstalledNativeBinaryFn =
     options.resolveInstalledNativeBinary ?? resolveInstalledNativeBinary;
   // Same-version packaged native binaries are preferred by default once they
-  // pass the checksum/version gates. ENABLE_NATIVE remains as a compatibility
-  // alias for callers that already exported it during preview rollouts.
-  void env[ENV_CLI_ENABLE_NATIVE];
+  // pass the checksum/version gates. Keep reading the legacy preview opt-in so
+  // older automation can continue exporting it as a benign no-op.
+  void usesLegacyNativePreviewOptIn(env);
   const nativeBinary = resolveInstalledNativeBinaryFn(pkg);
   if (nativeBinary) {
     return {
