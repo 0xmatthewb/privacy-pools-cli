@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setupSharedAnvilFixture } from "./anvil-shared-fixture.mjs";
+import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -24,7 +25,8 @@ const TEST_FILES = [
 ];
 
 const extraArgs = process.argv.slice(2);
-const sharedFixture = await setupSharedAnvilFixture();
+const runnerEnv = buildTestRunnerEnv();
+const sharedFixture = await setupSharedAnvilFixture({ baseEnv: runnerEnv });
 let result;
 try {
   result = spawnSync(
@@ -38,12 +40,11 @@ try {
     ],
     {
       stdio: "inherit",
-      env: {
-        ...process.env,
+      env: buildTestRunnerEnv({
         PP_ANVIL_E2E: "1",
         PP_ANVIL_SHARED_CIRCUITS_DIR: sharedFixture.sharedCircuitsDir,
         PP_ANVIL_SHARED_ENV_FILE: sharedFixture.envFile,
-      },
+      }, runnerEnv),
     }
   );
 } finally {

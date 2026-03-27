@@ -272,7 +272,7 @@ async function waitForRpc(rpcUrl) {
   throw lastError ?? new Error("Timed out waiting for Anvil RPC");
 }
 
-async function launchAnvil() {
+async function launchAnvil(baseEnv = process.env) {
   const port = await getFreePort();
   const url = `http://127.0.0.1:${port}`;
   const proc = spawn("anvil", [
@@ -285,7 +285,7 @@ async function launchAnvil() {
     "--silent",
   ], {
     stdio: ["ignore", "ignore", "pipe"],
-    env: process.env,
+    env: baseEnv,
   });
 
   let recentStderr = "";
@@ -690,11 +690,11 @@ function waitForServerPort(proc, pattern, label) {
   });
 }
 
-function launchBunServer(scriptPath, env, label) {
+function launchBunServer(scriptPath, env, label, baseEnv = process.env) {
   const proc = spawn("bun", ["run", scriptPath], {
     cwd: ROOT,
     env: {
-      ...process.env,
+      ...baseEnv,
       ...env,
     },
     stdio: ["ignore", "pipe", "ignore"],
@@ -711,15 +711,16 @@ function launchBunServer(scriptPath, env, label) {
   }));
 }
 
-export async function setupSharedAnvilFixture() {
+export async function setupSharedAnvilFixture(options = {}) {
+  const baseEnv = options.baseEnv ?? process.env;
   const stateRoot = mkdtempSync(join(tmpdir(), "pp-anvil-shared-"));
-  const sharedCircuitsDir = process.env.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim()
+  const sharedCircuitsDir = baseEnv.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim()
     || mkdtempSync(join(tmpdir(), "pp-anvil-circuits-"));
   const aspStateFile = join(stateRoot, "asp-state.json");
   const resetStateFile = join(stateRoot, "reset-state.json");
   const envFile = join(stateRoot, "env.json");
 
-  const anvil = await launchAnvil();
+  const anvil = await launchAnvil(baseEnv);
   let aspServer = null;
   let relayerServer = null;
 
@@ -761,6 +762,7 @@ export async function setupSharedAnvilFixture() {
       ASP_SERVER_SCRIPT,
       { PP_ANVIL_ASP_STATE_FILE: aspStateFile },
       "asp",
+      baseEnv,
     );
     relayerServer = await launchBunServer(
       RELAYER_SERVER_SCRIPT,
@@ -789,6 +791,7 @@ export async function setupSharedAnvilFixture() {
         }),
       },
       "relayer",
+      baseEnv,
     );
 
     const initialSnapshotId = await rpc(anvil.url, "evm_snapshot");
@@ -837,7 +840,7 @@ export async function setupSharedAnvilFixture() {
           terminateChild(anvil.proc),
         ]);
         rmSync(stateRoot, { recursive: true, force: true });
-        if (!process.env.PP_ANVIL_SHARED_CIRCUITS_DIR) {
+        if (!baseEnv.PP_ANVIL_SHARED_CIRCUITS_DIR) {
           rmSync(sharedCircuitsDir, { recursive: true, force: true });
         }
       },
@@ -849,7 +852,7 @@ export async function setupSharedAnvilFixture() {
       terminateChild(anvil.proc),
     ]);
     rmSync(stateRoot, { recursive: true, force: true });
-    if (!process.env.PP_ANVIL_SHARED_CIRCUITS_DIR) {
+    if (!baseEnv.PP_ANVIL_SHARED_CIRCUITS_DIR) {
       rmSync(sharedCircuitsDir, { recursive: true, force: true });
     }
     throw error;

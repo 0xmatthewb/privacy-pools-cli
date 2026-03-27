@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setupSharedAnvilFixture } from "./anvil-shared-fixture.mjs";
+import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -24,13 +25,13 @@ const smokePattern = [
   "flow start -> approved watch -> completed",
 ].join("|");
 
-const sharedFixture = await setupSharedAnvilFixture();
-const sharedEnv = {
-  ...process.env,
+const runnerEnv = buildTestRunnerEnv();
+const sharedFixture = await setupSharedAnvilFixture({ baseEnv: runnerEnv });
+const sharedEnv = buildTestRunnerEnv({
   PP_ANVIL_E2E: "1",
   PP_ANVIL_SHARED_CIRCUITS_DIR: sharedFixture.sharedCircuitsDir,
   PP_ANVIL_SHARED_ENV_FILE: sharedFixture.envFile,
-};
+}, runnerEnv);
 
 let result;
 let installedArtifactResult;

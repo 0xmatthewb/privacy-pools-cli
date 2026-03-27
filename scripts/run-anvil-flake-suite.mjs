@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -17,7 +18,7 @@ function run(iteration) {
   const result = spawnSync(npmCommand, ["run", "test:e2e:anvil:smoke"], {
     cwd: ROOT,
     stdio: "inherit",
-    env: process.env,
+    env: buildTestRunnerEnv(),
   });
 
   if (result.error) {

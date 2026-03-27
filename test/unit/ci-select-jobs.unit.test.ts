@@ -269,6 +269,14 @@ describe("ci job selection", () => {
     expect(conformanceDecision.reason).toContain(
       "test/conformance/root-help-static.conformance.test.ts",
     );
+
+    const runnerEnvDecision = evaluateJobSelection({
+      job: "coverage-guard",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-runner-env.mjs"],
+    });
+    expect(runnerEnvDecision.shouldRun).toBe(true);
+    expect(runnerEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
   });
 
   test("docs-only changes do not fan out to expensive native matrices", () => {
@@ -334,6 +342,14 @@ describe("ci job selection", () => {
     });
     expect(runnerDecision.shouldRun).toBe(true);
     expect(runnerDecision.reason).toContain("scripts/run-bun-tests.mjs");
+
+    const envDecision = evaluateJobSelection({
+      job: "packaged-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-runner-env.mjs"],
+    });
+    expect(envDecision.shouldRun).toBe(true);
+    expect(envDecision.reason).toContain("scripts/test-runner-env.mjs");
   });
 
   test("native package smoke matrices run when the shared bun runner changes", () => {
@@ -360,6 +376,30 @@ describe("ci job selection", () => {
     });
     expect(crossPlatformDecision.shouldRun).toBe(true);
     expect(crossPlatformDecision.reason).toContain("scripts/run-bun-tests.mjs");
+
+    const envDecision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-runner-env.mjs"],
+    });
+    expect(envDecision.shouldRun).toBe(true);
+    expect(envDecision.reason).toContain("scripts/test-runner-env.mjs");
+
+    const supportedEnvDecision = evaluateJobSelection({
+      job: "supported-native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-runner-env.mjs"],
+    });
+    expect(supportedEnvDecision.shouldRun).toBe(true);
+    expect(supportedEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
+
+    const crossPlatformEnvDecision = evaluateJobSelection({
+      job: "cross-platform",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-runner-env.mjs"],
+    });
+    expect(crossPlatformEnvDecision.shouldRun).toBe(true);
+    expect(crossPlatformEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
   });
 
   test("anvil lanes run when shared CLI helpers change", () => {
@@ -378,6 +418,30 @@ describe("ci job selection", () => {
     });
     expect(fullDecision.shouldRun).toBe(true);
     expect(fullDecision.reason).toContain("test/helpers/cli.ts");
+
+    const smokeEnvDecision = evaluateJobSelection({
+      job: "anvil-e2e-smoke",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-runner-env.mjs"],
+    });
+    expect(smokeEnvDecision.shouldRun).toBe(true);
+    expect(smokeEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
+
+    const fullEnvDecision = evaluateJobSelection({
+      job: "full-anvil",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-runner-env.mjs"],
+    });
+    expect(fullEnvDecision.shouldRun).toBe(true);
+    expect(fullEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
+
+    const flakeEnvDecision = evaluateJobSelection({
+      job: "flake-anvil",
+      eventName: "pull_request",
+      changedFiles: ["scripts/test-runner-env.mjs"],
+    });
+    expect(flakeEnvDecision.shouldRun).toBe(true);
+    expect(flakeEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
   });
 
   test("packaged and native lanes run for shipped runtime contract docs", () => {
