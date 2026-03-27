@@ -44,6 +44,30 @@ function parseJson(stdout, label) {
   }
 }
 
+function resolveInstalledCliEntryPath(installRoot) {
+  const installedPackageJsonPath = join(
+    installRoot,
+    "node_modules",
+    rootPackageJson.name,
+    "package.json",
+  );
+  const installedPackageJson = JSON.parse(
+    readFileSync(installedPackageJsonPath, "utf8"),
+  );
+  const binEntry =
+    typeof installedPackageJson.bin === "string"
+      ? installedPackageJson.bin
+      : installedPackageJson.bin?.["privacy-pools"];
+
+  if (!binEntry) {
+    fail(
+      `Installed release CLI is missing the privacy-pools bin entry in ${installedPackageJsonPath}.`,
+    );
+  }
+
+  return resolve(dirname(installedPackageJsonPath), binEntry);
+}
+
 function runCli(cliEntryPath, installRoot, homeDir, args, options = {}) {
   const result = spawnSync(process.execPath, [cliEntryPath, ...args], {
     cwd: installRoot,
@@ -82,13 +106,6 @@ const nativeTarballPath = resolve(nativeTarball);
 const installRoot = mkdtempSync(join(tmpdir(), "pp-release-install-"));
 const npmCacheDir = join(installRoot, ".npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-const cliEntryPath = join(
-  installRoot,
-  "node_modules",
-  rootPackageJson.name,
-  "dist",
-  "index.js",
-);
 const homeDir = join(installRoot, ".privacy-pools");
 
 try {
@@ -136,6 +153,11 @@ try {
       `Failed to install release tarballs:\n${installResult.stderr}\n${installResult.stdout}`,
     );
   }
+
+  // Resolve the root package's installed bin target from its own package.json.
+  // The optional native package also publishes a privacy-pools bin name, so the
+  // shared .bin shim is ambiguous once both tarballs are installed together.
+  const cliEntryPath = resolveInstalledCliEntryPath(installRoot);
 
   const versionResult = runCli(cliEntryPath, installRoot, homeDir, ["--version"]);
   if (versionResult.status !== 0 || versionResult.stdout.trim() !== expectedVersion) {
