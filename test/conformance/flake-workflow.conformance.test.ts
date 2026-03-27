@@ -7,6 +7,10 @@ const flakeWorkflow = readFileSync(
   join(CLI_ROOT, ".github", "workflows", "flake.yml"),
   "utf8",
 );
+const flakeAnvilWorkflow = readFileSync(
+  join(CLI_ROOT, ".github", "workflows", "flake-anvil.yml"),
+  "utf8",
+);
 const packageJson = JSON.parse(
   readFileSync(join(CLI_ROOT, "package.json"), "utf8"),
 ) as {
@@ -26,5 +30,17 @@ describe("flake workflow conformance", () => {
     expect(flakeWorkflow).toContain("PP_FLAKE_SEED:");
     expect(flakeWorkflow).not.toContain("Run randomized suite");
     expect(flakeWorkflow).not.toContain("Re-run stateful suites");
+  });
+
+  test("anvil flake workflow keeps the heavier shared-state reruns separate", () => {
+    expect(packageJson.scripts?.["test:flake:anvil"]).toBe(
+      "node scripts/run-anvil-flake-suite.mjs",
+    );
+    expect(flakeAnvilWorkflow).toContain("Run shared-Anvil flake suite");
+    expect(flakeAnvilWorkflow).toContain("run: npm run test:flake:anvil");
+    expect(flakeAnvilWorkflow).toContain("Select flake-anvil");
+    expect(flakeAnvilWorkflow).toContain("Install Foundry");
+    expect(flakeAnvilWorkflow).toContain("Setup Rust");
+    expect(flakeAnvilWorkflow).toContain("PP_CONTRACTS_ROOT:");
   });
 });

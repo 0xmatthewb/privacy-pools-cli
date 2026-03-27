@@ -1,0 +1,110 @@
+# Anvil Flake — heavier shared-state reruns for the representative smoke lane.
+#
+# WHEN does this run?
+#   - Every pull request (changed-path selected)
+#   - Daily on schedule
+#   - Manually via the "Run workflow" button
+#
+# WHAT does it do?
+#   - Runs the shared-Anvil smoke lane twice through `npm run test:flake:anvil`
+#   - Re-exercises native launcher, packaged install, and fund-moving smoke paths
+#   - Keeps the lighter Bun-native flake workflow focused on fast subprocess suites
+#
+# WHY separate?
+#   Stateful Anvil reruns are valuable, but they are slower and provision Foundry,
+#   contracts, and Rust. Keeping them in their own informational lane preserves
+#   quick feedback while still surfacing stateful flakes before release day.
+
+name: Anvil Flake Detection
+
+on:
+  pull_request:
+  schedule:
+    - cron: "43 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flake-anvil-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flake-anvil:
+    name: flake-anvil
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+
+      - name: Select flake-anvil
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job flake-anvil >> "$GITHUB_OUTPUT"
+
+      - name: Skip flake-anvil
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping flake-anvil: ${{ steps.select.outputs.reason }}"
+
+      - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Setup Rust
+        if: steps.select.outputs.should_run == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Foundry
+        if: steps.select.outputs.should_run == 'true'
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: true
+
+      - name: Checkout contracts
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: 0xmatthewb/privacy-pools-core
+          ref: a80836a47451e662f127af17e11430ffa976c234
+          path: privacy-pools-core
+
+      - name: Install contract dependencies
+        if: steps.select.outputs.should_run == 'true'
+        working-directory: privacy-pools-core/packages/contracts
+        run: |
+          corepack enable
+          yarn --frozen-lockfile --network-concurrency 1
+
+      - name: Normalize contract remappings
+        if: steps.select.outputs.should_run == 'true'
+        working-directory: privacy-pools-core/packages/contracts
+        run: |
+          ln -sfn @zk-kit/lean-imt.sol ../../node_modules/lean-imt
+          sed -i.bak 's#^lean-imt/=.*$#lean-imt/=../../node_modules/lean-imt/#' remappings.txt
+          rm -f remappings.txt.bak
+
+      - name: Build contract artifacts
+        if: steps.select.outputs.should_run == 'true'
+        working-directory: privacy-pools-core/packages/contracts
+        run: forge build
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Run shared-Anvil flake suite
+        if: steps.select.outputs.should_run == 'true'
+        env:
+          PP_CONTRACTS_ROOT: ${{ github.workspace }}/privacy-pools-core/packages/contracts
+        run: npm run test:flake:anvil

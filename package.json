@@ -46,6 +46,7 @@
     "test:smoke:native:package": "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000",
     "test:evals": "node scripts/run-bun-tests.mjs ./test/evals --timeout 120000",
     "test:flake": "node scripts/run-flake-suite.mjs",
+    "test:flake:anvil": "node scripts/run-anvil-flake-suite.mjs",
     "test:e2e:anvil": "node scripts/run-anvil-tests.mjs",
     "test:e2e:anvil:smoke": "node scripts/run-anvil-smoke.mjs",
     "discovery:generate": "bun run build && node scripts/generate-command-discovery-static.mjs",

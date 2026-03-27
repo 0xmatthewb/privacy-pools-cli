@@ -321,6 +321,9 @@ jobs:
   # Stage 5: Publish the root JS launcher package to npm
   # This only runs after the native packages are live so installs can
   # resolve the exact-version optional native package immediately.
+  # GitHub schedules this by `needs`, so the root publish job can stay near the
+  # registry verification steps even though the native publish job is declared
+  # later in this file.
   # -----------------------------------------------------------
   publish-root:
     name: publish-root

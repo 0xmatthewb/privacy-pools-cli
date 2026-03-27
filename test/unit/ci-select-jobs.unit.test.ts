@@ -49,6 +49,17 @@ describe("ci job selection", () => {
     expect(decision.reason).toContain("src/commands/withdraw.ts");
   });
 
+  test("anvil flake lane follows shared-anvil changed-path filtering on pull requests", () => {
+    const decision = evaluateJobSelection({
+      job: "flake-anvil",
+      eventName: "pull_request",
+      changedFiles: ["test/helpers/shared-anvil.ts"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("test/helpers/shared-anvil.ts");
+  });
+
   test("npm-test follows the core changed-path filtering on pull requests", () => {
     const decision = evaluateJobSelection({
       job: "npm-test",

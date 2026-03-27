@@ -54,5 +54,8 @@ describe("package scripts conformance", () => {
     expect(packageJson.scripts?.["test:flake"]).toBe(
       "node scripts/run-flake-suite.mjs",
     );
+    expect(packageJson.scripts?.["test:flake:anvil"]).toBe(
+      "node scripts/run-anvil-flake-suite.mjs",
+    );
   });
 });

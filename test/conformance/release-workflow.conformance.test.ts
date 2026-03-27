@@ -74,6 +74,9 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain("windows-11-arm");
     expect(ciWorkflow).toContain("macos-15-intel");
     expect(ciWorkflow).toContain("node scripts/verify-release-install.mjs");
+    expect(extractCrossPlatformLabels(ciWorkflow)).toEqual(
+      expectedNativeTriplets(),
+    );
   });
 
   test("anvil smoke provisions rust for installed root-plus-native verification", () => {

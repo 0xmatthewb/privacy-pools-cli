@@ -134,9 +134,11 @@ CI notes:
 
 - `scripts/ci/test-shards.mjs` uses `scripts/ci/test-shard-weights.json` for deterministic runtime-aware shard balancing.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
+- `.github/workflows/flake-anvil.yml` is the separate heavier flake lane for shared-Anvil smoke reruns. It is informational and changed-path selected on pull requests so the fast flake job stays lightweight.
 - `npm run test:ci` now includes the current-host packed-artifact install check so local verification exercises the same installed launcher/native path that blocking CI enforces on supported targets.
 - `npm run test:release` adds the same current-host artifact check plus `npm run bench:gate:release`, matching the release workflow's pinned performance gate.
 - `npm run test:smoke:native:package` is the packaged native smoke lane. `npm run test:artifacts:host` is the installed-artifact lane. `npm run test:smoke:native` remains as a compatibility alias for the packaged smoke lane.
+- `npm run test:flake:anvil` reruns the representative Anvil smoke suite so stateful/native/install paths get nightly flake coverage without inflating the required CI lane.
 
 ## Runtime Upgrade Playbook
 
