@@ -7,7 +7,7 @@ node scripts/bench-cli.mjs
 node scripts/bench-cli.mjs --base origin/main
 node scripts/bench-cli.mjs --base origin/main --runs 12
 node scripts/bench-cli.mjs --runtime native
-node scripts/bench-cli.mjs --runtime launcher-native
+node scripts/bench-cli.mjs --runtime launcher-binary-override
 node scripts/bench-cli.mjs --runtime both --runs 6
 node scripts/bench-cli.mjs --runtime all --runs 6
 npm run bench:gate
@@ -19,11 +19,13 @@ median timing deltas. Base timings always use the JS fallback path so native
 preview branches can be compared directly against the current npm baseline.
 
 Use `--runtime js` for the pure JS launcher path, `--runtime native` for the
-direct Rust shell path, `--runtime launcher-native` for the shipped JS launcher
-plus native shell path, `--runtime both` to print the JS and direct-native
-lanes together, or `--runtime all` to print every lane in one report. The
-`launcher-native` lane disables the local JS fast paths so it measures the real
-launcher to native-shell handoff instead of the root-command short-circuits.
+direct Rust shell path, `--runtime launcher-binary-override` for the current
+checkout's launcher path with local JS fast paths disabled and native handoff
+forced on, `--runtime both` to print the JS and direct-native lanes together,
+or `--runtime all` to print every lane in one report. The
+`launcher-binary-override` lane keeps launcher overhead visible instead of
+short-circuiting through local root fast paths. `launcher-native` remains
+accepted as a backward-compatible alias.
 
 The `js` lane still includes `status --json --no-check`, but that command is
 intentionally JS-owned for the fund-safety boundary and is not part of the
@@ -53,7 +55,7 @@ The default command matrix covers:
 
 The enforced `bench:gate` thresholds apply to the direct native shell targets
 from the roadmap: root help/version/discovery, heavy subcommand help, and the
-native-owned public read-only commands. The `launcher-native` lane is
+native-owned public read-only commands. The `launcher-binary-override` lane is
 informational and helps track the extra Node launcher overhead above the direct
 Rust shell. The JS-owned `status --json --no-check` benchmark remains in the
 report for visibility, but it is intentionally informational-only under the

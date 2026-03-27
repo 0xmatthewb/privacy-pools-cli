@@ -6,8 +6,9 @@
 #   - Manually via the "Run workflow" button
 #
 # WHAT does it do?
-#   Builds the current checkout, runs the benchmark harness in both JS and
-#   native modes against `origin/main`, and uploads the timing report.
+#   Builds the current checkout, runs the benchmark harness across the JS,
+#   launcher-binary-override, and direct-native lanes against `origin/main`,
+#   and uploads the timing report.
 #
 # WHERE do results show up?
 #   - The Actions step summary shows the benchmark table inline
@@ -65,7 +66,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run benchmark harness
-        run: node scripts/bench-cli.mjs --runtime both --base origin/main --runs 6 --warmup 1 | tee native-bench.txt
+        run: node scripts/bench-cli.mjs --runtime all --base origin/main --runs 6 --warmup 1 | tee native-bench.txt
 
       - name: Publish benchmark summary
         shell: bash

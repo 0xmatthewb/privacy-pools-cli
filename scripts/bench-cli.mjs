@@ -16,7 +16,16 @@ const DEFAULT_BASE_REF = "origin/main";
 const DEFAULT_RUNS = 10;
 const DEFAULT_WARMUP = 1;
 const DEFAULT_RUNTIME = "js";
-const SUPPORTED_RUNTIMES = ["js", "native", "launcher-native", "both", "all"];
+const LEGACY_LAUNCHER_NATIVE_RUNTIME = "launcher-native";
+const LAUNCHER_BINARY_OVERRIDE_RUNTIME = "launcher-binary-override";
+const SUPPORTED_RUNTIMES = [
+  "js",
+  "native",
+  LAUNCHER_BINARY_OVERRIDE_RUNTIME,
+  LEGACY_LAUNCHER_NATIVE_RUNTIME,
+  "both",
+  "all",
+];
 
 const STRIPPED_ENV_PREFIXES = ["PRIVACY_POOLS_", "PP_"];
 
@@ -104,7 +113,7 @@ function sanitizedProcessEnv() {
 function printUsageAndExit(exitCode = 0) {
   process.stdout.write(
     [
-      "Usage: node scripts/bench-cli.mjs [--base <ref>] [--runs <n>] [--warmup <n>] [--runtime <js|native|launcher-native|both|all>]",
+      "Usage: node scripts/bench-cli.mjs [--base <ref>] [--runs <n>] [--warmup <n>] [--runtime <js|native|launcher-binary-override|both|all>]",
       "",
       "Compares the current checkout against a git ref by building both and timing",
       "a small read-only command matrix.",
@@ -112,14 +121,16 @@ function printUsageAndExit(exitCode = 0) {
       "can be measured directly against the current npm baseline. The native",
       "lane executes the Rust shell directly to reflect the roadmap's shell",
       "performance targets without Node launcher startup overhead. The",
-      "launcher-native lane disables local JS fast paths so it measures the",
-      "real shipped launcher -> native shell path.",
+      "launcher-binary-override lane disables local JS fast paths and forces",
+      "the current checkout launcher to hand off to a native binary override,",
+      "so launcher overhead remains visible in the report.",
+      `Use ${LEGACY_LAUNCHER_NATIVE_RUNTIME} as a backward-compatible alias.`,
       "",
       "Options:",
       `  --base <ref>    Git ref to compare against, or 'self' to compare native against the current JS fallback (default: ${DEFAULT_BASE_REF})`,
       `  --runs <n>      Timed runs per command (default: ${DEFAULT_RUNS})`,
       `  --warmup <n>    Warmup runs before timing (default: ${DEFAULT_WARMUP})`,
-      `  --runtime <m>   Current checkout runtime: js, native, launcher-native, both, or all (default: ${DEFAULT_RUNTIME})`,
+      `  --runtime <m>   Current checkout runtime: js, native, launcher-binary-override, both, or all (default: ${DEFAULT_RUNTIME})`,
       "  --assert-thresholds <path>  Fail if benchmark thresholds are missed",
       "  --help          Show this message",
       "",
@@ -129,11 +140,17 @@ function printUsageAndExit(exitCode = 0) {
       "  node scripts/bench-cli.mjs --base self --runtime native",
       "  node scripts/bench-cli.mjs --runtime native",
       "  node scripts/bench-cli.mjs --runtime both --runs 6",
-      "  node scripts/bench-cli.mjs --runtime launcher-native --runs 6",
+      "  node scripts/bench-cli.mjs --runtime launcher-binary-override --runs 6",
       "  node scripts/bench-cli.mjs --runtime all --runs 6",
     ].join("\n") + "\n",
   );
   process.exit(exitCode);
+}
+
+function normalizeRuntime(value) {
+  return value === LEGACY_LAUNCHER_NATIVE_RUNTIME
+    ? LAUNCHER_BINARY_OVERRIDE_RUNTIME
+    : value;
 }
 
 function parseInteger(value, flagName) {
@@ -193,12 +210,12 @@ function parseArgs(argv) {
     if (token === "--runtime") {
       const value = argv[i + 1];
       if (!value) throw new Error("--runtime requires a value");
-      options.runtime = value;
+      options.runtime = normalizeRuntime(value);
       i += 1;
       continue;
     }
     if (token.startsWith("--runtime=")) {
-      options.runtime = token.slice("--runtime=".length);
+      options.runtime = normalizeRuntime(token.slice("--runtime=".length));
       continue;
     }
     if (token === "--assert-thresholds") {
@@ -481,12 +498,15 @@ try {
         commandArgs.runtime === "both"
           ? ["js", "native"]
           : commandArgs.runtime === "all"
-            ? ["js", "launcher-native", "native"]
+            ? ["js", LAUNCHER_BINARY_OVERRIDE_RUNTIME, "native"]
             : [commandArgs.runtime];
       let currentNativeBinary = null;
       const thresholdFailures = [];
 
-      if (runtimes.includes("native") || runtimes.includes("launcher-native")) {
+      if (
+        runtimes.includes("native") ||
+        runtimes.includes(LAUNCHER_BINARY_OVERRIDE_RUNTIME)
+      ) {
         assertNativeSupported();
         buildNativeShell(repoRoot);
         currentNativeBinary = nativeShellBinaryPath(repoRoot);
@@ -523,12 +543,12 @@ try {
               ? command.env({ fixtureUrl: fixture.url })
               : {};
           const currentEnv =
-            runtime === "native" || runtime === "launcher-native"
+            runtime === "native" || runtime === LAUNCHER_BINARY_OVERRIDE_RUNTIME
               ? withRepoBinPath(
                   {
                     ...extraEnv,
                     PRIVACY_POOLS_CLI_BINARY: currentNativeBinary,
-                    ...(runtime === "launcher-native"
+                    ...(runtime === LAUNCHER_BINARY_OVERRIDE_RUNTIME
                       ? { PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH: "1" }
                       : {}),
                   },
@@ -565,9 +585,9 @@ try {
             const currentRunner =
               runtime === "native"
                 ? { command: currentNativeBinary, prefixArgs: [] }
-                : runtime === "launcher-native"
+                : runtime === LAUNCHER_BINARY_OVERRIDE_RUNTIME
                   ? { command: process.execPath, prefixArgs: [currentDist] }
-                : { command: process.execPath, prefixArgs: [currentDist] };
+                  : { command: process.execPath, prefixArgs: [currentDist] };
             const current = runBench(
               currentRunner.command,
               currentRunner.prefixArgs,
