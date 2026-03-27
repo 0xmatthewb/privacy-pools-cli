@@ -7,7 +7,9 @@ node scripts/bench-cli.mjs
 node scripts/bench-cli.mjs --base origin/main
 node scripts/bench-cli.mjs --base origin/main --runs 12
 node scripts/bench-cli.mjs --runtime native
+node scripts/bench-cli.mjs --runtime launcher-native
 node scripts/bench-cli.mjs --runtime both --runs 6
+node scripts/bench-cli.mjs --runtime all --runs 6
 npm run bench:gate
 npm run bench:gate:release
 ```
@@ -17,7 +19,9 @@ median timing deltas. Base timings always use the JS fallback path so native
 preview branches can be compared directly against the current npm baseline.
 
 Use `--runtime js` for the pure JS launcher path, `--runtime native` for the
-direct Rust shell path, or `--runtime both` to print both lanes in one report.
+direct Rust shell path, `--runtime launcher-native` for the shipped JS launcher
+plus native shell path, `--runtime both` to print the JS and direct-native
+lanes together, or `--runtime all` to print every lane in one report.
 
 The `js` lane still includes `status --json --no-check`, but that command is
 intentionally JS-owned for the fund-safety boundary and is not part of the
@@ -46,9 +50,11 @@ The default command matrix covers:
 
 The enforced `bench:gate` thresholds apply to the direct native shell targets
 from the roadmap: root help/version/discovery, heavy subcommand help, and the
-native-owned public read-only commands. The JS-owned `status --json --no-check`
-benchmark remains in the report for visibility, but it is intentionally
-informational-only under the current safety boundary.
+native-owned public read-only commands. The `launcher-native` lane is
+informational and helps track the extra Node launcher overhead above the direct
+Rust shell. The JS-owned `status --json --no-check` benchmark remains in the
+report for visibility, but it is intentionally informational-only under the
+current safety boundary.
 
 The local `bench:gate` script compares the direct native shell against the
 current checkout's JS fallback path. `bench:gate:release` is the pinned

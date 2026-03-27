@@ -16,6 +16,7 @@ const DEFAULT_BASE_REF = "origin/main";
 const DEFAULT_RUNS = 10;
 const DEFAULT_WARMUP = 1;
 const DEFAULT_RUNTIME = "js";
+const SUPPORTED_RUNTIMES = ["js", "native", "launcher-native", "both", "all"];
 
 const STRIPPED_ENV_PREFIXES = ["PRIVACY_POOLS_", "PP_"];
 
@@ -95,7 +96,7 @@ function sanitizedProcessEnv() {
 function printUsageAndExit(exitCode = 0) {
   process.stdout.write(
     [
-      "Usage: node scripts/bench-cli.mjs [--base <ref>] [--runs <n>] [--warmup <n>] [--runtime <js|native|both>]",
+      "Usage: node scripts/bench-cli.mjs [--base <ref>] [--runs <n>] [--warmup <n>] [--runtime <js|native|launcher-native|both|all>]",
       "",
       "Compares the current checkout against a git ref by building both and timing",
       "a small read-only command matrix.",
@@ -108,7 +109,7 @@ function printUsageAndExit(exitCode = 0) {
       `  --base <ref>    Git ref to compare against, or 'self' to compare native against the current JS fallback (default: ${DEFAULT_BASE_REF})`,
       `  --runs <n>      Timed runs per command (default: ${DEFAULT_RUNS})`,
       `  --warmup <n>    Warmup runs before timing (default: ${DEFAULT_WARMUP})`,
-      `  --runtime <m>   Current checkout runtime: js, native, or both (default: ${DEFAULT_RUNTIME})`,
+      `  --runtime <m>   Current checkout runtime: js, native, launcher-native, both, or all (default: ${DEFAULT_RUNTIME})`,
       "  --assert-thresholds <path>  Fail if benchmark thresholds are missed",
       "  --help          Show this message",
       "",
@@ -118,6 +119,8 @@ function printUsageAndExit(exitCode = 0) {
       "  node scripts/bench-cli.mjs --base self --runtime native",
       "  node scripts/bench-cli.mjs --runtime native",
       "  node scripts/bench-cli.mjs --runtime both --runs 6",
+      "  node scripts/bench-cli.mjs --runtime launcher-native --runs 6",
+      "  node scripts/bench-cli.mjs --runtime all --runs 6",
     ].join("\n") + "\n",
   );
   process.exit(exitCode);
@@ -202,8 +205,10 @@ function parseArgs(argv) {
     throw new Error(`Unknown argument: ${token}`);
   }
 
-  if (!["js", "native", "both"].includes(options.runtime)) {
-    throw new Error("--runtime must be one of: js, native, both");
+  if (!SUPPORTED_RUNTIMES.includes(options.runtime)) {
+    throw new Error(
+      `--runtime must be one of: ${SUPPORTED_RUNTIMES.join(", ")}`,
+    );
   }
 
   return options;
@@ -463,11 +468,15 @@ try {
       const currentBaseEnv = withRepoBinPath();
       const baselineBaseEnv = withRepoBinPath();
       const runtimes =
-        commandArgs.runtime === "both" ? ["js", "native"] : [commandArgs.runtime];
+        commandArgs.runtime === "both"
+          ? ["js", "native"]
+          : commandArgs.runtime === "all"
+            ? ["js", "launcher-native", "native"]
+            : [commandArgs.runtime];
       let currentNativeBinary = null;
       const thresholdFailures = [];
 
-      if (runtimes.includes("native")) {
+      if (runtimes.includes("native") || runtimes.includes("launcher-native")) {
         assertNativeSupported();
         buildNativeShell(repoRoot);
         currentNativeBinary = nativeShellBinaryPath(repoRoot);
@@ -504,7 +513,7 @@ try {
               ? command.env({ fixtureUrl: fixture.url })
               : {};
           const currentEnv =
-            runtime === "native"
+            runtime === "native" || runtime === "launcher-native"
               ? withRepoBinPath(
                   {
                     ...extraEnv,
@@ -543,6 +552,8 @@ try {
             const currentRunner =
               runtime === "native"
                 ? { command: currentNativeBinary, prefixArgs: [] }
+                : runtime === "launcher-native"
+                  ? { command: process.execPath, prefixArgs: [currentDist] }
                 : { command: process.execPath, prefixArgs: [currentDist] };
             const current = runBench(
               currentRunner.command,
