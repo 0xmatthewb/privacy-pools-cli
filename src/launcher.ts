@@ -19,9 +19,9 @@ const ENV_CLI_DISABLE_NATIVE = "PRIVACY_POOLS_CLI_DISABLE_NATIVE";
 const ENV_CLI_ENABLE_NATIVE = "PRIVACY_POOLS_CLI_ENABLE_NATIVE";
 const ENV_CLI_JS_WORKER = "PRIVACY_POOLS_CLI_JS_WORKER";
 const ENV_INTERNAL_JS_WORKER_COMMAND =
-  "PRIVACY_POOLS_CLI_JS_WORKER_COMMAND";
+  "PRIVACY_POOLS_INTERNAL_JS_WORKER_COMMAND";
 const ENV_INTERNAL_JS_WORKER_ARGS_B64 =
-  "PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64";
+  "PRIVACY_POOLS_INTERNAL_JS_WORKER_ARGS_B64";
 
 const STATIC_DISCOVERY_COMMANDS = new Set<string>(
   [...GENERATED_STATIC_LOCAL_COMMANDS].filter((command) => command !== "completion"),
@@ -180,11 +180,10 @@ function createNativeForwardingEnv(
   return {
     ...env,
     [ENV_CLI_JS_WORKER]: workerPath,
-    [ENV_INTERNAL_JS_WORKER_COMMAND]:
-      env[ENV_INTERNAL_JS_WORKER_COMMAND]?.trim() || process.execPath,
-    [ENV_INTERNAL_JS_WORKER_ARGS_B64]:
-      env[ENV_INTERNAL_JS_WORKER_ARGS_B64]?.trim() ||
-      encodeJsWorkerArgs(defaultJsWorkerArgs(workerPath)),
+    [ENV_INTERNAL_JS_WORKER_COMMAND]: process.execPath,
+    [ENV_INTERNAL_JS_WORKER_ARGS_B64]: encodeJsWorkerArgs(
+      defaultJsWorkerArgs(workerPath),
+    ),
   };
 }
 

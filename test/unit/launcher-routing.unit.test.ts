@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { launcherTestInternals } from "../../src/launcher.ts";
 import { decodeWorkerRequestV1 } from "../../src/runtime/v1/request.ts";
+import { createTrackedTempDir } from "../helpers/temp.ts";
 
 const PKG = { version: "1.7.0" };
 
@@ -61,8 +61,32 @@ describe("launcher routing", () => {
     expect(target.kind).toBe("native-binary");
     expect(target.command).toBe("/tmp/privacy-pools-native");
     expect(target.args).toEqual(["status", "--json"]);
-    expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_COMMAND).toBe(process.execPath);
-    expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64).toBeTruthy();
+    expect(target.env.PRIVACY_POOLS_INTERNAL_JS_WORKER_COMMAND).toBe(
+      process.execPath,
+    );
+    expect(target.env.PRIVACY_POOLS_INTERNAL_JS_WORKER_ARGS_B64).toBeTruthy();
+  });
+
+  test("native forwarding keeps the public CLI env surface limited to documented keys", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      PKG,
+      ["status", "--json"],
+      {
+        PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+      },
+    );
+
+    expect(target.kind).toBe("native-binary");
+
+    const cliEnvNames = Object.keys(target.env)
+      .filter((name) => name.startsWith("PRIVACY_POOLS_CLI_"))
+      .sort();
+    expect(cliEnvNames).toEqual([
+      "PRIVACY_POOLS_CLI_BINARY",
+      "PRIVACY_POOLS_CLI_JS_WORKER",
+    ]);
+    expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_COMMAND).toBeUndefined();
+    expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER_ARGS_B64).toBeUndefined();
   });
 
   test("prefers an installed same-version native package by default", () => {
@@ -81,7 +105,7 @@ describe("launcher routing", () => {
   });
 
   test("resolves an installed native binary only on exact version match", () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "pp-native-pkg-"));
+    const tempDir = createTrackedTempDir("pp-native-pkg-");
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
     const binPath = join(binDir, "privacy-pools");
@@ -131,7 +155,7 @@ describe("launcher routing", () => {
   });
 
   test("rejects installed native binaries with a checksum mismatch", () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "pp-native-pkg-bad-"));
+    const tempDir = createTrackedTempDir("pp-native-pkg-bad-");
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
     mkdirSync(binDir, { recursive: true });

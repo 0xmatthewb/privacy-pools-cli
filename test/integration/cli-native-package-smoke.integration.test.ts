@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
+import { renameSync } from "node:fs";
 import { join } from "node:path";
 import {
   TEST_MNEMONIC,
@@ -97,6 +98,33 @@ describe("native package smoke", () => {
     );
     expect(payload.success).toBe(true);
     expect(payload.defaultChain).toBe("sepolia");
+  });
+
+  nativePackageSmokeTest("packaged native selection survives even when the JS stats handler is unavailable", () => {
+    const statsHandlerPath = join(snapshotRoot, "dist", "commands", "stats.js");
+    const statsHandlerBackupPath = `${statsHandlerPath}.bak`;
+    renameSync(statsHandlerPath, statsHandlerBackupPath);
+
+    try {
+      const result = runBuiltCli(["--agent", "stats"], {
+        cwd: snapshotRoot,
+        env: {
+          PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+        },
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr.trim()).toBe("");
+
+      const payload = parseJsonOutput<{
+        success: boolean;
+        errorCode?: string;
+      }>(result.stdout);
+      expect(payload.success).toBe(false);
+      expect(payload.errorCode).toBeTruthy();
+    } finally {
+      renameSync(statsHandlerBackupPath, statsHandlerPath);
+    }
   });
 
   nativePackageSmokeTest("disable-native still forces the js fallback when a packaged binary exists", () => {

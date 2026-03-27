@@ -4,6 +4,7 @@ import {
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY,
   createTempHome,
+  mustInitSeededHome,
   parseJsonOutput,
   runCli,
   runBuiltCli,
@@ -192,6 +193,34 @@ describe("native shell parity", () => {
       {
         js: { home: jsHome },
         native: { home: nativeHome },
+      },
+    );
+  });
+
+  nativeTest("status --agent --check stays JS-owned through native forwarding", () => {
+    const home = createTempHome("pp-native-status-check-");
+    mustInitSeededHome(home, "sepolia");
+
+    expectJsonParity(
+      nativeBinary,
+      [
+        "--agent",
+        "--chain",
+        "sepolia",
+        "--rpc-url",
+        "http://127.0.0.1:9",
+        "status",
+        "--check",
+      ],
+      {
+        js: {
+          home,
+          env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" },
+        },
+        native: {
+          home,
+          env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" },
+        },
       },
     );
   });

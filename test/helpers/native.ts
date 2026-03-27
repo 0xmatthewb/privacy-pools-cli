@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { CLI_ROOT } from "./paths.ts";
@@ -18,6 +18,11 @@ const BINARY_PATH = join(
   "debug",
   BIN_NAME,
 );
+const NATIVE_BUILD_INPUTS = [
+  MANIFEST_PATH,
+  join(CLI_ROOT, "native", "shell", "src", "main.rs"),
+  join(CLI_ROOT, "native", "shell", "generated", "manifest.json"),
+];
 
 export const CARGO_AVAILABLE =
   spawnSync("cargo", ["--version"], {
@@ -29,12 +34,25 @@ export const CARGO_AVAILABLE =
 
 let cachedNativeBinaryPath: string | null = null;
 
+function binaryIsCurrent(binaryPath: string): boolean {
+  if (!existsSync(binaryPath)) return false;
+
+  const binaryMtimeMs = statSync(binaryPath).mtimeMs;
+  return NATIVE_BUILD_INPUTS.every(
+    (path) => !existsSync(path) || statSync(path).mtimeMs <= binaryMtimeMs,
+  );
+}
+
 export function ensureNativeShellBinary(): string {
   if (!CARGO_AVAILABLE) {
     throw new Error("cargo is not available");
   }
 
-  if (cachedNativeBinaryPath && existsSync(cachedNativeBinaryPath)) {
+  if (
+    cachedNativeBinaryPath &&
+    existsSync(cachedNativeBinaryPath) &&
+    binaryIsCurrent(cachedNativeBinaryPath)
+  ) {
     return cachedNativeBinaryPath;
   }
 
