@@ -4,17 +4,19 @@
 #   - When you push a git tag that starts with "v" (e.g. v1.2.3)
 #   - Manually via the "Run workflow" button (you type an existing tag)
 #
-# WHAT does it do?  (six sequential stages)
+# WHAT does it do?  (seven sequential stages)
 #   1. validate  — runs the release-readiness suite as `npm run test:release`
 #                  to make sure the tagged code is healthy.
 #   2. package   — creates an npm tarball (.tgz) of the CLI.
 #   3. package-native — builds exact-version native package tarballs for the
 #                  supported host triplets.
-#   4. publish-root — publishes the root JS launcher package to npm and
-#                  verifies it resolves at the tagged version.
-#   5. publish-native — publishes the native optional packages to npm and
+#   4. publish-native — publishes the native optional packages to npm and
 #                  verifies they resolve at the tagged version.
-#   6. release   — attaches the npm tarball, native tarballs, and checksum
+#   5. publish-root — publishes the root JS launcher package to npm after the
+#                  native packages are live.
+#   6. verify-registry-install — installs the published npm package from the
+#                  live registry on supported hosts and proves native resolution.
+#   7. release   — attaches the npm tarball, native tarballs, and checksum
 #                  manifest to a GitHub Release page.
 #
 # HOW to create a release:
@@ -316,12 +318,15 @@ jobs:
             --native-tarball "${NATIVE_TARBALL}"
 
   # -----------------------------------------------------------
-  # Stage 3: Publish the root JS launcher package to npm
-  # This only runs after the root package tarball is built.
+  # Stage 5: Publish the root JS launcher package to npm
+  # This only runs after the native packages are live so installs can
+  # resolve the exact-version optional native package immediately.
   # -----------------------------------------------------------
   publish-root:
     name: publish-root
-    needs: package
+    needs:
+      - package
+      - publish-native
     runs-on: ubuntu-latest
     environment:
       name: native-release-signoff
@@ -466,8 +471,58 @@ jobs:
           done
 
   # -----------------------------------------------------------
-  # Stage 5: Create or update the GitHub Release page
-  # This only runs after the JS package, native package, and npm publish jobs succeed.
+  # Stage 6: Verify the live npm registry install path
+  # This only runs after the root package and native packages are live.
+  # -----------------------------------------------------------
+  verify-registry-install:
+    name: registry-install-${{ matrix.triplet }}
+    needs:
+      - publish-native
+      - publish-root
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triplet: darwin-arm64
+            runner: macos-latest
+          - triplet: darwin-x64
+            runner: macos-15-intel
+          - triplet: linux-x64-gnu
+            runner: ubuntu-latest
+          - triplet: win32-x64-msvc
+            runner: windows-latest
+          - triplet: win32-arm64-msvc
+            runner: windows-11-arm
+    environment:
+      name: native-release-signoff
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+          registry-url: "https://registry.npmjs.org"
+          scope: "@0xbow"
+
+      - name: Verify npm registry install
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          PACKAGE="$(node -p "require('./package.json').name")"
+          node scripts/verify-registry-install.mjs \
+            --package "${PACKAGE}" \
+            --version "${VERSION}"
+
+  # -----------------------------------------------------------
+  # Stage 7: Create or update the GitHub Release page
+  # This only runs after the JS package, native package, npm publish, and
+  # registry install verification jobs succeed.
   # -----------------------------------------------------------
   release:
     name: github-release
@@ -476,6 +531,7 @@ jobs:
       - package-native
       - publish-root
       - publish-native
+      - verify-registry-install
     runs-on: ubuntu-latest
     environment:
       name: native-release-signoff

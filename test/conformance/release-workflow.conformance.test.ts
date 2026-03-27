@@ -23,9 +23,13 @@ const packageJson = JSON.parse(
 };
 
 function extractTriplets(workflow: string): string[] {
-  return [...workflow.matchAll(/triplet:\s*([a-z0-9-]+)/g)]
-    .map((match) => match[1]!)
-    .sort();
+  return Array.from(
+    new Set(
+      [...workflow.matchAll(/triplet:\s*([a-z0-9-]+)/g)].map(
+        (match) => match[1]!,
+      ),
+    ),
+  ).sort();
 }
 
 function extractCrossPlatformLabels(workflow: string): string[] {
@@ -113,7 +117,17 @@ describe("release workflow conformance", () => {
     );
     expect(releaseWorkflow).toContain('npm publish "${CLI_TARBALL}" --access public');
     expect(releaseWorkflow).toContain('npm view "${PACKAGE}@${VERSION}" version');
+    expect(releaseWorkflow).toContain("- publish-native");
     expect(releaseWorkflow).toContain("- publish-root");
+  });
+
+  test("release workflow verifies the live npm registry install path", () => {
+    expect(releaseWorkflow).toContain("verify-registry-install:");
+    expect(releaseWorkflow).toContain("registry-install-${{ matrix.triplet }}");
+    expect(releaseWorkflow).toContain("node scripts/verify-registry-install.mjs");
+    expect(releaseWorkflow).toContain("--package");
+    expect(releaseWorkflow).toContain("--version");
+    expect(releaseWorkflow).toContain("- verify-registry-install");
   });
 
   test("release workflow keeps an explicit native release signoff gate", () => {
