@@ -33,6 +33,8 @@ interface ForwardingParityCase {
   label: string;
   args: string[];
   envFactory?: (fixture: FixtureServer) => Record<string, string>;
+  timeoutMs?: number;
+  testTimeoutMs?: number;
 }
 
 function runNativeBuiltCli(
@@ -98,6 +100,17 @@ function withJsFallback(options: CliRunOptions = {}): CliRunOptions {
   };
 }
 
+function assertDidNotTimeout(label: string, result: CliRunResult): void {
+  if (result.timedOut) {
+    throw new Error(
+      `${label} timed out after ${result.elapsedMs}ms.\n` +
+      `stdout:\n${result.stdout}\n` +
+      `stderr:\n${result.stderr}\n` +
+      `error: ${result.errorMessage ?? "<none>"}`,
+    );
+  }
+}
+
 function expectStreamParity(
   nativeBinary: string,
   args: string[],
@@ -109,6 +122,8 @@ function expectStreamParity(
   const jsResult = runBuiltCli(args, withJsFallback(options.js));
   const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
 
+  assertDidNotTimeout("JS launcher result", jsResult);
+  assertDidNotTimeout("Native launcher result", nativeResult);
   expect(nativeResult.status).toBe(jsResult.status);
   expect(nativeResult.stdout).toBe(jsResult.stdout);
   expect(nativeResult.stderr).toBe(jsResult.stderr);
@@ -125,6 +140,8 @@ function expectJsonParity(
   const jsResult = runBuiltCli(args, withJsFallback(options.js));
   const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
 
+  assertDidNotTimeout("JS launcher result", jsResult);
+  assertDidNotTimeout("Native launcher result", nativeResult);
   expect(nativeResult.status).toBe(jsResult.status);
   expect(parseJsonOutput(nativeResult.stdout)).toEqual(
     parseJsonOutput(jsResult.stdout),
@@ -143,6 +160,8 @@ function expectDirectNativeBuiltJsonParity(
   const jsResult = runBuiltCli(args, withJsFallback(options.js));
   const nativeResult = runNativeBinaryDirect(nativeBinary, args, options.native);
 
+  assertDidNotTimeout("JS launcher result", jsResult);
+  assertDidNotTimeout("Direct native result", nativeResult);
   expect(nativeResult.status).toBe(jsResult.status);
   expect(parseJsonOutput(nativeResult.stdout)).toEqual(
     parseJsonOutput(jsResult.stdout),
@@ -691,6 +710,8 @@ describe("native shell parity", () => {
     {
       label: "sync",
       args: ["--agent", "sync"],
+      timeoutMs: 45_000,
+      testTimeoutMs: 120_000,
     },
     {
       label: "migrate status",
@@ -698,7 +719,7 @@ describe("native shell parity", () => {
     },
   ];
 
-  for (const { label, args, envFactory } of forwardingCases) {
+  for (const { label, args, envFactory, timeoutMs, testTimeoutMs } of forwardingCases) {
     nativeTest(`${label} stays identical through native forwarding`, () => {
       const jsHome = createTempHome(`pp-native-${label.replaceAll(" ", "-")}-js-`);
       const nativeHome = createTempHome(
@@ -707,9 +728,9 @@ describe("native shell parity", () => {
       const env = envFactory ? envFactory(fixture!) : undefined;
 
       expectJsonParity(nativeBinary, args, {
-        js: { home: jsHome, env },
-        native: { home: nativeHome, env },
+        js: { home: jsHome, env, timeoutMs },
+        native: { home: nativeHome, env, timeoutMs },
       });
-    });
+    }, testTimeoutMs);
   }
 });
