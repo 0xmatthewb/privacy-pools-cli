@@ -16,8 +16,14 @@ const packageJson = JSON.parse(
 describe("flake workflow conformance", () => {
   test("flake workflow runs the repo's full flake contract", () => {
     expect(packageJson.scripts?.["test:flake"]).toBeTruthy();
+    expect(packageJson.scripts?.["test:flake"]).toBe(
+      "node scripts/run-flake-suite.mjs",
+    );
     expect(flakeWorkflow).toContain("Run flake suite");
     expect(flakeWorkflow).toContain("run: npm run test:flake");
+    expect(flakeWorkflow).toContain("Setup Rust");
+    expect(flakeWorkflow).toContain("dtolnay/rust-toolchain@stable");
+    expect(flakeWorkflow).toContain("PP_FLAKE_SEED:");
     expect(flakeWorkflow).not.toContain("Run randomized suite");
     expect(flakeWorkflow).not.toContain("Re-run stateful suites");
   });

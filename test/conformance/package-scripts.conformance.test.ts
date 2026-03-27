@@ -51,14 +51,8 @@ describe("package scripts conformance", () => {
   });
 
   test("test:flake covers packaged js, packaged native, and installed-artifact lanes", () => {
-    expect(packageJson.scripts?.["test:flake"]).toContain(
-      "npm run test:smoke",
-    );
-    expect(packageJson.scripts?.["test:flake"]).toContain(
-      "npm run test:smoke:native:package",
-    );
-    expect(packageJson.scripts?.["test:flake"]).toContain(
-      "npm run test:artifacts:host",
+    expect(packageJson.scripts?.["test:flake"]).toBe(
+      "node scripts/run-flake-suite.mjs",
     );
   });
 });
