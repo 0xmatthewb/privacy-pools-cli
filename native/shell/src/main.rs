@@ -720,13 +720,13 @@ fn handle_activity_native(
 ) -> Result<i32, CliError> {
     let mode = resolve_mode(parsed);
     let opts = parse_activity_options(argv)?;
-    let config = load_config()?;
     let timeout_ms = parse_timeout_ms(argv);
     if !mode.is_json() && !mode.is_quiet {
         write_stderr_text("- Fetching public activity...");
     }
 
     if let Some(asset) = opts.asset.as_deref() {
+        let config = load_config()?;
         let explicit_chain = parsed
             .global_chain()
             .unwrap_or_else(|| config.default_chain.clone());

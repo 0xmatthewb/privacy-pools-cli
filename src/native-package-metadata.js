@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 /**
@@ -19,6 +19,8 @@ import { dirname, resolve } from "node:path";
  *   privacyPoolsCliNative?: NativePackageMetadata;
  * }} NativePackageJson
  */
+
+const nativeChecksumCache = new Map();
 
 export function resolveNativeBridgeVersion(metadata = {}) {
   return metadata.bridgeVersion?.trim() || metadata.protocolVersion?.trim() || null;
@@ -55,6 +57,10 @@ export function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+export function clearNativeChecksumCache() {
+  nativeChecksumCache.clear();
+}
+
 export function hasValidNativeChecksum(packageJson, binaryPath) {
   const expected = packageJson.privacyPoolsCliNative?.sha256?.trim();
   if (!expected) {
@@ -62,7 +68,25 @@ export function hasValidNativeChecksum(packageJson, binaryPath) {
   }
 
   try {
-    return sha256File(binaryPath) === expected;
+    const stats = statSync(binaryPath);
+    const cached = nativeChecksumCache.get(binaryPath);
+    if (
+      cached &&
+      cached.expected === expected &&
+      cached.size === stats.size &&
+      cached.mtimeMs === stats.mtimeMs
+    ) {
+      return cached.valid;
+    }
+
+    const valid = sha256File(binaryPath) === expected;
+    nativeChecksumCache.set(binaryPath, {
+      expected,
+      size: stats.size,
+      mtimeMs: stats.mtimeMs,
+      valid,
+    });
+    return valid;
   } catch {
     return false;
   }

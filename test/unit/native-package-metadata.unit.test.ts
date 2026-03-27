@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  clearNativeChecksumCache,
   hasCompatibleNativeMetadata,
   hasValidNativeChecksum,
   resolveNativeBinaryPath,
@@ -11,6 +12,59 @@ import {
 import { createTrackedTempDir } from "../helpers/temp.ts";
 
 describe("native package metadata", () => {
+  test("caches native checksum results until the binary identity changes", () => {
+    const tempDir = createTrackedTempDir("pp-native-metadata-cache-");
+    const binaryPath = join(tempDir, "bin", "privacy-pools-cli-native-shell");
+    mkdirSync(join(tempDir, "bin"), { recursive: true });
+    writeFileSync(binaryPath, "#!/usr/bin/env node\n", "utf8");
+    const originalSha = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+
+    try {
+      clearNativeChecksumCache();
+
+      expect(
+        hasValidNativeChecksum(
+          {
+            privacyPoolsCliNative: {
+              sha256: originalSha,
+            },
+          },
+          binaryPath,
+        ),
+      ).toBe(true);
+      expect(
+        hasValidNativeChecksum(
+          {
+            privacyPoolsCliNative: {
+              sha256: originalSha,
+            },
+          },
+          binaryPath,
+        ),
+      ).toBe(true);
+
+      writeFileSync(binaryPath, "#!/usr/bin/env bun!\n", "utf8");
+      const nextTime = new Date(Date.now() + 1_000);
+      utimesSync(binaryPath, nextTime, nextTime);
+
+      expect(
+        hasValidNativeChecksum(
+          {
+            privacyPoolsCliNative: {
+              sha256: originalSha,
+            },
+          },
+          binaryPath,
+        ),
+      ).toBe(false);
+    } finally {
+      clearNativeChecksumCache();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("prefers bridgeVersion and falls back to legacy protocolVersion", () => {
     expect(
       resolveNativeBridgeVersion({
