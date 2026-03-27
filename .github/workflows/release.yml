@@ -180,7 +180,7 @@ jobs:
 
       # Save the tarball so the next job can download it.
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: npm-package-${{ steps.meta.outputs.tag }}
           path: ${{ steps.pack.outputs.tarball }}
@@ -199,7 +199,7 @@ jobs:
       contents: write
     steps:
       - name: Download package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: npm-package-${{ needs.package.outputs.tag }}
 
