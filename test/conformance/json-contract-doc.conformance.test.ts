@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import {
+  JSON_SCHEMA_VERSION,
+  jsonContractDocRelativePath,
+} from "../../src/utils/json.ts";
 import { EXIT_CODES } from "../../src/utils/errors.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
-const CONTRACT_DOC_PATH =
-  `${CLI_ROOT}/docs/contracts/cli-json-contract.v1.5.0.json`;
+const CONTRACT_DOC_PATH = `${CLI_ROOT}/${jsonContractDocRelativePath()}`;
 
 interface ContractDoc {
   version: string;
@@ -105,6 +107,8 @@ describe("external JSON contract doc conformance", () => {
     expect(capabilities.successFields?.executionRoutes).toBe(
       "Record<string, { owner, nativeModes }>",
     );
+    expect(capabilities.successFields?.protocol).toBe("ProtocolProfile");
+    expect(capabilities.successFields?.runtime).toBe("RuntimeCompatibilityDescriptor");
 
     const describe = commands.describe as { successFields?: Record<string, string> };
     expect(describe.successFields?.command).toContain("canonical command path");

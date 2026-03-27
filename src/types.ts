@@ -107,6 +107,29 @@ export interface DetailedCommandDescriptor {
   agentWorkflowNotes: string[];
 }
 
+export interface ProtocolProfile {
+  family: string;
+  generation: string;
+  profile: string;
+  displayName: string;
+  coreSdkPackage: string;
+  coreSdkVersion: string;
+  supportedChainPolicy: string;
+  notes?: string[];
+}
+
+export interface RuntimeCompatibilityDescriptor {
+  cliVersion: string;
+  jsonSchemaVersion: string;
+  accountFileVersion: number;
+  workflowSnapshotVersion: string;
+  workflowSecretVersion: string;
+  runtimeVersion: string;
+  workerProtocolVersion: string;
+  manifestVersion: string;
+  nativeBridgeVersion: string;
+}
+
 export interface CapabilitiesPayload {
   commands: CapabilityCommandSummary[];
   commandDetails: Record<string, DetailedCommandDescriptor>;
@@ -116,12 +139,16 @@ export interface CapabilitiesPayload {
   agentNotes?: Record<string, string>;
   schemas?: Record<string, Record<string, unknown>>;
   supportedChains?: Array<{ name: string; chainId: number; testnet: boolean }>;
+  protocol: ProtocolProfile;
+  runtime: RuntimeCompatibilityDescriptor;
   jsonOutputContract: string;
   safeReadOnlyCommands?: string[];
   documentation?: {
     reference: string;
     agentGuide: string;
     changelog: string;
+    runtimeUpgrades?: string;
+    jsonContract?: string;
   };
 }
 

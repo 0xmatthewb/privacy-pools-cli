@@ -11,7 +11,9 @@
     "scripts/start-built-cli.mjs",
     "AGENTS.md",
     "CHANGELOG.md",
+    "docs/contracts",
     "docs/reference.md",
+    "docs/runtime-upgrades.md",
     "skills"
   ],
   "engines": {

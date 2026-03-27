@@ -461,6 +461,8 @@
         "executionRoutes": "Record<string, { owner, nativeModes }>",
         "globalFlags": "Flag[]",
         "agentWorkflow": "string[]",
+        "protocol": "ProtocolProfile",
+        "runtime": "RuntimeCompatibilityDescriptor",
         "jsonOutputContract": "string (descriptive contract summary)",
         "agentNotes": "Record<string, string>",
         "schemas": "object (includes nextActions metadata)",

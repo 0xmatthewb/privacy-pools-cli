@@ -1,5 +1,6 @@
 import { expect } from "bun:test";
 import { join } from "node:path";
+import { readCliPackageInfo } from "../../src/package-info.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { writeTestSecretFiles } from "../helpers/cli.ts";
 import {
@@ -15,6 +16,7 @@ import {
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
+const CLI_VERSION = readCliPackageInfo(import.meta.url).version;
 
 defineScenarioSuite("json-contract acceptance", [
   defineScenario("status without init keeps the readiness JSON contract", [
@@ -86,6 +88,8 @@ defineScenarioSuite("json-contract acceptance", [
       success: boolean;
       commands: Array<{ name: string }>;
       commandDetails: Record<string, { command: string; usage?: string }>;
+      protocol: { profile: string; coreSdkVersion: string };
+      runtime: { cliVersion: string; runtimeVersion: string; jsonSchemaVersion: string };
       documentation?: { reference?: string; agentGuide?: string };
       safeReadOnlyCommands: string[];
     }>((json) => {
@@ -103,6 +107,11 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.commandDetails["withdraw quote"]?.usage).toBe(
         "withdraw quote <amount|asset> [amount]",
       );
+      expect(json.protocol.profile).toBe("privacy-pools-v1");
+      expect(json.protocol.coreSdkVersion).toBe("1.2.0");
+      expect(json.runtime.cliVersion).toBe(CLI_VERSION);
+      expect(json.runtime.runtimeVersion).toBe("v1");
+      expect(json.runtime.jsonSchemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.documentation).toMatchObject({
         reference: "docs/reference.md",
         agentGuide: "AGENTS.md",

@@ -45,5 +45,15 @@ export function renderCapabilities(
   for (const step of payload.agentWorkflow) {
     process.stderr.write(`  ${step}\n`);
   }
+
+  process.stderr.write("\nProtocol Profile:\n");
+  process.stderr.write(
+    `  ${payload.protocol.displayName} (${payload.protocol.profile}) via ${payload.protocol.coreSdkPackage}@${payload.protocol.coreSdkVersion}\n`,
+  );
+
+  process.stderr.write("\nRuntime Compatibility:\n");
+  process.stderr.write(
+    `  CLI ${payload.runtime.cliVersion}; JSON ${payload.runtime.jsonSchemaVersion}; runtime ${payload.runtime.runtimeVersion}; worker ${payload.runtime.workerProtocolVersion}; manifest ${payload.runtime.manifestVersion}; bridge ${payload.runtime.nativeBridgeVersion}\n`,
+  );
   process.stderr.write("\n");
 }

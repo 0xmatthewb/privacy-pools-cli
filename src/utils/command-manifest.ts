@@ -1268,7 +1268,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools capabilities",
         "privacy-pools capabilities --agent"
       ],
-      "jsonFields": "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
+      "jsonFields": "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -2205,6 +2205,30 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "testnet": true
     }
   ],
+  "protocol": {
+    "family": "privacy-pools",
+    "generation": "v1",
+    "profile": "privacy-pools-v1",
+    "displayName": "Privacy Pools v1",
+    "coreSdkPackage": "@0xbow/privacy-pools-core-sdk",
+    "coreSdkVersion": "1.2.0",
+    "supportedChainPolicy": "cli-curated",
+    "notes": [
+      "Chain support is a CLI-curated subset of the broader website deployment catalog.",
+      "Proof, signer, mnemonic, workflow, migration, relayer, and transaction-composition logic stays in JS."
+    ]
+  },
+  "runtime": {
+    "cliVersion": "1.7.0",
+    "jsonSchemaVersion": "1.5.0",
+    "accountFileVersion": 3,
+    "workflowSnapshotVersion": "1",
+    "workflowSecretVersion": "1",
+    "runtimeVersion": "v1",
+    "workerProtocolVersion": "1",
+    "manifestVersion": "1",
+    "nativeBridgeVersion": "1"
+  },
   "safeReadOnlyCommands": [
     "flow status",
     "pools",
@@ -2224,7 +2248,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   "documentation": {
     "reference": "docs/reference.md",
     "agentGuide": "AGENTS.md",
-    "changelog": "CHANGELOG.md"
+    "changelog": "CHANGELOG.md",
+    "runtimeUpgrades": "docs/runtime-upgrades.md",
+    "jsonContract": "docs/contracts/cli-json-contract.v1.5.0.json"
   }
 };
 

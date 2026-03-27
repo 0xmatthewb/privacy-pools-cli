@@ -182,9 +182,9 @@ Machine-readable discovery manifest.
 privacy-pools capabilities --agent
 ```
 
-JSON payload: `{ commands[], commandDetails{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }`
+JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }`
 
-`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `documentation` points agents to the bundled reference docs shipped with the CLI package.
+`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package.
 
 #### `describe`
 
@@ -603,4 +603,4 @@ Specify with `--chain <name>` or set a default via `init --default-chain <name>`
 
 ## Runtime Discovery
 
-For fully dynamic integration, call `capabilities --agent` at startup to receive a machine-readable manifest of all commands, command details, flags, workflow steps, supported chains, and the JSON output contract. Use `describe <command...> --agent` when you need the detailed runtime contract for one command path. This is useful if you cannot read this file at integration time.
+For fully dynamic integration, call `capabilities --agent` at startup to receive a machine-readable manifest of all commands, command details, execution routes, protocol/runtime compatibility metadata, supported chains, and the JSON output contract. Use `describe <command...> --agent` when you need the detailed runtime contract for one command path. This is useful if you cannot read this file at integration time.

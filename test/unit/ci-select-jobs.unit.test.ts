@@ -87,4 +87,24 @@ describe("ci job selection", () => {
       "scripts/verify-packed-native-package.mjs",
     );
   });
+
+  test("packaged and native lanes run for shipped runtime contract docs", () => {
+    const packagedDecision = evaluateJobSelection({
+      job: "packaged-smoke",
+      eventName: "pull_request",
+      changedFiles: ["docs/runtime-upgrades.md"],
+    });
+    expect(packagedDecision.shouldRun).toBe(true);
+    expect(packagedDecision.reason).toContain("docs/runtime-upgrades.md");
+
+    const nativeDecision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["docs/contracts/cli-json-contract.v1.5.0.json"],
+    });
+    expect(nativeDecision.shouldRun).toBe(true);
+    expect(nativeDecision.reason).toContain(
+      "docs/contracts/cli-json-contract.v1.5.0.json",
+    );
+  });
 });

@@ -31,7 +31,10 @@ import {
 } from "../helpers/process.ts";
 import { waitForWorkflowSnapshotPhase } from "../helpers/workflow-snapshot.ts";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
-import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import {
+  JSON_SCHEMA_VERSION,
+  jsonContractDocRelativePath,
+} from "../../src/utils/json.ts";
 
 const PACKAGED_SMOKE_POOL =
   "0x1234567890abcdef1234567890abcdef12345678" as const;
@@ -704,7 +707,9 @@ describe("packaged CLI smoke", () => {
   test("npm pack includes docs referenced by shipped docs and capabilities", () => {
     expect(packed.filePaths.has("AGENTS.md")).toBe(true);
     expect(packed.filePaths.has("CHANGELOG.md")).toBe(true);
+    expect(packed.filePaths.has(jsonContractDocRelativePath())).toBe(true);
     expect(packed.filePaths.has("docs/reference.md")).toBe(true);
+    expect(packed.filePaths.has("docs/runtime-upgrades.md")).toBe(true);
     expect(packed.filePaths.has("skills/privacy-pools-cli/SKILL.md")).toBe(true);
     expect(packed.filePaths.has("skills/privacy-pools-cli/reference.md")).toBe(true);
 
@@ -715,11 +720,15 @@ describe("packaged CLI smoke", () => {
         reference?: string;
         agentGuide?: string;
         changelog?: string;
+        runtimeUpgrades?: string;
+        jsonContract?: string;
       };
     }>(capabilities.stdout);
 
     expect(packed.filePaths.has(json.documentation?.reference ?? "")).toBe(true);
     expect(packed.filePaths.has(json.documentation?.agentGuide ?? "")).toBe(true);
     expect(packed.filePaths.has(json.documentation?.changelog ?? "")).toBe(true);
+    expect(packed.filePaths.has(json.documentation?.runtimeUpgrades ?? "")).toBe(true);
+    expect(packed.filePaths.has(json.documentation?.jsonContract ?? "")).toBe(true);
   }, 30_000);
 }, 300_000);

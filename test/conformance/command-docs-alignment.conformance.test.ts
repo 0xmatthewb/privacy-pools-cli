@@ -92,10 +92,15 @@ describe("command docs alignment", () => {
       normalizeWhitespace(flowWorkflowStep),
       normalizeWhitespace(manualPollingStep),
       payload.agentNotes?.statusCheck ?? "",
+      "executionRoutes",
+      "protocol",
+      "runtime",
       "safeReadOnlyCommands",
       "jsonOutputContract",
       "documentation",
       "agentGuide",
+      "runtimeUpgrades",
+      "jsonContract",
       "error.{ code, category, message, hint?, retryable? }",
       "Exception: --unsigned tx emits a raw transaction array without the envelope.",
     ]);
@@ -108,6 +113,23 @@ describe("command docs alignment", () => {
     expect(safeReadOnlyCommands).toContain('"flow status"');
     expect(safeReadOnlyCommands).toContain('"migrate"');
     expect(safeReadOnlyCommands).toContain('"migrate status"');
+    expect(normalizedSection).toContain("execution-ownership map");
+    expect(normalizedSection).toContain("wallet-mutating safety");
+  });
+
+  test("AGENTS capabilities docs describe execution ownership separately from read-only safety", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const markers = getDocumentedAgentMarkers();
+    const section = extractDocumentSection(agents, "#### `capabilities`", markers);
+    const normalizedSection = normalizeWhitespace(section);
+
+    expect(normalizedSection).toContain("executionRoutes");
+    expect(normalizedSection).toContain("protocol");
+    expect(normalizedSection).toContain("runtime");
+    expect(normalizedSection).toContain("runtimeUpgrades");
+    expect(normalizedSection).toContain("jsonContract");
+    expect(normalizedSection).toContain("execution-ownership map");
+    expect(normalizedSection).toContain("wallet-mutating safety");
   });
 
   test("skill reference accounts section documents unknown ASP status", () => {

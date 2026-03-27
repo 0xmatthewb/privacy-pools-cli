@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, expect } from "bun:test";
 import { join } from "node:path";
+import { readCliPackageInfo } from "../../src/package-info.ts";
 import { TEST_MNEMONIC, TEST_PRIVATE_KEY, writeTestSecretFiles } from "../helpers/cli.ts";
 import {
   killFixtureServer,
@@ -18,6 +19,7 @@ import {
 } from "./framework.ts";
 
 let fixture: FixtureServer;
+const CLI_VERSION = readCliPackageInfo(import.meta.url).version;
 
 beforeAll(async () => {
   fixture = await launchFixtureServer();
@@ -115,6 +117,8 @@ defineScenarioSuite("agent improvements acceptance", [
           }
         >;
         executionRoutes: Record<string, { owner: string; nativeModes: string[] }>;
+        protocol: { profile: string; coreSdkVersion: string };
+        runtime: { cliVersion: string; runtimeVersion: string; nativeBridgeVersion: string };
         safeReadOnlyCommands: string[];
       }>((json) => {
         expect(json.commands.map((command) => command.name)).toContain(
@@ -142,6 +146,11 @@ defineScenarioSuite("agent improvements acceptance", [
           "native-shell",
         );
         expect(json.executionRoutes["stats pool"]?.owner).toBe("hybrid");
+        expect(json.protocol.profile).toBe("privacy-pools-v1");
+        expect(json.protocol.coreSdkVersion).toBe("1.2.0");
+        expect(json.runtime.cliVersion).toBe(CLI_VERSION);
+        expect(json.runtime.runtimeVersion).toBe("v1");
+        expect(json.runtime.nativeBridgeVersion).toBe("1");
         expect(json.commandDetails.guide?.safeReadOnly).toBe(true);
         expect(json.commandDetails.completion?.safeReadOnly).toBe(true);
         expect(json.safeReadOnlyCommands).toContain("guide");

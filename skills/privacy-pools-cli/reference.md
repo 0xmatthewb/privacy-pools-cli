@@ -395,6 +395,9 @@ Representative payload (abridged):
       "flags": ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"]
     }
   },
+  "executionRoutes": {
+    "stats pool": { "owner": "hybrid", "nativeModes": ["structured-default", "table", "csv"] }
+  },
   "globalFlags": [
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
   ],
@@ -429,6 +432,22 @@ Representative payload (abridged):
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. When runnable is false, the action is a template that needs additional user input before execution."
     }
   },
+  "protocol": {
+    "profile": "privacy-pools-v1",
+    "displayName": "Privacy Pools v1",
+    "coreSdkPackage": "@0xbow/privacy-pools-core-sdk",
+    "coreSdkVersion": "1.2.0"
+  },
+  "runtime": {
+    "cliVersion": "1.7.0",
+    "jsonSchemaVersion": "1.5.0",
+    "runtimeVersion": "v1",
+    "workerProtocolVersion": "1",
+    "manifestVersion": "1",
+    "nativeBridgeVersion": "1",
+    "workflowSnapshotVersion": "1",
+    "workflowSecretVersion": "1"
+  },
   "safeReadOnlyCommands": ["flow status", "pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "migrate", "migrate status", "completion"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
@@ -441,10 +460,14 @@ Representative payload (abridged):
   "documentation": {
     "reference": "docs/reference.md",
     "agentGuide": "AGENTS.md",
-    "changelog": "CHANGELOG.md"
+    "changelog": "CHANGELOG.md",
+    "runtimeUpgrades": "docs/runtime-upgrades.md",
+    "jsonContract": "docs/contracts/cli-json-contract.v1.5.0.json"
   }
 }
 ```
+
+`executionRoutes` is the canonical execution-ownership map. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions.
 
 ### `describe`
 

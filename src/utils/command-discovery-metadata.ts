@@ -1,4 +1,10 @@
 import { CHAINS, CHAIN_NAMES, POA_PORTAL_URL } from "../config/chains.js";
+import {
+  buildRuntimeCompatibilityDescriptor,
+  CLI_PROTOCOL_PROFILE,
+} from "../config/protocol-profile.js";
+import { readCliPackageInfo } from "../package-info.js";
+import { jsonContractDocRelativePath } from "./json.js";
 import type {
   CapabilitiesPayload,
   CommandExecutionDescriptor,
@@ -6,6 +12,8 @@ import type {
   DetailedCommandDescriptor,
 } from "../types.js";
 import type { CommandHelpConfig } from "./help.js";
+
+const CLI_PACKAGE_INFO = readCliPackageInfo(import.meta.url);
 
 export type CommandPath =
   | "init"
@@ -414,7 +422,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools capabilities --agent",
       ],
       jsonFields:
-        "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog } }",
+        "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
     },
     capabilities: {
       flags: [],
@@ -1073,6 +1081,8 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       chainId: CHAINS[name].id,
       testnet: CHAINS[name].isTestnet,
     })),
+    protocol: CLI_PROTOCOL_PROFILE,
+    runtime: buildRuntimeCompatibilityDescriptor(CLI_PACKAGE_INFO.version),
     safeReadOnlyCommands: COMMAND_PATHS
       .filter((path) => COMMAND_METADATA[path].safeReadOnly)
       .map((path) => path),
@@ -1082,6 +1092,8 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       reference: "docs/reference.md",
       agentGuide: "AGENTS.md",
       changelog: "CHANGELOG.md",
+      runtimeUpgrades: "docs/runtime-upgrades.md",
+      jsonContract: jsonContractDocRelativePath(),
     },
   };
 }

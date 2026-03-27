@@ -1,5 +1,11 @@
 export const JSON_SCHEMA_VERSION = "1.5.0";
 
+export function jsonContractDocRelativePath(
+  schemaVersion: string = JSON_SCHEMA_VERSION,
+): string {
+  return `docs/contracts/cli-json-contract.v${schemaVersion}.json`;
+}
+
 /** Safety-net replacer: converts any BigInt to string so JSON.stringify never throws. */
 function bigintReplacer(_key: string, value: unknown): unknown {
   return typeof value === "bigint" ? value.toString() : value;
