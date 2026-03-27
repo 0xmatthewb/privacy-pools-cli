@@ -319,6 +319,24 @@ describe("packaged CLI smoke", () => {
       expect(json.success).toBe(true);
       expect(json.commands.length).toBeGreaterThan(0);
     });
+
+    test("describe --agent: JSON success on stdout, stderr empty", () => {
+      const result = runSmokeCli(["--agent", "describe", "withdraw", "quote"], {
+        home,
+      });
+      expect(result.status).toBe(0);
+      expect(result.stderr.trim()).toBe("");
+      const json = parseJsonOutput<{
+        schemaVersion: string;
+        success: boolean;
+        command: string;
+        usage: string;
+      }>(result.stdout);
+      expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(json.success).toBe(true);
+      expect(json.command).toBe("withdraw quote");
+      expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
+    });
   });
 
   describe("init happy path", () => {

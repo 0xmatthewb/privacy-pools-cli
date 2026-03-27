@@ -43,6 +43,25 @@ describe("human-mode output contracts", () => {
     expect(result.stdout.trim()).toBe("");
   });
 
+  test("describe writes command details to stderr", () => {
+    const result = runCli(["describe", "withdraw", "quote"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("Command: withdraw quote");
+    expect(result.stderr).toContain("Usage: privacy-pools withdraw quote");
+    expect(result.stdout.trim()).toBe("");
+  });
+
+  test("describe --quiet stays fully silent", () => {
+    const result = runCli(["--quiet", "describe", "withdraw", "quote"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr.trim()).toBe("");
+    expect(result.stdout.trim()).toBe("");
+  });
+
   test("status without init writes readiness warnings to stderr", () => {
     const result = runCli(["--no-banner", "status"], { home: createTempHome() });
     expect(result.status).toBe(0);
@@ -117,6 +136,25 @@ describe("--agent mode output contracts", () => {
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.commands.length).toBeGreaterThan(0);
+  });
+
+  test("--agent describe emits JSON on stdout and nothing on stderr", () => {
+    const result = runCli(["--agent", "describe", "withdraw", "quote"], {
+      home: createTempHome(),
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr.trim()).toBe("");
+
+    const json = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      command: string;
+      usage: string;
+    }>(result.stdout);
+    expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(json.success).toBe(true);
+    expect(json.command).toBe("withdraw quote");
+    expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
   });
 
   test("--agent status emits JSON on stdout and nothing on stderr", () => {

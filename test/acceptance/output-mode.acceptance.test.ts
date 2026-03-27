@@ -49,6 +49,21 @@ defineScenarioSuite("output-mode acceptance", [
     assertStdoutEmpty(),
     assertStderrEmpty(),
   ]),
+  defineScenario("describe writes command details to stderr in human mode", [
+    runCliStep(["describe", "withdraw", "quote"]),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderr((stderr) => {
+      expect(stderr).toContain("Command: withdraw quote");
+      expect(stderr).toContain("Usage: privacy-pools withdraw quote");
+    }),
+  ]),
+  defineScenario("describe stays fully silent in quiet mode", [
+    runCliStep(["--quiet", "describe", "withdraw", "quote"]),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderrEmpty(),
+  ]),
   defineScenario("status without init writes readiness warnings to stderr", [
     runCliStep(["--no-banner", "status"]),
     assertExit(0),
@@ -122,6 +137,22 @@ defineScenarioSuite("output-mode acceptance", [
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
       expect(json.commands.length).toBeGreaterThan(0);
+    }),
+  ]),
+  defineScenario("agent describe emits JSON on stdout and nothing on stderr", [
+    runCliStep(["--agent", "describe", "withdraw", "quote"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      command: string;
+      usage: string;
+    }>((json) => {
+      expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(json.success).toBe(true);
+      expect(json.command).toBe("withdraw quote");
+      expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
     }),
   ]),
   defineScenario("agent status emits JSON on stdout and nothing on stderr", [
