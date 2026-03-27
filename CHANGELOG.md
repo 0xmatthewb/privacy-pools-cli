@@ -14,17 +14,16 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ### Changed
 
-- Streamlined README Getting Started section for readability: workflow overview near the top, expected output shown, technical detail moved to reference docs.
-- Added `flow` trigger pattern to SKILL.md for skill-aware agent activation.
-- Removed emdashes from all user-facing documentation.
-- Hardened test infrastructure, coverage gates, CI workflows, and conformance suites across the branch.
+- Onboarding and reference docs now surface `flow` as the recommended easy path and document `--new-wallet` and `migrate status` alongside the existing manual command surfaces.
+- Saved workflow handling is more robust across interrupts, local state persistence, and dedicated workflow wallet backups.
 
 ### Verification
 
-- `bun run test` (1778 tests, 0 failures)
-- `bun run test:conformance` (98 tests, 0 failures)
-- `bun run typecheck`
-- `bun run docs:check`
+- `npm test`
+- `npm run test:coverage`
+- `npm run test:e2e:anvil`
+- `npm run docs:check`
+- `npm run test:conformance`
 
 ## [1.6.1] - 2026-03-24
 
