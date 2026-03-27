@@ -44,7 +44,7 @@ concurrency:
 
 jobs:
   # -----------------------------------------------------------
-  # Stage 1: Run the merge-readiness suite to make sure the tag is safe
+  # Stage 1: Run the release-readiness suite to make sure the tag is safe
   # -----------------------------------------------------------
   validate:
     name: validate
@@ -71,10 +71,36 @@ jobs:
         with:
           cache: true
 
+      - name: Checkout contracts
+        uses: actions/checkout@v6
+        with:
+          repository: 0xmatthewb/privacy-pools-core
+          ref: a80836a47451e662f127af17e11430ffa976c234
+          path: privacy-pools-core
+
+      - name: Install contract dependencies
+        working-directory: privacy-pools-core/packages/contracts
+        run: |
+          corepack enable
+          yarn --frozen-lockfile --network-concurrency 1
+
+      - name: Normalize contract remappings
+        working-directory: privacy-pools-core/packages/contracts
+        run: |
+          ln -sfn @zk-kit/lean-imt.sol ../../node_modules/lean-imt
+          sed -i.bak 's#^lean-imt/=.*$#lean-imt/=../../node_modules/lean-imt/#' remappings.txt
+          rm -f remappings.txt.bak
+
+      - name: Build contract artifacts
+        working-directory: privacy-pools-core/packages/contracts
+        run: forge build
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Run release-readiness suite
+        env:
+          PP_CONTRACTS_ROOT: ${{ github.workspace }}/privacy-pools-core/packages/contracts
         run: npm run test:release
 
   # -----------------------------------------------------------
@@ -154,7 +180,7 @@ jobs:
 
       # Save the tarball so the next job can download it.
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: npm-package-${{ steps.meta.outputs.tag }}
           path: ${{ steps.pack.outputs.tarball }}
@@ -173,7 +199,7 @@ jobs:
       contents: write
     steps:
       - name: Download package artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: npm-package-${{ needs.package.outputs.tag }}
 
