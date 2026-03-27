@@ -31,7 +31,6 @@ function writeNativePackageJson(
       },
       privacyPoolsCliNative: {
         bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
-        protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
         protocolProfile: CLI_PROTOCOL_PROFILE.profile,
         runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
         triplet: "darwin-arm64",
@@ -102,6 +101,7 @@ describe("launcher routing", () => {
     ).toEqual({
       runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
       workerProtocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
+      nativeBridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
       workerRequestEnv: CURRENT_RUNTIME_REQUEST_ENV,
       workerCommand: process.execPath,
       workerArgs: process.versions.bun
@@ -216,7 +216,6 @@ describe("launcher routing", () => {
       .digest("hex");
     writeNativePackageJson(packageJsonPath, sha256, {
       bridgeVersion: "2",
-      protocolVersion: "2",
     });
 
     try {
@@ -254,6 +253,34 @@ describe("launcher routing", () => {
           requireResolve: () => packageJsonPath,
         }),
       ).toBeNull();
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("accepts the legacy protocolVersion alias when bridgeVersion is absent", () => {
+    const tempDir = createTrackedTempDir("pp-native-pkg-legacy-");
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+    writeNativePackageJson(packageJsonPath, sha256, {
+      bridgeVersion: undefined,
+      protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+    });
+
+    try {
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          requireResolve: () => packageJsonPath,
+        }),
+      ).toBe(binPath);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

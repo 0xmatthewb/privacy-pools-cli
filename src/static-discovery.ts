@@ -2,9 +2,16 @@ import type { GlobalOptions } from "./types.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { resolveGlobalMode } from "./utils/mode.js";
+import { GENERATED_STATIC_LOCAL_COMMANDS } from "./utils/command-discovery-static.js";
+
+const STATIC_DISCOVERY_COMMANDS = GENERATED_STATIC_LOCAL_COMMANDS.filter(
+  (command): command is Exclude<(typeof GENERATED_STATIC_LOCAL_COMMANDS)[number], "completion"> =>
+    command !== "completion",
+);
+const STATIC_DISCOVERY_COMMAND_SET = new Set<string>(STATIC_DISCOVERY_COMMANDS);
 
 interface ParsedStaticCommand {
-  command: "guide" | "capabilities" | "describe";
+  command: (typeof STATIC_DISCOVERY_COMMANDS)[number];
   commandTokens: string[];
   globalOpts: GlobalOptions;
 }
@@ -382,14 +389,10 @@ function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {
     }
 
     if (!command) {
-      if (
-        token !== "guide" &&
-        token !== "capabilities" &&
-        token !== "describe"
-      ) {
+      if (!STATIC_DISCOVERY_COMMAND_SET.has(token)) {
         return null;
       }
-      command = token;
+      command = token as ParsedStaticCommand["command"];
       continue;
     }
 
@@ -409,18 +412,17 @@ export async function runStaticDiscoveryCommand(argv: string[]): Promise<boolean
   if (!parsed) return false;
 
   try {
-    if (parsed.command === "guide") {
-      await renderStaticGuide(parsed.globalOpts);
-      return true;
+    switch (parsed.command) {
+      case "guide":
+        await renderStaticGuide(parsed.globalOpts);
+        return true;
+      case "capabilities":
+        await renderStaticCapabilities(parsed.globalOpts);
+        return true;
+      case "describe":
+        await renderStaticDescribe(parsed.globalOpts, parsed.commandTokens);
+        return true;
     }
-
-    if (parsed.command === "capabilities") {
-      await renderStaticCapabilities(parsed.globalOpts);
-      return true;
-    }
-
-    await renderStaticDescribe(parsed.globalOpts, parsed.commandTokens);
-    return true;
   } catch (error) {
     printError(error, resolveGlobalMode(parsed.globalOpts).isJson);
     return true;

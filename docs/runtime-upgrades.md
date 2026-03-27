@@ -29,7 +29,8 @@ version literals.
 
 - run `npm run discovery:generate`
 - confirm [`src/utils/command-manifest.ts`](../src/utils/command-manifest.ts)
-  and [`native/shell/generated/manifest.json`](../native/shell/generated/manifest.json)
+  plus [`native/shell/generated/manifest.json`](../native/shell/generated/manifest.json)
+  and [`native/shell/generated/runtime-contract.json`](../native/shell/generated/runtime-contract.json)
   reflect the new manifest/runtime versions
 - confirm route ownership and native modes still match the intended safety boundary
 

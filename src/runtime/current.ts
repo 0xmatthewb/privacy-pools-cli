@@ -1,18 +1,20 @@
 import { fileURLToPath } from "node:url";
 import {
   CURRENT_RUNTIME_DESCRIPTOR,
+  CURRENT_NATIVE_JS_BRIDGE_ENV,
+  CURRENT_RUNTIME_REQUEST_ENV as SHARED_RUNTIME_REQUEST_ENV,
 } from "./runtime-contract.js";
 import {
   createWorkerRequestV1,
   decodeWorkerRequestV1,
   encodeWorkerRequestV1,
-  WORKER_REQUEST_ENV,
   type WorkerRequestV1,
 } from "./v1/request.js";
 
 export interface NativeJsBridgeDescriptor {
   runtimeVersion: string;
   workerProtocolVersion: string;
+  nativeBridgeVersion: string;
   workerRequestEnv: string;
   workerCommand: string;
   workerArgs: string[];
@@ -22,8 +24,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export const NATIVE_JS_BRIDGE_ENV = "PRIVACY_POOLS_INTERNAL_JS_BRIDGE_B64";
-export const CURRENT_RUNTIME_REQUEST_ENV = WORKER_REQUEST_ENV;
+export const NATIVE_JS_BRIDGE_ENV = CURRENT_NATIVE_JS_BRIDGE_ENV;
+export const CURRENT_RUNTIME_REQUEST_ENV = SHARED_RUNTIME_REQUEST_ENV;
 
 export function resolveCurrentWorkerPath(): string {
   return fileURLToPath(
@@ -50,7 +52,8 @@ export function createNativeJsBridgeDescriptor(
   return {
     runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
     workerProtocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
-    workerRequestEnv: CURRENT_RUNTIME_REQUEST_ENV,
+    nativeBridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+    workerRequestEnv: SHARED_RUNTIME_REQUEST_ENV,
     workerCommand,
     workerArgs: [...workerArgs],
   };
@@ -93,6 +96,13 @@ export function decodeNativeJsBridgeDescriptor(
   }
 
   if (
+    typeof parsed.nativeBridgeVersion !== "string" ||
+    !parsed.nativeBridgeVersion.trim()
+  ) {
+    throw new Error("JS bridge descriptor nativeBridgeVersion must be a string.");
+  }
+
+  if (
     typeof parsed.workerRequestEnv !== "string" ||
     !parsed.workerRequestEnv.trim()
   ) {
@@ -116,6 +126,7 @@ export function decodeNativeJsBridgeDescriptor(
   return {
     runtimeVersion: parsed.runtimeVersion,
     workerProtocolVersion: parsed.workerProtocolVersion,
+    nativeBridgeVersion: parsed.nativeBridgeVersion,
     workerRequestEnv: parsed.workerRequestEnv,
     workerCommand: parsed.workerCommand,
     workerArgs: [...parsed.workerArgs],

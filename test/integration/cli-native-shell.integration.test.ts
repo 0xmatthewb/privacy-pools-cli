@@ -22,6 +22,7 @@ import {
   ensureNativeShellBinary,
 } from "../helpers/native.ts";
 import { NATIVE_JS_BRIDGE_ENV } from "../../src/runtime/current.ts";
+import { CURRENT_RUNTIME_DESCRIPTOR } from "../../src/runtime/runtime-contract.js";
 
 const TEST_RECIPIENT = "0x000000000000000000000000000000000000dEaD";
 const nativeTest = CARGO_AVAILABLE ? test : test.skip;
@@ -253,8 +254,9 @@ describe("native shell parity", () => {
           [NATIVE_JS_BRIDGE_ENV]: Buffer.from(
             JSON.stringify({
               runtimeVersion: "v999",
-              workerProtocolVersion: "1",
-              workerRequestEnv: "PRIVACY_POOLS_WORKER_REQUEST_B64",
+              workerProtocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
+              nativeBridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+              workerRequestEnv: CURRENT_RUNTIME_DESCRIPTOR.workerRequestEnv,
               workerCommand: process.execPath,
               workerArgs: [],
             }),
@@ -267,6 +269,34 @@ describe("native shell parity", () => {
     expect(result.status).toBe(1);
     expect(parseJsonOutput<{ errorMessage: string }>(result.stdout).errorMessage).toContain(
       "JS bridge runtime version mismatch",
+    );
+    expect(result.stderr).toBe("");
+  });
+
+  nativeTest("direct native forwarding fails closed on an incompatible JS bridge version", () => {
+    const result = runNativeBinaryDirect(
+      nativeBinary,
+      ["--agent", "status", "--no-check"],
+      {
+        env: {
+          [NATIVE_JS_BRIDGE_ENV]: Buffer.from(
+            JSON.stringify({
+              runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
+              workerProtocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
+              nativeBridgeVersion: "999",
+              workerRequestEnv: CURRENT_RUNTIME_DESCRIPTOR.workerRequestEnv,
+              workerCommand: process.execPath,
+              workerArgs: [],
+            }),
+            "utf8",
+          ).toString("base64"),
+        },
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(parseJsonOutput<{ errorMessage: string }>(result.stdout).errorMessage).toContain(
+      "JS bridge version mismatch",
     );
     expect(result.stderr).toBe("");
   });

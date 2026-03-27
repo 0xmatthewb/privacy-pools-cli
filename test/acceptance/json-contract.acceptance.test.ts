@@ -1,5 +1,9 @@
 import { expect } from "bun:test";
 import { join } from "node:path";
+import {
+  CLI_PROTOCOL_PROFILE,
+  buildRuntimeCompatibilityDescriptor,
+} from "../../src/config/protocol-profile.js";
 import { readCliPackageInfo } from "../../src/package-info.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { writeTestSecretFiles } from "../helpers/cli.ts";
@@ -107,11 +111,10 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.commandDetails["withdraw quote"]?.usage).toBe(
         "withdraw quote <amount|asset> [amount]",
       );
-      expect(json.protocol.profile).toBe("privacy-pools-v1");
-      expect(json.protocol.coreSdkVersion).toBe("1.2.0");
-      expect(json.runtime.cliVersion).toBe(CLI_VERSION);
-      expect(json.runtime.runtimeVersion).toBe("v1");
-      expect(json.runtime.jsonSchemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.protocol).toEqual(CLI_PROTOCOL_PROFILE);
+      expect(json.runtime).toMatchObject(
+        buildRuntimeCompatibilityDescriptor(CLI_VERSION),
+      );
       expect(json.documentation).toMatchObject({
         reference: "docs/reference.md",
         agentGuide: "AGENTS.md",

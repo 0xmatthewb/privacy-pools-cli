@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, expect } from "bun:test";
 import { join } from "node:path";
+import {
+  CLI_PROTOCOL_PROFILE,
+  buildRuntimeCompatibilityDescriptor,
+} from "../../src/config/protocol-profile.js";
 import { readCliPackageInfo } from "../../src/package-info.ts";
 import { TEST_MNEMONIC, TEST_PRIVATE_KEY, writeTestSecretFiles } from "../helpers/cli.ts";
 import {
@@ -146,11 +150,10 @@ defineScenarioSuite("agent improvements acceptance", [
           "native-shell",
         );
         expect(json.executionRoutes["stats pool"]?.owner).toBe("hybrid");
-        expect(json.protocol.profile).toBe("privacy-pools-v1");
-        expect(json.protocol.coreSdkVersion).toBe("1.2.0");
-        expect(json.runtime.cliVersion).toBe(CLI_VERSION);
-        expect(json.runtime.runtimeVersion).toBe("v1");
-        expect(json.runtime.nativeBridgeVersion).toBe("1");
+        expect(json.protocol).toEqual(CLI_PROTOCOL_PROFILE);
+        expect(json.runtime).toMatchObject(
+          buildRuntimeCompatibilityDescriptor(CLI_VERSION),
+        );
         expect(json.commandDetails.guide?.safeReadOnly).toBe(true);
         expect(json.commandDetails.completion?.safeReadOnly).toBe(true);
         expect(json.safeReadOnlyCommands).toContain("guide");

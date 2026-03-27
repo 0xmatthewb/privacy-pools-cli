@@ -15,8 +15,7 @@ const runtimeContractModulePath = join(
   "runtime-contract.js",
 );
 const {
-  CURRENT_NATIVE_BRIDGE_VERSION,
-  CURRENT_RUNTIME_VERSION,
+  CURRENT_RUNTIME_DESCRIPTOR,
 } = await import(pathToFileURL(runtimeContractModulePath).href);
 const protocolProfileModulePath = join(
   repoRoot,
@@ -131,10 +130,9 @@ const packageJson = {
   files: ["bin", "README.md", "package.json"],
   privacyPoolsCliNative: {
     triplet,
-    bridgeVersion: CURRENT_NATIVE_BRIDGE_VERSION,
-    protocolVersion: CURRENT_NATIVE_BRIDGE_VERSION,
+    bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
     protocolProfile: CLI_PROTOCOL_PROFILE.profile,
-    runtimeVersion: CURRENT_RUNTIME_VERSION,
+    runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
     sha256,
   },
 };

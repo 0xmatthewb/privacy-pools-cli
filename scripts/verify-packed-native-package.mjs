@@ -17,8 +17,7 @@ const runtimeContractModulePath = join(
 
 const rootPackageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 const {
-  CURRENT_NATIVE_BRIDGE_VERSION,
-  CURRENT_RUNTIME_VERSION,
+  CURRENT_RUNTIME_DESCRIPTOR,
 } = await import(pathToFileURL(runtimeContractModulePath).href);
 const protocolProfileModulePath = join(
   repoRoot,
@@ -73,6 +72,10 @@ const installRoot = mkdtempSync(join(tmpdir(), "pp-native-tarball-"));
 const npmCacheDir = join(installRoot, ".npm-cache");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const packageName = `@0xbow/privacy-pools-cli-native-${triplet}`;
+
+function resolveNativeBridgeVersion(metadata = {}) {
+  return metadata.bridgeVersion ?? metadata.protocolVersion;
+}
 
 try {
   writeFileSync(
@@ -135,7 +138,7 @@ try {
     readFileSync(installedPackageJsonPath, "utf8"),
   );
   const metadata = installedPackageJson.privacyPoolsCliNative ?? {};
-  const bridgeVersion = metadata.bridgeVersion ?? metadata.protocolVersion;
+  const bridgeVersion = resolveNativeBridgeVersion(metadata);
   const binEntry =
     typeof installedPackageJson.bin === "string"
       ? installedPackageJson.bin
@@ -159,15 +162,15 @@ try {
     );
   }
 
-  if (bridgeVersion !== CURRENT_NATIVE_BRIDGE_VERSION) {
+  if (bridgeVersion !== CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion) {
     fail(
-      `Packed native package bridge version mismatch: expected ${CURRENT_NATIVE_BRIDGE_VERSION}, got ${bridgeVersion ?? "<missing>"}.`,
+      `Packed native package bridge version mismatch: expected ${CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion}, got ${bridgeVersion ?? "<missing>"}.`,
     );
   }
 
-  if (metadata.runtimeVersion !== CURRENT_RUNTIME_VERSION) {
+  if (metadata.runtimeVersion !== CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion) {
     fail(
-      `Packed native package runtime version mismatch: expected ${CURRENT_RUNTIME_VERSION}, got ${metadata.runtimeVersion ?? "<missing>"}.`,
+      `Packed native package runtime version mismatch: expected ${CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion}, got ${metadata.runtimeVersion ?? "<missing>"}.`,
     );
   }
 

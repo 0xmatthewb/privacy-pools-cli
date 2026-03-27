@@ -122,8 +122,7 @@ function hasCompatibleInstalledNativeMetadata(
   packageJson: NativePackageJson,
 ): boolean {
   const metadata = packageJson.privacyPoolsCliNative;
-  const actualBridgeVersion =
-    metadata?.bridgeVersion?.trim() ?? metadata?.protocolVersion?.trim();
+  const actualBridgeVersion = resolveInstalledNativeBridgeVersion(metadata);
   if (actualBridgeVersion !== CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion) {
     return false;
   }
@@ -143,6 +142,15 @@ function hasCompatibleInstalledNativeMetadata(
   }
 
   return true;
+}
+
+function resolveInstalledNativeBridgeVersion(
+  metadata: NativePackageJson["privacyPoolsCliNative"],
+): string | null {
+  // Older preview artifacts used protocolVersion for bridge compatibility.
+  // Keep accepting that alias for rollback compatibility, but publish only
+  // bridgeVersion in new native packages.
+  return metadata?.bridgeVersion?.trim() || metadata?.protocolVersion?.trim() || null;
 }
 
 export function resolveInstalledNativeBinary(

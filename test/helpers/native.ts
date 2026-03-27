@@ -22,6 +22,7 @@ const NATIVE_BUILD_INPUTS = [
   MANIFEST_PATH,
   join(CLI_ROOT, "native", "shell", "src", "main.rs"),
   join(CLI_ROOT, "native", "shell", "generated", "manifest.json"),
+  join(CLI_ROOT, "native", "shell", "generated", "runtime-contract.json"),
 ];
 
 export const CARGO_AVAILABLE =

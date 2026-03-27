@@ -1,7 +1,10 @@
-import { CURRENT_WORKER_PROTOCOL_VERSION } from "../runtime-contract.js";
+import {
+  CURRENT_RUNTIME_DESCRIPTOR,
+  CURRENT_WORKER_PROTOCOL_VERSION,
+} from "../runtime-contract.js";
 
 export const WORKER_PROTOCOL_VERSION = CURRENT_WORKER_PROTOCOL_VERSION;
-export const WORKER_REQUEST_ENV = "PRIVACY_POOLS_WORKER_REQUEST_B64";
+export const WORKER_REQUEST_ENV = CURRENT_RUNTIME_DESCRIPTOR.workerRequestEnv;
 
 export interface WorkerRequestV1 {
   protocolVersion: typeof WORKER_PROTOCOL_VERSION;

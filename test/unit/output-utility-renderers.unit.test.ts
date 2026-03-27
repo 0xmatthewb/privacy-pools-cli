@@ -3,6 +3,10 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import {
+  CLI_PROTOCOL_PROFILE,
+  buildRuntimeCompatibilityDescriptor,
+} from "../../src/config/protocol-profile.js";
 import { createOutputContext } from "../../src/output/common.ts";
 import { renderGuide } from "../../src/output/guide.ts";
 import {
@@ -101,26 +105,8 @@ const STUB_CAPABILITIES: CapabilitiesPayload = {
   },
   globalFlags: [{ flag: "-j, --json", description: "JSON output" }],
   agentWorkflow: ["1. do something"],
-  protocol: {
-    family: "privacy-pools",
-    generation: "v1",
-    profile: "privacy-pools-v1",
-    displayName: "Privacy Pools v1",
-    coreSdkPackage: "@0xbow/privacy-pools-core-sdk",
-    coreSdkVersion: "1.2.0",
-    supportedChainPolicy: "cli-curated",
-  },
-  runtime: {
-    cliVersion: "1.7.0",
-    jsonSchemaVersion: JSON_SCHEMA_VERSION,
-    accountFileVersion: 3,
-    workflowSnapshotVersion: "1",
-    workflowSecretVersion: "1",
-    runtimeVersion: "v1",
-    workerProtocolVersion: "1",
-    manifestVersion: "1",
-    nativeBridgeVersion: "1",
-  },
+  protocol: CLI_PROTOCOL_PROFILE,
+  runtime: buildRuntimeCompatibilityDescriptor("1.7.0"),
   jsonOutputContract: "test contract",
 };
 

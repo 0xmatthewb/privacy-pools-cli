@@ -27,6 +27,13 @@ const nativeManifestPath = join(
   "generated",
   "manifest.json",
 );
+const nativeRuntimeContractPath = join(
+  CLI_ROOT,
+  "native",
+  "shell",
+  "generated",
+  "runtime-contract.json",
+);
 const prepareNativePackageScript = readFileSync(
   join(CLI_ROOT, "scripts", "prepare-native-package.mjs"),
   "utf8",
@@ -37,6 +44,10 @@ const verifyNativePackageScript = readFileSync(
 );
 const launcherSource = readFileSync(
   join(CLI_ROOT, "src", "launcher.ts"),
+  "utf8",
+);
+const nativeShellSource = readFileSync(
+  join(CLI_ROOT, "native", "shell", "src", "main.rs"),
   "utf8",
 );
 
@@ -54,6 +65,9 @@ describe("runtime contract conformance", () => {
     };
     const cliVersion = readCliPackageInfo(import.meta.url).version;
     const expectedRuntime = buildRuntimeCompatibilityDescriptor(cliVersion);
+    const generatedRuntimeContract = JSON.parse(
+      readFileSync(nativeRuntimeContractPath, "utf8"),
+    ) as typeof CURRENT_RUNTIME_DESCRIPTOR;
 
     expect(GENERATED_COMMAND_MANIFEST.manifestVersion).toBe(
       CURRENT_RUNTIME_DESCRIPTOR.manifestVersion,
@@ -78,6 +92,7 @@ describe("runtime contract conformance", () => {
       CLI_PROTOCOL_PROFILE,
     );
     expect(nativeManifest.capabilitiesPayload.runtime).toEqual(expectedRuntime);
+    expect(generatedRuntimeContract).toEqual(CURRENT_RUNTIME_DESCRIPTOR);
   });
 
   test("protocol profile storage/schema constants stay aligned with the TS runtime", () => {
@@ -94,15 +109,14 @@ describe("runtime contract conformance", () => {
   test("launcher and native packaging scripts gate on the current protocol/runtime metadata", () => {
     expect(prepareNativePackageScript).toContain("protocolProfile");
     expect(prepareNativePackageScript).toContain("CLI_PROTOCOL_PROFILE.profile");
-    expect(prepareNativePackageScript).toContain("CURRENT_RUNTIME_VERSION");
-    expect(prepareNativePackageScript).toContain("CURRENT_NATIVE_BRIDGE_VERSION");
+    expect(prepareNativePackageScript).toContain("CURRENT_RUNTIME_DESCRIPTOR");
 
     expect(verifyNativePackageScript).toContain("protocol profile mismatch");
-    expect(verifyNativePackageScript).toContain("CURRENT_RUNTIME_VERSION");
-    expect(verifyNativePackageScript).toContain("CURRENT_NATIVE_BRIDGE_VERSION");
+    expect(verifyNativePackageScript).toContain("CURRENT_RUNTIME_DESCRIPTOR");
 
     expect(launcherSource).toContain("protocolProfile");
     expect(launcherSource).toContain("CLI_PROTOCOL_PROFILE.profile");
     expect(launcherSource).toContain("CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion");
+    expect(nativeShellSource).toContain("runtime-contract.json");
   });
 });

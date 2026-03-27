@@ -41,6 +41,13 @@ const nativeShellManifestPath = join(
   "generated",
   "manifest.json",
 );
+const nativeRuntimeContractPath = join(
+  repoRoot,
+  "native",
+  "shell",
+  "generated",
+  "runtime-contract.json",
+);
 
 const packageJsonPath = join(repoRoot, "package.json");
 
@@ -64,6 +71,7 @@ const {
 );
 const {
   CURRENT_MANIFEST_VERSION,
+  CURRENT_RUNTIME_DESCRIPTOR,
   CURRENT_RUNTIME_VERSION,
 } = await import(pathToFileURL(runtimeContractModulePath).href);
 
@@ -300,6 +308,13 @@ export const GENERATED_COMMAND_MANIFEST = {
 
 mkdirSync(dirname(manifestModulePath), { recursive: true });
 writeFileSync(manifestModulePath, fileContents, "utf8");
+
+mkdirSync(dirname(nativeRuntimeContractPath), { recursive: true });
+writeFileSync(
+  nativeRuntimeContractPath,
+  `${JSON.stringify(CURRENT_RUNTIME_DESCRIPTOR, null, 2)}\n`,
+  "utf8",
+);
 
 const nativeShellManifest = await buildNativeShellManifest();
 if (nativeShellManifest) {

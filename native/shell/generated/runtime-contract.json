@@ -1,0 +1,9 @@
+{
+  "runtimeVersion": "v1",
+  "workerProtocolVersion": "1",
+  "manifestVersion": "1",
+  "nativeBridgeVersion": "1",
+  "workerRequestEnv": "PRIVACY_POOLS_WORKER_REQUEST_B64",
+  "nativeBridgeEnv": "PRIVACY_POOLS_INTERNAL_JS_BRIDGE_B64",
+  "workerEntryRelativePath": "./v1/worker-main.js"
+}

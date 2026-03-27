@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  CURRENT_NATIVE_JS_BRIDGE_ENV,
   CURRENT_RUNTIME_DESCRIPTOR,
+  CURRENT_RUNTIME_REQUEST_ENV,
 } from "../../src/runtime/runtime-contract.js";
 import {
   createNativeJsBridgeDescriptor,
@@ -24,5 +26,14 @@ describe("current runtime contract", () => {
     expect(
       decodeNativeJsBridgeDescriptor(encodeNativeJsBridgeDescriptor(descriptor)),
     ).toEqual(descriptor);
+  });
+
+  test("publishes runtime env names through the shared descriptor", () => {
+    expect(CURRENT_RUNTIME_DESCRIPTOR.workerRequestEnv).toBe(
+      CURRENT_RUNTIME_REQUEST_ENV,
+    );
+    expect(CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeEnv).toBe(
+      CURRENT_NATIVE_JS_BRIDGE_ENV,
+    );
   });
 });

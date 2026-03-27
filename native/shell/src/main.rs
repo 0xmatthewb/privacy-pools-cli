@@ -13,11 +13,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tiny_keccak::{Hasher, Keccak};
 
 const JSON_SCHEMA_VERSION: &str = "1.5.0";
-const EXPECTED_MANIFEST_VERSION: &str = "1";
-const EXPECTED_RUNTIME_VERSION: &str = "v1";
-const EXPECTED_WORKER_PROTOCOL_VERSION: &str = "1";
 const ENV_JS_WORKER_PATH: &str = "PRIVACY_POOLS_CLI_JS_WORKER";
-const ENV_JS_BRIDGE_B64: &str = "PRIVACY_POOLS_INTERNAL_JS_BRIDGE_B64";
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
@@ -232,6 +228,22 @@ struct Manifest {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+struct NativeRuntimeContract {
+    #[serde(rename = "runtimeVersion")]
+    runtime_version: String,
+    #[serde(rename = "workerProtocolVersion")]
+    worker_protocol_version: String,
+    #[serde(rename = "manifestVersion")]
+    manifest_version: String,
+    #[serde(rename = "nativeBridgeVersion")]
+    native_bridge_version: String,
+    #[serde(rename = "workerRequestEnv")]
+    worker_request_env: String,
+    #[serde(rename = "nativeBridgeEnv")]
+    native_bridge_env: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 struct ManifestRoutes {
     #[serde(rename = "staticLocalCommands")]
     static_local_commands: Vec<String>,
@@ -256,6 +268,8 @@ struct JsBridgeDescriptor {
     runtime_version: String,
     #[serde(rename = "workerProtocolVersion")]
     worker_protocol_version: String,
+    #[serde(rename = "nativeBridgeVersion")]
+    native_bridge_version: String,
     #[serde(rename = "workerRequestEnv")]
     worker_request_env: String,
     #[serde(rename = "workerCommand")]
@@ -459,8 +473,17 @@ fn manifest() -> &'static Manifest {
     })
 }
 
+fn runtime_contract() -> &'static NativeRuntimeContract {
+    static RUNTIME_CONTRACT: OnceLock<NativeRuntimeContract> = OnceLock::new();
+    RUNTIME_CONTRACT.get_or_init(|| {
+        serde_json::from_str(include_str!("../generated/runtime-contract.json"))
+            .expect("native shell runtime contract must deserialize")
+    })
+}
+
 fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
     let manifest = manifest();
+    let runtime_contract = runtime_contract();
     if manifest.manifest_version.trim().is_empty() || manifest.runtime_version.trim().is_empty() {
         return Err(CliError::unknown(
             "Native shell manifest compatibility metadata is missing.",
@@ -468,20 +491,22 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         ));
     }
 
-    if manifest.manifest_version != EXPECTED_MANIFEST_VERSION {
+    if manifest.manifest_version != runtime_contract.manifest_version {
         return Err(CliError::unknown(
             format!(
-                "Native shell manifest version mismatch: expected {EXPECTED_MANIFEST_VERSION}, got {}.",
+                "Native shell manifest version mismatch: expected {}, got {}.",
+                runtime_contract.manifest_version,
                 manifest.manifest_version
             ),
             Some("Regenerate the native manifest and rebuild the native shell.".to_string()),
         ));
     }
 
-    if manifest.runtime_version != EXPECTED_RUNTIME_VERSION {
+    if manifest.runtime_version != runtime_contract.runtime_version {
         return Err(CliError::unknown(
             format!(
-                "Native shell runtime version mismatch: expected {EXPECTED_RUNTIME_VERSION}, got {}.",
+                "Native shell runtime version mismatch: expected {}, got {}.",
+                runtime_contract.runtime_version,
                 manifest.runtime_version
             ),
             Some("Rebuild the CLI so the launcher, manifest, and native shell use the same runtime generation.".to_string()),
@@ -1101,7 +1126,8 @@ fn handle_pools_native(
 }
 
 fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
-    let bridge = env::var(ENV_JS_BRIDGE_B64)
+    let runtime_contract = runtime_contract();
+    let bridge = env::var(&runtime_contract.native_bridge_env)
         .ok()
         .filter(|value| !value.trim().is_empty())
         .map(|encoded| decode_js_bridge_descriptor(&encoded))
@@ -1131,8 +1157,8 @@ fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
             (
                 worker_command,
                 Vec::new(),
-                "PRIVACY_POOLS_WORKER_REQUEST_B64".to_string(),
-                EXPECTED_WORKER_PROTOCOL_VERSION.to_string(),
+                runtime_contract.worker_request_env.clone(),
+                runtime_contract.worker_protocol_version.clone(),
             )
         }
     };
@@ -1696,6 +1722,7 @@ fn print_error_and_exit(error: &CliError, structured: bool) -> ! {
 }
 
 fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliError> {
+    let runtime_contract = runtime_contract();
     let bytes = BASE64.decode(encoded).map_err(|error| {
         CliError::unknown(
             format!("Failed to decode JS bridge descriptor: {error}"),
@@ -1712,6 +1739,7 @@ fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliE
 
     if descriptor.runtime_version.trim().is_empty()
         || descriptor.worker_protocol_version.trim().is_empty()
+        || descriptor.native_bridge_version.trim().is_empty()
         || descriptor.worker_request_env.trim().is_empty()
         || descriptor.worker_command.trim().is_empty()
     {
@@ -1721,21 +1749,45 @@ fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliE
         ));
     }
 
-    if descriptor.runtime_version != EXPECTED_RUNTIME_VERSION {
+    if descriptor.runtime_version != runtime_contract.runtime_version {
         return Err(CliError::unknown(
             format!(
-                "JS bridge runtime version mismatch: expected {EXPECTED_RUNTIME_VERSION}, got {}.",
+                "JS bridge runtime version mismatch: expected {}, got {}.",
+                runtime_contract.runtime_version,
                 descriptor.runtime_version
             ),
             Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         ));
     }
 
-    if descriptor.worker_protocol_version != EXPECTED_WORKER_PROTOCOL_VERSION {
+    if descriptor.worker_protocol_version != runtime_contract.worker_protocol_version {
         return Err(CliError::unknown(
             format!(
-                "JS bridge worker protocol mismatch: expected {EXPECTED_WORKER_PROTOCOL_VERSION}, got {}.",
+                "JS bridge worker protocol mismatch: expected {}, got {}.",
+                runtime_contract.worker_protocol_version,
                 descriptor.worker_protocol_version
+            ),
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
+        ));
+    }
+
+    if descriptor.native_bridge_version != runtime_contract.native_bridge_version {
+        return Err(CliError::unknown(
+            format!(
+                "JS bridge version mismatch: expected {}, got {}.",
+                runtime_contract.native_bridge_version,
+                descriptor.native_bridge_version
+            ),
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
+        ));
+    }
+
+    if descriptor.worker_request_env != runtime_contract.worker_request_env {
+        return Err(CliError::unknown(
+            format!(
+                "JS bridge worker request env mismatch: expected {}, got {}.",
+                runtime_contract.worker_request_env,
+                descriptor.worker_request_env
             ),
             Some("Reinstall the CLI or disable native mode and retry.".to_string()),
         ));
