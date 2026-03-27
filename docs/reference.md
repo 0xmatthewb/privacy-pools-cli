@@ -694,9 +694,10 @@ npm unlink -g privacy-pools-cli
 
 ```bash
 bun run test              # fast default suite (excludes packaged smoke)
-bun run test:ci           # local mirror of required CI checks
-bun run test:release      # release-readiness suite (native smoke + full Anvil matrix)
+bun run test:ci           # local single-host mirror of the required CI checks
+bun run test:release      # release-readiness suite (host artifact gate + benchmark gate + full Anvil matrix)
 bun run test:smoke        # packaged CLI smoke against a packed tarball
+bun run test:artifacts:host # pack/install the current-host CLI + native artifacts
 bun run typecheck         # TypeScript type check (no emit)
 bun run circuits:provision # prefetch proof artifacts into the CLI home
 bun run test:e2e:anvil    # full Sepolia-fork E2E
@@ -707,6 +708,8 @@ bun run test:coverage     # coverage guard for key source directories
 bun run test:conformance  # core conformance tests (extended timeout)
 bun run test:conformance:frontend # optional frontend parity (website access required)
 bun run test:conformance:all # core conformance + frontend parity
+bun run bench:gate        # native perf gate against the current checkout JS fallback
+bun run bench:gate:release # native perf gate against the v1.7.0 release baseline
 ```
 
 Use `bun run test`, `bun run test:ci`, and `bun run test:release` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts.

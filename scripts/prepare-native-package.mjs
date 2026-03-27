@@ -32,31 +32,31 @@ const TRIPLET_METADATA = {
     os: ["darwin"],
     cpu: ["arm64"],
     libc: undefined,
-    binName: "privacy-pools",
+    binaryFileName: "privacy-pools-cli-native-shell",
   },
   "darwin-x64": {
     os: ["darwin"],
     cpu: ["x64"],
     libc: undefined,
-    binName: "privacy-pools",
+    binaryFileName: "privacy-pools-cli-native-shell",
   },
   "linux-x64-gnu": {
     os: ["linux"],
     cpu: ["x64"],
     libc: ["glibc"],
-    binName: "privacy-pools",
+    binaryFileName: "privacy-pools-cli-native-shell",
   },
   "win32-x64-msvc": {
     os: ["win32"],
     cpu: ["x64"],
     libc: undefined,
-    binName: "privacy-pools.exe",
+    binaryFileName: "privacy-pools-cli-native-shell.exe",
   },
   "win32-arm64-msvc": {
     os: ["win32"],
     cpu: ["arm64"],
     libc: undefined,
-    binName: "privacy-pools.exe",
+    binaryFileName: "privacy-pools-cli-native-shell.exe",
   },
 };
 
@@ -106,7 +106,7 @@ const outputDir = resolve(
 );
 const sourceBinary = resolve(binary);
 const binDir = join(outputDir, "bin");
-const targetBinary = join(binDir, metadata.binName);
+const targetBinary = join(binDir, metadata.binaryFileName);
 
 mkdirSync(binDir, { recursive: true });
 copyFileSync(sourceBinary, targetBinary);
@@ -124,12 +124,10 @@ const packageJson = {
   os: metadata.os,
   cpu: metadata.cpu,
   ...(metadata.libc ? { libc: metadata.libc } : {}),
-  bin: {
-    "privacy-pools": `bin/${metadata.binName}`,
-  },
   files: ["bin", "README.md", "package.json"],
   privacyPoolsCliNative: {
     triplet,
+    binaryPath: `bin/${metadata.binaryFileName}`,
     bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
     protocolProfile: CLI_PROTOCOL_PROFILE.profile,
     runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,

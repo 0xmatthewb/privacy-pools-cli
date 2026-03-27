@@ -26,10 +26,8 @@ function writeNativePackageJson(
     packageJsonPath,
     JSON.stringify({
       version: "1.7.0",
-      bin: {
-        "privacy-pools": "bin/privacy-pools",
-      },
       privacyPoolsCliNative: {
+        binaryPath: "bin/privacy-pools-cli-native-shell",
         bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
         protocolProfile: CLI_PROTOCOL_PROFILE.profile,
         runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
@@ -151,7 +149,7 @@ describe("launcher routing", () => {
     const tempDir = createTrackedTempDir("pp-native-pkg-");
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
-    const binPath = join(binDir, "privacy-pools");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
     const sha256 = createHash("sha256")
@@ -188,7 +186,11 @@ describe("launcher routing", () => {
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
     mkdirSync(binDir, { recursive: true });
-    writeFileSync(join(binDir, "privacy-pools"), "mismatch", "utf8");
+    writeFileSync(
+      join(binDir, "privacy-pools-cli-native-shell"),
+      "mismatch",
+      "utf8",
+    );
     writeNativePackageJson(packageJsonPath, "deadbeef");
 
     try {
@@ -208,7 +210,7 @@ describe("launcher routing", () => {
     const tempDir = createTrackedTempDir("pp-native-pkg-bridge-");
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
-    const binPath = join(binDir, "privacy-pools");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
     const sha256 = createHash("sha256")
@@ -235,7 +237,7 @@ describe("launcher routing", () => {
     const tempDir = createTrackedTempDir("pp-native-pkg-protocol-");
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
-    const binPath = join(binDir, "privacy-pools");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
     const sha256 = createHash("sha256")
@@ -262,7 +264,7 @@ describe("launcher routing", () => {
     const tempDir = createTrackedTempDir("pp-native-pkg-legacy-");
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
-    const binPath = join(binDir, "privacy-pools");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
     const sha256 = createHash("sha256")
@@ -272,6 +274,47 @@ describe("launcher routing", () => {
       bridgeVersion: undefined,
       protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
     });
+
+    try {
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          requireResolve: () => packageJsonPath,
+        }),
+      ).toBe(binPath);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("accepts legacy native packages that still publish a public bin entry", () => {
+    const tempDir = createTrackedTempDir("pp-native-pkg-legacy-bin-");
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+    writeFileSync(
+      packageJsonPath,
+      JSON.stringify({
+        version: "1.7.0",
+        bin: {
+          "privacy-pools": "bin/privacy-pools",
+        },
+        privacyPoolsCliNative: {
+          bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+          protocolProfile: CLI_PROTOCOL_PROFILE.profile,
+          runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
+          triplet: "darwin-arm64",
+          sha256,
+        },
+      }),
+      "utf8",
+    );
 
     try {
       expect(

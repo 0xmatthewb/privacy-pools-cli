@@ -44,36 +44,31 @@ function parseJson(stdout, label) {
   }
 }
 
-function resolveInstalledCliEntryPath(installRoot) {
-  const installedPackageJsonPath = join(
-    installRoot,
-    "node_modules",
-    rootPackageJson.name,
-    "package.json",
-  );
-  const installedPackageJson = JSON.parse(
-    readFileSync(installedPackageJsonPath, "utf8"),
-  );
-  const binEntry =
-    typeof installedPackageJson.bin === "string"
-      ? installedPackageJson.bin
-      : installedPackageJson.bin?.["privacy-pools"];
-
-  if (!binEntry) {
-    fail(
-      `Installed release CLI is missing the privacy-pools bin entry in ${installedPackageJsonPath}.`,
-    );
+function resolveInstalledCliCommand(installRoot, args) {
+  const binDir = join(installRoot, "node_modules", ".bin");
+  if (process.platform === "win32") {
+    return {
+      command: join(binDir, "privacy-pools.cmd"),
+      args,
+      shell: true,
+    };
   }
 
-  return resolve(dirname(installedPackageJsonPath), binEntry);
+  return {
+    command: join(binDir, "privacy-pools"),
+    args,
+    shell: false,
+  };
 }
 
-function runCli(cliEntryPath, installRoot, homeDir, args, options = {}) {
-  const result = spawnSync(process.execPath, [cliEntryPath, ...args], {
+function runCli(installRoot, homeDir, args, options = {}) {
+  const invocation = resolveInstalledCliCommand(installRoot, args);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: installRoot,
     encoding: "utf8",
     timeout: options.timeout ?? 60_000,
     maxBuffer: 10 * 1024 * 1024,
+    shell: invocation.shell,
     env: {
       ...process.env,
       PP_NO_UPDATE_CHECK: "1",
@@ -155,31 +150,23 @@ try {
   }
 
   // Resolve the root package's installed bin target from its own package.json.
-  // The optional native package also publishes a privacy-pools bin name, so the
-  // shared .bin shim is ambiguous once both tarballs are installed together.
-  const cliEntryPath = resolveInstalledCliEntryPath(installRoot);
-
-  const versionResult = runCli(cliEntryPath, installRoot, homeDir, ["--version"]);
+  // The installed public privacy-pools shim must remain owned by the root JS
+  // launcher even when the optional native package is present.
+  const versionResult = runCli(installRoot, homeDir, ["--version"]);
   if (versionResult.status !== 0 || versionResult.stdout.trim() !== expectedVersion) {
     fail(
       `Installed release CLI returned an unexpected version:\nstatus=${versionResult.status}\nstdout=${versionResult.stdout}\nstderr=${versionResult.stderr}`,
     );
   }
 
-  const helpResult = runCli(cliEntryPath, installRoot, homeDir, ["--help"]);
+  const helpResult = runCli(installRoot, homeDir, ["--help"]);
   if (helpResult.status !== 0 || !helpResult.stdout.includes("privacy-pools")) {
     fail(
       `Installed release CLI help failed:\nstatus=${helpResult.status}\nstdout=${helpResult.stdout}\nstderr=${helpResult.stderr}`,
     );
   }
 
-  // If the launcher failed to resolve the installed native package and fell
-  // back to JS, this would fail before executing because the JS worker path is
-  // invalid. Use subcommand help here because root help/capabilities/describe
-  // can succeed through the launcher's static JS fast paths without proving
-  // same-version native package resolution.
   const nativeResolutionResult = runCli(
-    cliEntryPath,
     installRoot,
     homeDir,
     ["flow", "--help"],
@@ -199,7 +186,6 @@ try {
   }
 
   const statusResult = runCli(
-    cliEntryPath,
     installRoot,
     homeDir,
     ["--agent", "status", "--no-check"],
@@ -212,7 +198,6 @@ try {
   }
 
   const statsResult = runCli(
-    cliEntryPath,
     installRoot,
     homeDir,
     ["--agent", "stats"],

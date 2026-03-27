@@ -1,0 +1,34 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { CLI_ROOT } from "../helpers/paths.ts";
+
+const packageJson = JSON.parse(
+  readFileSync(join(CLI_ROOT, "package.json"), "utf8"),
+) as {
+  scripts?: Record<string, string>;
+};
+
+describe("package scripts conformance", () => {
+  test("test:ci mirrors the current-host installed-artifact gate", () => {
+    expect(packageJson.scripts?.["test:artifacts:host"]).toBe(
+      "node scripts/verify-current-host-release-artifacts.mjs",
+    );
+    expect(packageJson.scripts?.["test:ci"]).toContain("npm run test:artifacts:host");
+  });
+
+  test("test:release includes the current-host artifact gate and release benchmark gate", () => {
+    expect(packageJson.scripts?.["bench:gate:release"]).toBe(
+      "node scripts/bench-cli.mjs --base v1.7.0 --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
+    );
+    expect(packageJson.scripts?.["test:release"]).toContain(
+      "npm run test:artifacts:host",
+    );
+    expect(packageJson.scripts?.["test:release"]).toContain(
+      "npm run bench:gate:release",
+    );
+    expect(packageJson.scripts?.["test:all"]).toContain(
+      "npm run bench:gate:release",
+    );
+  });
+});

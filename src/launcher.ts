@@ -38,6 +38,7 @@ interface NativePackageJson {
   version?: string;
   bin?: string | Record<string, string>;
   privacyPoolsCliNative?: {
+    binaryPath?: string;
     sha256?: string;
     bridgeVersion?: string;
     protocolVersion?: string;
@@ -88,17 +89,23 @@ function nativePackageName(
   return triplet ? `@0xbow/privacy-pools-cli-native-${triplet}` : null;
 }
 
-function resolvePackageBinPath(
+function resolvePackageBinaryPath(
   packageJsonPath: string,
   packageJson: NativePackageJson,
 ): string | null {
-  const binEntry =
+  const metadataBinaryPath =
+    packageJson.privacyPoolsCliNative?.binaryPath?.trim() || null;
+  if (metadataBinaryPath) {
+    return resolve(dirname(packageJsonPath), metadataBinaryPath);
+  }
+
+  const legacyBinEntry =
     typeof packageJson.bin === "string"
       ? packageJson.bin
       : packageJson.bin?.["privacy-pools"];
 
-  if (!binEntry) return null;
-  return resolve(dirname(packageJsonPath), binEntry);
+  if (!legacyBinEntry) return null;
+  return resolve(dirname(packageJsonPath), legacyBinEntry);
 }
 
 function sha256File(path: string): string {
@@ -184,7 +191,7 @@ export function resolveInstalledNativeBinary(
       return null;
     }
 
-    const binaryPath = resolvePackageBinPath(packageJsonPath, packageJson);
+    const binaryPath = resolvePackageBinaryPath(packageJsonPath, packageJson);
     if (!binaryPath) return null;
     if (!hasValidInstalledNativeChecksum(packageJson, binaryPath)) {
       return null;

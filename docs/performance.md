@@ -8,6 +8,8 @@ node scripts/bench-cli.mjs --base origin/main
 node scripts/bench-cli.mjs --base origin/main --runs 12
 node scripts/bench-cli.mjs --runtime native
 node scripts/bench-cli.mjs --runtime both --runs 6
+npm run bench:gate
+npm run bench:gate:release
 ```
 
 The harness builds both checkouts, runs a read-only command matrix, and prints
@@ -48,10 +50,10 @@ native-owned public read-only commands. The JS-owned `status --json --no-check`
 benchmark remains in the report for visibility, but it is intentionally
 informational-only under the current safety boundary.
 
-The local `bench:gate` script defaults to comparing the direct native shell
-against the current checkout's JS fallback path. The release workflow overrides
-that baseline to `v1.7.0` so the ship gate stays anchored to the roadmap's
-historical target.
+The local `bench:gate` script compares the direct native shell against the
+current checkout's JS fallback path. `bench:gate:release` is the pinned
+release-ready variant and uses the roadmap baseline tag `v1.7.0`, matching the
+release workflow exactly.
 
 If you want to compare a different ref, pass `--base <ref>` such as `HEAD~1`,
 `origin/main`, or a release tag.

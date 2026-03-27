@@ -121,6 +121,36 @@ describe("native package smoke", () => {
     expect(parseJsonOutput<{ success: boolean }>(statusResult.stdout).success).toBe(true);
   });
 
+  nativePackageSmokeTest("packaged native still serves native-owned help when the JS worker path is broken", () => {
+    const result = runBuiltCli(["flow", "--help"], {
+      cwd: snapshotRoot,
+      env: {
+        PRIVACY_POOLS_CLI_JS_WORKER: join(snapshotRoot, "missing-worker.js"),
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Usage: privacy-pools flow");
+    expect(result.stderr).toBe("");
+  });
+
+  nativePackageSmokeTest("prepared native package keeps its binary internal to avoid shadowing the public launcher", () => {
+    const packageJsonPath = join(
+      snapshotRoot,
+      "node_modules",
+      "@0xbow",
+      `privacy-pools-cli-native-${currentTriplet}`,
+      "package.json",
+    );
+    const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      bin?: string | Record<string, string>;
+      privacyPoolsCliNative?: { binaryPath?: string };
+    };
+
+    expect(pkg.bin).toBeUndefined();
+    expect(pkg.privacyPoolsCliNative?.binaryPath).toBeTruthy();
+  });
+
   nativePackageSmokeTest("packaged native executes fixture-backed public read-only commands successfully", () => {
     const env = {
       PRIVACY_POOLS_ASP_HOST: fixture!.url,
@@ -288,7 +318,7 @@ describe("native package smoke", () => {
         errorCode?: string;
       }>(result.stdout);
       expect(payload.success).toBe(false);
-      expect(payload.errorCode).toBeTruthy();
+      expect(payload.errorCode).toBe("RPC_NETWORK_ERROR");
     } finally {
       renameSync(statsHandlerBackupPath, statsHandlerPath);
     }

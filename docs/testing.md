@@ -134,6 +134,8 @@ CI notes:
 
 - `scripts/ci/test-shards.mjs` uses `scripts/ci/test-shard-weights.json` for deterministic runtime-aware shard balancing.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
+- `npm run test:ci` now includes the current-host packed-artifact install check so local verification exercises the same installed launcher/native path that blocking CI enforces on supported targets.
+- `npm run test:release` adds the same current-host artifact check plus `npm run bench:gate:release`, matching the release workflow's pinned performance gate.
 
 ## Runtime Upgrade Playbook
 

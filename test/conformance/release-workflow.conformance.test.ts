@@ -79,7 +79,7 @@ describe("release workflow conformance", () => {
   test("release workflow keeps the release and native smoke gates before packaging", () => {
     expect(releaseWorkflow).toContain("npm run test:release");
     expect(releaseWorkflow).toContain("Run benchmark gate against v1.7.0 baseline");
-    expect(releaseWorkflow).toContain("npm run bench:gate -- --base v1.7.0");
+    expect(releaseWorkflow).toContain("npm run bench:gate:release");
     expect(releaseWorkflow).toContain("Run native smoke test");
     expect(releaseWorkflow).toContain("npm run test:smoke:native");
   });

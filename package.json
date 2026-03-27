@@ -32,9 +32,9 @@
     "start": "node scripts/start-built-cli.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-test-suite.mjs",
-    "test:ci": "npm test && npm run test:smoke && npm run test:smoke:native && npm run test:coverage && npm run test:e2e:anvil:smoke && node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 && bun run build && node scripts/generate-reference.mjs --check && node scripts/run-conformance-suite.mjs core",
-    "test:release": "npm test && npm run test:smoke && npm run test:smoke:native && npm run test:coverage && npm run test:e2e:anvil && node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 && bun run build && node scripts/generate-reference.mjs --check && node scripts/run-conformance-suite.mjs core",
-    "test:all": "npm test && npm run test:smoke && npm run test:smoke:native && npm run test:coverage && npm run test:e2e:anvil && node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 && bun run build && node scripts/generate-reference.mjs --check && node scripts/run-conformance-suite.mjs all",
+    "test:ci": "npm test && npm run test:smoke && npm run test:smoke:native && npm run test:coverage && npm run test:e2e:anvil:smoke && node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 && bun run build && npm run test:artifacts:host && node scripts/generate-reference.mjs --check && node scripts/run-conformance-suite.mjs core",
+    "test:release": "npm test && npm run test:smoke && npm run test:smoke:native && npm run test:coverage && npm run test:e2e:anvil && node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 && bun run build && npm run test:artifacts:host && node scripts/generate-reference.mjs --check && node scripts/run-conformance-suite.mjs core && npm run bench:gate:release",
+    "test:all": "npm test && npm run test:smoke && npm run test:smoke:native && npm run test:coverage && npm run test:e2e:anvil && node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 && bun run build && npm run test:artifacts:host && node scripts/generate-reference.mjs --check && node scripts/run-conformance-suite.mjs all && npm run bench:gate:release",
     "test:conformance": "bun run build && node scripts/run-conformance-suite.mjs core",
     "test:conformance:all": "bun run build && node scripts/run-conformance-suite.mjs all",
     "test:conformance:frontend": "bun run build && node scripts/run-conformance-suite.mjs frontend",
@@ -51,7 +51,9 @@
     "docs:generate": "bun run build && node scripts/generate-reference.mjs --write",
     "docs:preview": "bun run build && node scripts/generate-reference.mjs",
     "docs:check": "bun run build && node scripts/generate-reference.mjs --check",
-    "bench:gate": "node scripts/bench-cli.mjs --base self --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json"
+    "test:artifacts:host": "node scripts/verify-current-host-release-artifacts.mjs",
+    "bench:gate": "node scripts/bench-cli.mjs --base self --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
+    "bench:gate:release": "node scripts/bench-cli.mjs --base v1.7.0 --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json"
   },
   "dependencies": {
     "@0xbow/privacy-pools-core-sdk": "1.2.0",

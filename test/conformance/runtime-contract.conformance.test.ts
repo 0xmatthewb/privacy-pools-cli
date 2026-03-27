@@ -107,13 +107,20 @@ describe("runtime contract conformance", () => {
   });
 
   test("launcher and native packaging scripts gate on the current protocol/runtime metadata", () => {
+    expect(prepareNativePackageScript).toContain("binaryPath");
     expect(prepareNativePackageScript).toContain("protocolProfile");
     expect(prepareNativePackageScript).toContain("CLI_PROTOCOL_PROFILE.profile");
     expect(prepareNativePackageScript).toContain("CURRENT_RUNTIME_DESCRIPTOR");
+    expect(prepareNativePackageScript).not.toContain('"privacy-pools": `bin/');
 
+    expect(verifyNativePackageScript).toContain("binaryPath");
+    expect(verifyNativePackageScript).toContain(
+      "must not publish the public privacy-pools bin entry",
+    );
     expect(verifyNativePackageScript).toContain("protocol profile mismatch");
     expect(verifyNativePackageScript).toContain("CURRENT_RUNTIME_DESCRIPTOR");
 
+    expect(launcherSource).toContain("binaryPath");
     expect(launcherSource).toContain("protocolProfile");
     expect(launcherSource).toContain("CLI_PROTOCOL_PROFILE.profile");
     expect(launcherSource).toContain("CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion");

@@ -77,6 +77,16 @@ function resolveNativeBridgeVersion(metadata = {}) {
   return metadata.bridgeVersion ?? metadata.protocolVersion;
 }
 
+function resolvePackagedBinaryPath(installedPackageJsonPath, installedPackageJson) {
+  const metadata = installedPackageJson.privacyPoolsCliNative ?? {};
+  const binaryPath = metadata.binaryPath?.trim();
+  if (!binaryPath) {
+    fail("Packed native package is missing privacyPoolsCliNative.binaryPath.");
+  }
+
+  return resolve(dirname(installedPackageJsonPath), binaryPath);
+}
+
 try {
   writeFileSync(
     join(installRoot, "package.json"),
@@ -139,10 +149,6 @@ try {
   );
   const metadata = installedPackageJson.privacyPoolsCliNative ?? {};
   const bridgeVersion = resolveNativeBridgeVersion(metadata);
-  const binEntry =
-    typeof installedPackageJson.bin === "string"
-      ? installedPackageJson.bin
-      : installedPackageJson.bin?.["privacy-pools"];
 
   if (installedPackageJson.name !== packageName) {
     fail(
@@ -184,11 +190,19 @@ try {
     fail("Packed native package is missing privacyPoolsCliNative.sha256.");
   }
 
-  if (!binEntry) {
-    fail("Packed native package is missing the privacy-pools bin entry.");
+  if (
+    typeof installedPackageJson.bin === "string"
+    || installedPackageJson.bin?.["privacy-pools"]
+  ) {
+    fail(
+      "Packed native package must not publish the public privacy-pools bin entry.",
+    );
   }
 
-  const binaryPath = join(dirname(installedPackageJsonPath), binEntry);
+  const binaryPath = resolvePackagedBinaryPath(
+    installedPackageJsonPath,
+    installedPackageJson,
+  );
   if (!existsSync(binaryPath)) {
     fail(`Packed native package binary is missing ${binaryPath}.`);
   }

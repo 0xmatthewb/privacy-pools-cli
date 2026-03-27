@@ -49,6 +49,7 @@ version literals.
 
 - `npm run build`
 - `npm run discovery:generate`
+- `npm run test:artifacts:host`
 - `node scripts/run-bun-tests.mjs ./test/unit/launcher-routing.unit.test.ts ./test/unit/worker-request.unit.test.ts ./test/unit/bootstrap-runtime.unit.test.ts ./test/unit/runtime-current.unit.test.ts ./test/unit/root-argv.unit.test.ts ./test/conformance/native-manifest.conformance.test.ts ./test/conformance/command-discovery-static.conformance.test.ts --timeout 240000`
 - `npm run test:smoke:native`
 - `npm run docs:check`
@@ -62,6 +63,7 @@ Also run a manual JS fallback drill:
 ## Release Checklist
 
 - release tag must match `package.json` exactly (`vX.Y.Z`)
+- local release rehearsal should pass `npm run bench:gate:release`
 - packed native tarballs must pass
   [`scripts/verify-packed-native-package.mjs`](../scripts/verify-packed-native-package.mjs)
 - do not make native own new wallet-sensitive commands without adding or updating
