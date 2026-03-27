@@ -56,4 +56,15 @@ describe("ci job selection", () => {
     expect(decision.shouldRun).toBe(true);
     expect(decision.reason).toContain("native/shell/src/main.rs");
   });
+
+  test("native-smoke runs for native packaging changes", () => {
+    const decision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["native/shell/src/main.rs"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain("native/shell/src/main.rs");
+  });
 });

@@ -276,9 +276,12 @@ jobs:
       - package
       - package-native
     runs-on: ubuntu-latest
+    environment:
+      name: native-release-signoff
     # This job needs write access to create the Release page.
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Download package artifact
         uses: actions/download-artifact@v6
@@ -322,6 +325,19 @@ jobs:
         run: |
           find . -type f -name '*.tgz' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign checksum manifest
+        shell: bash
+        working-directory: release-artifacts
+        run: |
+          cosign sign-blob \
+            --yes \
+            --output-signature SHA256SUMS.txt.sig \
+            --output-certificate SHA256SUMS.txt.pem \
+            SHA256SUMS.txt
+
       - name: Attach tarball to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -330,5 +346,7 @@ jobs:
             release-artifacts/npm/*.tgz
             release-artifacts/native/**/*.tgz
             release-artifacts/SHA256SUMS.txt
+            release-artifacts/SHA256SUMS.txt.sig
+            release-artifacts/SHA256SUMS.txt.pem
           generate_release_notes: true
           overwrite_files: true

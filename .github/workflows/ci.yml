@@ -5,15 +5,17 @@
 #   - Every push (merge) to "main"
 #
 # WHAT does it do?
-#   Six independent jobs run in parallel:
+#   Seven independent jobs run in parallel:
 #     1. linux-core  — shards the default fast suite across exact file lists
 #     2. packaged-smoke — builds the npm package and runs smoke tests
 #        against the packed tarball (catches packaging mistakes)
-#     3. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
+#     3. native-smoke — exercises the installed packaged-native path on Linux
+#        so the default launcher route is covered by blocking CI
+#     4. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
 #        against the self-contained local Anvil fixture
-#     4. coverage-guard — enforces coverage floors for key source directories
-#     5. evals — runs machine-facing eval fixtures
-#     6. conformance-core — checks required protocol/docs conformance
+#     5. coverage-guard — enforces coverage floors for key source directories
+#     6. evals — runs machine-facing eval fixtures
+#     7. conformance-core — checks required protocol/docs conformance
 #
 # If any job fails the PR gets a red X, telling you something is broken.
 
@@ -161,7 +163,56 @@ jobs:
         run: npm run test:smoke
 
   # -----------------------------------------------------------
-  # Job 3: self-contained happy-path smoke coverage via Anvil
+  # Job 3: packaged native smoke on the default Linux triplet
+  # -----------------------------------------------------------
+  native-smoke:
+    name: native-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+
+      - name: Select native-smoke
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job native-smoke >> "$GITHUB_OUTPUT"
+
+      - name: Skip native-smoke
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping native-smoke: ${{ steps.select.outputs.reason }}"
+
+      - name: Setup Bun
+        if: steps.select.outputs.should_run == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+
+      - name: Setup Rust
+        if: steps.select.outputs.should_run == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Build package
+        if: steps.select.outputs.should_run == 'true'
+        run: npm run build
+
+      - name: Run native package smoke tests
+        if: steps.select.outputs.should_run == 'true'
+        run: npm run test:smoke:native
+
+  # -----------------------------------------------------------
+  # Job 4: self-contained happy-path smoke coverage via Anvil
   # -----------------------------------------------------------
   anvil-e2e-smoke:
     name: anvil-e2e-smoke
@@ -238,7 +289,7 @@ jobs:
         run: npm run test:e2e:anvil:smoke
 
   # -----------------------------------------------------------
-  # Job 4: enforce source-level coverage floors
+  # Job 5: enforce source-level coverage floors
   # -----------------------------------------------------------
   coverage-guard:
     name: coverage-guard
@@ -279,7 +330,7 @@ jobs:
         run: npm run test:coverage
 
   # -----------------------------------------------------------
-  # Job 5: agent-facing eval coverage
+  # Job 6: agent-facing eval coverage
   # -----------------------------------------------------------
   evals:
     name: evals
@@ -320,7 +371,7 @@ jobs:
         run: npm run test:evals
 
   # -----------------------------------------------------------
-  # Job 6: required protocol/docs conformance
+  # Job 7: required protocol/docs conformance
   # -----------------------------------------------------------
   conformance-core:
     name: conformance-core

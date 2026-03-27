@@ -1,4 +1,4 @@
-# Cross Platform — non-blocking smoke tests on all three OSes.
+# Cross Platform — non-blocking smoke tests on the supported native targets.
 #
 # WHEN does this run?
 #   - Every pull request (any branch)
@@ -6,8 +6,9 @@
 #
 # WHAT does it do?
 #   Runs the packaged JS smoke tests and the native package smoke lane
-#   on Ubuntu, Windows, and macOS in parallel. This catches OS-specific
-#   bugs (e.g., path separators, line endings, missing system libraries)
+#   on Linux x64, Windows x64, Windows ARM64, and Apple Silicon in
+#   parallel. This catches target-specific bugs (e.g. path separators,
+#   line endings, missing system libraries, native package resolution)
 #   before release day.
 #
 # WHY "non-blocking"?
@@ -32,9 +33,8 @@ concurrency:
 
 jobs:
   smoke-matrix:
-    # The job name shows which OS is running, e.g. "smoke-ubuntu-latest".
-    name: smoke-${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: smoke-${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
 
     strategy:
@@ -42,10 +42,15 @@ jobs:
       # the full picture of which platforms pass and which don't.
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
+        include:
+          - label: linux-x64-gnu
+            runner: ubuntu-latest
+          - label: win32-x64-msvc
+            runner: windows-latest
+          - label: win32-arm64-msvc
+            runner: windows-11-arm
+          - label: darwin-arm64
+            runner: macos-latest
 
     steps:
       - name: Checkout
