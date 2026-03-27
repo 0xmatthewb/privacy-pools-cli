@@ -11,8 +11,12 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
+  formatResultDiagnostics,
   npmProcessEnv,
+  parseJson,
   packTarball,
+  runInstalledCli as runInstalledCliBase,
+  writeInstallSecretFile,
 } from "./lib/install-verification.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -64,13 +68,11 @@ function run(command, args, options = {}) {
   return result;
 }
 
-function parseJson(stdout, label) {
-  try {
-    return JSON.parse(stdout);
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    fail(`${label} did not emit valid JSON:\n${reason}\n${stdout}`);
-  }
+function runInstalledCli(installRoot, homeDir, args, options = {}) {
+  return runInstalledCliBase(installRoot, homeDir, args, {
+    timeout: options.timeout ?? 300_000,
+    ...options,
+  });
 }
 
 function currentNativeBinaryPath() {
@@ -94,50 +96,6 @@ function readSharedFixtureEnv(sharedEnvFile) {
       `Failed to read shared Anvil fixture env from ${sharedEnvFile}:\n${reason}`,
     );
   }
-}
-
-function resolveInstalledCliCommand(installRoot, args) {
-  const binDir = join(installRoot, "node_modules", ".bin");
-  if (process.platform === "win32") {
-    return {
-      command: join(binDir, "privacy-pools.cmd"),
-      args,
-      shell: true,
-    };
-  }
-
-  return {
-    command: join(binDir, "privacy-pools"),
-    args,
-    shell: false,
-  };
-}
-
-function runInstalledCli(installRoot, homeDir, args, options = {}) {
-  const invocation = resolveInstalledCliCommand(installRoot, args);
-  const result = spawnSync(invocation.command, invocation.args, {
-    cwd: installRoot,
-    encoding: "utf8",
-    timeout: options.timeout ?? 300_000,
-    maxBuffer: 10 * 1024 * 1024,
-    shell: invocation.shell,
-    env: {
-      ...process.env,
-      PP_NO_UPDATE_CHECK: "1",
-      NO_COLOR: "1",
-      PRIVACY_POOLS_HOME: homeDir,
-      ...options.env,
-    },
-    input: options.input,
-  });
-
-  if (result.error) {
-    fail(
-      `Failed to execute installed privacy-pools ${args.join(" ")}:\n${result.error.message}`,
-    );
-  }
-
-  return result;
 }
 
 function sharedAnvilCliEnv(sharedEnvFile, env) {
@@ -284,7 +242,7 @@ try {
     !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
   ) {
     fail(
-      `Installed CLI failed native resolution parity with optional package installed:\nstatus=${nativeResolutionResult.status}\nstdout=${nativeResolutionResult.stdout}\nstderr=${nativeResolutionResult.stderr}`,
+      `Installed CLI failed native resolution parity with optional package installed:\n${formatResultDiagnostics(nativeResolutionResult)}`,
     );
   }
 
@@ -301,34 +259,45 @@ try {
   );
   if (disabledNativeResolutionResult.status === 0) {
     fail(
-      `Installed CLI did not distinguish native resolution from JS fallback:\nstdout=${disabledNativeResolutionResult.stdout}\nstderr=${disabledNativeResolutionResult.stderr}`,
+      `Installed CLI did not distinguish native resolution from JS fallback:\n${formatResultDiagnostics(disabledNativeResolutionResult)}`,
     );
   }
 
+  const mnemonicFile = writeInstallSecretFile(
+    homeDir,
+    "install-anvil-mnemonic.txt",
+    TEST_MNEMONIC,
+  );
   const initResult = runInstalledCli(
     installRoot,
     homeDir,
     [
       "--agent",
       "init",
-      "--mnemonic",
-      TEST_MNEMONIC,
-      "--private-key",
-      TEST_PRIVATE_KEY,
+      "--mnemonic-file",
+      mnemonicFile,
+      "--private-key-stdin",
       "--default-chain",
       "sepolia",
       "--yes",
     ],
-    { timeout: 60_000 },
+    {
+      input: `${TEST_PRIVATE_KEY}\n`,
+      timeout: 60_000,
+    },
   );
-  const initPayload = parseJson(initResult.stdout, "installed init --agent");
+  const initPayload = parseJson(
+    initResult.stdout,
+    "installed init --agent",
+    [TEST_MNEMONIC, TEST_PRIVATE_KEY],
+  );
   if (
     initResult.status !== 0 ||
     initPayload.success !== true ||
     initPayload.defaultChain !== "sepolia"
   ) {
     fail(
-      `Installed CLI failed Anvil init parity:\nstatus=${initResult.status}\nstdout=${initResult.stdout}\nstderr=${initResult.stderr}`,
+      `Installed CLI failed Anvil init parity:\n${formatResultDiagnostics(initResult, [TEST_MNEMONIC, TEST_PRIVATE_KEY])}`,
     );
   }
 
@@ -353,7 +322,7 @@ try {
     typeof depositPayload.poolAccountId !== "string"
   ) {
     fail(
-      `Installed CLI failed deposit parity against shared Anvil:\nstatus=${depositResult.status}\nstdout=${depositResult.stdout}\nstderr=${depositResult.stderr}`,
+      `Installed CLI failed deposit parity against shared Anvil:\n${formatResultDiagnostics(depositResult)}`,
     );
   }
 
@@ -383,7 +352,7 @@ try {
     ragequitPayload.operation !== "ragequit"
   ) {
     fail(
-      `Installed CLI failed ragequit parity against shared Anvil:\nstatus=${ragequitResult.status}\nstdout=${ragequitResult.stdout}\nstderr=${ragequitResult.stderr}`,
+      `Installed CLI failed ragequit parity against shared Anvil:\n${formatResultDiagnostics(ragequitResult)}`,
     );
   }
 
@@ -410,7 +379,7 @@ try {
     )
   ) {
     fail(
-      `Installed CLI failed history parity after ragequit against shared Anvil:\nstatus=${historyResult.status}\nstdout=${historyResult.stdout}\nstderr=${historyResult.stderr}`,
+      `Installed CLI failed history parity after ragequit against shared Anvil:\n${formatResultDiagnostics(historyResult)}`,
     );
   }
 

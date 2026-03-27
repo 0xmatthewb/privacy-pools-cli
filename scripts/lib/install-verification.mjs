@@ -22,6 +22,7 @@ export const rootPackageJson = JSON.parse(
   readFileSync(join(repoRoot, "package.json"), "utf8"),
 );
 export const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const STRIPPED_INSTALL_ENV_PREFIXES = ["PRIVACY_POOLS_", "PP_"];
 
 const nativeDistributionModulePath = join(
   repoRoot,
@@ -53,7 +54,7 @@ export function fail(message) {
 const PRIVATE_KEY_PATTERN = /\b0x[0-9a-fA-F]{64}\b/g;
 const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s'")]+/gi;
 
-function redactSensitiveText(text, secrets = []) {
+export function redactSensitiveText(text, secrets = []) {
   let redacted = String(text)
     .replace(PRIVATE_KEY_PATTERN, "<redacted-private-key>")
     .replace(URL_PATTERN, "<redacted-url>");
@@ -66,19 +67,45 @@ function redactSensitiveText(text, secrets = []) {
   return redacted;
 }
 
-function previewOutput(text, secrets = []) {
+export function previewOutput(text, secrets = []) {
   const sanitized = redactSensitiveText(text, secrets).trim();
   if (!sanitized) return "<empty>";
   if (sanitized.length <= 600) return sanitized;
   return `${sanitized.slice(0, 600)}\n<truncated>`;
 }
 
-function formatResultDiagnostics(result, secrets = []) {
+export function formatResultDiagnostics(result, secrets = []) {
   return [
     `status=${result.status}`,
     `stdout=${previewOutput(result.stdout ?? "", secrets)}`,
     `stderr=${previewOutput(result.stderr ?? "", secrets)}`,
   ].join("\n");
+}
+
+export function buildInstallBaseEnv(
+  baseEnv = process.env,
+  overrides = {},
+) {
+  const nextEnv = {};
+  for (const [key, value] of Object.entries(baseEnv)) {
+    if (value === undefined) continue;
+    if (
+      STRIPPED_INSTALL_ENV_PREFIXES.some((prefix) => key.startsWith(prefix))
+    ) {
+      continue;
+    }
+    nextEnv[key] = value;
+  }
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) {
+      delete nextEnv[key];
+    } else {
+      nextEnv[key] = value;
+    }
+  }
+
+  return nextEnv;
 }
 
 export function currentNativePackageName(
@@ -89,13 +116,12 @@ export function currentNativePackageName(
 }
 
 export function npmProcessEnv(stateRoot, env = {}) {
-  return {
-    ...process.env,
+  return buildInstallBaseEnv(process.env, {
     npm_config_cache: join(stateRoot, ".npm-cache"),
     npm_config_userconfig: join(stateRoot, ".npmrc"),
     npm_config_update_notifier: "false",
     ...env,
-  };
+  });
 }
 
 export function packTarball(cwd, destinationDir, options = {}) {
@@ -131,13 +157,13 @@ export function packageInstallPath(installRoot, packageName) {
   return join(installRoot, "node_modules", ...packageName.split("/"));
 }
 
-export function parseJson(stdout, label) {
+export function parseJson(stdout, label, secrets = []) {
   try {
     return JSON.parse(stdout);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     fail(
-      `${label} did not emit valid JSON:\n${reason}\nstdout=${previewOutput(stdout)}`,
+      `${label} did not emit valid JSON:\n${reason}\nstdout=${previewOutput(stdout, secrets)}`,
     );
   }
 }
@@ -159,14 +185,13 @@ export function resolveInstalledCliCommand(installRoot, args) {
   };
 }
 
-function installCliEnv(homeDir, env = {}) {
-  return {
-    ...process.env,
+export function installCliEnv(homeDir, env = {}) {
+  return buildInstallBaseEnv(process.env, {
     PP_NO_UPDATE_CHECK: "1",
     NO_COLOR: "1",
     PRIVACY_POOLS_HOME: homeDir,
     ...env,
-  };
+  });
 }
 
 export function runInstalledCli(installRoot, homeDir, args, options = {}) {
@@ -188,7 +213,7 @@ export function runInstalledCli(installRoot, homeDir, args, options = {}) {
   return result;
 }
 
-function writeInstallSecretFile(homeDir, fileName, content) {
+export function writeInstallSecretFile(homeDir, fileName, content) {
   mkdirSync(homeDir, { recursive: true });
   const filePath = join(homeDir, fileName);
   writeFileSync(filePath, `${content}\n`, { encoding: "utf8", mode: 0o600 });
@@ -498,7 +523,11 @@ export function assertInstalledInitViaStdin({
       timeout: 60_000,
     },
   );
-  const initPayload = parseJson(initResult.stdout, "init --agent");
+  const initPayload = parseJson(
+    initResult.stdout,
+    "init --agent",
+    [mnemonic, privateKey],
+  );
   if (
     initResult.status !== 0 ||
     initPayload.success !== true ||
@@ -609,6 +638,7 @@ export async function assertInstalledFlowAwaitingFunding({
     const flowStatusPayload = parseJson(
       flowStatusResult.stdout,
       "flow status latest --agent",
+      [recipient],
     );
     if (
       flowStatusResult.status !== 0 ||
