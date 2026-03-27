@@ -594,6 +594,8 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `.mnemonic` | BIP-39 mnemonic (mode 0600), protects your deposit secrets |
 | `.signer` | Private key (mode 0600), your onchain identity |
 | `accounts/` | Per-chain account state (synced from onchain events) |
+| `workflows/` | Saved `flow` snapshots, including recipient, tx hashes, and workflow state metadata |
+| `workflow-secrets/` | Per-workflow private keys for `flow --new-wallet` until the workflow completes, public-recovers, or is externally stopped |
 
 **Environment variables:**
 

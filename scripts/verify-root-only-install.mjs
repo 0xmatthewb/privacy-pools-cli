@@ -2,12 +2,12 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  assertInstalledInitViaStdin,
   assertInstalledStatusSuccess,
   fail,
   npmCommand,
   npmProcessEnv,
   parseArgs,
-  parseJson,
   rootPackageJson,
   runInstalledCli,
 } from "./lib/install-verification.mjs";
@@ -100,32 +100,13 @@ try {
     );
   }
 
-  const initResult = runInstalledCli(
+  assertInstalledInitViaStdin({
     installRoot,
     homeDir,
-    [
-      "--agent",
-      "init",
-      "--mnemonic",
-      TEST_MNEMONIC,
-      "--private-key",
-      TEST_PRIVATE_KEY,
-      "--default-chain",
-      "sepolia",
-      "--yes",
-    ],
-    { timeout: 60_000 },
-  );
-  const initPayload = parseJson(initResult.stdout, "init --agent");
-  if (
-    initResult.status !== 0 ||
-    initPayload.success !== true ||
-    initPayload.defaultChain !== "sepolia"
-  ) {
-    fail(
-      `Installed root-only CLI failed JS-launcher init:\nstatus=${initResult.status}\nstdout=${initResult.stdout}\nstderr=${initResult.stderr}`,
-    );
-  }
+    label: "Installed root-only CLI",
+    mnemonic: TEST_MNEMONIC,
+    privateKey: TEST_PRIVATE_KEY,
+  });
 
   assertInstalledStatusSuccess({
     installRoot,
