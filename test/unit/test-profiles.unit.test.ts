@@ -21,6 +21,7 @@ describe("test profiles", () => {
     expect(TEST_PROFILE_FRAGMENTS.install).toEqual([
       ["npm", ["run", "test:smoke"]],
       ["npm", ["run", "test:smoke:native:package"]],
+      ["npm", ["run", "test:artifacts:root"]],
       ["npm", ["run", "test:artifacts:host"]],
     ]);
     expect(resolveProfile("install")).toEqual(TEST_PROFILE_FRAGMENTS.install);
