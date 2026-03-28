@@ -2,15 +2,14 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  assertInstalledLauncherBasics,
   assertInstalledInitViaStdin,
   assertInstalledStatusSuccess,
   fail,
   npmCommand,
   npmProcessEnv,
-  parseJson,
   parseArgs,
   rootPackageJson,
-  runInstalledCli,
 } from "./lib/install-verification.mjs";
 import { spawnSync } from "node:child_process";
 
@@ -87,53 +86,12 @@ try {
     );
   }
 
-  const versionResult = runInstalledCli(installRoot, homeDir, ["--version"]);
-  if (
-    versionResult.status !== 0 ||
-    versionResult.stdout.trim() !== expectedVersion ||
-    versionResult.stderr.trim() !== ""
-  ) {
-    fail(
-      `Installed root-only CLI returned an unexpected version:\nstatus=${versionResult.status}\nstdout=${versionResult.stdout}\nstderr=${versionResult.stderr}`,
-    );
-  }
-
-  const welcomeResult = runInstalledCli(installRoot, homeDir, []);
-  if (
-    welcomeResult.status !== 0 ||
-    !welcomeResult.stdout.includes("Explore (no wallet needed)") ||
-    !welcomeResult.stdout.includes("Get started:      privacy-pools init") ||
-    !welcomeResult.stderr.includes("A compliant way to transact privately on Ethereum.") ||
-    welcomeResult.stdout.includes("Running from source?")
-  ) {
-    fail(
-      `Installed root-only CLI bare welcome failed:\nstatus=${welcomeResult.status}\nstdout=${welcomeResult.stdout}\nstderr=${welcomeResult.stderr}`,
-    );
-  }
-
-  const helpResult = runInstalledCli(installRoot, homeDir, ["--help"]);
-  if (
-    helpResult.status !== 0 ||
-    !helpResult.stdout.includes("privacy-pools") ||
-    helpResult.stderr.trim() !== ""
-  ) {
-    fail(
-      `Installed root-only CLI help failed:\nstatus=${helpResult.status}\nstdout=${helpResult.stdout}\nstderr=${helpResult.stderr}`,
-    );
-  }
-
-  const guideResult = runInstalledCli(installRoot, homeDir, ["--agent", "guide"]);
-  const guidePayload = parseJson(guideResult.stdout, "installed root-only guide --agent");
-  if (
-    guideResult.status !== 0 ||
-    guideResult.stderr.trim() !== "" ||
-    guidePayload.success !== true ||
-    guidePayload.mode !== "help"
-  ) {
-    fail(
-      `Installed root-only CLI guide discovery failed:\nstatus=${guideResult.status}\nstdout=${guideResult.stdout}\nstderr=${guideResult.stderr}`,
-    );
-  }
+  assertInstalledLauncherBasics({
+    installRoot,
+    homeDir,
+    expectedVersion,
+    label: "Installed root-only CLI",
+  });
 
   assertInstalledInitViaStdin({
     installRoot,

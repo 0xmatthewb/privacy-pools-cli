@@ -190,6 +190,8 @@ export function installCliEnv(homeDir, env = {}) {
     PP_NO_UPDATE_CHECK: "1",
     NO_COLOR: "1",
     PRIVACY_POOLS_HOME: homeDir,
+    TERM_SESSION_ID: undefined,
+    ITERM_SESSION_ID: undefined,
     ...env,
   });
 }
@@ -424,12 +426,14 @@ export function assertInstalledLauncherBasics({
     );
   }
 
-  const welcomeResult = runInstalledCli(installRoot, homeDir, []);
+  const welcomeResult = runInstalledCli(installRoot, homeDir, ["--no-banner"]);
   if (
     welcomeResult.status !== 0 ||
     !welcomeResult.stdout.includes("Explore (no wallet needed)") ||
     !welcomeResult.stdout.includes("Get started:      privacy-pools init") ||
-    !welcomeResult.stderr.includes("A compliant way to transact privately on Ethereum.") ||
+    !welcomeResult.stdout.includes("This CLI is experimental. Use at your own risk.") ||
+    !welcomeResult.stdout.includes("For large transactions, use privacypools.com.") ||
+    welcomeResult.stderr.trim() !== "" ||
     welcomeResult.stdout.includes("Running from source?")
   ) {
     fail(
@@ -461,40 +465,42 @@ export function assertInstalledLauncherBasics({
     );
   }
 
-  const nativeResolutionResult = runInstalledCli(
-    installRoot,
-    homeDir,
-    ["flow", "--help"],
-    {
-      env: {
-        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+  if (missingWorkerPath) {
+    const nativeResolutionResult = runInstalledCli(
+      installRoot,
+      homeDir,
+      ["flow", "--help"],
+      {
+        env: {
+          PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+        },
       },
-    },
-  );
-  if (
-    nativeResolutionResult.status !== 0 ||
-    !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
-  ) {
-    fail(
-      `${label} failed native launcher resolution:\n${formatResultDiagnostics(nativeResolutionResult)}`,
     );
-  }
+    if (
+      nativeResolutionResult.status !== 0 ||
+      !nativeResolutionResult.stdout.includes("Usage: privacy-pools flow")
+    ) {
+      fail(
+        `${label} failed native launcher resolution:\n${formatResultDiagnostics(nativeResolutionResult)}`,
+      );
+    }
 
-  const disabledNativeResolutionResult = runInstalledCli(
-    installRoot,
-    homeDir,
-    ["flow", "--help"],
-    {
-      env: {
-        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
-        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+    const disabledNativeResolutionResult = runInstalledCli(
+      installRoot,
+      homeDir,
+      ["flow", "--help"],
+      {
+        env: {
+          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+          PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+        },
       },
-    },
-  );
-  if (disabledNativeResolutionResult.status === 0) {
-    fail(
-      `${label} no longer distinguishes native resolution from JS fallback:\n${formatResultDiagnostics(disabledNativeResolutionResult)}`,
     );
+    if (disabledNativeResolutionResult.status === 0) {
+      fail(
+        `${label} no longer distinguishes native resolution from JS fallback:\n${formatResultDiagnostics(disabledNativeResolutionResult)}`,
+      );
+    }
   }
 }
 

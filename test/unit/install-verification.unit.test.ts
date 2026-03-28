@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   buildInstallBaseEnv,
+  installCliEnv,
   npmProcessEnv,
 } from "../../scripts/lib/install-verification.mjs";
 
 const ORIGINAL_PRIVATE_KEY = process.env.PRIVACY_POOLS_PRIVATE_KEY;
 const ORIGINAL_PP_RPC_URL = process.env.PP_RPC_URL;
 const ORIGINAL_PATH = process.env.PATH;
+const ORIGINAL_TERM_SESSION_ID = process.env.TERM_SESSION_ID;
+const ORIGINAL_ITERM_SESSION_ID = process.env.ITERM_SESSION_ID;
 
 describe("install verification env hygiene", () => {
   afterEach(() => {
@@ -26,6 +29,18 @@ describe("install verification env hygiene", () => {
       delete process.env.PATH;
     } else {
       process.env.PATH = ORIGINAL_PATH;
+    }
+
+    if (ORIGINAL_TERM_SESSION_ID === undefined) {
+      delete process.env.TERM_SESSION_ID;
+    } else {
+      process.env.TERM_SESSION_ID = ORIGINAL_TERM_SESSION_ID;
+    }
+
+    if (ORIGINAL_ITERM_SESSION_ID === undefined) {
+      delete process.env.ITERM_SESSION_ID;
+    } else {
+      process.env.ITERM_SESSION_ID = ORIGINAL_ITERM_SESSION_ID;
     }
   });
 
@@ -56,5 +71,18 @@ describe("install verification env hygiene", () => {
     expect(env.PP_RPC_URL).toBeUndefined();
     expect(env.npm_config_cache).toBe("/tmp/privacy-pools-test-state/.npm-cache");
     expect(env.npm_config_userconfig).toBe("/tmp/privacy-pools-test-state/.npmrc");
+  });
+
+  test("installCliEnv removes interactive session markers for deterministic bare welcome checks", () => {
+    process.env.TERM_SESSION_ID = "interactive-term";
+    process.env.ITERM_SESSION_ID = "interactive-iterm";
+
+    const env = installCliEnv("/tmp/privacy-pools-test-home");
+
+    expect(env.PP_NO_UPDATE_CHECK).toBe("1");
+    expect(env.NO_COLOR).toBe("1");
+    expect(env.PRIVACY_POOLS_HOME).toBe("/tmp/privacy-pools-test-home");
+    expect(env.TERM_SESSION_ID).toBeUndefined();
+    expect(env.ITERM_SESSION_ID).toBeUndefined();
   });
 });
