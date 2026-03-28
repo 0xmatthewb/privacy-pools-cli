@@ -412,6 +412,13 @@ describe("renderStatus parity", () => {
     expect(json.readyForUnsigned).toBe(true);
     expect(json.nextActions).toEqual([
       {
+        command: "accounts",
+        reason:
+          "If this recovery phrase was imported, check for existing deposits across all chains before assuming the wallet is empty.",
+        when: "status_restore_discovery",
+        options: { agent: true, allChains: true },
+      },
+      {
         command: "pools",
         reason:
           "Browse pools in read-only mode. Configure a valid signer key before depositing.",

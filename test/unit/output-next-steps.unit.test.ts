@@ -518,12 +518,15 @@ describe("status next steps vary by account state", () => {
     return parseCapturedJson(stdout).nextActions;
   }
 
-  test("ready + no accounts → pools only", () => {
+  test("ready + no accounts → restore discovery first, then pools", () => {
     const result = { ...STUB_STATUS, accountFiles: [] as [string, number][] };
     const actions = getJsonNextActions(result);
-    expect(actions).toHaveLength(1);
-    expect(actions[0].command).toBe("pools");
-    expect(actions[0].when).toBe("status_ready_no_accounts");
+    expect(actions).toHaveLength(2);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_restore_discovery");
+    expect(actions[0].options?.allChains).toBe(true);
+    expect(actions[1].command).toBe("pools");
+    expect(actions[1].when).toBe("status_ready_no_accounts");
   });
 
   test("ready + has accounts → accounts only", () => {
@@ -533,7 +536,7 @@ describe("status next steps vary by account state", () => {
     expect(actions[0].when).toBe("status_ready_has_accounts");
   });
 
-  test("unsigned-only + no accounts → pools in read-only mode", () => {
+  test("unsigned-only + no accounts → restore discovery first, then pools in read-only mode", () => {
     const result = {
       ...STUB_STATUS,
       signerKeySet: false,
@@ -542,9 +545,12 @@ describe("status next steps vary by account state", () => {
       accountFiles: [] as [string, number][],
     };
     const actions = getJsonNextActions(result);
-    expect(actions).toHaveLength(1);
-    expect(actions[0].command).toBe("pools");
-    expect(actions[0].when).toBe("status_unsigned_no_accounts");
+    expect(actions).toHaveLength(2);
+    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].when).toBe("status_restore_discovery");
+    expect(actions[0].options?.allChains).toBe(true);
+    expect(actions[1].command).toBe("pools");
+    expect(actions[1].when).toBe("status_unsigned_no_accounts");
   });
 
   test("unsigned-only + has accounts → accounts in read-only mode", () => {

@@ -153,6 +153,22 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   let agentNextActions: ReturnType<typeof createNextAction>[];
   let humanNextActions: ReturnType<typeof createNextAction>[];
+  const restoreDiscoveryAgentAction = createNextAction(
+    "accounts",
+    "If this recovery phrase was imported, check for existing deposits across all chains before assuming the wallet is empty.",
+    "status_restore_discovery",
+    { options: { agent: true, allChains: true } },
+  );
+  const restoreDiscoveryHumanAction = createNextAction(
+    "accounts",
+    "If this recovery phrase was imported, check for existing deposits across all chains before assuming the wallet is empty.",
+    "status_restore_discovery",
+    { options: { allChains: true } },
+  );
+  const shouldSuggestRestoreDiscovery =
+    result.configExists &&
+    result.recoveryPhraseSet &&
+    result.accountFiles.length === 0;
 
   if (notReady) {
     agentNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
@@ -160,17 +176,22 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
       { options: initHumanChainOpts })];
   } else if (unsignedOnly && !hasAccountsReachable) {
-    agentNextActions = [createNextAction(
-      "pools",
-      "Browse pools in read-only mode. Configure a valid signer key before depositing.",
-      "status_unsigned_no_accounts",
-      { options: { agent: true, ...poolsAgentChainOpts } },
-    )];
-    humanNextActions = [createNextAction(
-      "pools",
-      "Browse pools in read-only mode. Configure a valid signer key before depositing.",
-      "status_unsigned_no_accounts",
-      { options: poolsHumanChainOpts }),
+    agentNextActions = [
+      ...(shouldSuggestRestoreDiscovery ? [restoreDiscoveryAgentAction] : []),
+      createNextAction(
+        "pools",
+        "Browse pools in read-only mode. Configure a valid signer key before depositing.",
+        "status_unsigned_no_accounts",
+        { options: { agent: true, ...poolsAgentChainOpts } },
+      ),
+    ];
+    humanNextActions = [
+      ...(shouldSuggestRestoreDiscovery ? [restoreDiscoveryHumanAction] : []),
+      createNextAction(
+        "pools",
+        "Browse pools in read-only mode. Configure a valid signer key before depositing.",
+        "status_unsigned_no_accounts",
+        { options: poolsHumanChainOpts }),
     ];
   } else if (unsignedOnly) {
     agentNextActions = [createNextAction(
@@ -186,10 +207,16 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       { options: accountsHumanChainOpts },
     )];
   } else if (!hasAccountsReachable) {
-    agentNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
-      { options: { agent: true, ...poolsAgentChainOpts } })];
-    humanNextActions = [createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
-      { options: poolsHumanChainOpts })];
+    agentNextActions = [
+      ...(shouldSuggestRestoreDiscovery ? [restoreDiscoveryAgentAction] : []),
+      createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
+        { options: { agent: true, ...poolsAgentChainOpts } }),
+    ];
+    humanNextActions = [
+      ...(shouldSuggestRestoreDiscovery ? [restoreDiscoveryHumanAction] : []),
+      createNextAction("pools", "Browse pools to make your first deposit.", "status_ready_no_accounts",
+        { options: poolsHumanChainOpts }),
+    ];
   } else {
     agentNextActions = [
       createNextAction("accounts", "Check on your existing deposits.", "status_ready_has_accounts",
