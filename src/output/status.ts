@@ -183,6 +183,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const workflowChain = result.selectedChain ?? result.defaultChain;
   const notReady = !result.configExists || !result.recoveryPhraseSet;
   const unsignedOnly = readyForUnsigned && !readyForDeposit;
+  const degradedReadOnly = preflight.recommendedMode === "read-only";
   const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
 
   // ── Deposit reachability for next-step guidance ───────────────────────
@@ -243,12 +244,13 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   }
 
   // ── Build state-aware next-step guidance ──────────────────────────────
-  // Five states:
+  // Six states:
   //   1. Not ready (no config or mnemonic)         → init
-  //   2. Unsigned-only, no reachable accounts      → pools (read-only)
-  //   3. Unsigned-only, has reachable accounts     → accounts (read-only)
-  //   4. Fully ready, no reachable accounts        → pools
-  //   5. Fully ready, has reachable accounts       → accounts
+  //   2. Degraded health                           → pools (stay on public discovery)
+  //   3. Unsigned-only, no reachable accounts      → pools (read-only)
+  //   4. Unsigned-only, has reachable accounts     → accounts (read-only)
+  //   5. Fully ready, no reachable accounts        → pools
+  //   6. Fully ready, has reachable accounts       → accounts
   //
   // "Reachable" includes testnet-only deposits via --all-chains.
   //
@@ -298,6 +300,23 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       { options: { agent: true, showMnemonic: true, ...initAgentChainOpts } })];
     humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
       { options: initHumanChainOpts })];
+  } else if (degradedReadOnly) {
+    agentNextActions = [
+      createNextAction(
+        "pools",
+        "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
+        "status_degraded_health",
+        { options: { agent: true, ...poolsAgentChainOpts } },
+      ),
+    ];
+    humanNextActions = [
+      createNextAction(
+        "pools",
+        "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
+        "status_degraded_health",
+        { options: poolsHumanChainOpts },
+      ),
+    ];
   } else if (unsignedOnly && !hasAccountsReachable) {
     agentNextActions = [
       ...(shouldSuggestRestoreDiscovery ? [restoreDiscoveryAgentAction] : []),

@@ -132,22 +132,13 @@ export function assertStatusDegradedHealthAgentContract(
     "rpc_unreachable",
   );
   const nextActions = json.nextActions ?? [];
-  const commands = nextActions.map((action) => action.command);
 
-  expect(commands.length).toBeGreaterThan(0);
-  expect(
-    commands.every((command) => command === "accounts" || command === "pools"),
-  ).toBe(true);
+  expect(nextActions).toHaveLength(1);
+  expect(nextActions[0]?.command).toBe("pools");
   expect(
     nextActions.every((action) => action.options?.agent === true),
   ).toBe(true);
-
-  if (commands[0] === "accounts") {
-    expect(nextActions[0]?.options?.allChains).toBe(true);
-    if (commands.length > 1) {
-      expect(commands[1]).toBe("pools");
-    }
-  }
+  expect(nextActions[0]?.options?.allChains).toBeUndefined();
 }
 
 export function assertUnknownCommandAgentContract(result: CliRunResult): void {

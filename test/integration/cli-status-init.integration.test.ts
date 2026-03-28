@@ -103,6 +103,7 @@ describe("status and init integration", () => {
       rpcLive?: unknown;
       recommendedMode: string;
       warnings?: Array<{ code: string }>;
+      nextActions?: Array<{ command: string }>;
     }>(statusResult.stdout);
 
     expect(statusJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
@@ -112,6 +113,9 @@ describe("status and init integration", () => {
     expect(statusJson.recommendedMode).toBe("read-only");
     expect(statusJson.warnings?.map((issue) => issue.code)).toContain("asp_unreachable");
     expect(statusJson.warnings?.map((issue) => issue.code)).toContain("rpc_unreachable");
+    expect(statusJson.nextActions?.map((action) => action.command)).toEqual([
+      "pools",
+    ]);
   });
 
   test("status --no-check still succeeds when one account file is corrupt", () => {

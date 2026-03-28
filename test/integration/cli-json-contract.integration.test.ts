@@ -72,6 +72,7 @@ describe("JSON contract coverage", () => {
       warnings?: Array<{ code: string; affects: string[] }>;
       aspLive?: boolean;
       rpcLive?: boolean;
+      nextActions?: Array<{ command: string }>;
     }>(result.stdout);
 
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
@@ -88,6 +89,9 @@ describe("JSON contract coverage", () => {
     expect(typeof json.rpcLive).toBe("boolean");
     expect(json.warnings?.map((issue) => issue.code)).toContain("rpc_unreachable");
     expect(json.warnings?.map((issue) => issue.code)).toContain("asp_unreachable");
+    expect(json.nextActions?.map((action) => action.command)).toEqual([
+      "pools",
+    ]);
   });
 
   test("capabilities --json exposes the expected machine metadata", () => {

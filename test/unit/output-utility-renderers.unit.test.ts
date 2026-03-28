@@ -387,6 +387,15 @@ describe("renderStatus parity", () => {
         affects: ["deposit", "withdraw", "unsigned", "discovery"],
       },
     ]);
+    expect(json.nextActions).toEqual([
+      {
+        command: "pools",
+        reason:
+          "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
+        when: "status_degraded_health",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
   });
 
   test("JSON mode: emits init remediation in nextActions when setup is incomplete", () => {
