@@ -240,6 +240,27 @@ describe("Anvil E2E", () => {
       "sync after ragequit",
     );
 
+    const accountsAfterRagequit = parseSuccessfulAgentResult<{
+      accounts: Array<{ poolAccountId: string; status: string }>;
+      balances: Array<{ asset: string; balance: string }>;
+    }>(
+      deposit.home,
+      ["--agent", "accounts", "--details", "--chain", "sepolia"],
+      "accounts after ragequit",
+    );
+    expect(
+      accountsAfterRagequit.accounts.some(
+        (account) =>
+          account.poolAccountId === deposit.poolAccountId &&
+          account.status === "exited",
+      ),
+    ).toBe(true);
+    expect(
+      accountsAfterRagequit.balances.some(
+        (balance) => balance.asset === "ETH" && balance.balance !== "0",
+      ),
+    ).toBe(false);
+
     const history = parseSuccessfulAgentResult<{
       events: Array<{ type: string; poolAccountId: string }>;
     }>(
@@ -294,6 +315,27 @@ describe("Anvil E2E", () => {
       ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
       "sync after withdraw",
     );
+
+    const accountsAfterWithdraw = parseSuccessfulAgentResult<{
+      accounts: Array<{ poolAccountId: string; status: string }>;
+      balances: Array<{ asset: string; balance: string }>;
+    }>(
+      deposit.home,
+      ["--agent", "accounts", "--details", "--chain", "sepolia"],
+      "accounts after withdraw",
+    );
+    expect(
+      accountsAfterWithdraw.accounts.some(
+        (account) =>
+          account.poolAccountId === deposit.poolAccountId &&
+          account.status === "spent",
+      ),
+    ).toBe(true);
+    expect(
+      accountsAfterWithdraw.balances.some(
+        (balance) => balance.asset === "ETH" && balance.balance !== "0",
+      ),
+    ).toBe(false);
 
     const history = parseSuccessfulAgentResult<{
       events: Array<{ type: string; poolAccountId: string }>;
@@ -408,6 +450,27 @@ describe("Anvil E2E", () => {
       "native sync after ragequit",
     );
 
+    const accountsAfterRagequit = parseSuccessfulNativeAgentResult<{
+      accounts: Array<{ poolAccountId: string; status: string }>;
+      balances: Array<{ asset: string; balance: string }>;
+    }>(
+      deposit.home,
+      ["--agent", "accounts", "--details", "--chain", "sepolia"],
+      "native accounts after ragequit",
+    );
+    expect(
+      accountsAfterRagequit.accounts.some(
+        (account) =>
+          account.poolAccountId === deposit.poolAccountId &&
+          account.status === "exited",
+      ),
+    ).toBe(true);
+    expect(
+      accountsAfterRagequit.balances.some(
+        (balance) => balance.asset === "ETH" && balance.balance !== "0",
+      ),
+    ).toBe(false);
+
     const history = parseSuccessfulNativeAgentResult<{
       events: Array<{ type: string; poolAccountId: string }>;
     }>(
@@ -462,6 +525,27 @@ describe("Anvil E2E", () => {
       ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
       "native sync after withdraw",
     );
+
+    const accountsAfterWithdraw = parseSuccessfulNativeAgentResult<{
+      accounts: Array<{ poolAccountId: string; status: string }>;
+      balances: Array<{ asset: string; balance: string }>;
+    }>(
+      deposit.home,
+      ["--agent", "accounts", "--details", "--chain", "sepolia"],
+      "native accounts after withdraw",
+    );
+    expect(
+      accountsAfterWithdraw.accounts.some(
+        (account) =>
+          account.poolAccountId === deposit.poolAccountId &&
+          account.status === "spent",
+      ),
+    ).toBe(true);
+    expect(
+      accountsAfterWithdraw.balances.some(
+        (balance) => balance.asset === "ETH" && balance.balance !== "0",
+      ),
+    ).toBe(false);
 
     const history = parseSuccessfulNativeAgentResult<{
       events: Array<{ type: string; poolAccountId: string }>;

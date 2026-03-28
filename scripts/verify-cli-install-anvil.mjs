@@ -636,6 +636,37 @@ try {
     );
   }
 
+  const withdrawAccountsResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "accounts", "--details", "--chain", "sepolia"],
+    {
+      env: anvilEnv,
+    },
+  );
+  const withdrawAccountsPayload = parseJson(
+    withdrawAccountsResult.stdout,
+    "installed accounts --agent after withdraw",
+  );
+  if (
+    withdrawAccountsResult.status !== 0 ||
+    withdrawAccountsPayload.success !== true ||
+    !Array.isArray(withdrawAccountsPayload.accounts) ||
+    !withdrawAccountsPayload.accounts.some(
+      (account) =>
+        account?.poolAccountId === withdrawDepositPayload.poolAccountId &&
+        account?.status === "spent",
+    ) ||
+    !Array.isArray(withdrawAccountsPayload.balances) ||
+    withdrawAccountsPayload.balances.some(
+      (balance) => balance?.asset === "ETH" && balance?.balance !== "0",
+    )
+  ) {
+    fail(
+      `Installed CLI failed accounts reconstruction after relayed withdraw against shared Anvil:\n${formatResultDiagnostics(withdrawAccountsResult)}`,
+    );
+  }
+
   const withdrawHistoryResult = runInstalledCli(
     installRoot,
     homeDir,
@@ -713,6 +744,58 @@ try {
   ) {
     fail(
       `Installed CLI failed ragequit parity against shared Anvil:\n${formatResultDiagnostics(ragequitResult)}`,
+    );
+  }
+
+  const ragequitSyncResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+    {
+      env: anvilEnv,
+    },
+  );
+  const ragequitSyncPayload = parseJson(
+    ragequitSyncResult.stdout,
+    "installed sync --agent after ragequit",
+  );
+  if (
+    ragequitSyncResult.status !== 0 ||
+    ragequitSyncPayload.success !== true
+  ) {
+    fail(
+      `Installed CLI failed sync parity after ragequit against shared Anvil:\n${formatResultDiagnostics(ragequitSyncResult)}`,
+    );
+  }
+
+  const ragequitAccountsResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "accounts", "--details", "--chain", "sepolia"],
+    {
+      env: anvilEnv,
+    },
+  );
+  const ragequitAccountsPayload = parseJson(
+    ragequitAccountsResult.stdout,
+    "installed accounts --agent after ragequit",
+  );
+  if (
+    ragequitAccountsResult.status !== 0 ||
+    ragequitAccountsPayload.success !== true ||
+    !Array.isArray(ragequitAccountsPayload.accounts) ||
+    !ragequitAccountsPayload.accounts.some(
+      (account) =>
+        account?.poolAccountId === depositPayload.poolAccountId &&
+        account?.status === "exited",
+    ) ||
+    !Array.isArray(ragequitAccountsPayload.balances) ||
+    ragequitAccountsPayload.balances.some(
+      (balance) => balance?.asset === "ETH" && balance?.balance !== "0",
+    )
+  ) {
+    fail(
+      `Installed CLI failed accounts reconstruction after ragequit against shared Anvil:\n${formatResultDiagnostics(ragequitAccountsResult)}`,
     );
   }
 
