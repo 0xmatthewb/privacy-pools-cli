@@ -110,6 +110,7 @@ With `--unsigned tx`, output is a bare array of transaction objects:
 ```json
 [
   {
+    "from": null,
     "to": "0x6818...",
     "data": "0xb6b55f25...",
     "value": "100000000000000000",
@@ -129,7 +130,7 @@ With `--unsigned tx`, output is a bare array of transaction objects:
 | `value` | `string` | yes | ETH amount in wei as a **string** (e.g. `"0"`, `"100000000000000000"`) |
 | `valueHex` | `string` | tx format only | Wei as hex string (e.g. `"0x16345785d8a0000"`) |
 | `chainId` | `number` | yes | Target chain ID |
-| `from` | `string\|null` | envelope only | Signer address if known, otherwise `null` |
+| `from` | `string\|null` | yes | Signer address when the caller is constrained; `null` when the signer is unconstrained |
 | `description` | `string` | yes | Human-readable step description (informational) |
 
 `value` must always be a **string**, never a number or bigint.
@@ -430,7 +431,7 @@ Representative payload (abridged):
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
-    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
     "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC or ASP health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known."
   },
@@ -506,7 +507,7 @@ privacy-pools describe stats global --agent
   "requiresHumanReview": false,
   "prerequisites": ["init"],
   "examples": ["privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."],
-  "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions? }",
+  "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions? }",
   "jsonVariants": [],
   "safetyNotes": [],
   "supportsUnsigned": false,
@@ -708,11 +709,16 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
   "recipient": "0x...",
   "minWithdrawAmount": "10000000000000000",
   "minWithdrawAmountFormatted": "0.01 ETH",
+  "baseFeeBPS": "45",
   "quoteFeeBPS": "50",
   "feeAmount": "5000000000000000",
   "netAmount": "95000000000000000",
   "feeCommitmentPresent": true,
   "quoteExpiresAt": "2025-01-15T12:30:00Z",
+  "relayTxCost": {
+    "gas": "0",
+    "eth": "100000000000000"
+  },
   "extraGas": true,
   "nextActions": [
     {
@@ -731,7 +737,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 }
 ```
 
-`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH. `nextActions` provides a `withdraw` follow-up with the quoted parameters; check `runnable`: quotes without a `--to` recipient produce a template action (`runnable: false`) that still needs the recipient before execution.
+`feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `baseFeeBPS` isolates the relayer base fee, while `relayTxCost` captures the estimated execution cost. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH; when extra gas funding is included, `extraGasFundAmount` and `extraGasTxCost` describe the additional ETH components. `nextActions` provides a `withdraw` follow-up with the quoted parameters; check `runnable`: quotes without a `--to` recipient produce a template action (`runnable: false`) that still needs the recipient before execution.
 
 ### `ragequit` (alias: `exit`)
 

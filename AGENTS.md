@@ -344,7 +344,7 @@ For relayed withdrawals, the CLI also warns if the chosen amount would leave a p
 privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 ```
 
-JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
+JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
 Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof generation takes longer, the CLI will auto-refresh the quote if the fee hasn't changed. If the fee changes, re-run the command to generate a fresh proof. `nextActions` provides the canonical `withdraw` follow-up; check `runnable` because quotes without a recipient produce a template action that still needs `--to`.
 
@@ -501,6 +501,7 @@ privacy-pools deposit 0.1 ETH --unsigned tx --agent
 ```json
 [
   {
+    "from": null,
     "to": "0x6818...",
     "data": "0xb6b55f25...",
     "value": "100000000000000000",

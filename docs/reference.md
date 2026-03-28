@@ -346,7 +346,7 @@ privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 | `-a, --asset <symbol\|address>` | Asset to quote |
 | `-t, --to <address>` | Recipient address (recommended for signed fee commitment) |
 
-**JSON output:** `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
+**JSON output:** `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
 ### `accounts`
 

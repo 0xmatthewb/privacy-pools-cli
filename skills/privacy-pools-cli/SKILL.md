@@ -153,6 +153,7 @@ privacy-pools deposit 0.1 ETH --unsigned tx --agent
 ```json
 [
   {
+    "from": null,
     "to": "0x6818...",
     "data": "0xb6b55f25...",
     "value": "100000000000000000",
@@ -172,7 +173,7 @@ privacy-pools deposit 0.1 ETH --unsigned tx --agent
 | `value` | string | yes | Wei as string ("0" or "100000000000000000") |
 | `valueHex` | string | tx format only | Wei as hex string |
 | `chainId` | number | yes | 1 (Ethereum), 42161 (Arbitrum), 10 (Optimism), 11155111 (Sepolia), 11155420 (OP Sepolia) |
-| `from` | string\|null | envelope only | Signer address if known, otherwise `null` |
+| `from` | string\|null | yes | Signer address when the caller is constrained; `null` when the signer is unconstrained |
 | `description` | string | yes | Human-readable step description |
 
 Supported on: `deposit`, `withdraw`, `ragequit` (alias: `exit`).

@@ -1483,7 +1483,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonFields": "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
-        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }"
       ],
       "safetyNotes": [
@@ -1558,9 +1558,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonFields": "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       "jsonVariants": [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
-        "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
+        "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
-        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
       ],
       "safetyNotes": [
@@ -1616,7 +1616,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
         "privacy-pools withdraw quote 100 USDC --agent --chain mainnet"
       ],
-      "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
+      "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -1675,7 +1675,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
-        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }"
       ],
       "safetyNotes": [
@@ -2235,7 +2235,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
-    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
     "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC or ASP health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known."
   },
@@ -2284,8 +2284,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Error responses include top-level errorCode/errorMessage plus error.{ code, category, message, hint?, retryable? }."
     },
     "unsignedOutput": {
-      "envelopeFormat": "{ schemaVersion, success, mode, operation, chain, transactions: [{ to, data, value, ... }], ... }",
-      "txFormat": "[{ to, data, value, valueHex, chainId }]: raw array, no envelope wrapper. Intended for direct piping to signing tools.",
+      "envelopeFormat": "{ schemaVersion, success, mode, operation, chain, transactions: [{ from, to, data, value, ... }], ... }",
+      "txFormat": "[{ from, to, data, value, valueHex, chainId, description }]: raw array, no envelope wrapper. Intended for direct piping to signing tools.",
       "note": "Default --unsigned emits the envelope format. Use --unsigned tx for raw transaction array only."
     },
     "nextActions": {

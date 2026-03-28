@@ -517,7 +517,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
-        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }",
       ],
       safetyNotes: [
@@ -569,9 +569,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
-        "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
+        "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
-        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
       ],
       supportsUnsigned: true,
@@ -610,7 +610,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
+        "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       agentWorkflowNotes: [
         "Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.",
       ],
@@ -643,7 +643,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
-        "--unsigned tx: [{ to, data, value, valueHex, chainId }]",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }",
       ],
       supportsUnsigned: true,
@@ -955,7 +955,7 @@ const AGENT_NOTES: Record<string, string> = {
   firstRun:
     "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
   unsignedMode:
-    "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
+    "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
@@ -981,9 +981,9 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   },
   unsignedOutput: {
     envelopeFormat:
-      "{ schemaVersion, success, mode, operation, chain, transactions: [{ to, data, value, ... }], ... }",
+      "{ schemaVersion, success, mode, operation, chain, transactions: [{ from, to, data, value, ... }], ... }",
     txFormat:
-      "[{ to, data, value, valueHex, chainId }]: raw array, no envelope wrapper. Intended for direct piping to signing tools.",
+      "[{ from, to, data, value, valueHex, chainId, description }]: raw array, no envelope wrapper. Intended for direct piping to signing tools.",
     note:
       "Default --unsigned emits the envelope format. Use --unsigned tx for raw transaction array only.",
   },
