@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import {
+  createSeededHome,
   createTempHome,
   parseJsonOutput,
   runCli,
@@ -48,11 +49,12 @@ function expectFlowStatusAgentContract(
   expectedNextActions:
     | null
     | Array<{
-        command: string;
-        when: string;
-        runnable?: boolean;
-        args?: string[];
-        options?: Record<string, boolean | string>;
+      command: string;
+      reasonContains: string;
+      when: string;
+      runnable?: boolean;
+      args?: string[];
+      options?: Record<string, boolean | string>;
       }> = null,
 ): void {
   const result = runCli(["--agent", "flow", "status", workflowId], {
@@ -91,7 +93,7 @@ function expectFlowStatusAgentContract(
   expect(json.nextActions).toEqual(
     expectedNextActions.map((expectedNextAction) => ({
       command: expectedNextAction.command,
-      reason: expect.any(String),
+      reason: expect.stringContaining(expectedNextAction.reasonContains),
       when: expectedNextAction.when,
       ...(expectedNextAction.args === undefined
         ? { args: [workflowId] }
@@ -108,7 +110,13 @@ describe("flow command", () => {
   const statusPhaseCases = [
     {
       phase: "awaiting_funding",
-      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
+      expectedNextActions: [
+        {
+          command: "flow watch",
+          reasonContains: "Fund the dedicated workflow wallet",
+          when: "flow_resume",
+        },
+      ],
       overrides: {
         walletMode: "new_wallet",
         walletAddress: "0x5555555555555555555555555555555555555555",
@@ -117,7 +125,13 @@ describe("flow command", () => {
     },
     {
       phase: "depositing_publicly",
-      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
+      expectedNextActions: [
+        {
+          command: "flow watch",
+          reasonContains: "continue toward the private withdrawal",
+          when: "flow_resume",
+        },
+      ],
       overrides: {
         walletMode: "new_wallet",
         walletAddress: "0x5555555555555555555555555555555555555555",
@@ -126,7 +140,13 @@ describe("flow command", () => {
     },
     {
       phase: "awaiting_asp",
-      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
+      expectedNextActions: [
+        {
+          command: "flow watch",
+          reasonContains: "continue toward the private withdrawal",
+          when: "flow_resume",
+        },
+      ],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -135,7 +155,13 @@ describe("flow command", () => {
     },
     {
       phase: "approved_waiting_privacy_delay",
-      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
+      expectedNextActions: [
+        {
+          command: "flow watch",
+          reasonContains: "intentionally waiting until",
+          when: "flow_resume",
+        },
+      ],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -146,7 +172,13 @@ describe("flow command", () => {
     },
     {
       phase: "approved_ready_to_withdraw",
-      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
+      expectedNextActions: [
+        {
+          command: "flow watch",
+          reasonContains: "continue toward the private withdrawal",
+          when: "flow_resume",
+        },
+      ],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -155,7 +187,13 @@ describe("flow command", () => {
     },
     {
       phase: "withdrawing",
-      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
+      expectedNextActions: [
+        {
+          command: "flow watch",
+          reasonContains: "continue toward the private withdrawal",
+          when: "flow_resume",
+        },
+      ],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -188,7 +226,13 @@ describe("flow command", () => {
     },
     {
       phase: "paused_declined",
-      expectedNextActions: [{ command: "flow ragequit", when: "flow_declined" }],
+      expectedNextActions: [
+        {
+          command: "flow ragequit",
+          reasonContains: "canonical saved-workflow public recovery path",
+          when: "flow_declined",
+        },
+      ],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -198,8 +242,17 @@ describe("flow command", () => {
     {
       phase: "paused_poi_required",
       expectedNextActions: [
-        { command: "flow watch", when: "flow_resume", runnable: false },
-        { command: "flow ragequit", when: "flow_public_recovery_optional" },
+        {
+          command: "flow watch",
+          reasonContains: "Complete Proof of Association",
+          when: "flow_resume",
+          runnable: false,
+        },
+        {
+          command: "flow ragequit",
+          reasonContains: "recover publicly without completing Proof of Association",
+          when: "flow_public_recovery_optional",
+        },
       ],
       overrides: {
         poolAccountId: "PA-1",
@@ -212,6 +265,7 @@ describe("flow command", () => {
       expectedNextActions: [
         {
           command: "accounts",
+          reasonContains: "continue manually with withdraw or ragequit",
           when: "flow_manual_followup",
           args: [],
           options: { agent: true, chain: "sepolia" },
@@ -285,6 +339,42 @@ describe("flow command", () => {
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.errorMessage).toBe("--export-new-wallet requires --new-wallet.");
     expect(json.error.hint).toContain("--new-wallet");
+  });
+
+  test("flow start rejects non-round amounts in machine mode", () => {
+    const home = createSeededHome("mainnet");
+    const result = runCli(
+      [
+        "--json",
+        "flow",
+        "start",
+        "0.011",
+        "ETH",
+        "--to",
+        "0x4444444444444444444444444444444444444444",
+      ],
+      {
+        home,
+        timeoutMs: 10_000,
+      },
+    );
+
+    expect(result.status).toBe(2);
+    const json = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      errorMessage: string;
+      error: { hint?: string };
+    }>(result.stdout);
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toBe(
+      "Non-round amount 0.011 ETH may reduce privacy.",
+    );
+    expect(json.error.hint).toContain(
+      "That pattern can make later withdrawals more identifiable",
+    );
   });
 
   test("flow status errors cleanly when no saved workflow exists", () => {
@@ -532,12 +622,114 @@ describe("flow command", () => {
     expect(json.nextActions).toEqual([
       {
         command: "flow ragequit",
-        reason: expect.any(String),
+        reason: expect.stringContaining(
+          "canonical saved-workflow public recovery path",
+        ),
         when: "flow_declined",
         args: ["wf-latest"],
         options: { agent: true },
       },
     ]);
+  });
+
+  test("flow status latest fails closed when an unreadable newer workflow exists", () => {
+    const home = createTempHome();
+    writeWorkflow(home, {
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+      workflowId: "wf-readable",
+      createdAt: "2026-03-24T12:00:00.000Z",
+      updatedAt: "2026-03-24T12:00:00.000Z",
+      phase: "awaiting_asp",
+      chain: "sepolia",
+      asset: "ETH",
+      depositAmount: "10000000000000000",
+      recipient: "0x4444444444444444444444444444444444444444",
+    });
+
+    const workflowDir = join(home, ".privacy-pools", "workflows");
+    writeFileSync(join(workflowDir, "wf-corrupt.json"), "{invalid", "utf-8");
+
+    const result = runCli(["--json", "flow", "status", "latest"], {
+      home,
+      timeoutMs: 10_000,
+    });
+
+    expect(result.status).toBe(2);
+    const json = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      errorMessage: string;
+      error: { hint?: string };
+    }>(result.stdout);
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toContain("Cannot resolve 'latest'");
+    expect(json.error.hint).toContain("explicit workflow id");
+  });
+
+  test("flow status hides tentative Pool Account ids before the public deposit is confirmed", () => {
+    const home = createTempHome();
+    writeWorkflow(
+      home,
+      buildFlowSnapshot("wf-awaiting-funding", "awaiting_funding", {
+        walletMode: "new_wallet",
+        walletAddress: "0x5555555555555555555555555555555555555555",
+        requiredNativeFunding: "10000000000000000",
+        poolAccountId: "PA-7",
+        poolAccountNumber: 7,
+        depositTxHash: null,
+        depositBlockNumber: null,
+        depositExplorerUrl: null,
+        committedValue: null,
+        aspStatus: undefined,
+      }),
+    );
+
+    const result = runCli(["--json", "flow", "status", "wf-awaiting-funding"], {
+      home,
+      timeoutMs: 10_000,
+    });
+
+    expect(result.status).toBe(0);
+    const json = parseJsonOutput<{
+      success: boolean;
+      poolAccountId?: string | null;
+      poolAccountNumber?: number | null;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
+    expect(json.poolAccountId).toBeNull();
+    expect(json.poolAccountNumber).toBeNull();
+  });
+
+  test("flow status human output explains snapshot semantics and optional public recovery", () => {
+    const home = createTempHome();
+    writeWorkflow(
+      home,
+      buildFlowSnapshot("wf-human-status", "awaiting_asp", {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        depositTxHash:
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        depositBlockNumber: "12345",
+        depositExplorerUrl: "https://example.test/deposit",
+        committedValue: "9950000000000000",
+        aspStatus: "pending",
+      }),
+    );
+
+    const result = runCli(["flow", "status", "wf-human-status"], {
+      home,
+      timeoutMs: 10_000,
+      env: { NO_COLOR: "1" },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("");
+    expect(result.stderr).toContain("saved local workflow snapshot");
+    expect(result.stderr).toContain("Optional public recovery");
+    expect(result.stderr).toContain("privacy-pools flow watch wf-human-status");
   });
 
   test("flow watch latest returns the newest saved terminal workflow", () => {

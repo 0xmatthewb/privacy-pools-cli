@@ -75,6 +75,32 @@ describe("renderFlowResult", () => {
     expect(stderr).toBe("");
   });
 
+  test("JSON mode hides tentative Pool Account ids before the public deposit is confirmed", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "awaiting_funding",
+          walletMode: "new_wallet",
+          walletAddress: "0x5555555555555555555555555555555555555555",
+          requiredNativeFunding: "10000000000000000",
+          poolAccountId: "PA-7",
+          poolAccountNumber: 7,
+          depositTxHash: null,
+          depositBlockNumber: null,
+          depositExplorerUrl: null,
+          committedValue: null,
+          aspStatus: undefined,
+        }),
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.poolAccountId).toBeNull();
+    expect(json.poolAccountNumber).toBeNull();
+  });
+
   test("JSON mode surfaces ragequit nextActions for declined workflows", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
@@ -92,12 +118,45 @@ describe("renderFlowResult", () => {
       {
         command: "flow ragequit",
         reason:
-          "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path.",
+          "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path. This configured-wallet workflow still requires the original depositor signer.",
         when: "flow_declined",
         args: ["wf-123"],
         options: {
           agent: true,
         },
+      },
+    ]);
+  });
+
+  test("JSON mode switches to public recovery when the relayer minimum blocks the flow", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "withdrawing",
+          aspStatus: "approved",
+          lastError: {
+            step: "withdraw",
+            errorCode: "FLOW_RELAYER_MINIMUM_BLOCKED",
+            errorMessage:
+              "Workflow amount is below the relayer minimum of 0.01 ETH.",
+            retryable: false,
+            at: "2026-03-24T12:00:00.000Z",
+          },
+        }),
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toEqual([
+      {
+        command: "flow ragequit",
+        reason:
+          "This saved workflow cannot continue privately because the full remaining balance is below the relayer minimum. Use flow ragequit for public recovery instead. This configured-wallet workflow still requires the original depositor signer.",
+        when: "flow_public_recovery_required",
+        args: ["wf-123"],
+        options: { agent: true },
       },
     ]);
   });
@@ -148,7 +207,7 @@ describe("renderFlowResult", () => {
       {
         command: "flow ragequit",
         reason:
-          "Use flow ragequit instead if you want to recover publicly without completing Proof of Association.",
+          "Use flow ragequit instead if you want to recover publicly without completing Proof of Association. This configured-wallet workflow still requires the original depositor signer.",
         when: "flow_public_recovery_optional",
         args: ["wf-123"],
         options: { agent: true },
@@ -334,6 +393,28 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("manual round partial withdrawals");
   });
 
+  test("JSON mode gives delay-specific resume guidance while the privacy hold is active", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "approved_waiting_privacy_delay",
+          aspStatus: "approved",
+          privacyDelayProfile: "balanced",
+          privacyDelayConfigured: true,
+          privacyDelayUntil: "2026-03-24T13:00:00.000Z",
+        }),
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions[0].command).toBe("flow watch");
+    expect(json.nextActions[0].reason).toContain("intentionally waiting until");
+    expect(json.nextActions[0].reason).toContain("before requesting the private withdrawal");
+  });
+
   test("human mode labels legacy off-delay snapshots without showing backup state for configured wallets", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
@@ -350,6 +431,26 @@ describe("renderFlowResult", () => {
       "Off (legacy workflow without a saved privacy-delay policy; behaves like no added hold)",
     );
     expect(stderr).not.toContain("Backup confirmed:");
+  });
+
+  test("human status mode explains that flow status is snapshot-only and notes optional public recovery", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "awaiting_asp",
+          aspStatus: "pending",
+        }),
+      }),
+    );
+
+    expect(stderr).toContain(
+      "This is the saved local workflow snapshot. Run flow watch for a live re-check and to advance it.",
+    );
+    expect(stderr).toContain(
+      "Optional public recovery: flow ragequit remains available while this workflow stays non-terminal, but flow watch is the normal private path.",
+    );
   });
 
   test("JSON mode includes funding guidance for awaiting_funding workflows", () => {

@@ -41,6 +41,7 @@ const realAccount = await import("../../src/services/account.ts");
 const realAsp = await import("../../src/services/asp.ts");
 const realChains = await import("../../src/config/chains.ts");
 const realContracts = await import("../../src/services/contracts.ts");
+const realErrors = await import("../../src/utils/errors.ts");
 const realFormat = await import("../../src/utils/format.ts");
 const realInquirerPrompts = await import("@inquirer/prompts");
 const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
@@ -1538,6 +1539,66 @@ describe("workflow service mocked coverage", () => {
     }
   });
 
+  test("watchWorkflow refreshes saved funding requirements before retrying a new-wallet deposit", async () => {
+    state.pool = {
+      ...state.pool,
+      asset: "0x9999999999999999999999999999999999999999",
+      symbol: "USDC",
+      decimals: 6,
+    };
+    state.tokenBalance = 100_000_000n;
+    state.nativeBalance = 1n;
+    state.gasPrice = 1_000_000_000_000n;
+
+    const stop = new Error("stop after first funding sleep");
+    overrideWorkflowTimingForTests({
+      sleep: async () => {
+        throw stop;
+      },
+    });
+
+    writeWorkflowSecret("wf-funding-refresh");
+    writeWorkflowSnapshot("wf-funding-refresh", {
+      phase: "awaiting_funding",
+      walletMode: "new_wallet",
+      walletAddress: NEW_WALLET_ADDRESS,
+      asset: "USDC",
+      assetDecimals: 6,
+      depositAmount: "100000000",
+      requiredNativeFunding: "1",
+      requiredTokenFunding: "100000000",
+      estimatedCommittedValue: "99500000",
+      depositTxHash: null,
+      depositBlockNumber: null,
+      depositExplorerUrl: null,
+      committedValue: null,
+      aspStatus: undefined,
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-funding-refresh",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow(stop.message);
+
+    const refreshed = loadWorkflowSnapshot("wf-funding-refresh");
+    expect(refreshed.phase).toBe("awaiting_funding");
+    expect(BigInt(refreshed.requiredNativeFunding ?? "0")).toBeGreaterThan(1n);
+    expect(refreshed.requiredTokenFunding).toBe("100000000");
+    expect(state.depositEthCalls).toBe(0);
+    expect(state.depositErc20Calls).toBe(0);
+  });
+
   test("watchWorkflow fails closed when a saved deposit may have been submitted without a persisted tx hash", async () => {
     writeWorkflowSecret("wf-ambiguous-deposit");
     writeWorkflowSnapshot("wf-ambiguous-deposit", {
@@ -1710,6 +1771,61 @@ describe("workflow service mocked coverage", () => {
 
     expect(state.depositEthCalls).toBe(0);
     expect(state.depositErc20Calls).toBe(0);
+  });
+
+  test("watchWorkflow retries retryable relayer quote failures instead of exiting", async () => {
+    let requestAttempts = 0;
+    const sleepCalls: number[] = [];
+    requestQuoteMock.mockImplementation(async (_chain, args) => {
+      state.requestQuoteCalls.push(args);
+      requestAttempts += 1;
+      if (requestAttempts === 1) {
+        throw new realErrors.CLIError(
+          "Temporary relayer issue",
+          "RELAYER",
+          "Retry soon.",
+          "RELAYER_TEMPORARY",
+          true,
+        );
+      }
+      return buildMockRelayerQuote(args);
+    });
+    overrideWorkflowTimingForTests({
+      sleep: async (ms) => {
+        sleepCalls.push(ms);
+      },
+    });
+
+    writeWorkflowSnapshot("wf-retryable-quote", {
+      phase: "approved_ready_to_withdraw",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "approved",
+    });
+
+    const { stderr } = await captureAsyncOutput(async () => {
+      const snapshot = await watchWorkflow({
+        workflowId: "wf-retryable-quote",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: false,
+          isJson: false,
+          isCsv: false,
+          isQuiet: false,
+          format: "table",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      });
+
+      expect(snapshot.phase).toBe("completed");
+    });
+
+    expect(requestAttempts).toBe(2);
+    expect(sleepCalls.length).toBeGreaterThan(0);
+    expect(stderr).toContain("Temporary issue while resuming this workflow");
+    expect(stderr).toContain("Retrying in");
   });
 
   test("watchWorkflow reattaches a confirmed pending deposit before continuing", async () => {
@@ -3819,7 +3935,7 @@ describe("workflow service mocked coverage", () => {
     expect(snapshot.depositTxHash).toBe(state.depositTxHash);
   });
 
-  test("configured flow start fails closed when the workflow snapshot cannot be saved after deposit", async () => {
+  test("configured flow start fails before deposit if the workflow checkpoint cannot be created", async () => {
     realConfig.ensureConfigDir();
     rmSync(realConfig.getWorkflowsDir(), { recursive: true, force: true });
     writeFileSync(realConfig.getWorkflowsDir(), "not-a-directory", "utf8");
@@ -3841,9 +3957,49 @@ describe("workflow service mocked coverage", () => {
         isVerbose: false,
         watch: false,
       }),
-    ).rejects.toThrow("Deposit succeeded, but the workflow could not be saved locally.");
+    ).rejects.toThrow(
+      "Could not save this workflow locally before submitting the public deposit.",
+    );
+
+    expect(state.depositEthCalls).toBe(0);
+  });
+
+  test("configured flow start preserves a saved workflow checkpoint when deposit submission fails", async () => {
+    state.depositEthFailuresRemaining = 1;
+
+    await expect(
+      startWorkflow({
+        amountInput: "0.01",
+        assetInput: "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("Simulated ETH deposit submission failure");
 
     expect(state.depositEthCalls).toBe(1);
+    const workflowFiles = readdirSync(realConfig.getWorkflowsDir()).filter((entry) =>
+      entry.endsWith(".json"),
+    );
+    expect(workflowFiles).toHaveLength(1);
+
+    const checkpointed = loadWorkflowSnapshot(
+      workflowFiles[0].replace(/\.json$/, ""),
+    );
+    expect(checkpointed.phase).toBe("depositing_publicly");
+    expect(checkpointed.walletMode).toBe("configured");
+    expect(checkpointed.walletAddress).toBe(GLOBAL_SIGNER_ADDRESS);
+    expect(checkpointed.depositTxHash).toBeNull();
+    expect(checkpointed.lastError?.step).toBe("deposit");
   });
 
   test("new-wallet flow start cleans up the saved secret if the workflow snapshot cannot be persisted", async () => {

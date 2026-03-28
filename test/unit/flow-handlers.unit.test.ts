@@ -19,6 +19,12 @@ const realFlowOutput = captureModuleExports(
 const realFormat = captureModuleExports(
   await import("../../src/utils/format.ts"),
 );
+const realPrompts = captureModuleExports(
+  await import("@inquirer/prompts"),
+);
+const realValidation = captureModuleExports(
+  await import("../../src/utils/validation.ts"),
+);
 const realWorkflow = captureModuleExports(
   await import("../../src/services/workflow.ts"),
 );
@@ -27,6 +33,8 @@ const FLOW_MODULE_RESTORES = [
   ["../../src/output/common.ts", realOutputCommon],
   ["../../src/output/flow.ts", realFlowOutput],
   ["../../src/utils/format.ts", realFormat],
+  ["@inquirer/prompts", realPrompts],
+  ["../../src/utils/validation.ts", realValidation],
   ["../../src/services/workflow.ts", realWorkflow],
   ["../../src/utils/mode.ts", realMode],
   ["../../src/utils/errors.ts", realErrors],
@@ -49,13 +57,14 @@ const watchWorkflowMock = mock(async () => watchSnapshot);
 const getWorkflowStatusMock = mock(() => statusSnapshot);
 const ragequitWorkflowMock = mock(async () => ragequitSnapshot);
 const infoMock = mock(() => undefined);
+const inputPromptMock = mock(async () => "0x4444444444444444444444444444444444444444");
 const resolveGlobalModeMock = mock((globalOpts: Record<string, unknown> = {}) => ({
   isAgent: Boolean(globalOpts.agent),
   isJson: Boolean(globalOpts.json),
   isCsv: false,
   isQuiet: Boolean(globalOpts.quiet),
-  format: "json",
-  skipPrompts: true,
+  format: globalOpts.json ? "json" : "table",
+  skipPrompts: Boolean(globalOpts.json || globalOpts.agent || globalOpts.yes),
 }));
 const printErrorMock = mock(() => undefined);
 
@@ -77,12 +86,16 @@ async function loadFlowHandlers(): Promise<void> {
       ...realFormat,
       info: infoMock,
     })],
+    ["../../src/utils/validation.ts", () => realValidation],
     ["../../src/services/workflow.ts", () => ({
       FlowCancelledError: MockFlowCancelledError,
       getWorkflowStatus: getWorkflowStatusMock,
       ragequitWorkflow: ragequitWorkflowMock,
       startWorkflow: startWorkflowMock,
       watchWorkflow: watchWorkflowMock,
+    })],
+    ["@inquirer/prompts", () => ({
+      input: inputPromptMock,
     })],
     ["../../src/utils/mode.ts", () => ({
       ...realMode,
@@ -137,6 +150,7 @@ describe("flow command handlers", () => {
     clearMockCalls(getWorkflowStatusMock);
     clearMockCalls(ragequitWorkflowMock);
     clearMockCalls(infoMock);
+    clearMockCalls(inputPromptMock);
     clearMockCalls(resolveGlobalModeMock);
     clearMockCalls(printErrorMock);
 
@@ -191,6 +205,20 @@ describe("flow command handlers", () => {
       "Missing required --to <address>.",
     );
     expect(isJson).toBe(true);
+  });
+
+  test("start prompts for the recipient in interactive mode when --to is missing", async () => {
+    const cmd = fakeCommand({});
+
+    await handleFlowStartCommand("0.1", "ETH", {}, cmd);
+
+    expect(inputPromptMock).toHaveBeenCalledTimes(1);
+    expect(startWorkflowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipient: "0x4444444444444444444444444444444444444444",
+      }),
+    );
+    expect(printErrorMock).not.toHaveBeenCalled();
   });
 
   test("start rejects --export-new-wallet without --new-wallet before calling the service", async () => {
