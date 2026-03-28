@@ -401,7 +401,7 @@ Representative payload (abridged):
     }
   },
   "executionRoutes": {
-    "stats pool": { "owner": "hybrid", "nativeModes": ["structured-default", "table", "csv"] }
+    "stats pool": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] }
   },
   "globalFlags": [
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }

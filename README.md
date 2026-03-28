@@ -152,14 +152,14 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 
 `flow` is the persisted easy path for demos and common happy-path usage. `--new-wallet` stays scoped to `flow` only; it does not change the manual command surfaces. The manual commands above remain unchanged for advanced control.
 
-Every response is wrapped in a versioned envelope:
+Most structured responses are wrapped in a versioned envelope:
 
 ```json
-{ "schemaVersion": "1.5.0", "success": true, ...commandPayload }
-{ "schemaVersion": "1.5.0", "success": false, "errorCode": "INPUT_ERROR", "errorMessage": "..." }
+{ "schemaVersion": "<semver>", "success": true, ...commandPayload }
+{ "schemaVersion": "<semver>", "success": false, "errorCode": "INPUT_ERROR", "errorMessage": "..." }
 ```
 
-stdout is always JSON. stderr carries human-readable output. Pipe safely to `jq`.
+The main exception is `--unsigned tx`, which emits a raw transaction array instead of the envelope. stdout is always machine-readable JSON. stderr carries human-readable output. Pipe safely to `jq`.
 
 For unsigned transaction payloads, error taxonomy, and the full integration guide: [AGENTS.md](AGENTS.md).
 

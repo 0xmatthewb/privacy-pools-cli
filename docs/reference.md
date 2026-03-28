@@ -98,7 +98,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 
 Poll ASP approval and withdraw privately when ready
 
-**Usage:** `privacy-pools flow watch [workflowId] [options]`
+**Usage:** `privacy-pools flow watch [workflowId|latest] [options]`
 
 Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
 
@@ -116,7 +116,7 @@ privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000
 
 Show the saved easy-path workflow state
 
-**Usage:** `privacy-pools flow status [workflowId] [options]`
+**Usage:** `privacy-pools flow status [workflowId|latest] [options]`
 
 Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action. This is read-only and does not require init if the saved workflow already exists locally.
 
@@ -132,7 +132,7 @@ privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000
 
 Recover a saved workflow publicly via ragequit
 
-**Usage:** `privacy-pools flow ragequit [workflowId] [options]`
+**Usage:** `privacy-pools flow ragequit [workflowId|latest] [options]`
 
 Uses the saved workflow context to perform the public recovery path without changing any manual commands. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
 

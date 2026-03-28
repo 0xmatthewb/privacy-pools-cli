@@ -34,7 +34,7 @@ export function createFlowCommand(): Command {
   command
     .command("watch")
     .description(watchMetadata.description)
-    .argument("[workflowId]", "Saved workflow id (defaults to latest)")
+    .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
     .addHelpText("after", commandHelpText(watchMetadata.help ?? {}))
     .action(
       createLazyAction(
@@ -46,7 +46,7 @@ export function createFlowCommand(): Command {
   command
     .command("status")
     .description(statusMetadata.description)
-    .argument("[workflowId]", "Saved workflow id (defaults to latest)")
+    .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
     .addHelpText("after", commandHelpText(statusMetadata.help ?? {}))
     .action(
       createLazyAction(
@@ -58,7 +58,7 @@ export function createFlowCommand(): Command {
   command
     .command("ragequit")
     .description(ragequitMetadata.description)
-    .argument("[workflowId]", "Saved workflow id (defaults to latest)")
+    .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(
       createLazyAction(

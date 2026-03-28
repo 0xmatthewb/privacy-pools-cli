@@ -131,6 +131,9 @@ describe("command docs alignment", () => {
     expect(safeReadOnlyCommands).toContain('"migrate status"');
     expect(normalizedSection).toContain("execution-ownership map");
     expect(normalizedSection).toContain("wallet-mutating safety");
+    expect(normalizedSection).toContain(
+      '"stats pool": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] }',
+    );
   });
 
   test("AGENTS capabilities docs describe execution ownership separately from read-only safety", () => {
@@ -246,6 +249,17 @@ describe("command docs alignment", () => {
     expect(normalizedReadme).toContain("migrate status");
   });
 
+  test("README machine contract stays aligned with current structured-output semantics", () => {
+    const readme = readFileSync(`${CLI_ROOT}/README.md`, "utf8");
+    const normalizedReadme = normalizeWhitespace(readme);
+
+    expect(normalizedReadme).toContain("Most structured responses are wrapped in a versioned envelope");
+    expect(normalizedReadme).toContain("--unsigned tx");
+    expect(normalizedReadme).toContain("raw transaction array");
+    expect(normalizedReadme).not.toContain("Every response is wrapped in a versioned envelope");
+    expect(normalizedReadme).not.toContain('"schemaVersion": "1.5.0"');
+  });
+
   test("AGENTS preflight guidance uses the same signer readiness contract as status metadata", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const section = extractDocumentSection(agents, "## Preflight Check", [
@@ -303,6 +317,15 @@ describe("command docs alignment", () => {
       "saved workflow (usually created after init)",
     );
     expect(flowStatusMetadata.capabilities.requiresInit).toBe(false);
+  });
+
+  test("flow latest shorthand stays documented across the human reference", () => {
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const normalizedReference = normalizeWhitespace(reference);
+
+    expect(normalizedReference).toContain("privacy-pools flow watch [workflowId|latest] [options]");
+    expect(normalizedReference).toContain("privacy-pools flow status [workflowId|latest] [options]");
+    expect(normalizedReference).toContain("privacy-pools flow ragequit [workflowId|latest] [options]");
   });
 
   test("flow watch docs explain the external-timeout expectation for agents", () => {
