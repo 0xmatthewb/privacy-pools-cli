@@ -251,6 +251,7 @@ mod tests {
             "manifestVersion": "1",
             "runtimeVersion": "v1",
             "cliVersion": "1.7.0",
+            "jsonSchemaVersion": "1.7.0",
             "commandPaths": [
                 "activity",
                 "flow",

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import {
@@ -202,6 +202,21 @@ describe("workflow helper coverage", () => {
     ).toThrow("Could not write workflow wallet backup");
   });
 
+  test("writePrivateTextFile ignores legacy predictable temp-file symlinks", () => {
+    const home = useIsolatedHome();
+    const backupDir = join(home, "exports");
+    mkdirSync(backupDir, { recursive: true });
+    const backupPath = join(backupDir, "wallet.txt");
+    const victimPath = join(home, "victim.txt");
+    writeFileSync(victimPath, "do not overwrite", "utf-8");
+    symlinkSync(victimPath, `${backupPath}.tmp`);
+
+    writePrivateTextFile(backupPath, "secret");
+
+    expect(readFileSync(backupPath, "utf-8")).toBe("secret");
+    expect(readFileSync(victimPath, "utf-8")).toBe("do not overwrite");
+  });
+
   test("loadWorkflowSecretRecord surfaces missing, unreadable, and malformed files", () => {
     useIsolatedHome();
 
@@ -241,6 +256,66 @@ describe("workflow helper coverage", () => {
 
     expect(() => loadWorkflowSecretRecord("future-secret")).toThrow(
       "Workflow wallet secret uses an unsupported schema version: 999",
+    );
+  });
+
+  test("loadWorkflowSecretRecord rejects tampered workflow ids", () => {
+    useIsolatedHome();
+
+    writeFileSync(
+      join(getWorkflowSecretsDir(), "wf-secret.json"),
+      JSON.stringify({
+        schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
+        workflowId: "wf-other",
+        chain: "mainnet",
+        walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
+        privateKey: WORKFLOW_SIGNER,
+      }),
+      "utf-8",
+    );
+
+    expect(() => loadWorkflowSecretRecord("wf-secret")).toThrow(
+      "does not match wf-secret",
+    );
+  });
+
+  test("loadWorkflowSecretRecord rejects invalid private keys", () => {
+    useIsolatedHome();
+
+    writeFileSync(
+      join(getWorkflowSecretsDir(), "wf-secret.json"),
+      JSON.stringify({
+        schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
+        workflowId: "wf-secret",
+        chain: "mainnet",
+        walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
+        privateKey: "0x1234",
+      }),
+      "utf-8",
+    );
+
+    expect(() => loadWorkflowSecretRecord("wf-secret")).toThrow(
+      "contains an invalid private key",
+    );
+  });
+
+  test("loadWorkflowSecretRecord rejects wallet address mismatches", () => {
+    useIsolatedHome();
+
+    writeFileSync(
+      join(getWorkflowSecretsDir(), "wf-secret.json"),
+      JSON.stringify({
+        schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
+        workflowId: "wf-secret",
+        chain: "mainnet",
+        walletAddress: privateKeyToAccount(CONFIGURED_SIGNER).address,
+        privateKey: WORKFLOW_SIGNER,
+      }),
+      "utf-8",
+    );
+
+    expect(() => loadWorkflowSecretRecord("wf-secret")).toThrow(
+      "address does not match the stored workflow wallet",
     );
   });
 

@@ -20,9 +20,9 @@ import {
 } from "node:http";
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
-import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
+import { encodeRelayerWithdrawalData } from "./relayer-withdrawal-data.ts";
 import {
   registerProcessExitCleanup,
   terminateChildProcess,
@@ -140,7 +140,13 @@ function buildRelayerQuote(request: {
       },
       feeCommitment: {
         expiration: 4_102_444_800_000,
-        withdrawalData: "0x1234",
+        withdrawalData: encodeRelayerWithdrawalData({
+          recipient:
+            (request.recipient as Address | undefined) ??
+            (RELAYER_MALFORMED_FEE_RECIPIENT as Address),
+          feeRecipient: FIXTURE_FEE_RECEIVER,
+          relayFeeBPS: 250n,
+        }),
         asset: request.asset,
         amount: request.amount,
         extraGas: request.extraGas,
@@ -166,7 +172,13 @@ function buildRelayerQuote(request: {
     },
     feeCommitment: {
       expiration,
-      withdrawalData: "0x1234",
+      withdrawalData: encodeRelayerWithdrawalData({
+        recipient:
+          (request.recipient as Address | undefined) ??
+          (RELAYER_SECONDS_RECIPIENT as Address),
+        feeRecipient: FIXTURE_FEE_RECEIVER,
+        relayFeeBPS: 250n,
+      }),
       asset: request.asset,
       amount: request.amount,
       extraGas: request.extraGas,

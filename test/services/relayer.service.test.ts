@@ -6,9 +6,15 @@ import {
   requestQuote,
   submitRelayRequest,
 } from "../../src/services/relayer.ts";
+import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 
 const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
+const VALID_WITHDRAWAL_DATA = encodeRelayerWithdrawalData({
+  recipient: "0x0000000000000000000000000000000000000001",
+  feeRecipient: "0x0000000000000000000000000000000000000002",
+  relayFeeBPS: 12n,
+});
 
 describe("relayer service", () => {
   afterEach(() => {
@@ -31,7 +37,7 @@ describe("relayer service", () => {
             detail: { relayTxCost: { gas: "1", eth: "1" } },
             feeCommitment: {
               expiration: Date.now() + 60_000,
-              withdrawalData: "0x1234",
+              withdrawalData: VALID_WITHDRAWAL_DATA,
               asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
               amount: "1000",
               extraGas: false,
@@ -241,7 +247,7 @@ describe("relayer service", () => {
             detail: { relayTxCost: { gas: "1", eth: "1" } },
             feeCommitment: {
               expiration: Date.now() + 60_000,
-              withdrawalData: "0x1234",
+              withdrawalData: VALID_WITHDRAWAL_DATA,
               asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
               amount: "1000",
               extraGas: false,
@@ -275,7 +281,7 @@ describe("relayer service", () => {
             detail: { relayTxCost: { gas: "1", eth: "1" } },
             feeCommitment: {
               expiration: Date.now() + 60_000,
-              withdrawalData: "0x1234",
+              withdrawalData: VALID_WITHDRAWAL_DATA,
               asset: "0x0000000000000000000000000000000000000001",
               amount: "1000",
               extraGas: false,
@@ -310,7 +316,7 @@ describe("relayer service", () => {
             detail: { relayTxCost: { gas: "1", eth: "1" } },
             feeCommitment: {
               expiration: Date.now() + 60_000,
-              withdrawalData: "0x1234",
+              withdrawalData: VALID_WITHDRAWAL_DATA,
               asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
               amount: "999",
               extraGas: false,
@@ -345,7 +351,7 @@ describe("relayer service", () => {
             detail: { relayTxCost: { gas: "1", eth: "1" } },
             feeCommitment: {
               expiration: Date.now() + 60_000,
-              withdrawalData: "0x1234",
+              withdrawalData: VALID_WITHDRAWAL_DATA,
               asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
               amount: "1000",
               extraGas: true,
@@ -393,7 +399,7 @@ describe("relayer service", () => {
         publicSignals: [],
         feeCommitment: {
           expiration: Date.now() + 60_000,
-          withdrawalData: "0x1234",
+          withdrawalData: VALID_WITHDRAWAL_DATA,
           asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
           amount: "1000",
           extraGas: false,
@@ -432,7 +438,7 @@ describe("relayer service", () => {
         publicSignals: [],
         feeCommitment: {
           expiration: Date.now() + 60_000,
-          withdrawalData: "0x1234",
+          withdrawalData: VALID_WITHDRAWAL_DATA,
           asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
           amount: "1000",
           extraGas: false,
@@ -472,7 +478,7 @@ describe("relayer service", () => {
       publicSignals: [],
       feeCommitment: {
         expiration: Date.now() + 60_000,
-        withdrawalData: "0x1234",
+        withdrawalData: VALID_WITHDRAWAL_DATA,
         asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         amount: "1000",
         extraGas: false,
@@ -508,7 +514,7 @@ describe("relayer service", () => {
         publicSignals: [],
         feeCommitment: {
           expiration: Date.now() + 60_000,
-          withdrawalData: "0x1234",
+          withdrawalData: VALID_WITHDRAWAL_DATA,
           asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
           amount: "1000",
           extraGas: false,

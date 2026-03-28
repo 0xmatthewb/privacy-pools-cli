@@ -13,6 +13,7 @@ import {
   GENERATED_COMMAND_ROUTES,
 } from "../../src/utils/command-manifest.ts";
 import { guideText } from "../../src/utils/help.ts";
+import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 
 const nativeManifestPath = join(
   CLI_ROOT,
@@ -35,6 +36,7 @@ describe("native manifest conformance", () => {
       manifestVersion: string;
       runtimeVersion: string;
       cliVersion: string;
+      jsonSchemaVersion: string;
       commandPaths: string[];
       aliasMap: Record<string, string>;
       structuredRootHelp: string;
@@ -59,6 +61,7 @@ describe("native manifest conformance", () => {
       GENERATED_COMMAND_MANIFEST.runtimeVersion,
     );
     expect(nativeManifest.cliVersion).toBe(pkg.version);
+    expect(nativeManifest.jsonSchemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(nativeManifest.commandPaths).toEqual([...GENERATED_COMMAND_PATHS]);
     expect(nativeManifest.aliasMap).toEqual(GENERATED_COMMAND_ALIAS_MAP);
     expect(nativeManifest.routes.commandRoutes).toEqual(GENERATED_COMMAND_ROUTES);

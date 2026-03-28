@@ -522,7 +522,7 @@ describe("status next steps vary by account state", () => {
     const result = { ...STUB_STATUS, accountFiles: [] as [string, number][] };
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(2);
-    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].command).toBe("migrate status");
     expect(actions[0].when).toBe("status_restore_discovery");
     expect(actions[0].options?.allChains).toBe(true);
     expect(actions[1].command).toBe("pools");
@@ -546,7 +546,7 @@ describe("status next steps vary by account state", () => {
     };
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(2);
-    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].command).toBe("migrate status");
     expect(actions[0].when).toBe("status_restore_discovery");
     expect(actions[0].options?.allChains).toBe(true);
     expect(actions[1].command).toBe("pools");
@@ -812,49 +812,49 @@ describe("init next steps: new wallet vs restore", () => {
     expect(stderr).not.toContain("privacy-pools accounts");
   });
 
-  test("restore (imported mnemonic) → agent gets accounts, human gets accounts", () => {
+  test("restore (imported mnemonic) → agent gets migrate status, human gets migrate status", () => {
     const restored = { ...STUB_INIT, mnemonicImported: true };
     const actions = getJsonNextActions(restored);
     expect(actions).toHaveLength(1);
-    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].command).toBe("migrate status");
     expect(actions[0].when).toBe("after_restore");
 
     const stderr = getHumanStderr(restored);
-    expect(stderr).toContain("privacy-pools accounts");
+    expect(stderr).toContain("privacy-pools migrate status");
     expect(stderr).not.toContain("privacy-pools pools");
   });
 
-  test("restore on testnet → both agent and human use --all-chains (broadest sync)", () => {
+  test("restore on testnet → both agent and human use migrate status --all-chains", () => {
     const restored: InitRenderResult = {
       ...STUB_INIT,
       mnemonicImported: true,
       defaultChain: "sepolia",
     };
     const actions = getJsonNextActions(restored);
-    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].command).toBe("migrate status");
     // Restore always uses --all-chains regardless of defaultChain,
     // because we don't know which chains hold recoverable state.
     expect(actions[0].options?.allChains).toBe(true);
     expect(actions[0].options?.chain).toBeUndefined();
 
     const stderr = getHumanStderr(restored);
-    expect(stderr).toContain("privacy-pools accounts --all-chains");
+    expect(stderr).toContain("privacy-pools migrate status --all-chains");
   });
 
-  test("restore on mainnet → both agent and human use --all-chains (broadest sync)", () => {
+  test("restore on mainnet → both agent and human use migrate status --all-chains", () => {
     const restored: InitRenderResult = {
       ...STUB_INIT,
       mnemonicImported: true,
       defaultChain: "mainnet",
     };
     const actions = getJsonNextActions(restored);
-    expect(actions[0].command).toBe("accounts");
+    expect(actions[0].command).toBe("migrate status");
     // Restore always uses --all-chains so testnet-only wallets see their funds too.
     expect(actions[0].options?.allChains).toBe(true);
     expect(actions[0].options?.chain).toBeUndefined();
 
     const stderr = getHumanStderr(restored);
-    expect(stderr).toContain("privacy-pools accounts --all-chains");
+    expect(stderr).toContain("privacy-pools migrate status --all-chains");
   });
 
   test("new wallet on testnet → human pools hint includes --chain", () => {

@@ -461,15 +461,15 @@ describe("renderStatus parity", () => {
       {
         code: "restore_discovery_recommended",
         message:
-          "If this recovery phrase was imported, check accounts across all chains before assuming the wallet is empty.",
+          "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
         affects: ["discovery"],
       },
     ]);
     expect(json.nextActions).toEqual([
       {
-        command: "accounts",
+        command: "migrate status",
         reason:
-          "If this recovery phrase was imported, check for existing deposits across all chains before assuming the wallet is empty.",
+          "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
         when: "status_restore_discovery",
         options: { agent: true, allChains: true },
       },

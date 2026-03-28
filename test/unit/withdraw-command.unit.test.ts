@@ -10,6 +10,7 @@ import {
 import { CLIError } from "../../src/utils/errors.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import type { PoolAccountRef } from "../../src/utils/pool-accounts.ts";
+import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 
 function samplePoolAccount(
   patch: Partial<PoolAccountRef> = {},
@@ -169,7 +170,11 @@ describe("relayer quote helpers", () => {
     detail: { relayTxCost: { gas: "0", eth: "0" } },
     feeCommitment: {
       expiration: 4_102_444_800_000,
-      withdrawalData: "0x1234",
+      withdrawalData: encodeRelayerWithdrawalData({
+        recipient: "0x4444444444444444444444444444444444444444",
+        feeRecipient: "0x3333333333333333333333333333333333333333",
+        relayFeeBPS: 250n,
+      }),
       asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
       amount: "100000000000000000",
       extraGas: false,

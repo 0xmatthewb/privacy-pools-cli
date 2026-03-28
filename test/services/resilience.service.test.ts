@@ -32,6 +32,7 @@ import {
   submitRelayRequest,
 } from "../../src/services/relayer.ts";
 import { CLIError } from "../../src/utils/errors.ts";
+import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 
 const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
@@ -53,6 +54,11 @@ afterEach(() => {
 const VALID_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as const;
 const VALID_TX_HASH =
   "0x" + "ab".repeat(32) as `0x${string}`;
+const VALID_WITHDRAWAL_DATA = encodeRelayerWithdrawalData({
+  recipient: "0x0000000000000000000000000000000000000001",
+  feeRecipient: "0x0000000000000000000000000000000000000002",
+  relayFeeBPS: 12n,
+});
 
 function mockResponse(body: unknown, status = 200): typeof fetch {
   return mock(() =>
@@ -86,7 +92,7 @@ const RELAY_PARAMS = {
   publicSignals: [] as string[],
   feeCommitment: {
     expiration: Date.now() + 60_000,
-    withdrawalData: "0x1234" as `0x${string}`,
+    withdrawalData: VALID_WITHDRAWAL_DATA,
     asset: VALID_ADDRESS,
     amount: "1000",
     extraGas: false as boolean,
@@ -364,7 +370,7 @@ describe("resilience: Relayer malformed responses", () => {
       feeBPS: "12",
       feeCommitment: {
         expiration: Infinity,
-        withdrawalData: "0x1234",
+        withdrawalData: VALID_WITHDRAWAL_DATA,
         asset: VALID_ADDRESS,
         amount: "1000",
         extraGas: false,
@@ -381,7 +387,7 @@ describe("resilience: Relayer malformed responses", () => {
       feeBPS: "12",
       feeCommitment: {
         expiration: Date.now() + 60_000,
-        withdrawalData: "0x1234",
+        withdrawalData: VALID_WITHDRAWAL_DATA,
         asset: "0xshort",
         amount: "1000",
         extraGas: false,

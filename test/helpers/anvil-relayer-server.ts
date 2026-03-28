@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { buildChildProcessEnv } from "./child-env.ts";
+import { encodeRelayerWithdrawalData } from "./relayer-withdrawal-data.ts";
 import {
   registerProcessExitCleanup,
   terminateChildProcess,
@@ -47,6 +48,7 @@ function buildQuoteBody(
     amount: string;
     asset: string;
     extraGas: boolean;
+    recipient?: `0x${string}`;
   }
 ) {
   const quoteStep =
@@ -68,7 +70,13 @@ function buildQuoteBody(
     },
     feeCommitment: {
       expiration: Date.now() + expirationOffsetMs,
-      withdrawalData: "0x1234",
+      withdrawalData: encodeRelayerWithdrawalData({
+        recipient:
+          request.recipient ??
+          ("0x0000000000000000000000000000000000000001" as const),
+        feeRecipient: assetConfig.feeReceiverAddress,
+        relayFeeBPS: BigInt(feeBPS),
+      }),
       asset: request.asset,
       amount: request.amount,
       extraGas: request.extraGas,
@@ -249,6 +257,10 @@ async function route(
         amount: String(body.amount),
         asset: String(body.asset),
         extraGas: Boolean(body.extraGas),
+        recipient:
+          typeof body.recipient === "string"
+            ? (body.recipient as `0x${string}`)
+            : undefined,
       },
     );
     state.quoteRequests += 1;

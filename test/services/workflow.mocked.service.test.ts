@@ -29,6 +29,7 @@ import {
   captureAsyncOutput,
   expectSilentOutput,
 } from "../helpers/output.ts";
+import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import {
   WORKFLOW_SECRET_RECORD_VERSION,
@@ -371,33 +372,70 @@ const getRelayerDetailsMock = mock(async () => ({
   feeReceiverAddress: state.feeReceiverAddress,
   minWithdrawAmount: state.minWithdrawAmount.toString(),
 }));
+
+function buildMockRelayerQuote(
+  args: { amount: bigint; asset: Address; extraGas: boolean; recipient: Address },
+  overrides: {
+    feeBPS?: string;
+    expirationMs?: number;
+    feeRecipient?: Address;
+    signedRelayerCommitment?: Hex;
+  } = {},
+) {
+  const feeBPS = overrides.feeBPS ?? "50";
+  const expirationMs = overrides.expirationMs ?? Date.now() + 60_000;
+  return {
+    baseFeeBPS: feeBPS,
+    gasPrice: "1",
+    detail: {
+      relayTxCost: {
+        gas: "0",
+        eth: "0",
+      },
+    },
+    feeBPS,
+    feeCommitment: {
+      expiration: expirationMs,
+      withdrawalData: encodeRelayerWithdrawalData({
+        recipient: args.recipient,
+        feeRecipient: overrides.feeRecipient ?? state.feeReceiverAddress,
+        relayFeeBPS: BigInt(feeBPS),
+      }),
+      asset: args.asset,
+      amount: args.amount.toString(),
+      extraGas: args.extraGas,
+      signedRelayerCommitment: overrides.signedRelayerCommitment ?? "0xfeed",
+    },
+    expiresAt: new Date(expirationMs).toISOString(),
+  };
+}
+
 const requestQuoteMock = mock(async (
   _chain: unknown,
   args: { amount: bigint; asset: Address; extraGas: boolean; recipient: Address },
 ) => {
   state.requestQuoteCalls.push(args);
-  return {
-    feeBPS: "50",
-    feeCommitment: "0xfeed",
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
-  };
+  return buildMockRelayerQuote(args);
 });
 const submitRelayRequestMock = mock(async () => ({
   txHash: state.relayTxHash,
 }));
 const getRelayedWithdrawalRemainderAdvisoryMock = mock(() => null);
 const refreshExpiredRelayerQuoteForWithdrawalMock = mock(async () => ({
-  quote: {
-    feeBPS: "50",
-    feeCommitment: "0xfeed",
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
-  },
-  quoteFeeBPS: 50,
+  quote: buildMockRelayerQuote({
+    amount: state.committedValue,
+    asset: state.pool.asset,
+    extraGas: state.pool.symbol !== "ETH",
+    recipient: "0x7777777777777777777777777777777777777777",
+  }),
+  quoteFeeBPS: 50n,
   expirationMs: Date.now() + 60_000,
 }));
-const validateRelayerQuoteForWithdrawalMock = mock(() => ({
-  quoteFeeBPS: 50,
-  expirationMs: Date.now() + 60_000,
+const validateRelayerQuoteForWithdrawalMock = mock((quote?: {
+  feeCommitment?: { expiration?: number };
+}) => ({
+  quoteFeeBPS: 50n,
+  expirationMs: quote?.feeCommitment?.expiration ?? Date.now() + 60_000,
 }));
 
 const fetchDepositReviewStatusesMock = mock(async () => {
@@ -870,11 +908,7 @@ describe("workflow service mocked coverage", () => {
     requestQuoteMock.mockClear();
     requestQuoteMock.mockImplementation(async (_chain, args) => {
       state.requestQuoteCalls.push(args);
-      return {
-        feeBPS: "50",
-        feeCommitment: "0xfeed",
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      };
+      return buildMockRelayerQuote(args);
     });
     submitRelayRequestMock.mockClear();
     submitRelayRequestMock.mockImplementation(async () => ({
@@ -884,17 +918,18 @@ describe("workflow service mocked coverage", () => {
     getRelayedWithdrawalRemainderAdvisoryMock.mockImplementation(() => null);
     refreshExpiredRelayerQuoteForWithdrawalMock.mockClear();
     refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementation(async () => ({
-      quote: {
-        feeBPS: "50",
-        feeCommitment: "0xfeed",
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      },
-      quoteFeeBPS: 50,
+      quote: buildMockRelayerQuote({
+        amount: state.committedValue,
+        asset: state.pool.asset,
+        extraGas: state.pool.symbol !== "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+      }),
+      quoteFeeBPS: 50n,
       expirationMs: Date.now() + 60_000,
     }));
     validateRelayerQuoteForWithdrawalMock.mockClear();
     validateRelayerQuoteForWithdrawalMock.mockImplementation(() => ({
-      quoteFeeBPS: 50,
+      quoteFeeBPS: 50n,
       expirationMs: Date.now() + 60_000,
     }));
     proveCommitmentMock.mockClear();
@@ -2972,16 +3007,17 @@ describe("workflow service mocked coverage", () => {
       nowMs: () => 3_000,
     });
     validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
-      quoteFeeBPS: 50,
+      quoteFeeBPS: 50n,
       expirationMs: 2_000,
     }));
     refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
-      quote: {
-        feeBPS: "50",
-        feeCommitment: "0xfeed",
-        expiresAt: new Date(9_000).toISOString(),
-      },
-      quoteFeeBPS: 50,
+      quote: buildMockRelayerQuote({
+        amount: state.committedValue,
+        asset: state.pool.asset,
+        extraGas: state.pool.symbol !== "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+      }, { expirationMs: 9_000 }),
+      quoteFeeBPS: 50n,
       expirationMs: 9_000,
     }));
     writeWorkflowSnapshot("wf-refresh-before-proof", {
@@ -3016,25 +3052,22 @@ describe("workflow service mocked coverage", () => {
       nowMs: () => (++nowCalls === 1 ? 1_000 : 3_000),
     });
     validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
-      quoteFeeBPS: 50,
+      quoteFeeBPS: 50n,
       expirationMs: 2_000,
     }));
     refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
-      quote: {
-        feeBPS: "50",
-        feeCommitment: "0xfeed",
-        expiresAt: new Date(9_000).toISOString(),
-      },
-      quoteFeeBPS: 50,
+      quote: buildMockRelayerQuote({
+        amount: state.committedValue,
+        asset: state.pool.asset,
+        extraGas: state.pool.symbol !== "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+      }, { expirationMs: 9_000 }),
+      quoteFeeBPS: 50n,
       expirationMs: 9_000,
     }));
     requestQuoteMock.mockImplementationOnce(async (_chain, args) => {
       state.requestQuoteCalls.push(args);
-      return {
-        feeBPS: "50",
-        feeCommitment: "0xfeed",
-        expiresAt: new Date(2_000).toISOString(),
-      };
+      return buildMockRelayerQuote(args, { expirationMs: 2_000 });
     });
     writeWorkflowSnapshot("wf-refresh-after-proof", {
       phase: "awaiting_asp",
@@ -3068,25 +3101,22 @@ describe("workflow service mocked coverage", () => {
       nowMs: () => nowMs,
     });
     validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
-      quoteFeeBPS: 50,
+      quoteFeeBPS: 50n,
       expirationMs: 2_000,
     }));
     refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
-      quote: {
-        feeBPS: "75",
-        feeCommitment: "0xfeed",
-        expiresAt: new Date(9_000).toISOString(),
-      },
-      quoteFeeBPS: 75,
+      quote: buildMockRelayerQuote({
+        amount: state.committedValue,
+        asset: state.pool.asset,
+        extraGas: state.pool.symbol !== "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+      }, { feeBPS: "75", expirationMs: 9_000 }),
+      quoteFeeBPS: 75n,
       expirationMs: 9_000,
     }));
     requestQuoteMock.mockImplementationOnce(async (_chain, args) => {
       state.requestQuoteCalls.push(args);
-      return {
-        feeBPS: "50",
-        feeCommitment: "0xfeed",
-        expiresAt: new Date(2_000).toISOString(),
-      };
+      return buildMockRelayerQuote(args, { expirationMs: 2_000 });
     });
     proveWithdrawalMock.mockImplementationOnce(async () => {
       nowMs = 3_000;

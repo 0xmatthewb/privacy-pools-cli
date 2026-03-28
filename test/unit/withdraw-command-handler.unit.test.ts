@@ -7,6 +7,7 @@ import {
   test,
 } from "bun:test";
 import type { Command } from "commander";
+import type { Address } from "viem";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
   captureAsyncJsonOutput,
@@ -22,6 +23,7 @@ import {
   expectPrintedRawTransactions,
   expectUnsignedTransactions,
 } from "../helpers/unsigned-assertions.ts";
+import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const realAccount = captureModuleExports(
@@ -125,6 +127,42 @@ const PENDING_POOL_ACCOUNT = {
   txHash: "0x" + "bb".repeat(32),
 };
 
+const DEFAULT_RELAYER_RECIPIENT =
+  "0x4444444444444444444444444444444444444444" as Address;
+const DEFAULT_RELAYER_FEE_RECEIVER =
+  "0x3333333333333333333333333333333333333333" as Address;
+
+function buildRelayerQuote(params: {
+  recipient?: Address;
+  feeRecipient?: Address;
+  feeBPS?: string;
+  expiration?: number;
+  asset?: Address;
+  amount?: string;
+  extraGas?: boolean;
+  signedRelayerCommitment?: `0x${string}`;
+} = {}) {
+  const feeBPS = params.feeBPS ?? "250";
+  return {
+    baseFeeBPS: "200",
+    feeBPS,
+    gasPrice: "1",
+    detail: { relayTxCost: { gas: "0", eth: "0" } },
+    feeCommitment: {
+      expiration: params.expiration ?? 4_102_444_800_000,
+      withdrawalData: encodeRelayerWithdrawalData({
+        recipient: params.recipient ?? DEFAULT_RELAYER_RECIPIENT,
+        feeRecipient: params.feeRecipient ?? DEFAULT_RELAYER_FEE_RECEIVER,
+        relayFeeBPS: BigInt(feeBPS),
+      }),
+      asset: params.asset ?? ETH_POOL.asset,
+      amount: params.amount ?? "100000000000000000",
+      extraGas: params.extraGas ?? false,
+      signedRelayerCommitment: params.signedRelayerCommitment ?? "0x01",
+    },
+  };
+}
+
 const initializeAccountServiceMock = mock(async () => ({
   account: { poolAccounts: new Map() },
   getSpendableCommitments: () =>
@@ -184,22 +222,25 @@ const buildLoadedAspDepositReviewStateMock = mock(() => ({
 }));
 const getRelayerDetailsMock = mock(async () => ({
   minWithdrawAmount: "10000000000000000",
-  feeReceiverAddress: "0x3333333333333333333333333333333333333333",
+  feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
 }));
-const requestQuoteMock = mock(async () => ({
-  baseFeeBPS: "200",
-  feeBPS: "250",
-  gasPrice: "1",
-  detail: { relayTxCost: { gas: "0", eth: "0" } },
-  feeCommitment: {
-    expiration: 4_102_444_800_000,
-    withdrawalData: "0x1234",
-    asset: ETH_POOL.asset,
-    amount: "100000000000000000",
-    extraGas: false,
-    signedRelayerCommitment: "0x01",
-  },
-}));
+const requestQuoteMock = mock(
+  async (
+    _chainConfig: unknown,
+    params?: {
+      recipient?: Address;
+      asset?: Address;
+      amount?: bigint;
+      extraGas?: boolean;
+    },
+  ) =>
+    buildRelayerQuote({
+      recipient: params?.recipient,
+      asset: params?.asset,
+      amount: params?.amount?.toString(),
+      extraGas: params?.extraGas,
+    }),
+);
 const submitRelayRequestMock = mock(async () => ({
   txHash: "0x" + "34".repeat(32),
 }));
@@ -483,22 +524,25 @@ beforeEach(() => {
   }));
   getRelayerDetailsMock.mockImplementation(async () => ({
     minWithdrawAmount: "10000000000000000",
-    feeReceiverAddress: "0x3333333333333333333333333333333333333333",
+    feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
   }));
-  requestQuoteMock.mockImplementation(async () => ({
-    baseFeeBPS: "200",
-    feeBPS: "250",
-    gasPrice: "1",
-    detail: { relayTxCost: { gas: "0", eth: "0" } },
-    feeCommitment: {
-      expiration: 4_102_444_800_000,
-      withdrawalData: "0x1234",
-      asset: ETH_POOL.asset,
-      amount: "100000000000000000",
-      extraGas: false,
-      signedRelayerCommitment: "0x01",
-    },
-  }));
+  requestQuoteMock.mockImplementation(
+    async (
+      _chainConfig: unknown,
+      params?: {
+        recipient?: Address;
+        asset?: Address;
+        amount?: bigint;
+        extraGas?: boolean;
+      },
+    ) =>
+      buildRelayerQuote({
+        recipient: params?.recipient,
+        asset: params?.asset,
+        amount: params?.amount?.toString(),
+        extraGas: params?.extraGas,
+      }),
+  );
   proveWithdrawalMock.mockImplementation(async () => ({
     proof: {
       pi_a: ["0", "0", "1"],
@@ -1133,7 +1177,7 @@ describe("withdraw command handler", () => {
     useIsolatedHome({ withSigner: true });
     getRelayerDetailsMock.mockImplementationOnce(async () => ({
       minWithdrawAmount: "9000000000000000000",
-      feeReceiverAddress: "0x3333333333333333333333333333333333333333",
+      feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
     }));
 
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
@@ -1377,34 +1421,12 @@ describe("withdraw command handler", () => {
   test("refreshes expired human quotes before proceeding with the withdrawal review", async () => {
     useIsolatedHome({ withSigner: true });
     requestQuoteMock
-      .mockImplementationOnce(async () => ({
-        baseFeeBPS: "200",
-        feeBPS: "250",
-        gasPrice: "1",
-        detail: { relayTxCost: { gas: "0", eth: "0" } },
-        feeCommitment: {
-          expiration: 946684800,
-          withdrawalData: "0x1234",
-          asset: ETH_POOL.asset,
-          amount: "100000000000000000",
-          extraGas: false,
-          signedRelayerCommitment: "0x01",
-        },
-      }))
-      .mockImplementationOnce(async () => ({
-        baseFeeBPS: "200",
-        feeBPS: "250",
-        gasPrice: "1",
-        detail: { relayTxCost: { gas: "0", eth: "0" } },
-        feeCommitment: {
-          expiration: 4_102_444_800_000,
-          withdrawalData: "0x1234",
-          asset: ETH_POOL.asset,
-          amount: "100000000000000000",
-          extraGas: false,
-          signedRelayerCommitment: "0x01",
-        },
-      }));
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: 946684800 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote(),
+      );
 
     const { stderr } = await captureAsyncOutput(() =>
       handleWithdrawCommand(
@@ -1776,37 +1798,84 @@ describe("withdraw command handler", () => {
     expect(exitCode).toBe(5);
   });
 
+  test("uses the relayer-signed withdrawal data even when relayer details disagree", async () => {
+    useIsolatedHome({ withSigner: true });
+    const signedFeeReceiver =
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as Address;
+    getRelayerDetailsMock.mockImplementationOnce(async () => ({
+      minWithdrawAmount: "10000000000000000",
+      feeReceiverAddress:
+        "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" as Address,
+    }));
+    requestQuoteMock.mockImplementationOnce(async (_chainConfig, params) =>
+      buildRelayerQuote({
+        recipient: params?.recipient,
+        feeRecipient: signedFeeReceiver,
+      }),
+    );
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: DEFAULT_RELAYER_RECIPIENT,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(submitRelayRequestMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        withdrawal: expect.objectContaining({
+          data: encodeRelayerWithdrawalData({
+            recipient: DEFAULT_RELAYER_RECIPIENT,
+            feeRecipient: signedFeeReceiver,
+            relayFeeBPS: 250n,
+          }),
+        }),
+      }),
+    );
+  });
+
+  test("fails closed when relayer withdrawal data targets a different recipient", async () => {
+    useIsolatedHome({ withSigner: true });
+    requestQuoteMock.mockImplementationOnce(async () =>
+      buildRelayerQuote({
+        recipient: "0x5555555555555555555555555555555555555555" as Address,
+      }),
+    );
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: DEFAULT_RELAYER_RECIPIENT,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("RELAYER_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "recipient does not match",
+    );
+    expect(exitCode).toBe(5);
+  });
+
   test("refreshes an expired machine-mode relayer quote before building the proof", async () => {
     useIsolatedHome({ withSigner: true });
     requestQuoteMock
-      .mockImplementationOnce(async () => ({
-        baseFeeBPS: "200",
-        feeBPS: "250",
-        gasPrice: "1",
-        detail: { relayTxCost: { gas: "0", eth: "0" } },
-        feeCommitment: {
-          expiration: 946684800,
-          withdrawalData: "0x1234",
-          asset: ETH_POOL.asset,
-          amount: "100000000000000000",
-          extraGas: false,
-          signedRelayerCommitment: "0x01",
-        },
-      }))
-      .mockImplementationOnce(async () => ({
-        baseFeeBPS: "200",
-        feeBPS: "250",
-        gasPrice: "1",
-        detail: { relayTxCost: { gas: "0", eth: "0" } },
-        feeCommitment: {
-          expiration: 4_102_444_800_000,
-          withdrawalData: "0x1234",
-          asset: ETH_POOL.asset,
-          amount: "100000000000000000",
-          extraGas: false,
-          signedRelayerCommitment: "0x01",
-        },
-      }));
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: 946684800 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote(),
+      );
 
     const { json } = await captureAsyncJsonOutput(() =>
       handleWithdrawCommand(
@@ -1829,7 +1898,7 @@ describe("withdraw command handler", () => {
     useIsolatedHome({ withSigner: true });
     getRelayerDetailsMock.mockImplementationOnce(async () => ({
       minWithdrawAmount: "50000000000000000",
-      feeReceiverAddress: "0x3333333333333333333333333333333333333333",
+      feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
     }));
 
     const { stderr } = await captureAsyncOutput(() =>
@@ -1967,34 +2036,12 @@ describe("withdraw command handler", () => {
       };
     });
     requestQuoteMock
-      .mockImplementationOnce(async () => ({
-        baseFeeBPS: "200",
-        feeBPS: "250",
-        gasPrice: "1",
-        detail: { relayTxCost: { gas: "0", eth: "0" } },
-        feeCommitment: {
-          expiration: initialNow + 1_000,
-          withdrawalData: "0x1234",
-          asset: ETH_POOL.asset,
-          amount: "100000000000000000",
-          extraGas: false,
-          signedRelayerCommitment: "0x01",
-        },
-      }))
-      .mockImplementationOnce(async () => ({
-        baseFeeBPS: "200",
-        feeBPS: "250",
-        gasPrice: "1",
-        detail: { relayTxCost: { gas: "0", eth: "0" } },
-        feeCommitment: {
-          expiration: initialNow + 10_000,
-          withdrawalData: "0x1234",
-          asset: ETH_POOL.asset,
-          amount: "100000000000000000",
-          extraGas: false,
-          signedRelayerCommitment: "0x01",
-        },
-      }));
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 1_000 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 10_000 }),
+      );
     Date.now = () => (++nowCalls <= 2 ? initialNow : expiredNow);
 
     try {
@@ -2037,34 +2084,16 @@ describe("withdraw command handler", () => {
       };
     });
     requestQuoteMock
-      .mockImplementationOnce(async () => ({
-        baseFeeBPS: "200",
-        feeBPS: "250",
-        gasPrice: "1",
-        detail: { relayTxCost: { gas: "0", eth: "0" } },
-        feeCommitment: {
-          expiration: initialNow + 1_000,
-          withdrawalData: "0x1234",
-          asset: ETH_POOL.asset,
-          amount: "100000000000000000",
-          extraGas: false,
-          signedRelayerCommitment: "0x01",
-        },
-      }))
-      .mockImplementationOnce(async () => ({
-        baseFeeBPS: "200",
-        feeBPS: "275",
-        gasPrice: "1",
-        detail: { relayTxCost: { gas: "0", eth: "0" } },
-        feeCommitment: {
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 1_000 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({
+          feeBPS: "275",
           expiration: initialNow + 10_000,
-          withdrawalData: "0x1234",
-          asset: ETH_POOL.asset,
-          amount: "100000000000000000",
-          extraGas: false,
           signedRelayerCommitment: "0x02",
-        },
-      }));
+        }),
+      );
     Date.now = () => (++nowCalls <= 2 ? initialNow : expiredNow);
 
     try {
@@ -2083,6 +2112,48 @@ describe("withdraw command handler", () => {
       expect(json.errorCode).toBe("RELAYER_ERROR");
       expect(json.error.message ?? json.errorMessage).toContain(
         "Relayer fee changed during proof generation",
+      );
+      expect(exitCode).toBe(5);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  test("fails closed when the relayer withdrawal data changes after proof generation", async () => {
+    useIsolatedHome({ withSigner: true });
+    const originalNow = Date.now;
+    let nowCalls = 0;
+    const initialNow = 1_700_000_000_000;
+    const expiredNow = 1_700_000_003_000;
+    requestQuoteMock
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 1_000 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({
+          expiration: initialNow + 10_000,
+          feeRecipient:
+            "0x9999999999999999999999999999999999999999" as Address,
+        }),
+      );
+    Date.now = () => (++nowCalls <= 2 ? initialNow : expiredNow);
+
+    try {
+      const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+        handleWithdrawCommand(
+          "0.1",
+          "ETH",
+          {
+            to: DEFAULT_RELAYER_RECIPIENT,
+          },
+          fakeCommand({ json: true, chain: "mainnet" }),
+        ),
+      );
+
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("RELAYER_ERROR");
+      expect(json.error.message ?? json.errorMessage).toContain(
+        "withdrawal data changed during proof generation",
       );
       expect(exitCode).toBe(5);
     } finally {

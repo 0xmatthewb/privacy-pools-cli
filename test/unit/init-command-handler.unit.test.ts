@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
 import { handleInitCommand } from "../../src/commands/init.ts";
@@ -205,6 +205,27 @@ describe("init command handler", () => {
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
     expect(exitCode).toBe(2);
+  });
+
+  test("rolls back partial init writes when persistence fails after config is written", async () => {
+    const home = useIsolatedHome();
+    mkdirSync(join(home, ".signer"), { recursive: true });
+
+    const { json } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          showMnemonic: true,
+          defaultChain: "mainnet",
+          privateKey: "0x" + "11".repeat(32),
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(existsSync(join(home, "config.json"))).toBe(false);
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+    expect(existsSync(join(home, ".signer"))).toBe(true);
   });
 
   test("rejects private keys with the wrong length", async () => {

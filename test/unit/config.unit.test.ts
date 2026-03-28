@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   configExists,
@@ -169,6 +169,24 @@ describe("config service", () => {
     expect(loadSignerKey()).toBe("0xabc123");
     expect(statSync(join(home, ".mnemonic")).mode & 0o777).toBe(0o600);
     expect(statSync(join(home, ".signer")).mode & 0o777).toBe(0o600);
+  });
+
+  test("private file writers ignore legacy predictable temp-file symlinks", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const victimPath = join(home, "victim.txt");
+    writeFileSync(victimPath, "do not overwrite", "utf-8");
+    symlinkSync(victimPath, join(home, ".mnemonic.tmp"));
+    symlinkSync(victimPath, join(home, ".signer.tmp"));
+
+    saveMnemonicToFile("test test test test test test test test test test test junk");
+    saveSignerKey("0xabc123");
+
+    expect(loadMnemonicFromFile()).toBe(
+      "test test test test test test test test test test test junk",
+    );
+    expect(loadSignerKey()).toBe("0xabc123");
+    expect(readFileSync(victimPath, "utf-8")).toBe("do not overwrite");
   });
 
   test("configExists and mnemonicExists track persisted config state", () => {

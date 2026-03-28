@@ -21,6 +21,7 @@ import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import type { FlowSnapshot } from "../../src/services/workflow.ts";
 import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
+import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 import { captureAsyncOutput } from "../helpers/output.ts";
 import {
   cleanupTrackedTempDirs,
@@ -61,6 +62,39 @@ const USDC_POOL = {
   symbol: "USDC",
   decimals: 6,
 };
+
+const DEFAULT_WORKFLOW_RECIPIENT =
+  "0x5555555555555555555555555555555555555555" as Address;
+const DEFAULT_WORKFLOW_FEE_RECEIVER =
+  "0x6666666666666666666666666666666666666666" as Address;
+
+function buildWorkflowRelayerQuote(params: {
+  feeBPS?: string;
+  expiration?: number;
+  recipient?: Address;
+  feeRecipient?: Address;
+  asset?: Address;
+  amount?: string;
+  extraGas?: boolean;
+  signedRelayerCommitment?: Hex;
+} = {}) {
+  const feeBPS = params.feeBPS ?? "250";
+  return {
+    feeBPS,
+    feeCommitment: {
+      expiration: params.expiration ?? 4_102_444_800_000,
+      asset: params.asset ?? ETH_POOL.asset,
+      amount: params.amount ?? "500",
+      extraGas: params.extraGas ?? false,
+      signedRelayerCommitment: params.signedRelayerCommitment ?? "0x1234",
+      withdrawalData: encodeRelayerWithdrawalData({
+        recipient: params.recipient ?? DEFAULT_WORKFLOW_RECIPIENT,
+        feeRecipient: params.feeRecipient ?? DEFAULT_WORKFLOW_FEE_RECEIVER,
+        relayFeeBPS: BigInt(feeBPS),
+      }),
+    },
+  };
+}
 
 type MockPoolAccount = {
   paNumber: number;
@@ -361,7 +395,7 @@ function sampleSnapshot(
     chain: "sepolia",
     asset: "ETH",
     depositAmount: "500",
-    recipient: "0x5555555555555555555555555555555555555555",
+    recipient: DEFAULT_WORKFLOW_RECIPIENT,
     poolAccountId: "PA-7",
     poolAccountNumber: 7,
     depositTxHash: "0x" + "aa".repeat(32),
@@ -571,20 +605,9 @@ beforeEach(() => {
   state.reviewStatuses = new Map([["91", "approved"]]);
   state.relayerDetails = {
     minWithdrawAmount: "100",
-    feeReceiverAddress:
-      "0x6666666666666666666666666666666666666666" as Address,
+    feeReceiverAddress: DEFAULT_WORKFLOW_FEE_RECEIVER,
   };
-  state.relayerQuote = {
-    feeBPS: "250",
-    feeCommitment: {
-      expiration: 4_102_444_800_000,
-      asset: ETH_POOL.asset,
-      amount: "500",
-      extraGas: false,
-      signedRelayerCommitment: "0x1234",
-      withdrawalData: "0x5678",
-    },
-  };
+  state.relayerQuote = buildWorkflowRelayerQuote();
   state.remainderAdvisory = null;
   state.relayTxHash = ("0x" + "dd".repeat(32)) as Hex;
   getDataServiceMock.mockClear();
@@ -1123,6 +1146,68 @@ describe("workflow internal helpers", () => {
           isVerbose: false,
         }),
       ).rejects.toThrow("Relayer fee changed during proof generation");
+    } finally {
+      Date.now = originalDateNow;
+    }
+  });
+
+  test("executeRelayedWithdrawalForFlow fails closed when the refreshed withdrawal data changes after proof generation", async () => {
+    const originalDateNow = Date.now;
+    Date.now = () => {
+      const next = dateNowValues.shift();
+      return next ?? 2;
+    };
+    const dateNowValues = [0, 2];
+
+    requestQuoteMock
+      .mockImplementationOnce(async () => ({
+        baseFeeBPS: "200",
+        gasPrice: "1",
+        detail: { relayTxCost: { gas: "0", eth: "0" } },
+        feeBPS: "250",
+        feeCommitment: {
+          ...state.relayerQuote.feeCommitment,
+          expiration: 1,
+        },
+      }))
+      .mockImplementationOnce(async () => ({
+        baseFeeBPS: "200",
+        gasPrice: "1",
+        detail: { relayTxCost: { gas: "0", eth: "0" } },
+        feeBPS: "250",
+        feeCommitment: {
+          ...state.relayerQuote.feeCommitment,
+          expiration: 4_102_444_800_000,
+          withdrawalData: encodeRelayerWithdrawalData({
+            recipient: DEFAULT_WORKFLOW_RECIPIENT,
+            feeRecipient:
+              "0x9999999999999999999999999999999999999999" as Address,
+            relayFeeBPS: 250n,
+          }),
+        },
+      }));
+
+    try {
+      const context = await loadWorkflowPoolAccountContext(
+        sampleSnapshot({
+          phase: "approved_ready_to_withdraw",
+          aspStatus: "approved",
+        }),
+        undefined,
+        true,
+      );
+
+      await expect(
+        executeRelayedWithdrawalForFlow({
+          snapshot: sampleSnapshot({
+            phase: "approved_ready_to_withdraw",
+            aspStatus: "approved",
+          }),
+          context,
+          mode: JSON_MODE,
+          isVerbose: false,
+        }),
+      ).rejects.toThrow("Relayer withdrawal data changed during proof generation");
     } finally {
       Date.now = originalDateNow;
     }
