@@ -23,7 +23,9 @@ import {
   formatResultDiagnostics,
   npmProcessEnv,
   parseJson,
+  packageInstallPath,
   packTarball,
+  resolveInstalledDependencyPackagePath,
   runInstalledCli as runInstalledCliBase,
   writeInstallSecretFile,
 } from "./lib/install-verification.mjs";
@@ -466,13 +468,12 @@ try {
     },
   );
 
-  const installedNativePackagePath = join(
-    installRoot,
-    "node_modules",
-    ...nativePackageName.split("/"),
-    "package.json",
+  const installedCliPath = packageInstallPath(installRoot, "privacy-pools-cli");
+  const installedNativePackagePath = resolveInstalledDependencyPackagePath(
+    installedCliPath,
+    nativePackageName,
   );
-  if (!existsSync(installedNativePackagePath)) {
+  if (!installedNativePackagePath || !existsSync(installedNativePackagePath)) {
     fail(
       `Installed CLI did not resolve ${nativePackageName} through npm optional dependencies.`,
     );

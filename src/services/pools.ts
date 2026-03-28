@@ -38,9 +38,9 @@ function isRpcLikeError(error: unknown): boolean {
 function resolvePoolAssetAddress(entry: Record<string, unknown>): Address | null {
   const assetAddress =
     typeof entry.assetAddress === "string"
-      ? entry.assetAddress
+      ? entry.assetAddress.trim()
       : typeof entry.tokenAddress === "string"
-        ? entry.tokenAddress
+        ? entry.tokenAddress.trim()
         : null;
 
   if (!assetAddress || !/^0x[0-9a-fA-F]{40}$/.test(assetAddress)) {

@@ -170,6 +170,12 @@ const WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE =
   "Public deposit was submitted, but the workflow could not checkpoint it locally.";
 const WORKFLOW_DEPOSIT_CHECKPOINT_AMBIGUOUS_MESSAGE =
   "This workflow may have submitted a public deposit, but the transaction hash was not checkpointed locally.";
+const WORKFLOW_WITHDRAW_CHECKPOINT_ERROR_CODE = "WORKFLOW_WITHDRAW_CHECKPOINT_FAILED";
+const WORKFLOW_WITHDRAW_CHECKPOINT_AMBIGUOUS_MESSAGE =
+  "This workflow may have submitted a relayed withdrawal, but the relay transaction hash was not checkpointed locally.";
+const WORKFLOW_RAGEQUIT_CHECKPOINT_ERROR_CODE = "WORKFLOW_RAGEQUIT_CHECKPOINT_FAILED";
+const WORKFLOW_RAGEQUIT_CHECKPOINT_AMBIGUOUS_MESSAGE =
+  "This workflow may have submitted a public recovery transaction, but the transaction hash was not checkpointed locally.";
 const SUPPORTED_WORKFLOW_SNAPSHOT_VERSIONS = new Set<string>([
   WORKFLOW_SNAPSHOT_VERSION,
   ...LEGACY_WORKFLOW_SNAPSHOT_VERSIONS,
@@ -193,6 +199,7 @@ export type FlowPhase =
   | "stopped_external";
 
 export type FlowWalletMode = "configured" | "new_wallet";
+export type FlowPendingSubmission = "withdraw" | "ragequit";
 export type { FlowPrivacyDelayProfile } from "../utils/flow-privacy-delay.js";
 
 export interface FlowWarning {
@@ -251,6 +258,7 @@ export interface FlowSnapshot {
   ragequitTxHash?: string | null;
   ragequitBlockNumber?: string | null;
   ragequitExplorerUrl?: string | null;
+  pendingSubmission?: FlowPendingSubmission | null;
   lastError?: FlowLastError;
 }
 
@@ -717,6 +725,7 @@ export function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot 
     ragequitTxHash: snapshot.ragequitTxHash ?? null,
     ragequitBlockNumber: snapshot.ragequitBlockNumber ?? null,
     ragequitExplorerUrl: snapshot.ragequitExplorerUrl ?? null,
+    pendingSubmission: snapshot.pendingSubmission ?? null,
   };
 }
 
@@ -1919,6 +1928,7 @@ export function attachPendingWithdrawalToSnapshot(
         withdrawTxHash,
         withdrawBlockNumber: null,
         withdrawExplorerUrl: explorerTxUrl(chainId, withdrawTxHash),
+        pendingSubmission: null,
       }),
     ),
   );
@@ -1943,6 +1953,7 @@ export function attachWithdrawalResultToSnapshot(
         withdrawExplorerUrl:
           result.withdrawExplorerUrl ??
           explorerTxUrl(result.chainId, result.withdrawTxHash),
+        pendingSubmission: null,
       }),
     ),
   );
@@ -1959,6 +1970,7 @@ export function attachPendingRagequitToSnapshot(
         ragequitTxHash,
         ragequitBlockNumber: null,
         ragequitExplorerUrl: explorerTxUrl(chainId, ragequitTxHash),
+        pendingSubmission: null,
       }),
     ),
   );
@@ -1984,8 +1996,34 @@ export function attachRagequitResultToSnapshot(
         ragequitExplorerUrl:
           result.ragequitExplorerUrl ??
           explorerTxUrl(result.chainId, result.ragequitTxHash),
+        pendingSubmission: null,
       }),
     ),
+  );
+}
+
+function markPendingSubmission(
+  snapshot: FlowSnapshot,
+  pendingSubmission: FlowPendingSubmission,
+): FlowSnapshot {
+  return normalizeWorkflowSnapshot(
+    clearLastError(
+      updateSnapshot(snapshot, {
+        pendingSubmission,
+      }),
+    ),
+  );
+}
+
+function clearPendingSubmission(snapshot: FlowSnapshot): FlowSnapshot {
+  if (!snapshot.pendingSubmission) {
+    return snapshot;
+  }
+
+  return normalizeWorkflowSnapshot(
+    updateSnapshot(snapshot, {
+      pendingSubmission: null,
+    }),
   );
 }
 
@@ -2325,6 +2363,29 @@ export async function reconcilePendingRagequitReceipt(params: {
     });
   } catch (error) {
     if (error instanceof TransactionReceiptNotFoundError) {
+      try {
+        const context = await loadWorkflowPoolAccountContext(
+          snapshot,
+          globalOpts,
+          silent,
+          false,
+        );
+        const mutationPhase = classifyFlowMutation(
+          snapshot,
+          context.selectedPoolAccount,
+        );
+        if (mutationPhase) {
+          return clearLastError(
+            updateSnapshot(snapshot, {
+              phase: mutationPhase,
+              aspStatus: context.selectedPoolAccount.aspStatus,
+            }),
+          );
+        }
+      } catch {
+        // If the account cannot be reconciled yet, fall through and keep waiting
+        // on the saved transaction hash.
+      }
       return null;
     }
     throw classifyError(error);
@@ -2910,22 +2971,49 @@ export async function executeRelayedWithdrawalForFlow(params: {
   }
 
   withdrawSpin.text = "Submitting to relayer...";
-  const relayResult = await submitRelayRequest(chainConfig, {
-    scope: pool.scope,
-    withdrawal,
-    proof: proof.proof,
-    publicSignals: proof.publicSignals,
-    feeCommitment: quote.feeCommitment,
-  });
-
-  await saveWorkflowSnapshotIfChangedWithLock(
+  const submissionPendingSnapshot = await saveWorkflowSnapshotIfChangedWithLock(
     snapshot,
-    attachPendingWithdrawalToSnapshot(
-      snapshot,
-      chainConfig.id,
-      relayResult.txHash as Hex,
-    ),
+    markPendingSubmission(snapshot, "withdraw"),
   );
+
+  let relayResult;
+  try {
+    relayResult = await submitRelayRequest(chainConfig, {
+      scope: pool.scope,
+      withdrawal,
+      proof: proof.proof,
+      publicSignals: proof.publicSignals,
+      feeCommitment: quote.feeCommitment,
+    });
+  } catch (error) {
+    try {
+      await saveWorkflowSnapshotIfChangedWithLock(
+        submissionPendingSnapshot,
+        clearPendingSubmission(submissionPendingSnapshot),
+      );
+    } catch {
+      // Best effort only. The original relay error is more important.
+    }
+    throw error;
+  }
+
+  try {
+    await saveWorkflowSnapshotIfChangedWithLock(
+      submissionPendingSnapshot,
+      attachPendingWithdrawalToSnapshot(
+        submissionPendingSnapshot,
+        chainConfig.id,
+        relayResult.txHash as Hex,
+      ),
+    );
+  } catch {
+    throw new CLIError(
+      WORKFLOW_WITHDRAW_CHECKPOINT_AMBIGUOUS_MESSAGE,
+      "INPUT",
+      `Tx ${relayResult.txHash} may still confirm. Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect 'privacy-pools history --chain ${snapshot.chain}' before retrying 'privacy-pools flow watch'.`,
+      WORKFLOW_WITHDRAW_CHECKPOINT_ERROR_CODE,
+    );
+  }
 
   withdrawSpin.text = "Waiting for relay transaction confirmation...";
   const receipt = await publicClient.waitForTransactionReceipt({
@@ -3009,7 +3097,49 @@ export async function continueApprovedWorkflowWithdrawal(params: {
     return { snapshot: savedCompleted, continueWatching: false };
   }
 
+  if (snapshot.pendingSubmission === "withdraw" && !snapshot.withdrawTxHash) {
+    throw new CLIError(
+      WORKFLOW_WITHDRAW_CHECKPOINT_AMBIGUOUS_MESSAGE,
+      "INPUT",
+      `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect 'privacy-pools history --chain ${snapshot.chain}' before retrying 'privacy-pools flow watch'.`,
+      WORKFLOW_WITHDRAW_CHECKPOINT_ERROR_CODE,
+    );
+  }
+
   if (snapshot.withdrawTxHash && !snapshot.withdrawBlockNumber) {
+    const silent = mode.isQuiet || mode.isJson;
+    try {
+      const context = await loadWorkflowPoolAccountContext(
+        snapshot,
+        globalOpts,
+        silent,
+        false,
+      );
+      const mutationPhase = classifyFlowMutation(
+        snapshot,
+        context.selectedPoolAccount,
+      );
+      if (mutationPhase) {
+        const stopped = clearLastError(
+          updateSnapshot(snapshot, {
+            phase: mutationPhase,
+            aspStatus: context.selectedPoolAccount.aspStatus,
+          }),
+        );
+        const savedStopped = await saveWorkflowSnapshotIfChangedWithLock(
+          snapshot,
+          stopped,
+        );
+        cleanupTerminalWorkflowSecret(savedStopped);
+        return {
+          snapshot: savedStopped,
+          continueWatching: false,
+        };
+      }
+    } catch {
+      // Keep waiting on the saved relay hash unless account-state reconciliation
+      // positively proves the workflow already mutated externally.
+    }
     return { snapshot, continueWatching: true };
   }
 
@@ -3176,18 +3306,49 @@ async function executeRagequitForFlow(params: {
 
   stageHeader(2, 2, "Submitting exit", silent);
   ragequitSpin.text = "Submitting exit transaction...";
-  const tx = await submitRagequit(
-    chainConfig,
-    pool.pool,
-    toRagequitSolidityProof(proof),
-    globalOpts?.rpcUrl,
-    signerPrivateKey,
+  const submissionPendingSnapshot = await saveWorkflowSnapshotIfChangedWithLock(
+    snapshot,
+    markPendingSubmission(snapshot, "ragequit"),
   );
 
-  await saveWorkflowSnapshotIfChangedWithLock(
-    snapshot,
-    attachPendingRagequitToSnapshot(snapshot, chainConfig.id, tx.hash as Hex),
-  );
+  let tx;
+  try {
+    tx = await submitRagequit(
+      chainConfig,
+      pool.pool,
+      toRagequitSolidityProof(proof),
+      globalOpts?.rpcUrl,
+      signerPrivateKey,
+    );
+  } catch (error) {
+    try {
+      await saveWorkflowSnapshotIfChangedWithLock(
+        submissionPendingSnapshot,
+        clearPendingSubmission(submissionPendingSnapshot),
+      );
+    } catch {
+      // Best effort only. Preserve the original ragequit error.
+    }
+    throw error;
+  }
+
+  try {
+    await saveWorkflowSnapshotIfChangedWithLock(
+      submissionPendingSnapshot,
+      attachPendingRagequitToSnapshot(
+        submissionPendingSnapshot,
+        chainConfig.id,
+        tx.hash as Hex,
+      ),
+    );
+  } catch {
+    throw new CLIError(
+      WORKFLOW_RAGEQUIT_CHECKPOINT_AMBIGUOUS_MESSAGE,
+      "INPUT",
+      `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow ragequit'.`,
+      WORKFLOW_RAGEQUIT_CHECKPOINT_ERROR_CODE,
+    );
+  }
 
   ragequitSpin.text = "Waiting for confirmation...";
   const receipt = await publicClient.waitForTransactionReceipt({
@@ -3784,10 +3945,19 @@ export async function startWorkflow(
           if (!checkpointedSnapshot) {
             return;
           }
-          checkpointedSnapshot = saveWorkflowSnapshotIfChanged(
-            checkpointedSnapshot,
-            attachPendingDepositToSnapshot(checkpointedSnapshot, pending),
-          );
+          try {
+            checkpointedSnapshot = saveWorkflowSnapshotIfChanged(
+              checkpointedSnapshot,
+              attachPendingDepositToSnapshot(checkpointedSnapshot, pending),
+            );
+          } catch {
+            throw new CLIError(
+              WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE,
+              "INPUT",
+              `Tx ${pending.depositTxHash} may still confirm. Run 'privacy-pools sync --chain ${chainConfig.name} --asset ${pool.symbol}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
+              WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE,
+            );
+          }
         },
         globalOpts,
         mode,
@@ -3993,9 +4163,20 @@ export async function watchWorkflow(
       const errored = updateSnapshot(latestSnapshot, {
         lastError: flowLastError,
       });
-      await saveWorkflowSnapshotIfChangedWithLock(latestSnapshot, errored);
+      try {
+        await saveWorkflowSnapshotIfChangedWithLock(latestSnapshot, errored);
+      } catch {
+        // Best effort only. Preserve the original workflow error when the
+        // workflow directory itself is the thing that is failing.
+      }
       if (flowLastError.retryable) {
-        const retrySnapshot = loadWorkflowSnapshot(workflowId);
+        let retrySnapshot = latestSnapshot;
+        try {
+          retrySnapshot = loadWorkflowSnapshot(workflowId);
+        } catch {
+          // Fall back to the in-memory snapshot when the saved workflow cannot
+          // be reloaded yet.
+        }
         const retrySleepMs = computeFlowWatchDelayMs(
           retrySnapshot,
           nextPollDelayMs(delayMs, retrySnapshot.phase),
@@ -4057,6 +4238,14 @@ export async function ragequitWorkflow(
         "A relayed withdrawal is already in flight for this workflow.",
         "INPUT",
         "Wait for it to settle, then re-run 'privacy-pools flow watch' or 'privacy-pools flow status' instead of starting a public recovery now.",
+      );
+    }
+    if (snapshot.pendingSubmission === "ragequit" && !snapshot.ragequitTxHash) {
+      throw new CLIError(
+        WORKFLOW_RAGEQUIT_CHECKPOINT_AMBIGUOUS_MESSAGE,
+        "INPUT",
+        `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow ragequit'.`,
+        WORKFLOW_RAGEQUIT_CHECKPOINT_ERROR_CODE,
       );
     }
     if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
