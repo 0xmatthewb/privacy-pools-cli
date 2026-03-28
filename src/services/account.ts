@@ -378,7 +378,19 @@ export async function initializeAccountServiceWithState(
           `account sync had partial failures for ${errors.length} pool(s): ${details}`,
         );
       } else {
-        service.account = account;
+        const releaseLock = acquireProcessLock();
+        try {
+          service.account = account;
+          guardCriticalSection();
+          try {
+            saveAccount(chainId, service.account);
+            saveSyncMeta(chainId);
+          } finally {
+            releaseCriticalSection();
+          }
+        } finally {
+          releaseLock();
+        }
       }
     }
 

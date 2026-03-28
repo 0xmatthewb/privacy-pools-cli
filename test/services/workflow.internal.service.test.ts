@@ -14,6 +14,7 @@ import {
   encodeAbiParameters,
   encodeEventTopics,
   parseAbi,
+  TransactionReceiptNotFoundError,
   type Address,
   type Hex,
 } from "viem";
@@ -133,9 +134,14 @@ interface MockState {
   gasPriceError: boolean;
   nativeBalance: bigint;
   tokenBalance: bigint;
-  depositReceiptMode: "success" | "missing" | "reverted" | "missing_metadata";
-  withdrawReceiptMode: "success" | "missing" | "reverted";
-  ragequitReceiptMode: "success" | "missing" | "reverted";
+  depositReceiptMode:
+    | "success"
+    | "missing"
+    | "rpc_error"
+    | "reverted"
+    | "missing_metadata";
+  withdrawReceiptMode: "success" | "missing" | "rpc_error" | "reverted";
+  ragequitReceiptMode: "success" | "missing" | "rpc_error" | "reverted";
   relayReceiptMode: "success" | "timeout" | "reverted";
   refreshInitError: boolean;
   warnings: string[];
@@ -206,7 +212,10 @@ const getPublicClientMock = mock(() => ({
   getTransactionReceipt: async ({ hash }: { hash: Hex }) => {
     if (hash === ("0x" + "aa".repeat(32)) as Hex) {
       if (state.depositReceiptMode === "missing") {
-        throw new Error("pending");
+        throw new TransactionReceiptNotFoundError({ hash });
+      }
+      if (state.depositReceiptMode === "rpc_error") {
+        throw new Error("connect ECONNREFUSED 127.0.0.1:8545");
       }
       if (state.depositReceiptMode === "reverted") {
         return {
@@ -253,7 +262,10 @@ const getPublicClientMock = mock(() => ({
 
     if (hash === ("0x" + "bb".repeat(32)) as Hex) {
       if (state.withdrawReceiptMode === "missing") {
-        throw new Error("pending");
+        throw new TransactionReceiptNotFoundError({ hash });
+      }
+      if (state.withdrawReceiptMode === "rpc_error") {
+        throw new Error("connect ECONNREFUSED 127.0.0.1:8545");
       }
       return {
         status:
@@ -267,7 +279,10 @@ const getPublicClientMock = mock(() => ({
 
     if (hash === ("0x" + "cc".repeat(32)) as Hex) {
       if (state.ragequitReceiptMode === "missing") {
-        throw new Error("pending");
+        throw new TransactionReceiptNotFoundError({ hash });
+      }
+      if (state.ragequitReceiptMode === "rpc_error") {
+        throw new Error("connect ECONNREFUSED 127.0.0.1:8545");
       }
       return {
         status:
@@ -1255,6 +1270,23 @@ describe("workflow internal helpers", () => {
     ).rejects.toThrow("Previously submitted workflow deposit reverted");
   });
 
+  test("reconcilePendingDepositReceipt surfaces receipt lookup RPC failures", async () => {
+    state.depositReceiptMode = "rpc_error";
+
+    await expect(
+      reconcilePendingDepositReceipt({
+        snapshot: sampleSnapshot(),
+        chainConfig: CHAINS.sepolia,
+        pool: ETH_POOL,
+      }),
+    ).rejects.toMatchObject({
+      category: "RPC",
+      code: "RPC_NETWORK_ERROR",
+      retryable: true,
+      message: expect.stringContaining("Network error: connect ECONNREFUSED"),
+    });
+  });
+
   test("reconcilePendingDepositReceipt fails closed when receipt metadata is missing", async () => {
     state.depositReceiptMode = "missing_metadata";
 
@@ -1332,6 +1364,27 @@ describe("workflow internal helpers", () => {
     ).rejects.toThrow("Previously submitted workflow withdrawal reverted");
   });
 
+  test("reconcilePendingWithdrawalReceipt surfaces receipt lookup RPC failures", async () => {
+    state.withdrawReceiptMode = "rpc_error";
+
+    await expect(
+      reconcilePendingWithdrawalReceipt({
+        snapshot: sampleSnapshot({
+          phase: "withdrawing",
+          withdrawTxHash: "0x" + "bb".repeat(32),
+          withdrawBlockNumber: null,
+        }),
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toMatchObject({
+      category: "RPC",
+      code: "RPC_NETWORK_ERROR",
+      retryable: true,
+      message: expect.stringContaining("Network error: connect ECONNREFUSED"),
+    });
+  });
+
   test("reconcilePendingWithdrawalReceipt completes even when local refresh needs a manual follow-up", async () => {
     state.refreshInitError = true;
 
@@ -1377,6 +1430,27 @@ describe("workflow internal helpers", () => {
         isVerbose: false,
       }),
     ).rejects.toThrow("Previously submitted workflow ragequit reverted");
+  });
+
+  test("reconcilePendingRagequitReceipt surfaces receipt lookup RPC failures", async () => {
+    state.ragequitReceiptMode = "rpc_error";
+
+    await expect(
+      reconcilePendingRagequitReceipt({
+        snapshot: sampleSnapshot({
+          phase: "paused_declined",
+          ragequitTxHash: "0x" + "cc".repeat(32),
+          ragequitBlockNumber: null,
+        }),
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toMatchObject({
+      category: "RPC",
+      code: "RPC_NETWORK_ERROR",
+      retryable: true,
+      message: expect.stringContaining("Network error: connect ECONNREFUSED"),
+    });
   });
 
   test("reconcilePendingRagequitReceipt completes even when local refresh needs a manual follow-up", async () => {

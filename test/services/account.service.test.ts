@@ -144,5 +144,10 @@ describe("account service strict sync behavior", () => {
 
     expect(service.account.poolAccounts.get(1n)).toEqual([{ label: 11n }]);
     expect(service.account.poolAccounts.get(2n)).toEqual([{ label: 20n }]);
+    expect(loadAccount(11155111)?.poolAccounts.get(1n)).toEqual([{ label: 11n }]);
+    expect(loadAccount(11155111)?.poolAccounts.get(2n)).toEqual([{ label: 20n }]);
+    expect(loadSyncMeta(11155111)).toEqual({
+      lastSyncTime: expect.any(Number),
+    });
   });
 });

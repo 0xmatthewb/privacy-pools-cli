@@ -22,6 +22,7 @@ import {
   encodeAbiParameters,
   encodeEventTopics,
   parseAbi,
+  TransactionReceiptNotFoundError,
   type Address,
   type Hex,
 } from "viem";
@@ -566,7 +567,7 @@ const publicClient = {
   getTransactionReceipt: mock(async ({ hash }: { hash: Hex }) => {
     if (hash === state.relayTxHash) {
       if (state.relayReceiptMode === "timeout") {
-        throw new Error("relay receipt unavailable");
+        throw new TransactionReceiptNotFoundError({ hash });
       }
       return {
         status:
@@ -584,7 +585,7 @@ const publicClient = {
           state.getTransactionReceiptCalls <=
           state.ragequitPendingReceiptAvailableAfter
         ) {
-          throw new Error("ragequit receipt unavailable");
+          throw new TransactionReceiptNotFoundError({ hash });
         }
         return null;
       }
@@ -613,7 +614,7 @@ const publicClient = {
       };
     }
     if (state.getTransactionReceiptCalls <= state.pendingReceiptAvailableAfter) {
-      throw new Error("Transaction still pending");
+      throw new TransactionReceiptNotFoundError({ hash });
     }
     return depositReceipt(NEW_WALLET_ADDRESS);
   }),

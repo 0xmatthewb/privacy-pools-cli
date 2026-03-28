@@ -17,7 +17,12 @@ import {
   type Hash as SDKHash,
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Address, Hex } from "viem";
-import { decodeEventLog, erc20Abi, parseAbi } from "viem";
+import {
+  decodeEventLog,
+  erc20Abi,
+  parseAbi,
+  TransactionReceiptNotFoundError,
+} from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { explorerTxUrl, NATIVE_ASSET_ADDRESS } from "../config/chains.js";
 import {
@@ -2117,7 +2122,14 @@ export async function reconcilePendingDepositReceipt(params: {
     receipt = await publicClient.getTransactionReceipt({
       hash: snapshot.depositTxHash as `0x${string}`,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof TransactionReceiptNotFoundError) {
+      return null;
+    }
+    throw classifyError(error);
+  }
+
+  if (!receipt) {
     return null;
   }
 
@@ -2250,7 +2262,14 @@ export async function reconcilePendingWithdrawalReceipt(params: {
     receipt = await publicClient.getTransactionReceipt({
       hash: snapshot.withdrawTxHash as `0x${string}`,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof TransactionReceiptNotFoundError) {
+      return null;
+    }
+    throw classifyError(error);
+  }
+
+  if (!receipt) {
     return null;
   }
 
@@ -2304,7 +2323,14 @@ export async function reconcilePendingRagequitReceipt(params: {
     receipt = await publicClient.getTransactionReceipt({
       hash: snapshot.ragequitTxHash as `0x${string}`,
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof TransactionReceiptNotFoundError) {
+      return null;
+    }
+    throw classifyError(error);
+  }
+
+  if (!receipt) {
     return null;
   }
 
