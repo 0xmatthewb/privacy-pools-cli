@@ -38,6 +38,7 @@ import {
 } from "../../src/services/workflow-storage-version.ts";
 
 const realConfig = await import("../../src/services/config.ts");
+const realWritePrivateFileAtomic = realConfig.writePrivateFileAtomic;
 const realAccount = await import("../../src/services/account.ts");
 const realAsp = await import("../../src/services/asp.ts");
 const realChains = await import("../../src/config/chains.ts");
@@ -169,6 +170,10 @@ const proveWithdrawalMock = mock(async () => ({
   },
   publicSignals: [13n, 14n, 15n, 16n],
 }));
+const writePrivateFileAtomicMock = mock(
+  (filePath: string, content: string) =>
+    realWritePrivateFileAtomic(filePath, content),
+);
 
 function makeTempHome(): string {
   return createTrackedTempDir("pp-workflow-mocked-");
@@ -682,12 +687,33 @@ let ragequitWorkflow: WorkflowModuleType["ragequitWorkflow"];
 let startWorkflow: WorkflowModuleType["startWorkflow"];
 let watchWorkflow: WorkflowModuleType["watchWorkflow"];
 
+function failWorkflowSnapshotWriteOnCall(
+  workflowId: string | null,
+  callNumber: number,
+): void {
+  let workflowWriteCalls = 0;
+  const workflowsDir = realConfig.getWorkflowsDir();
+  writePrivateFileAtomicMock.mockImplementation((filePath, content) => {
+    const matchesWorkflowSnapshot = workflowId
+      ? filePath === join(workflowsDir, `${workflowId}.json`)
+      : filePath.startsWith(`${workflowsDir}/`) && filePath.endsWith(".json");
+    if (matchesWorkflowSnapshot) {
+      workflowWriteCalls += 1;
+      if (workflowWriteCalls === callNumber) {
+        throw new Error("disk full");
+      }
+    }
+    return realWritePrivateFileAtomic(filePath, content);
+  });
+}
+
 async function installWorkflowMocks(): Promise<void> {
   mock.module("../../src/services/config.ts", () => ({
     ...realConfig,
     loadConfig: () => ({
       defaultChain: "sepolia",
     }),
+    writePrivateFileAtomic: writePrivateFileAtomicMock,
   }));
 
   mock.module("../../src/services/wallet.ts", () => ({
@@ -902,6 +928,10 @@ describe("workflow service mocked coverage", () => {
     saveAccountMock.mockImplementation(() => undefined);
     saveSyncMetaMock.mockClear();
     saveSyncMetaMock.mockImplementation(() => undefined);
+    writePrivateFileAtomicMock.mockClear();
+    writePrivateFileAtomicMock.mockImplementation((filePath, content) =>
+      realWritePrivateFileAtomic(filePath, content),
+    );
     resolvePoolMock.mockClear();
     resolvePoolMock.mockImplementation(async () => state.pool);
     getRelayerDetailsMock.mockClear();
@@ -2667,6 +2697,60 @@ describe("workflow service mocked coverage", () => {
     expect(saveAccountMock).toHaveBeenCalled();
   });
 
+  test("configured flow ragequit does not retry when the tx hash cannot be checkpointed", async () => {
+    failWorkflowSnapshotWriteOnCall(
+      "wf-configured-ragequit-checkpoint-failure",
+      2,
+    );
+    writeWorkflowSnapshot("wf-configured-ragequit-checkpoint-failure", {
+      phase: "paused_declined",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "declined",
+    });
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-configured-ragequit-checkpoint-failure",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("may have submitted a public recovery transaction");
+
+    const checkpointed = getWorkflowStatus({
+      workflowId: "wf-configured-ragequit-checkpoint-failure",
+    });
+    expect(checkpointed.pendingSubmission).toBe("ragequit");
+    expect(checkpointed.ragequitTxHash).toBeNull();
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-configured-ragequit-checkpoint-failure",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("may have submitted a public recovery transaction");
+
+    expect(state.submitRagequitCalls).toBe(1);
+  });
+
   test("configured flow ragequit fails closed when confirmation times out", async () => {
     writeWorkflowSnapshot("wf-configured-ragequit-timeout", {
       phase: "paused_declined",
@@ -3581,6 +3665,66 @@ describe("workflow service mocked coverage", () => {
     );
   });
 
+  test("watchWorkflow does not retry when relay submission cannot checkpoint the tx hash", async () => {
+    const expectedPath = join(
+      realConfig.getWorkflowsDir(),
+      "wf-relay-checkpoint-failure.json",
+    );
+    writePrivateFileAtomicMock.mockImplementation((filePath, content) => {
+      if (filePath === expectedPath && content.includes(state.relayTxHash)) {
+        throw new Error("disk full");
+      }
+      return realWritePrivateFileAtomic(filePath, content);
+    });
+    writeWorkflowSnapshot("wf-relay-checkpoint-failure", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "approved",
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-relay-checkpoint-failure",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("may have submitted a relayed withdrawal");
+
+    const checkpointed = getWorkflowStatus({
+      workflowId: "wf-relay-checkpoint-failure",
+    });
+    expect(checkpointed.pendingSubmission).toBe("withdraw");
+    expect(checkpointed.withdrawTxHash).toBeNull();
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-relay-checkpoint-failure",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("may have submitted a relayed withdrawal");
+
+    expect(submitRelayRequestMock).toHaveBeenCalledTimes(1);
+  });
+
   test("watchWorkflow fails closed when a new-wallet funding snapshot is missing the wallet address", async () => {
     writeWorkflowSecret("wf-missing-wallet-address");
     writeWorkflowSnapshot("wf-missing-wallet-address", {
@@ -4052,6 +4196,62 @@ describe("workflow service mocked coverage", () => {
     expect(checkpointed.walletAddress).toBe(GLOBAL_SIGNER_ADDRESS);
     expect(checkpointed.depositTxHash).toBeNull();
     expect(checkpointed.lastError?.step).toBe("deposit");
+  });
+
+  test("configured flow start fails closed when the deposit tx hash cannot be checkpointed", async () => {
+    depositEthMock.mockImplementationOnce(async () => {
+      state.depositEthCalls += 1;
+      state.poolAccountAvailable = true;
+      return { hash: state.depositTxHash };
+    });
+    failWorkflowSnapshotWriteOnCall(null, 2);
+
+    await expect(
+      startWorkflow({
+        amountInput: "0.01",
+        assetInput: "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("could not checkpoint it locally");
+
+    const workflowFiles = readdirSync(realConfig.getWorkflowsDir()).filter((entry) =>
+      entry.endsWith(".json"),
+    );
+    expect(workflowFiles).toHaveLength(1);
+
+    const workflowId = workflowFiles[0].replace(/\.json$/, "");
+    const checkpointed = loadWorkflowSnapshot(workflowId);
+    expect(checkpointed.phase).toBe("depositing_publicly");
+    expect(checkpointed.depositTxHash).toBeNull();
+
+    await expect(
+      watchWorkflow({
+        workflowId,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("transaction hash was not checkpointed locally");
+
+    expect(state.depositEthCalls).toBe(1);
   });
 
   test("new-wallet flow start cleans up the saved secret if the workflow snapshot cannot be persisted", async () => {

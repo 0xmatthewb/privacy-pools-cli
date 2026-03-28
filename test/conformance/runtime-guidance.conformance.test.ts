@@ -13,6 +13,13 @@ const CLAUDE_PATH = join(CLI_ROOT, "CLAUDE.md");
 const CHANGELOG_PATH = join(CLI_ROOT, "CHANGELOG.md");
 const REFERENCE_PATH = join(CLI_ROOT, "docs", "reference.md");
 const RUNTIME_UPGRADES_PATH = join(CLI_ROOT, "docs", "runtime-upgrades.md");
+const SKILL_PATH = join(CLI_ROOT, "skills", "privacy-pools-cli", "SKILL.md");
+const SKILL_REFERENCE_PATH = join(
+  CLI_ROOT,
+  "skills",
+  "privacy-pools-cli",
+  "reference.md",
+);
 const NATIVE_MANIFEST_PATH = join(
   CLI_ROOT,
   "native",
@@ -69,6 +76,8 @@ describe("runtime guidance conformance", () => {
     expectNoBunRuntimeCommands(readFileSync(README_PATH, "utf8"));
     expectNoBunRuntimeCommands(readFileSync(AGENTS_PATH, "utf8"));
     expectNoBunRuntimeCommands(readFileSync(RUNTIME_UPGRADES_PATH, "utf8"));
+    expectNoBunRuntimeCommands(readFileSync(SKILL_PATH, "utf8"));
+    expectNoBunRuntimeCommands(readFileSync(SKILL_REFERENCE_PATH, "utf8"));
   });
 
   test("repo contributor docs keep build and runtime guidance node-only", () => {
@@ -82,10 +91,17 @@ describe("runtime guidance conformance", () => {
     const manifest = JSON.parse(readFileSync(NATIVE_MANIFEST_PATH, "utf8")) as {
       rootHelp: string;
       guideHumanText: string;
+      capabilitiesHumanText?: string;
+      commandHelp?: Record<string, string>;
     };
 
     expectNoBunRuntimeCommands(manifest.rootHelp);
     expectNoBunRuntimeCommands(manifest.guideHumanText);
+    expectNoBunRuntimeCommands(manifest.capabilitiesHumanText ?? "");
+
+    for (const helpText of Object.values(manifest.commandHelp ?? {})) {
+      expectNoBunRuntimeCommands(helpText);
+    }
   });
 
   test("generated reference keeps bun out of user-facing command guidance", () => {
@@ -98,5 +114,17 @@ describe("runtime guidance conformance", () => {
 
   test("shipped changelog omits bun-based install and verification commands", () => {
     expectNoBunInstallOrVerificationCommands(readFileSync(CHANGELOG_PATH, "utf8"));
+  });
+
+  test("runtime boundary profile includes the explicit unsupported-Bun integration suite", () => {
+    const packageJson = JSON.parse(
+      readFileSync(join(CLI_ROOT, "package.json"), "utf8"),
+    ) as {
+      scripts?: Record<string, string>;
+    };
+
+    expect(packageJson.scripts?.["test:runtime:boundary"]).toContain(
+      "./test/integration/cli-bun-runtime.integration.test.ts",
+    );
   });
 });

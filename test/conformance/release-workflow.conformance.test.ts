@@ -42,6 +42,18 @@ const packNativeTarballScript = readFileSync(
   join(CLI_ROOT, "scripts", "pack-native-tarball.mjs"),
   "utf8",
 );
+const verifyReleaseInstallScript = readFileSync(
+  join(CLI_ROOT, "scripts", "verify-release-install.mjs"),
+  "utf8",
+);
+const verifyRegistryInstallScript = readFileSync(
+  join(CLI_ROOT, "scripts", "verify-registry-install.mjs"),
+  "utf8",
+);
+const verifyCliInstallAnvilScript = readFileSync(
+  join(CLI_ROOT, "scripts", "verify-cli-install-anvil.mjs"),
+  "utf8",
+);
 const packageJson = JSON.parse(
   readFileSync(join(CLI_ROOT, "package.json"), "utf8"),
 ) as {
@@ -291,6 +303,19 @@ describe("release workflow conformance", () => {
     expect(
       Object.keys(packageJson.optionalDependencies ?? {}).sort(),
     ).toEqual(expectedNativePackageNames());
+  });
+
+  test("installed-artifact verifiers resolve optional native packages via module resolution", () => {
+    for (const script of [
+      verifyReleaseInstallScript,
+      verifyRegistryInstallScript,
+      verifyCliInstallAnvilScript,
+    ]) {
+      expect(script).toContain("resolveInstalledDependencyPackagePath");
+      expect(script).not.toContain(
+        'join(\n    installRoot,\n    "node_modules",\n    ...nativePackageName.split("/"),\n    "package.json",\n  )',
+      );
+    }
   });
 
   test("release workflow validates the tag against package.json version", () => {

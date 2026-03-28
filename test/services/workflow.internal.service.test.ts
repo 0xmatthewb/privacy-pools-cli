@@ -1056,6 +1056,7 @@ describe("workflow internal helpers", () => {
       snapshot: sampleSnapshot({
         phase: "withdrawing",
         aspStatus: "approved",
+        committedValue: "500",
         withdrawTxHash: "0x" + "bb".repeat(32),
         withdrawBlockNumber: null,
       }),

@@ -193,6 +193,29 @@ describe("pools service", () => {
     expect(pools[0].scope).toBe(123456789n);
   });
 
+  test("listPools trims padded asset addresses before validating them", async () => {
+    const chainId = 313381;
+    const server = await startMockServer(chainId, {
+      pools: [
+        {
+          tokenAddress: "  0x00000000000000000000000000000000000000b1  ",
+        },
+      ],
+    });
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      aspHost: server.url,
+    };
+
+    const pools = await listPools(chainConfig, server.url);
+    expect(pools).toHaveLength(1);
+    expect(pools[0].asset).toBe("0x00000000000000000000000000000000000000b1");
+  });
+
   test("listPools uses the chain start block for local known pools", async () => {
     const chainId = CHAINS.sepolia.id;
     const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
@@ -213,7 +236,12 @@ describe("pools service", () => {
     );
     toClose.push(server);
 
-    const pools = await listPools(CHAINS.sepolia, server.url);
+    const chainConfig = {
+      ...CHAINS.sepolia,
+      aspHost: server.url,
+    };
+
+    const pools = await listPools(chainConfig, server.url);
     const deploymentHint = lookupPoolDeploymentBlock(chainId, asset, pool);
     expect(pools).toHaveLength(1);
     expect(pools[0].symbol).toBe("USDC");
