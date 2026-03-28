@@ -54,7 +54,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "flow",
     "aliases": [],
-    "description": "Run the easy-path deposit-to-withdraw workflow"
+    "description": "Manage the easy-path deposit-to-withdraw workflow"
   },
   {
     "name": "pools",
@@ -359,7 +359,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "flow",
-      "description": "Run the easy-path deposit-to-withdraw workflow",
+      "description": "Manage the easy-path deposit-to-withdraw workflow",
       "usage": "flow",
       "flags": [
         "start <amount> <asset> --to <address>",
@@ -369,7 +369,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentFlags": "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent (or: watch [workflowId|latest] [--privacy-delay <profile>] --agent; status/ragequit --agent)",
       "requiresInit": false,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "fast"
     },
     {
       "name": "flow start",
@@ -783,7 +783,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "flow": {
       "command": "flow",
-      "description": "Run the easy-path deposit-to-withdraw workflow",
+      "description": "Manage the easy-path deposit-to-withdraw workflow",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -812,15 +812,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-color"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "slow",
-      "safeReadOnly": false,
-      "sideEffectClass": "fund_movement",
-      "touchesFunds": true,
-      "requiresHumanReview": true,
-      "preferredSafeVariant": {
-        "command": "flow status",
-        "reason": "Inspect the saved workflow state before advancing a persisted flow."
-      },
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [
         "init for start/watch/ragequit; saved workflow for status"
       ],
@@ -2461,6 +2457,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "nativeBridgeVersion": "1"
   },
   "safeReadOnlyCommands": [
+    "flow",
     "flow status",
     "pools",
     "activity",

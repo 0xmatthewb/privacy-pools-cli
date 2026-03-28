@@ -36,7 +36,7 @@ privacy-pools pools
 privacy-pools flow start 0.1 ETH --to 0xRecipient...
 privacy-pools flow watch                     # or pass --watch to flow start
 privacy-pools flow status latest            # inspect the saved workflow later
-privacy-pools flow ragequit latest          # public recovery path if the saved workflow is declined
+privacy-pools flow ragequit latest          # optional public recovery once the deposit exists; canonical if declined or private completion is no longer possible
 
 # 4. Manual path: deposit into a pool
 privacy-pools deposit 0.1 ETH
@@ -51,11 +51,11 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 
 ### How it works
 
-`flow start` deposits into a pool and saves a local workflow. Once 0xbow's Association Set Provider (ASP) approves it, `flow watch` privately withdraws the full balance to the saved recipient with no onchain link between deposit and withdrawal. Most approvals happen within an hour; some take up to 7 days.
+`flow start` deposits into a pool and saves a local workflow. Once 0xbow's Association Set Provider (ASP) approves it, `flow watch` waits through the default balanced privacy delay (a randomized 15 to 90 minute hold) before requesting the relayed private withdrawal. The saved workflow spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding. Most approvals happen within an hour; some take up to 7 days.
 
-With `--new-wallet`, the CLI generates a dedicated wallet for the workflow, asks you to back it up, then waits for you to fund it before continuing. Useful for one-off flows where you don't want to use your main signer.
+With `--new-wallet`, the CLI generates a dedicated wallet for the workflow, asks you to back it up, then waits for you to fund it before continuing. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in that same wallet. Useful for one-off flows where you don't want to use your main signer.
 
-Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP reviews. You can always recover your funds, even without approval. `ragequit` exits publicly to your original deposit address, and `flow ragequit` does the same for saved workflows.
+Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP reviews. You can always recover your funds, even without approval. `ragequit` exits publicly to your original deposit address, and `flow ragequit` does the same for saved workflows. Once the public deposit exists, `flow ragequit` is an optional manual recovery path, the canonical path for declined saved flows, and the required path when the saved full-balance private withdrawal can no longer satisfy the relayer minimum.
 
 The manual commands (`deposit`, `accounts`, `withdraw`) remain available when you need partial withdrawals, custom Pool Account selection, unsigned payloads, or dry-runs. See [docs/reference.md](docs/reference.md) for details.
 

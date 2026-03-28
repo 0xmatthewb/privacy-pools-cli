@@ -75,9 +75,9 @@ privacy-pools upgrade --agent --yes
 
 ### `flow`
 
-Run the easy-path deposit-to-withdraw workflow
+Manage the easy-path deposit-to-withdraw workflow
 
-Adds a persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands. `privacyDelayConfigured = false` in flow JSON means a legacy saved workflow was normalized to `off` without an explicitly saved privacy-delay policy. Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.
+Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands. `privacyDelayConfigured = false` in flow JSON means a legacy saved workflow was normalized to `off` without an explicitly saved privacy-delay policy. Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.
 
 ```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient...

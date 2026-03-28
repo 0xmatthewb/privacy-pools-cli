@@ -171,10 +171,10 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `upgrade`",
   },
   flow: {
-    description: "Run the easy-path deposit-to-withdraw workflow",
+    description: "Manage the easy-path deposit-to-withdraw workflow",
     help: {
       overview: [
-        "Adds a persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands.",
+        "Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands.",
         "`privacyDelayConfigured = false` in flow JSON means a legacy saved workflow was normalized to `off` without an explicitly saved privacy-delay policy.",
         "Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.",
       ],
@@ -194,9 +194,9 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       agentFlags:
         "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent (or: watch [workflowId|latest] [--privacy-delay <profile>] --agent; status/ragequit --agent)",
       requiresInit: false,
-      expectedLatencyClass: "slow",
+      expectedLatencyClass: "fast",
     },
-    safeReadOnly: false,
+    safeReadOnly: true,
   },
   "flow start": {
     description: "Deposit now and save a later private withdrawal workflow",
@@ -1093,7 +1093,6 @@ const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
 ]);
 
 const FUND_MOVEMENT_COMMANDS = new Set<CommandPath>([
-  "flow",
   "flow start",
   "flow watch",
   "flow ragequit",
@@ -1106,10 +1105,6 @@ const PREFERRED_SAFE_VARIANTS: Partial<Record<CommandPath, PreferredSafeVariant>
   upgrade: {
     command: "upgrade --check",
     reason: "Check for a newer npm release without mutating the installed CLI.",
-  },
-  flow: {
-    command: "flow status",
-    reason: "Inspect the saved workflow state before advancing a persisted flow.",
   },
   "flow watch": {
     command: "flow status",
