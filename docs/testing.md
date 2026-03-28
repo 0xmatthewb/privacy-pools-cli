@@ -150,8 +150,8 @@ CI notes:
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
 - `.github/workflows/flake-anvil.yml` is the separate heavier flake lane for shared-Anvil smoke reruns. It is informational and changed-path selected on pull requests so the fast flake job stays lightweight.
 - `.github/workflows/native-coverage.yml` is the separate informative Rust-native coverage lane. Blocking CI keeps the faster `native-unit` lane so PR feedback stays quick while native coverage drift is still visible on pull requests and `main`.
-- `npm run test:ci` now includes the current-host packed-artifact install check so local verification exercises both the root-only installed launcher path and, on supported hosts, the same installed launcher/native path that blocking CI enforces on supported targets.
-- `npm run test:release` adds the same current-host artifact check plus `npm run bench:gate:release`, matching the release workflow's pinned performance gate.
+- `npm run test:ci` now includes both the root-only and current-host packed-artifact install checks so local verification exercises the installed JS launcher path everywhere and, on supported hosts, the same installed launcher/native path that blocking CI enforces.
+- `npm run test:release` adds those same root-only and current-host artifact checks plus `npm run bench:gate:release`, matching the release workflow's pinned performance gate.
 - `npm run test:smoke:native:package` is the packaged native smoke lane. `npm run test:artifacts:host` is the installed-artifact lane and now verifies both root-only and native-resolved installs. `npm run test:smoke:native` remains as a compatibility alias for the packaged smoke lane.
 - `npm run test:flake:anvil` reruns the representative Anvil smoke suite so stateful/native/install paths get nightly flake coverage without inflating the required CI lane.
 

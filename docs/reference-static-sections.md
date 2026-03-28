@@ -140,7 +140,7 @@ npm unlink -g privacy-pools-cli
 ```bash
 bun run test              # fast default suite (excludes packaged smoke)
 bun run test:ci           # local single-host mirror of the required CI checks
-bun run test:release      # release-readiness suite (host artifact gate + benchmark gate + full Anvil matrix)
+bun run test:release      # release-readiness suite (root + host artifact gates + benchmark gate + full Anvil matrix)
 bun run test:smoke        # packaged CLI smoke against a packed tarball
 bun run test:artifacts:host # pack/install the current-host CLI + native artifacts
 bun run typecheck         # TypeScript type check (no emit)
