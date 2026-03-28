@@ -1,7 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll } from "bun:test";
 
 const trackedTempDirs = new Set<string>();
 const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
@@ -23,7 +22,6 @@ export function cleanupTrackedTempDirs(): void {
   trackedTempDirs.clear();
 }
 
-afterAll(cleanupTrackedTempDirs);
 process.once("beforeExit", cleanupTrackedTempDirs);
 process.once("exit", cleanupTrackedTempDirs);
 
