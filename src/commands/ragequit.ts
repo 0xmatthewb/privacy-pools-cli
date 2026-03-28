@@ -553,17 +553,23 @@ export async function handleRagequitCommand(
 
       // Pre-flight gas check (skip for unsigned - relying on external signer)
       if (!isUnsigned && !isDryRun) {
+        if (!depositorAddress) {
+          throw new CLIError(
+            "Unable to verify the original depositor for ragequit.",
+            "RPC",
+            "Ragequit transactions must be sent by the original deposit address. Retry when RPC access is available.",
+          );
+        }
+
         await checkHasGas(publicClient, signerAddress!);
 
         // Pre-check: verify signer is the original depositor (avoids wasting proof generation)
-        if (depositorAddress) {
-          if (depositorAddress.toLowerCase() !== signerAddress!.toLowerCase()) {
-            throw new CLIError(
-              `Signer ${signerAddress} is not the original depositor (${depositorAddress}).`,
-              "INPUT",
-              "Only the original depositor can exit this Pool Account. Check your signer key.",
-            );
-          }
+        if (depositorAddress.toLowerCase() !== signerAddress!.toLowerCase()) {
+          throw new CLIError(
+            `Signer ${signerAddress} is not the original depositor (${depositorAddress}).`,
+            "INPUT",
+            "Only the original depositor can exit this Pool Account. Check your signer key.",
+          );
         }
       }
 

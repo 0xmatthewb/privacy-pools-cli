@@ -3004,10 +3004,10 @@ async function executeRagequitForFlow(params: {
     }
   } catch (error) {
     if (error instanceof CLIError) throw error;
-    verbose(
-      `Could not verify original depositor onchain: ${sanitizeDiagnosticText(error instanceof Error ? error.message : String(error))}`,
-      isVerbose,
-      silent,
+    throw new CLIError(
+      "Unable to verify the original depositor for workflow ragequit.",
+      "RPC",
+      "Workflow ragequit transactions must be sent by the original deposit address. Retry when RPC access is available.",
     );
   }
 

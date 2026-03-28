@@ -2431,7 +2431,7 @@ describe("workflow service mocked coverage", () => {
     expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
   });
 
-  test("configured flow ragequit continues when depositor preverification is unavailable", async () => {
+  test("configured flow ragequit fails closed when depositor preverification is unavailable", async () => {
     writeWorkflowSnapshot("wf-configured-ragequit-no-preverify", {
       phase: "paused_declined",
       walletMode: "configured",
@@ -2446,23 +2446,22 @@ describe("workflow service mocked coverage", () => {
       return functionName === "currentRoot" ? state.currentRoot : state.latestRoot;
     });
 
-    const snapshot = await ragequitWorkflow({
-      workflowId: "wf-configured-ragequit-no-preverify",
-      globalOpts: { chain: "sepolia" },
-      mode: {
-        isAgent: true,
-        isJson: true,
-        isCsv: false,
-        isQuiet: true,
-        format: "json",
-        skipPrompts: true,
-      },
-      isVerbose: true,
-    });
-
-    expect(snapshot.phase).toBe("completed_public_recovery");
-    expect(snapshot.ragequitTxHash).toBe(state.ragequitTxHash);
-    expect(state.submitRagequitCalls).toBe(1);
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-configured-ragequit-no-preverify",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: true,
+      }),
+    ).rejects.toThrow("Unable to verify the original depositor for workflow ragequit.");
+    expect(state.submitRagequitCalls).toBe(0);
   });
 
   test("configured flow ragequit still completes when local account persistence fails", async () => {

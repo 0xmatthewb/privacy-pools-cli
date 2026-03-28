@@ -581,6 +581,38 @@ describe("ragequit command handler", () => {
     expect(exitCode).toBe(2);
   });
 
+  test("fails closed when the original depositor cannot be verified for signed ragequit", async () => {
+    useIsolatedHome({ withSigner: true });
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => [APPROVED_POOL_ACCOUNT]);
+    buildPoolAccountRefsMock.mockImplementationOnce(() => [APPROVED_POOL_ACCOUNT]);
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async () => {
+        throw new Error("rpc unavailable");
+      },
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 987n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("RPC_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Unable to verify the original depositor for ragequit",
+    );
+    expect(exitCode).toBe(3);
+  });
+
   test("lets humans select a Pool Account and cancel before public recovery", async () => {
     useIsolatedHome({ withSigner: true });
     confirmPromptMock.mockImplementationOnce(async () => false);

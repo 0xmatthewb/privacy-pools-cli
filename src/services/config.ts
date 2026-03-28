@@ -2,6 +2,7 @@ import {
   chmodSync,
   closeSync,
   existsSync,
+  fsyncSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -11,7 +12,7 @@ import {
   writeFileSync,
 } from "fs";
 import { randomUUID } from "node:crypto";
-import { join } from "path";
+import { dirname, join } from "path";
 import { homedir } from "os";
 import type { CLIConfig } from "../types.js";
 import { CLIError } from "../utils/errors.js";
@@ -211,10 +212,22 @@ export function writePrivateFileAtomic(filePath: string, content: string): void 
     const fd = openSync(tmpPath, "wx", 0o600);
     try {
       writeFileSync(fd, content, { encoding: "utf-8" });
+      // Best-effort durability: flush the temp file before replacing the target.
+      fsyncSync(fd);
     } finally {
       closeSync(fd);
     }
     renameSync(tmpPath, filePath);
+    try {
+      const dirFd = openSync(dirname(filePath), "r");
+      try {
+        fsyncSync(dirFd);
+      } finally {
+        closeSync(dirFd);
+      }
+    } catch {
+      // Best effort. Some platforms/filesystems do not support directory fsync.
+    }
   } catch (error) {
     try {
       unlinkSync(tmpPath);
