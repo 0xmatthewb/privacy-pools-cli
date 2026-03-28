@@ -13,14 +13,16 @@ import type { Command } from "commander";
 import { confirm, input, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import {
-  ensureConfigDir,
   configExists,
-  mnemonicExists,
-  saveConfig,
-  saveMnemonicToFile,
-  saveSignerKey,
-  loadSignerKey,
+  ensureConfigDir,
+  getConfigFilePath,
+  invalidateConfigCache,
+  getMnemonicFilePath,
+  getSignerFilePath,
   loadConfig,
+  loadSignerKey,
+  mnemonicExists,
+  writePrivateFileAtomic,
 } from "../services/config.js";
 import {
   generateMnemonic,
@@ -93,22 +95,10 @@ function writeRecoveryBackupFile(filePath: string, content: string): string {
     );
   }
 
-  const tmpPath = `${normalizedPath}.tmp`;
   try {
-    writeFileSync(tmpPath, content, { encoding: "utf8", mode: 0o600 });
-    renameSync(tmpPath, normalizedPath);
-    try {
-      chmodSync(normalizedPath, 0o600);
-    } catch {
-      // Best effort. Some filesystems may not support chmod.
-    }
+    writePrivateFileAtomic(normalizedPath, content);
     return normalizedPath;
   } catch (error) {
-    try {
-      unlinkSync(tmpPath);
-    } catch {
-      // Best effort cleanup of the temporary recovery backup file.
-    }
     throw new CLIError(
       `Could not write the recovery phrase backup to ${normalizedPath}.`,
       "INPUT",
@@ -116,6 +106,72 @@ function writeRecoveryBackupFile(filePath: string, content: string): string {
         ? `Check that the parent directory is writable and retry. Original error: ${error.message}`
         : "Check that the parent directory is writable and retry.",
     );
+  }
+}
+
+interface InitFileSnapshot {
+  path: string;
+  existed: boolean;
+  content?: string;
+}
+
+interface InitPendingWrite {
+  path: string;
+  content: string;
+}
+
+function captureInitFileSnapshot(path: string): InitFileSnapshot {
+  if (!existsSync(path)) {
+    return { path, existed: false };
+  }
+
+  const stats = lstatSync(path);
+  if (!stats.isFile()) {
+    return { path, existed: true };
+  }
+
+  return {
+    path,
+    existed: true,
+    content: readFileSync(path, "utf8"),
+  };
+}
+
+function restoreInitFileSnapshot(snapshot: InitFileSnapshot): void {
+  if (!snapshot.existed) {
+    try {
+      unlinkSync(snapshot.path);
+    } catch {
+      // Best effort rollback cleanup only.
+    }
+    return;
+  }
+
+  if (typeof snapshot.content === "string") {
+    writePrivateFileAtomic(snapshot.path, snapshot.content);
+  }
+}
+
+function persistInitFilesAtomically(writes: InitPendingWrite[]): void {
+  invalidateConfigCache();
+  const snapshots = new Map<string, InitFileSnapshot>(
+    writes.map((write) => [write.path, captureInitFileSnapshot(write.path)]),
+  );
+  const committedPaths: string[] = [];
+
+  try {
+    for (const write of writes) {
+      writePrivateFileAtomic(write.path, write.content);
+      committedPaths.push(write.path);
+    }
+  } catch (error) {
+    for (const path of committedPaths.reverse()) {
+      const snapshot = snapshots.get(path);
+      if (snapshot) {
+        restoreInitFileSnapshot(snapshot);
+      }
+    }
+    throw error;
   }
 }
 
@@ -501,24 +557,7 @@ export async function handleInitCommand(
     }
 
     // ── Phase 3: Atomic persistence (all writes together) ───────────
-
-    saveMnemonicToFile(mnemonic);
-    if (!isJson) success("Recovery phrase saved.", silent);
-
-    if (normalizedSignerKey) {
-      saveSignerKey(normalizedSignerKey);
-      if (!isJson) success("Signer key saved.", silent);
-    } else if (process.env.PRIVACY_POOLS_PRIVATE_KEY) {
-      if (!isJson)
-        info("Using PRIVACY_POOLS_PRIVATE_KEY from environment.", silent);
-    } else {
-      if (!isJson)
-        warn(
-          "No signer key set. You'll need to set PRIVACY_POOLS_PRIVATE_KEY for transactions.",
-          silent,
-        );
-    }
-
+    ensureConfigDir();
     const config = loadConfig();
     config.defaultChain = (
       defaultChain ??
@@ -534,7 +573,39 @@ export async function handleInitCommand(
       }
     }
 
-    saveConfig(config);
+    const writes: InitPendingWrite[] = [
+      {
+        path: getConfigFilePath(),
+        content: JSON.stringify(config, null, 2),
+      },
+      {
+        path: getMnemonicFilePath(),
+        content: mnemonic,
+      },
+    ];
+    if (normalizedSignerKey) {
+      writes.push({
+        path: getSignerFilePath(),
+        content: normalizedSignerKey,
+      });
+    }
+
+    persistInitFilesAtomically(writes);
+    if (!isJson) success("Recovery phrase saved.", silent);
+
+    if (normalizedSignerKey) {
+      if (!isJson) success("Signer key saved.", silent);
+    } else if (process.env.PRIVACY_POOLS_PRIVATE_KEY) {
+      if (!isJson)
+        info("Using PRIVACY_POOLS_PRIVATE_KEY from environment.", silent);
+    } else {
+      if (!isJson)
+        warn(
+          "No signer key set. You'll need to set PRIVACY_POOLS_PRIVATE_KEY for transactions.",
+          silent,
+        );
+    }
+
     if (!isJson)
       success(`Default chain set to ${config.defaultChain}.`, silent);
 

@@ -1,4 +1,4 @@
-import type { Address, Hex } from "viem";
+import { decodeAbiParameters, parseAbiParameters, type Address, type Hex } from "viem";
 import type {
   ChainConfig,
   RelayerDetailsResponse,
@@ -15,6 +15,9 @@ import type { RetryConfig } from "../utils/network.js";
 
 const RELAYER_MAX_RETRIES = 2;
 const RELAYER_RETRY_DELAYS_MS = [250, 500] as const;
+const RELAYER_WITHDRAWAL_DATA_PARAMS = parseAbiParameters(
+  "address recipient, address feeRecipient, uint256 relayFeeBPS",
+);
 
 class RetryableRelayerHttpError extends Error {
   constructor(
@@ -39,6 +42,13 @@ export function overrideRelayerRetryWaitForTests(
   relayerWaitFn = waitFn;
 }
 
+export interface ValidatedRelayerWithdrawalData {
+  recipient: Address;
+  feeRecipient: Address;
+  relayFeeBPS: bigint;
+  withdrawalData: Hex;
+}
+
 function isHexString(value: unknown): value is `0x${string}` {
   return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
 }
@@ -61,6 +71,66 @@ function relayerUnavailableError(message: string): CLIError {
 function relayerTransportError(error: unknown): CLIError {
   const message = error instanceof Error ? error.message : "network error";
   return relayerUnavailableError(message);
+}
+
+export function decodeValidatedRelayerWithdrawalData(params: {
+  quote: Pick<RelayerQuoteResponse, "feeCommitment">;
+  requestedRecipient: Address;
+  quoteFeeBPS: bigint;
+}): ValidatedRelayerWithdrawalData {
+  const feeCommitment = params.quote.feeCommitment;
+  if (!feeCommitment) {
+    throw new CLIError(
+      "Relayer quote is missing required fee details.",
+      "RELAYER",
+      "The relayer may not support this asset/chain combination.",
+    );
+  }
+
+  let decodedRecipient: Address;
+  let decodedFeeRecipient: Address;
+  let decodedRelayFeeBPS: bigint;
+  try {
+    [
+      decodedRecipient,
+      decodedFeeRecipient,
+      decodedRelayFeeBPS,
+    ] = decodeAbiParameters(
+      RELAYER_WITHDRAWAL_DATA_PARAMS,
+      feeCommitment.withdrawalData,
+    ) as [Address, Address, bigint];
+  } catch {
+    throw new CLIError(
+      "Relayer returned malformed withdrawal data.",
+      "RELAYER",
+      "Run the withdraw command again to request a fresh quote.",
+    );
+  }
+
+  if (
+    decodedRecipient.toLowerCase() !== params.requestedRecipient.toLowerCase()
+  ) {
+    throw new CLIError(
+      "Relayer quote recipient does not match the requested withdrawal recipient.",
+      "RELAYER",
+      "Run the withdraw command again to request a fresh quote.",
+    );
+  }
+
+  if (decodedRelayFeeBPS !== params.quoteFeeBPS) {
+    throw new CLIError(
+      "Relayer quote fee data does not match the quoted relay fee.",
+      "RELAYER",
+      "Run the withdraw command again to request a fresh quote.",
+    );
+  }
+
+  return {
+    recipient: decodedRecipient,
+    feeRecipient: decodedFeeRecipient,
+    relayFeeBPS: decodedRelayFeeBPS,
+    withdrawalData: feeCommitment.withdrawalData,
+  };
 }
 
 async function runRelayerRequestWithRetry<T>(

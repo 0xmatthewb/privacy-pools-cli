@@ -453,7 +453,7 @@ privacy-pools sync --chain mainnet
 
 Show configuration and check connection health
 
-Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. When status falls back to recommendedMode = read-only because RPC or ASP health is degraded, nextActions stays on public discovery and intentionally avoids account-state guidance until connectivity is restored.
+Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. When status falls back to recommendedMode = read-only because RPC health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored. When only the ASP is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.
 
 ```bash
 privacy-pools status

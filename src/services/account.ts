@@ -285,57 +285,62 @@ export async function initializeAccountServiceWithState(
     }
 
     try {
-      const poolInfos = pools.map(toPoolInfo);
-      const result = await withSuppressedSdkStdout(async () =>
-        AccountService.initializeWithEvents(
-          dataService,
-          { mnemonic },
-          poolInfos,
-        ),
-      );
-      await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
+      const releaseLock = acquireProcessLock();
+      try {
+        const poolInfos = pools.map(toPoolInfo);
+        const result = await withSuppressedSdkStdout(async () =>
+          AccountService.initializeWithEvents(
+            dataService,
+            { mnemonic },
+            poolInfos,
+          ),
+        );
+        await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
 
-      const initErrors = result.errors ?? [];
-      if (initErrors.length > 0) {
-        const details = summarizeInitErrors(initErrors);
+        const initErrors = result.errors ?? [];
+        if (initErrors.length > 0) {
+          const details = summarizeInitErrors(initErrors);
 
-        if (strictSync) {
-          throw new CLIError(
-            `Failed to rebuild legacy account state from onchain events for ${initErrors.length} pool(s). ${details}`,
-            "RPC",
-            "Check your RPC connectivity and retry.",
+          if (strictSync) {
+            throw new CLIError(
+              `Failed to rebuild legacy account state from onchain events for ${initErrors.length} pool(s). ${details}`,
+              "RPC",
+              "Check your RPC connectivity and retry.",
+            );
+          }
+
+          warnOnPartialInitialization(
+            suppressWarnings,
+            `legacy account rebuild had partial failures for ${initErrors.length} pool(s): ${details}`,
           );
+
+          return buildPartialInitializationState(result.account, true);
         }
 
-        warnOnPartialInitialization(
-          suppressWarnings,
-          `legacy account rebuild had partial failures for ${initErrors.length} pool(s): ${details}`,
-        );
-
-        return buildPartialInitializationState(result.account, true);
+        saveAccount(chainId, result.account.account);
+        saveSyncMeta(chainId);
+        return {
+          accountService: result.account,
+          skipImmediateSync: true,
+          rebuiltLegacyAccount: true,
+        };
+      } finally {
+        releaseLock();
       }
-
-      saveAccount(chainId, result.account.account);
-      saveSyncMeta(chainId);
-      return {
-        accountService: result.account,
-        skipImmediateSync: true,
-        rebuiltLegacyAccount: true,
-      };
     } catch (err) {
       if (isLegacyRestoreBlockingError(err)) {
         throw err;
       }
       if (strictSync) {
         throw new CLIError(
-          `Failed to rebuild legacy account state from onchain events: ${err instanceof Error ? err.message : String(err)}`,
+          `Failed to rebuild legacy account state from onchain events: ${sanitizeDiagnosticText(err instanceof Error ? err.message : String(err))}`,
           "RPC",
           "Check your RPC connectivity and retry.",
         );
       }
       if (!suppressWarnings) {
         process.stderr.write(
-          `Warning: legacy account rebuild failed: ${err instanceof Error ? err.message : String(err)}\n`,
+          `Warning: legacy account rebuild failed: ${sanitizeDiagnosticText(err instanceof Error ? err.message : String(err))}\n`,
         );
       }
       throw staleAccountRefreshFailedError(err);
@@ -388,57 +393,62 @@ export async function initializeAccountServiceWithState(
   // Initialize with events if pools are provided
   if (pools.length > 0) {
     try {
-      const poolInfos = pools.map(toPoolInfo);
-      const result = await withSuppressedSdkStdout(async () =>
-        AccountService.initializeWithEvents(
-          dataService,
-          { mnemonic },
-          poolInfos,
-        ),
-      );
-      await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
+      const releaseLock = acquireProcessLock();
+      try {
+        const poolInfos = pools.map(toPoolInfo);
+        const result = await withSuppressedSdkStdout(async () =>
+          AccountService.initializeWithEvents(
+            dataService,
+            { mnemonic },
+            poolInfos,
+          ),
+        );
+        await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
 
-      const initErrors = result.errors ?? [];
-      if (initErrors.length > 0) {
-        const details = summarizeInitErrors(initErrors);
+        const initErrors = result.errors ?? [];
+        if (initErrors.length > 0) {
+          const details = summarizeInitErrors(initErrors);
 
-        if (strictSync) {
-          throw new CLIError(
-            `Failed to initialize account from onchain events for ${initErrors.length} pool(s). ${details}`,
-            "RPC",
-            "Check your RPC connectivity and retry.",
+          if (strictSync) {
+            throw new CLIError(
+              `Failed to initialize account from onchain events for ${initErrors.length} pool(s). ${details}`,
+              "RPC",
+              "Check your RPC connectivity and retry.",
+            );
+          }
+
+          warnOnPartialInitialization(
+            suppressWarnings,
+            `account initialization had partial failures for ${initErrors.length} pool(s): ${details}`,
           );
+
+          return buildPartialInitializationState(result.account, false);
         }
 
-        warnOnPartialInitialization(
-          suppressWarnings,
-          `account initialization had partial failures for ${initErrors.length} pool(s): ${details}`,
-        );
-
-        return buildPartialInitializationState(result.account, false);
+        saveAccount(chainId, result.account.account);
+        saveSyncMeta(chainId);
+        return {
+          accountService: result.account,
+          skipImmediateSync: true,
+          rebuiltLegacyAccount: false,
+        };
+      } finally {
+        releaseLock();
       }
-
-      saveAccount(chainId, result.account.account);
-      saveSyncMeta(chainId);
-      return {
-        accountService: result.account,
-        skipImmediateSync: true,
-        rebuiltLegacyAccount: false,
-      };
     } catch (err) {
       if (isLegacyRestoreBlockingError(err)) {
         throw err;
       }
       if (strictSync) {
         throw new CLIError(
-          `Failed to initialize account from onchain events: ${err instanceof Error ? err.message : String(err)}`,
+          `Failed to initialize account from onchain events: ${sanitizeDiagnosticText(err instanceof Error ? err.message : String(err))}`,
           "RPC",
           "Check your RPC connectivity and retry.",
         );
       }
       if (!suppressWarnings) {
         process.stderr.write(
-          `Warning: fresh account initialization failed, using empty account: ${err instanceof Error ? err.message : String(err)}\n`,
+          `Warning: fresh account initialization failed, using empty account: ${sanitizeDiagnosticText(err instanceof Error ? err.message : String(err))}\n`,
         );
       }
     }
@@ -562,46 +572,46 @@ export async function syncAccountEvents(
   opts: SyncEventsOptions,
 ): Promise<boolean> {
   if (opts.skip) return false;
-  if (!opts.force && isSyncFresh(chainId)) {
-    logVerbose("Skipping sync (recently synced)", opts.isVerbose, opts.silent);
-    return false;
-  }
-
-  const { account, errors } = await rebuildAccountScopesFromEvents(
-    opts.dataService,
-    opts.mnemonic,
-    accountService.account,
-    poolInfos,
-  );
-
-  if (errors.length > 0) {
-    for (const error of errors) {
-      const symbol =
-        pools.find((pool) => {
-          const poolInfo = poolInfos.find((info) => info.scope === error.scope);
-          return poolInfo ? pool.pool.toLowerCase() === poolInfo.address.toLowerCase() : false;
-        })?.symbol ?? error.scope.toString();
-      warn(
-        `Sync failed for ${symbol} pool: ${sanitizeDiagnosticText(error.reason)}`,
-        opts.silent,
-      );
-    }
-  }
-
-  if (errors.length > 0) {
-    throw new CLIError(
-      `${opts.errorLabel} sync failed for ${errors.length} pool(s).`,
-      "RPC",
-      "Retry with a healthy RPC before using this data.",
-      undefined,
-      true,
-    );
-  }
-
-  accountService.account = account;
-
   const releaseLock = acquireProcessLock();
   try {
+    if (!opts.force && isSyncFresh(chainId)) {
+      logVerbose("Skipping sync (recently synced)", opts.isVerbose, opts.silent);
+      return false;
+    }
+
+    const persistedAccount = loadAccount(chainId);
+    const { account, errors } = await rebuildAccountScopesFromEvents(
+      opts.dataService,
+      opts.mnemonic,
+      persistedAccount ?? accountService.account,
+      poolInfos,
+    );
+
+    if (errors.length > 0) {
+      for (const error of errors) {
+        const symbol =
+          pools.find((pool) => {
+            const poolInfo = poolInfos.find((info) => info.scope === error.scope);
+            return poolInfo ? pool.pool.toLowerCase() === poolInfo.address.toLowerCase() : false;
+          })?.symbol ?? error.scope.toString();
+        warn(
+          `Sync failed for ${symbol} pool: ${sanitizeDiagnosticText(error.reason)}`,
+          opts.silent,
+        );
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new CLIError(
+        `${opts.errorLabel} sync failed for ${errors.length} pool(s).`,
+        "RPC",
+        "Retry with a healthy RPC before using this data.",
+        undefined,
+        true,
+      );
+    }
+
+    accountService.account = account;
     guardCriticalSection();
     try {
       saveAccount(chainId, accountService.account);

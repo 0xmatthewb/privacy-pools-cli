@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   chmodSync,
   existsSync,
+  lstatSync,
   readdirSync,
   readFileSync,
   renameSync,
@@ -16,7 +17,7 @@ import {
   type Hash as SDKHash,
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Address, Hex } from "viem";
-import { decodeEventLog, encodeAbiParameters, erc20Abi, parseAbi } from "viem";
+import { decodeEventLog, erc20Abi, parseAbi } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { explorerTxUrl, NATIVE_ASSET_ADDRESS } from "../config/chains.js";
 import {
@@ -42,10 +43,12 @@ import {
   getWorkflowSecretsDir,
   getWorkflowsDir,
   loadConfig,
+  writePrivateFileAtomic,
 } from "./config.js";
 import { resolvePool } from "./pools.js";
 import { proveCommitment, proveWithdrawal } from "./proofs.js";
 import {
+  decodeValidatedRelayerWithdrawalData,
   getRelayerDetails,
   requestQuote,
   submitRelayRequest,
@@ -449,35 +452,13 @@ function ensureWorkflowDir(): void {
 }
 
 function writePrivateJsonFile(filePath: string, payload: unknown): void {
-  const tmpPath = `${filePath}.tmp`;
-  writeFileSync(tmpPath, JSON.stringify(payload, null, 2), {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
-  renameSync(tmpPath, filePath);
-  try {
-    chmodSync(filePath, 0o600);
-  } catch {
-    // Best effort. Some filesystems may not support chmod.
-  }
+  writePrivateFileAtomic(filePath, JSON.stringify(payload, null, 2));
 }
 
 export function writePrivateTextFile(filePath: string, content: string): void {
-  const tmpPath = `${filePath}.tmp`;
   try {
-    writeFileSync(tmpPath, content, { encoding: "utf-8", mode: 0o600 });
-    renameSync(tmpPath, filePath);
-    try {
-      chmodSync(filePath, 0o600);
-    } catch {
-      // Best effort. Some filesystems may not support chmod.
-    }
+    writePrivateFileAtomic(filePath, content);
   } catch (error) {
-    try {
-      unlinkSync(tmpPath);
-    } catch {
-      // Best effort cleanup of the temporary backup file.
-    }
     throw new CLIError(
       `Could not write workflow wallet backup to ${filePath}.`,
       "INPUT",
@@ -534,7 +515,7 @@ export function validateWorkflowWalletBackupPath(filePath: string): string {
 
   let targetStats;
   try {
-    targetStats = statSync(normalizedPath);
+    targetStats = lstatSync(normalizedPath);
   } catch (error) {
     throw new CLIError(
       `Could not inspect workflow wallet backup target: ${normalizedPath}`,
@@ -646,7 +627,43 @@ export function loadWorkflowSecretRecord(workflowId: string): FlowSecretRecord {
     );
   }
 
-  return parsed as FlowSecretRecord;
+  const record = parsed as FlowSecretRecord;
+  if (record.workflowId !== workflowId) {
+    throw new CLIError(
+      `Workflow wallet secret does not match ${workflowId}.`,
+      "INPUT",
+      "Restore the matching workflow wallet backup, or remove the mismatched secret file and start a new workflow.",
+    );
+  }
+
+  if (!/^0x[0-9a-fA-F]{64}$/.test(record.privateKey)) {
+    throw new CLIError(
+      `Workflow wallet secret contains an invalid private key: ${filePath}`,
+      "INPUT",
+      "Restore the workflow wallet backup or remove the broken secret file and start a new workflow.",
+    );
+  }
+
+  let derivedAddress: Address;
+  try {
+    derivedAddress = privateKeyToAccount(record.privateKey).address;
+  } catch {
+    throw new CLIError(
+      `Workflow wallet secret contains an unreadable private key: ${filePath}`,
+      "INPUT",
+      "Restore the workflow wallet backup or remove the broken secret file and start a new workflow.",
+    );
+  }
+
+  if (derivedAddress.toLowerCase() !== record.walletAddress.toLowerCase()) {
+    throw new CLIError(
+      `Workflow wallet secret address does not match the stored workflow wallet: ${filePath}`,
+      "INPUT",
+      "Restore the workflow wallet backup or remove the broken secret file and start a new workflow.",
+    );
+  }
+
+  return record;
 }
 
 export function buildWorkflowWalletBackup(record: FlowSecretRecord): string {
@@ -2588,22 +2605,15 @@ export async function executeRelayedWithdrawalForFlow(params: {
     }
   };
 
-  const relayData = encodeAbiParameters(
-    [
-      { name: "recipient", type: "address" },
-      { name: "feeRecipient", type: "address" },
-      { name: "relayFeeBPS", type: "uint256" },
-    ],
-    [
-      snapshot.recipient as Address,
-      details.feeReceiverAddress,
-      quoteFeeBPS,
-    ],
-  );
+  const validatedWithdrawalData = decodeValidatedRelayerWithdrawalData({
+    quote,
+    requestedRecipient: snapshot.recipient as Address,
+    quoteFeeBPS,
+  });
 
   const withdrawal = {
     processooor: chainConfig.entrypoint as Address,
-    data: relayData,
+    data: validatedWithdrawalData.withdrawalData,
   };
 
   const contextValue = BigInt(
@@ -2641,12 +2651,28 @@ export async function executeRelayedWithdrawalForFlow(params: {
 
   if (workflowNowMs() > expirationMs) {
     const previousFeeBPS = quote.feeBPS;
+    const previousWithdrawalData = withdrawal.data;
     await fetchFreshQuote("Quote expired after proof. Refreshing...");
     if (Number(previousFeeBPS) !== Number(quote.feeBPS)) {
       throw new CLIError(
         `Relayer fee changed during proof generation (${previousFeeBPS} -> ${quote.feeBPS} BPS).`,
         "RELAYER",
         "Re-run 'privacy-pools flow watch' to generate a fresh proof with the new fee.",
+      );
+    }
+    const refreshedWithdrawalData = decodeValidatedRelayerWithdrawalData({
+      quote,
+      requestedRecipient: snapshot.recipient as Address,
+      quoteFeeBPS,
+    });
+    if (
+      refreshedWithdrawalData.withdrawalData.toLowerCase() !==
+      previousWithdrawalData.toLowerCase()
+    ) {
+      throw new CLIError(
+        "Relayer withdrawal data changed during proof generation.",
+        "RELAYER",
+        "Re-run 'privacy-pools flow watch' to generate a fresh proof with the updated relayer data.",
       );
     }
   }

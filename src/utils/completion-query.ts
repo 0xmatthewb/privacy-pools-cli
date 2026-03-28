@@ -115,7 +115,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--default-chain <chain>", CHAIN_NAMES),
           completionOption("--rpc-url <url>"),
           completionOption("--force"),
-          completionOption("--skip-circuits"),
         ],
       }),
       completionCommand("flow", {
@@ -123,12 +122,17 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionCommand("start", {
             options: [
               completionOption("-t, --to <address>"),
+              completionOption("--privacy-delay <profile>"),
               completionOption("--watch"),
               completionOption("--new-wallet"),
               completionOption("--export-new-wallet <path>"),
             ],
           }),
-          completionCommand("watch"),
+          completionCommand("watch", {
+            options: [
+              completionOption("--privacy-delay <profile>"),
+            ],
+          }),
           completionCommand("status"),
           completionCommand("ragequit"),
         ],
@@ -144,7 +148,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-a, --asset <symbol|address>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
-          completionOption("--unsigned-format <format>"),
           completionOption("--dry-run"),
           completionOption("--ignore-unique-amount"),
         ],
@@ -171,9 +174,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-t, --to <address>"),
           completionOption("-p, --from-pa <PA-#|#>"),
-          completionOption("--direct"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
-          completionOption("--unsigned-format <format>"),
           completionOption("--dry-run"),
           completionOption("-a, --asset <symbol|address>"),
           completionOption("--all"),
@@ -194,9 +195,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-a, --asset <symbol|address>"),
           completionOption("-p, --from-pa <PA-#|#>"),
-          completionOption("-i, --commitment <index>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
-          completionOption("--unsigned-format <format>"),
           completionOption("--dry-run"),
         ],
       }),

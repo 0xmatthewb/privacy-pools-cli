@@ -32,6 +32,18 @@ const sourceRootFlagsModulePath = join(
   "utils",
   "root-global-flags.ts",
 );
+const distJsonUtilsModulePath = join(
+  repoRoot,
+  "dist",
+  "utils",
+  "json.js",
+);
+const sourceJsonUtilsModulePath = join(
+  repoRoot,
+  "src",
+  "utils",
+  "json.ts",
+);
 
 const distProgramModulePath = join(
   repoRoot,
@@ -83,6 +95,9 @@ const metadataModulePath = existsSync(distModulePath)
 const rootFlagsModulePath = existsSync(distRootFlagsModulePath)
   ? distRootFlagsModulePath
   : sourceRootFlagsModulePath;
+const jsonUtilsModulePath = existsSync(distJsonUtilsModulePath)
+  ? distJsonUtilsModulePath
+  : sourceJsonUtilsModulePath;
 
 const runtimeContractModulePath = join(
   repoRoot,
@@ -100,6 +115,9 @@ const {
 );
 const { ROOT_GLOBAL_FLAG_METADATA } = await import(
   pathToFileURL(rootFlagsModulePath).href
+);
+const { JSON_SCHEMA_VERSION } = await import(
+  pathToFileURL(jsonUtilsModulePath).href
 );
 const {
   CURRENT_MANIFEST_VERSION,
@@ -259,6 +277,7 @@ async function buildNativeShellManifest() {
     manifestVersion: CURRENT_MANIFEST_VERSION,
     runtimeVersion: CURRENT_RUNTIME_VERSION,
     cliVersion,
+    jsonSchemaVersion: JSON_SCHEMA_VERSION,
     commandPaths: COMMAND_PATHS,
     aliasMap,
     rootHelp,

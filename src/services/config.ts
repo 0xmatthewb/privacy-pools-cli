@@ -1,4 +1,16 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, chmodSync } from "fs";
+import {
+  chmodSync,
+  closeSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "fs";
+import { randomUUID } from "node:crypto";
 import { join } from "path";
 import { homedir } from "os";
 import type { CLIConfig } from "../types.js";
@@ -13,15 +25,15 @@ function resolveConfigDir(): string {
     : join(homedir(), ".privacy-pools");
 }
 
-function getConfigFilePath(): string {
+export function getConfigFilePath(): string {
   return join(resolveConfigDir(), "config.json");
 }
 
-function getMnemonicFilePath(): string {
+export function getMnemonicFilePath(): string {
   return join(resolveConfigDir(), ".mnemonic");
 }
 
-function getSignerFilePath(): string {
+export function getSignerFilePath(): string {
   return join(resolveConfigDir(), ".signer");
 }
 
@@ -90,6 +102,11 @@ export function mnemonicExists(): boolean {
 
 let _cachedConfig: CLIConfig | null = null;
 let _cachedConfigPath: string | null = null;
+
+export function invalidateConfigCache(): void {
+  _cachedConfig = null;
+  _cachedConfigPath = null;
+}
 
 export function loadConfig(): CLIConfig {
   const configFile = getConfigFilePath();
@@ -171,22 +188,42 @@ export function loadConfig(): CLIConfig {
 }
 
 export function saveConfig(config: CLIConfig): void {
-  _cachedConfig = null; // Invalidate cache on write
-  _cachedConfigPath = null;
+  invalidateConfigCache();
   ensureConfigDir();
   const path = getConfigFilePath();
-  const tmpPath = path + ".tmp";
-  writeFileSync(tmpPath, JSON.stringify(config, null, 2), {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
-  renameSync(tmpPath, path);
+  writePrivateFileAtomic(path, JSON.stringify(config, null, 2));
 }
 
-function writePrivateFile(filePath: string, content: string): void {
-  const tmpPath = filePath + ".tmp";
-  writeFileSync(tmpPath, content, { encoding: "utf-8", mode: 0o600 });
-  renameSync(tmpPath, filePath);
+function createPrivateTempPath(filePath: string): string {
+  return `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+}
+
+export function writePrivateFileAtomic(filePath: string, content: string): void {
+  if (existsSync(filePath)) {
+    const stats = lstatSync(filePath);
+    if (stats.isSymbolicLink()) {
+      throw new Error(`Refusing to overwrite symlink target: ${filePath}`);
+    }
+  }
+
+  const tmpPath = createPrivateTempPath(filePath);
+  try {
+    const fd = openSync(tmpPath, "wx", 0o600);
+    try {
+      writeFileSync(fd, content, { encoding: "utf-8" });
+    } finally {
+      closeSync(fd);
+    }
+    renameSync(tmpPath, filePath);
+  } catch (error) {
+    try {
+      unlinkSync(tmpPath);
+    } catch {
+      // Best effort cleanup of a failed temporary private file write.
+    }
+    throw error;
+  }
+
   try {
     chmodSync(filePath, 0o600);
   } catch {
@@ -202,7 +239,7 @@ export function loadMnemonicFromFile(): string | null {
 
 export function saveMnemonicToFile(mnemonic: string): void {
   ensureConfigDir();
-  writePrivateFile(getMnemonicFilePath(), mnemonic);
+  writePrivateFileAtomic(getMnemonicFilePath(), mnemonic);
 }
 
 export function loadSignerKey(): string | null {
@@ -217,7 +254,7 @@ export function loadSignerKey(): string | null {
 
 export function saveSignerKey(key: string): void {
   ensureConfigDir();
-  writePrivateFile(getSignerFilePath(), key);
+  writePrivateFileAtomic(getSignerFilePath(), key);
 }
 
 // Env var suffix for a given chain ID, matching the PP_*_<CHAIN> convention.

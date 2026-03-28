@@ -147,7 +147,7 @@ export function deriveStatusPreflightGuidance(
     warnings.push(
       makeStatusIssue(
         "restore_discovery_recommended",
-        "If this recovery phrase was imported, check accounts across all chains before assuming the wallet is empty.",
+        "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
         ["discovery"],
       ),
     );
@@ -184,6 +184,8 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const notReady = !result.configExists || !result.recoveryPhraseSet;
   const unsignedOnly = readyForUnsigned && !readyForDeposit;
   const degradedReadOnly = preflight.recommendedMode === "read-only";
+  const rpcDegraded = result.rpcLive === false;
+  const aspOnlyDegraded = result.aspLive === false && !rpcDegraded;
   const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
 
   // ── Deposit reachability for next-step guidance ───────────────────────
@@ -279,14 +281,14 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   let agentNextActions: ReturnType<typeof createNextAction>[];
   let humanNextActions: ReturnType<typeof createNextAction>[];
   const restoreDiscoveryAgentAction = createNextAction(
-    "accounts",
-    "If this recovery phrase was imported, check for existing deposits across all chains before assuming the wallet is empty.",
+    "migrate status",
+    "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
     "status_restore_discovery",
     { options: { agent: true, allChains: true } },
   );
   const restoreDiscoveryHumanAction = createNextAction(
-    "accounts",
-    "If this recovery phrase was imported, check for existing deposits across all chains before assuming the wallet is empty.",
+    "migrate status",
+    "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
     "status_restore_discovery",
     { options: { allChains: true } },
   );
@@ -301,22 +303,53 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
       { options: initHumanChainOpts })];
   } else if (degradedReadOnly) {
-    agentNextActions = [
-      createNextAction(
-        "pools",
-        "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
-        "status_degraded_health",
-        { options: { agent: true, ...poolsAgentChainOpts } },
-      ),
-    ];
-    humanNextActions = [
-      createNextAction(
-        "pools",
-        "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
-        "status_degraded_health",
-        { options: poolsHumanChainOpts },
-      ),
-    ];
+    if (aspOnlyDegraded) {
+      agentNextActions = [
+        createNextAction(
+          "pools",
+          "ASP checks are degraded. Stay on public discovery until private-review connectivity recovers.",
+          "status_degraded_health",
+          { options: { agent: true, ...poolsAgentChainOpts } },
+        ),
+        createNextAction(
+          "ragequit",
+          "Public recovery still works while the ASP is down when RPC is healthy, including unsigned ragequit payloads, but you must supply --asset and --from-pa.",
+          "status_degraded_health",
+          { options: { agent: true }, runnable: false },
+        ),
+        createNextAction(
+          "flow ragequit",
+          "Saved workflows can still use the public recovery path while the ASP is down.",
+          "status_degraded_health",
+          { args: ["latest"], options: { agent: true }, runnable: false },
+        ),
+      ];
+      humanNextActions = [
+        createNextAction(
+          "pools",
+          "ASP checks are degraded. Stay on public discovery until private-review connectivity recovers.",
+          "status_degraded_health",
+          { options: poolsHumanChainOpts },
+        ),
+      ];
+    } else {
+      agentNextActions = [
+        createNextAction(
+          "pools",
+          "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
+          "status_degraded_health",
+          { options: { agent: true, ...poolsAgentChainOpts } },
+        ),
+      ];
+      humanNextActions = [
+        createNextAction(
+          "pools",
+          "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
+          "status_degraded_health",
+          { options: poolsHumanChainOpts },
+        ),
+      ];
+    }
   } else if (unsignedOnly && !hasAccountsReachable) {
     agentNextActions = [
       ...(shouldSuggestRestoreDiscovery ? [restoreDiscoveryAgentAction] : []),
@@ -488,6 +521,13 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       info("Setup complete (unsigned mode only, no signer key).", silent);
     } else {
       warn("Not ready: run 'privacy-pools init' to get started.", silent);
+    }
+    if (aspOnlyDegraded) {
+      process.stderr.write("\n");
+      info(
+        "ASP checks are down, so private review status may be stale. Public recovery remains available while RPC is healthy: use ragequit (or flow ragequit for saved workflows) if you already know the affected account/workflow.",
+        silent,
+      );
     }
   }
   renderNextSteps(ctx, humanNextActions);

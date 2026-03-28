@@ -27,7 +27,6 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tiny_keccak::{Hasher, Keccak};
 
-const JSON_SCHEMA_VERSION: &str = "1.6.0";
 const ENV_JS_WORKER_PATH: &str = "PRIVACY_POOLS_CLI_JS_WORKER";
 const OUTPUT_FORMAT_CHOICES: &str = "table, csv, json";
 
@@ -160,6 +159,8 @@ struct Manifest {
     runtime_version: String,
     #[serde(rename = "cliVersion")]
     cli_version: String,
+    #[serde(rename = "jsonSchemaVersion")]
+    json_schema_version: String,
     #[serde(rename = "commandPaths")]
     command_paths: Vec<String>,
     #[serde(rename = "aliasMap")]
@@ -1203,11 +1204,15 @@ fn write_stderr_block_text(text: &str) {
     std::io::Write::write_all(&mut std::io::stderr(), value.as_bytes()).ok();
 }
 
+fn json_schema_version() -> &'static str {
+    manifest().json_schema_version.as_str()
+}
+
 fn print_json_success(payload: Value) {
     let mut object = payload.as_object().cloned().unwrap_or_default();
     object.insert(
         "schemaVersion".to_string(),
-        Value::String(JSON_SCHEMA_VERSION.to_string()),
+        Value::String(json_schema_version().to_string()),
     );
     object.insert("success".to_string(), Value::Bool(true));
     let output = Value::Object(object);
@@ -1217,7 +1222,7 @@ fn print_json_success(payload: Value) {
 fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> ! {
     if structured {
         let payload = json!({
-            "schemaVersion": JSON_SCHEMA_VERSION,
+            "schemaVersion": json_schema_version(),
             "success": false,
             "errorCode": error.code,
             "errorMessage": error.message,

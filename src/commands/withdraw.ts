@@ -6,7 +6,6 @@ import {
   type Hash as SDKHash,
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Hex, Address } from "viem";
-import { encodeAbiParameters } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   resolveChain,
@@ -34,6 +33,7 @@ import {
   fetchDepositReviewStatuses,
 } from "../services/asp.js";
 import {
+  decodeValidatedRelayerWithdrawalData,
   getRelayerDetails,
   requestQuote,
   submitRelayRequest,
@@ -1399,19 +1399,15 @@ export async function handleWithdrawCommand(
           await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
         }
 
-        // Build relay withdrawal object
-        const relayData = encodeAbiParameters(
-          [
-            { name: "recipient", type: "address" },
-            { name: "feeRecipient", type: "address" },
-            { name: "relayFeeBPS", type: "uint256" },
-          ],
-          [resolvedRecipientAddress, details.feeReceiverAddress, quoteFeeBPS],
-        );
+        const validatedWithdrawalData = decodeValidatedRelayerWithdrawalData({
+          quote,
+          requestedRecipient: resolvedRecipientAddress,
+          quoteFeeBPS,
+        });
 
         const withdrawal = {
           processooor: chainConfig.entrypoint as Address,
-          data: relayData,
+          data: validatedWithdrawalData.withdrawalData,
         };
 
         const context = BigInt(
@@ -1462,12 +1458,28 @@ export async function handleWithdrawCommand(
             silent,
           );
           const previousFeeBPS = quote.feeBPS;
+          const previousWithdrawalData = withdrawal.data;
           await fetchFreshQuote("Quote expired after proof. Refreshing...");
           if (Number(quote.feeBPS) !== Number(previousFeeBPS)) {
             throw new CLIError(
               `Relayer fee changed during proof generation (${previousFeeBPS} → ${quote.feeBPS} BPS). Re-run the withdrawal.`,
               "RELAYER",
               "The proof is bound to the original fee. Re-run the withdrawal command to generate a fresh proof with the new fee.",
+            );
+          }
+          const refreshedWithdrawalData = decodeValidatedRelayerWithdrawalData({
+            quote,
+            requestedRecipient: resolvedRecipientAddress,
+            quoteFeeBPS,
+          });
+          if (
+            refreshedWithdrawalData.withdrawalData.toLowerCase() !==
+            previousWithdrawalData.toLowerCase()
+          ) {
+            throw new CLIError(
+              "Relayer withdrawal data changed during proof generation. Re-run the withdrawal.",
+              "RELAYER",
+              "The proof is bound to the relayer-signed withdrawal data. Re-run the withdrawal command to generate a fresh proof.",
             );
           }
           verbose(

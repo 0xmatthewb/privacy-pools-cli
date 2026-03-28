@@ -40,15 +40,15 @@ export interface InitRenderResult {
 export function renderInitResult(ctx: OutputContext, result: InitRenderResult): void {
   guardCsvUnsupported(ctx, "init");
 
-  // Agent path: new wallet → status (verify readiness); restore → accounts (sync onchain state).
-  // Restore always uses --all-chains so the first post-restore screen shows every chain,
-  // including testnets — we don't know which chains hold recoverable state.
+  // Agent path: new wallet → status (verify readiness); restore → migrate status first.
+  // Imported website accounts can require legacy migration or website recovery before the
+  // CLI can safely restore them, so migrate status is the canonical first check.
   const isTestnet = isTestnetChain(result.defaultChain);
   const agentNextActions = result.mnemonicImported
     ? [
         createNextAction(
-          "accounts",
-          "Sync and review your onchain Pool Accounts across all chains. Legacy pre-upgrade accounts may need website migration or website-based recovery first.",
+          "migrate status",
+          "Check migration or website-recovery readiness across all chains before restoring imported account state in the CLI.",
           "after_restore",
           { options: { agent: true, allChains: true } },
         ),
@@ -64,12 +64,12 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
 
   // Differentiate new-wallet vs restore/migration:
   //   New wallet  → "browse pools before depositing" (testnet needs --chain)
-  //   Restore     → "check your onchain state" with --all-chains for broadest coverage
+  //   Restore     → "check migration readiness first" with --all-chains for broadest coverage
   const humanNextActions = result.mnemonicImported
     ? [
         createNextAction(
-          "accounts",
-          "Sync and review your onchain Pool Accounts across all chains. Legacy pre-upgrade accounts may need website migration or website-based recovery first.",
+          "migrate status",
+          "Check migration or website-recovery readiness across all chains before restoring imported account state in the CLI.",
           "after_restore",
           { options: { allChains: true } },
         ),
