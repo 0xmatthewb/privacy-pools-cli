@@ -349,7 +349,15 @@ describe("resilience: Relayer malformed responses", () => {
 
   test("requestQuote rejects feeCommitment with non-hex withdrawalData", async () => {
     globalThis.fetch = mockResponse({
+      baseFeeBPS: "10",
       feeBPS: "12",
+      gasPrice: "1000000000",
+      detail: {
+        relayTxCost: {
+          gas: "21000",
+          eth: "1000000000000000",
+        },
+      },
       feeCommitment: {
         expiration: Date.now() + 60_000,
         withdrawalData: "not-hex",

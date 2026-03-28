@@ -1,6 +1,6 @@
 /**
  * Chain config conformance: cross-checks CLI's ASP/relayer service code
- * against the upstream frontend to ensure both hit the same API shapes,
+ * against the checked-out website source to ensure both hit the same API shapes,
  * and validates that all CLI chain configs are structurally sound.
  *
  * @frontend-parity
@@ -8,12 +8,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, test } from "bun:test";
-import { CORE_REPO, FRONTEND_REPO, fetchGitHubFile } from "../helpers/github.ts";
+import { FRONTEND_REPO, fetchGitHubFile } from "../helpers/github.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 import { CHAINS } from "../../src/config/chains.ts";
 
 let upstreamAspClient = "";
-let upstreamDeployments = "";
+let websiteChainData = "";
 let fetchFailed = false;
 
 const cliAsp = readFileSync(resolve(CLI_ROOT, "src/services/asp.ts"), "utf8");
@@ -21,12 +21,12 @@ const cliAsp = readFileSync(resolve(CLI_ROOT, "src/services/asp.ts"), "utf8");
 describe("chain config conformance", () => {
   beforeAll(async () => {
     try {
-      [upstreamAspClient, upstreamDeployments] = await Promise.all([
+      [upstreamAspClient, websiteChainData] = await Promise.all([
         fetchGitHubFile(FRONTEND_REPO, "src/utils/aspClient.ts"),
-        fetchGitHubFile(CORE_REPO, "docs/docs/deployments.md"),
+        fetchGitHubFile(FRONTEND_REPO, "src/config/chainData.ts"),
       ]);
     } catch (err) {
-      console.warn("Skipping chain-config conformance — could not fetch upstream files:", err);
+      console.warn("Skipping chain-config conformance — could not read source-of-truth files:", err);
       fetchFailed = true;
     }
   });
@@ -73,37 +73,13 @@ describe("chain config conformance", () => {
     }
   });
 
-  test("mainnet entrypoints documented upstream all match CLI config", () => {
+  test("CLI chain entrypoints stay aligned with website chain data", () => {
     if (fetchFailed) return;
 
-    const deploymentsLower = upstreamDeployments.toLowerCase();
+    const chainDataLower = websiteChainData.toLowerCase();
 
-    // Check each mainnet chain individually for clear per-chain diagnostics.
-    // When upstream documents a chain, we immediately validate the CLI's
-    // address for that chain — catching single-address drift.
-    const mainnetConfigs = Object.values(CHAINS).filter((c) => !c.isTestnet);
-    expect(mainnetConfigs.length).toBeGreaterThanOrEqual(1);
-
-    const matched: string[] = [];
-    for (const config of mainnetConfigs) {
-      if (deploymentsLower.includes(config.entrypoint.toLowerCase())) {
-        matched.push(config.name);
-      }
-    }
-
-    // At minimum one chain must match (guards against doc format changes)
-    expect(matched.length).toBeGreaterThanOrEqual(1);
-
-    // Warn about chains not yet documented upstream — this surfaces
-    // coverage gaps without failing on upstream documentation lag.
-    if (matched.length < mainnetConfigs.length) {
-      const missing = mainnetConfigs
-        .filter((c) => !matched.includes(c.name))
-        .map((c) => c.name);
-      console.warn(
-        `WARN: ${missing.length} mainnet chain(s) not found in upstream deployments.md: ${missing.join(", ")}. ` +
-          "Consider updating upstream documentation.",
-      );
+    for (const config of Object.values(CHAINS)) {
+      expect(chainDataLower).toContain(config.entrypoint.toLowerCase());
     }
   });
 });

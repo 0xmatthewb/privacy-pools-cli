@@ -60,7 +60,7 @@ describe("contract error classification conformance", () => {
         ]);
     } catch (err) {
       console.warn(
-        "Skipping contract error map conformance — could not fetch upstream files:",
+        "Skipping contract error map conformance — could not read source-of-truth files:",
         err
       );
       fetchFailed = true;

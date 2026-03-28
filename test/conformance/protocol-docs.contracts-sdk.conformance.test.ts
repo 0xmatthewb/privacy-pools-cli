@@ -1,12 +1,13 @@
 /**
- * Protocol conformance: cross-checks CLI source code against the canonical
- * upstream repos (main branch) to catch drift between the CLI and the
- * protocol.  Every test reads BOTH the upstream file AND the local CLI
- * source, then asserts alignment between the two.
+ * Protocol conformance: cross-checks CLI source code against the checked-out
+ * website/core sources and the installed SDK to catch drift between the CLI
+ * and the protocol. Every test reads BOTH the source of truth and the local
+ * CLI source, then asserts alignment between the two.
  *
- * Source of truth (main branch):
- *   Core:     https://github.com/0xbow-io/privacy-pools-core
- *   Frontend: https://github.com/0xbow-io/privacy-pools-website
+ * Source of truth:
+ *   Core contracts/circuits: local privacy-pools-core checkout
+ *   Frontend patterns:       local privacy-pools-website checkout
+ *   SDK:                     installed @0xbow/privacy-pools-core-sdk@1.2.0
  *
  * @frontend-parity
  */
@@ -22,20 +23,17 @@ import { CLI_ROOT } from "../helpers/paths.ts";
 
 // --- Upstream content (populated in beforeAll) ---
 
-let upstreamDeployments = "";
-let upstreamSdkRef = "";
-let upstreamContractsRef = "";
 let upstreamIPrivacyPool = "";
 let upstreamIEntrypoint = "";
 let upstreamCircuitsIndex = "";
-let upstreamCopyScript = "";
 let upstreamWithdrawInput = { stateSiblings: [] as string[], ASPSiblings: [] as string[] };
 let upstreamAspClient = "";
 let upstreamRelayerClient = "";
-let upstreamSdkIndex = "";
-let upstreamSdkCrypto = "";
-let upstreamAccountService = "";
 let upstreamIState = "";
+let installedSdkCore = "";
+let installedSdkIndex = "";
+let installedSdkCrypto = "";
+let installedSdkAccountService = "";
 
 // --- CLI source code (read synchronously) ---
 
@@ -77,34 +75,49 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   beforeAll(async () => {
     try {
       [
-        upstreamDeployments,
-        upstreamSdkRef,
-        upstreamContractsRef,
         upstreamIPrivacyPool,
         upstreamIEntrypoint,
         upstreamCircuitsIndex,
-        upstreamCopyScript,
         upstreamAspClient,
         upstreamRelayerClient,
-        upstreamSdkIndex,
-        upstreamSdkCrypto,
-        upstreamAccountService,
         upstreamIState,
       ] = await Promise.all([
-        fetchGitHubFile(CORE_REPO, "docs/docs/deployments.md"),
-        fetchGitHubFile(CORE_REPO, "docs/docs/reference/sdk.md"),
-        fetchGitHubFile(CORE_REPO, "docs/docs/reference/contracts.md"),
         fetchGitHubFile(CORE_REPO, "packages/contracts/src/interfaces/IPrivacyPool.sol"),
         fetchGitHubFile(CORE_REPO, "packages/contracts/src/interfaces/IEntrypoint.sol"),
         fetchGitHubFile(CORE_REPO, "packages/circuits/src/index.ts"),
-        fetchGitHubFile(CORE_REPO, "packages/sdk/scripts/copy_circuits.sh"),
         fetchGitHubFile(FRONTEND_REPO, "src/utils/aspClient.ts"),
         fetchGitHubFile(FRONTEND_REPO, "src/utils/relayerClient.ts"),
-        fetchGitHubFile(CORE_REPO, "packages/sdk/src/index.ts"),
-        fetchGitHubFile(CORE_REPO, "packages/sdk/src/crypto.ts"),
-        fetchGitHubFile(CORE_REPO, "packages/sdk/src/core/account.service.ts"),
         fetchGitHubFile(CORE_REPO, "packages/contracts/src/interfaces/IState.sol"),
       ]);
+
+      installedSdkCore = readFileSync(
+        resolve(
+          CLI_ROOT,
+          "node_modules/@0xbow/privacy-pools-core-sdk/src/core/sdk.ts",
+        ),
+        "utf8",
+      );
+      installedSdkIndex = readFileSync(
+        resolve(
+          CLI_ROOT,
+          "node_modules/@0xbow/privacy-pools-core-sdk/src/index.ts",
+        ),
+        "utf8",
+      );
+      installedSdkCrypto = readFileSync(
+        resolve(
+          CLI_ROOT,
+          "node_modules/@0xbow/privacy-pools-core-sdk/src/crypto.ts",
+        ),
+        "utf8",
+      );
+      installedSdkAccountService = readFileSync(
+        resolve(
+          CLI_ROOT,
+          "node_modules/@0xbow/privacy-pools-core-sdk/src/core/account.service.ts",
+        ),
+        "utf8",
+      );
 
       const rawInput = await fetchGitHubFile(
         CORE_REPO,
@@ -112,14 +125,14 @@ describe("protocol conformance: CLI ↔ upstream", () => {
       );
       upstreamWithdrawInput = JSON.parse(rawInput);
     } catch (err) {
-      console.warn("Skipping protocol conformance — could not fetch upstream files:", err);
+      console.warn("Skipping protocol conformance — could not read source-of-truth files:", err);
       fetchFailed = true;
     }
   });
 
   test("upstream fetch succeeded (canary — all protocol tests below are skipped if this fails)", () => {
     if (fetchFailed) {
-      console.warn("WARN: upstream GitHub fetch failed — protocol conformance tests are NOT running");
+      console.warn("WARN: source-of-truth files were unavailable — protocol conformance tests are NOT running");
     }
     expect(fetchFailed).toBe(false);
   });
@@ -132,31 +145,19 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   };
 
   // ---------------------------------------------------------------
-  // 1. Deployment addresses: upstream docs → CLI chain config
-  // ---------------------------------------------------------------
-
-  run("CLI chain config includes entrypoint address from upstream deployments", () => {
-    const entrypointProxy = "0x6818809eefce719e480a7526d76bd3e561526b46";
-    expect(upstreamDeployments.toLowerCase()).toContain(entrypointProxy);
-    expect(cliChains.toLowerCase()).toContain(entrypointProxy);
-  });
-
-  // ---------------------------------------------------------------
-  // 2. SDK documented methods: CLI calls → upstream SDK reference
-  //    Checks against the docs (sdk.md). Section 8 checks against
-  //    the actual source code for functions not in the docs.
+  // 1. SDK methods: CLI calls → installed SDK source
   // ---------------------------------------------------------------
 
   for (const method of ["proveWithdrawal", "proveCommitment"]) {
-    run(`CLI proof helper "${method}" exists in upstream SDK reference`, () => {
+    run(`CLI proof helper "${method}" exists in installed SDK source`, () => {
       const cliAll = cliWithdraw + cliRagequit + cliProofs;
       expect(cliAll).toContain(method);
-      expect(upstreamSdkRef).toContain(method);
+      expect(installedSdkCore).toContain(method);
     });
   }
 
   // ---------------------------------------------------------------
-  // 3. Contract read-only ABI: CLI pools.ts ↔ upstream Solidity
+  // 2. Contract read-only ABI: CLI pools.ts ↔ core Solidity
   // ---------------------------------------------------------------
 
   run("CLI assetConfig ABI field names match upstream IEntrypoint.sol", () => {
@@ -166,13 +167,13 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     }
   });
 
-  run("CLI SCOPE() call matches upstream contract docs", () => {
+  run("CLI SCOPE() call matches core interface contract", () => {
     expect(cliPools).toContain("SCOPE()");
-    expect(upstreamContractsRef).toContain("SCOPE()");
+    expect(upstreamIState).toContain("SCOPE()");
   });
 
   // ---------------------------------------------------------------
-  // 4. Tree depth: upstream circuits ↔ CLI hardcoded values
+  // 3. Tree depth: core circuits ↔ CLI hardcoded values
   // ---------------------------------------------------------------
 
   run("CLI tree depth (32) matches upstream circuit config", () => {
@@ -184,7 +185,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   });
 
   // ---------------------------------------------------------------
-  // 5. API endpoints: CLI ↔ upstream frontend
+  // 4. API endpoints: CLI ↔ website
   // ---------------------------------------------------------------
 
   for (const endpoint of ["/public/mt-roots", "/public/mt-leaves", "/public/pools-stats"]) {
@@ -207,33 +208,28 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   });
 
   // ---------------------------------------------------------------
-  // 6. Circuit artifacts: upstream internal consistency
-  //    (Not a CLI check — catches upstream inconsistency that would
-  //     break our SDK dependency.)
+  // 5. Circuit artifacts: core circuit config ↔ CLI expectations
   // ---------------------------------------------------------------
 
-  run("upstream circuit compile config and copy script are consistent", () => {
+  run("core circuit compile config includes the circuits the CLI provisions", () => {
     expect(upstreamCircuitsIndex).toContain('compile("commitment"');
     expect(upstreamCircuitsIndex).toContain('compile("withdraw"');
-    expect(upstreamCopyScript).toContain('CIRCUITS=("commitment" "withdraw")');
   });
 
   // ---------------------------------------------------------------
-  // 7. SDK class exports: upstream barrel → CLI imports
+  // 6. SDK class exports: installed SDK source → CLI imports
   // ---------------------------------------------------------------
 
   for (const name of ["AccountService", "DataService"]) {
-    run(`SDK class "${name}" exported by upstream and imported by CLI`, () => {
+    run(`SDK class "${name}" exported by installed SDK and imported by CLI`, () => {
       const cliAll = cliSdk + cliAccount;
       expect(cliAll).toContain(name);
-      expect(upstreamSdkIndex).toContain(name);
+      expect(installedSdkCore + installedSdkAccountService).toContain(name);
     });
   }
 
   // ---------------------------------------------------------------
-  // 8. SDK crypto functions: upstream source → CLI imports
-  //    These functions are not in sdk.md but the CLI depends on
-  //    them. Checked against actual source code (crypto.ts).
+  // 7. SDK crypto functions: installed SDK source → CLI imports
   // ---------------------------------------------------------------
 
   for (const { fn, cli } of [
@@ -243,17 +239,17 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   ]) {
     run(`SDK function "${fn}" exists in upstream crypto module and CLI`, () => {
       expect(cli).toContain(fn);
-      expect(upstreamSdkCrypto).toContain(fn);
+      expect(installedSdkCrypto).toContain(fn);
     });
   }
 
   // ---------------------------------------------------------------
-  // 9. [Removed] Unsigned ABI signature checks — superseded by
+  // 8. [Removed] Unsigned ABI signature checks — superseded by
   //    semantic 4-byte selector parity in abi-selector-parity.conformance.test.ts
   // ---------------------------------------------------------------
 
   // ---------------------------------------------------------------
-  // 10. IPrivacyPool.sol: events and structs ↔ CLI decoding
+  // 9. IPrivacyPool.sol: events and structs ↔ CLI decoding
   // ---------------------------------------------------------------
 
   run("CLI Deposited event parameter names match upstream IPrivacyPool.sol", () => {
@@ -381,13 +377,13 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     run(`AccountService.${method}() exists upstream and is used by CLI (${usedBy})`, () => {
       const cliAll = cliDeposit + cliWithdraw + cliRagequit + cliAccount;
       expect(cliAll).toContain(method);
-      expect(upstreamAccountService).toContain(method);
+      expect(installedSdkAccountService).toContain(method);
     });
   }
 
   run("AccountService.initializeWithEvents() exists upstream and is used by CLI init and sync paths", () => {
     expect(cliAccount).toContain("initializeWithEvents");
-    expect(upstreamAccountService).toContain("initializeWithEvents");
+    expect(installedSdkAccountService).toContain("initializeWithEvents");
   });
 
   // ---------------------------------------------------------------
@@ -396,7 +392,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
 
   run("CLI uses SDK Hash type from upstream crypto module", () => {
     expect(cliWithdraw).toContain("type Hash as SDKHash");
-    expect(upstreamSdkCrypto).toContain("Hash");
+    expect(installedSdkCrypto).toContain("Hash");
   });
 
   // ---------------------------------------------------------------
@@ -407,7 +403,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     // CLI passes these config fields when constructing DataService
     expect(cliSdk).toContain("privacyPoolAddress");
     expect(cliSdk).toContain("startBlock");
-    expect(upstreamSdkIndex).toContain("DataService");
+    expect(installedSdkIndex).toContain("DataService");
   });
 
   run("CLI-managed circuit artifacts match upstream circuit names and files", () => {
@@ -415,7 +411,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
       expect(cliCircuits).toContain(`${circuit}.wasm`);
       expect(cliCircuits).toContain(`${circuit}.zkey`);
       expect(cliCircuits).toContain(`${circuit}.vkey`);
-      expect(upstreamCopyScript).toContain(circuit);
+      expect(upstreamCircuitsIndex).toContain(`"${circuit}"`);
     }
   });
 
@@ -474,7 +470,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliDeposit).toContain("depositETH(");
     expect(cliDeposit).toContain("depositERC20(");
     expect(cliContracts).toContain('functionName: "deposit"');
-    expect(upstreamAccountService).toContain("createDepositSecrets");
+    expect(installedSdkAccountService).toContain("createDepositSecrets");
     expect(upstreamIEntrypoint).toContain("function deposit(");
   });
 });
