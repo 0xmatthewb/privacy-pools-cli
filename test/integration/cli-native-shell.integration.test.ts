@@ -149,6 +149,47 @@ function expectJsonParity(
   expect(nativeResult.stderr).toBe(jsResult.stderr);
 }
 
+function expectSilentStreamParity(
+  nativeBinary: string,
+  args: string[],
+  options: {
+    js?: CliRunOptions;
+    native?: CliRunOptions;
+  } = {},
+): void {
+  const jsResult = runBuiltCli(args, withJsFallback(options.js));
+  const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
+
+  assertDidNotTimeout("JS launcher result", jsResult);
+  assertDidNotTimeout("Native launcher result", nativeResult);
+  expect(nativeResult.status).toBe(jsResult.status);
+  expect(nativeResult.stdout.trim()).toBe("");
+  expect(nativeResult.stderr.trim()).toBe("");
+  expect(nativeResult.stdout).toBe(jsResult.stdout);
+  expect(nativeResult.stderr).toBe(jsResult.stderr);
+}
+
+function expectMachineSilenceParity(
+  nativeBinary: string,
+  args: string[],
+  options: {
+    js?: CliRunOptions;
+    native?: CliRunOptions;
+  } = {},
+): void {
+  const jsResult = runBuiltCli(args, withJsFallback(options.js));
+  const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
+
+  assertDidNotTimeout("JS launcher result", jsResult);
+  assertDidNotTimeout("Native launcher result", nativeResult);
+  expect(nativeResult.status).toBe(jsResult.status);
+  expect(jsResult.stderr.trim()).toBe("");
+  expect(nativeResult.stderr.trim()).toBe("");
+  expect(parseJsonOutput(nativeResult.stdout)).toEqual(
+    parseJsonOutput(jsResult.stdout),
+  );
+}
+
 function expectDirectNativeBuiltJsonParity(
   nativeBinary: string,
   args: string[],
@@ -516,6 +557,34 @@ describe("native shell parity", () => {
             PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
           },
         },
+      },
+    );
+  });
+
+  nativeTest("quiet and machine stream contracts stay intact across native routing", () => {
+    const env = fixtureEnv(fixture!);
+    expectSilentStreamParity(nativeBinary, ["--quiet", "activity"], {
+      js: { env },
+      native: { env },
+    });
+
+    const seededHome = createTempHome("pp-native-status-streams-");
+    mustInitSeededHome(seededHome, "sepolia");
+
+    expectSilentStreamParity(
+      nativeBinary,
+      ["--quiet", "--no-banner", "status", "--no-check"],
+      {
+        js: { home: seededHome },
+        native: { home: seededHome },
+      },
+    );
+    expectMachineSilenceParity(
+      nativeBinary,
+      ["--agent", "status", "--no-check"],
+      {
+        js: { home: seededHome },
+        native: { home: seededHome },
       },
     );
   });

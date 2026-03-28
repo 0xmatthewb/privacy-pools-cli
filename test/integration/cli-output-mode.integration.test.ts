@@ -10,6 +10,19 @@ const OFFLINE_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
 
+function expectSilentStreams(result: { stdout: string; stderr: string }): void {
+  expect(result.stdout.trim()).toBe("");
+  expect(result.stderr.trim()).toBe("");
+}
+
+function expectMachineStdoutOnly<T>(result: {
+  stdout: string;
+  stderr: string;
+}): T {
+  expect(result.stderr.trim()).toBe("");
+  return parseJsonOutput<T>(result.stdout);
+}
+
 describe("human-mode output contracts", () => {
   test("guide writes guide text to stderr", () => {
     const result = runCli(["guide"], { home: createTempHome() });
@@ -23,8 +36,7 @@ describe("human-mode output contracts", () => {
   test("guide --quiet stays fully silent", () => {
     const result = runCli(["--quiet", "guide"], { home: createTempHome() });
     expect(result.status).toBe(0);
-    expect(result.stderr.trim()).toBe("");
-    expect(result.stdout.trim()).toBe("");
+    expectSilentStreams(result);
   });
 
   test("capabilities writes the command catalog to stderr", () => {
@@ -40,8 +52,7 @@ describe("human-mode output contracts", () => {
   test("capabilities --quiet stays fully silent", () => {
     const result = runCli(["--quiet", "capabilities"], { home: createTempHome() });
     expect(result.status).toBe(0);
-    expect(result.stderr.trim()).toBe("");
-    expect(result.stdout.trim()).toBe("");
+    expectSilentStreams(result);
   });
 
   test("describe writes command details to stderr", () => {
@@ -59,8 +70,15 @@ describe("human-mode output contracts", () => {
       home: createTempHome(),
     });
     expect(result.status).toBe(0);
-    expect(result.stderr.trim()).toBe("");
-    expect(result.stdout.trim()).toBe("");
+    expectSilentStreams(result);
+  });
+
+  test("status --quiet --no-check stays fully silent", () => {
+    const result = runCli(["--quiet", "--no-banner", "status", "--no-check"], {
+      home: createSeededHome("sepolia"),
+    });
+    expect(result.status).toBe(0);
+    expectSilentStreams(result);
   });
 
   test("status without init writes readiness warnings to stderr", () => {
@@ -110,14 +128,12 @@ describe("--agent mode output contracts", () => {
   test("--agent guide emits JSON on stdout and nothing on stderr", () => {
     const result = runCli(["--agent", "guide"], { home: createTempHome() });
     expect(result.status).toBe(0);
-    expect(result.stderr.trim()).toBe("");
-
-    const json = parseJsonOutput<{
+    const json = expectMachineStdoutOnly<{
       schemaVersion: string;
       success: boolean;
       mode: string;
       help: string;
-    }>(result.stdout);
+    }>(result);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.mode).toBe("help");
@@ -128,13 +144,11 @@ describe("--agent mode output contracts", () => {
   test("--agent capabilities emits JSON on stdout and nothing on stderr", () => {
     const result = runCli(["--agent", "capabilities"], { home: createTempHome() });
     expect(result.status).toBe(0);
-    expect(result.stderr.trim()).toBe("");
-
-    const json = parseJsonOutput<{
+    const json = expectMachineStdoutOnly<{
       schemaVersion: string;
       success: boolean;
       commands: unknown[];
-    }>(result.stdout);
+    }>(result);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.commands.length).toBeGreaterThan(0);
@@ -145,14 +159,12 @@ describe("--agent mode output contracts", () => {
       home: createTempHome(),
     });
     expect(result.status).toBe(0);
-    expect(result.stderr.trim()).toBe("");
-
-    const json = parseJsonOutput<{
+    const json = expectMachineStdoutOnly<{
       schemaVersion: string;
       success: boolean;
       command: string;
       usage: string;
-    }>(result.stdout);
+    }>(result);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.command).toBe("withdraw quote");
@@ -165,12 +177,10 @@ describe("--agent mode output contracts", () => {
       timeoutMs: 60_000,
     });
     expect(result.status).toBe(0);
-    expect(result.stderr.trim()).toBe("");
-
-    const json = parseJsonOutput<{
+    const json = expectMachineStdoutOnly<{
       schemaVersion: string;
       success: boolean;
-    }>(result.stdout);
+    }>(result);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
   });
@@ -178,13 +188,11 @@ describe("--agent mode output contracts", () => {
   test("--agent completion emits JSON on stdout and nothing on stderr", () => {
     const result = runCli(["--agent", "completion", "bash"], { home: createTempHome() });
     expect(result.status).toBe(0);
-    expect(result.stderr.trim()).toBe("");
-
-    const json = parseJsonOutput<{
+    const json = expectMachineStdoutOnly<{
       schemaVersion: string;
       success: boolean;
       mode: string;
-    }>(result.stdout);
+    }>(result);
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.mode).toBe("completion-script");
@@ -206,25 +214,23 @@ describe("mode-contract matrix", () => {
         const result = runCli(["--json", ...testCase.args], opts);
         expect(result.status).not.toBe(null);
 
-        const json = parseJsonOutput<{ schemaVersion: string; success: boolean }>(result.stdout);
+        const json = expectMachineStdoutOnly<{ schemaVersion: string; success: boolean }>(result);
         expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
         expect(typeof json.success).toBe("boolean");
-        expect(result.stderr.trim()).toBe("");
       });
 
       test("--agent remains parseable and stderr-silent", () => {
         const result = runCli(["--agent", ...testCase.args], opts);
         expect(result.status).not.toBe(null);
 
-        const json = parseJsonOutput<{ schemaVersion: string; success: boolean }>(result.stdout);
+        const json = expectMachineStdoutOnly<{ schemaVersion: string; success: boolean }>(result);
         expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
         expect(typeof json.success).toBe("boolean");
-        expect(result.stderr.trim()).toBe("");
       });
 
       test("--quiet suppresses human output", () => {
         const result = runCli(["--quiet", ...testCase.args], opts);
-        expect(result.stdout.trim()).toBe("");
+        expectSilentStreams(result);
       });
 
       test("human mode keeps errors on stderr", () => {

@@ -400,6 +400,10 @@ function hasCode(error: unknown): boolean {
   );
 }
 
+function argvRequestsQuiet(argv: readonly string[] = process.argv.slice(2)): boolean {
+  return argv.some((token) => token === "--quiet" || /^-[^-]*q[^-]*$/.test(token));
+}
+
 export function printError(error: unknown, json: boolean = false): void {
   const classified = classifyError(error);
 
@@ -414,7 +418,7 @@ export function printError(error: unknown, json: boolean = false): void {
       },
       false
     );
-  } else {
+  } else if (!argvRequestsQuiet()) {
     process.stderr.write(dangerTone(`Error [${classified.category}]: ${classified.message}`) + "\n");
     if (classified.hint) {
       process.stderr.write(notice(`Hint: ${classified.hint}`) + "\n");

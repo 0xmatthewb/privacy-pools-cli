@@ -70,6 +70,13 @@ defineScenarioSuite("output-mode acceptance", [
     assertStdoutEmpty(),
     assertStderrEmpty(),
   ]),
+  defineScenario("status stays fully silent in quiet mode", [
+    seedHome("sepolia"),
+    runCliStep(["--quiet", "--no-banner", "status", "--no-check"]),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderrEmpty(),
+  ]),
   defineScenario("status without init writes readiness warnings to stderr", [
     runCliStep(["--no-banner", "status"]),
     assertExit(0),

@@ -406,7 +406,11 @@ fn main() {
 
     match run(&argv, &parsed) {
         Ok(code) => std::process::exit(code),
-        Err(error) => print_error_and_exit(&error, parsed.is_structured_output_mode),
+        Err(error) => print_error_and_exit(
+            &error,
+            parsed.is_structured_output_mode,
+            parsed.is_quiet || parsed.is_agent,
+        ),
     }
 }
 
@@ -1210,7 +1214,7 @@ fn print_json_success(payload: Value) {
     write_stdout_text(&serde_json::to_string(&output).expect("json success must serialize"));
 }
 
-fn print_error_and_exit(error: &CliError, structured: bool) -> ! {
+fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> ! {
     if structured {
         let payload = json!({
             "schemaVersion": JSON_SCHEMA_VERSION,
@@ -1226,7 +1230,7 @@ fn print_error_and_exit(error: &CliError, structured: bool) -> ! {
             }
         });
         write_stdout_text(&serde_json::to_string(&payload).expect("json error must serialize"));
-    } else {
+    } else if !quiet {
         write_stderr_text(&format!(
             "Error [{}]: {}",
             error.category.as_str(),
@@ -2838,6 +2842,10 @@ fn render_activity_output(mode: &NativeMode, data: ActivityRenderData) {
         return;
     }
 
+    if mode.is_quiet {
+        return;
+    }
+
     if data.mode == "pool-activity" {
         write_stderr_text(&format!(
             "\nActivity for {} on {}:\n\n",
@@ -2923,6 +2931,10 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
         return;
     }
 
+    if mode.is_quiet {
+        return;
+    }
+
     write_stderr_text(&format!("\nGlobal statistics ({}):\n\n", data.chain));
     print_table(vec!["Metric", "All Time", "Last 24h"], rows);
 }
@@ -2945,6 +2957,10 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
     let rows = stats_rows(&data.all_time, &data.last_24h);
     if mode.is_csv() {
         print_csv(vec!["Metric", "All Time", "Last 24h"], rows);
+        return;
+    }
+
+    if mode.is_quiet {
         return;
     }
 
@@ -2989,6 +3005,10 @@ fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData) {
             ],
             vec![],
         );
+        return;
+    }
+
+    if mode.is_quiet {
         return;
     }
 
@@ -3072,6 +3092,10 @@ fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
             .map(|entry| pool_listing_row(entry, data.all_chains))
             .collect::<Vec<_>>();
         print_csv(headers, rows);
+        return;
+    }
+
+    if mode.is_quiet {
         return;
     }
 
