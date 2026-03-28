@@ -256,6 +256,17 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("- verify-registry-install");
   });
 
+  test("registry install verifier checks exact native versions and the supported global npm path", () => {
+    expect(verifyRegistryInstallScript).toContain("assertInstalledPackageVersion(");
+    expect(verifyRegistryInstallScript).toContain('`Installed registry native package ${nativePackageName}`');
+    expect(verifyRegistryInstallScript).toContain('`Global installed registry native package ${nativePackageName}`');
+    expect(verifyRegistryInstallScript).toContain('"install"');
+    expect(verifyRegistryInstallScript).toContain('"-g"');
+    expect(verifyRegistryInstallScript).toContain('"--prefix"');
+    expect(verifyRegistryInstallScript).toContain("assertGlobalLauncherBasics");
+    expect(verifyRegistryInstallScript).toContain("assertGlobalNativeStatsSuccess");
+  });
+
   test("release workflow keeps an explicit native release signoff gate", () => {
     expect(releaseWorkflow).toContain("environment:");
     expect(releaseWorkflow).toContain("native-release-signoff");

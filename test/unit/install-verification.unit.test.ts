@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  assertInstalledPackageVersion,
   buildInstallBaseEnv,
   installCliEnv,
   npmProcessEnv,
@@ -168,5 +169,26 @@ describe("install verification env hygiene", () => {
       ),
       ),
     ).toBe(normalizeTempPath(nestedNativePath));
+  });
+
+  test("assertInstalledPackageVersion accepts the resolved installed version contract", () => {
+    const installRoot = createTrackedTempDir("pp-install-version-");
+    mkdirSync(installRoot, { recursive: true });
+    writeFileSync(
+      join(installRoot, "package.json"),
+      JSON.stringify({ name: "privacy-pools-cli", version: "1.7.0" }),
+      "utf8",
+    );
+
+    expect(
+      assertInstalledPackageVersion(
+        installRoot,
+        "1.7.0",
+        "Installed registry CLI",
+      ),
+    ).toMatchObject({
+      name: "privacy-pools-cli",
+      version: "1.7.0",
+    });
   });
 });
