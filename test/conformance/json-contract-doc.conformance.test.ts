@@ -81,6 +81,18 @@ describe("external JSON contract doc conformance", () => {
     expect(meta.versionEnvelope).toBeTruthy();
   });
 
+  test("doc reflects current upgrade machine fields", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const commands = doc.commands as Record<string, unknown>;
+
+    const upgrade = commands.upgrade as { successFields?: Record<string, string> };
+    expect(upgrade.successFields?.mode).toBe("\"upgrade\"");
+    expect(upgrade.successFields?.status).toContain("\"upgraded\"");
+    expect(upgrade.successFields?.command).toBe("string|null");
+    expect(upgrade.successFields?.installContext).toContain("\"bun_global\"");
+    expect(upgrade.successFields?.installedVersion).toBe("string|null");
+  });
+
   test("doc reflects current flow machine fields", () => {
     const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
     const commands = doc.commands as Record<string, unknown>;

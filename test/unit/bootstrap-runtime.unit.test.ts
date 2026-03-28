@@ -1,5 +1,9 @@
+import { realpathSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  captureOutput,
+  captureJsonOutput,
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
@@ -27,12 +31,14 @@ const realStaticDiscovery = captureModuleExports(
   await import("../../src/static-discovery.ts"),
 );
 const realCliMain = captureModuleExports(await import("../../src/cli-main.ts"));
+const realLauncher = captureModuleExports(await import("../../src/launcher.ts"));
 const realConsoleGuard = captureModuleExports(
   await import("../../src/utils/console-guard.ts"),
 );
 const realUpdateCheck = captureModuleExports(
   await import("../../src/utils/update-check.ts"),
 );
+const realJson = captureModuleExports(await import("../../src/utils/json.ts"));
 
 const BOOTSTRAP_RUNTIME_MODULE_RESTORES = [
   ["../../src/program.ts", realProgram],
@@ -43,8 +49,10 @@ const BOOTSTRAP_RUNTIME_MODULE_RESTORES = [
   ["dotenv", realDotenv],
   ["../../src/static-discovery.ts", realStaticDiscovery],
   ["../../src/cli-main.ts", realCliMain],
+  ["../../src/launcher.ts", realLauncher],
   ["../../src/utils/console-guard.ts", realConsoleGuard],
   ["../../src/utils/update-check.ts", realUpdateCheck],
+  ["../../src/utils/json.ts", realJson],
 ] as const;
 
 const ORIGINAL_ARGV = [...process.argv];
@@ -56,6 +64,8 @@ const ORIGINAL_CI = process.env.CI;
 const ORIGINAL_CODESPACES = process.env.CODESPACES;
 const ORIGINAL_STDOUT_IS_TTY = process.stdout.isTTY;
 const ORIGINAL_STDERR_IS_TTY = process.stderr.isTTY;
+const ORIGINAL_EXIT_CODE = process.exitCode;
+const ORIGINAL_BUN_VERSION = process.versions.bun;
 
 function setTty(stdoutIsTty: boolean, stderrIsTty = stdoutIsTty): void {
   Object.defineProperty(process.stdout, "isTTY", {
@@ -76,6 +86,23 @@ function makeCommanderExit(code: string) {
 
 function forceJsLauncherFallback(): void {
   process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE = "1";
+}
+
+function setIndexArgv(args: string[]): void {
+  process.argv = ["node", "privacy-pools-test", ...args];
+}
+
+function setDirectIndexArgv(
+  args: string[],
+  runtime = "node",
+  entryPath = realpathSync(resolve(process.cwd(), "src/index.ts")),
+): void {
+  process.argv = [runtime, entryPath, ...args];
+}
+
+async function runImportedIndex(query: string): Promise<void> {
+  const module = await import(`../../src/index.ts?${query}=${Date.now()}`);
+  await module.runCliEntrypoint();
 }
 
 function expectInlineWorkerRequestArgv(
@@ -174,6 +201,15 @@ afterEach(() => {
     delete process.env.CODESPACES;
   } else {
     process.env.CODESPACES = ORIGINAL_CODESPACES;
+  }
+  process.exitCode = ORIGINAL_EXIT_CODE;
+  if (ORIGINAL_BUN_VERSION === undefined) {
+    delete process.versions.bun;
+  } else {
+    Object.defineProperty(process.versions, "bun", {
+      configurable: true,
+      value: ORIGINAL_BUN_VERSION,
+    });
   }
   setTty(Boolean(ORIGINAL_STDOUT_IS_TTY), Boolean(ORIGINAL_STDERR_IS_TTY));
   restoreModuleImplementations(BOOTSTRAP_RUNTIME_MODULE_RESTORES);
@@ -662,6 +698,442 @@ describe("bootstrap runtime coverage", () => {
     expect(stderr).toBe("");
   });
 
+  test("cliMain internals normalize repository and config-home fallbacks", async () => {
+    const { cliMainTestInternals } = realCliMain;
+
+    expect(
+      cliMainTestInternals.normalizeRepositoryUrl(
+        "git+https://github.com/0xbow-io/privacy-pools-cli.git",
+      ),
+    ).toBe("github.com/0xbow-io/privacy-pools-cli");
+    expect(
+      cliMainTestInternals.normalizeRepositoryUrl({
+        url: "ssh://git@github.com/0xbow-io/privacy-pools-cli.git",
+      }),
+    ).toBe("github.com/0xbow-io/privacy-pools-cli");
+    expect(cliMainTestInternals.normalizeRepositoryUrl({})).toBeNull();
+
+    process.env.PRIVACY_POOLS_HOME = " /tmp/privacy-home ";
+    expect(cliMainTestInternals.configHome()).toBe("/tmp/privacy-home");
+
+    delete process.env.PRIVACY_POOLS_HOME;
+    process.env.PRIVACY_POOLS_CONFIG_DIR = " /tmp/privacy-config ";
+    expect(cliMainTestInternals.configHome()).toBe("/tmp/privacy-config");
+
+    delete process.env.PRIVACY_POOLS_CONFIG_DIR;
+    expect(cliMainTestInternals.configHome()).toContain(".privacy-pools");
+  });
+
+  test("cliMain internals map commander errors and gate update checks", async () => {
+    const { cliMainTestInternals } = realCliMain;
+
+    expect(cliMainTestInternals.mapCommanderError("oops")).toBeNull();
+    expect(
+      cliMainTestInternals.mapCommanderError({ code: "custom.error" }),
+    ).toBeNull();
+    expect(
+      cliMainTestInternals.mapCommanderError({
+        code: "commander.invalidOptionArgument",
+        message: "error: invalid value for --timeout",
+      })?.message,
+    ).toBe("invalid value for --timeout");
+
+    expect(
+      cliMainTestInternals.shouldStartUpdateCheck(
+        undefined,
+        true,
+        true,
+        false,
+        false,
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      cliMainTestInternals.shouldStartUpdateCheck(
+        undefined,
+        true,
+        false,
+        false,
+        true,
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      cliMainTestInternals.shouldStartUpdateCheck(
+        "guide",
+        true,
+        false,
+        false,
+        false,
+        false,
+      ),
+    ).toBe(false);
+
+    setTty(false);
+    expect(
+      cliMainTestInternals.shouldStartUpdateCheck(
+        undefined,
+        true,
+        false,
+        false,
+        false,
+        false,
+      ),
+    ).toBe(false);
+
+    setTty(true);
+    process.env.CI = "1";
+    expect(
+      cliMainTestInternals.shouldStartUpdateCheck(
+        undefined,
+        true,
+        false,
+        false,
+        false,
+        false,
+      ),
+    ).toBe(false);
+
+    delete process.env.CI;
+    expect(
+      cliMainTestInternals.shouldStartUpdateCheck(
+        undefined,
+        true,
+        false,
+        false,
+        false,
+        false,
+      ),
+    ).toBe(true);
+  });
+
+  test("cliMain internals emit structured help and signal payloads", async () => {
+    const { cliMainTestInternals } = realCliMain;
+    const program = {
+      helpInformation: () => "root help body",
+    };
+
+    const rootHelp = captureJsonOutput(() => {
+      cliMainTestInternals.emitStructuredRootHelpIfNeeded(program as any, {
+        isStructuredOutputMode: true,
+        isHelpLike: false,
+        isVersionLike: false,
+        firstCommandToken: undefined,
+      });
+    });
+    expect(rootHelp.json.success).toBe(true);
+    expect(rootHelp.json.mode).toBe("help");
+    expect(rootHelp.json.help).toBe("root help body");
+
+    const machineVersion = captureJsonOutput(() => {
+      cliMainTestInternals.emitCommanderSignalPayload(
+        program as any,
+        "commander.version",
+        {
+          captureMachineOutput: true,
+          isStructuredOutputMode: true,
+          machineOutput: { value: "9.9.9\n" },
+          version: "1.2.3",
+        },
+      );
+    });
+    expect(machineVersion.json.success).toBe(true);
+    expect(machineVersion.json.mode).toBe("version");
+    expect(machineVersion.json.version).toBe("9.9.9");
+
+    const structuredHelp = captureJsonOutput(() => {
+      cliMainTestInternals.emitCommanderSignalPayload(program as any, undefined, {
+        captureMachineOutput: false,
+        isStructuredOutputMode: true,
+        machineOutput: { value: "" },
+        version: "1.2.3",
+      });
+    });
+    expect(structuredHelp.json.success).toBe(true);
+    expect(structuredHelp.json.mode).toBe("help");
+    expect(structuredHelp.json.help).toBe("root help body");
+  });
+
+  test("cliMain internals configure and recurse machine-mode output", async () => {
+    const { cliMainTestInternals } = realCliMain;
+
+    const subcommand = {
+      commands: [],
+      showSuggestionAfterError: mock(() => undefined),
+      showHelpAfterError: mock(() => undefined),
+      configureOutput: mock(() => undefined),
+      exitOverride: mock(() => undefined),
+    };
+    const program = {
+      commands: [subcommand],
+      showSuggestionAfterError: mock(() => undefined),
+      showHelpAfterError: mock(() => undefined),
+      configureOutput: mock(() => undefined),
+      exitOverride: mock(() => undefined),
+    };
+    const machineOutput = { value: "" };
+
+    cliMainTestInternals.applyMachineMode(program as any, {
+      captureMachineOutput: true,
+      styleCommanderHelp: null,
+      machineOutput,
+    });
+
+    expect(program.showSuggestionAfterError).toHaveBeenCalledWith(false);
+    expect(program.showHelpAfterError).toHaveBeenCalledWith(false);
+    expect(program.exitOverride).toHaveBeenCalledTimes(1);
+    expect(subcommand.exitOverride).toHaveBeenCalledTimes(1);
+
+    const configuredOutput = program.configureOutput.mock.calls[0]?.[0] as {
+      writeOut: (value: string) => void;
+      writeErr: () => void;
+      outputError: () => void;
+    };
+    configuredOutput.writeOut("machine help");
+    expect(machineOutput.value).toBe("machine help");
+  });
+
+  test("cliMain internals style commander output for humans", async () => {
+    const { cliMainTestInternals } = realCliMain;
+    let configuredOutput:
+      | {
+          writeOut: (value: string) => void;
+          writeErr: (value: string) => void;
+          outputError: (value: string, write: (value: string) => void) => void;
+        }
+      | undefined;
+    const program = {
+      configureOutput: (output: typeof configuredOutput) => {
+        configuredOutput = output;
+      },
+    };
+
+    cliMainTestInternals.configureCommanderOutput(program as any, {
+      captureMachineOutput: false,
+      isWelcome: false,
+      isMachineMode: false,
+      styleCommanderHelp: (value: string) => `styled:${value}`,
+      dangerTone: (value: string) => `danger:${value}`,
+      machineOutput: { value: "" },
+    });
+
+    const captured = captureOutput(() => {
+      configuredOutput?.writeOut("help");
+      configuredOutput?.writeErr("stderr");
+      configuredOutput?.outputError("warn", (value) => process.stderr.write(value));
+    });
+
+    expect(captured.stdout).toBe("styled:help");
+    expect(captured.stderr).toBe("stderrdanger:warn");
+  });
+
+  test("cliMain internals write styled machine help when not capturing", async () => {
+    const { cliMainTestInternals } = realCliMain;
+    const program = {
+      commands: [],
+      showSuggestionAfterError: mock(() => undefined),
+      showHelpAfterError: mock(() => undefined),
+      configureOutput: mock(() => undefined),
+      exitOverride: mock(() => undefined),
+    };
+
+    cliMainTestInternals.applyMachineMode(program as any, {
+      captureMachineOutput: false,
+      styleCommanderHelp: (value: string) => `styled:${value}`,
+      machineOutput: { value: "" },
+    });
+
+    const configuredOutput = program.configureOutput.mock.calls[0]?.[0] as {
+      writeOut: (value: string) => void;
+    };
+    const captured = captureOutput(() => {
+      configuredOutput.writeOut("machine help");
+    });
+
+    expect(captured.stdout).toBe("styled:machine help");
+  });
+
+  test("staticDiscovery internals cover remaining parser option branches", async () => {
+    const { staticDiscoveryTestInternals } = realStaticDiscovery;
+
+    expect(
+      staticDiscoveryTestInternals.isKnownCompletionShell("powershell"),
+    ).toBe(true);
+
+    const longOpts: Record<string, string | boolean | undefined> = {};
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--agent",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--quiet",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--yes", undefined, longOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--verbose",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--no-banner",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--no-color",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--help",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: true,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--version",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: true,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--chain=mainnet",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(longOpts.chain).toBe("mainnet");
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--rpc-url=http://127.0.0.1:8545",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(longOpts.rpcUrl).toBe("http://127.0.0.1:8545");
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--timeout=9",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(longOpts.timeout).toBe("9");
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--chain", undefined, {}),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--rpc-url", undefined, {}),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--timeout", undefined, {}),
+    ).toBeNull();
+
+    const shortOpts: Record<string, string | boolean | undefined> = {};
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-c", "mainnet", shortOpts),
+    ).toEqual({
+      consumedNext: true,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(shortOpts.chain).toBe("mainnet");
+    expect(
+      staticDiscoveryTestInternals.parseShortOption(
+        "-r",
+        "http://127.0.0.1:8545",
+        shortOpts,
+      ),
+    ).toEqual({
+      consumedNext: true,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(shortOpts.rpcUrl).toBe("http://127.0.0.1:8545");
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-h", undefined, shortOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: true,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-V", undefined, shortOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: true,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-c", undefined, {}),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-r", undefined, {}),
+    ).toBeNull();
+  });
+
   test("index routes root help through the static discovery fast path", async () => {
     forceJsLauncherFallback();
     const runStaticRootHelpMock = mock(async () => undefined);
@@ -678,10 +1150,10 @@ describe("bootstrap runtime coverage", () => {
       runCli: runCliMock,
     }));
 
-    process.argv = ["node", "privacy-pools", "--help"];
+    setIndexArgv(["--help"]);
 
     const { exitCode } = await captureAsyncOutputAllowExit(async () => {
-      await import(`../../src/index.ts?root-help-fast-path=${Date.now()}`);
+      await runImportedIndex("root-help-fast-path");
     });
 
     expect(exitCode).toBe(0);
@@ -703,10 +1175,10 @@ describe("bootstrap runtime coverage", () => {
       runCli: runCliMock,
     }));
 
-    process.argv = ["node", "privacy-pools", "--json", "--help"];
+    setIndexArgv(["--json", "--help"]);
 
     const { exitCode } = await captureAsyncOutputAllowExit(async () => {
-      await import(`../../src/index.ts?root-help-structured=${Date.now()}`);
+      await runImportedIndex("root-help-structured");
     });
 
     expect(exitCode).toBe(0);
@@ -730,10 +1202,10 @@ describe("bootstrap runtime coverage", () => {
       runCli: runCliMock,
     }));
 
-    process.argv = ["node", "privacy-pools", "completion", "--query", "--words", "privacy-pools st"];
+    setIndexArgv(["completion", "--query", "--words", "privacy-pools st"]);
 
     const { exitCode } = await captureAsyncOutputAllowExit(async () => {
-      await import(`../../src/index.ts?completion-fast-path=${Date.now()}`);
+      await runImportedIndex("completion-fast-path");
     });
 
     expect(exitCode).toBe(0);
@@ -762,17 +1234,10 @@ describe("bootstrap runtime coverage", () => {
       runWorkerFromEnv: async () => undefined,
     }));
 
-    process.argv = [
-      "node",
-      "privacy-pools",
-      "completion",
-      "--query",
-      "--words",
-      "privacy-pools st",
-    ];
+    setIndexArgv(["completion", "--query", "--words", "privacy-pools st"]);
 
     await captureAsyncOutput(async () => {
-      await import(`../../src/index.ts?completion-fallthrough=${Date.now()}`);
+      await runImportedIndex("completion-fallthrough");
     });
 
     expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
@@ -799,10 +1264,10 @@ describe("bootstrap runtime coverage", () => {
       runCli: runCliMock,
     }));
 
-    process.argv = ["node", "privacy-pools", "guide", "--json"];
+    setIndexArgv(["guide", "--json"]);
 
     const { exitCode } = await captureAsyncOutputAllowExit(async () => {
-      await import(`../../src/index.ts?discovery-fast-path=${Date.now()}`);
+      await runImportedIndex("discovery-fast-path");
     });
 
     expect(exitCode).toBe(0);
@@ -832,10 +1297,10 @@ describe("bootstrap runtime coverage", () => {
       runWorkerFromEnv: async () => undefined,
     }));
 
-    process.argv = ["node", "privacy-pools", "guide", "--json"];
+    setIndexArgv(["guide", "--json"]);
 
     await captureAsyncOutput(async () => {
-      await import(`../../src/index.ts?discovery-fallthrough=${Date.now()}`);
+      await runImportedIndex("discovery-fallthrough");
     });
 
     expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
@@ -844,18 +1309,18 @@ describe("bootstrap runtime coverage", () => {
 
   test("index serves the root version fast path in human and structured modes", async () => {
     forceJsLauncherFallback();
-    process.argv = ["node", "privacy-pools", "-V"];
+    setIndexArgv(["-V"]);
     const human = await captureAsyncOutputAllowExit(async () => {
-      await import(`../../src/index.ts?version-human-fast-path=${Date.now()}`);
+      await runImportedIndex("version-human-fast-path");
     });
 
     expect(human.exitCode).toBe(0);
     expect(human.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
     expect(human.stderr).toBe("");
 
-    process.argv = ["node", "privacy-pools", "--format=json", "--version"];
+    setIndexArgv(["--format=json", "--version"]);
     const structured = await captureAsyncJsonOutputAllowExit(async () => {
-      await import(`../../src/index.ts?version-json-fast-path=${Date.now()}`);
+      await runImportedIndex("version-json-fast-path");
     });
 
     expect(structured.exitCode).toBe(0);
@@ -879,10 +1344,10 @@ describe("bootstrap runtime coverage", () => {
       runCli: runCliMock,
     }));
 
-    process.argv = ["node", "privacy-pools", "--chain", "mainnet", "help"];
+    setIndexArgv(["--chain", "mainnet", "help"]);
 
     const { exitCode } = await captureAsyncOutputAllowExit(async () => {
-      await import(`../../src/index.ts?root-help-after-root-option=${Date.now()}`);
+      await runImportedIndex("root-help-after-root-option");
     });
 
     expect(exitCode).toBe(0);
@@ -904,10 +1369,10 @@ describe("bootstrap runtime coverage", () => {
       runCli: runCliMock,
     }));
 
-    process.argv = ["node", "privacy-pools", "--format", "json", "help"];
+    setIndexArgv(["--format", "json", "help"]);
 
     const { exitCode } = await captureAsyncOutputAllowExit(async () => {
-      await import(`../../src/index.ts?root-help-format-split=${Date.now()}`);
+      await runImportedIndex("root-help-format-split");
     });
 
     expect(exitCode).toBe(0);
@@ -917,11 +1382,11 @@ describe("bootstrap runtime coverage", () => {
 
   test("index serves the structured root version fast path for agent mode", async () => {
     forceJsLauncherFallback();
-    process.argv = ["node", "privacy-pools", "--agent", "--version"];
+    setIndexArgv(["--agent", "--version"]);
 
     const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(
       async () => {
-        await import(`../../src/index.ts?version-agent-fast-path=${Date.now()}`);
+        await runImportedIndex("version-agent-fast-path");
       },
     );
 
@@ -944,10 +1409,10 @@ describe("bootstrap runtime coverage", () => {
       runWorkerFromEnv: async () => undefined,
     }));
 
-    process.argv = ["node", "privacy-pools", "--no-color", "status"];
+    setIndexArgv(["--no-color", "status"]);
 
     await captureAsyncOutput(async () => {
-      await import(`../../src/index.ts?no-color-delegation=${Date.now()}`);
+      await runImportedIndex("no-color-delegation");
     });
 
     expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
@@ -963,13 +1428,57 @@ describe("bootstrap runtime coverage", () => {
       runWorkerFromEnv: async () => undefined,
     }));
 
-    process.argv = ["node", "privacy-pools", "status", "--json"];
+    setIndexArgv(["status", "--json"]);
 
     await captureAsyncOutput(async () => {
-      await import(`../../src/index.ts?full-cli-path=${Date.now()}`);
+      await runImportedIndex("full-cli-path");
     });
 
     expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
     expectInlineWorkerRequestArgv(runWorkerRequestMock, ["status", "--json"]);
+  });
+
+  test("index stays inert when imported outside the direct CLI entry path", async () => {
+    forceJsLauncherFallback();
+    const runLauncherMock = mock(async () => undefined);
+
+    mock.module("../../src/launcher.ts", () => ({
+      runLauncher: runLauncherMock,
+    }));
+
+    process.argv = ["bun", "eval-script", "--json", "status"];
+
+    const { stdout, stderr } = await captureAsyncOutput(async () => {
+      await import(`../../src/index.ts?imported-module-only=${Date.now()}`);
+    });
+
+    expect(runLauncherMock).not.toHaveBeenCalled();
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+  });
+
+  test("index rejects Bun as a direct runtime before launching commands", async () => {
+    const runLauncherMock = mock(async () => undefined);
+
+    mock.module("../../src/launcher.ts", () => ({
+      runLauncher: runLauncherMock,
+    }));
+
+    setDirectIndexArgv(["--json", "status"], "bun");
+    Object.defineProperty(process.versions, "bun", {
+      configurable: true,
+      value: "1.3.11",
+    });
+
+    const { json, stderr } = await captureAsyncJsonOutput(async () => {
+      await import(`../../src/index.ts?bun-runtime-guard=${Date.now()}`);
+    });
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("UNSUPPORTED_RUNTIME");
+    expect(json.error.message).toContain("Node.js only");
+    expect(stderr).toBe("");
+    expect(process.exitCode).toBe(2);
+    expect(runLauncherMock).not.toHaveBeenCalled();
   });
 });

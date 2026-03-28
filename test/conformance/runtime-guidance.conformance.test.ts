@@ -9,6 +9,8 @@ import {
 
 const README_PATH = join(CLI_ROOT, "README.md");
 const AGENTS_PATH = join(CLI_ROOT, "AGENTS.md");
+const CLAUDE_PATH = join(CLI_ROOT, "CLAUDE.md");
+const CHANGELOG_PATH = join(CLI_ROOT, "CHANGELOG.md");
 const REFERENCE_PATH = join(CLI_ROOT, "docs", "reference.md");
 const RUNTIME_UPGRADES_PATH = join(CLI_ROOT, "docs", "runtime-upgrades.md");
 const NATIVE_MANIFEST_PATH = join(
@@ -19,28 +21,70 @@ const NATIVE_MANIFEST_PATH = join(
   "manifest.json",
 );
 
-function expectNoBunRuntimeGuidance(text: string): void {
-  expect(text).not.toMatch(/\bbun\b/i);
+function expectNoBunRuntimeCommands(text: string): void {
+  const forbiddenPatterns = [
+    /\bbun add -g\b/i,
+    /\bbun install\b/i,
+    /\bbun run (?:dev|start|build|typecheck|docs:(?:generate|check|preview))\b/i,
+    /\bbun\s+(?:src\/index\.ts|dist\/index\.js)\b/i,
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    expect(text).not.toMatch(pattern);
+  }
+}
+
+function expectNoBunInstallOrVerificationCommands(text: string): void {
+  const forbiddenPatterns = [
+    /\bbun add -g\b/i,
+    /\bbun install\b/i,
+    /\bbun run\b/i,
+    /\bbun test\b/i,
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    expect(text).not.toMatch(pattern);
+  }
+}
+
+function expectNoMaintainerBunRuntimeCommands(text: string): void {
+  const forbiddenPatterns = [
+    /bun install/i,
+    /bun run build/i,
+    /bun run dev/i,
+    /bun run start/i,
+    /bun run typecheck/i,
+    /bun run docs:(?:generate|check|preview)/i,
+    /uses bun\.lock/i,
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    expect(text).not.toMatch(pattern);
+  }
 }
 
 describe("runtime guidance conformance", () => {
   test("runtime-facing docs omit bun install or execution guidance", () => {
-    expectNoBunRuntimeGuidance(readFileSync(README_PATH, "utf8"));
-    expectNoBunRuntimeGuidance(readFileSync(AGENTS_PATH, "utf8"));
-    expectNoBunRuntimeGuidance(readFileSync(RUNTIME_UPGRADES_PATH, "utf8"));
+    expectNoBunRuntimeCommands(readFileSync(README_PATH, "utf8"));
+    expectNoBunRuntimeCommands(readFileSync(AGENTS_PATH, "utf8"));
+    expectNoBunRuntimeCommands(readFileSync(RUNTIME_UPGRADES_PATH, "utf8"));
+  });
+
+  test("repo contributor docs keep build and runtime guidance node-only", () => {
+    expectNoMaintainerBunRuntimeCommands(readFileSync(CLAUDE_PATH, "utf8"));
   });
 
   test("root help and packaged guide stay node-only", () => {
-    expectNoBunRuntimeGuidance(rootHelpBaseText());
-    expectNoBunRuntimeGuidance(rootHelpText());
+    expectNoBunRuntimeCommands(rootHelpBaseText());
+    expectNoBunRuntimeCommands(rootHelpText());
 
     const manifest = JSON.parse(readFileSync(NATIVE_MANIFEST_PATH, "utf8")) as {
       rootHelp: string;
       guideHumanText: string;
     };
 
-    expectNoBunRuntimeGuidance(manifest.rootHelp);
-    expectNoBunRuntimeGuidance(manifest.guideHumanText);
+    expectNoBunRuntimeCommands(manifest.rootHelp);
+    expectNoBunRuntimeCommands(manifest.guideHumanText);
   });
 
   test("generated reference keeps bun out of user-facing command guidance", () => {
@@ -48,6 +92,10 @@ describe("runtime guidance conformance", () => {
     const runtimeFacingSections =
       reference.split("### Runtime Requirements")[0] ?? reference;
 
-    expectNoBunRuntimeGuidance(runtimeFacingSections);
+    expectNoBunRuntimeCommands(runtimeFacingSections);
+  });
+
+  test("shipped changelog omits bun-based install and verification commands", () => {
+    expectNoBunInstallOrVerificationCommands(readFileSync(CHANGELOG_PATH, "utf8"));
   });
 });

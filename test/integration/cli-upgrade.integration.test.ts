@@ -354,7 +354,7 @@ describe("cli upgrade", () => {
     expect(json.success).toBe(true);
     expect(json.status).toBe("manual");
     expect(json.performed).toBe(false);
-    expect(json.installContext.kind).toBe("unknown");
+    expect(json.installContext.kind).toBe("bun_global");
     expect(json.installContext.supportedAutoRun).toBe(false);
     expect(json.installContext.reason).toContain("Bun");
     expect(json.command).toBe("npm install -g privacy-pools-cli@9.9.9");

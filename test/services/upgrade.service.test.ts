@@ -126,7 +126,7 @@ describe("upgrade service", () => {
     expect(context.supportedAutoRun).toBe(false);
   });
 
-  test("treats Bun global installs as unsupported ambiguous contexts", () => {
+  test("classifies Bun global installs as a distinct manual-only context", () => {
     const tempRoot = createTrackedTempDir("pp-upgrade-bun-global-");
     const packageRoot = join(
       tempRoot,
@@ -148,7 +148,7 @@ describe("upgrade service", () => {
       }),
     });
 
-    expect(context.kind).toBe("unknown");
+    expect(context.kind).toBe("bun_global");
     expect(context.supportedAutoRun).toBe(false);
     expect(context.reason).toContain("Bun");
   });
@@ -330,7 +330,7 @@ describe("upgrade service", () => {
     });
 
     expect(result.status).toBe("manual");
-    expect(result.installContext.kind).toBe("unknown");
+    expect(result.installContext.kind).toBe("bun_global");
     expect(result.installContext.reason).toContain("Bun");
     expect(result.command).toBe(
       `npm install -g ${CLI_NPM_PACKAGE_NAME}@1.4.0`,

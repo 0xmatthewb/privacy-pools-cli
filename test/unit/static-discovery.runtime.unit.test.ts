@@ -28,6 +28,9 @@ describe("static discovery runtime", () => {
     expect(staticDiscoveryTestInternals.isKnownCompletionShell("bash")).toBe(
       true,
     );
+    expect(
+      staticDiscoveryTestInternals.isKnownCompletionShell("powershell"),
+    ).toBe(true);
     expect(staticDiscoveryTestInternals.isKnownCompletionShell("elvish")).toBe(
       false,
     );
@@ -90,6 +93,169 @@ describe("static discovery runtime", () => {
     });
     expect(
       staticDiscoveryTestInternals.parseShortFlagBundle("-cz", {}),
+    ).toBeNull();
+  });
+
+  test("static discovery parser helpers cover remaining global option branches", () => {
+    const longOpts: Record<string, string | boolean | undefined> = {};
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--agent", undefined, longOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--quiet", undefined, longOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--yes", undefined, longOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--verbose",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--no-banner",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--no-color",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--help", undefined, longOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: true,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--version",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: true,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--chain=mainnet",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(longOpts.chain).toBe("mainnet");
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--rpc-url=http://127.0.0.1:8545",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(longOpts.rpcUrl).toBe("http://127.0.0.1:8545");
+    expect(
+      staticDiscoveryTestInternals.parseLongOption(
+        "--timeout=9",
+        undefined,
+        longOpts,
+      ),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(longOpts.timeout).toBe("9");
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--chain", undefined, {}),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--rpc-url", undefined, {}),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseLongOption("--timeout", undefined, {}),
+    ).toBeNull();
+
+    const shortOpts: Record<string, string | boolean | undefined> = {};
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-c", "mainnet", shortOpts),
+    ).toEqual({
+      consumedNext: true,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(shortOpts.chain).toBe("mainnet");
+    expect(
+      staticDiscoveryTestInternals.parseShortOption(
+        "-r",
+        "http://127.0.0.1:8545",
+        shortOpts,
+      ),
+    ).toEqual({
+      consumedNext: true,
+      helpLike: false,
+      versionLike: false,
+    });
+    expect(shortOpts.rpcUrl).toBe("http://127.0.0.1:8545");
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-h", undefined, shortOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: true,
+      versionLike: false,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-V", undefined, shortOpts),
+    ).toEqual({
+      consumedNext: false,
+      helpLike: false,
+      versionLike: true,
+    });
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-c", undefined, {}),
+    ).toBeNull();
+    expect(
+      staticDiscoveryTestInternals.parseShortOption("-r", undefined, {}),
     ).toBeNull();
   });
 
