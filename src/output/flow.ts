@@ -105,11 +105,42 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
 
   switch (snapshot.phase) {
     case "awaiting_funding":
+    case "depositing_publicly":
+      return [
+        createNextAction(
+          "flow watch",
+          "Resume this saved workflow and continue toward the private withdrawal.",
+          "flow_resume",
+          {
+            args: [snapshot.workflowId],
+            options: { agent: true },
+          },
+        ),
+      ];
     case "awaiting_asp":
     case "approved_waiting_privacy_delay":
     case "approved_ready_to_withdraw":
+      return [
+        createNextAction(
+          "flow watch",
+          "Resume this saved workflow and continue toward the private withdrawal.",
+          "flow_resume",
+          {
+            args: [snapshot.workflowId],
+            options: { agent: true },
+          },
+        ),
+        createNextAction(
+          "flow ragequit",
+          "Use flow ragequit instead if you want to stop waiting and recover publicly to the original deposit address.",
+          "flow_public_recovery_optional",
+          {
+            args: [snapshot.workflowId],
+            options: { agent: true },
+          },
+        ),
+      ];
     case "withdrawing":
-    case "depositing_publicly":
       return [
         createNextAction(
           "flow watch",
@@ -176,11 +207,39 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
 
   switch (snapshot.phase) {
     case "awaiting_funding":
+    case "depositing_publicly":
+      return [
+        createNextAction(
+          "flow watch",
+          "Resume this saved workflow and continue toward the private withdrawal.",
+          "flow_resume",
+          {
+            args: [snapshot.workflowId],
+          },
+        ),
+      ];
     case "awaiting_asp":
     case "approved_waiting_privacy_delay":
     case "approved_ready_to_withdraw":
+      return [
+        createNextAction(
+          "flow watch",
+          "Resume this saved workflow and continue toward the private withdrawal.",
+          "flow_resume",
+          {
+            args: [snapshot.workflowId],
+          },
+        ),
+        createNextAction(
+          "flow ragequit",
+          "Use flow ragequit instead if you want to stop waiting and recover publicly to the original deposit address.",
+          "flow_public_recovery_optional",
+          {
+            args: [snapshot.workflowId],
+          },
+        ),
+      ];
     case "withdrawing":
-    case "depositing_publicly":
       return [
         createNextAction(
           "flow watch",
@@ -293,7 +352,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     );
   } else if (data.snapshot.phase === "completed_public_recovery") {
     success(
-      `Workflow ${data.snapshot.workflowId} completed on the public recovery path.`,
+      `Workflow ${data.snapshot.workflowId} recovered funds publicly to the original deposit address. Privacy was not preserved.`,
       silent,
     );
   } else if (data.snapshot.ragequitTxHash && !data.snapshot.ragequitBlockNumber) {

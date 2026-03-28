@@ -6,7 +6,11 @@ import {
   type PoolInfo,
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Address } from "viem";
-import { getAccountsDir, ensureConfigDir } from "./config.js";
+import {
+  getAccountsDir,
+  ensureConfigDir,
+  writePrivateFileAtomic,
+} from "./config.js";
 import {
   CLIError,
   accountMigrationRequiredError,
@@ -520,12 +524,7 @@ export function loadSyncMeta(chainId: number): { lastSyncTime: number } | null {
 export function saveSyncMeta(chainId: number): void {
   ensureConfigDir();
   const path = getSyncMetaPath(chainId);
-  const tmpPath = path + ".tmp";
-  writeFileSync(tmpPath, JSON.stringify({ lastSyncTime: Date.now() }), {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
-  renameSync(tmpPath, path);
+  writePrivateFileAtomic(path, JSON.stringify({ lastSyncTime: Date.now() }));
 }
 
 /** True if the chain was synced within the TTL window. */

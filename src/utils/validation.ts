@@ -3,6 +3,8 @@ import { CHAINS, CHAIN_NAMES, resolveChainOverrides } from "../config/chains.js"
 import type { ChainConfig } from "../types.js";
 import { CLIError } from "./errors.js";
 
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
 export function resolveChain(
   chainName?: string,
   defaultChain?: string
@@ -23,7 +25,10 @@ export function resolveChain(
   return resolveChainOverrides(config);
 }
 
-export function validateAddress(value: string, label: string = "Address"): `0x${string}` {
+export function validateAddress(
+  value: string,
+  label: string = "Address",
+): `0x${string}` {
   if (!isAddress(value)) {
     throw new CLIError(
       `${label} is not a valid Ethereum address: ${value}`,
@@ -31,6 +36,15 @@ export function validateAddress(value: string, label: string = "Address"): `0x${
       "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123)."
     );
   }
+
+  if (value.toLowerCase() === ZERO_ADDRESS) {
+    throw new CLIError(
+      `${label} cannot be the zero address.`,
+      "INPUT",
+      "Provide a non-zero destination address. Using 0x000...000 would burn funds.",
+    );
+  }
+
   return value as `0x${string}`;
 }
 

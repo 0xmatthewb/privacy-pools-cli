@@ -72,6 +72,16 @@ import {
   type AspApprovalStatus,
 } from "../utils/statuses.js";
 
+const poolDepositorAbi = [
+  {
+    name: "depositors",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "_label", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+] as const;
+
 interface RagequitAdvisory {
   level: "info" | "warn";
   message: string;
@@ -485,36 +495,32 @@ export async function handleRagequitCommand(
       );
       const tokenPrice = deriveTokenPrice(pool);
       const recoverUsd = usdSuffix(commitment.value, pool.decimals, tokenPrice);
+      const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+
+      const resolveDepositorAddress = async (): Promise<Address | null> => {
+        try {
+          return (await publicClient.readContract({
+            address: pool.pool,
+            abi: poolDepositorAbi,
+            functionName: "depositors",
+            args: [commitment.label],
+          })) as Address;
+        } catch (err) {
+          verbose(
+            `Could not verify depositor onchain: ${err instanceof Error ? err.message : String(err)}`,
+            isVerbose,
+            silent,
+          );
+          return null;
+        }
+      };
+
+      const depositorAddress = await resolveDepositorAddress();
 
       // Always show the public-exit warning in human mode, even when --yes
       // skips the confirmation prompt.
       if (!silent) {
         process.stderr.write("\n");
-
-        // Try to resolve the deposit address so the user knows where funds go
-        let depositorAddr: string | null = null;
-        try {
-          const preflightClient = getPublicClient(
-            chainConfig,
-            globalOpts?.rpcUrl,
-          );
-          depositorAddr = (await preflightClient.readContract({
-            address: pool.pool,
-            abi: [
-              {
-                name: "depositors",
-                type: "function",
-                stateMutability: "view",
-                inputs: [{ name: "_label", type: "uint256" }],
-                outputs: [{ name: "", type: "address" }],
-              },
-            ],
-            functionName: "depositors",
-            args: [commitment.label],
-          })) as string;
-        } catch {
-          // If the lookup fails, proceed without showing the address
-        }
 
         warn(
           "By exiting, you are withdrawing funds publicly to your deposit address and will not gain any privacy. If your deposit is approved, use 'withdraw' instead for a private withdrawal.",
@@ -528,8 +534,8 @@ export async function handleRagequitCommand(
             info(advisory.message, silent);
           }
         }
-        if (depositorAddr) {
-          info(`Funds will be sent to: ${depositorAddr}`, silent);
+        if (depositorAddress) {
+          info(`Funds will be sent to: ${depositorAddress}`, silent);
         }
         process.stderr.write("\n");
       }
@@ -547,41 +553,17 @@ export async function handleRagequitCommand(
 
       // Pre-flight gas check (skip for unsigned - relying on external signer)
       if (!isUnsigned && !isDryRun) {
-        const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
         await checkHasGas(publicClient, signerAddress!);
 
         // Pre-check: verify signer is the original depositor (avoids wasting proof generation)
-        try {
-          const depositor = (await publicClient.readContract({
-            address: pool.pool,
-            abi: [
-              {
-                name: "depositors",
-                type: "function",
-                stateMutability: "view",
-                inputs: [{ name: "_label", type: "uint256" }],
-                outputs: [{ name: "", type: "address" }],
-              },
-            ],
-            functionName: "depositors",
-            args: [commitment.label],
-          })) as Address;
-
-          if (depositor.toLowerCase() !== signerAddress!.toLowerCase()) {
+        if (depositorAddress) {
+          if (depositorAddress.toLowerCase() !== signerAddress!.toLowerCase()) {
             throw new CLIError(
-              `Signer ${signerAddress} is not the original depositor (${depositor}).`,
+              `Signer ${signerAddress} is not the original depositor (${depositorAddress}).`,
               "INPUT",
               "Only the original depositor can exit this Pool Account. Check your signer key.",
             );
           }
-        } catch (err) {
-          // If the contract doesn't expose depositors(), skip the check
-          if (err instanceof CLIError) throw err;
-          verbose(
-            `Could not verify depositor onchain: ${err instanceof Error ? err.message : String(err)}`,
-            isVerbose,
-            silent,
-          );
         }
       }
 
@@ -619,13 +601,20 @@ export async function handleRagequitCommand(
       }
 
       if (isUnsigned) {
+        if (!depositorAddress) {
+          throw new CLIError(
+            "Unable to determine the original depositor for unsigned ragequit.",
+            "RPC",
+            "Unsigned ragequit transactions must be signed by the original deposit address. Retry when RPC access is available.",
+          );
+        }
         const solidityProof = toRagequitSolidityProof(proof);
         const payload = buildUnsignedRagequitOutput({
           chainId: chainConfig.id,
           chainName: chainConfig.name,
           assetSymbol: pool.symbol,
           amount: commitment.value,
-          from: signerAddress,
+          from: depositorAddress,
           poolAddress: pool.pool,
           selectedCommitmentLabel: commitment.label,
           selectedCommitmentValue: commitment.value,
@@ -659,7 +648,6 @@ export async function handleRagequitCommand(
       );
 
       spin.text = "Waiting for confirmation...";
-      const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
       let receipt;
       try {
         receipt = await publicClient.waitForTransactionReceipt({

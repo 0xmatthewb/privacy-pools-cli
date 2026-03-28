@@ -301,6 +301,8 @@ export interface RelayerQuoteResponse {
   gasPrice: string;
   detail: {
     relayTxCost: { gas: string; eth: string };
+    extraGasFundAmount?: { gas: string; eth: string };
+    extraGasTxCost?: { gas: string; eth: string };
   };
   feeCommitment?: {
     expiration: number;

@@ -220,16 +220,17 @@ class LocalCompatDataService {
     private readonly chainConfig: ChainConfig
   ) {}
 
-  private async resolveFromBlock(candidate?: bigint): Promise<bigint> {
+  private async resolveFromBlock(candidate?: bigint): Promise<bigint | null> {
     const requested = candidate ?? this.chainConfig.startBlock;
     const latest = await this.client.getBlockNumber();
-    return requested > latest ? 0n : requested;
+    return requested > latest ? null : requested;
   }
 
   async getDeposits(pool: PoolInfo) {
     const fromBlock = await this.resolveFromBlock(
       pool.deploymentBlock ?? this.chainConfig.startBlock,
     );
+    if (fromBlock === null) return [];
     const logs = await this.client.getLogs({
       address: pool.address,
       event: LOCAL_DEPOSIT_EVENT,
@@ -273,6 +274,7 @@ class LocalCompatDataService {
     const resolvedFromBlock = await this.resolveFromBlock(
       fromBlock ?? pool.deploymentBlock ?? this.chainConfig.startBlock,
     );
+    if (resolvedFromBlock === null) return [];
     const logs = await this.client.getLogs({
       address: pool.address,
       event: LOCAL_WITHDRAWAL_EVENT,
@@ -311,6 +313,7 @@ class LocalCompatDataService {
     const resolvedFromBlock = await this.resolveFromBlock(
       fromBlock ?? pool.deploymentBlock ?? this.chainConfig.startBlock,
     );
+    if (resolvedFromBlock === null) return [];
     const logs = await this.client.getLogs({
       address: pool.address,
       event: LOCAL_RAGEQUIT_EVENT,

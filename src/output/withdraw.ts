@@ -226,12 +226,16 @@ export interface WithdrawQuoteData {
   decimals: number;
   recipient: string | null;
   minWithdrawAmount: string;
+  baseFeeBPS?: string;
   quoteFeeBPS: string;
   feeCommitmentPresent: boolean;
   quoteExpiresAt: string | null;
   tokenPrice: number | null;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
+  relayTxCost?: { gas: string; eth: string };
+  extraGasFundAmount?: { gas: string; eth: string };
+  extraGasTxCost?: { gas: string; eth: string };
   /** True when the user explicitly passed --chain (overriding the default). */
   chainOverridden?: boolean;
 }
@@ -253,6 +257,30 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   const feeBPS = BigInt(data.quoteFeeBPS);
   const feeAmount = (data.amount * feeBPS) / 10000n;
   const netAmount = data.amount - feeAmount;
+  const baseFeeBPS = data.baseFeeBPS ?? data.quoteFeeBPS;
+  const relayTxCost = data.relayTxCost ?? { gas: "0", eth: "0" };
+  const relayTxCostFormatted = formatAmount(
+    BigInt(relayTxCost.eth),
+    18,
+    "ETH",
+    displayDecimals(18),
+  );
+  const extraGasFundFormatted = data.extraGasFundAmount
+    ? formatAmount(
+        BigInt(data.extraGasFundAmount.eth),
+        18,
+        "ETH",
+        displayDecimals(18),
+      )
+    : null;
+  const extraGasTxCostFormatted = data.extraGasTxCost
+    ? formatAmount(
+        BigInt(data.extraGasTxCost.eth),
+        18,
+        "ETH",
+        displayDecimals(18),
+      )
+    : null;
 
   const usd = (amount: bigint): string => {
     const val = formatUsdValue(amount, data.decimals, data.tokenPrice);
@@ -308,13 +336,21 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       recipient: data.recipient ?? null,
       minWithdrawAmount: data.minWithdrawAmount,
       minWithdrawAmountFormatted: minWithdrawFormatted,
+      baseFeeBPS,
       quoteFeeBPS: data.quoteFeeBPS,
       feeAmount: feeAmount.toString(),
       netAmount: netAmount.toString(),
       feeCommitmentPresent: data.feeCommitmentPresent,
       quoteExpiresAt: data.quoteExpiresAt,
+      relayTxCost,
     }, agentNextActions) as Record<string, unknown>;
     if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
+    if (data.extraGasFundAmount) {
+      payload.extraGasFundAmount = data.extraGasFundAmount;
+    }
+    if (data.extraGasTxCost) {
+      payload.extraGasTxCost = data.extraGasTxCost;
+    }
     printJsonSuccess(
       payload,
       false,
@@ -327,7 +363,15 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   info("Withdrawal quote:", silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`, silent);
+  info(`Base relayer fee: ${formatBPS(baseFeeBPS)}`, silent);
   info(`Relayer fee: ${formatBPS(data.quoteFeeBPS)} (${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)})`, silent);
+  info(`Estimated relay tx cost: ${relayTxCostFormatted}`, silent);
+  if (extraGasFundFormatted) {
+    info(`Extra gas funding: ${extraGasFundFormatted}`, silent);
+  }
+  if (extraGasTxCostFormatted) {
+    info(`Extra gas tx cost: ${extraGasTxCostFormatted}`, silent);
+  }
   info(`You receive: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`, silent);
   info(`Min withdraw: ${minWithdrawFormatted}`, silent);
   if (data.recipient) {

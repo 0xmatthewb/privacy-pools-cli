@@ -35,7 +35,7 @@ import {
 import {
   decodeValidatedRelayerWithdrawalData,
   getRelayerDetails,
-  requestQuote,
+  requestQuoteWithExtraGasFallback,
   submitRelayRequest,
 } from "../services/relayer.js";
 import {
@@ -84,6 +84,7 @@ import {
   renderWithdrawSuccess,
   renderWithdrawQuote,
 } from "../output/withdraw.js";
+import { assertKnownPoolRoot } from "../services/pool-roots.js";
 import {
   guardCriticalSection,
   releaseCriticalSection,
@@ -103,16 +104,6 @@ import { type AspApprovalStatus } from "../utils/statuses.js";
 const entrypointLatestRootAbi = [
   {
     name: "latestRoot",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256" }],
-  },
-] as const;
-
-const poolCurrentRootAbi = [
-  {
-    name: "currentRoot",
     type: "function",
     stateMutability: "view",
     inputs: [],
@@ -506,7 +497,7 @@ export async function handleWithdrawCommand(
     // Resolve --extra-gas: default true for ERC20, always false for native asset (ETH)
     const isNativeAsset =
       pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
-    const effectiveExtraGas = isNativeAsset ? false : (opts.extraGas ?? true);
+    let effectiveExtraGas = isNativeAsset ? false : (opts.extraGas ?? true);
     if (isNativeAsset && opts.extraGas === true) {
       info(
         "Extra gas is not applicable for ETH withdrawals (ETH is the gas token).",
@@ -984,22 +975,16 @@ export async function handleWithdrawCommand(
           accountService.createWithdrawalSecrets(commitment),
         );
 
-      const stateRoot = (await publicClient.readContract({
-        address: pool.pool,
-        abi: poolCurrentRootAbi,
-        functionName: "currentRoot",
-      })) as unknown as SDKHash;
-
       const stateProofRoot = BigInt(
         (stateMerkleProof as { root: bigint | string }).root,
       );
-      if (stateProofRoot !== BigInt(stateRoot as unknown as bigint)) {
-        throw new CLIError(
-          "Pool data is out of date.",
-          "ASP",
-          "Run 'privacy-pools sync' and try the withdrawal again.",
-        );
-      }
+      await assertKnownPoolRoot({
+        publicClient,
+        poolAddress: pool.pool,
+        proofRoot: stateProofRoot,
+        message: "Pool data is out of date.",
+        hint: "Run 'privacy-pools sync' and try the withdrawal again.",
+      });
 
       const assertLatestRootUnchanged = async (
         message: string,
@@ -1065,7 +1050,7 @@ export async function handleWithdrawCommand(
             withdrawalAmount,
             stateMerkleProof,
             aspMerkleProof,
-            stateRoot,
+            stateRoot: stateProofRoot as unknown as SDKHash,
             stateTreeDepth: 32n,
             aspRoot,
             aspTreeDepth: 32n,
@@ -1090,7 +1075,7 @@ export async function handleWithdrawCommand(
             chainName: chainConfig.name,
             assetSymbol: pool.symbol,
             amount: withdrawalAmount,
-            from: signerAddress,
+            from: directAddress,
             poolAddress: pool.pool,
             recipient: directAddress,
             selectedCommitmentLabel: commitmentLabel,
@@ -1256,12 +1241,23 @@ export async function handleWithdrawCommand(
           process.stderr.write("\n");
         }
 
-        let quote = await requestQuote(chainConfig, {
-          amount: withdrawalAmount,
-          asset: pool.asset,
-          extraGas: effectiveExtraGas,
-          recipient: resolvedRecipientAddress,
-        });
+        const initialQuoteResult = await requestQuoteWithExtraGasFallback(
+          chainConfig,
+          {
+            amount: withdrawalAmount,
+            asset: pool.asset,
+            extraGas: effectiveExtraGas,
+            recipient: resolvedRecipientAddress,
+          },
+        );
+        let quote = initialQuoteResult.quote;
+        if (initialQuoteResult.downgradedExtraGas) {
+          effectiveExtraGas = initialQuoteResult.extraGas;
+          warn(
+            "Extra gas is not available for this relayer on the selected chain. Continuing without it.",
+            silent,
+          );
+        }
         verbose(
           `Relayer quote: feeBPS=${quote.feeBPS} baseFeeBPS=${quote.baseFeeBPS}`,
           isVerbose,
@@ -1282,12 +1278,25 @@ export async function handleWithdrawCommand(
         const fetchFreshQuote = async (reason: string): Promise<void> => {
           spin.text = reason;
           const refreshed = await refreshExpiredRelayerQuoteForWithdrawal({
-            fetchQuote: () => requestQuote(chainConfig, {
-              amount: withdrawalAmount,
-              asset: pool.asset,
-              extraGas: effectiveExtraGas,
-              recipient: resolvedRecipientAddress,
-            }),
+            fetchQuote: async () => {
+              const quoteResult = await requestQuoteWithExtraGasFallback(
+                chainConfig,
+                {
+                  amount: withdrawalAmount,
+                  asset: pool.asset,
+                  extraGas: effectiveExtraGas,
+                  recipient: resolvedRecipientAddress,
+                },
+              );
+              if (quoteResult.downgradedExtraGas) {
+                effectiveExtraGas = quoteResult.extraGas;
+                warn(
+                  "Extra gas is not available for this relayer on the selected chain. Continuing without it.",
+                  silent,
+                );
+              }
+              return quoteResult.quote;
+            },
             maxRelayFeeBPS: pool.maxRelayFeeBPS,
           });
           quote = refreshed.quote;
@@ -1336,6 +1345,20 @@ export async function handleWithdrawCommand(
             const netAmount = withdrawalAmount - feeAmount;
             const remainingBalance =
               selectedPoolAccount.value - withdrawalAmount;
+            const relayTxCost = formatAmount(
+              BigInt(quote.detail.relayTxCost.eth),
+              18,
+              "ETH",
+              displayDecimals(18),
+            );
+            const extraGasFunding = quote.detail.extraGasFundAmount
+              ? formatAmount(
+                  BigInt(quote.detail.extraGasFundAmount.eth),
+                  18,
+                  "ETH",
+                  displayDecimals(18),
+                )
+              : null;
 
             process.stderr.write("\n");
             process.stderr.write(
@@ -1352,8 +1375,19 @@ export async function handleWithdrawCommand(
               `  Amount:          ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol, dd)}${usd(withdrawalAmount)}\n`,
             );
             process.stderr.write(
+              `  Base fee:        ${formatBPS(quote.baseFeeBPS)}\n`,
+            );
+            process.stderr.write(
               `  Relayer fee:     ${formatBPS(quoteFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)})\n`,
             );
+            process.stderr.write(
+              `  Relay tx cost:   ${relayTxCost}\n`,
+            );
+            if (extraGasFunding) {
+              process.stderr.write(
+                `  Extra gas fund:  ${extraGasFunding}\n`,
+              );
+            }
             process.stderr.write(
               `  You receive:     ~${formatAmount(netAmount, pool.decimals, pool.symbol, dd)}${usd(netAmount)}\n`,
             );
@@ -1428,7 +1462,7 @@ export async function handleWithdrawCommand(
             withdrawalAmount,
             stateMerkleProof,
             aspMerkleProof,
-            stateRoot,
+            stateRoot: stateProofRoot as unknown as SDKHash,
             stateTreeDepth: 32n,
             aspRoot,
             aspTreeDepth: 32n,
@@ -1731,12 +1765,20 @@ export async function handleWithdrawQuoteCommand(
     const spin = spinner("Requesting relayer quote...", silent);
     spin.start();
     const details = await getRelayerDetails(chainConfig, pool.asset);
-    const quote = await requestQuote(chainConfig, {
+    const quoteResult = await requestQuoteWithExtraGasFallback(chainConfig, {
       amount,
       asset: pool.asset,
       extraGas: quoteExtraGas,
       ...(recipient ? { recipient } : {}),
     });
+    const resolvedQuoteExtraGas = quoteResult.extraGas;
+    if (quoteResult.downgradedExtraGas) {
+      warn(
+        "Extra gas is not available for this relayer on the selected chain. Continuing without it.",
+        silent,
+      );
+    }
+    const quote = quoteResult.quote;
     spin.succeed("Quote received.");
 
     const expirationMs = quote.feeCommitment
@@ -1755,12 +1797,16 @@ export async function handleWithdrawQuoteCommand(
       recipient: recipient ?? null,
       minWithdrawAmount: details.minWithdrawAmount,
       quoteFeeBPS: quote.feeBPS,
+      baseFeeBPS: quote.baseFeeBPS,
       feeCommitmentPresent: !!quote.feeCommitment,
       quoteExpiresAt: expirationMs
         ? new Date(expirationMs).toISOString()
         : null,
       tokenPrice: quoteTokenPrice,
-      extraGas: quoteExtraGas,
+      extraGas: resolvedQuoteExtraGas,
+      relayTxCost: quote.detail.relayTxCost,
+      extraGasFundAmount: quote.detail.extraGasFundAmount,
+      extraGasTxCost: quote.detail.extraGasTxCost,
       chainOverridden: !!globalOpts?.chain,
     });
   } catch (error) {

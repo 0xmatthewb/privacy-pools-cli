@@ -50,7 +50,7 @@ import { proveCommitment, proveWithdrawal } from "./proofs.js";
 import {
   decodeValidatedRelayerWithdrawalData,
   getRelayerDetails,
-  requestQuote,
+  requestQuoteWithExtraGasFallback,
   submitRelayRequest,
 } from "./relayer.js";
 import { getDataService, getPublicClient } from "./sdk.js";
@@ -110,6 +110,7 @@ import {
 } from "../commands/withdraw.js";
 import { toRagequitSolidityProof } from "../utils/unsigned.js";
 import type { GlobalOptions } from "../types.js";
+import { assertKnownPoolRoot } from "./pool-roots.js";
 import {
   LEGACY_WORKFLOW_SECRET_RECORD_VERSIONS,
   LEGACY_WORKFLOW_SNAPSHOT_VERSIONS,
@@ -124,16 +125,6 @@ const depositedEventAbi = parseAbi([
 const entrypointLatestRootAbi = [
   {
     name: "latestRoot",
-    type: "function",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256" }],
-  },
-] as const;
-
-const poolCurrentRootAbi = [
-  {
-    name: "currentRoot",
     type: "function",
     stateMutability: "view",
     inputs: [],
@@ -2569,7 +2560,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
   const silent = mode.isQuiet || mode.isJson;
   const { chainConfig, pool, accountService, publicClient, selectedPoolAccount } =
     context;
-  const extraGas =
+  let extraGas =
     pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase()
       ? false
       : true;
@@ -2601,12 +2592,23 @@ export async function executeRelayedWithdrawalForFlow(params: {
     verbose(remainingBelowMinAdvisory, isVerbose, silent);
   }
 
-  let quote = await requestQuote(chainConfig, {
-    amount: withdrawalAmount,
-    asset: pool.asset,
-    extraGas,
-    recipient: snapshot.recipient as Address,
-  });
+  const initialQuoteResult = await requestQuoteWithExtraGasFallback(
+    chainConfig,
+    {
+      amount: withdrawalAmount,
+      asset: pool.asset,
+      extraGas,
+      recipient: snapshot.recipient as Address,
+    },
+  );
+  let quote = initialQuoteResult.quote;
+  if (initialQuoteResult.downgradedExtraGas) {
+    extraGas = initialQuoteResult.extraGas;
+    warn(
+      "Extra gas is not available for this relayer on the selected chain. Continuing without it.",
+      silent,
+    );
+  }
 
   let { quoteFeeBPS, expirationMs } = validateRelayerQuoteForWithdrawal(
     quote,
@@ -2616,13 +2618,25 @@ export async function executeRelayedWithdrawalForFlow(params: {
   const fetchFreshQuote = async (reason: string): Promise<void> => {
     withdrawSpin.text = reason;
     const refreshed = await refreshExpiredRelayerQuoteForWithdrawal({
-      fetchQuote: () =>
-        requestQuote(chainConfig, {
+      fetchQuote: async () => {
+        const quoteResult = await requestQuoteWithExtraGasFallback(
+          chainConfig,
+          {
           amount: withdrawalAmount,
           asset: pool.asset,
           extraGas,
           recipient: snapshot.recipient as Address,
-        }),
+          },
+        );
+        if (quoteResult.downgradedExtraGas) {
+          extraGas = quoteResult.extraGas;
+          warn(
+            "Extra gas is not available for this relayer on the selected chain. Continuing without it.",
+            silent,
+          );
+        }
+        return quoteResult.quote;
+      },
       maxRelayFeeBPS: pool.maxRelayFeeBPS,
     });
     quote = refreshed.quote;
@@ -2648,22 +2662,16 @@ export async function executeRelayedWithdrawalForFlow(params: {
       accountService.createWithdrawalSecrets(selectedPoolAccount.commitment),
     );
 
-  const stateRoot = (await publicClient.readContract({
-    address: pool.pool,
-    abi: poolCurrentRootAbi,
-    functionName: "currentRoot",
-  })) as unknown as SDKHash;
-
   const stateProofRoot = BigInt(
     (stateMerkleProof as { root: bigint | string }).root,
   );
-  if (stateProofRoot !== BigInt(stateRoot as unknown as bigint)) {
-    throw new CLIError(
-      "Pool data is out of date.",
-      "ASP",
-      "Run 'privacy-pools sync' and retry the workflow watch command.",
-    );
-  }
+  await assertKnownPoolRoot({
+    publicClient,
+    poolAddress: pool.pool,
+    proofRoot: stateProofRoot,
+    message: "Pool data is out of date.",
+    hint: "Run 'privacy-pools sync' and retry the workflow watch command.",
+  });
 
   const assertLatestRootUnchanged = async (
     message: string,
@@ -2710,7 +2718,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
         withdrawalAmount,
         stateMerkleProof,
         aspMerkleProof,
-        stateRoot,
+        stateRoot: stateProofRoot as unknown as SDKHash,
         stateTreeDepth: 32n,
         aspRoot: context.aspRoot,
         aspTreeDepth: 32n,

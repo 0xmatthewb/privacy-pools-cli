@@ -18,6 +18,7 @@ const RELAYER_RETRY_DELAYS_MS = [250, 500] as const;
 const RELAYER_WITHDRAWAL_DATA_PARAMS = parseAbiParameters(
   "address recipient, address feeRecipient, uint256 relayFeeBPS",
 );
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 class RetryableRelayerHttpError extends Error {
   constructor(
@@ -51,6 +52,21 @@ export interface ValidatedRelayerWithdrawalData {
 
 function isHexString(value: unknown): value is `0x${string}` {
   return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
+}
+
+function isDecimalString(value: unknown): value is string {
+  return typeof value === "string" && /^\d+$/.test(value);
+}
+
+function isValidTransactionCostDetail(
+  value: unknown
+): value is { gas: string; eth: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    isDecimalString((value as Record<string, unknown>).gas) &&
+    isDecimalString((value as Record<string, unknown>).eth)
+  );
 }
 
 function isRetryableRelayerError(error: unknown): boolean {
@@ -125,12 +141,71 @@ export function decodeValidatedRelayerWithdrawalData(params: {
     );
   }
 
+  if (decodedRecipient.toLowerCase() === ZERO_ADDRESS) {
+    throw new CLIError(
+      "Relayer quote recipient cannot be the zero address.",
+      "RELAYER",
+      "Run the withdraw command again to request a fresh quote.",
+    );
+  }
+
+  if (decodedFeeRecipient.toLowerCase() === ZERO_ADDRESS) {
+    throw new CLIError(
+      "Relayer quote fee recipient cannot be the zero address.",
+      "RELAYER",
+      "Run the withdraw command again to request a fresh quote.",
+    );
+  }
+
   return {
     recipient: decodedRecipient,
     feeRecipient: decodedFeeRecipient,
     relayFeeBPS: decodedRelayFeeBPS,
     withdrawalData: feeCommitment.withdrawalData,
   };
+}
+
+export function isUnsupportedExtraGasRelayerError(error: unknown): boolean {
+  if (!(error instanceof CLIError)) {
+    return false;
+  }
+
+  return `${error.message} ${error.hint ?? ""}`.includes("UNSUPPORTED_FEATURE");
+}
+
+export async function requestQuoteWithExtraGasFallback(
+  chainConfig: ChainConfig,
+  params: {
+    amount: bigint;
+    asset: Address;
+    extraGas: boolean;
+    recipient?: Address;
+  }
+): Promise<{
+  quote: RelayerQuoteResponse;
+  extraGas: boolean;
+  downgradedExtraGas: boolean;
+}> {
+  try {
+    return {
+      quote: await requestQuote(chainConfig, params),
+      extraGas: params.extraGas,
+      downgradedExtraGas: false,
+    };
+  } catch (error) {
+    if (!params.extraGas || !isUnsupportedExtraGasRelayerError(error)) {
+      throw error;
+    }
+
+    return {
+      quote: await requestQuote(chainConfig, {
+        ...params,
+        extraGas: false,
+      }),
+      extraGas: false,
+      downgradedExtraGas: true,
+    };
+  }
 }
 
 async function runRelayerRequestWithRetry<T>(
@@ -240,7 +315,20 @@ export async function requestQuote(
   });
   const body = await res.json();
 
-  if (typeof body?.feeBPS !== "string" || !/^\d+$/.test(body.feeBPS)) {
+  const relayTxCost = body?.detail?.relayTxCost;
+  const extraGasFundAmount = body?.detail?.extraGasFundAmount;
+  const extraGasTxCost = body?.detail?.extraGasTxCost;
+
+  if (
+    !isDecimalString(body?.baseFeeBPS) ||
+    !isDecimalString(body?.feeBPS) ||
+    !isDecimalString(body?.gasPrice) ||
+    !isValidTransactionCostDetail(relayTxCost) ||
+    (extraGasFundAmount !== undefined &&
+      !isValidTransactionCostDetail(extraGasFundAmount)) ||
+    (extraGasTxCost !== undefined &&
+      !isValidTransactionCostDetail(extraGasTxCost))
+  ) {
     throw new CLIError(
       "Relayer returned an unexpected quote response.",
       "RELAYER",

@@ -109,6 +109,15 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       "after_deposit",
       { options: { agent: true, chain: data.chain, pendingOnly: true } },
     ),
+    createNextAction(
+      "ragequit",
+      `If you decide not to wait for ASP review, ragequit remains available as a public recovery path for ${data.poolAccountId}.`,
+      "after_deposit",
+      {
+        args: [data.asset],
+        options: { agent: true, chain: data.chain, fromPa: data.poolAccountId },
+      },
+    ),
   ];
   const humanNextActions = [
     createNextAction(
@@ -120,6 +129,18 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
           data.chainOverridden || isTestnet
             ? { chain: data.chain }
             : undefined,
+      },
+    ),
+    createNextAction(
+      "ragequit",
+      `If you prefer public recovery instead of waiting for approval, ragequit remains available for ${data.poolAccountId}.`,
+      "after_deposit",
+      {
+        args: [data.asset],
+        options: {
+          ...(data.chainOverridden || isTestnet ? { chain: data.chain } : {}),
+          fromPa: data.poolAccountId,
+        },
       },
     ),
   ];
@@ -152,6 +173,10 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   success(`Deposit submitted: ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
   warn(
     "Pending ASP approval: most deposits are approved within ~1 hour, but some may take up to 7 days before private withdrawal.",
+    silent,
+  );
+  info(
+    "Public recovery remains available while you wait. If you later choose not to wait for ASP approval, use ragequit to recover publicly to the original deposit address.",
     silent,
   );
   info(`Pool Account: ${data.poolAccountId}`, silent);

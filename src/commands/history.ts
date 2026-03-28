@@ -78,6 +78,10 @@ export function buildHistoryEventsFromAccount(
       if (pa.children && pa.children.length > 0 && pa.deposit) {
         let prevValue = pa.deposit.value;
         for (const child of pa.children) {
+          if (child.isMigration === true) {
+            prevValue = child.value;
+            continue;
+          }
           const withdrawnAmount = prevValue - child.value;
           events.push({
             type: "withdrawal",
@@ -99,17 +103,13 @@ export function buildHistoryEventsFromAccount(
         typeof ragequit === "object" &&
         typeof ragequit.blockNumber === "bigint"
       ) {
-        const latestCommitment =
-          pa.children && pa.children.length > 0
-            ? pa.children[pa.children.length - 1]
-            : pa.deposit;
         events.push({
           type: "ragequit",
           asset: pool.symbol,
           poolAddress: pool.pool,
           paNumber,
           paId,
-          value: latestCommitment?.value ?? 0n,
+          value: ragequit.value,
           blockNumber: ragequit.blockNumber,
           txHash: ragequit.transactionHash,
         });

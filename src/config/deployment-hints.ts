@@ -9,7 +9,7 @@ interface PoolDeploymentHint {
 
 const EVM_POOL_DEPLOYMENT_HINTS: Record<number, readonly PoolDeploymentHint[]> = {
   1: [
-    { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0xf241d57c6debae225c0f2e6ea1529373c9a9c9fb", deploymentBlock: 22153714n },
+    { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0xf241d57c6debae225c0f2e6ea1529373c9a9c9fb", deploymentBlock: 22153707n },
     { asset: "0xdc035d45d973e3ec169d2276ddab16f1e407384f", pool: "0x05e4dbd71b56861eed2aaa12d00a797f04b5d3c0", deploymentBlock: 22917987n },
     { asset: "0xa3931d71877c0e7a3148cb7eb4463524fec27fbd", pool: "0xbbda2173cdfea1c3bd7f2908798f1265301d750c", deploymentBlock: 22941225n },
     { asset: "0x6b175474e89094c44da98b954eedeac495271d0f", pool: "0x1c31c03b8cb2ee674d0f11de77135536db828257", deploymentBlock: 22946646n },
@@ -25,18 +25,18 @@ const EVM_POOL_DEPLOYMENT_HINTS: Record<number, readonly PoolDeploymentHint[]> =
     { asset: "0x6440f144b7e50d6a8439336510312d2f54beb01d", pool: "0xb4b5fd38fd4788071d7287e3cb52948e0d10b23e", deploymentBlock: 24433029n },
   ],
   10: [
-    { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x4626a182030d9e98b13f690fff3c443191a918ff", deploymentBlock: 144288143n },
+    { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x4626a182030d9e98b13f690fff3c443191a918ff", deploymentBlock: 144288142n },
     { asset: "0x0b2c639c533813f4aa9d7837caf62653d097ff85", pool: "0xe4410f6827fa04ce096975d07a9924abb65316e3", deploymentBlock: 145160973n },
   ],
   42161: [
-    { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x4626a182030d9e98b13f690fff3c443191a918ff", deploymentBlock: 404391814n },
+    { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x4626a182030d9e98b13f690fff3c443191a918ff", deploymentBlock: 404391809n },
     { asset: "0xaf88d065e77c8cc2239327c5edb3a432268e5831", pool: "0x3706e38af05bf0158bcdbb46239f8289980b093f", deploymentBlock: 411197154n },
     { asset: "0x252b965400862d94bda35fecf7ee0f204a53cc36", pool: "0xa63e0bdc3a193d1e6e7c9be72cb502be4b7fc244", deploymentBlock: 411197625n },
   ],
   11155111: [
-    { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x644d5a2554d36e27509254f32ccfebe8cd58861f", deploymentBlock: 8461454n },
-    { asset: "0xaa8e23fb1079ea71e0a56f48a2aa51851d8433d0", pool: "0x6709277e170dee3e54101cdb73a450e392adff54", deploymentBlock: 8587114n },
-    { asset: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238", pool: "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f", deploymentBlock: 8587064n },
+    { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x644d5a2554d36e27509254f32ccfebe8cd58861f", deploymentBlock: 8587019n },
+    { asset: "0xaa8e23fb1079ea71e0a56f48a2aa51851d8433d0", pool: "0x6709277e170dee3e54101cdb73a450e392adff54", deploymentBlock: 8587019n },
+    { asset: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238", pool: "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f", deploymentBlock: 8587019n },
   ],
   11155420: [
     { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x9fa2c482313b75e5bc2297cc0d666ddec19d641e", deploymentBlock: 32854678n },

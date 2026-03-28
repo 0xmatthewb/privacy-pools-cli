@@ -1,6 +1,10 @@
-import { existsSync, readFileSync, writeFileSync, renameSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import { getAccountsDir, ensureConfigDir } from "./config.js";
+import {
+  getAccountsDir,
+  ensureConfigDir,
+  writePrivateFileAtomic,
+} from "./config.js";
 import { CLIError } from "../utils/errors.js";
 
 export const ACCOUNT_FILE_VERSION = 3;
@@ -75,7 +79,6 @@ export function loadAccount(chainId: number): any | null {
 export function saveAccount(chainId: number, account: any): void {
   ensureConfigDir();
   const path = getAccountFilePath(chainId);
-  const tmpPath = path + ".tmp";
   const storedAccount =
     typeof account === "object" && account !== null
       ? {
@@ -83,11 +86,7 @@ export function saveAccount(chainId: number, account: any): void {
           __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
         }
       : account;
-  writeFileSync(tmpPath, serialize(storedAccount), {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
-  renameSync(tmpPath, path);
+  writePrivateFileAtomic(path, serialize(storedAccount));
 }
 
 /**

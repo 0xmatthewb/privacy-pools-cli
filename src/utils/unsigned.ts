@@ -67,6 +67,7 @@ export function printRawTransactions(
   };
 
   const payload = transactions.map((tx) => ({
+    from: tx.from,
     to: tx.to,
     data: tx.data,
     value: tx.value,
