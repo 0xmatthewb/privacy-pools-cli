@@ -6,14 +6,17 @@ import {
   assertInstalledFlowAwaitingFunding,
   assertInstalledInitViaStdin,
   assertInstalledLauncherBasics,
+  assertInstalledPackageVersion,
   assertInstalledNativeStatsError,
   assertInstalledNativeStatsSuccess,
   assertInstalledStatusSuccess,
   currentNativePackageName,
   fail,
+  launchAspFixtureServer,
   npmCommand,
   npmProcessEnv,
   packageInstallPath,
+  parseJson,
   resolveInstalledDependencyPackagePath,
   parseArgs,
   rootPackageJson,
@@ -54,6 +57,104 @@ function run(command, args, options = {}) {
   }
 
   return result;
+}
+
+function resolveGlobalPath(prefix, kind) {
+  return run(
+    npmCommand,
+    [kind, "-g", "--prefix", prefix],
+    {
+      cwd: prefix,
+      env: npmProcessEnv(prefix),
+    },
+  ).stdout.trim();
+}
+
+function globalPackageInstallPath(prefix, packageName) {
+  return join(resolveGlobalPath(prefix, "root"), ...packageName.split("/"));
+}
+
+function globalBinPath(prefix) {
+  return process.platform === "win32"
+    ? join(prefix, "privacy-pools.cmd")
+    : join(prefix, "bin", "privacy-pools");
+}
+
+function runGlobalCli(prefix, homeDir, args, env = {}) {
+  const result = spawnSync(globalBinPath(prefix), args, {
+    cwd: prefix,
+    encoding: "utf8",
+    timeout: 180_000,
+    maxBuffer: 10 * 1024 * 1024,
+    shell: process.platform === "win32",
+    env: npmProcessEnv(prefix, {
+      PP_NO_UPDATE_CHECK: "1",
+      NO_COLOR: "1",
+      PRIVACY_POOLS_HOME: homeDir,
+      npm_config_prefix: prefix,
+      ...env,
+    }),
+  });
+
+  if (result.error) {
+    fail(`Failed to execute global privacy-pools CLI:\n${result.error.message}`);
+  }
+
+  return result;
+}
+
+function assertGlobalLauncherBasics({
+  prefix,
+  homeDir,
+  expectedVersion,
+  label,
+}) {
+  const versionResult = runGlobalCli(prefix, homeDir, ["--version"]);
+  if (
+    versionResult.status !== 0 ||
+    versionResult.stdout.trim() !== expectedVersion ||
+    versionResult.stderr.trim() !== ""
+  ) {
+    fail(
+      `${label} returned an unexpected version:\n${versionResult.stderr}\n${versionResult.stdout}`,
+    );
+  }
+}
+
+async function assertGlobalNativeStatsSuccess({
+  prefix,
+  homeDir,
+  label,
+  missingWorkerPath,
+}) {
+  const aspFixture = await launchAspFixtureServer(label);
+  try {
+    const statsResult = runGlobalCli(
+      prefix,
+      homeDir,
+      ["--agent", "stats"],
+      {
+        PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+      },
+    );
+    const statsPayload = parseJson(
+      statsResult.stdout,
+      `${label} stats --agent`,
+    );
+    if (
+      statsResult.status !== 0 ||
+      statsResult.stderr.trim() !== "" ||
+      statsPayload.success !== true ||
+      statsPayload.mode !== "global-stats"
+    ) {
+      fail(
+        `${label} failed global npm launcher verification:\n${statsResult.stderr}\n${statsResult.stdout}`,
+      );
+    }
+  } finally {
+    await aspFixture.close();
+  }
 }
 
 async function waitForRegistryPackage(packageName, version, timeoutMs) {
@@ -107,6 +208,8 @@ const installRoot = mkdtempSync(join(tmpdir(), "pp-registry-install-"));
 const homeDir = join(installRoot, ".privacy-pools");
 const seededHomeDir = join(installRoot, ".privacy-pools-seeded");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
+const globalPrefix = join(installRoot, "global-prefix");
+const globalHomeDir = join(globalPrefix, ".privacy-pools");
 
 try {
   await waitForRegistryPackage(nativePackageName, expectedVersion, timeoutMs);
@@ -158,6 +261,16 @@ try {
       `Installed registry package did not resolve ${nativePackageName} through npm optional dependencies.`,
     );
   }
+  assertInstalledPackageVersion(
+    installedRootPath,
+    expectedVersion,
+    "Installed registry CLI",
+  );
+  assertInstalledPackageVersion(
+    installedNativePath,
+    expectedVersion,
+    `Installed registry native package ${nativePackageName}`,
+  );
 
   assertInstalledLauncherBasics({
     installRoot,
@@ -210,6 +323,65 @@ try {
     installRoot,
     homeDir,
     label: "Installed registry CLI",
+  });
+
+  run(
+    npmCommand,
+    [
+      "install",
+      "-g",
+      "--prefix",
+      globalPrefix,
+      `${packageName}@${expectedVersion}`,
+      "--silent",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+    ],
+    {
+      cwd: installRoot,
+      env: npmProcessEnv(globalPrefix),
+    },
+  );
+
+  const globalCliPath = globalPackageInstallPath(globalPrefix, packageName);
+  if (!existsSync(globalCliPath)) {
+    fail(`Global installed registry package missing: ${packageName}`);
+  }
+
+  const globalNativePath = resolveInstalledDependencyPackagePath(
+    globalCliPath,
+    nativePackageName,
+  );
+  if (!globalNativePath || !existsSync(globalNativePath)) {
+    fail(
+      `Global installed registry package did not resolve ${nativePackageName} through npm optional dependencies.`,
+    );
+  }
+
+  assertInstalledPackageVersion(
+    globalCliPath,
+    expectedVersion,
+    "Global installed registry CLI",
+  );
+  assertInstalledPackageVersion(
+    globalNativePath,
+    expectedVersion,
+    `Global installed registry native package ${nativePackageName}`,
+  );
+
+  assertGlobalLauncherBasics({
+    prefix: globalPrefix,
+    homeDir: globalHomeDir,
+    expectedVersion,
+    label: "Global installed registry CLI",
+  });
+
+  await assertGlobalNativeStatsSuccess({
+    prefix: globalPrefix,
+    homeDir: globalHomeDir,
+    label: "Global installed registry CLI",
+    missingWorkerPath,
   });
 
   process.stdout.write(

@@ -14,6 +14,7 @@ import {
   assertInstalledFlowAwaitingFunding,
   assertInstalledInitViaStdin,
   assertInstalledLauncherBasics,
+  assertInstalledPackageVersion,
   assertInstalledNativeStatsError,
   assertInstalledNativeStatsSuccess,
   assertInstalledStatusSuccess,
@@ -619,7 +620,6 @@ async function main() {
   mkdirSync(globalPrefix, { recursive: true });
   const globalHomeDir = join(globalPrefix, ".privacy-pools");
   const globalCliPath = globalPackageInstallPath(globalPrefix, rootPackageJson.name);
-  const globalPackageJsonPath = join(globalCliPath, "package.json");
   const downgradedRegistry = await launchLocalRegistry([
     downgradedRootPackage,
     downgradedNativePackage,
@@ -676,24 +676,16 @@ async function main() {
     );
   }
 
-  const downgradedGlobalPackage = JSON.parse(
-    readFileSync(globalPackageJsonPath, "utf8"),
+  assertInstalledPackageVersion(
+    globalCliPath,
+    downgradedVersion,
+    "Global installed CLI",
   );
-  if (downgradedGlobalPackage.version !== downgradedVersion) {
-    fail(
-      `Global installed CLI package.json version ${downgradedGlobalPackage.version} did not match the staged downgraded version ${downgradedVersion}.`,
-    );
-  }
-
-  const globalNativePackageJsonPath = join(initialGlobalNativePath, "package.json");
-  const downgradedNativeJson = JSON.parse(
-    readFileSync(globalNativePackageJsonPath, "utf8"),
+  assertInstalledPackageVersion(
+    initialGlobalNativePath,
+    downgradedVersion,
+    `Global installed native package ${nativePackageName}`,
   );
-  if (downgradedNativeJson.version !== downgradedVersion) {
-    fail(
-      `Global installed native package version ${downgradedNativeJson.version} did not match the staged downgraded version ${downgradedVersion}.`,
-    );
-  }
 
   const publishedRegistry = await launchLocalRegistry([
     publishedRootPackage,
@@ -733,14 +725,11 @@ async function main() {
     await publishedRegistry.close();
   }
 
-  const upgradedGlobalPackage = JSON.parse(
-    readFileSync(globalPackageJsonPath, "utf8"),
+  assertInstalledPackageVersion(
+    globalCliPath,
+    expectedVersion,
+    "Global installed CLI",
   );
-  if (upgradedGlobalPackage.version !== expectedVersion) {
-    fail(
-      `Global installed CLI package.json version stayed at ${upgradedGlobalPackage.version} after upgrade instead of ${expectedVersion}.`,
-    );
-  }
 
   const upgradedGlobalNativePath = resolveInstalledDependencyPackagePath(
     globalCliPath,
@@ -752,14 +741,11 @@ async function main() {
     );
   }
 
-  const nativePackageJson = JSON.parse(
-    readFileSync(join(upgradedGlobalNativePath, "package.json"), "utf8"),
+  assertInstalledPackageVersion(
+    upgradedGlobalNativePath,
+    expectedVersion,
+    `Global installed native package ${nativePackageName}`,
   );
-  if (nativePackageJson.version !== expectedVersion) {
-    fail(
-      `Global installed native package version ${nativePackageJson.version} did not match ${expectedVersion} after upgrade.`,
-    );
-  }
 
   await assertGlobalNativeStatsSuccess({
     prefix: globalPrefix,

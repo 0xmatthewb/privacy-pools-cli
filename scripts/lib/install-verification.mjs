@@ -172,6 +172,38 @@ export function resolveInstalledDependencyPackagePath(
   }
 }
 
+export function readInstalledPackageManifest(packageRoot, label) {
+  const packageJsonPath = join(packageRoot, "package.json");
+  if (!existsSync(packageJsonPath)) {
+    fail(`${label} package.json is missing at ${packageJsonPath}.`);
+  }
+
+  try {
+    return JSON.parse(readFileSync(packageJsonPath, "utf8"));
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    fail(`${label} package.json is invalid JSON:\n${reason}`);
+  }
+}
+
+export function assertInstalledPackageVersion(
+  packageRoot,
+  expectedVersion,
+  label,
+) {
+  const manifest = readInstalledPackageManifest(packageRoot, label);
+  const actualVersion =
+    typeof manifest.version === "string" ? manifest.version.trim() : "";
+
+  if (actualVersion !== expectedVersion) {
+    fail(
+      `${label} package.json version ${actualVersion || "<missing>"} did not match ${expectedVersion}.`,
+    );
+  }
+
+  return manifest;
+}
+
 export function parseJson(stdout, label, secrets = []) {
   try {
     return JSON.parse(stdout);
