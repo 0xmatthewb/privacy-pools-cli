@@ -126,6 +126,17 @@ describe("flow command", () => {
       },
     },
     {
+      phase: "approved_waiting_privacy_delay",
+      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "approved",
+        privacyDelayProfile: "balanced",
+        privacyDelayUntil: "2026-03-24T13:00:00.000Z",
+      },
+    },
+    {
       phase: "approved_ready_to_withdraw",
       expectedNextAction: { command: "flow watch", when: "flow_resume" },
       overrides: {
@@ -348,6 +359,52 @@ describe("flow command", () => {
     ]);
   });
 
+  test("flow status surfaces saved privacy delay metadata and warnings", () => {
+    const home = createTempHome();
+    writeWorkflow(
+      home,
+      buildFlowSnapshot("wf-delay", "approved_waiting_privacy_delay", {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "approved",
+        committedValue: "100198474800000000000",
+        privacyDelayProfile: "off",
+        privacyDelayUntil: "2026-03-24T12:45:00.000Z",
+        privacyDelayConfigured: true,
+      }),
+    );
+
+    const result = runCli(["--json", "flow", "status", "wf-delay"], {
+      home,
+      timeoutMs: 10_000,
+    });
+
+    expect(result.status).toBe(0);
+    const json = parseJsonOutput<{
+      success: boolean;
+      phase: string;
+      privacyDelayProfile: string;
+      privacyDelayConfigured: boolean;
+      privacyDelayUntil?: string | null;
+      backupConfirmed?: boolean;
+      warnings?: Array<{ code: string; category: string; message: string }>;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
+    expect(json.phase).toBe("approved_waiting_privacy_delay");
+    expect(json.privacyDelayProfile).toBe("off");
+    expect(json.privacyDelayConfigured).toBe(true);
+    expect(json.privacyDelayUntil).toBe("2026-03-24T12:45:00.000Z");
+    expect(json.backupConfirmed).toBeUndefined();
+    expect(json.warnings?.map((warning) => warning.code)).toEqual([
+      "timing_delay_disabled",
+      "amount_pattern_linkability",
+    ]);
+    expect(json.warnings?.every((warning) => warning.category === "privacy")).toBe(
+      true,
+    );
+  });
+
   test("flow status latest resolves the newest saved workflow", () => {
     const home = createTempHome();
     writeWorkflow(home, {
@@ -560,6 +617,7 @@ describe("flow command", () => {
     expect(descriptor.usage).toBe("flow start <amount> <asset> --to <address>");
     expect(descriptor.flags).toEqual([
       "--to <address>",
+      "--privacy-delay <profile>",
       "--watch",
       "--new-wallet",
       "--export-new-wallet <path>",

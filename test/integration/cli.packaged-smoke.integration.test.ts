@@ -499,6 +499,8 @@ describe("packaged CLI smoke", () => {
           "ETH",
           "--to",
           "0x4444444444444444444444444444444444444444",
+          "--privacy-delay",
+          "off",
           "--new-wallet",
           "--export-new-wallet",
           exportPath,
@@ -522,6 +524,7 @@ describe("packaged CLI smoke", () => {
         expect(snapshot.workflowId).toBeTruthy();
         expect(snapshot.phase).toBe("awaiting_funding");
         expect(snapshot.walletMode).toBe("new_wallet");
+        expect(snapshot.privacyDelayProfile).toBe("off");
         expect(snapshot.backupConfirmed).toBe(true);
         expect(snapshot.requiredNativeFunding).toBeTruthy();
         expect(snapshot.depositTxHash).toBeNull();

@@ -1,10 +1,19 @@
-import { describe, expect, test } from "bun:test";
-import { createOutputContext } from "../../src/output/common.ts";
-import { renderFlowResult } from "../../src/output/flow.ts";
+import { beforeAll, describe, expect, mock, test } from "bun:test";
 import type { FlowSnapshot } from "../../src/services/workflow.ts";
 import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
+
+const realFormat = await import("../../src/utils/format.ts");
+
+let createOutputContext: typeof import("../../src/output/common.ts").createOutputContext;
+let renderFlowResult: typeof import("../../src/output/flow.ts").renderFlowResult;
+
+beforeAll(async () => {
+  mock.module("../../src/utils/format.ts", () => realFormat);
+  ({ createOutputContext } = await import("../../src/output/common.ts?output-flow-renderers"));
+  ({ renderFlowResult } = await import("../../src/output/flow.ts?output-flow-renderers"));
+});
 
 function sampleSnapshot(
   patch: Partial<FlowSnapshot> = {},
@@ -49,6 +58,9 @@ describe("renderFlowResult", () => {
     expect(json.action).toBe("status");
     expect(json.workflowId).toBe("wf-123");
     expect(json.phase).toBe("awaiting_asp");
+    expect(json.privacyDelayProfile).toBe("off");
+    expect(json.privacyDelayConfigured).toBe(false);
+    expect(json.backupConfirmed).toBeUndefined();
     expect(json.nextActions).toEqual([
       {
         command: "flow watch",
@@ -228,6 +240,80 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("privacy-pools flow ragequit wf-123");
   });
 
+  test("JSON mode includes privacy warnings and delay fields for pending flows", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          asset: "USDC",
+          assetDecimals: 6,
+          committedValue: "100198474",
+          privacyDelayProfile: "off",
+          privacyDelayConfigured: true,
+          privacyDelayUntil: "2026-03-24T13:00:00.000Z",
+        }),
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.privacyDelayProfile).toBe("off");
+    expect(json.privacyDelayConfigured).toBe(true);
+    expect(json.privacyDelayUntil).toBe("2026-03-24T13:00:00.000Z");
+    expect(json.warnings).toEqual([
+      expect.objectContaining({
+        code: "timing_delay_disabled",
+        category: "privacy",
+      }),
+      expect.objectContaining({
+        code: "amount_pattern_linkability",
+        category: "privacy",
+      }),
+    ]);
+  });
+
+  test("human mode reports the privacy hold phase and warnings", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "watch",
+        snapshot: sampleSnapshot({
+          asset: "USDC",
+          assetDecimals: 6,
+          committedValue: "100198474",
+          privacyDelayProfile: "balanced",
+          privacyDelayConfigured: true,
+          phase: "approved_waiting_privacy_delay",
+          aspStatus: "approved",
+          privacyDelayUntil: "2026-03-24T13:00:00.000Z",
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("Approved and waiting for privacy delay");
+    expect(stderr).toContain("Privacy delay until: 2026-03-24T13:00:00.000Z");
+    expect(stderr).toContain("Balanced (randomized 15 to 90 minutes)");
+    expect(stderr).toContain("manual round partial withdrawals");
+  });
+
+  test("human mode labels legacy off-delay snapshots without showing backup state for configured wallets", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          privacyDelayProfile: "off",
+          privacyDelayConfigured: false,
+        }),
+      }),
+    );
+
+    expect(stderr).toContain(
+      "Off (legacy workflow without a saved privacy-delay policy; behaves like no added hold)",
+    );
+    expect(stderr).not.toContain("Backup confirmed:");
+  });
+
   test("JSON mode includes funding guidance for awaiting_funding workflows", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
@@ -257,6 +343,7 @@ describe("renderFlowResult", () => {
     expect(json.walletAddress).toBe("0x5555555555555555555555555555555555555555");
     expect(json.requiredNativeFunding).toBe("123");
     expect(json.requiredTokenFunding).toBe("456");
+    expect(json.backupConfirmed).toBe(true);
     expect(json.nextActions).toEqual([
       {
         command: "flow watch",

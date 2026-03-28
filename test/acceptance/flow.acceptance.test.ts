@@ -314,17 +314,18 @@ defineScenarioSuite("flow acceptance", [
       timeoutMs: 10_000,
     }),
     assertExit(0),
-    assertJson<{
-      success: boolean;
-      command: string;
-      usage: string;
-      flags: string[];
+      assertJson<{
+        success: boolean;
+        command: string;
+        usage: string;
+        flags: string[];
     }>((json) => {
       expect(json.success).toBe(true);
       expect(json.command).toBe("flow start");
       expect(json.usage).toBe("flow start <amount> <asset> --to <address>");
       expect(json.flags).toEqual([
         "--to <address>",
+        "--privacy-delay <profile>",
         "--watch",
         "--new-wallet",
         "--export-new-wallet <path>",

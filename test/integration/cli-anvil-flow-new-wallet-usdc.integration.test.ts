@@ -169,6 +169,8 @@ function spawnFlowStartProcess(
       "USDC",
       "--to",
       relayedRecipient,
+      "--privacy-delay",
+      "off",
       "--new-wallet",
       "--export-new-wallet",
       exportPath,

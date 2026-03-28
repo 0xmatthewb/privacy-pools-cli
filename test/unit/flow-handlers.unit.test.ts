@@ -152,6 +152,7 @@ describe("flow command handlers", () => {
       {
         to: "0x4444444444444444444444444444444444444444",
         watch: true,
+        privacyDelay: "aggressive",
         newWallet: true,
         exportNewWallet: "/tmp/flow-wallet.txt",
       },
@@ -163,6 +164,7 @@ describe("flow command handlers", () => {
         amountInput: "0.1",
         assetInput: "ETH",
         recipient: "0x4444444444444444444444444444444444444444",
+        privacyDelayProfile: "aggressive",
         newWallet: true,
         exportNewWallet: "/tmp/flow-wallet.txt",
         globalOpts: expect.objectContaining({ chain: "sepolia", json: true }),
@@ -264,11 +266,12 @@ describe("flow command handlers", () => {
   test("watch delegates to the workflow service and renders the snapshot", async () => {
     const cmd = fakeCommand({ chain: "sepolia" });
 
-    await handleFlowWatchCommand("wf-watch", undefined, cmd);
+    await handleFlowWatchCommand("wf-watch", { privacyDelay: "off" }, cmd);
 
     expect(watchWorkflowMock).toHaveBeenCalledWith(
       expect.objectContaining({
         workflowId: "wf-watch",
+        privacyDelayProfile: "off",
         globalOpts: expect.objectContaining({ chain: "sepolia" }),
       }),
     );

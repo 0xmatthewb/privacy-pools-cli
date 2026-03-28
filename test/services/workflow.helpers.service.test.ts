@@ -10,11 +10,13 @@ import {
   attachRagequitResultToSnapshot,
   attachWithdrawalResultToSnapshot,
   alignSnapshotToPoolAccount,
+  buildFlowWarnings,
   buildFlowLastError,
   buildSavedWorkflowRecoveryCommand,
   buildWorkflowWalletBackup,
   classifyFlowMutation,
   clearLastError,
+  computeFlowWatchDelayMs,
   cleanupTerminalWorkflowSecret,
   createInitialSnapshot,
   deleteWorkflowSecretRecord,
@@ -27,8 +29,12 @@ import {
   loadWorkflowSnapshot,
   normalizeWorkflowSnapshot,
   nextPollDelayMs,
+  overrideWorkflowTimingForTests,
   pickWorkflowPoolAccount,
+  resolveFlowPrivacyDelayProfile,
+  resolveOptionalFlowPrivacyDelayProfile,
   resolveLatestWorkflowId,
+  sampleFlowPrivacyDelayMs,
   sameWorkflowSnapshotState,
   saveWorkflowSecretRecord,
   saveWorkflowSnapshot,
@@ -114,6 +120,7 @@ function samplePoolAccount(
 
 describe("workflow helper coverage", () => {
   afterEach(() => {
+    overrideWorkflowTimingForTests();
     if (ORIGINAL_HOME === undefined) {
       delete process.env.PRIVACY_POOLS_HOME;
     } else {
@@ -413,6 +420,8 @@ describe("workflow helper coverage", () => {
     expect(snapshot.requiredNativeFunding).toBe("123");
     expect(snapshot.requiredTokenFunding).toBe("456");
     expect(snapshot.backupConfirmed).toBe(true);
+    expect(snapshot.privacyDelayProfile).toBe("balanced");
+    expect(snapshot.privacyDelayConfigured).toBe(true);
     expect(snapshot.depositAmount).toBe("1000000");
     expect(snapshot.aspStatus).toBeUndefined();
   });
@@ -548,6 +557,10 @@ describe("workflow helper coverage", () => {
     expect(normalized.walletAddress).toBeNull();
     expect(normalized.requiredNativeFunding).toBeNull();
     expect(normalized.requiredTokenFunding).toBeNull();
+    expect(normalized.privacyDelayProfile).toBe("off");
+    expect(normalized.privacyDelayConfigured).toBe(false);
+    expect(normalized.approvalObservedAt).toBeNull();
+    expect(normalized.privacyDelayUntil).toBeNull();
     expect(normalized.poolAccountId).toBeNull();
 
     const baseline = normalizeWorkflowSnapshot(
@@ -564,6 +577,88 @@ describe("workflow helper coverage", () => {
         committedValue: "123",
       }),
     ).toBe(false);
+  });
+
+  test("flow privacy delay helpers parse profiles, honor overrides, and cap watch delay", () => {
+    expect(resolveFlowPrivacyDelayProfile(undefined, "balanced")).toBe("balanced");
+    expect(resolveOptionalFlowPrivacyDelayProfile(undefined)).toBeUndefined();
+    expect(resolveOptionalFlowPrivacyDelayProfile(" aggressive ")).toBe(
+      "aggressive",
+    );
+    expect(() => resolveFlowPrivacyDelayProfile("slow", "balanced")).toThrow(
+      "Unknown flow privacy delay profile",
+    );
+
+    overrideWorkflowTimingForTests({
+      samplePrivacyDelayMs: (profile) => (profile === "balanced" ? 42_000 : 84_000),
+    });
+    expect(sampleFlowPrivacyDelayMs("balanced")).toBe(42_000);
+    expect(sampleFlowPrivacyDelayMs("aggressive")).toBe(84_000);
+
+    const delaySnapshot = normalizeWorkflowSnapshot(
+      sampleWorkflow("wf-delay", {
+        phase: "approved_waiting_privacy_delay",
+        privacyDelayUntil: "2026-03-24T12:45:00.000Z",
+      }),
+    );
+    expect(
+      computeFlowWatchDelayMs(
+        delaySnapshot,
+        60_000,
+        Date.parse("2026-03-24T12:00:00.000Z"),
+      ),
+    ).toBe(300_000);
+    expect(
+      computeFlowWatchDelayMs(
+        delaySnapshot,
+        60_000,
+        Date.parse("2026-03-24T12:44:30.000Z"),
+      ),
+    ).toBe(30_000);
+  });
+
+  test("buildFlowWarnings surfaces explicit off-delay and full-balance amount warnings", () => {
+    const warnings = buildFlowWarnings(
+      normalizeWorkflowSnapshot(
+        sampleWorkflow("wf-warnings", {
+          asset: "USDC",
+          assetDecimals: 6,
+          committedValue: "100198474",
+          privacyDelayProfile: "off",
+          privacyDelayConfigured: true,
+        }),
+      ),
+    );
+
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        code: "timing_delay_disabled",
+        category: "privacy",
+      }),
+      expect.objectContaining({
+        code: "amount_pattern_linkability",
+        category: "privacy",
+      }),
+    ]);
+  });
+
+  test("buildFlowWarnings labels estimated committed values before funding", () => {
+    const warnings = buildFlowWarnings(
+      normalizeWorkflowSnapshot(
+        sampleWorkflow("wf-estimate", {
+          phase: "awaiting_funding",
+          asset: "USDC",
+          assetDecimals: 6,
+          committedValue: null,
+          estimatedCommittedValue: "100198474",
+          privacyDelayProfile: "balanced",
+          privacyDelayConfigured: true,
+        }),
+      ),
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.message).toContain("Estimated committed value");
   });
 
   test("saveWorkflowSnapshot helpers persist, reuse, and clean up workflow files", () => {

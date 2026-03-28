@@ -13,10 +13,17 @@ describe("flow command shell", () => {
     expect(start?.options.map((option) => option.flags)).toEqual(
       expect.arrayContaining([
         "-t, --to <address>",
+        "--privacy-delay <profile>",
         "--new-wallet",
         "--export-new-wallet <path>",
         "--watch",
       ]),
+    );
+
+    const watch = command.commands.find((subcommand) => subcommand.name() === "watch");
+    expect(watch).toBeDefined();
+    expect(watch?.options.map((option) => option.flags)).toEqual(
+      expect.arrayContaining(["--privacy-delay <profile>"]),
     );
   });
 });

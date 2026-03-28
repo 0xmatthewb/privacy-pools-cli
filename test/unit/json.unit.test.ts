@@ -23,8 +23,8 @@ function captureStdout(run: () => void): string {
 }
 
 describe("JSON output helpers", () => {
-  test("JSON_SCHEMA_VERSION is 1.6.0", () => {
-    expect(JSON_SCHEMA_VERSION).toBe("1.6.0");
+  test("JSON_SCHEMA_VERSION is 1.7.0", () => {
+    expect(JSON_SCHEMA_VERSION).toBe("1.7.0");
   });
 
   describe("printJsonSuccess", () => {

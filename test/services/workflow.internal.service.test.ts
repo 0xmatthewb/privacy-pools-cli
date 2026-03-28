@@ -504,6 +504,9 @@ beforeAll(async () => {
     reconcilePendingWithdrawalReceipt,
     reconcilePendingRagequitReceipt,
   } = await import("../../src/services/workflow.ts?workflow-internal-tests"));
+
+  // Restore real formatting for later imports in this Bun process.
+  mock.module("../../src/utils/format.ts", () => realFormat);
 });
 
 afterAll(() => {

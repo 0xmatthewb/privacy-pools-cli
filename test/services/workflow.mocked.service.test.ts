@@ -144,6 +144,28 @@ const inputPromptMock = mock(async () =>
     : "unused-wallet.txt",
 );
 const selectPromptMock = mock(async () => "copied" as PromptBackupChoice);
+const proveCommitmentMock = mock(async () => ({
+  proof: {
+    pi_a: [1n, 2n],
+    pi_b: [
+      [3n, 4n],
+      [5n, 6n],
+    ],
+    pi_c: [7n, 8n],
+  },
+  publicSignals: [9n, 10n, 11n, 12n],
+}));
+const proveWithdrawalMock = mock(async () => ({
+  proof: {
+    pi_a: [1n, 2n],
+    pi_b: [
+      [3n, 4n],
+      [5n, 6n],
+    ],
+    pi_c: [7n, 8n],
+  },
+  publicSignals: [13n, 14n, 15n, 16n],
+}));
 
 function makeTempHome(): string {
   return createTrackedTempDir("pp-workflow-mocked-");
@@ -613,6 +635,7 @@ function isPoolAccountCurrentlyAvailable(): boolean {
 type WorkflowModuleType = typeof import("../../src/services/workflow.ts");
 let getWorkflowStatus: WorkflowModuleType["getWorkflowStatus"];
 let loadWorkflowSnapshot: WorkflowModuleType["loadWorkflowSnapshot"];
+let overrideWorkflowTimingForTests: WorkflowModuleType["overrideWorkflowTimingForTests"];
 let ragequitWorkflow: WorkflowModuleType["ragequitWorkflow"];
 let startWorkflow: WorkflowModuleType["startWorkflow"];
 let watchWorkflow: WorkflowModuleType["watchWorkflow"];
@@ -675,28 +698,8 @@ async function installWorkflowMocks(): Promise<void> {
 
   mock.module("../../src/services/proofs.ts", () => ({
     ...realProofs,
-    proveCommitment: mock(async () => ({
-      proof: {
-        pi_a: [1n, 2n],
-        pi_b: [
-          [3n, 4n],
-          [5n, 6n],
-        ],
-        pi_c: [7n, 8n],
-      },
-      publicSignals: [9n, 10n, 11n, 12n],
-    })),
-    proveWithdrawal: mock(async () => ({
-      proof: {
-        pi_a: [1n, 2n],
-        pi_b: [
-          [3n, 4n],
-          [5n, 6n],
-        ],
-        pi_c: [7n, 8n],
-      },
-      publicSignals: [13n, 14n, 15n, 16n],
-    })),
+    proveCommitment: proveCommitmentMock,
+    proveWithdrawal: proveWithdrawalMock,
   }));
 
   mock.module("../../src/services/relayer.ts", () => ({
@@ -757,7 +760,6 @@ async function installWorkflowMocks(): Promise<void> {
 
   mock.module("../../src/utils/format.ts", () => ({
     ...realFormat,
-    info: () => undefined,
     spinner: () => ({
       text: "",
       start() {},
@@ -767,7 +769,6 @@ async function installWorkflowMocks(): Promise<void> {
     }),
     stageHeader: () => undefined,
     verbose: () => undefined,
-    warn: () => undefined,
   }));
 
   mock.module("viem/accounts", () => ({
@@ -779,10 +780,14 @@ async function installWorkflowMocks(): Promise<void> {
   ({
     getWorkflowStatus,
     loadWorkflowSnapshot,
+    overrideWorkflowTimingForTests,
     ragequitWorkflow,
     startWorkflow,
     watchWorkflow,
   } = workflowModule);
+
+  // Restore real formatting for later imports in this Bun process.
+  mock.module("../../src/utils/format.ts", () => realFormat);
 }
 
 function writeWorkflowSnapshot(workflowId: string, patch: Record<string, unknown>) {
@@ -844,6 +849,7 @@ describe("workflow service mocked coverage", () => {
 
   beforeEach(() => {
     resetState();
+    overrideWorkflowTimingForTests();
     process.env.PRIVACY_POOLS_HOME = state.tempHome;
     setPromptResponses();
     getDataServiceMock.mockClear();
@@ -890,6 +896,30 @@ describe("workflow service mocked coverage", () => {
     validateRelayerQuoteForWithdrawalMock.mockImplementation(() => ({
       quoteFeeBPS: 50,
       expirationMs: Date.now() + 60_000,
+    }));
+    proveCommitmentMock.mockClear();
+    proveCommitmentMock.mockImplementation(async () => ({
+      proof: {
+        pi_a: [1n, 2n],
+        pi_b: [
+          [3n, 4n],
+          [5n, 6n],
+        ],
+        pi_c: [7n, 8n],
+      },
+      publicSignals: [9n, 10n, 11n, 12n],
+    }));
+    proveWithdrawalMock.mockClear();
+    proveWithdrawalMock.mockImplementation(async () => ({
+      proof: {
+        pi_a: [1n, 2n],
+        pi_b: [
+          [3n, 4n],
+          [5n, 6n],
+        ],
+        pi_c: [7n, 8n],
+      },
+      publicSignals: [13n, 14n, 15n, 16n],
     }));
   });
 
@@ -1367,6 +1397,7 @@ describe("workflow service mocked coverage", () => {
         amountInput: "100",
         assetInput: "USDC",
         recipient: "0x7777777777777777777777777777777777777777",
+        privacyDelayProfile: "off",
         newWallet: true,
         exportNewWallet: backupPath,
         globalOpts: { chain: "sepolia" },
@@ -1409,6 +1440,7 @@ describe("workflow service mocked coverage", () => {
         amountInput: "0.01",
         assetInput: "ETH",
         recipient: "0x7777777777777777777777777777777777777777",
+        privacyDelayProfile: "off",
         globalOpts: { chain: "sepolia" },
         mode: {
           isAgent: true,
@@ -1781,6 +1813,229 @@ describe("workflow service mocked coverage", () => {
     expect(snapshot.phase).toBe("paused_declined");
     expect(snapshot.aspStatus).toBe("declined");
     expect(state.requestQuoteCalls).toHaveLength(0);
+  });
+
+  test("watchWorkflow schedules privacy delay once and completes after the persisted deadline", async () => {
+    let nowMs = Date.parse("2026-03-24T12:00:00.000Z");
+    const sleepCalls: number[] = [];
+    let sampleCalls = 0;
+    let advancedMs = 0;
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowMs,
+      samplePrivacyDelayMs: () => {
+        sampleCalls += 1;
+        return 20 * 60_000;
+      },
+      sleep: async (ms) => {
+        sleepCalls.push(ms);
+        expect(state.requestQuoteCalls).toHaveLength(0);
+        nowMs += ms;
+        advancedMs += ms;
+      },
+    });
+
+    writeWorkflowSnapshot("wf-privacy-delay", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+      privacyDelayProfile: "balanced",
+      privacyDelayConfigured: true,
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-privacy-delay",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("completed");
+    expect(snapshot.privacyDelayProfile).toBe("balanced");
+    expect(snapshot.approvalObservedAt).toBe("2026-03-24T12:00:00.000Z");
+    expect(snapshot.privacyDelayUntil).toBeNull();
+    expect(sampleCalls).toBe(1);
+    expect(sleepCalls.every((value) => value > 0 && value <= 300_000)).toBe(true);
+    expect(advancedMs).toBe(20 * 60_000);
+    expect(state.requestQuoteCalls).toHaveLength(1);
+  });
+
+  test("watchWorkflow does not resample a saved privacy delay after restart", async () => {
+    let nowMs = Date.parse("2026-03-24T12:00:00.000Z");
+    let sampleCalls = 0;
+    const detach = new Error("detach after first sleep");
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowMs,
+      samplePrivacyDelayMs: () => {
+        sampleCalls += 1;
+        return 20 * 60_000;
+      },
+      sleep: async (ms) => {
+        nowMs += ms;
+        throw detach;
+      },
+    });
+
+    writeWorkflowSnapshot("wf-privacy-delay-restart", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+      privacyDelayProfile: "balanced",
+      privacyDelayConfigured: true,
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-privacy-delay-restart",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow(detach.message);
+
+    const delayed = loadWorkflowSnapshot("wf-privacy-delay-restart");
+    expect(delayed.phase).toBe("approved_waiting_privacy_delay");
+    expect(delayed.approvalObservedAt).toBe("2026-03-24T12:00:00.000Z");
+    expect(delayed.privacyDelayUntil).toBe("2026-03-24T12:20:00.000Z");
+
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowMs,
+      samplePrivacyDelayMs: () => {
+        sampleCalls += 1;
+        return 20 * 60_000;
+      },
+      sleep: async (ms) => {
+        nowMs += ms;
+      },
+    });
+
+    const resumed = await watchWorkflow({
+      workflowId: "wf-privacy-delay-restart",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(resumed.phase).toBe("completed");
+    expect(sampleCalls).toBe(1);
+  });
+
+  test("watchWorkflow lets an explicit off override clear a saved privacy delay", async () => {
+    const sleepCalls: number[] = [];
+    overrideWorkflowTimingForTests({
+      nowMs: () => Date.parse("2026-03-24T12:00:00.000Z"),
+      sleep: async (ms) => {
+        sleepCalls.push(ms);
+      },
+    });
+
+    writeWorkflowSnapshot("wf-privacy-delay-off", {
+      phase: "approved_waiting_privacy_delay",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+      privacyDelayProfile: "balanced",
+      privacyDelayConfigured: true,
+      approvalObservedAt: "2026-03-24T11:00:00.000Z",
+      privacyDelayUntil: "2026-03-24T13:00:00.000Z",
+      aspStatus: "approved",
+    });
+
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-privacy-delay-off",
+      privacyDelayProfile: "off",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(snapshot.phase).toBe("completed");
+    expect(snapshot.privacyDelayProfile).toBe("off");
+    expect(snapshot.privacyDelayUntil).toBeNull();
+    expect(state.requestQuoteCalls).toHaveLength(1);
+    expect(sleepCalls).toHaveLength(0);
+  });
+
+  test("watchWorkflow reschedules approved privacy delays when switching profiles", async () => {
+    let nowMs = Date.parse("2026-03-24T12:00:00.000Z");
+    const stop = new Error("stop after reschedule");
+    let sampleCalls = 0;
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowMs,
+      samplePrivacyDelayMs: (profile) => {
+        sampleCalls += 1;
+        return profile === "aggressive" ? 4 * 60 * 60_000 : 30 * 60_000;
+      },
+      sleep: async (ms) => {
+        nowMs += ms;
+        throw stop;
+      },
+    });
+
+    writeWorkflowSnapshot("wf-privacy-delay-switch", {
+      phase: "approved_waiting_privacy_delay",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+      privacyDelayProfile: "balanced",
+      privacyDelayConfigured: true,
+      approvalObservedAt: "2026-03-24T11:00:00.000Z",
+      privacyDelayUntil: "2026-03-24T12:30:00.000Z",
+      aspStatus: "approved",
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-privacy-delay-switch",
+        privacyDelayProfile: "aggressive",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow(stop.message);
+
+    const rescheduled = loadWorkflowSnapshot("wf-privacy-delay-switch");
+    expect(rescheduled.phase).toBe("approved_waiting_privacy_delay");
+    expect(rescheduled.privacyDelayProfile).toBe("aggressive");
+    expect(rescheduled.approvalObservedAt).toBe("2026-03-24T12:00:00.000Z");
+    expect(rescheduled.privacyDelayUntil).toBe("2026-03-24T16:00:00.000Z");
+    expect(sampleCalls).toBe(1);
   });
 
   test("watchWorkflow pauses flows that require Proof of Association", async () => {
@@ -2713,8 +2968,9 @@ describe("workflow service mocked coverage", () => {
   });
 
   test("watchWorkflow refreshes an expired relayer quote before proof generation", async () => {
-    const originalNow = Date.now;
-    Date.now = () => 3_000;
+    overrideWorkflowTimingForTests({
+      nowMs: () => 3_000,
+    });
     validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
       quoteFeeBPS: 50,
       expirationMs: 2_000,
@@ -2736,32 +2992,29 @@ describe("workflow service mocked coverage", () => {
       aspStatus: "approved",
     });
 
-    try {
-      const snapshot = await watchWorkflow({
-        workflowId: "wf-refresh-before-proof",
-        globalOpts: { chain: "sepolia" },
-        mode: {
-          isAgent: true,
-          isJson: true,
-          isCsv: false,
-          isQuiet: true,
-          format: "json",
-          skipPrompts: true,
-        },
-        isVerbose: false,
-      });
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-refresh-before-proof",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
 
-      expect(snapshot.phase).toBe("completed");
-      expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(1);
-    } finally {
-      Date.now = originalNow;
-    }
+    expect(snapshot.phase).toBe("completed");
+    expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(1);
   });
 
   test("watchWorkflow refreshes an expired relayer quote after proof generation when the fee is unchanged", async () => {
-    const originalNow = Date.now;
     let nowCalls = 0;
-    Date.now = () => (++nowCalls === 1 ? 1_000 : 3_000);
+    overrideWorkflowTimingForTests({
+      nowMs: () => (++nowCalls === 1 ? 1_000 : 3_000),
+    });
     validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
       quoteFeeBPS: 50,
       expirationMs: 2_000,
@@ -2791,32 +3044,29 @@ describe("workflow service mocked coverage", () => {
       aspStatus: "approved",
     });
 
-    try {
-      const snapshot = await watchWorkflow({
-        workflowId: "wf-refresh-after-proof",
-        globalOpts: { chain: "sepolia" },
-        mode: {
-          isAgent: true,
-          isJson: true,
-          isCsv: false,
-          isQuiet: true,
-          format: "json",
-          skipPrompts: true,
-        },
-        isVerbose: false,
-      });
+    const snapshot = await watchWorkflow({
+      workflowId: "wf-refresh-after-proof",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
 
-      expect(snapshot.phase).toBe("completed");
-      expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(1);
-    } finally {
-      Date.now = originalNow;
-    }
+    expect(snapshot.phase).toBe("completed");
+    expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(1);
   });
 
   test("watchWorkflow fails closed when the relayer fee changes after proof generation", async () => {
-    const originalNow = Date.now;
-    let nowCalls = 0;
-    Date.now = () => (++nowCalls === 1 ? 1_000 : 3_000);
+    let nowMs = 1_000;
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowMs,
+    });
     validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
       quoteFeeBPS: 50,
       expirationMs: 2_000,
@@ -2838,6 +3088,20 @@ describe("workflow service mocked coverage", () => {
         expiresAt: new Date(2_000).toISOString(),
       };
     });
+    proveWithdrawalMock.mockImplementationOnce(async () => {
+      nowMs = 3_000;
+      return {
+        proof: {
+          pi_a: [1n, 2n],
+          pi_b: [
+            [3n, 4n],
+            [5n, 6n],
+          ],
+          pi_c: [7n, 8n],
+        },
+        publicSignals: [13n, 14n, 15n, 16n],
+      };
+    });
     writeWorkflowSnapshot("wf-fee-change-after-proof", {
       phase: "awaiting_asp",
       walletMode: "configured",
@@ -2846,29 +3110,25 @@ describe("workflow service mocked coverage", () => {
       aspStatus: "approved",
     });
 
-    try {
-      await expect(
-        watchWorkflow({
-          workflowId: "wf-fee-change-after-proof",
-          globalOpts: { chain: "sepolia" },
-          mode: {
-            isAgent: true,
-            isJson: true,
-            isCsv: false,
-            isQuiet: true,
-            format: "json",
-            skipPrompts: true,
-          },
-          isVerbose: false,
-        }),
-      ).rejects.toThrow("Relayer fee changed during proof generation");
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-fee-change-after-proof",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Relayer fee changed during proof generation");
 
-      expect(getWorkflowStatus({ workflowId: "wf-fee-change-after-proof" }).lastError?.step).toBe(
-        "withdraw",
-      );
-    } finally {
-      Date.now = originalNow;
-    }
+    expect(getWorkflowStatus({ workflowId: "wf-fee-change-after-proof" }).lastError?.step).toBe(
+      "withdraw",
+    );
   });
 
   test("watchWorkflow fails closed when the latest root changes before workflow proof generation", async () => {
@@ -3572,6 +3832,7 @@ describe("workflow service mocked coverage", () => {
           amountInput: "100",
           assetInput: "USDC",
           recipient: "0x7777777777777777777777777777777777777777",
+          privacyDelayProfile: "off",
           newWallet: true,
           exportNewWallet: backupPath,
           globalOpts: { chain: "sepolia" },
@@ -3620,6 +3881,7 @@ describe("workflow service mocked coverage", () => {
           amountInput: "100",
           assetInput: "USDC",
           recipient: "0x7777777777777777777777777777777777777777",
+          privacyDelayProfile: "off",
           newWallet: true,
           globalOpts: { chain: "sepolia" },
           mode: {
@@ -3665,6 +3927,7 @@ describe("workflow service mocked coverage", () => {
           amountInput: "100",
           assetInput: "USDC",
           recipient: "0x7777777777777777777777777777777777777777",
+          privacyDelayProfile: "off",
           newWallet: true,
           globalOpts: { chain: "sepolia" },
           mode: {
