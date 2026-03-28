@@ -14,6 +14,7 @@ import {
   npmCommand,
   npmProcessEnv,
   packageInstallPath,
+  resolveInstalledDependencyPackagePath,
   parseArgs,
   rootPackageJson,
   repoRoot,
@@ -148,8 +149,11 @@ try {
     fail(`Installed registry package missing: ${packageName}`);
   }
 
-  const installedNativePath = packageInstallPath(installRoot, nativePackageName);
-  if (!existsSync(installedNativePath)) {
+  const installedNativePath = resolveInstalledDependencyPackagePath(
+    installedRootPath,
+    nativePackageName,
+  );
+  if (!installedNativePath || !existsSync(installedNativePath)) {
     fail(
       `Installed registry package did not resolve ${nativePackageName} through npm optional dependencies.`,
     );

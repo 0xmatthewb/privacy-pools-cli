@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import {
   existsSync,
   mkdirSync,
@@ -155,6 +156,20 @@ export function packTarball(cwd, destinationDir, options = {}) {
 
 export function packageInstallPath(installRoot, packageName) {
   return join(installRoot, "node_modules", ...packageName.split("/"));
+}
+
+export function resolveInstalledDependencyPackagePath(
+  installedRootPackagePath,
+  packageName,
+) {
+  try {
+    const requireResolve = createRequire(
+      join(installedRootPackagePath, "package.json"),
+    ).resolve;
+    return dirname(requireResolve(`${packageName}/package.json`));
+  } catch {
+    return null;
+  }
 }
 
 export function parseJson(stdout, label, secrets = []) {

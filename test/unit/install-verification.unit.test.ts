@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   buildInstallBaseEnv,
   installCliEnv,
   npmProcessEnv,
+  resolveInstalledDependencyPackagePath,
 } from "../../scripts/lib/install-verification.mjs";
+import { createTrackedTempDir } from "../helpers/temp.ts";
+
+function normalizeTempPath(path: string): string {
+  return path.replace(/^\/private(?=\/var\/)/, "");
+}
 
 const ORIGINAL_PRIVATE_KEY = process.env.PRIVACY_POOLS_PRIVATE_KEY;
 const ORIGINAL_PP_RPC_URL = process.env.PP_RPC_URL;
@@ -84,5 +92,81 @@ describe("install verification env hygiene", () => {
     expect(env.PRIVACY_POOLS_HOME).toBe("/tmp/privacy-pools-test-home");
     expect(env.TERM_SESSION_ID).toBeUndefined();
     expect(env.ITERM_SESSION_ID).toBeUndefined();
+  });
+
+  test("resolveInstalledDependencyPackagePath matches launcher-style module resolution for hoisted and nested optional packages", () => {
+    const installRoot = createTrackedTempDir("pp-install-layout-");
+    const rootPackagePath = join(
+      installRoot,
+      "node_modules",
+      "privacy-pools-cli",
+    );
+    mkdirSync(rootPackagePath, { recursive: true });
+    writeFileSync(
+      join(rootPackagePath, "package.json"),
+      JSON.stringify({ name: "privacy-pools-cli", version: "1.7.0" }),
+      "utf8",
+    );
+
+    const hoistedNativePath = join(
+      installRoot,
+      "node_modules",
+      "@0xmatthewb",
+      "privacy-pools-cli-native-macos-arm64",
+    );
+    mkdirSync(hoistedNativePath, { recursive: true });
+    writeFileSync(
+      join(hoistedNativePath, "package.json"),
+      JSON.stringify({
+        name: "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
+        version: "1.7.0",
+      }),
+      "utf8",
+    );
+
+    expect(
+      normalizeTempPath(
+      resolveInstalledDependencyPackagePath(
+        rootPackagePath,
+        "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
+      ),
+      ),
+    ).toBe(normalizeTempPath(hoistedNativePath));
+
+    const nestedRoot = createTrackedTempDir("pp-install-layout-nested-");
+    const nestedCliPath = join(
+      nestedRoot,
+      "node_modules",
+      "privacy-pools-cli",
+    );
+    const nestedNativePath = join(
+      nestedCliPath,
+      "node_modules",
+      "@0xmatthewb",
+      "privacy-pools-cli-native-macos-arm64",
+    );
+    mkdirSync(nestedNativePath, { recursive: true });
+    writeFileSync(
+      join(nestedCliPath, "package.json"),
+      JSON.stringify({ name: "privacy-pools-cli", version: "1.7.0" }),
+      "utf8",
+    );
+    writeFileSync(
+      join(nestedNativePath, "package.json"),
+      JSON.stringify({
+        name: "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
+        version: "1.7.0",
+      }),
+      "utf8",
+    );
+
+    expect(
+      normalizeTempPath(
+      resolveInstalledDependencyPackagePath(
+        nestedCliPath,
+        "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
+      ),
+      ),
+    ).toBe(normalizeTempPath(nestedNativePath));
   });
 });

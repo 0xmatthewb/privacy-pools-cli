@@ -22,6 +22,7 @@ import {
   launchAspFixtureServer,
   packTarball,
   packageInstallPath,
+  resolveInstalledDependencyPackagePath,
   parseArgs,
   rootPackageJson,
   npmCommand,
@@ -511,11 +512,15 @@ async function main() {
     );
   }
 
-  const installedNativePackagePath = packageInstallPath(
+  const installedRootPath = packageInstallPath(
     installRoot,
+    rootPackageJson.name,
+  );
+  const installedNativePackagePath = resolveInstalledDependencyPackagePath(
+    installedRootPath,
     nativePackageName,
   );
-  if (!existsSync(installedNativePackagePath)) {
+  if (!installedNativePackagePath || !existsSync(installedNativePackagePath)) {
     fail(
       `Installed release CLI did not resolve ${nativePackageName} through npm optional dependencies.`,
     );
@@ -656,25 +661,17 @@ async function main() {
     await downgradedRegistry.close();
   }
 
-  const globalTopLevelNativePath = globalPackageInstallPath(
-    globalPrefix,
-    nativePackageName,
-  );
-  const globalNestedNativePath = packageInstallPath(
+  const initialGlobalNativePath = resolveInstalledDependencyPackagePath(
     globalCliPath,
     nativePackageName,
   );
-  const globalNativePath = existsSync(globalTopLevelNativePath)
-    ? globalTopLevelNativePath
-    : globalNestedNativePath;
 
-  if (!existsSync(globalCliPath) || !existsSync(globalNativePath)) {
+  if (!existsSync(globalCliPath) || !initialGlobalNativePath) {
     fail(
       [
         "Global release install did not resolve the expected global package paths before upgrade verification.",
         `${rootPackageJson.name}: ${globalCliPath} (${existsSync(globalCliPath) ? "present" : "missing"})`,
-        `${nativePackageName} (top-level): ${globalTopLevelNativePath} (${existsSync(globalTopLevelNativePath) ? "present" : "missing"})`,
-        `${nativePackageName} (nested): ${globalNestedNativePath} (${existsSync(globalNestedNativePath) ? "present" : "missing"})`,
+        `${nativePackageName}: ${initialGlobalNativePath ?? "<not resolved by module resolution>"}`,
       ].join("\n"),
     );
   }
@@ -688,7 +685,7 @@ async function main() {
     );
   }
 
-  const globalNativePackageJsonPath = join(globalNativePath, "package.json");
+  const globalNativePackageJsonPath = join(initialGlobalNativePath, "package.json");
   const downgradedNativeJson = JSON.parse(
     readFileSync(globalNativePackageJsonPath, "utf8"),
   );
@@ -745,14 +742,18 @@ async function main() {
     );
   }
 
-  if (!existsSync(globalNativePath)) {
+  const upgradedGlobalNativePath = resolveInstalledDependencyPackagePath(
+    globalCliPath,
+    nativePackageName,
+  );
+  if (!upgradedGlobalNativePath || !existsSync(upgradedGlobalNativePath)) {
     fail(
       `Global installed CLI lost ${nativePackageName} after running privacy-pools upgrade.`,
     );
   }
 
   const nativePackageJson = JSON.parse(
-    readFileSync(join(globalNativePath, "package.json"), "utf8"),
+    readFileSync(join(upgradedGlobalNativePath, "package.json"), "utf8"),
   );
   if (nativePackageJson.version !== expectedVersion) {
     fail(
