@@ -11,7 +11,14 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll } from "bun:test";
@@ -19,6 +26,8 @@ import { CLI_ROOT } from "./paths.ts";
 import { buildChildProcessEnv } from "./child-env.ts";
 
 export const CLI_CWD = CLI_ROOT;
+
+let defaultBuiltWorkspaceSnapshotRoot: string | null = null;
 
 export interface CliRunOptions {
   home?: string;
@@ -56,6 +65,91 @@ export const TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
 export const TEST_PRIVATE_KEY =
   "0x1111111111111111111111111111111111111111111111111111111111111111";
+
+function shouldUseIsolatedBuiltWorkspace(
+  cwd: string,
+  binPath?: string,
+): boolean {
+  return cwd === CLI_CWD && binPath === undefined;
+}
+
+function npmBin(): string {
+  return process.platform === "win32" ? "npm.cmd" : "npm";
+}
+
+function createRetainedBuiltWorkspaceSnapshot(): string {
+  const snapshotRoot = createTempHome("pp-built-cli-snapshot-");
+  retainedTempHomes.add(snapshotRoot);
+
+  cpSync(CLI_ROOT, snapshotRoot, {
+    recursive: true,
+    filter(source) {
+      const relative = source.slice(CLI_ROOT.length).replace(/^[/\\]/, "");
+      if (relative === "") return true;
+      if (
+        relative === "native/shell/target" ||
+        relative.startsWith("native/shell/target/")
+      ) {
+        return false;
+      }
+
+      const topLevel = relative.split(/[/\\]/)[0];
+      return topLevel !== ".git" && topLevel !== "node_modules" && topLevel !== "dist";
+    },
+  });
+
+  symlinkSync(
+    join(CLI_ROOT, "node_modules"),
+    join(snapshotRoot, "node_modules"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+
+  const build = spawnSync(npmBin(), ["run", "-s", "build"], {
+    cwd: snapshotRoot,
+    encoding: "utf8",
+    timeout: 120_000,
+    maxBuffer: 10 * 1024 * 1024,
+    env: buildChildProcessEnv(),
+  });
+
+  if (build.status !== 0) {
+    throw new Error(
+      `Built CLI snapshot build failed (exit ${build.status}):\n${build.stderr}\n${build.stdout}`,
+    );
+  }
+
+  return snapshotRoot;
+}
+
+function getDefaultBuiltWorkspaceSnapshotRoot(): string {
+  // Integration suites often compare built launcher behavior while other
+  // scripts rebuild the repo in parallel. Snapshotting the built workspace
+  // once per Bun process keeps those tests off the shared mutable dist/.
+  defaultBuiltWorkspaceSnapshotRoot ??= createRetainedBuiltWorkspaceSnapshot();
+  return defaultBuiltWorkspaceSnapshotRoot;
+}
+
+function resolveBuiltCliInvocation(
+  cwd: string,
+  binPath?: string,
+): { cwd: string; binPath: string } {
+  if (shouldUseIsolatedBuiltWorkspace(cwd, binPath)) {
+    return {
+      cwd: getDefaultBuiltWorkspaceSnapshotRoot(),
+      binPath: "dist/index.js",
+    };
+  }
+
+  return {
+    cwd,
+    binPath: binPath ?? "dist/index.js",
+  };
+}
+
+export const cliTestInternals = {
+  shouldUseIsolatedBuiltWorkspace,
+  resolveBuiltCliInvocation,
+};
 
 function cleanupTrackedTempHomes(includeRetained: boolean = false): void {
   const remainingTracked = new Set<string>();
@@ -166,8 +260,11 @@ export function runBuiltCli(
 ): CliRunResult {
   const home = options.home ?? createTempHome();
   const timeoutMs = options.timeoutMs ?? 20_000;
-  const cwd = options.cwd ?? CLI_CWD;
-  const binPath = options.binPath ?? "dist/index.js";
+  const requestedCwd = options.cwd ?? CLI_CWD;
+  const { cwd, binPath } = resolveBuiltCliInvocation(
+    requestedCwd,
+    options.binPath,
+  );
   const start = Date.now();
 
   const result = spawnSync("node", [binPath, ...args], {
