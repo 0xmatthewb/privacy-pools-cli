@@ -124,7 +124,7 @@ export function guideText(): string {
     `  ${notice("--format <fmt>")}        Output format: table (default), csv, json`,
     `  ${notice("--no-color")}            Disable colored output (also respects NO_COLOR env var)`,
     `  ${notice("-y, --yes")}             Skip confirmation prompts`,
-    `  ${notice("-q, --quiet")}           Suppress non-essential stderr output`,
+    `  ${notice("-q, --quiet")}           Suppress human-oriented stderr output`,
     `  ${notice("-v, --verbose")}         Enable verbose/debug output`,
     `  ${notice("--agent")}               Alias for --json --yes --quiet (agent/automation mode)`,
     `  ${notice("--timeout <seconds>")}  Network/transaction timeout (default: 30)`,

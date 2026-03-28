@@ -110,7 +110,7 @@ When a human delegates CLI operations to an agent:
 | `-y, --yes` | Skip confirmation prompts |
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-r, --rpc-url <url>` | Override RPC URL |
-| `-q, --quiet` | Suppress non-essential stderr output |
+| `-q, --quiet` | Suppress human-oriented stderr output |
 | `-v, --verbose` | Enable verbose/debug output |
 | `--no-banner` | Disable ASCII banner output |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |

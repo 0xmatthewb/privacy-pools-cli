@@ -37,7 +37,7 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
   },
   {
     flag: "-q, --quiet",
-    description: "Suppress non-essential stderr output",
+    description: "Suppress human-oriented stderr output",
     takesValue: false,
     welcomeBoolean: true,
   },

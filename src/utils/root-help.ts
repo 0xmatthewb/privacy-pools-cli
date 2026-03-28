@@ -34,7 +34,7 @@ const ROOT_HELP_BASE_LINES = [
   "  -y, --yes            Skip confirmation prompts",
   "  -r, --rpc-url <url>  Override RPC URL",
   "  --agent              Machine-friendly mode (alias for --json --yes --quiet)",
-  "  -q, --quiet          Suppress non-essential stderr output",
+  "  -q, --quiet          Suppress human-oriented stderr output",
   "  -v, --verbose        Enable verbose/debug output",
   "  --no-banner          Disable ASCII banner output",
   "  --no-color           Disable colored output (also respects NO_COLOR env var)",
