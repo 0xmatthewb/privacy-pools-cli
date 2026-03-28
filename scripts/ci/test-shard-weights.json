@@ -9,6 +9,6 @@
   "./test/unit/deposit-command-handler.unit.test.ts": 110,
   "./test/unit/ragequit-command-handler.unit.test.ts": 110,
   "./test/unit/account-readonly-command-handlers.unit.test.ts": 120,
-  "./test/acceptance/flow.acceptance.test.ts": 100,
+  "./test/integration/cli-flow.integration.test.ts": 100,
   "./test/acceptance/no-sync.acceptance.test.ts": 90
 }
