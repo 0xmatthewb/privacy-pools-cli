@@ -125,7 +125,7 @@ describe("command docs alignment", () => {
       /"safeReadOnlyCommands": \[(.*?)\]/,
     )?.[1];
     expect(safeReadOnlyCommands).toBeDefined();
-    expect(safeReadOnlyCommands).not.toContain('"flow"');
+    expect(safeReadOnlyCommands).toContain('"flow"');
     expect(safeReadOnlyCommands).toContain('"flow status"');
     expect(safeReadOnlyCommands).toContain('"migrate"');
     expect(safeReadOnlyCommands).toContain('"migrate status"');
@@ -348,6 +348,32 @@ describe("command docs alignment", () => {
     expect(normalizedAgents).toContain("flow watch latest --privacy-delay aggressive --agent");
     expect(normalizedReference).toContain("--privacy-delay <profile>");
     expect(normalizedSkillReference).toContain("flow watch latest --privacy-delay aggressive --agent");
+  });
+
+  test("flow start docs pin the machine-mode privacy and backup safety rules", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const flowStartMetadata = getCommandMetadata("flow start");
+    const normalizedAgents = normalizeWhitespace(agents);
+    const normalizedReference = normalizeWhitespace(reference);
+    const normalizedSkill = normalizeWhitespace(skill);
+    const normalizedSkillReference = normalizeWhitespace(skillReference);
+    const normalizedSafetyNotes = normalizeWhitespace(
+      (flowStartMetadata.help?.safetyNotes ?? []).join(" "),
+    );
+
+    expect(normalizedSafetyNotes).toContain("In machine modes, non-round flow amounts are rejected");
+    expect(normalizedSafetyNotes).toContain("Non-interactive workflow wallets require --export-new-wallet");
+    expect(normalizedAgents).toContain("Like `deposit`, `flow start` rejects non-round amounts in machine modes");
+    expect(normalizedAgents).toContain("In non-interactive mode, `--export-new-wallet <path>` is required");
+    expect(normalizedReference).toContain("In machine modes, non-round flow amounts are rejected");
+    expect(normalizedReference).toContain("Non-interactive workflow wallets require --export-new-wallet");
+    expect(normalizedSkill).toContain("`flow start` rejects non-round amounts in machine mode");
+    expect(normalizedSkill).toContain("`flow start --new-wallet` requires `--export-new-wallet <path>` in machine mode");
+    expect(normalizedSkillReference).toContain("it follows the same non-round amount privacy guard as `deposit`");
+    expect(normalizedSkillReference).toContain("In machine mode, `--export-new-wallet <path>` is required");
   });
 
   test("flow ragequit docs keep the flow JSON contract aligned", () => {

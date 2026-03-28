@@ -68,6 +68,10 @@ export function assertCapabilitiesAgentContract(result: CliRunResult): void {
   expect(json.commandDetails["withdraw"]?.preferredSafeVariant?.command).toBe(
     "withdraw quote",
   );
+  expect(json.commandDetails["flow"]?.sideEffectClass).toBe("read_only");
+  expect(json.commandDetails["flow"]?.touchesFunds).toBe(false);
+  expect(json.commandDetails["flow"]?.requiresHumanReview).toBe(false);
+  expect(json.commandDetails["flow"]?.safeReadOnly).toBe(true);
   expect(json.commandDetails["flow status"]?.safeReadOnly).toBe(true);
 }
 

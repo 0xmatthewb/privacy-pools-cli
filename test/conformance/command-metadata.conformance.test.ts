@@ -82,18 +82,20 @@ describe("command metadata conformance", () => {
       command: "withdraw quote",
       reason: "Check relayer fees and confirm the withdrawal inputs before submitting.",
     });
-    expect(payload.commandDetails["flow"]?.sideEffectClass).toBe("fund_movement");
-    expect(payload.commandDetails["flow"]?.preferredSafeVariant?.command).toBe("flow status");
+    expect(payload.commandDetails["flow"]?.sideEffectClass).toBe("read_only");
+    expect(payload.commandDetails["flow"]?.touchesFunds).toBe(false);
+    expect(payload.commandDetails["flow"]?.requiresHumanReview).toBe(false);
+    expect(payload.commandDetails["flow"]?.preferredSafeVariant).toBeUndefined();
     expect(payload.commandDetails["deposit"]?.preferredSafeVariant?.command).toBe("pools");
     expect(payload.commandDetails["init"]?.sideEffectClass).toBe("local_state_write");
     expect(payload.commandDetails["init"]?.touchesFunds).toBe(false);
     expect(payload.commandDetails["init"]?.requiresHumanReview).toBe(true);
     expect(payload.commandDetails["guide"]?.sideEffectClass).toBe("read_only");
-    expect(payload.commandDetails["flow"]?.safeReadOnly).toBe(false);
+    expect(payload.commandDetails["flow"]?.safeReadOnly).toBe(true);
     expect(payload.commandDetails["flow status"]?.safeReadOnly).toBe(true);
     expect(payload.commandDetails["guide"]?.safeReadOnly).toBe(true);
     expect(payload.commandDetails["completion"]?.safeReadOnly).toBe(true);
-    expect(payload.safeReadOnlyCommands).not.toContain("flow");
+    expect(payload.safeReadOnlyCommands).toContain("flow");
     expect(payload.safeReadOnlyCommands).toContain("flow status");
     expect(payload.safeReadOnlyCommands).toContain("guide");
     expect(payload.safeReadOnlyCommands).toContain("completion");

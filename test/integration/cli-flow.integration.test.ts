@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import {
@@ -339,6 +339,46 @@ describe("flow command", () => {
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.errorMessage).toBe("--export-new-wallet requires --new-wallet.");
     expect(json.error.hint).toContain("--new-wallet");
+  });
+
+  test("flow start rejects non-interactive new-wallet flows without an export backup", () => {
+    const home = createSeededHome("mainnet");
+    const result = runCli(
+      [
+        "--json",
+        "flow",
+        "start",
+        "0.1",
+        "ETH",
+        "--to",
+        "0x4444444444444444444444444444444444444444",
+        "--new-wallet",
+      ],
+      {
+        home,
+        timeoutMs: 10_000,
+      },
+    );
+
+    expect(result.status).toBe(2);
+    const json = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      errorMessage: string;
+      error: { hint?: string };
+    }>(result.stdout);
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toBe(
+      "Non-interactive workflow wallets require --export-new-wallet <path>.",
+    );
+    expect(json.error.hint).toContain("backed up before the flow starts");
+
+    const workflowDir = join(home, ".privacy-pools", "workflows");
+    const secretsDir = join(home, ".privacy-pools", "workflow-secrets");
+    expect(existsSync(workflowDir) ? readdirSync(workflowDir) : []).toEqual([]);
+    expect(existsSync(secretsDir) ? readdirSync(secretsDir) : []).toEqual([]);
   });
 
   test("flow start rejects non-round amounts in machine mode", () => {
@@ -861,6 +901,8 @@ describe("flow command", () => {
     expect(capabilities.commands.map((command) => command.name)).toContain("flow status");
     expect(capabilities.commands.map((command) => command.name)).toContain("flow ragequit");
     expect(capabilities.commandDetails["flow start"]?.command).toBe("flow start");
+    expect(capabilities.commandDetails["flow"]?.sideEffectClass).toBe("read_only");
+    expect(capabilities.commandDetails["flow"]?.safeReadOnly).toBe(true);
 
     const describeResult = runCli(["--json", "describe", "flow", "start"], {
       home,
@@ -884,5 +926,26 @@ describe("flow command", () => {
       "--new-wallet",
       "--export-new-wallet <path>",
     ]);
+
+    const describeFlowResult = runCli(["--json", "describe", "flow"], {
+      home,
+      timeoutMs: 10_000,
+    });
+    expect(describeFlowResult.status).toBe(0);
+    const flowDescriptor = parseJsonOutput<{
+      success: boolean;
+      command: string;
+      sideEffectClass: string;
+      safeReadOnly: boolean;
+      touchesFunds: boolean;
+      requiresHumanReview: boolean;
+    }>(describeFlowResult.stdout);
+
+    expect(flowDescriptor.success).toBe(true);
+    expect(flowDescriptor.command).toBe("flow");
+    expect(flowDescriptor.sideEffectClass).toBe("read_only");
+    expect(flowDescriptor.safeReadOnly).toBe(true);
+    expect(flowDescriptor.touchesFunds).toBe(false);
+    expect(flowDescriptor.requiresHumanReview).toBe(false);
   });
 });
