@@ -81,6 +81,19 @@
         "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
       }
     },
+    "upgrade": {
+      "successFields": {
+        "mode": "\"upgrade\"",
+        "status": "\"up_to_date\"|\"ready\"|\"manual\"|\"cancelled\"|\"upgraded\"",
+        "currentVersion": "string",
+        "latestVersion": "string",
+        "updateAvailable": "boolean",
+        "performed": "boolean",
+        "command": "string|null",
+        "installContext": "{ kind: \"global_npm\"|\"bun_global\"|\"source_checkout\"|\"local_project\"|\"npx\"|\"ci\"|\"unknown\", supportedAutoRun: boolean, reason: string }",
+        "installedVersion": "string|null"
+      }
+    },
     "flow": {
       "successFields": {
         "mode": "\"flow\"",

@@ -11,6 +11,7 @@ import {
 
 export type UpgradeInstallContextKind =
   | "global_npm"
+  | "bun_global"
   | "source_checkout"
   | "local_project"
   | "npx"
@@ -81,6 +82,7 @@ function manualUpgradeCommandForContext(
 ): string | null {
   switch (installContext.kind) {
     case "global_npm":
+    case "bun_global":
     case "source_checkout":
     case "ci":
     case "npx":
@@ -189,7 +191,7 @@ export function detectUpgradeInstallContext(
       kind: "source_checkout",
       supportedAutoRun: false,
       reason:
-        "This CLI is running from a source checkout. Upgrade the checkout with git or reinstall from npm manually.",
+        "This CLI is running from a source checkout. Automatic upgrade is unsupported there, so install the published CLI separately with the npm command below.",
     };
   }
 
@@ -222,10 +224,10 @@ export function detectUpgradeInstallContext(
 
   if (looksLikeBunGlobalInstall(pkg.packageRoot)) {
     return {
-      kind: "unknown",
+      kind: "bun_global",
       supportedAutoRun: false,
       reason:
-        "This CLI appears to be installed from Bun's global package store. Reinstall or upgrade it with a supported global npm install manually.",
+        "This CLI appears to be installed from Bun's global package store. Automatic upgrade is unsupported there, so reinstall it with the npm command below.",
     };
   }
 

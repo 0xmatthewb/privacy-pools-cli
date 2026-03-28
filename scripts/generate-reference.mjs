@@ -1,5 +1,5 @@
 /**
- * Generate docs/generated-reference.md from the Commander tree + COMMAND_METADATA.
+ * Generate docs/reference.md from the Commander tree + COMMAND_METADATA.
  *
  * Usage:
  *   node scripts/generate-reference.mjs          # preview to stdout

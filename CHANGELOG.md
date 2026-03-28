@@ -43,7 +43,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 - `npm run test:all`
 - `npm run test:e2e:anvil`
-- `bun run docs:check`
+- `npm run docs:check`
 - `npm pack --dry-run`
 
 ## [1.6.0] - 2026-03-20
@@ -70,7 +70,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 - `npm run test:ci`
 - `npm run docs:check`
-- `npx -y node@22.13.1 scripts/run-bun-tests.mjs ./test/integration/cli.packaged-smoke.integration.test.ts --timeout 180000`
+- `npm run test:smoke`
 - `npm pack --dry-run`
 
 ## [1.5.0] - 2026-03-13
@@ -96,10 +96,10 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ### Verification
 
-- `bun run typecheck`
-- `bun run test:ci`
-- `bun run docs:check`
-- `bun run test:smoke`
+- `npm run typecheck`
+- `npm run test:ci`
+- `npm run docs:check`
+- `npm run test:smoke`
 
 ## [1.4.0] - 2026-03-13
 
@@ -160,9 +160,9 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ### Verification
 
-- `bun run typecheck`
-- `bun run test:ci`
-- `PP_ANVIL_E2E=1 bun run test:e2e:anvil`
+- `npm run typecheck`
+- `npm run test:ci`
+- `npm run test:e2e:anvil`
 
 ## [1.2.0] - 2026-03-10
 
@@ -227,11 +227,11 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ### Verification
 
-- `bun run typecheck`
-- `bun run test:ci`
-- `bun test ./test/integration/cli.packaged-smoke.integration.test.ts`
-- `PP_STRESS_ENABLED=1 bun test ./test/fuzz/cli.stress-120-rounds.test.ts --timeout 240000`
-- `PP_ANVIL_E2E=1 bun run test:e2e:anvil`
+- `npm run typecheck`
+- `npm run test:ci`
+- `npm run test:smoke`
+- `PP_STRESS_ENABLED=1 npm run test:stress`
+- `npm run test:e2e:anvil`
 
 ## [1.0.1] - 2026-03-07
 
@@ -248,10 +248,10 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ### Verification
 
-- `bun run test`
-- `bun run test:ci`
-- `bun run test:smoke`
-- `PP_ANVIL_E2E=1 bun run test:e2e:anvil`
+- `npm run test`
+- `npm run test:ci`
+- `npm run test:smoke`
+- `npm run test:e2e:anvil`
 
 ## [1.0.0] - 2026-03-05
 

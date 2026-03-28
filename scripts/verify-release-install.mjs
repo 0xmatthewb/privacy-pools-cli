@@ -1,7 +1,9 @@
 import { spawn, spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import {
+  cpSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -17,6 +19,8 @@ import {
   assertInstalledStatusSuccess,
   currentNativePackageName,
   fail,
+  launchAspFixtureServer,
+  packTarball,
   packageInstallPath,
   parseArgs,
   rootPackageJson,
@@ -73,6 +77,114 @@ function globalBinPath(prefix) {
     : join(prefix, "bin", "privacy-pools");
 }
 
+const cleanupDirs = new Set();
+
+function rememberTempDir(dirPath) {
+  cleanupDirs.add(dirPath);
+  return dirPath;
+}
+
+function createTempArtifactDir(prefix) {
+  return rememberTempDir(mkdtempSync(join(tmpdir(), prefix)));
+}
+
+function installTarballForInspection(packageName, tarballPath) {
+  const inspectRoot = createTempArtifactDir("pp-release-inspect-");
+  writeFileSync(
+    join(inspectRoot, "package.json"),
+    JSON.stringify({
+      name: "pp-release-tarball-inspect",
+      private: true,
+      dependencies: {
+        [packageName]: `file:${tarballPath}`,
+      },
+    }),
+    "utf8",
+  );
+
+  const installResult = spawnSync(
+    npmCommand,
+    [
+      "install",
+      "--silent",
+      "--no-package-lock",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      "--omit=optional",
+    ],
+    {
+      cwd: inspectRoot,
+      encoding: "utf8",
+      timeout: 180_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: npmProcessEnv(inspectRoot),
+    },
+  );
+
+  if (installResult.error) {
+    fail(
+      `Failed to inspect package tarball ${tarballPath}:\n${installResult.error.message}`,
+    );
+  }
+
+  if (installResult.status !== 0) {
+    fail(
+      `Failed to inspect package tarball ${tarballPath}:\n${installResult.stderr}\n${installResult.stdout}`,
+    );
+  }
+
+  return packageInstallPath(inspectRoot, packageName);
+}
+
+function prepareRegistryPackage(
+  packageName,
+  tarballPath,
+  options = {},
+) {
+  const installedPackagePath = installTarballForInspection(packageName, tarballPath);
+  const manifest = JSON.parse(
+    readFileSync(join(installedPackagePath, "package.json"), "utf8"),
+  );
+
+  if (!options.mutateManifest) {
+    return {
+      name: manifest.name,
+      version: manifest.version,
+      tarballPath,
+      manifest,
+    };
+  }
+
+  const stageRoot = createTempArtifactDir("pp-release-stage-");
+  const stagePackageRoot = join(stageRoot, "package");
+  cpSync(installedPackagePath, stagePackageRoot, { recursive: true });
+
+  const stagedManifestPath = join(stagePackageRoot, "package.json");
+  const stagedManifest = JSON.parse(
+    readFileSync(stagedManifestPath, "utf8"),
+  );
+  options.mutateManifest(stagedManifest);
+  delete stagedManifest.scripts;
+  writeFileSync(
+    stagedManifestPath,
+    JSON.stringify(stagedManifest, null, 2),
+    "utf8",
+  );
+
+  const tarballOutputRoot = createTempArtifactDir("pp-release-pack-");
+  const stagedTarballPath = packTarball(stagePackageRoot, tarballOutputRoot, {
+    npmStateRoot: stageRoot,
+  });
+
+  return {
+    name: stagedManifest.name,
+    version: stagedManifest.version,
+    tarballPath: stagedTarballPath,
+    manifest: stagedManifest,
+  };
+}
+
 async function launchLocalRegistry(packages) {
   const registryScript = `
     const { createHash } = require("node:crypto");
@@ -82,6 +194,7 @@ async function launchLocalRegistry(packages) {
 
     const packages = JSON.parse(process.env.PP_LOCAL_REGISTRY_PACKAGES || "[]");
     const packageMap = new Map(packages.map((pkg) => [pkg.name, pkg]));
+    const fallbackBase = process.env.PP_LOCAL_REGISTRY_FALLBACK || "https://registry.npmjs.org";
 
     function fileShasum(filePath) {
       return createHash("sha1").update(readFileSync(filePath)).digest("hex");
@@ -91,71 +204,87 @@ async function launchLocalRegistry(packages) {
       return \`sha512-\${createHash("sha512").update(readFileSync(filePath)).digest("base64")}\`;
     }
 
-    const server = createServer((req, res) => {
+    async function proxyToFallback(req, res, url) {
+      const fallbackUrl = new URL(\`\${url.pathname}\${url.search}\`, fallbackBase);
+      const upstream = await fetch(fallbackUrl, {
+        headers: req.headers.accept ? { accept: req.headers.accept } : undefined,
+      });
+      const body = Buffer.from(await upstream.arrayBuffer());
+      const headers = Object.fromEntries(upstream.headers.entries());
+      delete headers["content-encoding"];
+      delete headers["transfer-encoding"];
+      headers["content-length"] = String(body.byteLength);
+      res.writeHead(upstream.status, headers);
+      res.end(body);
+    }
+
+    const server = createServer(async (req, res) => {
       const url = new URL(req.url || "/", "http://127.0.0.1");
       const pathname = url.pathname.replace(/\\/+$/, "");
       const decodedPackagePath = decodeURIComponent(pathname.slice(1));
 
-      if (pathname.startsWith("/tarballs/")) {
-        const [, , encodedName, requestedFile] = pathname.split("/");
-        const packageName = decodeURIComponent(encodedName || "");
-        const pkg = packageMap.get(packageName);
-        if (!pkg || basename(pkg.tarballPath) !== requestedFile) {
-          res.writeHead(404);
-          res.end("Not Found");
+      try {
+        if (pathname.startsWith("/tarballs/")) {
+          const [, , encodedName, requestedFile] = pathname.split("/");
+          const packageName = decodeURIComponent(encodedName || "");
+          const pkg = packageMap.get(packageName);
+          if (!pkg || basename(pkg.tarballPath) !== requestedFile) {
+            await proxyToFallback(req, res, url);
+            return;
+          }
+
+          res.writeHead(200, { "Content-Type": "application/octet-stream" });
+          res.end(readFileSync(pkg.tarballPath));
           return;
         }
 
-        res.writeHead(200, { "Content-Type": "application/octet-stream" });
-        res.end(readFileSync(pkg.tarballPath));
-        return;
-      }
+        const latestMatch = decodedPackagePath.match(/^(.*)\\/latest$/);
+        if (latestMatch) {
+          const pkg = packageMap.get(latestMatch[1]);
+          if (!pkg) {
+            await proxyToFallback(req, res, url);
+            return;
+          }
 
-      const latestMatch = decodedPackagePath.match(/^(.*)\\/latest$/);
-      if (latestMatch) {
-        const pkg = packageMap.get(latestMatch[1]);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ name: pkg.name, version: pkg.version }));
+          return;
+        }
+
+        const pkg = packageMap.get(decodedPackagePath);
         if (!pkg) {
-          res.writeHead(404);
-          res.end("Not Found");
+          await proxyToFallback(req, res, url);
           return;
         }
+
+        const address = server.address();
+        const port = typeof address === "object" && address ? address.port : 0;
+        const baseUrl = \`http://127.0.0.1:\${port}\`;
+        const tarballUrl = \`\${baseUrl}/tarballs/\${encodeURIComponent(pkg.name)}/\${basename(pkg.tarballPath)}\`;
 
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ name: pkg.name, version: pkg.version }));
-        return;
-      }
-
-      const pkg = packageMap.get(decodedPackagePath);
-      if (!pkg) {
-        res.writeHead(404);
-        res.end("Not Found");
-        return;
-      }
-
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      const baseUrl = \`http://127.0.0.1:\${port}\`;
-      const tarballUrl = \`\${baseUrl}/tarballs/\${encodeURIComponent(pkg.name)}/\${basename(pkg.tarballPath)}\`;
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({
-        name: pkg.name,
-        "dist-tags": {
-          latest: pkg.version,
-        },
-        versions: {
-          [pkg.version]: {
-            ...(pkg.manifest || {}),
-            name: pkg.name,
-            version: pkg.version,
-            dist: {
-              tarball: tarballUrl,
-              shasum: fileShasum(pkg.tarballPath),
-              integrity: fileIntegrity(pkg.tarballPath),
+        res.end(JSON.stringify({
+          name: pkg.name,
+          "dist-tags": {
+            latest: pkg.version,
+          },
+          versions: {
+            [pkg.version]: {
+              ...(pkg.manifest || {}),
+              name: pkg.name,
+              version: pkg.version,
+              dist: {
+                tarball: tarballUrl,
+                shasum: fileShasum(pkg.tarballPath),
+                integrity: fileIntegrity(pkg.tarballPath),
+              },
             },
           },
-        },
-      }));
+        }));
+      } catch (error) {
+        res.writeHead(502, { "Content-Type": "text/plain" });
+        res.end(error instanceof Error ? error.message : String(error));
+      }
     });
 
     server.listen(0, "127.0.0.1", () => {
@@ -261,6 +390,41 @@ function runGlobalCli(prefix, homeDir, args, env = {}) {
   return result;
 }
 
+async function assertGlobalNativeStatsSuccess({
+  prefix,
+  homeDir,
+  label,
+  missingWorkerPath,
+}) {
+  const aspFixture = await launchAspFixtureServer(label);
+  try {
+    const statsResult = runGlobalCli(
+      prefix,
+      homeDir,
+      ["--agent", "stats"],
+      {
+        PRIVACY_POOLS_ASP_HOST: aspFixture.url,
+        PRIVACY_POOLS_CLI_JS_WORKER: missingWorkerPath,
+      },
+    );
+    const statsPayload = parseJson(
+      statsResult.stdout,
+      "global installed stats --agent",
+    );
+    if (
+      statsResult.status !== 0 ||
+      statsPayload.success !== true ||
+      statsPayload.mode !== "global-stats"
+    ) {
+      fail(
+        `${label} failed global native read-only success parity:\n${statsResult.stderr}\n${statsResult.stdout}`,
+      );
+    }
+  } finally {
+    await aspFixture.close();
+  }
+}
+
 function writeInstallProjectManifest(
   installRoot,
   cliTarballPath,
@@ -294,7 +458,9 @@ if (!cliTarball || !nativeTarball) {
 const expectedVersion = args.version?.trim() || rootPackageJson.version;
 const cliTarballPath = resolve(cliTarball);
 const nativeTarballPath = resolve(nativeTarball);
-const installRoot = mkdtempSync(join(tmpdir(), "pp-release-install-"));
+const installRoot = rememberTempDir(
+  mkdtempSync(join(tmpdir(), "pp-release-install-")),
+);
 const homeDir = join(installRoot, ".privacy-pools");
 const stdinHomeDir = join(installRoot, ".privacy-pools-stdin");
 const missingWorkerPath = join(installRoot, "missing-worker.js");
@@ -411,22 +577,50 @@ async function main() {
     label: "Installed release CLI",
   });
 
-  const registry = await launchLocalRegistry([
+  const downgradedVersion = "0.0.0";
+  const publishedRootPackage = prepareRegistryPackage(
+    rootPackageJson.name,
+    cliTarballPath,
+  );
+  const publishedNativePackage = prepareRegistryPackage(
+    nativePackageName,
+    nativeTarballPath,
+  );
+  const downgradedRootPackage = prepareRegistryPackage(
+    rootPackageJson.name,
+    cliTarballPath,
     {
-      name: rootPackageJson.name,
-      version: expectedVersion,
-      tarballPath: cliTarballPath,
-      manifest: {
-        bin: rootPackageJson.bin,
-        optionalDependencies: rootPackageJson.optionalDependencies,
-        engines: rootPackageJson.engines,
+      mutateManifest(manifest) {
+        manifest.version = downgradedVersion;
+        if (manifest.optionalDependencies) {
+          for (const dependencyName of Object.keys(manifest.optionalDependencies)) {
+            manifest.optionalDependencies[dependencyName] = downgradedVersion;
+          }
+        }
       },
     },
+  );
+  const downgradedNativePackage = prepareRegistryPackage(
+    nativePackageName,
+    nativeTarballPath,
+    {
+      mutateManifest(manifest) {
+        manifest.version = downgradedVersion;
+      },
+    },
+  );
+
+  const globalPrefix = join(installRoot, "global-prefix");
+  mkdirSync(globalPrefix, { recursive: true });
+  const globalHomeDir = join(globalPrefix, ".privacy-pools");
+  const globalCliPath = globalPackageInstallPath(globalPrefix, rootPackageJson.name);
+  const globalPackageJsonPath = join(globalCliPath, "package.json");
+  const downgradedRegistry = await launchLocalRegistry([
+    downgradedRootPackage,
+    downgradedNativePackage,
   ]);
 
   try {
-    const globalPrefix = join(installRoot, "global-prefix");
-    const globalHomeDir = join(globalPrefix, ".privacy-pools");
     const globalInstallResult = spawnSync(
       npmCommand,
       [
@@ -434,14 +628,16 @@ async function main() {
         "-g",
         "--prefix",
         globalPrefix,
-        `file:${cliTarballPath}`,
+        `${rootPackageJson.name}@${downgradedVersion}`,
       ],
       {
         cwd: installRoot,
         encoding: "utf8",
         timeout: 180_000,
         maxBuffer: 10 * 1024 * 1024,
-        env: npmProcessEnv(globalPrefix),
+        env: npmProcessEnv(globalPrefix, {
+          npm_config_registry: `${downgradedRegistry.baseUrl}/`,
+        }),
       },
     );
 
@@ -453,70 +649,68 @@ async function main() {
 
     if (globalInstallResult.status !== 0) {
       fail(
-        `Failed to install global release tarballs for upgrade verification:\n${globalInstallResult.stderr}\n${globalInstallResult.stdout}`,
+        `Failed to install downgraded global release tarballs for upgrade verification:\n${globalInstallResult.stderr}\n${globalInstallResult.stdout}`,
       );
     }
+  } finally {
+    await downgradedRegistry.close();
+  }
 
-    const globalNativeInstallResult = spawnSync(
-      npmCommand,
+  const globalTopLevelNativePath = globalPackageInstallPath(
+    globalPrefix,
+    nativePackageName,
+  );
+  const globalNestedNativePath = packageInstallPath(
+    globalCliPath,
+    nativePackageName,
+  );
+  const globalNativePath = existsSync(globalTopLevelNativePath)
+    ? globalTopLevelNativePath
+    : globalNestedNativePath;
+
+  if (!existsSync(globalCliPath) || !existsSync(globalNativePath)) {
+    fail(
       [
-        "install",
-        "-g",
-        "--prefix",
-        globalPrefix,
-        `file:${nativeTarballPath}`,
-      ],
-      {
-        cwd: installRoot,
-        encoding: "utf8",
-        timeout: 180_000,
-        maxBuffer: 10 * 1024 * 1024,
-        env: npmProcessEnv(globalPrefix),
-      },
+        "Global release install did not resolve the expected global package paths before upgrade verification.",
+        `${rootPackageJson.name}: ${globalCliPath} (${existsSync(globalCliPath) ? "present" : "missing"})`,
+        `${nativePackageName} (top-level): ${globalTopLevelNativePath} (${existsSync(globalTopLevelNativePath) ? "present" : "missing"})`,
+        `${nativePackageName} (nested): ${globalNestedNativePath} (${existsSync(globalNestedNativePath) ? "present" : "missing"})`,
+      ].join("\n"),
     );
+  }
 
-    if (globalNativeInstallResult.error) {
-      fail(
-        `Failed to execute npm global native install for upgrade verification:\n${globalNativeInstallResult.error.message}`,
-      );
-    }
-
-    if (globalNativeInstallResult.status !== 0) {
-      fail(
-        `Failed to install global native tarball for upgrade verification:\n${globalNativeInstallResult.stderr}\n${globalNativeInstallResult.stdout}`,
-      );
-    }
-
-    const globalCliPath = globalPackageInstallPath(globalPrefix, rootPackageJson.name);
-    const globalNativePath = globalPackageInstallPath(globalPrefix, nativePackageName);
-    if (!existsSync(globalCliPath) || !existsSync(globalNativePath)) {
-      fail(
-        [
-          "Global release install did not resolve the expected global package paths before upgrade verification.",
-          `${rootPackageJson.name}: ${globalCliPath} (${existsSync(globalCliPath) ? "present" : "missing"})`,
-          `${nativePackageName}: ${globalNativePath} (${existsSync(globalNativePath) ? "present" : "missing"})`,
-        ].join("\n"),
-      );
-    }
-
-    const globalPackageJsonPath = join(globalCliPath, "package.json");
-    const downgradedGlobalPackage = JSON.parse(
-      readFileSync(globalPackageJsonPath, "utf8"),
+  const downgradedGlobalPackage = JSON.parse(
+    readFileSync(globalPackageJsonPath, "utf8"),
+  );
+  if (downgradedGlobalPackage.version !== downgradedVersion) {
+    fail(
+      `Global installed CLI package.json version ${downgradedGlobalPackage.version} did not match the staged downgraded version ${downgradedVersion}.`,
     );
-    downgradedGlobalPackage.version = "0.0.0";
-    writeFileSync(
-      globalPackageJsonPath,
-      JSON.stringify(downgradedGlobalPackage, null, 2),
-      "utf8",
-    );
+  }
 
+  const globalNativePackageJsonPath = join(globalNativePath, "package.json");
+  const downgradedNativeJson = JSON.parse(
+    readFileSync(globalNativePackageJsonPath, "utf8"),
+  );
+  if (downgradedNativeJson.version !== downgradedVersion) {
+    fail(
+      `Global installed native package version ${downgradedNativeJson.version} did not match the staged downgraded version ${downgradedVersion}.`,
+    );
+  }
+
+  const publishedRegistry = await launchLocalRegistry([
+    publishedRootPackage,
+    publishedNativePackage,
+  ]);
+
+  try {
     const upgradeResult = runGlobalCli(
       globalPrefix,
       globalHomeDir,
       ["upgrade", "--yes", "--json"],
       {
-        PRIVACY_POOLS_NPM_REGISTRY_URL: `${registry.baseUrl}/${rootPackageJson.name}/latest`,
-        npm_config_registry: `${registry.baseUrl}/`,
+        PRIVACY_POOLS_NPM_REGISTRY_URL: `${publishedRegistry.baseUrl}/${rootPackageJson.name}/latest`,
+        npm_config_registry: `${publishedRegistry.baseUrl}/`,
       },
     );
 
@@ -538,33 +732,40 @@ async function main() {
         `Global installed CLI upgrade did not report a completed upgrade:\n${upgradeResult.stdout}`,
       );
     }
-
-    const upgradedGlobalPackage = JSON.parse(
-      readFileSync(globalPackageJsonPath, "utf8"),
-    );
-    if (upgradedGlobalPackage.version !== expectedVersion) {
-      fail(
-        `Global installed CLI package.json version stayed at ${upgradedGlobalPackage.version} after upgrade instead of ${expectedVersion}.`,
-      );
-    }
-
-    if (!existsSync(globalNativePath)) {
-      fail(
-        `Global installed CLI lost ${nativePackageName} after running privacy-pools upgrade.`,
-      );
-    }
-
-    const nativePackageJson = JSON.parse(
-      readFileSync(join(globalNativePath, "package.json"), "utf8"),
-    );
-    if (nativePackageJson.version !== expectedVersion) {
-      fail(
-        `Global installed native package version ${nativePackageJson.version} did not match ${expectedVersion} after upgrade.`,
-      );
-    }
   } finally {
-    await registry.close();
+    await publishedRegistry.close();
   }
+
+  const upgradedGlobalPackage = JSON.parse(
+    readFileSync(globalPackageJsonPath, "utf8"),
+  );
+  if (upgradedGlobalPackage.version !== expectedVersion) {
+    fail(
+      `Global installed CLI package.json version stayed at ${upgradedGlobalPackage.version} after upgrade instead of ${expectedVersion}.`,
+    );
+  }
+
+  if (!existsSync(globalNativePath)) {
+    fail(
+      `Global installed CLI lost ${nativePackageName} after running privacy-pools upgrade.`,
+    );
+  }
+
+  const nativePackageJson = JSON.parse(
+    readFileSync(join(globalNativePath, "package.json"), "utf8"),
+  );
+  if (nativePackageJson.version !== expectedVersion) {
+    fail(
+      `Global installed native package version ${nativePackageJson.version} did not match ${expectedVersion} after upgrade.`,
+    );
+  }
+
+  await assertGlobalNativeStatsSuccess({
+    prefix: globalPrefix,
+    homeDir: globalHomeDir,
+    label: "Global installed release CLI",
+    missingWorkerPath,
+  });
 
   process.stdout.write(
     `verified installed release artifacts for privacy-pools-cli@${expectedVersion}\n`,
@@ -574,5 +775,7 @@ async function main() {
 try {
   await main();
 } finally {
-  rmSync(installRoot, { recursive: true, force: true });
+  for (const dirPath of cleanupDirs) {
+    rmSync(dirPath, { recursive: true, force: true });
+  }
 }

@@ -1,16 +1,50 @@
 #!/usr/bin/env node
 
+import { realpathSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { EXIT_CODES } from "./utils/errors.js";
 import { printJsonError } from "./utils/json.js";
 import { parseRootArgv } from "./utils/root-argv.js";
 import { createCliPackageInfoResolver } from "./package-info.js";
 import { runLauncher } from "./launcher.js";
 
-function isBunMainInvocation(): boolean {
-  return Boolean(
-    process.versions.bun &&
-      (import.meta as ImportMeta & { main?: boolean }).main,
-  );
+function realPathOrResolved(targetPath: string): string {
+  try {
+    return realpathSync(targetPath);
+  } catch {
+    return resolve(targetPath);
+  }
+}
+
+function currentEntrypointPath(importMetaUrl: string): string {
+  return realPathOrResolved(fileURLToPath(importMetaUrl));
+}
+
+function argvEntrypointPath(argv: string[]): string | null {
+  const entry = argv[1]?.trim();
+  if (!entry) {
+    return null;
+  }
+
+  return realPathOrResolved(resolve(process.cwd(), entry));
+}
+
+function isDirectCliEntrypoint(
+  importMetaUrl: string,
+  argv: string[],
+): boolean {
+  const importMeta = import.meta as ImportMeta & { main?: boolean };
+  if (importMeta.main) {
+    return true;
+  }
+
+  const entryPath = argvEntrypointPath(argv);
+  if (!entryPath) {
+    return false;
+  }
+
+  return entryPath === currentEntrypointPath(importMetaUrl);
 }
 
 function emitUnsupportedBunRuntime(argv: string[]): void {
@@ -35,13 +69,21 @@ function emitUnsupportedBunRuntime(argv: string[]): void {
   process.exitCode = EXIT_CODES.INPUT;
 }
 
-const argv = process.argv.slice(2);
-
-if (isBunMainInvocation()) {
-  emitUnsupportedBunRuntime(argv);
-} else {
+export async function runCliEntrypoint(
+  entryArgv: string[] = process.argv.slice(2),
+): Promise<void> {
   await runLauncher(
     createCliPackageInfoResolver(import.meta.url),
-    argv,
+    entryArgv,
   );
+}
+
+const argv = process.argv.slice(2);
+
+if (isDirectCliEntrypoint(import.meta.url, process.argv)) {
+  if (process.versions.bun) {
+    emitUnsupportedBunRuntime(argv);
+  } else {
+    await runCliEntrypoint(argv);
+  }
 }
