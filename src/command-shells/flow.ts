@@ -20,6 +20,10 @@ export function createFlowCommand(): Command {
     .argument("<amount>", "Amount to deposit (e.g. 0.1)")
     .argument("<asset>", "Asset symbol (e.g. ETH, USDC)")
     .option("-t, --to <address>", "Recipient address for the later private withdrawal")
+    .option(
+      "--privacy-delay <profile>",
+      "Privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized)",
+    )
     .option("--new-wallet", "Create and use a dedicated wallet for this workflow")
     .option("--export-new-wallet <path>", "Export the generated workflow wallet backup before continuing (requires --new-wallet)")
     .option("--watch", "Keep watching this workflow until it finishes or pauses")
@@ -35,6 +39,10 @@ export function createFlowCommand(): Command {
     .command("watch")
     .description(watchMetadata.description)
     .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
+    .option(
+      "--privacy-delay <profile>",
+      "Persist or override the saved privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized)",
+    )
     .addHelpText("after", commandHelpText(watchMetadata.help ?? {}))
     .action(
       createLazyAction(

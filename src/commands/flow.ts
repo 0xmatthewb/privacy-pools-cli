@@ -16,8 +16,13 @@ import { resolveGlobalMode } from "../utils/mode.js";
 interface FlowStartCommandOptions {
   to?: string;
   watch?: boolean;
+  privacyDelay?: string;
   newWallet?: boolean;
   exportNewWallet?: string;
+}
+
+interface FlowWatchCommandOptions {
+  privacyDelay?: string;
 }
 
 export { createFlowCommand } from "../command-shells/flow.js";
@@ -89,6 +94,7 @@ export async function handleFlowStartCommand(
       amountInput: amount,
       assetInput: asset,
       recipient: opts.to,
+      privacyDelayProfile: opts.privacyDelay,
       newWallet: opts.newWallet ?? false,
       exportNewWallet: opts.exportNewWallet,
       globalOpts,
@@ -141,7 +147,7 @@ export async function handleFlowRagequitCommand(
 
 export async function handleFlowWatchCommand(
   workflowId: string | undefined,
-  _opts: unknown,
+  opts: FlowWatchCommandOptions = {},
   cmd: Command,
 ): Promise<void> {
   const globalOpts = getRootGlobalOptions(cmd);
@@ -152,6 +158,7 @@ export async function handleFlowWatchCommand(
   try {
     const snapshot = await watchWorkflow({
       workflowId,
+      privacyDelayProfile: opts.privacyDelay,
       globalOpts,
       mode,
       isVerbose,

@@ -8,19 +8,21 @@ The CLI ships a persisted happy-path workflow under `flow`:
 
 ```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
+privacy-pools flow start 0.1 ETH --to 0xRecipient --privacy-delay off --agent
 privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet --export-new-wallet ./flow-wallet.txt --agent
 privacy-pools flow watch latest --agent
+privacy-pools flow watch latest --privacy-delay aggressive --agent   # updates the saved privacy-delay policy
 privacy-pools flow status latest --agent
 privacy-pools flow ragequit latest --agent
 ```
 
-`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. With `--new-wallet`, the CLI generates a dedicated workflow wallet, requires a backup before proceeding, and waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in that same wallet. `flow watch` re-checks the saved workflow using workflow phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state. `flow watch` is intentionally unbounded; agents that need a wall-clock limit should wrap it in an external timeout. `flow status` reads the persisted workflow snapshot without mutating it. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
+`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. A round input can still become a non-round committed balance after the vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. New workflows default to a balanced post-approval privacy delay: `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `aggressive` randomizes the hold between 2 and 12 hours. Pass `--privacy-delay off|balanced|aggressive` to `flow start`, or later to `flow watch`, to update the saved policy. With `--new-wallet`, the CLI generates a dedicated workflow wallet, requires a backup before proceeding, and waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in that same wallet. `flow watch` re-checks the saved workflow using workflow phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state from the ASP (the approval service). `flow watch` is intentionally unbounded; agents that need a wall-clock limit should wrap it in an external timeout. `flow status` reads the persisted workflow snapshot without mutating it. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
 
 Flow JSON payloads share this shape:
 
 ```json
 {
-  "schemaVersion": "1.6.0",
+  "schemaVersion": "1.7.0",
   "success": true,
   "mode": "flow",
   "action": "start",
@@ -35,6 +37,10 @@ Flow JSON payloads share this shape:
   "asset": "USDC",
   "depositAmount": "100000000",
   "recipient": "0x...",
+  "privacyDelayProfile": "balanced",
+  "privacyDelayConfigured": true,
+  "privacyDelayUntil": null,
+  "warnings": [],
   "nextActions": [
     {
       "command": "flow watch",
@@ -53,6 +59,7 @@ Possible `phase` values:
 - `awaiting_funding`
 - `depositing_publicly`
 - `awaiting_asp`
+- `approved_waiting_privacy_delay`
 - `approved_ready_to_withdraw`
 - `withdrawing`
 - `completed`
@@ -73,7 +80,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: your 
 
 ```json
 {
-  "schemaVersion": "1.6.0",
+  "schemaVersion": "1.7.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -156,7 +163,7 @@ The envelope format includes additional context fields depending on the operatio
 
 ## JSON output shapes by command
 
-All responses include `{ "schemaVersion": "1.6.0", "success": true, ... }` envelope.
+All responses include `{ "schemaVersion": "1.7.0", "success": true, ... }` envelope.
 
 Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
@@ -445,12 +452,12 @@ Representative payload (abridged):
   },
   "runtime": {
     "cliVersion": "1.7.0",
-    "jsonSchemaVersion": "1.6.0",
+    "jsonSchemaVersion": "1.7.0",
     "runtimeVersion": "v1",
     "workerProtocolVersion": "1",
     "manifestVersion": "1",
     "nativeBridgeVersion": "1",
-    "workflowSnapshotVersion": "1",
+    "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1"
   },
   "safeReadOnlyCommands": ["flow status", "pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "migrate", "migrate status", "completion"],
@@ -467,7 +474,7 @@ Representative payload (abridged):
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v1.6.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v1.7.0.json"
   }
 }
 ```
@@ -971,7 +978,7 @@ All errors in JSON mode:
 
 ```json
 {
-  "schemaVersion": "1.6.0",
+  "schemaVersion": "1.7.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",

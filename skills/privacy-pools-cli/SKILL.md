@@ -79,19 +79,19 @@ All commands also accept `--json`, `--yes`, and `--quiet` individually.
 
 ---
 
-## 2. JSON output contract (v1.6.0)
+## 2. JSON output contract (v1.7.0)
 
 Every response when `--json` or `--agent` is set:
 
 ```json
-{ "schemaVersion": "1.6.0", "success": true, ...payload }
+{ "schemaVersion": "1.7.0", "success": true, ...payload }
 ```
 
 Errors:
 
 ```json
 {
-  "schemaVersion": "1.6.0",
+  "schemaVersion": "1.7.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -123,7 +123,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "1.6.0",
+  "schemaVersion": "1.7.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -275,11 +275,11 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 6. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined
 ```
 
-The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient once approved. `flow watch` is intentionally unbounded; if your automation needs a wall-clock limit, wrap it in an external timeout.
+The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `aggressive` randomizes the hold between 2 and 12 hours. `flow watch` is intentionally unbounded and may intentionally remain in `approved_waiting_privacy_delay` for that window; if your automation needs a wall-clock limit, wrap it in an external timeout.
 
 If `status --agent --check` returns `recommendedMode: "read-only"`, keep the agent on public discovery only. Follow the status `nextActions` back to `pools`, and avoid `accounts`, `deposit`, `withdraw`, or `flow` advancement until RPC and ASP connectivity recover.
 
-`flow start` follows the same machine-mode non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. `flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow, requires a backup before continuing, and then waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts.
+`flow start` follows the same machine-mode non-round amount privacy guard as `deposit`, so prefer round amounts unless you intentionally accept that tradeoff. A round deposit input can still become a non-round committed balance after the vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. `flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow, requires a backup before continuing, and then waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts.
 
 For saved-workflow public recovery, `flow ragequit` uses the stored workflow wallet key for `walletMode = "new_wallet"`, but configured-wallet recovery only works when the active signer still matches the original depositor address saved with the workflow.
 

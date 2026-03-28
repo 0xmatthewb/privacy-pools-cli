@@ -354,6 +354,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow start <amount> <asset> --to <address>",
       "flags": [
         "--to <address>",
+        "--privacy-delay <profile>",
         "--watch",
         "--new-wallet",
         "--export-new-wallet <path>"
@@ -367,7 +368,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Poll ASP approval and withdraw privately when ready",
       "usage": "flow watch [workflowId|latest]",
       "flags": [
-        "[workflowId|latest]"
+        "[workflowId|latest]",
+        "--privacy-delay <profile>"
       ],
       "agentFlags": "--agent",
       "requiresInit": true,
@@ -768,6 +770,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow start <amount> <asset> --to <address>",
       "flags": [
         "--to <address>",
+        "--privacy-delay <profile>",
         "--watch",
         "--new-wallet",
         "--export-new-wallet <path>"
@@ -796,15 +799,19 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "examples": [
         "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
         "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet",
         "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
         "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent"
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions? }",
       "jsonVariants": [],
       "safetyNotes": [
         "The deposit is still public and reviewed by the ASP before private withdrawal is possible.",
         "In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.",
+        "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
+        "Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.",
+        "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
         "--export-new-wallet is only valid with --new-wallet.",
         "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
         "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode."
@@ -828,7 +835,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "flow watch [workflowId|latest]",
       "flags": [
-        "[workflowId|latest]"
+        "[workflowId|latest]",
+        "--privacy-delay <profile>"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -858,19 +866,22 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "examples": [
         "privacy-pools flow watch",
+        "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
         "privacy-pools flow watch latest --agent",
         "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions? }",
       "jsonVariants": [],
       "safetyNotes": [
-        "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical recovery path, and PoA-required workflows pause until the external Proof of Association step is completed."
+        "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical recovery path, and PoA-required workflows pause until the external Proof of Association step is completed.",
+        "Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
+        "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
         "New-wallet workflows wait for funding automatically. ERC20 workflows require both the token amount and a native ETH gas reserve in the generated wallet before the public deposit can proceed.",
-        "When the saved Pool Account is approved, flow watch performs the relayed private withdrawal automatically using the saved recipient and the full remaining balance of that same Pool Account.",
+        "When the saved Pool Account is approved, flow watch performs the relayed private withdrawal automatically using the saved recipient and the full remaining balance of that same Pool Account after any configured privacy delay hold expires.",
         "flow watch keeps polling until the saved workflow changes or finishes. If your automation should stop after a fixed duration, wrap the CLI call in your own external timeout."
       ]
     },
@@ -915,7 +926,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools flow status latest --agent",
         "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000"
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions? }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -2338,9 +2349,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   },
   "runtime": {
     "cliVersion": "1.7.0",
-    "jsonSchemaVersion": "1.6.0",
+    "jsonSchemaVersion": "1.7.0",
     "accountFileVersion": 3,
-    "workflowSnapshotVersion": "1",
+    "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1",
     "runtimeVersion": "v1",
     "workerProtocolVersion": "1",
@@ -2368,7 +2379,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v1.6.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v1.7.0.json"
   }
 };
 

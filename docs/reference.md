@@ -70,10 +70,11 @@ Deposit now and save a later private withdrawal workflow
 
 **Usage:** `privacy-pools flow start <amount> <asset> [options]`
 
-This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal from that same Pool Account to the saved recipient. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always withdraws the full remaining balance from the newly created Pool Account, and it never auto-ragequits.
+This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always withdraws the full remaining balance from the newly created Pool Account, and it never auto-ragequits.
 
 ```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient...
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off
 privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet
 privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt
 privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
@@ -82,17 +83,21 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 | Flag | Description |
 |------|-------------|
 | `-t, --to <address>` | Recipient address for the later private withdrawal |
+| `--privacy-delay <profile>` | Privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized) |
 | `--new-wallet` | Create and use a dedicated wallet for this workflow |
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
 | `--watch` | Keep watching this workflow until it finishes or pauses |
 
 **Safety:** The deposit is still public and reviewed by the ASP before private withdrawal is possible.
 **Safety:** In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.
+**Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
+**Safety:** Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
+**Safety:** flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.
 **Safety:** --export-new-wallet is only valid with --new-wallet.
 **Safety:** Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.
 **Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
 
-**JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+**JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, warnings?: [{ code, category: "privacy", message }], lastError?, nextActions? }`
 
 ### `flow watch`
 
@@ -100,17 +105,24 @@ Poll ASP approval and withdraw privately when ready
 
 **Usage:** `privacy-pools flow watch [workflowId|latest] [options]`
 
-Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state remains available separately in aspStatus. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
+Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
 
 ```bash
 privacy-pools flow watch
+privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy
 privacy-pools flow watch latest --agent
 privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000
 ```
 
-**Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical recovery path, and PoA-required workflows pause until the external Proof of Association step is completed.
+| Flag | Description |
+|------|-------------|
+| `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized) |
 
-**JSON output:** `{ mode: "flow", action: "watch", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+**Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical recovery path, and PoA-required workflows pause until the external Proof of Association step is completed.
+**Safety:** Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
+**Safety:** Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.
+
+**JSON output:** `{ mode: "flow", action: "watch", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, warnings?: [{ code, category: "privacy", message }], lastError?, nextActions? }`
 
 ### `flow status`
 
@@ -126,7 +138,7 @@ privacy-pools flow status latest --agent
 privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000
 ```
 
-**JSON output:** `{ mode: "flow", action: "status", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+**JSON output:** `{ mode: "flow", action: "status", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, warnings?: [{ code, category: "privacy", message }], lastError?, nextActions? }`
 
 ### `flow ragequit`
 

@@ -157,6 +157,10 @@ const FLOW_GAS_NATIVE_DEPOSIT = 250_000n;
 const FLOW_GAS_ERC20_APPROVAL = 100_000n;
 const FLOW_GAS_ERC20_DEPOSIT = 275_000n;
 const FLOW_GAS_RAGEQUIT = 325_000n;
+const FLOW_PRIVACY_DELAY_BALANCED_MIN_MS = 15 * 60_000;
+const FLOW_PRIVACY_DELAY_BALANCED_MAX_MS = 90 * 60_000;
+const FLOW_PRIVACY_DELAY_AGGRESSIVE_MIN_MS = 2 * 60 * 60_000;
+const FLOW_PRIVACY_DELAY_AGGRESSIVE_MAX_MS = 12 * 60 * 60_000;
 const WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE = "WORKFLOW_DEPOSIT_CHECKPOINT_FAILED";
 const WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE =
   "Public deposit was submitted, but the workflow could not checkpoint it locally.";
@@ -175,6 +179,7 @@ export type FlowPhase =
   | "awaiting_funding"
   | "depositing_publicly"
   | "awaiting_asp"
+  | "approved_waiting_privacy_delay"
   | "approved_ready_to_withdraw"
   | "withdrawing"
   | "completed"
@@ -184,6 +189,13 @@ export type FlowPhase =
   | "stopped_external";
 
 export type FlowWalletMode = "configured" | "new_wallet";
+export type FlowPrivacyDelayProfile = "off" | "balanced" | "aggressive";
+
+export interface FlowWarning {
+  code: string;
+  category: "privacy";
+  message: string;
+}
 
 export class FlowCancelledError extends Error {
   constructor() {
@@ -211,7 +223,12 @@ export interface FlowSnapshot {
   assetDecimals?: number | null;
   requiredNativeFunding?: string | null;
   requiredTokenFunding?: string | null;
+  estimatedCommittedValue?: string | null;
   backupConfirmed?: boolean;
+  privacyDelayProfile?: FlowPrivacyDelayProfile;
+  privacyDelayConfigured?: boolean;
+  approvalObservedAt?: string | null;
+  privacyDelayUntil?: string | null;
   chain: string;
   asset: string;
   depositAmount: string;
@@ -237,6 +254,7 @@ interface StartFlowParams {
   amountInput: string;
   assetInput: string;
   recipient: string;
+  privacyDelayProfile?: string;
   newWallet?: boolean;
   exportNewWallet?: string;
   globalOpts?: GlobalOptions;
@@ -247,6 +265,7 @@ interface StartFlowParams {
 
 interface WatchFlowParams {
   workflowId?: string;
+  privacyDelayProfile?: string;
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
@@ -324,6 +343,53 @@ interface NewWalletWorkflowSetupResult {
 interface PendingDepositSnapshotData {
   depositTxHash: string;
   depositExplorerUrl: string | null;
+}
+
+type WorkflowSleepFn = (ms: number) => Promise<void>;
+type FlowPrivacyDelaySampler = (
+  profile: Exclude<FlowPrivacyDelayProfile, "off">,
+) => number;
+
+const DEFAULT_WORKFLOW_SLEEP: WorkflowSleepFn = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+const DEFAULT_WORKFLOW_NOW_MS = () => Date.now();
+const DEFAULT_WORKFLOW_PRIVACY_DELAY_SAMPLER: FlowPrivacyDelaySampler = (
+  profile,
+) => {
+  const [minMs, maxMs] =
+    profile === "balanced"
+      ? [
+          FLOW_PRIVACY_DELAY_BALANCED_MIN_MS,
+          FLOW_PRIVACY_DELAY_BALANCED_MAX_MS,
+        ]
+      : [
+          FLOW_PRIVACY_DELAY_AGGRESSIVE_MIN_MS,
+          FLOW_PRIVACY_DELAY_AGGRESSIVE_MAX_MS,
+        ];
+  const range = maxMs - minMs;
+  return minMs + Math.floor(Math.random() * (range + 1));
+};
+
+let workflowSleepFn: WorkflowSleepFn = DEFAULT_WORKFLOW_SLEEP;
+let workflowNowMsFn = DEFAULT_WORKFLOW_NOW_MS;
+let workflowPrivacyDelaySampler: FlowPrivacyDelaySampler =
+  DEFAULT_WORKFLOW_PRIVACY_DELAY_SAMPLER;
+
+export function overrideWorkflowTimingForTests(
+  overrides?: {
+    sleep?: WorkflowSleepFn;
+    nowMs?: () => number;
+    samplePrivacyDelayMs?: FlowPrivacyDelaySampler;
+  },
+): void {
+  workflowSleepFn = overrides?.sleep ?? DEFAULT_WORKFLOW_SLEEP;
+  workflowNowMsFn = overrides?.nowMs ?? DEFAULT_WORKFLOW_NOW_MS;
+  workflowPrivacyDelaySampler =
+    overrides?.samplePrivacyDelayMs ?? DEFAULT_WORKFLOW_PRIVACY_DELAY_SAMPLER;
+}
+
+function workflowNowMs(): number {
+  return workflowNowMsFn();
 }
 
 export function pickWorkflowPoolAccount(
@@ -614,7 +680,12 @@ export function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot 
     assetDecimals: snapshot.assetDecimals ?? null,
     requiredNativeFunding: snapshot.requiredNativeFunding ?? null,
     requiredTokenFunding: snapshot.requiredTokenFunding ?? null,
+    estimatedCommittedValue: snapshot.estimatedCommittedValue ?? null,
     backupConfirmed: snapshot.backupConfirmed ?? false,
+    privacyDelayProfile: snapshot.privacyDelayProfile ?? "off",
+    privacyDelayConfigured: snapshot.privacyDelayConfigured ?? false,
+    approvalObservedAt: snapshot.approvalObservedAt ?? null,
+    privacyDelayUntil: snapshot.privacyDelayUntil ?? null,
     poolAccountId: snapshot.poolAccountId ?? null,
     poolAccountNumber: snapshot.poolAccountNumber ?? null,
     depositTxHash: snapshot.depositTxHash ?? null,
@@ -822,7 +893,7 @@ function resolveWorkflowId(input: string | undefined): string {
 }
 
 function workflowNow(): string {
-  return new Date().toISOString();
+  return new Date(workflowNowMs()).toISOString();
 }
 
 export function updateSnapshot(
@@ -887,7 +958,305 @@ export function humanPollDelayLabel(ms: number): string {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return workflowSleepFn(ms);
+}
+
+const FLOW_PRIVACY_DELAY_PROFILES = [
+  "off",
+  "balanced",
+  "aggressive",
+] as const satisfies readonly FlowPrivacyDelayProfile[];
+
+export function flowPrivacyDelayProfileSummary(
+  profile: FlowPrivacyDelayProfile,
+  configured: boolean = true,
+): string {
+  switch (profile) {
+    case "off":
+      return configured
+        ? "Off (no added hold)"
+        : "Off (legacy workflow without a saved privacy-delay policy; behaves like no added hold)";
+    case "aggressive":
+      return "Aggressive (randomized 2 to 12 hours)";
+    default:
+      return "Balanced (randomized 15 to 90 minutes)";
+  }
+}
+
+function flowHasPendingPrivateWithdrawalTarget(
+  snapshot: FlowSnapshot,
+): boolean {
+  return (
+    snapshot.phase === "awaiting_funding" ||
+    snapshot.phase === "depositing_publicly" ||
+    snapshot.phase === "awaiting_asp" ||
+    snapshot.phase === "approved_waiting_privacy_delay" ||
+    snapshot.phase === "approved_ready_to_withdraw" ||
+    snapshot.phase === "paused_poi_required"
+  );
+}
+
+function getFlowWarningAmount(snapshot: FlowSnapshot): {
+  amount: bigint;
+  estimated: boolean;
+} | null {
+  const rawAmount = snapshot.committedValue ?? snapshot.estimatedCommittedValue;
+  if (!rawAmount || typeof snapshot.assetDecimals !== "number") {
+    return null;
+  }
+
+  try {
+    return {
+      amount: BigInt(rawAmount),
+      estimated: snapshot.committedValue == null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildAmountPatternLinkabilityWarning(
+  amount: bigint,
+  assetDecimals: number,
+  asset: string,
+  options: {
+    estimated?: boolean;
+  } = {},
+): FlowWarning | null {
+  if (isRoundAmount(amount, assetDecimals, asset)) {
+    return null;
+  }
+
+  const estimated = options.estimated ?? false;
+  const humanAmount = formatAmountDecimal(amount, assetDecimals);
+  const suggestions = suggestRoundAmounts(
+    amount,
+    assetDecimals,
+    asset,
+    2,
+  )
+    .map((suggestion) => `${formatAmountDecimal(suggestion, assetDecimals)} ${asset}`)
+    .join(" or ");
+  const suggestionText = suggestions
+    ? ` Consider manual round partial withdrawals such as ${suggestions} if you want better amount privacy.`
+    : " Consider manual round partial withdrawals if you want better amount privacy.";
+  const amountIntro = estimated
+    ? `Estimated committed value is about ${humanAmount} ${asset}, and this saved flow will auto-withdraw that full balance.`
+    : `This saved flow will auto-withdraw the full ${humanAmount} ${asset}.`;
+
+  return {
+    code: "amount_pattern_linkability",
+    category: "privacy",
+    message:
+      `${amountIntro} That pattern can make the withdrawal more identifiable even though the protocol breaks the direct onchain link.` +
+      suggestionText,
+  };
+}
+
+function buildFlowAmountPrivacyWarning(
+  snapshot: FlowSnapshot,
+): FlowWarning | null {
+  if (!flowHasPendingPrivateWithdrawalTarget(snapshot)) {
+    return null;
+  }
+
+  const amountInfo = getFlowWarningAmount(snapshot);
+  if (!amountInfo) {
+    return null;
+  }
+
+  const { amount, estimated } = amountInfo;
+  return buildAmountPatternLinkabilityWarning(
+    amount,
+    snapshot.assetDecimals!,
+    snapshot.asset,
+    { estimated },
+  );
+}
+
+function buildFlowPrivacyDelayWarning(
+  snapshot: FlowSnapshot,
+): FlowWarning | null {
+  if (
+    !flowHasPendingPrivateWithdrawalTarget(snapshot) ||
+    snapshot.privacyDelayProfile !== "off" ||
+    snapshot.privacyDelayConfigured !== true
+  ) {
+    return null;
+  }
+
+  return {
+    code: "timing_delay_disabled",
+    category: "privacy",
+    message:
+      "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will move toward relayer quote and withdrawal immediately, which may create an off-chain timing signal.",
+  };
+}
+
+export function buildFlowWarnings(snapshot: FlowSnapshot): FlowWarning[] {
+  return [
+    buildFlowPrivacyDelayWarning(snapshot),
+    buildFlowAmountPrivacyWarning(snapshot),
+  ].filter((warning): warning is FlowWarning => warning !== null);
+}
+
+export function resolveFlowPrivacyDelayProfile(
+  input: string | undefined,
+  fallback: FlowPrivacyDelayProfile,
+): FlowPrivacyDelayProfile {
+  const normalized = input?.trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (
+    (FLOW_PRIVACY_DELAY_PROFILES as readonly string[]).includes(normalized)
+  ) {
+    return normalized as FlowPrivacyDelayProfile;
+  }
+
+  throw new CLIError(
+    `Unknown flow privacy delay profile: ${input}`,
+    "INPUT",
+    "Use one of: off, balanced, aggressive.",
+  );
+}
+
+export function resolveOptionalFlowPrivacyDelayProfile(
+  input: string | undefined,
+): FlowPrivacyDelayProfile | undefined {
+  const normalized = input?.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  return resolveFlowPrivacyDelayProfile(normalized, "balanced");
+}
+
+export function sampleFlowPrivacyDelayMs(
+  profile: Exclude<FlowPrivacyDelayProfile, "off">,
+): number {
+  return workflowPrivacyDelaySampler(profile);
+}
+
+function applyFlowPrivacyDelayPolicy(
+  snapshot: FlowSnapshot,
+  profile: FlowPrivacyDelayProfile,
+  options: {
+    configured?: boolean;
+    rescheduleApproved?: boolean;
+    startAtMs?: number;
+  } = {},
+): FlowSnapshot {
+  const configured = options.configured ?? snapshot.privacyDelayConfigured ?? false;
+  const startAtMs = options.startAtMs ?? workflowNowMs();
+  const basePatch: Partial<FlowSnapshot> = {
+    privacyDelayProfile: profile,
+    privacyDelayConfigured: configured,
+  };
+
+  if (
+    snapshot.phase === "withdrawing" ||
+    snapshot.phase === "completed" ||
+    snapshot.phase === "completed_public_recovery" ||
+    snapshot.phase === "stopped_external"
+  ) {
+    return snapshot;
+  }
+
+  if (
+    options.rescheduleApproved &&
+    (snapshot.phase === "approved_waiting_privacy_delay" ||
+      snapshot.phase === "approved_ready_to_withdraw")
+  ) {
+    if (profile === "off") {
+      return normalizeWorkflowSnapshot(
+        clearLastError(
+          updateSnapshot(snapshot, {
+            ...basePatch,
+            phase: "approved_ready_to_withdraw",
+            aspStatus: "approved",
+            approvalObservedAt: null,
+            privacyDelayUntil: null,
+          }),
+        ),
+      );
+    }
+
+    const delayMs = sampleFlowPrivacyDelayMs(profile);
+    return normalizeWorkflowSnapshot(
+      clearLastError(
+        updateSnapshot(snapshot, {
+          ...basePatch,
+          phase: "approved_waiting_privacy_delay",
+          aspStatus: "approved",
+          approvalObservedAt: new Date(startAtMs).toISOString(),
+          privacyDelayUntil: new Date(startAtMs + delayMs).toISOString(),
+        }),
+      ),
+    );
+  }
+
+  return normalizeWorkflowSnapshot(
+    clearLastError(
+      updateSnapshot(snapshot, {
+        ...basePatch,
+        approvalObservedAt: null,
+        privacyDelayUntil: null,
+      }),
+    ),
+  );
+}
+
+function scheduleApprovedWorkflowPrivacyDelay(
+  snapshot: FlowSnapshot,
+  startAtMs: number = workflowNowMs(),
+): FlowSnapshot {
+  if (snapshot.privacyDelayProfile === "off") {
+    return normalizeWorkflowSnapshot(
+      clearLastError(
+        updateSnapshot(snapshot, {
+          phase: "approved_ready_to_withdraw",
+          aspStatus: "approved",
+          approvalObservedAt: null,
+          privacyDelayUntil: null,
+        }),
+      ),
+    );
+  }
+
+  const delayMs = sampleFlowPrivacyDelayMs(
+    snapshot.privacyDelayProfile as Exclude<FlowPrivacyDelayProfile, "off">,
+  );
+  return normalizeWorkflowSnapshot(
+    clearLastError(
+      updateSnapshot(snapshot, {
+        phase: "approved_waiting_privacy_delay",
+        aspStatus: "approved",
+        approvalObservedAt: new Date(startAtMs).toISOString(),
+        privacyDelayUntil: new Date(startAtMs + delayMs).toISOString(),
+      }),
+    ),
+  );
+}
+
+export function computeFlowWatchDelayMs(
+  snapshot: FlowSnapshot,
+  fallbackDelayMs: number,
+  nowMs: number = workflowNowMs(),
+): number {
+  if (
+    snapshot.phase !== "approved_waiting_privacy_delay" ||
+    !snapshot.privacyDelayUntil
+  ) {
+    return fallbackDelayMs;
+  }
+
+  const deadlineMs = Date.parse(snapshot.privacyDelayUntil);
+  if (!Number.isFinite(deadlineMs)) {
+    return fallbackDelayMs;
+  }
+
+  return Math.max(0, Math.min(deadlineMs - nowMs, FLOW_POLL_MAX_MS));
 }
 
 export function classifyFlowMutation(
@@ -1279,7 +1648,10 @@ export function createInitialSnapshot(params: {
   assetDecimals?: number | null;
   requiredNativeFunding?: bigint | null;
   requiredTokenFunding?: bigint | null;
+  estimatedCommittedValue?: bigint | null;
   backupConfirmed?: boolean;
+  privacyDelayProfile?: FlowPrivacyDelayProfile;
+  privacyDelayConfigured?: boolean;
   phase?: FlowPhase;
   chain: string;
   asset: string;
@@ -1305,7 +1677,12 @@ export function createInitialSnapshot(params: {
     assetDecimals: params.assetDecimals ?? null,
     requiredNativeFunding: params.requiredNativeFunding?.toString() ?? null,
     requiredTokenFunding: params.requiredTokenFunding?.toString() ?? null,
+    estimatedCommittedValue: params.estimatedCommittedValue?.toString() ?? null,
     backupConfirmed: params.backupConfirmed ?? false,
+    privacyDelayProfile: params.privacyDelayProfile ?? "balanced",
+    privacyDelayConfigured: params.privacyDelayConfigured ?? true,
+    approvalObservedAt: null,
+    privacyDelayUntil: null,
     chain: params.chain,
     asset: params.asset,
     depositAmount: params.depositAmount.toString(),
@@ -1336,6 +1713,7 @@ export function attachDepositResultToSnapshot(
         depositExplorerUrl: result.depositExplorerUrl,
         depositLabel: result.depositLabel.toString(),
         committedValue: result.committedValue.toString(),
+        estimatedCommittedValue: null,
         aspStatus: "pending",
       }),
     ),
@@ -2160,7 +2538,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
     expirationMs = refreshed.expirationMs;
   };
 
-  if (Date.now() > expirationMs) {
+  if (workflowNowMs() > expirationMs) {
     await fetchFreshQuote("Quote expired. Refreshing...");
   }
 
@@ -2261,7 +2639,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
     "Run 'privacy-pools sync' and retry the workflow watch command.",
   );
 
-  if (Date.now() > expirationMs) {
+  if (workflowNowMs() > expirationMs) {
     const previousFeeBPS = quote.feeBPS;
     await fetchFreshQuote("Quote expired after proof. Refreshing...");
     if (Number(previousFeeBPS) !== Number(quote.feeBPS)) {
@@ -2675,7 +3053,17 @@ async function inspectAndAdvanceFlow(params: {
     });
   }
 
-  const requireAspData = snapshot.phase !== "paused_declined";
+  const privacyDelayUntilMs =
+    snapshot.phase === "approved_waiting_privacy_delay" &&
+    snapshot.privacyDelayUntil
+      ? Date.parse(snapshot.privacyDelayUntil)
+      : Number.NaN;
+  const localPrivacyDelayStillActive =
+    snapshot.phase === "approved_waiting_privacy_delay" &&
+    Number.isFinite(privacyDelayUntilMs) &&
+    workflowNowMs() < privacyDelayUntilMs;
+  const requireAspData =
+    snapshot.phase !== "paused_declined" && !localPrivacyDelayStillActive;
   const context = await loadWorkflowPoolAccountContext(
     snapshot,
     globalOpts,
@@ -2704,6 +3092,19 @@ async function inspectAndAdvanceFlow(params: {
     return {
       snapshot: saveWorkflowSnapshotIfChanged(savedAligned, clearLastError(savedAligned)),
       continueWatching: false,
+    };
+  }
+
+  if (localPrivacyDelayStillActive) {
+    const waiting = clearLastError(
+      updateSnapshot(savedAligned, {
+        phase: "approved_waiting_privacy_delay",
+        aspStatus: "approved",
+      }),
+    );
+    return {
+      snapshot: saveWorkflowSnapshotIfChanged(savedAligned, waiting),
+      continueWatching: true,
     };
   }
 
@@ -2747,12 +3148,37 @@ async function inspectAndAdvanceFlow(params: {
     };
   }
 
-  const ready = clearLastError(
-    updateSnapshot(savedAligned, {
-      phase: "approved_ready_to_withdraw",
-      aspStatus: "approved",
-    }),
-  );
+  if (savedAligned.phase === "approved_waiting_privacy_delay") {
+    const privacyDelayUntilMs = savedAligned.privacyDelayUntil
+      ? Date.parse(savedAligned.privacyDelayUntil)
+      : Number.NaN;
+    if (Number.isFinite(privacyDelayUntilMs) && workflowNowMs() < privacyDelayUntilMs) {
+      const waiting = clearLastError(
+        updateSnapshot(savedAligned, {
+          phase: "approved_waiting_privacy_delay",
+          aspStatus: "approved",
+        }),
+      );
+      return {
+        snapshot: saveWorkflowSnapshotIfChanged(savedAligned, waiting),
+        continueWatching: true,
+      };
+    }
+  }
+
+  const ready =
+    savedAligned.approvalObservedAt ||
+    savedAligned.privacyDelayUntil ||
+    savedAligned.phase === "approved_waiting_privacy_delay"
+      ? clearLastError(
+          updateSnapshot(savedAligned, {
+            phase: "approved_ready_to_withdraw",
+            aspStatus: "approved",
+            approvalObservedAt: savedAligned.approvalObservedAt ?? null,
+            privacyDelayUntil: null,
+          }),
+        )
+      : scheduleApprovedWorkflowPrivacyDelay(savedAligned);
   return {
     snapshot: saveWorkflowSnapshotIfChanged(savedAligned, ready),
     continueWatching: true,
@@ -2765,11 +3191,22 @@ export async function setupNewWalletWorkflow(params: {
   pool: WorkflowPool;
   amount: bigint;
   recipient: Address;
+  privacyDelayProfile: FlowPrivacyDelayProfile;
   exportNewWallet?: string;
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
 }): Promise<NewWalletWorkflowSetupResult> {
-  const { workflowId, chainConfig, pool, amount, recipient, exportNewWallet, globalOpts, mode } =
+  const {
+    workflowId,
+    chainConfig,
+    pool,
+    amount,
+    recipient,
+    privacyDelayProfile,
+    exportNewWallet,
+    globalOpts,
+    mode,
+  } =
     params;
   const silent = mode.isQuiet || mode.isJson;
   const skipPrompts = mode.skipPrompts;
@@ -2909,10 +3346,13 @@ export async function setupNewWalletWorkflow(params: {
       requiredTokenFunding: fundingRequirements.requiredTokenFunding,
       backupConfirmed: true,
       phase: "awaiting_funding",
+      privacyDelayProfile,
+      privacyDelayConfigured: true,
       chain: chainConfig.name,
       asset: pool.symbol,
       assetDecimals: pool.decimals,
       depositAmount: amount,
+      estimatedCommittedValue: amount - (amount * pool.vettingFeeBPS) / 10000n,
       recipient,
       poolAccountNumber: nextPoolAccount.poolAccountNumber,
       poolAccountId: nextPoolAccount.poolAccountId,
@@ -2927,6 +3367,7 @@ export async function startWorkflow(
     amountInput,
     assetInput,
     recipient,
+    privacyDelayProfile,
     newWallet = false,
     exportNewWallet,
     globalOpts,
@@ -2938,6 +3379,10 @@ export async function startWorkflow(
   const silent = mode.isQuiet || mode.isJson;
   const skipPrompts = mode.skipPrompts;
   const validatedRecipient = validateFlowRecipient(recipient);
+  const resolvedPrivacyDelayProfile = resolveFlowPrivacyDelayProfile(
+    privacyDelayProfile,
+    "balanced",
+  );
   const effectiveWatch = newWallet ? true : watch;
 
   if (newWallet && skipPrompts && !exportNewWallet?.trim()) {
@@ -3003,6 +3448,12 @@ export async function startWorkflow(
 
   const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
   const estimatedCommitted = amount - feeAmount;
+  const estimatedAmountPatternWarning = buildAmountPatternLinkabilityWarning(
+    estimatedCommitted,
+    pool.decimals,
+    pool.symbol,
+    { estimated: true },
+  );
   const tokenPrice = deriveTokenPrice(pool);
   const amountUsd = usdSuffix(amount, pool.decimals, tokenPrice);
   const feeUsd = usdSuffix(feeAmount, pool.decimals, tokenPrice);
@@ -3023,6 +3474,21 @@ export async function startWorkflow(
       `Expected committed value: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd}`,
       silent,
     );
+    info(
+      `Auto-withdrawal: This saved flow will privately withdraw the full approved balance of that Pool Account to ${formatAddress(validatedRecipient)}.`,
+      silent,
+    );
+    info(
+      `Privacy delay: ${flowPrivacyDelayProfileSummary(resolvedPrivacyDelayProfile)}. After approval, flow watch will wait through that window before requesting the private withdrawal.`,
+      silent,
+    );
+    if (estimatedAmountPatternWarning) {
+      warn(estimatedAmountPatternWarning.message, silent);
+      info(
+        "A round deposit input can still become a non-round committed balance after the vetting fee is deducted.",
+        silent,
+      );
+    }
     if (isErc20) {
       info("This will require 2 transactions: token approval + deposit.", silent);
     }
@@ -3031,7 +3497,7 @@ export async function startWorkflow(
     const ok = await confirm({
       message:
         `Start flow by depositing ${formatAmount(amount, pool.decimals, pool.symbol)}${amountUsd} on ${chainConfig.name}, ` +
-        `then privately withdraw the approved Pool Account to ${formatAddress(validatedRecipient)}?`,
+        `then privately auto-withdraw the full approved balance to ${formatAddress(validatedRecipient)} after approval and the selected privacy delay?`,
       default: true,
     });
     if (!ok) {
@@ -3048,6 +3514,7 @@ export async function startWorkflow(
       pool,
       amount,
       recipient: validatedRecipient,
+      privacyDelayProfile: resolvedPrivacyDelayProfile,
       exportNewWallet,
       globalOpts,
       mode,
@@ -3083,6 +3550,8 @@ export async function startWorkflow(
             assetDecimals: pool.decimals,
             depositAmount: depositResult.amount,
             recipient: validatedRecipient,
+            privacyDelayProfile: resolvedPrivacyDelayProfile,
+            privacyDelayConfigured: true,
             poolAccountNumber: depositResult.poolAccountNumber,
             poolAccountId: depositResult.poolAccountId,
             depositTxHash: depositResult.depositTxHash,
@@ -3120,14 +3589,57 @@ export async function watchWorkflow(
   const { globalOpts, mode, isVerbose } = params;
   const silent = mode.isQuiet || mode.isJson;
   const workflowId = resolveWorkflowId(params.workflowId);
+  const privacyDelayOverride = resolveOptionalFlowPrivacyDelayProfile(
+    params.privacyDelayProfile,
+  );
   let delayMs = initialPollDelayMs(loadWorkflowSnapshot(workflowId).phase);
 
   while (true) {
-    const snapshot = loadWorkflowSnapshot(workflowId);
+    let snapshot = loadWorkflowSnapshot(workflowId);
+    let privacyDelayUpdateMessage: string | null = null;
+    if (
+      privacyDelayOverride &&
+      (snapshot.privacyDelayProfile !== privacyDelayOverride ||
+        snapshot.privacyDelayConfigured !== true)
+    ) {
+      const previousProfile = snapshot.privacyDelayProfile ?? "off";
+      const previousConfigured = snapshot.privacyDelayConfigured ?? false;
+      snapshot = await withProcessLock(async () =>
+        saveWorkflowSnapshotIfChanged(
+          snapshot,
+          applyFlowPrivacyDelayPolicy(snapshot, privacyDelayOverride, {
+            configured: true,
+            rescheduleApproved: true,
+          }),
+        ),
+      );
+      if (
+        previousProfile !== snapshot.privacyDelayProfile ||
+        previousConfigured !== (snapshot.privacyDelayConfigured ?? false)
+      ) {
+        if (privacyDelayOverride === "off") {
+          privacyDelayUpdateMessage =
+            "Saved privacy-delay policy updated to Off (no added hold). Any existing privacy-delay hold was cleared.";
+        } else if (snapshot.privacyDelayUntil) {
+          privacyDelayUpdateMessage =
+            `Saved privacy-delay policy updated from ${flowPrivacyDelayProfileSummary(previousProfile, previousConfigured)} to ${flowPrivacyDelayProfileSummary(snapshot.privacyDelayProfile ?? privacyDelayOverride, snapshot.privacyDelayConfigured ?? true)}. ` +
+            `This workflow is now waiting until ${snapshot.privacyDelayUntil}.`;
+        } else {
+          privacyDelayUpdateMessage =
+            `Saved privacy-delay policy updated from ${flowPrivacyDelayProfileSummary(previousProfile, previousConfigured)} to ${flowPrivacyDelayProfileSummary(snapshot.privacyDelayProfile ?? privacyDelayOverride, snapshot.privacyDelayConfigured ?? true)}.`;
+        }
+      }
+    }
+
+    if (privacyDelayUpdateMessage) {
+      info(privacyDelayUpdateMessage, silent);
+    }
+
     if (isTerminalFlowPhase(snapshot.phase)) {
       return snapshot;
     }
 
+    let sleepMs = delayMs;
     try {
       const result = await withProcessLock(async () =>
         inspectAndAdvanceFlow({
@@ -3148,9 +3660,11 @@ export async function watchWorkflow(
         continue;
       }
 
+      sleepMs = computeFlowWatchDelayMs(result.snapshot, delayMs);
+
       if (result.snapshot.phase === "awaiting_funding" && result.snapshot.walletAddress) {
         info(
-          `Still waiting for funding at ${result.snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(delayMs)}.`,
+          `Still waiting for funding at ${result.snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
           silent,
         );
       } else if (result.snapshot.phase === "depositing_publicly") {
@@ -3158,9 +3672,17 @@ export async function watchWorkflow(
           "Still reconciling the public deposit step. Checking again shortly.",
           silent,
         );
+      } else if (
+        result.snapshot.phase === "approved_waiting_privacy_delay" &&
+        result.snapshot.privacyDelayUntil
+      ) {
+        info(
+          `ASP approval is confirmed, and this workflow is waiting until ${result.snapshot.privacyDelayUntil} before requesting the private withdrawal. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+          silent,
+        );
       } else {
         info(
-          `Still waiting for ASP approval for ${result.snapshot.poolAccountId} on ${result.snapshot.chain}. Checking again in ${humanPollDelayLabel(delayMs)}.`,
+          `Still waiting for ASP approval for ${result.snapshot.poolAccountId} on ${result.snapshot.chain}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
           silent,
         );
       }
@@ -3183,7 +3705,9 @@ export async function watchWorkflow(
       throw error;
     }
 
-    await sleep(delayMs);
+    if (sleepMs > 0) {
+      await sleep(sleepMs);
+    }
     delayMs = nextPollDelayMs(delayMs, loadWorkflowSnapshot(workflowId).phase);
   }
 }

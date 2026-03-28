@@ -5,7 +5,7 @@
  * stdout contract change does not imply an on-disk workflow migration.
  */
 
-export const WORKFLOW_SNAPSHOT_VERSION = "1";
+export const WORKFLOW_SNAPSHOT_VERSION = "2";
 export const WORKFLOW_SECRET_RECORD_VERSION = "1";
 
 /**

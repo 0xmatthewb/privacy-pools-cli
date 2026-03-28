@@ -1,4 +1,4 @@
-export const JSON_SCHEMA_VERSION = "1.6.0";
+export const JSON_SCHEMA_VERSION = "1.7.0";
 
 export function jsonContractDocRelativePath(
   schemaVersion: string = JSON_SCHEMA_VERSION,

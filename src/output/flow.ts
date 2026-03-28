@@ -1,5 +1,10 @@
 import { POA_PORTAL_URL } from "../config/chains.js";
-import type { FlowPhase, FlowSnapshot } from "../services/workflow.js";
+import {
+  buildFlowWarnings,
+  flowPrivacyDelayProfileSummary,
+  type FlowPhase,
+  type FlowSnapshot,
+} from "../services/workflow.js";
 import { displayDecimals, formatAmount } from "../utils/format.js";
 import type { OutputContext } from "./common.js";
 import {
@@ -56,6 +61,8 @@ function phaseLabel(phase: FlowPhase): string {
       return "Depositing publicly";
     case "awaiting_asp":
       return "Awaiting ASP approval";
+    case "approved_waiting_privacy_delay":
+      return "Approved and waiting for privacy delay";
     case "approved_ready_to_withdraw":
       return "Approved and ready to withdraw";
     case "withdrawing":
@@ -93,6 +100,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
   switch (snapshot.phase) {
     case "awaiting_funding":
     case "awaiting_asp":
+    case "approved_waiting_privacy_delay":
     case "approved_ready_to_withdraw":
     case "withdrawing":
     case "depositing_publicly":
@@ -144,6 +152,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
   switch (snapshot.phase) {
     case "awaiting_funding":
     case "awaiting_asp":
+    case "approved_waiting_privacy_delay":
     case "approved_ready_to_withdraw":
     case "withdrawing":
     case "depositing_publicly":
@@ -177,6 +186,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
 }
 
 function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowSnapshot) {
+  const warnings = action === "ragequit" ? [] : buildFlowWarnings(snapshot);
   return {
     mode: "flow",
     action,
@@ -186,7 +196,13 @@ function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowS
     walletAddress: snapshot.walletAddress ?? null,
     requiredNativeFunding: snapshot.requiredNativeFunding ?? null,
     requiredTokenFunding: snapshot.requiredTokenFunding ?? null,
-    backupConfirmed: snapshot.backupConfirmed ?? false,
+    backupConfirmed:
+      snapshot.walletMode === "new_wallet"
+        ? snapshot.backupConfirmed ?? false
+        : undefined,
+    privacyDelayProfile: snapshot.privacyDelayProfile ?? "off",
+    privacyDelayConfigured: snapshot.privacyDelayConfigured ?? false,
+    privacyDelayUntil: snapshot.privacyDelayUntil ?? null,
     chain: snapshot.chain,
     asset: snapshot.asset,
     depositAmount: snapshot.depositAmount,
@@ -205,6 +221,7 @@ function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowS
     ragequitBlockNumber: snapshot.ragequitBlockNumber ?? null,
     ragequitExplorerUrl: snapshot.ragequitExplorerUrl ?? null,
     lastError: snapshot.lastError,
+    warnings: warnings.length > 0 ? warnings : undefined,
   };
 }
 
@@ -226,6 +243,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
+  const warnings = data.action === "ragequit" ? [] : buildFlowWarnings(data.snapshot);
 
   if (data.snapshot.phase === "completed") {
     success(
@@ -252,6 +270,14 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       `${data.snapshot.poolAccountId} needs Proof of Association before the private withdrawal can continue.`,
       silent,
     );
+  } else if (
+    data.snapshot.phase === "approved_waiting_privacy_delay" &&
+    data.snapshot.privacyDelayUntil
+  ) {
+    info(
+      `ASP approval is confirmed. This workflow is intentionally waiting until ${data.snapshot.privacyDelayUntil} before requesting the private withdrawal.`,
+      silent,
+    );
   } else if (data.snapshot.phase === "stopped_external") {
     warn(
       `${data.snapshot.poolAccountId} changed outside this saved workflow, so the easy path stopped without taking further action.`,
@@ -265,7 +291,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       );
     } else {
       success(
-        `Flow started for ${data.snapshot.poolAccountId}. The deposit is public now; the private withdrawal will run after ASP approval.`,
+        `Flow started for ${data.snapshot.poolAccountId}. The deposit is public now; the private withdrawal will run after ASP approval and any configured privacy delay.`,
         silent,
       );
     }
@@ -284,6 +310,16 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   info(`Workflow: ${data.snapshot.workflowId}`, silent);
   info(`Phase: ${phaseLabel(data.snapshot.phase)}`, silent);
   info(`Wallet mode: ${data.snapshot.walletMode ?? "configured"}`, silent);
+  info(
+    `Privacy delay: ${flowPrivacyDelayProfileSummary(
+      data.snapshot.privacyDelayProfile ?? "off",
+      data.snapshot.privacyDelayConfigured ?? false,
+    )}`,
+    silent,
+  );
+  if (data.snapshot.privacyDelayUntil) {
+    info(`Privacy delay until: ${data.snapshot.privacyDelayUntil}`, silent);
+  }
   if (data.snapshot.walletAddress) {
     info(
       `${
@@ -320,13 +356,18 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   if (requiredNativeFunding) {
     info(`Required native funding: ${requiredNativeFunding}`, silent);
   }
-  info(`Backup confirmed: ${data.snapshot.backupConfirmed ? "yes" : "no"}`, silent);
+  if (data.snapshot.walletMode === "new_wallet") {
+    info(`Backup confirmed: ${data.snapshot.backupConfirmed ? "yes" : "no"}`, silent);
+  }
   const committedValue = formatFlowAssetAmount(
     data.snapshot.committedValue,
     data.snapshot,
   );
   if (committedValue) {
     info(`Committed value: ${committedValue}`, silent);
+  }
+  for (const flowWarning of warnings) {
+    warn(flowWarning.message, silent);
   }
   if (data.snapshot.depositTxHash) {
     info(`Deposit tx: ${data.snapshot.depositTxHash}`, silent);
