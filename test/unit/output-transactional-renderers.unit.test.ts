@@ -224,6 +224,13 @@ describe("renderDepositSuccess parity", () => {
         when: "after_deposit",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
+      {
+        command: "ragequit",
+        reason: "If you decide not to wait for ASP review, ragequit remains available as a public recovery path for PA-1.",
+        when: "after_deposit",
+        args: ["ETH"],
+        options: { agent: true, chain: "sepolia", fromPa: "PA-1" },
+      },
     ]);
     expect(stderr).toBe("");
   });
@@ -745,9 +752,11 @@ const STUB_WITHDRAW_QUOTE: WithdrawQuoteData = {
   decimals: 18,
   recipient: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
   minWithdrawAmount: "100000000000000000",
+  baseFeeBPS: "45",
   quoteFeeBPS: "50",
   feeCommitmentPresent: true,
   quoteExpiresAt: "2025-06-01T00:00:00.000Z",
+  relayTxCost: { gas: "0", eth: "100000000000000" },
   tokenPrice: null,
 };
 

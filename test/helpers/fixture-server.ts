@@ -20,7 +20,7 @@ import {
 } from "node:http";
 import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
-import type { Address } from "viem";
+import { encodeAbiParameters, type Address } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
 import { encodeRelayerWithdrawalData } from "./relayer-withdrawal-data.ts";
 import {
@@ -114,7 +114,7 @@ const FIXTURE_POOL =
 const FIXTURE_ASSET =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 const FIXTURE_FEE_RECEIVER =
-  "0x00000000000000000000000000000000000000fE" as Address;
+  "0x00000000000000000000000000000000000000fe" as Address;
 const RELAYER_SECONDS_RECIPIENT =
   "0x0000000000000000000000000000000000000001";
 const RELAYER_MALFORMED_FEE_RECIPIENT =
@@ -350,6 +350,37 @@ export interface FixtureServer {
   cleanup?: () => void;
 }
 
+async function waitForFixtureReady(
+  url: string,
+  timeoutMs: number,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_chainId",
+          params: [],
+        }),
+      });
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // The subprocess may have printed its port just before the listener is reachable.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error(`Fixture server did not become reachable at ${url}`);
+}
+
 /**
  * Launch the fixture server in a separate background process.
  * Returns once the server prints its port to stdout.
@@ -381,12 +412,21 @@ export function launchFixtureServer(): Promise<FixtureServer> {
         proc.stdout?.removeAllListeners("data");
         proc.stdout?.destroy();
         proc.unref();
-        resolve({
-          proc,
-          port,
-          url: `http://127.0.0.1:${port}`,
-          cleanup: cleanupProcessExit,
-        });
+        const url = `http://127.0.0.1:${port}`;
+        void waitForFixtureReady(url, 2_000)
+          .then(() => {
+            resolve({
+              proc,
+              port,
+              url,
+              cleanup: cleanupProcessExit,
+            });
+          })
+          .catch((error) => {
+            cleanupProcessExit();
+            proc.kill();
+            reject(error);
+          });
       }
     });
 

@@ -408,25 +408,25 @@ describe("sdk service", () => {
       }]);
     });
 
-    test("local compatibility data service clamps future deployment blocks on localhost", async () => {
+    test("local compatibility data service returns no logs when deployment block is still in the future", async () => {
       const ds = await getDataService(
         CHAINS.sepolia,
         poolAddress,
         "http://127.0.0.1:8545"
       );
 
-      let seenFromBlock: bigint | undefined;
+      let called = false;
       (ds as any).client = {
         getBlockNumber: async () => 12n,
-        getLogs: async ({ fromBlock }: { fromBlock: bigint }) => {
-          seenFromBlock = fromBlock;
+        getLogs: async () => {
+          called = true;
           return [];
         },
       };
 
-      await (ds as any).getDeposits(poolInfo);
+      await expect((ds as any).getDeposits(poolInfo)).resolves.toEqual([]);
 
-      expect(seenFromBlock).toBe(0n);
+      expect(called).toBe(false);
     });
 
     test("local compatibility data service rejects malformed logs", async () => {

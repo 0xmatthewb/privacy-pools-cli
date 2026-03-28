@@ -39,9 +39,11 @@ const BASE_QUOTE: WithdrawQuoteData = {
   decimals: 6,
   recipient: "0x1111111111111111111111111111111111111111",
   minWithdrawAmount: "10000000",
+  baseFeeBPS: "45",
   quoteFeeBPS: "50",
   feeCommitmentPresent: true,
   quoteExpiresAt: "2025-06-15T13:00:00.000Z",
+  relayTxCost: { gas: "0", eth: "100000000000000" },
   tokenPrice: null,
 };
 

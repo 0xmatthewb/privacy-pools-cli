@@ -54,7 +54,6 @@ const INVALID_PARSE_CASES: Array<{ input: string; decimals: number }> = [
 ];
 
 const VALID_ADDRESSES = [
-  "0x0000000000000000000000000000000000000000",
   "0x1111111111111111111111111111111111111111",
   "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
@@ -136,6 +135,12 @@ describe("validation matrix", () => {
       expect(() => validateAddress(address)).toThrow(CLIError);
     });
   }
+
+  test("validateAddress rejects the zero address", () => {
+    expect(() =>
+      validateAddress("0x0000000000000000000000000000000000000000"),
+    ).toThrow(CLIError);
+  });
 
   test("validatePositive rejects zero and negative-like values", () => {
     expect(() => validatePositive(0n)).toThrow(CLIError);

@@ -41,6 +41,7 @@ let upstreamIState = "";
 
 const cliChains = readFileSync(resolve(CLI_ROOT, "src/config/chains.ts"), "utf8");
 const cliWithdraw = readFileSync(resolve(CLI_ROOT, "src/commands/withdraw.ts"), "utf8");
+const cliPoolRoots = readFileSync(resolve(CLI_ROOT, "src/services/pool-roots.ts"), "utf8");
 const cliRagequit = readFileSync(resolve(CLI_ROOT, "src/commands/ragequit.ts"), "utf8");
 const cliDeposit = readFileSync(resolve(CLI_ROOT, "src/commands/deposit.ts"), "utf8");
 const cliAsp = readFileSync(resolve(CLI_ROOT, "src/services/asp.ts"), "utf8");
@@ -338,12 +339,16 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(upstreamIEntrypoint).toContain("PrecommitmentAlreadyUsed");
   });
 
-  run("upstream IState.sol defines currentRoot the CLI reads for stale-state checks", () => {
-    // CLI reads currentRoot from the pool contract (distinct from entrypoint latestRoot)
-    expect(cliWithdraw).toContain("currentRoot");
+  run("upstream IState.sol defines the known-root history the CLI validates", () => {
+    // CLI reads currentRoot and cached roots from the pool contract
+    expect(cliPoolRoots).toContain("currentRoot");
+    expect(cliPoolRoots).toContain("roots");
+    expect(cliPoolRoots).toContain("ROOT_HISTORY_SIZE");
 
-    // currentRoot is defined in IState.sol (inherited by IPrivacyPool)
+    // currentRoot and roots are defined in IState.sol (inherited by IPrivacyPool)
     expect(upstreamIState).toContain("currentRoot");
+    expect(upstreamIState).toContain("roots");
+    expect(upstreamIState).toContain("ROOT_HISTORY_SIZE");
 
     // IPrivacyPool must inherit from IState
     expect(upstreamIPrivacyPool).toContain("IState");

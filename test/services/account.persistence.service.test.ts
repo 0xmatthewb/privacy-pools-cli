@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
@@ -146,6 +146,22 @@ describe("account persistence", () => {
     expect(loaded.balance).toBe(1000000000000000000n);
     expect(loaded.poolAccounts).toBeInstanceOf(Map);
     expect(loaded.poolAccounts.get("scope1")).toEqual({ amount: 500n });
+  });
+
+  test("saveAccount ignores legacy predictable temp-file symlinks", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const accountsDir = join(home, "accounts");
+    const victimPath = join(home, "victim.txt");
+    writeFileSync(victimPath, "do not overwrite", "utf-8");
+    symlinkSync(victimPath, join(accountsDir, "11155111.json.tmp"));
+
+    saveAccount(11155111, { poolAccounts: new Map() });
+
+    expect(readFileSync(victimPath, "utf-8")).toBe("do not overwrite");
+    expect(loadAccount(11155111)).toMatchObject({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+    });
   });
 
   /* ---------------------------------------------------------------- */

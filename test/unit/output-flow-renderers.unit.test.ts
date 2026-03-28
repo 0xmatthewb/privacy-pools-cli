@@ -70,6 +70,14 @@ describe("renderFlowResult", () => {
         args: ["wf-123"],
         options: { agent: true },
       },
+      {
+        command: "flow ragequit",
+        reason:
+          "Use flow ragequit instead if you want to stop waiting and recover publicly to the original deposit address.",
+        when: "flow_public_recovery_optional",
+        args: ["wf-123"],
+        options: { agent: true },
+      },
     ]);
     expect(stderr).toBe("");
   });

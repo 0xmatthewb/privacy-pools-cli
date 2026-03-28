@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
+  decodeValidatedRelayerWithdrawalData,
   getRelayerDetails,
   overrideRelayerRetryWaitForTests,
   requestQuote,
@@ -59,6 +60,62 @@ describe("relayer service", () => {
     expect(quote.feeBPS).toBe("12");
     expect(requestBody?.amount).toBe("1000");
     expect(requestBody?.chainId).toBe(1);
+  });
+
+  test("decodeValidatedRelayerWithdrawalData rejects zero-address recipients", () => {
+    const withdrawalData = encodeRelayerWithdrawalData({
+      recipient: "0x0000000000000000000000000000000000000000",
+      feeRecipient: "0x0000000000000000000000000000000000000002",
+      relayFeeBPS: 12n,
+    });
+
+    expect(() => {
+      decodeValidatedRelayerWithdrawalData({
+        quote: {
+          feeCommitment: {
+            expiration: Date.now() + 60_000,
+            withdrawalData,
+            asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            amount: "1000",
+            extraGas: false,
+            signedRelayerCommitment: "0x5678",
+          },
+        },
+        requestedRecipient: "0x0000000000000000000000000000000000000000",
+        quoteFeeBPS: 12n,
+      });
+    }).toThrow(expect.objectContaining({
+      category: "RELAYER",
+      message: expect.stringContaining("zero address"),
+    }));
+  });
+
+  test("decodeValidatedRelayerWithdrawalData rejects zero-address fee recipients", () => {
+    const withdrawalData = encodeRelayerWithdrawalData({
+      recipient: "0x0000000000000000000000000000000000000001",
+      feeRecipient: "0x0000000000000000000000000000000000000000",
+      relayFeeBPS: 12n,
+    });
+
+    expect(() => {
+      decodeValidatedRelayerWithdrawalData({
+        quote: {
+          feeCommitment: {
+            expiration: Date.now() + 60_000,
+            withdrawalData,
+            asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            amount: "1000",
+            extraGas: false,
+            signedRelayerCommitment: "0x5678",
+          },
+        },
+        requestedRecipient: "0x0000000000000000000000000000000000000001",
+        quoteFeeBPS: 12n,
+      });
+    }).toThrow(expect.objectContaining({
+      category: "RELAYER",
+      message: expect.stringContaining("fee recipient cannot be the zero address"),
+    }));
   });
 
   test("getRelayerDetails maps HTTP 503 with friendly message", async () => {

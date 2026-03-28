@@ -178,6 +178,26 @@ describe("history event extraction", () => {
     expect(withdrawals[0].value).toBe(0n);
   });
 
+  test("migration children do not surface as user withdrawal history events", () => {
+    const deposit = makeDeposit({ value: 100n, blockNumber: 10n });
+    const migrationChild = makeDeposit({
+      hash: 22n,
+      value: 100n,
+      blockNumber: 20n,
+      txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+      isMigration: true,
+    });
+
+    const account = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(deposit, [migrationChild]),
+    ]);
+
+    const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
+    const withdrawals = events.filter((e) => e.type === "withdrawal");
+
+    expect(withdrawals).toHaveLength(0);
+  });
+
   test("ragequit without prior withdrawals uses full deposit value", () => {
     const deposit = makeDeposit({ value: 250n });
 
@@ -194,6 +214,33 @@ describe("history event extraction", () => {
 
     const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
     const ragequit = events.find((e) => e.type === "ragequit");
+    expect(ragequit?.value).toBe(250n);
+  });
+
+  test("ragequit uses the canonical event value instead of recomputing from local children", () => {
+    const deposit = makeDeposit({ value: 250n });
+    const migrationChild = makeDeposit({
+      hash: 22n,
+      value: 180n,
+      blockNumber: 20n,
+      txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+      isMigration: true,
+    });
+
+    const account = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(deposit, [migrationChild], {
+        ragequitter: "0x0000000000000000000000000000000000000001",
+        commitment: migrationChild.hash,
+        label: migrationChild.label,
+        value: 250n,
+        blockNumber: 50n,
+        transactionHash: "0x5555555555555555555555555555555555555555555555555555555555555555",
+      }),
+    ]);
+
+    const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
+    const ragequit = events.find((e) => e.type === "ragequit");
+
     expect(ragequit?.value).toBe(250n);
   });
 

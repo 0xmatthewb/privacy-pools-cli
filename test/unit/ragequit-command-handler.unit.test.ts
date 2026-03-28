@@ -420,7 +420,7 @@ describe("ragequit command handler", () => {
     expectUnsignedTransactions(json.transactions, [
       {
         chainId: 1,
-        from: null,
+        from: "0x19E7E376E7C213B7E7E7E46CC70A5DD086DAFF2A",
         to: ETH_POOL.pool,
         value: "0",
         description: "Ragequit from Privacy Pool",

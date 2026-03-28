@@ -725,7 +725,7 @@ describe("withdraw command handler", () => {
     expectUnsignedTransactions(json.transactions, [
       {
         chainId: 1,
-        from: null,
+        from: "0x5555555555555555555555555555555555555555",
         to: ETH_POOL.pool,
         value: "0",
         description: "Direct withdraw from Privacy Pool",

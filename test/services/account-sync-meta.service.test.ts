@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   isSyncFresh,
@@ -55,6 +55,22 @@ describe("account sync metadata + event syncing", () => {
       }),
     );
     expect(isSyncFresh(1)).toBe(true);
+  });
+
+  test("saveSyncMeta ignores legacy predictable temp-file symlinks", () => {
+    const home = useIsolatedHome();
+    const victimPath = join(home, "victim.txt");
+    writeFileSync(victimPath, "do not overwrite", "utf-8");
+    symlinkSync(victimPath, join(home, "accounts", "1.sync.json.tmp"));
+
+    saveSyncMeta(1);
+
+    expect(readFileSync(victimPath, "utf-8")).toBe("do not overwrite");
+    expect(loadSyncMeta(1)).toEqual(
+      expect.objectContaining({
+        lastSyncTime: expect.any(Number),
+      }),
+    );
   });
 
   test("isSyncFresh returns false for stale sync timestamps", () => {
