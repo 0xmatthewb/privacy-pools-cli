@@ -72,6 +72,11 @@ function emitUnsupportedBunRuntime(argv: string[]): void {
 export async function runCliEntrypoint(
   entryArgv: string[] = process.argv.slice(2),
 ): Promise<void> {
+  if (process.versions.bun) {
+    emitUnsupportedBunRuntime(entryArgv);
+    return;
+  }
+
   await runLauncher(
     createCliPackageInfoResolver(import.meta.url),
     entryArgv,
@@ -81,9 +86,5 @@ export async function runCliEntrypoint(
 const argv = process.argv.slice(2);
 
 if (isDirectCliEntrypoint(import.meta.url, process.argv)) {
-  if (process.versions.bun) {
-    emitUnsupportedBunRuntime(argv);
-  } else {
-    await runCliEntrypoint(argv);
-  }
+  await runCliEntrypoint(argv);
 }
