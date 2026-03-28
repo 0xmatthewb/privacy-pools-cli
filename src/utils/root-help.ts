@@ -23,7 +23,7 @@ const CMD_RE = /^(\s{2,})([a-z][\w-]*(?:\|[a-z][\w-]*)?(?:\s+\[[^\]]+\])?(?:\s+<
 const ROOT_HELP_BASE_LINES = [
   "Usage: privacy-pools [options] [command]",
   "",
-  "Privacy Pools: a compliant way to transact privately on Ethereum",
+  "Privacy Pools: a compliant way to transact privately across supported chains",
   "",
   "Options:",
   "  -V, --version        output the version number",

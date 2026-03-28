@@ -120,7 +120,7 @@ export async function createRootProgram(
   program
     .name("privacy-pools")
     .description(
-      "Privacy Pools: a compliant way to transact privately on Ethereum",
+      "Privacy Pools: a compliant way to transact privately across supported chains",
     )
     .version(version)
     .option(
