@@ -37,15 +37,19 @@ describe("machine sync fail-closed conformance", () => {
   });
 
   test("partial sync failures skip account persistence entirely", () => {
+    const syncAccountEventsPos = accountServiceSource.indexOf(
+      "export async function syncAccountEvents(",
+    );
     const partialFailureGuard = accountServiceSource.indexOf(
       "if (errors.length > 0) {",
+      syncAccountEventsPos,
     );
     const throwPos = accountServiceSource.indexOf(
       "throw new CLIError(",
       partialFailureGuard,
     );
     const assignAccountPos = accountServiceSource.indexOf(
-      "accountService.account = account;",
+      "accountService.account = reconciledAccount;",
       throwPos,
     );
     const saveAccountPos = accountServiceSource.indexOf(

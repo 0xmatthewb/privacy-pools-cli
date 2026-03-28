@@ -2282,6 +2282,57 @@ describe("workflow service mocked coverage", () => {
     expect(stderr).toContain("local time");
   });
 
+  test("watchWorkflow updates pending workflows to a configured privacy-delay policy before approval", async () => {
+    let nowMs = Date.parse("2026-03-24T12:00:00.000Z");
+    const stop = new Error("stop while still pending");
+    state.aspStatus = "pending";
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowMs,
+      sleep: async (ms) => {
+        nowMs += ms;
+        throw stop;
+      },
+    });
+
+    writeWorkflowSnapshot("wf-privacy-delay-pending", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+      privacyDelayProfile: "off",
+      privacyDelayConfigured: false,
+      aspStatus: "pending",
+    });
+
+    const { stderr } = await captureAsyncOutput(async () => {
+      await expect(
+        watchWorkflow({
+          workflowId: "wf-privacy-delay-pending",
+          privacyDelayProfile: "aggressive",
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: false,
+            isJson: false,
+            isCsv: false,
+            isQuiet: false,
+            format: "table",
+            skipPrompts: true,
+          },
+          isVerbose: false,
+        }),
+      ).rejects.toThrow(stop.message);
+    });
+
+    const updated = loadWorkflowSnapshot("wf-privacy-delay-pending");
+    expect(updated.phase).toBe("awaiting_asp");
+    expect(updated.privacyDelayProfile).toBe("aggressive");
+    expect(updated.privacyDelayConfigured).toBe(true);
+    expect(updated.approvalObservedAt).toBeNull();
+    expect(updated.privacyDelayUntil).toBeNull();
+    expect(stderr).toContain("Saved privacy-delay policy updated from");
+    expect(stderr).not.toContain("This workflow is now waiting until");
+  });
+
   test("watchWorkflow pauses flows that require Proof of Association", async () => {
     state.aspStatus = "poi_required";
     writeWorkflowSnapshot("wf-poi", {

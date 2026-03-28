@@ -114,6 +114,7 @@ describe("barrel re-exports", () => {
     "renderDepositSuccess",
     "renderFlowResult",
     "renderRagequitSuccess",
+    "renderUpgradeResult",
     "renderWithdrawSuccess",
     "renderWithdrawQuote",
     "renderActivity",

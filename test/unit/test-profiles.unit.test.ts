@@ -22,6 +22,7 @@ describe("test profiles", () => {
     expect(TEST_PROFILE_FRAGMENTS.install).toEqual([
       ["npm", ["run", "test:smoke"]],
       ["npm", ["run", "test:smoke:native:package"]],
+      ["npm", ["run", "build"]],
       ["npm", ["run", "test:artifacts:root"]],
       ["npm", ["run", "test:artifacts:host"]],
     ]);
@@ -37,7 +38,7 @@ describe("test profiles", () => {
 
   test("conformance profiles stay syntax-gated and reference-checked", () => {
     expect(TEST_PROFILE_FRAGMENTS.build).toEqual([
-      ["bun", ["run", "build"]],
+      ["npm", ["run", "build"]],
     ]);
     expect(TEST_PROFILE_FRAGMENTS["repo-conformance-core"]).toEqual([
       ["npm", ["run", "test:scripts"]],

@@ -16,22 +16,28 @@ let proofTestsActive = false;
 let capturedFullProveInputs: Record<string, unknown> | null = null;
 let capturedFullProveWasm: string | null = null;
 let capturedFullProveZkey: string | null = null;
-
-mock.module("snarkjs", () => ({
-  groth16: {
-    fullProve: mock(
+let capturedFullProveOptions: unknown[] | null = null;
+const terminateBn128CurveMock = mock(async () => {});
+const terminateBls12381CurveMock = mock(async () => {});
+const fullProveMock = mock(
       async (
         inputs: Record<string, unknown>,
         wasm: string,
-        zkey: string
+        zkey: string,
+        ...options: unknown[]
       ) => {
         capturedFullProveInputs = inputs;
         capturedFullProveWasm = wasm;
         capturedFullProveZkey = zkey;
+        capturedFullProveOptions = options;
         if (fullProveShouldThrow) throw fullProveShouldThrow;
         return mockFullProveResult;
       }
-    ),
+);
+
+mock.module("snarkjs", () => ({
+  groth16: {
+    fullProve: fullProveMock,
   },
 }));
 
@@ -66,11 +72,23 @@ const { proveCommitment, proveWithdrawal } = await import(
 describe("proofs service", () => {
   beforeEach(() => {
     proofTestsActive = true;
+    fullProveMock.mockClear();
     capturedFullProveInputs = null;
     capturedFullProveWasm = null;
     capturedFullProveZkey = null;
+    capturedFullProveOptions = null;
     fullProveShouldThrow = null;
     artifactsShouldThrow = null;
+    terminateBn128CurveMock.mockClear();
+    terminateBls12381CurveMock.mockClear();
+    (globalThis as typeof globalThis & {
+      curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+      curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+    }).curve_bn128 = null;
+    (globalThis as typeof globalThis & {
+      curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+      curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+    }).curve_bls12381 = null;
     mockFullProveResult = {
       proof: {
         pi_a: ["1", "2", "3"],
@@ -85,6 +103,15 @@ describe("proofs service", () => {
     proofTestsActive = false;
     artifactsShouldThrow = null;
     fullProveShouldThrow = null;
+    capturedFullProveOptions = null;
+    (globalThis as typeof globalThis & {
+      curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+      curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+    }).curve_bn128 = null;
+    (globalThis as typeof globalThis & {
+      curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+      curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+    }).curve_bls12381 = null;
   });
 
   describe("proveCommitment", () => {
@@ -104,6 +131,14 @@ describe("proofs service", () => {
 
       expect(capturedFullProveWasm).toBe("/mock/artifacts/commitment.wasm");
       expect(capturedFullProveZkey).toBe("/mock/artifacts/commitment.zkey");
+      expect(capturedFullProveOptions).toEqual([]);
+    });
+
+    test("does not force a single-thread prover override", async () => {
+      await proveCommitment(1n, 2n, 3n, 4n);
+
+      expect(fullProveMock).toHaveBeenCalledTimes(1);
+      expect(fullProveMock.mock.calls[0]).toHaveLength(3);
     });
 
     test("returns proof and publicSignals from snarkjs", async () => {
@@ -111,6 +146,22 @@ describe("proofs service", () => {
 
       expect(result.proof).toBe(mockFullProveResult.proof);
       expect(result.publicSignals).toBe(mockFullProveResult.publicSignals);
+    });
+
+    test("terminates cached snarkjs worker curves after proving", async () => {
+      (globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bn128 = { terminate: terminateBn128CurveMock };
+      (globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bls12381 = { terminate: terminateBls12381CurveMock };
+
+      await proveCommitment(1n, 2n, 3n, 4n);
+
+      expect(terminateBn128CurveMock).toHaveBeenCalledTimes(1);
+      expect(terminateBls12381CurveMock).toHaveBeenCalledTimes(1);
     });
 
     test("wraps snarkjs errors in CLIError with PROOF category", async () => {
@@ -201,6 +252,17 @@ describe("proofs service", () => {
 
       expect(capturedFullProveWasm).toBe("/mock/artifacts/withdraw.wasm");
       expect(capturedFullProveZkey).toBe("/mock/artifacts/withdraw.zkey");
+      expect(capturedFullProveOptions).toEqual([]);
+    });
+
+    test("uses the default snarkjs prover options for withdrawals", async () => {
+      await proveWithdrawal(
+        makeAccountCommitment() as any,
+        makeWithdrawalInput() as any
+      );
+
+      expect(fullProveMock).toHaveBeenCalledTimes(1);
+      expect(fullProveMock.mock.calls[0]).toHaveLength(3);
     });
 
     test("prepares input signals from AccountCommitment", async () => {
@@ -276,6 +338,27 @@ describe("proofs service", () => {
         message: "Failed to generate withdrawal proof.",
         hint: expect.stringContaining("Invalid witness"),
       });
+    });
+
+    test("terminates cached snarkjs worker curves even when proving fails", async () => {
+      fullProveShouldThrow = new Error("Invalid witness");
+      (globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bn128 = { terminate: terminateBn128CurveMock };
+      (globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bls12381 = { terminate: terminateBls12381CurveMock };
+
+      await expect(
+        proveWithdrawal(makeAccountCommitment() as any, makeWithdrawalInput() as any)
+      ).rejects.toMatchObject({
+        code: "PROOF_GENERATION_FAILED",
+      });
+
+      expect(terminateBn128CurveMock).toHaveBeenCalledTimes(1);
+      expect(terminateBls12381CurveMock).toHaveBeenCalledTimes(1);
     });
 
     test("re-throws CLIError from getCircuitArtifactPaths without wrapping", async () => {

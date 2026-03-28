@@ -4,6 +4,11 @@ import { resolve } from "node:path";
 import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { buildChildProcessEnv } from "./child-env.ts";
+import {
+  isDirectEntrypoint,
+  nodeExecutable,
+  tsxEntrypointArgs,
+} from "./node-runtime.ts";
 import { encodeRelayerWithdrawalData } from "./relayer-withdrawal-data.ts";
 import {
   registerProcessExitCleanup,
@@ -341,7 +346,7 @@ export function launchAnvilRelayerServer(
   const script = resolve(import.meta.dir, "anvil-relayer-server.ts");
 
   return new Promise((resolveLaunch, reject) => {
-    const proc = spawn("bun", ["run", script], {
+    const proc = spawn(nodeExecutable(), tsxEntrypointArgs(script), {
       env: buildChildProcessEnv({
         PP_ANVIL_RELAYER_CONFIG: JSON.stringify(config),
       }),
@@ -393,7 +398,7 @@ export async function killAnvilRelayerServer(server: AnvilRelayerServer): Promis
   await terminateChildProcess(server.proc);
 }
 
-if (import.meta.main) {
+if (isDirectEntrypoint(import.meta.url)) {
   const rawConfig = process.env.PP_ANVIL_RELAYER_CONFIG?.trim();
   if (!rawConfig) {
     throw new Error("PP_ANVIL_RELAYER_CONFIG is required");

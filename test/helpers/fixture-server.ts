@@ -9,7 +9,7 @@
  * the server MUST run in a separate process.  Use `launchFixtureServer()`
  * to start a detached server subprocess and `killFixtureServer()` to stop it.
  *
- * When this file is executed directly (`bun test/helpers/fixture-server.ts`),
+ * When this file is executed directly (`node --import tsx test/helpers/fixture-server.ts`),
  * it starts the server and prints `FIXTURE_PORT=<port>` to stdout.
  */
 
@@ -22,6 +22,11 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { resolve } from "node:path";
 import { encodeAbiParameters, type Address } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
+import {
+  isDirectEntrypoint,
+  nodeExecutable,
+  tsxEntrypointArgs,
+} from "./node-runtime.ts";
 import { encodeRelayerWithdrawalData } from "./relayer-withdrawal-data.ts";
 import {
   registerProcessExitCleanup,
@@ -389,7 +394,7 @@ export function launchFixtureServer(): Promise<FixtureServer> {
   const script = resolve(import.meta.dir, "fixture-server.ts");
 
   return new Promise((resolve, reject) => {
-    const proc = spawn("bun", ["run", script], {
+    const proc = spawn(nodeExecutable(), tsxEntrypointArgs(script), {
       stdio: ["ignore", "pipe", "ignore"],
       detached: false,
       env: buildChildProcessEnv(),
@@ -455,7 +460,7 @@ export async function killFixtureServer(fixture: FixtureServer): Promise<void> {
 // ── Direct execution: start server and print port ────────────────────────────
 
 // When executed directly, start the server
-if (import.meta.main) {
+if (isDirectEntrypoint(import.meta.url)) {
   const server = createServer(route);
   server.listen(0, "127.0.0.1", () => {
     const addr = server.address() as { port: number };

@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
+import { lookupPoolDeploymentBlock } from "../../src/config/deployment-hints.ts";
 import { resolvePool, resolveTokenMetadata } from "../../src/services/pools.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
@@ -166,7 +167,7 @@ describe("resolvePool", () => {
     expect(pool.asset).toBe(ASSET);
   });
 
-  test("attaches deploymentBlock when resolving a known pool address", async () => {
+  test("uses the chain start block for known pools on local rpc", async () => {
     const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
     const poolAddress = "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f" as Address;
     const server = await startMockServer(11155111, {
@@ -197,11 +198,17 @@ describe("resolvePool", () => {
     };
 
     const pool = await resolvePool(cfg, asset, server.url);
+    const deploymentHint = lookupPoolDeploymentBlock(
+      cfg.id,
+      asset,
+      poolAddress,
+    );
 
     expect(pool.asset.toLowerCase()).toBe(asset.toLowerCase());
     expect(pool.pool.toLowerCase()).toBe(poolAddress.toLowerCase());
     expect(pool.symbol).toBe("USDC");
-    expect(pool.deploymentBlock).toBe(8587064n);
+    expect(deploymentHint).toBeDefined();
+    expect(pool.deploymentBlock).toBe(cfg.startBlock);
   });
 
   test("throws INPUT CLIError with available assets when symbol not found", async () => {

@@ -5,6 +5,7 @@ const CLI_ROOT = process.cwd();
 
 const HEAVY_COMMANDS = [
   "init",
+  "upgrade",
   "flow",
   "pools",
   "activity",
@@ -24,6 +25,7 @@ const HEAVY_COMMANDS = [
 
 const SHELL_FILES = [
   "src/command-shells/init.ts",
+  "src/command-shells/upgrade.ts",
   "src/command-shells/flow.ts",
   "src/command-shells/pools.ts",
   "src/command-shells/activity.ts",
@@ -139,6 +141,7 @@ describe("lazy startup conformance", () => {
   test("lazy-loaded runtime command handlers stay exported", () => {
     const expectations: Array<[string, string[]]> = [
       ["src/commands/init.ts", ["handleInitCommand"]],
+      ["src/commands/upgrade.ts", ["handleUpgradeCommand"]],
       [
         "src/commands/flow.ts",
         [

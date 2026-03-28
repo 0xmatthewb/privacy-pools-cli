@@ -65,9 +65,7 @@ describe("launcher routing", () => {
     expect(target.kind).toBe("js-worker");
     expect(target.command).toBe(process.execPath);
     expect(target.args.at(-1)).toContain("worker-main");
-    if (process.versions.bun) {
-      expect(target.args[0]).toBe("--no-env-file");
-    }
+    expect(target.args).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
     expect(
       decodeCurrentWorkerRequest(
         String(target.env[CURRENT_RUNTIME_REQUEST_ENV]),
@@ -113,9 +111,7 @@ describe("launcher routing", () => {
       nativeBridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
       workerRequestEnv: CURRENT_RUNTIME_REQUEST_ENV,
       workerCommand: process.execPath,
-      workerArgs: process.versions.bun
-        ? ["--no-env-file", launcherTestInternals.defaultJsWorkerPath()]
-        : [launcherTestInternals.defaultJsWorkerPath()],
+      workerArgs: [launcherTestInternals.defaultJsWorkerPath()],
     });
   });
 

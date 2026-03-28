@@ -14,6 +14,11 @@ import {
 } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
 import {
+  isDirectEntrypoint,
+  nodeExecutable,
+  tsxEntrypointArgs,
+} from "./node-runtime.ts";
+import {
   registerProcessExitCleanup,
   terminateChildProcess,
 } from "./process.ts";
@@ -366,7 +371,7 @@ export function launchSyncGateRpcServer(
   const script = resolve(import.meta.dir, "sync-gate-rpc-server.ts");
 
   return new Promise((resolvePromise, reject) => {
-    const proc = spawn("bun", ["run", script], {
+    const proc = spawn(nodeExecutable(), tsxEntrypointArgs(script), {
       stdio: ["ignore", "pipe", "ignore"],
       detached: false,
       env: buildChildProcessEnv({
@@ -442,7 +447,7 @@ export async function killSyncGateRpcServer(
   await terminateChildProcess(server.proc);
 }
 
-if (import.meta.main) {
+if (isDirectEntrypoint(import.meta.url)) {
   const config = parseConfigFromEnv();
   const server = createServer((req, res) => {
     route(req, res, config).catch((error) => {

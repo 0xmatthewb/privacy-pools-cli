@@ -1,12 +1,12 @@
 /**
- * Protocol conformance: cross-checks CLI source code against the checked-out
+ * Protocol conformance: cross-checks CLI source code against the public
  * website/core sources and the installed SDK to catch drift between the CLI
  * and the protocol. Every test reads BOTH the source of truth and the local
  * CLI source, then asserts alignment between the two.
  *
  * Source of truth:
- *   Core contracts/circuits: local privacy-pools-core checkout
- *   Frontend patterns:       local privacy-pools-website checkout
+ *   Core contracts/circuits: public 0xbow-io/privacy-pools-core
+ *   Frontend patterns:       public 0xbow-io/privacy-pools-website
  *   SDK:                     installed @0xbow/privacy-pools-core-sdk@1.2.0
  *
  * @frontend-parity
@@ -57,6 +57,10 @@ const cliInstallAnvilVerifier = readFileSync(
   resolve(CLI_ROOT, "scripts/verify-cli-install-anvil.mjs"),
   "utf8",
 );
+const githubHelper = readFileSync(
+  resolve(CLI_ROOT, "test/helpers/github.ts"),
+  "utf8",
+);
 const syncGateRpcServer = readFileSync(
   resolve(CLI_ROOT, "test/helpers/sync-gate-rpc-server.ts"),
   "utf8",
@@ -72,6 +76,15 @@ const RAGEQUIT_EVENT_SIGNATURE =
 let fetchFailed = false;
 
 describe("protocol conformance: CLI ↔ upstream", () => {
+  test("conformance source helper stays pinned to public upstream inputs", () => {
+    expect(githubHelper).toContain('const RAW_BASE = "https://raw.githubusercontent.com"');
+    expect(githubHelper).toContain('export const CORE_REPO = "0xbow-io/privacy-pools-core"');
+    expect(githubHelper).toContain('export const FRONTEND_REPO = "0xbow-io/privacy-pools-website"');
+    expect(githubHelper).not.toContain("CONFORMANCE_CORE_ROOT");
+    expect(githubHelper).not.toContain("CONFORMANCE_FRONTEND_ROOT");
+    expect(githubHelper).not.toContain("privacy-pools-core-main");
+  });
+
   beforeAll(async () => {
     try {
       [

@@ -1,0 +1,365 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
+import type { Command } from "commander";
+import {
+  captureAsyncOutput,
+} from "../helpers/output.ts";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+
+const realPackageInfo = captureModuleExports(
+  await import("../../src/package-info.ts"),
+);
+const realUpgradeService = captureModuleExports(
+  await import("../../src/services/upgrade.ts"),
+);
+const realUpgradeOutput = captureModuleExports(
+  await import("../../src/output/upgrade.ts"),
+);
+const realInquirerPrompts = captureModuleExports(
+  await import("@inquirer/prompts"),
+);
+const realErrors = captureModuleExports(await import("../../src/utils/errors.ts"));
+
+const UPGRADE_COMMAND_RESTORES = [
+  ["../../src/package-info.ts", realPackageInfo],
+  ["../../src/services/upgrade.ts", realUpgradeService],
+  ["../../src/output/upgrade.ts", realUpgradeOutput],
+  ["@inquirer/prompts", realInquirerPrompts],
+  ["../../src/utils/errors.ts", realErrors],
+] as const;
+
+const readCliPackageInfoMock = mock(() => ({
+  version: "1.7.0",
+  packageRoot: "/tmp/privacy-pools-cli",
+  packageJsonPath: "/tmp/privacy-pools-cli/package.json",
+}));
+const inspectUpgradeMock = mock(async () => ({
+  mode: "upgrade" as const,
+  status: "ready" as const,
+  currentVersion: "1.7.0",
+  latestVersion: "1.8.0",
+  updateAvailable: true,
+  performed: false,
+  command: "npm install -g privacy-pools-cli@1.8.0",
+  installContext: {
+    kind: "global_npm" as const,
+    supportedAutoRun: true,
+    reason: "This CLI was detected as a global npm install.",
+  },
+  installedVersion: null,
+}));
+const performUpgradeMock = mock(async (result) => ({
+  ...result,
+  status: "upgraded" as const,
+  performed: true,
+  installedVersion: result.latestVersion,
+}));
+const markUpgradeCancelledMock = mock((result) => ({
+  ...result,
+  status: "cancelled" as const,
+  performed: false,
+}));
+const renderUpgradeResultMock = mock(() => undefined);
+const confirmPromptMock = mock(async () => true);
+const printErrorMock = mock(() => undefined);
+
+let handleUpgradeCommand: typeof import("../../src/commands/upgrade.ts").handleUpgradeCommand;
+
+const ORIGINAL_STDIN_IS_TTY = process.stdin.isTTY;
+const ORIGINAL_STDERR_IS_TTY = process.stderr.isTTY;
+
+function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
+  return {
+    parent: {
+      opts: () => globalOpts,
+    },
+  } as unknown as Command;
+}
+
+function setTty(stdinIsTty: boolean, stderrIsTty = stdinIsTty): void {
+  Object.defineProperty(process.stdin, "isTTY", {
+    configurable: true,
+    value: stdinIsTty,
+  });
+  Object.defineProperty(process.stderr, "isTTY", {
+    configurable: true,
+    value: stderrIsTty,
+  });
+}
+
+async function loadUpgradeCommand(): Promise<void> {
+  mock.module("../../src/package-info.ts", () => ({
+    ...realPackageInfo,
+    readCliPackageInfo: readCliPackageInfoMock,
+  }));
+  mock.module("../../src/services/upgrade.ts", () => ({
+    ...realUpgradeService,
+    inspectUpgrade: inspectUpgradeMock,
+    performUpgrade: performUpgradeMock,
+    markUpgradeCancelled: markUpgradeCancelledMock,
+  }));
+  mock.module("../../src/output/upgrade.ts", () => ({
+    ...realUpgradeOutput,
+    renderUpgradeResult: renderUpgradeResultMock,
+  }));
+  mock.module("@inquirer/prompts", () => ({
+    ...realInquirerPrompts,
+    confirm: confirmPromptMock,
+  }));
+  mock.module("../../src/utils/errors.ts", () => ({
+    ...realErrors,
+    printError: printErrorMock,
+  }));
+
+  ({ handleUpgradeCommand } = await import(
+    "../../src/commands/upgrade.ts"
+  ));
+}
+
+beforeEach(async () => {
+  mock.restore();
+  readCliPackageInfoMock.mockClear();
+  inspectUpgradeMock.mockClear();
+  performUpgradeMock.mockClear();
+  markUpgradeCancelledMock.mockClear();
+  renderUpgradeResultMock.mockClear();
+  confirmPromptMock.mockClear();
+  printErrorMock.mockClear();
+  inspectUpgradeMock.mockImplementation(async () => ({
+    mode: "upgrade" as const,
+    status: "ready" as const,
+    currentVersion: "1.7.0",
+    latestVersion: "1.8.0",
+    updateAvailable: true,
+    performed: false,
+    command: "npm install -g privacy-pools-cli@1.8.0",
+    installContext: {
+      kind: "global_npm" as const,
+      supportedAutoRun: true,
+      reason: "This CLI was detected as a global npm install.",
+    },
+    installedVersion: null,
+  }));
+  performUpgradeMock.mockImplementation(async (result) => ({
+    ...result,
+    status: "upgraded" as const,
+    performed: true,
+    installedVersion: result.latestVersion,
+  }));
+  markUpgradeCancelledMock.mockImplementation((result) => ({
+    ...result,
+    status: "cancelled" as const,
+    performed: false,
+  }));
+  confirmPromptMock.mockImplementation(async () => true);
+  setTty(true, true);
+  await loadUpgradeCommand();
+});
+
+afterEach(() => {
+  restoreModuleImplementations(UPGRADE_COMMAND_RESTORES);
+  setTty(Boolean(ORIGINAL_STDIN_IS_TTY), Boolean(ORIGINAL_STDERR_IS_TTY));
+});
+
+describe("upgrade command handler", () => {
+  test("keeps machine mode check-only unless --yes is explicit", async () => {
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({ json: true })),
+    );
+
+    expect(inspectUpgradeMock).toHaveBeenCalledTimes(1);
+    expect(performUpgradeMock).not.toHaveBeenCalled();
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(renderUpgradeResultMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "ready",
+        performed: false,
+      }),
+    );
+  });
+
+  test("honors --check even when --yes is present", async () => {
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({ check: true }, fakeCommand({ yes: true })),
+    );
+
+    expect(inspectUpgradeMock).toHaveBeenCalledTimes(1);
+    expect(performUpgradeMock).not.toHaveBeenCalled();
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(renderUpgradeResultMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "ready",
+        performed: false,
+      }),
+    );
+  });
+
+  test("auto-runs immediately when --yes is provided in a supported context", async () => {
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({ yes: true })),
+    );
+
+    expect(performUpgradeMock).toHaveBeenCalledTimes(1);
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(renderUpgradeResultMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "upgraded",
+        performed: true,
+      }),
+    );
+  });
+
+  test("prompts interactive humans before upgrading", async () => {
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({})),
+    );
+
+    expect(confirmPromptMock).toHaveBeenCalledTimes(1);
+    expect(performUpgradeMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("renders a cancelled result when the human declines the prompt", async () => {
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({})),
+    );
+
+    expect(markUpgradeCancelledMock).toHaveBeenCalledTimes(1);
+    expect(performUpgradeMock).not.toHaveBeenCalled();
+    expect(renderUpgradeResultMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "cancelled",
+        performed: false,
+      }),
+    );
+  });
+
+  test("stays check-only when interactive prompts are unavailable", async () => {
+    setTty(false, true);
+
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({})),
+    );
+
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(performUpgradeMock).not.toHaveBeenCalled();
+    expect(renderUpgradeResultMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "ready",
+        performed: false,
+      }),
+    );
+  });
+
+  test("stays check-only when stderr is not a TTY", async () => {
+    setTty(true, false);
+
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({})),
+    );
+
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(performUpgradeMock).not.toHaveBeenCalled();
+    expect(renderUpgradeResultMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "ready",
+        performed: false,
+      }),
+    );
+  });
+
+  test("renders manual upgrade guidance without prompting for unsupported contexts", async () => {
+    inspectUpgradeMock.mockImplementationOnce(async () => ({
+      mode: "upgrade" as const,
+      status: "manual" as const,
+      currentVersion: "1.7.0",
+      latestVersion: "1.8.0",
+      updateAvailable: true,
+      performed: false,
+      command: "npm install privacy-pools-cli@1.8.0",
+      installContext: {
+        kind: "local_project" as const,
+        supportedAutoRun: false,
+        reason: "This CLI appears to be installed inside a local project.",
+      },
+      installedVersion: null,
+    }));
+
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({ yes: true })),
+    );
+
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(performUpgradeMock).not.toHaveBeenCalled();
+    expect(renderUpgradeResultMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "manual",
+        installContext: expect.objectContaining({
+          supportedAutoRun: false,
+        }),
+      }),
+    );
+  });
+
+  test("stays check-only when the installed version is already current", async () => {
+    inspectUpgradeMock.mockImplementationOnce(async () => ({
+      mode: "upgrade" as const,
+      status: "current" as const,
+      currentVersion: "1.8.0",
+      latestVersion: "1.8.0",
+      updateAvailable: false,
+      performed: false,
+      command: null,
+      installContext: {
+        kind: "global_npm" as const,
+        supportedAutoRun: true,
+        reason: "This CLI was detected as a global npm install.",
+      },
+      installedVersion: "1.8.0",
+    }));
+
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({ yes: true })),
+    );
+
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(performUpgradeMock).not.toHaveBeenCalled();
+    expect(renderUpgradeResultMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "current",
+        updateAvailable: false,
+        performed: false,
+      }),
+    );
+  });
+
+  test("routes command failures through printError", async () => {
+    inspectUpgradeMock.mockImplementationOnce(async () => {
+      throw new Error("boom");
+    });
+
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({ json: true })),
+    );
+
+    expect(printErrorMock).toHaveBeenCalledWith(expect.any(Error), true);
+  });
+});

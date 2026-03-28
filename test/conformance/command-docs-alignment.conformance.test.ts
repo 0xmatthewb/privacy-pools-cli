@@ -572,7 +572,6 @@ describe("command docs alignment", () => {
     const normalizedReference = normalizeWhitespace(reference);
 
     expect(normalizedSkill).toContain("npm i -g privacy-pools-cli");
-    expect(normalizedSkill).toContain("bun add -g privacy-pools-cli");
     expect(normalizedSkill).toContain("github:0xmatthewb/privacy-pools-cli");
     expect(normalizedReference).toContain("https://github.com/0xmatthewb/privacy-pools-cli");
     expect(normalizedSkill).toContain("For unreleased or source builds");
@@ -586,6 +585,37 @@ describe("command docs alignment", () => {
     expect(normalizedReference).toContain("CONTRACT_INSUFFICIENT_FUNDS");
     expect(normalizedReference).toContain("CONTRACT_NONCE_ERROR");
     expect(normalizedReference).toContain("ACCOUNT_NOT_APPROVED");
+  });
+
+  test("upgrade docs stay aligned across AGENTS and skill reference", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+
+    const agentsSection = extractDocumentSection(
+      agents,
+      "#### `upgrade`",
+      getDocumentedAgentMarkers(),
+    );
+    const referenceSection = extractDocumentSection(
+      skillReference,
+      "### `upgrade`",
+      ["### `upgrade`", "### `init`"],
+    );
+
+    const normalizedAgents = normalizeWhitespace(agentsSection);
+    const normalizedReference = normalizeWhitespace(referenceSection);
+    const normalizedSkill = normalizeWhitespace(skill);
+
+    expect(normalizedSkill).toContain("privacy-pools upgrade --agent --check");
+    expect(normalizedAgents).toContain("command|null");
+    expect(normalizedAgents).toContain("installContext");
+    expect(normalizedAgents).toContain("manual guidance");
+    expect(normalizedReference).toContain("\"mode\": \"upgrade\"");
+    expect(normalizedReference).toContain("\"status\": \"manual\"");
+    expect(normalizedReference).toContain("\"installContext\"");
+    expect(normalizedReference).toContain("\"command\"");
+    expect(normalizedReference).toContain("manual guidance");
   });
 
   test("reference and skill docs list the full supported env-var override surface", () => {

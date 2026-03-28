@@ -112,9 +112,7 @@ describe("launcher runtime coverage", () => {
       nativeBridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
       workerRequestEnv: CURRENT_RUNTIME_REQUEST_ENV,
       workerCommand: process.execPath,
-      workerArgs: process.versions.bun
-        ? ["--no-env-file", launcherTestInternals.defaultJsWorkerPath()]
-        : [launcherTestInternals.defaultJsWorkerPath()],
+      workerArgs: [launcherTestInternals.defaultJsWorkerPath()],
     });
   });
 

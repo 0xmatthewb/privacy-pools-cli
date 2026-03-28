@@ -21,6 +21,11 @@ import {
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
+const UPDATE_REGISTRY_ENV = {
+  PRIVACY_POOLS_NPM_REGISTRY_URL:
+    'data:application/json,{"version":"9.9.9"}',
+  PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+};
 const CLI_VERSION = readCliPackageInfo(import.meta.url).version;
 
 defineScenarioSuite("json-contract acceptance", [
@@ -123,12 +128,40 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.safeReadOnlyCommands).toContain("status");
     }),
   ]),
+  defineScenario("upgrade check keeps the source-checkout manual JSON contract", [
+    runCliStep(["--json", "upgrade", "--check"], {
+      timeoutMs: 10_000,
+      env: UPDATE_REGISTRY_ENV,
+    }),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      mode: string;
+      status: string;
+      updateAvailable: boolean;
+      performed: boolean;
+      command: string | null;
+      installContext: { kind: string; supportedAutoRun: boolean };
+    }>((json) => {
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.success).toBe(true);
+      expect(json.mode).toBe("upgrade");
+      expect(json.status).toBe("manual");
+      expect(json.updateAvailable).toBe(true);
+      expect(json.performed).toBe(false);
+      expect(json.command).toBe("npm install -g privacy-pools-cli@9.9.9");
+      expect(json.installContext.kind).toBe("source_checkout");
+      expect(json.installContext.supportedAutoRun).toBe(false);
+    }),
+  ]),
   defineScenario("activity offline contract stays machine-parseable", [
     runCliStep(["--json", "--chain", "mainnet", "activity"], {
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(1),
+    assertExit(3),
     assertStderrEmpty(),
     assertJson<{
       schemaVersion: string;
@@ -139,11 +172,11 @@ defineScenarioSuite("json-contract acceptance", [
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("UNKNOWN_ERROR");
-      expect(json.errorMessage).toContain("Unable to connect");
-      expect(json.error.category).toBe("UNKNOWN");
-      expect(json.error.retryable).toBe(false);
-      expect(json.error.hint).toContain("report it");
+      expect(json.errorCode).toBe("RPC_NETWORK_ERROR");
+      expect(json.errorMessage).toContain("fetch failed");
+      expect(json.error.category).toBe("RPC");
+      expect(json.error.retryable).toBe(true);
+      expect(json.error.hint).toContain("Check your RPC URL");
     }),
   ]),
   defineScenario("stats offline contract stays machine-parseable", [
@@ -151,7 +184,7 @@ defineScenarioSuite("json-contract acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(1),
+    assertExit(3),
     assertStderrEmpty(),
     assertJson<{
       schemaVersion: string;
@@ -162,10 +195,10 @@ defineScenarioSuite("json-contract acceptance", [
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("UNKNOWN_ERROR");
-      expect(json.errorMessage).toContain("Unable to connect");
-      expect(json.error.category).toBe("UNKNOWN");
-      expect(json.error.retryable).toBe(false);
+      expect(json.errorCode).toBe("RPC_NETWORK_ERROR");
+      expect(json.errorMessage).toContain("fetch failed");
+      expect(json.error.category).toBe("RPC");
+      expect(json.error.retryable).toBe(true);
     }),
   ]),
   defineScenario("pools offline contract keeps the ASP error semantics", [

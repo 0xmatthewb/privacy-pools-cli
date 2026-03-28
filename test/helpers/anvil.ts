@@ -66,7 +66,10 @@ export async function anvilRpc<T>(
 ): Promise<T> {
   const response = await fetch(rpcUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Connection: "close",
+    },
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,

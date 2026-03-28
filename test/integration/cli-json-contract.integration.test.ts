@@ -12,6 +12,10 @@ import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
+const UPDATE_REGISTRY_ENV = {
+  PRIVACY_POOLS_NPM_REGISTRY_URL:
+    'data:application/json,{"version":"9.9.9"}',
+};
 
 describe("JSON contract coverage", () => {
   test("status --json without init returns the readiness contract", () => {
@@ -136,13 +140,46 @@ describe("JSON contract coverage", () => {
     expect(json.safeReadOnlyCommands).toContain("status");
   });
 
+  test("upgrade --json --check keeps the source-checkout manual contract", () => {
+    const result = runCli(["--json", "upgrade", "--check"], {
+      home: createTempHome(),
+      timeoutMs: 10_000,
+      env: {
+        ...UPDATE_REGISTRY_ENV,
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+      },
+    });
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      schemaVersion: string;
+      success: boolean;
+      mode: string;
+      status: string;
+      updateAvailable: boolean;
+      performed: boolean;
+      command: string | null;
+      installContext: { kind: string; supportedAutoRun: boolean };
+    }>(result.stdout);
+
+    expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("upgrade");
+    expect(json.status).toBe("manual");
+    expect(json.updateAvailable).toBe(true);
+    expect(json.performed).toBe(false);
+    expect(json.command).toBe("npm install -g privacy-pools-cli@9.9.9");
+    expect(json.installContext.kind).toBe("source_checkout");
+    expect(json.installContext.supportedAutoRun).toBe(false);
+  });
+
   test("activity --json offline contract stays machine-parseable", () => {
     const result = runCli(["--json", "--chain", "mainnet", "activity"], {
       home: createTempHome(),
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       schemaVersion: string;
@@ -154,11 +191,11 @@ describe("JSON contract coverage", () => {
 
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("UNKNOWN_ERROR");
-    expect(json.errorMessage).toContain("Unable to connect");
-    expect(json.error.category).toBe("UNKNOWN");
-    expect(json.error.retryable).toBe(false);
-    expect(json.error.hint).toContain("report it");
+    expect(json.errorCode).toBe("RPC_NETWORK_ERROR");
+    expect(json.errorMessage).toContain("fetch failed");
+    expect(json.error.category).toBe("RPC");
+    expect(json.error.retryable).toBe(true);
+    expect(json.error.hint).toContain("Check your RPC URL");
   });
 
   test("stats --json offline contract stays machine-parseable", () => {
@@ -167,7 +204,7 @@ describe("JSON contract coverage", () => {
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     });
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       schemaVersion: string;
@@ -179,10 +216,10 @@ describe("JSON contract coverage", () => {
 
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("UNKNOWN_ERROR");
-    expect(json.errorMessage).toContain("Unable to connect");
-    expect(json.error.category).toBe("UNKNOWN");
-    expect(json.error.retryable).toBe(false);
+    expect(json.errorCode).toBe("RPC_NETWORK_ERROR");
+    expect(json.errorMessage).toContain("fetch failed");
+    expect(json.error.category).toBe("RPC");
+    expect(json.error.retryable).toBe(true);
   });
 
   test("pools --json offline contract keeps the ASP error semantics", () => {

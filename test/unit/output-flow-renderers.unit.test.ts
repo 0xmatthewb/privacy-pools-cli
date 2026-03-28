@@ -128,6 +128,33 @@ describe("renderFlowResult", () => {
     ]);
   });
 
+  test("JSON mode keeps flow watch nextActions for depositing and withdrawing phases", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+
+    for (const phase of ["depositing_publicly", "withdrawing"] as const) {
+      const { stdout } = captureOutput(() =>
+        renderFlowResult(ctx, {
+          action: "status",
+          snapshot: sampleSnapshot({
+            phase,
+          }),
+        }),
+      );
+
+      const json = parseCapturedJson(stdout);
+      expect(json.nextActions).toEqual([
+        {
+          command: "flow watch",
+          reason:
+            "Resume this saved workflow and continue toward the private withdrawal.",
+          when: "flow_resume",
+          args: ["wf-123"],
+          options: { agent: true },
+        },
+      ]);
+    }
+  });
+
   test("JSON mode switches to public recovery when the relayer minimum blocks the flow", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
@@ -235,6 +262,27 @@ describe("renderFlowResult", () => {
     expect(stderr).not.toContain("Next steps:");
   });
 
+  test("human mode reports successful flow ragequit actions", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "ragequit",
+        snapshot: sampleSnapshot({
+          phase: "completed_public_recovery",
+          ragequitTxHash:
+            "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          ragequitBlockNumber: "12400",
+          ragequitExplorerUrl: "https://example.test/ragequit",
+        }),
+      }),
+    );
+
+    expect(stderr).toContain(
+      "Workflow wf-123 recovered funds publicly to the original deposit address.",
+    );
+    expect(stderr).toContain("Privacy was not preserved.");
+  });
+
   test("human mode formats saved funding and committed amounts", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
@@ -336,6 +384,39 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("privacy-pools flow ragequit wf-123");
   });
 
+  test("human mode reports completed public recovery, leftover wallet funds, and last errors", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "completed_public_recovery",
+          walletMode: "new_wallet",
+          walletAddress: "0x5555555555555555555555555555555555555555",
+          ragequitTxHash:
+            "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          ragequitBlockNumber: "12401",
+          ragequitExplorerUrl: "https://example.test/ragequit",
+          lastError: {
+            step: "watch",
+            errorCode: "FLOW_STOPPED_EXTERNALLY",
+            errorMessage: "The Pool Account changed outside this workflow.",
+            retryable: false,
+            at: "2026-03-24T12:30:00.000Z",
+          },
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("recovered funds publicly to the original deposit address");
+    expect(stderr).toContain(
+      "Any leftover funds or gas reserve remain in the dedicated workflow wallet until you move them manually.",
+    );
+    expect(stderr).toContain(
+      "Last error (watch): The Pool Account changed outside this workflow.",
+    );
+  });
+
   test("JSON mode includes privacy warnings and delay fields for pending flows", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
@@ -391,6 +472,26 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("local time");
     expect(stderr).toContain("Balanced (randomized 15 to 90 minutes)");
     expect(stderr).toContain("manual round partial withdrawals");
+  });
+
+  test("human mode guides externally stopped workflows back to accounts", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "stopped_external",
+          aspStatus: "approved",
+          lastError: undefined,
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("changed outside this saved workflow");
+    expect(stderr).toContain(
+      "Inspect accounts on sepolia, then continue manually with withdraw or ragequit.",
+    );
+    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
 
   test("JSON mode gives delay-specific resume guidance while the privacy hold is active", () => {

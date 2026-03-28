@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
@@ -12,6 +12,23 @@ const packageJson = JSON.parse(
 describe("package scripts conformance", () => {
   test("top-level test wrapper remains the shared suite runner", () => {
     expect(packageJson.scripts?.test).toBe("node scripts/run-test-suite.mjs");
+  });
+
+  test("runtime-facing scripts use node plus tsx rather than bun", () => {
+    expect(packageJson.scripts?.cli).toBe("node --import tsx src/index.ts");
+    expect(packageJson.scripts?.dev).toBe("node --import tsx src/index.ts");
+    expect(packageJson.scripts?.["discovery:generate"]).toBe(
+      "npm run build && node scripts/generate-command-discovery-static.mjs",
+    );
+    expect(packageJson.scripts?.["docs:generate"]).toBe(
+      "npm run build && node scripts/generate-reference.mjs --write",
+    );
+    expect(packageJson.scripts?.["docs:preview"]).toBe(
+      "npm run build && node scripts/generate-reference.mjs",
+    );
+    expect(packageJson.scripts?.["docs:check"]).toBe(
+      "npm run build && node scripts/generate-reference.mjs --check",
+    );
   });
 
   test("conformance and release scripts route through the shared profile runner", () => {
@@ -97,6 +114,11 @@ describe("package scripts conformance", () => {
     expect(packageJson.scripts?.["test:coverage:native"]).toBe(
       "node scripts/check-native-coverage.mjs",
     );
+  });
+
+  test("package-lock is the only published lockfile", () => {
+    expect(existsSync(join(CLI_ROOT, "package-lock.json"))).toBe(true);
+    expect(existsSync(join(CLI_ROOT, "bun.lock"))).toBe(false);
   });
 
   test("test:flake covers packaged js, packaged native, and installed-artifact lanes", () => {

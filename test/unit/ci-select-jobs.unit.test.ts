@@ -213,10 +213,10 @@ describe("ci job selection", () => {
     const nativeSmokeDecision = evaluateJobSelection({
       job: "native-smoke",
       eventName: "pull_request",
-      changedFiles: ["bunfig.toml"],
+      changedFiles: ["package-lock.json"],
     });
     expect(nativeSmokeDecision.shouldRun).toBe(true);
-    expect(nativeSmokeDecision.reason).toContain("bunfig.toml");
+    expect(nativeSmokeDecision.reason).toContain("package-lock.json");
 
     const supportedNativeDecision = evaluateJobSelection({
       job: "supported-native-smoke",
@@ -229,10 +229,10 @@ describe("ci job selection", () => {
     const crossPlatformDecision = evaluateJobSelection({
       job: "cross-platform",
       eventName: "pull_request",
-      changedFiles: ["bunfig.toml"],
+      changedFiles: ["package-lock.json"],
     });
     expect(crossPlatformDecision.shouldRun).toBe(true);
-    expect(crossPlatformDecision.reason).toContain("bunfig.toml");
+    expect(crossPlatformDecision.reason).toContain("package-lock.json");
 
     const rootInstallDecision = evaluateJobSelection({
       job: "root-install-smoke",
@@ -352,7 +352,7 @@ describe("ci job selection", () => {
     expect(envDecision.reason).toContain("scripts/test-runner-env.mjs");
   });
 
-  test("native package smoke matrices run when the shared bun runner changes", () => {
+  test("native package smoke matrices run when the shared test runner changes", () => {
     const nativeSmokeDecision = evaluateJobSelection({
       job: "native-smoke",
       eventName: "pull_request",

@@ -21,7 +21,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterAll } from "bun:test";
 import { CLI_ROOT } from "./paths.ts";
 import { buildChildProcessEnv } from "./child-env.ts";
 
@@ -76,6 +75,10 @@ function shouldUseIsolatedBuiltWorkspace(
 
 function npmBin(): string {
   return process.platform === "win32" ? "npm.cmd" : "npm";
+}
+
+function nodeBin(): string {
+  return process.platform === "win32" ? "node.exe" : "node";
 }
 
 function createRetainedBuiltWorkspaceSnapshot(): string {
@@ -182,10 +185,21 @@ function cleanupTrackedTempHomes(includeRetained: boolean = false): void {
   }
 }
 
-// Register cleanup during module evaluation so Bun sees the suite hook
-// before tests begin executing. Lazy registration inside helpers is too late
-// for ad hoc `bun test <file>` runs and can leak temp homes.
-afterAll(() => cleanupTrackedTempHomes(false));
+async function registerSuiteCleanup(): Promise<void> {
+  if (process.versions.bun) {
+    const { afterAll } = await import("bun:test");
+    afterAll(() => cleanupTrackedTempHomes(false));
+    return;
+  }
+
+  const { after } = await import("node:test");
+  after(() => cleanupTrackedTempHomes(false));
+}
+
+// Register cleanup during module evaluation so the active test runner sees the
+// suite hook before tests begin executing. Lazy registration inside helpers is
+// too late for ad hoc focused runs and can leak temp homes.
+await registerSuiteCleanup();
 process.once("beforeExit", () => cleanupTrackedTempHomes(true));
 process.once("exit", () => cleanupTrackedTempHomes(true));
 
@@ -224,7 +238,7 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
       ? {}
       : { PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1" };
 
-  const result = spawnSync("bun", ["src/index.ts", ...args], {
+  const result = spawnSync(nodeBin(), ["--import", "tsx", "src/index.ts", ...args], {
     cwd,
     env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
@@ -268,7 +282,7 @@ export function runBuiltCli(
   );
   const start = Date.now();
 
-  const result = spawnSync("node", [binPath, ...args], {
+  const result = spawnSync(nodeBin(), [binPath, ...args], {
     cwd,
     env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),

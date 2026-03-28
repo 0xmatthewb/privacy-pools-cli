@@ -207,6 +207,50 @@ describe("init command handler", () => {
     expect(exitCode).toBe(2);
   });
 
+  test("rejects recovery phrase files that contain no valid mnemonic", async () => {
+    const home = useIsolatedHome();
+    const mnemonicFile = join(home, "recovery.txt");
+    writeFileSync(mnemonicFile, "not a recovery phrase", "utf8");
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          mnemonicFile,
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "No valid recovery phrase found in file",
+    );
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects invalid inline recovery phrases before writing files", async () => {
+    const home = useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          mnemonic: "not a valid phrase",
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Invalid recovery phrase",
+    );
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+    expect(exitCode).toBe(2);
+  });
+
   test("rolls back partial init writes when persistence fails after config is written", async () => {
     const home = useIsolatedHome();
     mkdirSync(join(home, ".signer"), { recursive: true });

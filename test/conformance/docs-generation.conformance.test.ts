@@ -9,7 +9,7 @@ describe("docs generation drift detection", () => {
   test("docs/reference.md matches generated output", () => {
     if (!existsSync(join(CLI_ROOT, "dist", "program.js"))) {
       throw new Error(
-        "dist/program.js not found. Run `bun run build` before running conformance tests.",
+        "dist/program.js not found. Run `npm run build` before running conformance tests.",
       );
     }
 
@@ -22,7 +22,7 @@ describe("docs generation drift detection", () => {
     const stderr = result.stderr?.toString() ?? "";
     if (result.status !== 0) {
       throw new Error(
-        `docs/reference.md is out of date. Run \`bun run docs:generate\` to regenerate.\n${stderr}`,
+        `docs/reference.md is out of date. Run \`npm run docs:generate\` to regenerate.\n${stderr}`,
       );
     }
     expect(result.status).toBe(0);

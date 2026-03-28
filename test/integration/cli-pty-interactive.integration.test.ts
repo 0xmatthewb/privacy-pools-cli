@@ -87,7 +87,9 @@ describe("interactive pty flows", () => {
         PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
         PP_TEST_PTY_CWD: CLI_CWD,
         PP_TEST_PTY_ARGV: JSON.stringify([
-          "bun",
+          process.platform === "win32" ? "node.exe" : "node",
+          "--import",
+          "tsx",
           "src/index.ts",
           "--no-banner",
           "init",

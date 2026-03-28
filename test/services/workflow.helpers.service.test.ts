@@ -1,5 +1,11 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import {
+  mkdirSync,
+  readFileSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { privateKeyToAccount } from "viem/accounts";
 import {
@@ -20,7 +26,9 @@ import {
   cleanupTerminalWorkflowSecret,
   createInitialSnapshot,
   deleteWorkflowSecretRecord,
+  flowPrivacyDelayProfileSummary,
   getFlowSignerAddress,
+  getFlowSignerPrivateKey,
   humanPollDelayLabel,
   initialPollDelayMs,
   isDepositCheckpointFailure,
@@ -46,6 +54,7 @@ import {
   type FlowSnapshot,
 } from "../../src/services/workflow.ts";
 import {
+  LEGACY_WORKFLOW_SNAPSHOT_VERSIONS,
   WORKFLOW_SECRET_RECORD_VERSION,
   WORKFLOW_SNAPSHOT_VERSION,
 } from "../../src/services/workflow-storage-version.ts";
@@ -120,6 +129,7 @@ function samplePoolAccount(
 
 describe("workflow helper coverage", () => {
   afterEach(() => {
+    mock.restore();
     overrideWorkflowTimingForTests();
     if (ORIGINAL_HOME === undefined) {
       delete process.env.PRIVACY_POOLS_HOME;
@@ -692,6 +702,60 @@ describe("workflow helper coverage", () => {
     ).toBe(30_000);
   });
 
+  test("sampleFlowPrivacyDelayMs uses the default balanced and aggressive windows", () => {
+    const originalRandom = Math.random;
+
+    try {
+      overrideWorkflowTimingForTests();
+
+      Math.random = () => 0;
+      expect(sampleFlowPrivacyDelayMs("balanced")).toBe(15 * 60_000);
+
+      Math.random = () => 0.999999999999;
+      expect(sampleFlowPrivacyDelayMs("aggressive")).toBe(12 * 60 * 60_000);
+    } finally {
+      Math.random = originalRandom;
+    }
+  });
+
+  test("flow privacy delay summaries and watch-delay fallbacks stay human-readable", () => {
+    expect(flowPrivacyDelayProfileSummary("balanced")).toBe(
+      "Balanced (randomized 15 to 90 minutes)",
+    );
+    expect(flowPrivacyDelayProfileSummary("aggressive")).toBe(
+      "Aggressive (randomized 2 to 12 hours)",
+    );
+    expect(flowPrivacyDelayProfileSummary("off")).toBe("Off (no added hold)");
+    expect(flowPrivacyDelayProfileSummary("off", false)).toContain(
+      "legacy workflow",
+    );
+
+    expect(
+      computeFlowWatchDelayMs(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-no-delay", {
+            phase: "awaiting_asp",
+            privacyDelayUntil: "not-a-date",
+          }),
+        ),
+        45_000,
+        Date.parse("2026-03-24T12:00:00.000Z"),
+      ),
+    ).toBe(45_000);
+    expect(
+      computeFlowWatchDelayMs(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-invalid-delay", {
+            phase: "approved_waiting_privacy_delay",
+            privacyDelayUntil: "not-a-date",
+          }),
+        ),
+        45_000,
+        Date.parse("2026-03-24T12:00:00.000Z"),
+      ),
+    ).toBe(45_000);
+  });
+
   test("buildFlowWarnings surfaces explicit off-delay and full-balance amount warnings", () => {
     const warnings = buildFlowWarnings(
       normalizeWorkflowSnapshot(
@@ -734,6 +798,53 @@ describe("workflow helper coverage", () => {
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0]?.message).toContain("Estimated committed value");
+  });
+
+  test("buildFlowWarnings ignores malformed committed values safely", () => {
+    expect(
+      buildFlowWarnings(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-malformed-warning", {
+            asset: "USDC",
+            assetDecimals: 6,
+            committedValue: "not-a-bigint",
+            privacyDelayProfile: "balanced",
+            privacyDelayConfigured: true,
+          }),
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  test("buildFlowWarnings stays quiet for round amounts and terminal snapshots", () => {
+    expect(
+      buildFlowWarnings(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-round", {
+            asset: "USDC",
+            assetDecimals: 6,
+            committedValue: "100000000",
+            privacyDelayProfile: "balanced",
+            privacyDelayConfigured: true,
+          }),
+        ),
+      ),
+    ).toEqual([]);
+
+    expect(
+      buildFlowWarnings(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-terminal-warning", {
+            phase: "completed",
+            asset: "USDC",
+            assetDecimals: 6,
+            committedValue: "100198474",
+            privacyDelayProfile: "off",
+            privacyDelayConfigured: true,
+          }),
+        ),
+      ),
+    ).toEqual([]);
   });
 
   test("saveWorkflowSnapshot helpers persist, reuse, and clean up workflow files", () => {
@@ -796,7 +907,49 @@ describe("workflow helper coverage", () => {
     );
   });
 
-  test("resolveLatestWorkflowId returns the newest readable workflow and skips invalid files", () => {
+  test("loadWorkflowSnapshot rejects primitive JSON payloads", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    writeFileSync(join(workflowsDir, "wf-primitive.json"), "42", "utf-8");
+
+    expect(() => loadWorkflowSnapshot("wf-primitive")).toThrow(
+      "Workflow file has invalid structure",
+    );
+  });
+
+  test("loadWorkflowSnapshot accepts supported legacy schema versions and rejects unknown ones", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    writeFileSync(
+      join(workflowsDir, "wf-legacy.json"),
+      JSON.stringify({
+        ...sampleWorkflow("wf-legacy"),
+        schemaVersion: LEGACY_WORKFLOW_SNAPSHOT_VERSIONS[0],
+      }),
+      "utf-8",
+    );
+    expect(loadWorkflowSnapshot("wf-legacy")).toMatchObject({
+      workflowId: "wf-legacy",
+      privacyDelayProfile: "off",
+      privacyDelayConfigured: false,
+    });
+
+    writeFileSync(
+      join(workflowsDir, "wf-future.json"),
+      JSON.stringify({
+        ...sampleWorkflow("wf-future"),
+        schemaVersion: "999.0.0",
+      }),
+      "utf-8",
+    );
+    expect(() => loadWorkflowSnapshot("wf-future")).toThrow(
+      "Workflow file uses an unsupported schema version",
+    );
+  });
+
+  test("resolveLatestWorkflowId returns the newest readable workflow when unreadable files are definitely older", () => {
     const home = useIsolatedHome();
     const workflowsDir = join(home, "workflows");
 
@@ -810,9 +963,31 @@ describe("workflow helper coverage", () => {
         updatedAt: "2026-03-24T12:10:00.000Z",
       }),
     );
-    writeFileSync(join(workflowsDir, "wf-broken.json"), "{", "utf-8");
+    const brokenPath = join(workflowsDir, "wf-broken.json");
+    writeFileSync(brokenPath, "{", "utf-8");
+    utimesSync(
+      brokenPath,
+      new Date("2026-03-24T11:00:00.000Z"),
+      new Date("2026-03-24T11:00:00.000Z"),
+    );
 
     expect(resolveLatestWorkflowId()).toBe("wf-newer");
+  });
+
+  test("resolveLatestWorkflowId fails closed when an unreadable workflow could be newer than the latest readable workflow", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-readable", {
+        updatedAt: "2026-03-24T12:10:00.000Z",
+      }),
+    );
+    writeFileSync(join(workflowsDir, "wf-broken.json"), "{", "utf-8");
+
+    expect(() => resolveLatestWorkflowId()).toThrow(
+      "Cannot resolve 'latest' because one or more saved workflow files are unreadable and could be newer than the latest readable workflow.",
+    );
   });
 
   test("resolveLatestWorkflowId fails when only unreadable workflow files remain", () => {
@@ -823,6 +998,31 @@ describe("workflow helper coverage", () => {
 
     expect(() => resolveLatestWorkflowId()).toThrow(
       "No readable saved workflows found.",
+    );
+  });
+
+  test("resolveLatestWorkflowId reports no workflows when the workflows directory is absent", () => {
+    process.env.PRIVACY_POOLS_HOME = createTrackedTempDir("pp-workflow-no-dir-");
+
+    expect(() => resolveLatestWorkflowId()).toThrow("No saved workflows found");
+  });
+
+  test("resolveLatestWorkflowId fails closed when a broken symlink workflow could be newer", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-readable", {
+        updatedAt: "2026-03-24T12:10:00.000Z",
+      }),
+    );
+    symlinkSync(
+      join(home, "missing-workflow.json"),
+      join(workflowsDir, "wf-broken-link.json"),
+    );
+
+    expect(() => resolveLatestWorkflowId()).toThrow(
+      "Cannot resolve 'latest' because one or more saved workflow files are unreadable and could be newer than the latest readable workflow.",
     );
   });
 
@@ -970,5 +1170,28 @@ describe("workflow helper coverage", () => {
     expect(unknownLastError.errorCode).toBe("UNKNOWN_ERROR");
     expect(unknownLastError.errorMessage).toBe("unexpected failure");
     expect(unknownLastError.retryable).toBe(false);
+  });
+
+  test("getFlowSignerPrivateKey loads configured and workflow-wallet signers", () => {
+    useIsolatedHome();
+    saveSignerKey(CONFIGURED_SIGNER);
+
+    expect(getFlowSignerPrivateKey(sampleWorkflow())).toBe(CONFIGURED_SIGNER);
+
+    saveWorkflowSecretRecord({
+      schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
+      workflowId: "wf-new-wallet-key",
+      chain: "mainnet",
+      walletAddress: privateKeyToAccount(WORKFLOW_SIGNER).address,
+      privateKey: WORKFLOW_SIGNER,
+    });
+
+    expect(
+      getFlowSignerPrivateKey(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-new-wallet-key", { walletMode: "new_wallet" }),
+        ),
+      ),
+    ).toBe(WORKFLOW_SIGNER);
   });
 });

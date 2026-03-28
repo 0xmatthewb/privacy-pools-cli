@@ -1,12 +1,12 @@
 import {
-  afterAll,
+  after,
   afterEach,
-  beforeAll,
+  before,
   beforeEach,
   describe,
-  expect,
   test,
-} from "bun:test";
+} from "node:test";
+import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -54,6 +54,7 @@ import {
 
 const ANVIL_E2E_ENABLED = process.env.PP_ANVIL_E2E === "1";
 const anvilTest = ANVIL_E2E_ENABLED ? test : test.skip;
+const ANVIL_TEST_TIMEOUT_MS = 600_000;
 
 const aspPostman = "0x696fe46495688fc9e99bad2daf2133b33de364ea" as const;
 const dummyCid = "bafybeigdyrzt5dummycidforworkflowservicetests1234567890";
@@ -88,6 +89,7 @@ let poolAddress: `0x${string}`;
 let aspStateFile = "";
 let circuitsDir = "";
 let aspState: AnvilAspState | null = null;
+const originalFetch = globalThis.fetch.bind(globalThis);
 
 const ORIGINAL_ENV = {
   PRIVACY_POOLS_HOME: process.env.PRIVACY_POOLS_HOME,
@@ -112,6 +114,16 @@ function requireAspState(): AnvilAspState {
   return aspState;
 }
 
+function localTestHttp(url: string) {
+  return http(url, {
+    fetchOptions: {
+      headers: {
+        Connection: "close",
+      },
+    },
+  });
+}
+
 function computeMerkleRoot(leaves: readonly string[]): bigint {
   const normalized = leaves.map((leaf) => BigInt(leaf));
   const proof = generateMerkleProof(
@@ -119,6 +131,43 @@ function computeMerkleRoot(leaves: readonly string[]): bigint {
     normalized[normalized.length - 1],
   );
   return BigInt((proof as { root: bigint | string }).root);
+}
+
+function isWorkflowTestNetworkUrl(url: string): boolean {
+  return url.startsWith("http://") || url.startsWith("https://");
+}
+
+function withClosedConnectionHeader(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  headers.set("Connection", "close");
+  return {
+    ...init,
+    headers,
+  };
+}
+
+function installLocalConnectionCloseFetch(): void {
+  globalThis.fetch = (async (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+    if (isWorkflowTestNetworkUrl(url)) {
+      return originalFetch(input, withClosedConnectionHeader(init));
+    }
+
+    return originalFetch(input, init);
+  }) as typeof globalThis.fetch;
+}
+
+function restoreOriginalFetch(): void {
+  globalThis.fetch = originalFetch;
 }
 
 function writeCurrentAspState(): void {
@@ -185,7 +234,7 @@ async function publishApprovedLabels(labels: readonly bigint[]): Promise<void> {
     const walletClient = createWalletClient({
       account: aspPostman,
       chain: chainConfig.chain,
-      transport: http(env.rpcUrl),
+      transport: localTestHttp(env.rpcUrl),
     });
 
     const txHash = await walletClient.writeContract({
@@ -306,7 +355,9 @@ async function configureEthRelayer(
 async function readRelayerState(): Promise<{
   quoteRequests: number;
 }> {
-  const response = await fetch(`${requireSharedEnv().relayerUrl}/__state`);
+  const response = await fetch(`${requireSharedEnv().relayerUrl}/__state`, {
+    headers: { Connection: "close" },
+  });
   if (!response.ok) {
     throw new Error(`Failed to read relayer state: HTTP ${response.status}`);
   }
@@ -328,6 +379,7 @@ async function startServiceFlow(
     amountInput: "0.01",
     assetInput: "ETH",
     recipient: relayedRecipient,
+    privacyDelayProfile: "off",
     globalOpts: {
       chain: "sepolia",
       rpcUrl: requireSharedEnv().rpcUrl,
@@ -348,9 +400,10 @@ async function startServiceFlow(
 }
 
 describe("workflow service on Anvil", () => {
-  beforeAll(async () => {
+  before(async () => {
     if (!ANVIL_E2E_ENABLED) return;
 
+    installLocalConnectionCloseFetch();
     sharedEnv = loadSharedAnvilEnv();
     applySharedAnvilProcessEnv(sharedEnv);
     chainConfig = resolveChain("sepolia");
@@ -359,7 +412,7 @@ describe("workflow service on Anvil", () => {
     circuitsDir = sharedEnv.circuitsDir;
     anvilClient = createPublicClient({
       chain: chainConfig.chain,
-      transport: http(sharedEnv.rpcUrl),
+      transport: localTestHttp(sharedEnv.rpcUrl),
     });
 
     await resetSharedAnvilEnv(sharedEnv);
@@ -380,11 +433,12 @@ describe("workflow service on Anvil", () => {
     restoreSharedAnvilProcessEnv(ORIGINAL_ENV);
   });
 
-  afterAll(async () => {
+  after(async () => {
+    restoreOriginalFetch();
     restoreSharedAnvilProcessEnv(ORIGINAL_ENV);
   });
 
-  anvilTest("startWorkflow + watchWorkflow completes the approved path", async () => {
+  anvilTest("startWorkflow + watchWorkflow completes the approved path", { timeout: ANVIL_TEST_TIMEOUT_MS }, async () => {
     const { snapshot, label } = await startServiceFlow("pp-workflow-service-approved-");
     await approveLabel(label);
 
@@ -398,12 +452,12 @@ describe("workflow service on Anvil", () => {
       isVerbose: false,
     });
 
-    expect(watched.phase).toBe("completed");
-    expect(watched.withdrawTxHash).toMatch(/^0x[a-fA-F0-9]{64}$/);
-    expect(loadWorkflowSnapshot(snapshot.workflowId).phase).toBe("completed");
+    assert.equal(watched.phase, "completed");
+    assert.match(watched.withdrawTxHash ?? "", /^0x[a-fA-F0-9]{64}$/);
+    assert.equal(loadWorkflowSnapshot(snapshot.workflowId).phase, "completed");
   });
 
-  anvilTest("watchWorkflow pauses declined workflows", async () => {
+  anvilTest("watchWorkflow pauses declined workflows", { timeout: ANVIL_TEST_TIMEOUT_MS }, async () => {
     const { snapshot, label } = await startServiceFlow("pp-workflow-service-declined-");
     setLabelReviewStatus(label, "declined");
 
@@ -417,11 +471,11 @@ describe("workflow service on Anvil", () => {
       isVerbose: false,
     });
 
-    expect(watched.phase).toBe("paused_declined");
-    expect(watched.aspStatus).toBe("declined");
+    assert.equal(watched.phase, "paused_declined");
+    assert.equal(watched.aspStatus, "declined");
   });
 
-  anvilTest("watchWorkflow pauses poi_required workflows", async () => {
+  anvilTest("watchWorkflow pauses poi_required workflows", { timeout: ANVIL_TEST_TIMEOUT_MS }, async () => {
     const { snapshot, label } = await startServiceFlow("pp-workflow-service-poi-");
     setLabelReviewStatus(label, "poi_required");
 
@@ -435,11 +489,11 @@ describe("workflow service on Anvil", () => {
       isVerbose: false,
     });
 
-    expect(watched.phase).toBe("paused_poi_required");
-    expect(watched.aspStatus).toBe("poi_required");
+    assert.equal(watched.phase, "paused_poi_required");
+    assert.equal(watched.aspStatus, "poi_required");
   });
 
-  anvilTest("watchWorkflow stops when the saved workflow no longer matches the Pool Account", async () => {
+  anvilTest("watchWorkflow stops when the saved workflow no longer matches the Pool Account", { timeout: ANVIL_TEST_TIMEOUT_MS }, async () => {
     const { snapshot } = await startServiceFlow("pp-workflow-service-stopped-");
     const filePath = join(
       process.env.PRIVACY_POOLS_HOME!,
@@ -460,17 +514,18 @@ describe("workflow service on Anvil", () => {
       isVerbose: false,
     });
 
-    expect(watched.phase).toBe("stopped_external");
+    assert.equal(watched.phase, "stopped_external");
   });
 
-  anvilTest("startWorkflow still enforces the non-round amount privacy guard", async () => {
+  anvilTest("startWorkflow still enforces the non-round amount privacy guard", { timeout: ANVIL_TEST_TIMEOUT_MS }, async () => {
     useServiceHome("pp-workflow-service-rounding-");
 
-    await expect(
+    await assert.rejects(
       startWorkflow({
         amountInput: "0.011",
         assetInput: "ETH",
         recipient: relayedRecipient,
+        privacyDelayProfile: "off",
         globalOpts: {
           chain: "sepolia",
           rpcUrl: requireSharedEnv().rpcUrl,
@@ -479,11 +534,13 @@ describe("workflow service on Anvil", () => {
         isVerbose: false,
         watch: false,
       }),
-    ).rejects.toThrow("may reduce privacy");
+      /may reduce privacy/,
+    );
   });
 
   anvilTest(
     "watchWorkflow refreshes the relayer quote after proof generation when the fee is unchanged",
+    { timeout: ANVIL_TEST_TIMEOUT_MS },
     async () => {
       await configureEthRelayer([
         { feeBPS: "50", expirationOffsetMs: 1_000 },
@@ -510,13 +567,14 @@ describe("workflow service on Anvil", () => {
         isVerbose: false,
       });
 
-      expect(watched.phase).toBe("completed");
-      expect((await readRelayerState()).quoteRequests).toBeGreaterThanOrEqual(2);
+      assert.equal(watched.phase, "completed");
+      assert.ok((await readRelayerState()).quoteRequests >= 2);
     },
   );
 
   anvilTest(
     "watchWorkflow fails closed when the relayer fee changes after proof generation",
+    { timeout: ANVIL_TEST_TIMEOUT_MS },
     async () => {
       await configureEthRelayer([
         { feeBPS: "50", expirationOffsetMs: 1_000 },
@@ -533,7 +591,7 @@ describe("workflow service on Anvil", () => {
       );
       await approveLabel(label);
 
-      await expect(
+      await assert.rejects(
         watchWorkflow({
           workflowId: snapshot.workflowId,
           globalOpts: {
@@ -543,19 +601,22 @@ describe("workflow service on Anvil", () => {
           mode: MACHINE_MODE,
           isVerbose: false,
         }),
-      ).rejects.toThrow("Relayer fee changed during proof generation");
+        /Relayer fee changed during proof generation/,
+      );
 
       const errored = loadWorkflowSnapshot(snapshot.workflowId);
-      expect(errored.lastError?.step).toBe("withdraw");
-      expect(errored.lastError?.errorMessage).toContain(
-        "Relayer fee changed during proof generation",
+      assert.equal(errored.lastError?.step, "withdraw");
+      assert.match(
+        errored.lastError?.errorMessage ?? "",
+        /Relayer fee changed during proof generation/,
       );
-      expect((await readRelayerState()).quoteRequests).toBeGreaterThanOrEqual(2);
+      assert.ok((await readRelayerState()).quoteRequests >= 2);
     },
   );
 
   anvilTest(
     "watchWorkflow fails closed when the ASP root changes during proof generation",
+    { timeout: ANVIL_TEST_TIMEOUT_MS },
     async () => {
       await configureEthRelayer();
       const freshCircuitsDir = createTrackedTempDir(
@@ -585,15 +646,17 @@ describe("workflow service on Anvil", () => {
         isVerbose: false,
       });
 
-      await expect(watchPromise).rejects.toThrow(
+      await assert.rejects(
+        watchPromise,
         /Pool state changed|Relayer request failed: Relay transaction reverted/,
       );
 
       await rootChange;
 
       const errored = loadWorkflowSnapshot(snapshot.workflowId);
-      expect(errored.lastError?.step).toBe("withdraw");
-      expect(errored.lastError?.errorMessage).toMatch(
+      assert.equal(errored.lastError?.step, "withdraw");
+      assert.match(
+        errored.lastError?.errorMessage ?? "",
         /Pool state changed|Relayer request failed: Relay transaction reverted/,
       );
     },

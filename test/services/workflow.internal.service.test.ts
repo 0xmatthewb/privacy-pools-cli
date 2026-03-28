@@ -391,6 +391,7 @@ let reconcilePendingRagequitReceipt: typeof import("../../src/services/workflow.
 let loadWorkflowPoolAccountContext: typeof import("../../src/services/workflow.ts").loadWorkflowPoolAccountContext;
 let executeRelayedWithdrawalForFlow: typeof import("../../src/services/workflow.ts").executeRelayedWithdrawalForFlow;
 let continueApprovedWorkflowWithdrawal: typeof import("../../src/services/workflow.ts").continueApprovedWorkflowWithdrawal;
+let saveWorkflowSecretRecord: typeof import("../../src/services/workflow.ts").saveWorkflowSecretRecord;
 
 function sampleSnapshot(
   patch: Partial<FlowSnapshot> = {},
@@ -549,6 +550,7 @@ beforeAll(async () => {
     loadWorkflowPoolAccountContext,
     executeRelayedWithdrawalForFlow,
     continueApprovedWorkflowWithdrawal,
+    saveWorkflowSecretRecord,
     reconcilePendingDepositReceipt,
     reconcilePendingWithdrawalReceipt,
     reconcilePendingRagequitReceipt,
@@ -934,6 +936,119 @@ describe("workflow internal helpers", () => {
     expect(getRelayedWithdrawalRemainderAdvisoryMock).toHaveBeenCalledTimes(1);
   });
 
+  test("executeRelayedWithdrawalForFlow logs remainder guidance and retries without extra gas when the relayer does not support it", async () => {
+    state.resolvedPool = USDC_POOL;
+    state.relayerQuote = buildWorkflowRelayerQuote({
+      asset: USDC_POOL.asset,
+      extraGas: false,
+    });
+    state.remainderAdvisory = "remainder warning";
+    requestQuoteMock.mockImplementationOnce(async (_chainConfig, params) => {
+      expect(params.extraGas).toBe(true);
+      throw new CLIError(
+        "Relayer returned UNSUPPORTED_FEATURE for extra gas.",
+        "RELAYER",
+        "UNSUPPORTED_FEATURE",
+      );
+    });
+
+    const snapshot = sampleSnapshot({
+      phase: "approved_ready_to_withdraw",
+      aspStatus: "approved",
+      asset: "USDC",
+      assetDecimals: 6,
+    });
+    const context = await loadWorkflowPoolAccountContext(
+      snapshot,
+      undefined,
+      true,
+    );
+
+    const result = await executeRelayedWithdrawalForFlow({
+      snapshot,
+      context,
+      mode: JSON_MODE,
+      isVerbose: true,
+    });
+
+    expect(result.withdrawTxHash).toBe(state.relayTxHash);
+    expect(requestQuoteMock).toHaveBeenCalledTimes(2);
+    expect(state.warnings).toContain(
+      "Extra gas is not available for this relayer on the selected chain. Continuing without it.",
+    );
+  });
+
+  test("executeRelayedWithdrawalForFlow refreshes an already expired quote before proof generation and can drop extra gas", async () => {
+    const originalDateNow = Date.now;
+    Date.now = () => 2;
+    state.resolvedPool = USDC_POOL;
+    state.relayerQuote = buildWorkflowRelayerQuote({
+      asset: USDC_POOL.asset,
+      extraGas: true,
+      expiration: 1,
+    });
+    requestQuoteMock
+      .mockImplementationOnce(async (_chainConfig, params) => {
+        expect(params.extraGas).toBe(true);
+        return {
+          baseFeeBPS: "200",
+          gasPrice: "1",
+          detail: { relayTxCost: { gas: "0", eth: "0" } },
+          ...state.relayerQuote,
+        };
+      })
+      .mockImplementationOnce(async (_chainConfig, params) => {
+        expect(params.extraGas).toBe(true);
+        throw new CLIError(
+          "Relayer returned UNSUPPORTED_FEATURE for extra gas.",
+          "RELAYER",
+          "UNSUPPORTED_FEATURE",
+        );
+      })
+      .mockImplementationOnce(async (_chainConfig, params) => {
+        expect(params.extraGas).toBe(false);
+        return {
+          baseFeeBPS: "200",
+          gasPrice: "1",
+          detail: { relayTxCost: { gas: "0", eth: "0" } },
+          ...buildWorkflowRelayerQuote({
+            asset: USDC_POOL.asset,
+            extraGas: false,
+            expiration: 4_102_444_800_000,
+          }),
+        };
+      });
+
+    try {
+      const snapshot = sampleSnapshot({
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+        asset: "USDC",
+        assetDecimals: 6,
+      });
+      const context = await loadWorkflowPoolAccountContext(
+        snapshot,
+        undefined,
+        true,
+      );
+
+      const result = await executeRelayedWithdrawalForFlow({
+        snapshot,
+        context,
+        mode: JSON_MODE,
+        isVerbose: false,
+      });
+
+      expect(result.withdrawTxHash).toBe(state.relayTxHash);
+      expect(requestQuoteMock).toHaveBeenCalledTimes(3);
+      expect(state.warnings).toContain(
+        "Extra gas is not available for this relayer on the selected chain. Continuing without it.",
+      );
+    } finally {
+      Date.now = originalDateNow;
+    }
+  });
+
   test("continueApprovedWorkflowWithdrawal keeps watching while a saved relay transaction is still pending", async () => {
     state.withdrawReceiptMode = "missing";
 
@@ -952,6 +1067,80 @@ describe("workflow internal helpers", () => {
     expect(result.snapshot.phase).toBe("withdrawing");
   });
 
+  test("continueApprovedWorkflowWithdrawal finalizes when a saved relay receipt is found", async () => {
+    const result = await continueApprovedWorkflowWithdrawal({
+      snapshot: sampleSnapshot({
+        phase: "withdrawing",
+        aspStatus: "approved",
+        committedValue: "500",
+        withdrawTxHash: "0x" + "bb".repeat(32),
+        withdrawBlockNumber: null,
+      }),
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(result.continueWatching).toBe(false);
+    expect(result.snapshot.phase).toBe("completed");
+    expect(result.snapshot.withdrawTxHash).toBe("0x" + "bb".repeat(32));
+    expect(result.snapshot.withdrawBlockNumber).toBe("456");
+  });
+
+  test("continueApprovedWorkflowWithdrawal completes the relayed withdrawal and cleans up saved workflow secrets", async () => {
+    const approvedPoolAccount: MockPoolAccount = {
+      ...state.allPoolAccounts[0],
+      status: "approved",
+      aspStatus: "approved",
+      value: 500n,
+      label: 91n,
+      txHash: ("0x" + "aa".repeat(32)) as Hex,
+      commitment: {
+        ...state.allPoolAccounts[0].commitment,
+        value: 500n,
+        label: 91n,
+        txHash: ("0x" + "aa".repeat(32)) as Hex,
+      },
+    };
+    state.allPoolAccounts = [approvedPoolAccount];
+    state.activePoolAccounts = [approvedPoolAccount];
+
+    const secretFilePath = join(
+      process.env.PRIVACY_POOLS_HOME!,
+      "workflow-secrets",
+      "wf-internal.json",
+    );
+    saveWorkflowSecretRecord({
+      schemaVersion: "1",
+      workflowId: "wf-internal",
+      chain: "sepolia",
+      walletAddress: sampleSnapshot().walletAddress as Address,
+      privateKey: ("0x" + "11".repeat(32)) as Hex,
+      createdAt: "2026-03-24T12:00:00.000Z",
+    });
+    expect(existsSync(secretFilePath)).toBe(true);
+
+    const result = await continueApprovedWorkflowWithdrawal({
+      snapshot: sampleSnapshot({
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+        committedValue: "500",
+      }),
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(result.continueWatching).toBe(false);
+    expect(result.snapshot.phase).toBe("completed");
+    expect(result.snapshot.aspStatus).toBe("approved");
+    expect(result.snapshot.withdrawTxHash).toBe(state.relayTxHash);
+    expect(result.snapshot.withdrawBlockNumber).toBe("999");
+    expect(result.snapshot.withdrawExplorerUrl).toContain(state.relayTxHash);
+    expect(submitRelayRequestMock).toHaveBeenCalledTimes(1);
+    expect(saveAccountMock).toHaveBeenCalledTimes(1);
+    expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
+    expect(existsSync(secretFilePath)).toBe(false);
+  });
+
   test("continueApprovedWorkflowWithdrawal stops when the saved Pool Account changed externally", async () => {
     state.allPoolAccounts = [
       {
@@ -965,6 +1154,7 @@ describe("workflow internal helpers", () => {
       snapshot: sampleSnapshot({
         phase: "approved_ready_to_withdraw",
         aspStatus: "approved",
+        committedValue: "500",
       }),
       mode: JSON_MODE,
       isVerbose: false,
@@ -972,6 +1162,48 @@ describe("workflow internal helpers", () => {
 
     expect(result.continueWatching).toBe(false);
     expect(result.snapshot.phase).toBe("stopped_external");
+  });
+
+  test("continueApprovedWorkflowWithdrawal completes the relayed withdrawal and finalizes the workflow", async () => {
+    const approvedPoolAccount: MockPoolAccount = {
+      ...state.allPoolAccounts[0],
+      status: "approved",
+      aspStatus: "approved",
+      value: 500n,
+      label: 91n,
+      txHash: ("0x" + "aa".repeat(32)) as Hex,
+      commitment: {
+        ...state.allPoolAccounts[0].commitment,
+        value: 500n,
+        label: 91n,
+        txHash: ("0x" + "aa".repeat(32)) as Hex,
+      },
+    };
+    state.allPoolAccounts = [approvedPoolAccount];
+    state.activePoolAccounts = [approvedPoolAccount];
+
+    const result = await continueApprovedWorkflowWithdrawal({
+      snapshot: sampleSnapshot({
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+        committedValue: "500",
+      }),
+      mode: JSON_MODE,
+      isVerbose: true,
+    });
+
+    expect(result.continueWatching).toBe(false);
+    expect(result.snapshot.phase).toBe("completed");
+    expect(result.snapshot.aspStatus).toBe("approved");
+    expect(result.snapshot.withdrawTxHash).toBe(state.relayTxHash);
+    expect(result.snapshot.withdrawBlockNumber).toBe("999");
+    expect(result.snapshot.withdrawExplorerUrl).toContain(
+      state.relayTxHash.slice(2),
+    );
+    expect(requestQuoteMock).toHaveBeenCalledTimes(1);
+    expect(submitRelayRequestMock).toHaveBeenCalledTimes(1);
+    expect(saveAccountMock).toHaveBeenCalledTimes(1);
+    expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
   });
 
   test("inspectFundingAndDeposit rewinds clean submission failures back to awaiting funding", async () => {
@@ -1051,6 +1283,30 @@ describe("workflow internal helpers", () => {
     expect(result.continueWatching).toBe(true);
     expect(result.snapshot.phase).toBe("depositing_publicly");
     expect(result.snapshot.depositBlockNumber).toBeNull();
+  });
+
+  test("executeRelayedWithdrawalForFlow fails closed when the latest root changes before proof generation", async () => {
+    const context = await loadWorkflowPoolAccountContext(
+      sampleSnapshot({
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+      }),
+      undefined,
+      true,
+    );
+    state.latestRoot = 2n;
+
+    await expect(
+      executeRelayedWithdrawalForFlow({
+        snapshot: sampleSnapshot({
+          phase: "approved_ready_to_withdraw",
+          aspStatus: "approved",
+        }),
+        context,
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Pool state changed while preparing the workflow proof.");
   });
 
   test("executeRelayedWithdrawalForFlow refreshes an expired quote after proof generation when the fee is unchanged", async () => {

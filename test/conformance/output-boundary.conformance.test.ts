@@ -32,6 +32,7 @@ const MIGRATED_COMMANDS = [
   "src/commands/stats.ts",
   "src/commands/status.ts",
   "src/commands/sync.ts",
+  "src/commands/upgrade.ts",
   "src/commands/withdraw.ts",
 ] as const;
 

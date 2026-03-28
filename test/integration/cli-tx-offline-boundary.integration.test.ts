@@ -10,8 +10,8 @@
  * True success-path tests (generating precommitments, building unsigned
  * tx payloads, submitting transactions) live in the Anvil suite, which
  * runs the CLI against a forked local chain without live funds:
- *   1. `PP_ANVIL_E2E=1 bun run test:e2e:anvil` for the full suite
- *   2. `PP_ANVIL_E2E=1 bun run test:e2e:anvil:smoke` for the required CI lane
+ *   1. `PP_ANVIL_E2E=1 npm run test:e2e:anvil` for the full suite
+ *   2. `PP_ANVIL_E2E=1 npm run test:e2e:anvil:smoke` for the required CI lane
  *
  * This file still matters because it pins the exact offline failure
  * contract for the default integration suite, while the Anvil lane

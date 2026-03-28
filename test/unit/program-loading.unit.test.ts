@@ -29,6 +29,15 @@ describe("root program lazy loading", () => {
     expect(program.commands.map((command) => command.name())).toEqual(["flow"]);
   });
 
+  test("loads upgrade on demand as a tooling root command", async () => {
+    const program = await createRootProgram("0.0.0", {
+      loadAllCommands: false,
+      argv: ["upgrade", "--check"],
+    });
+
+    expect(program.commands.map((command) => command.name())).toEqual(["upgrade"]);
+  });
+
   test("falls back to the full tree for unknown invocations", async () => {
     const program = await createRootProgram("0.0.0", {
       loadAllCommands: false,

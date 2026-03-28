@@ -266,8 +266,10 @@ function spawnFlowStartProcess(
   } = {},
 ) {
   return spawn(
-    "bun",
+    process.platform === "win32" ? "node.exe" : "node",
     [
+      "--import",
+      "tsx",
       "src/index.ts",
       "--agent",
       "flow",

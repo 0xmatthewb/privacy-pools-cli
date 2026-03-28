@@ -10,6 +10,11 @@ import { createPublicClient, http } from "viem";
 import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
 import { buildChildProcessEnv } from "./child-env.ts";
 import {
+  isDirectEntrypoint,
+  nodeExecutable,
+  tsxEntrypointArgs,
+} from "./node-runtime.ts";
+import {
   registerProcessExitCleanup,
   terminateChildProcess,
 } from "./process.ts";
@@ -231,7 +236,7 @@ export function launchAnvilAspServer(
   const script = resolve(import.meta.dir, "anvil-asp-server.ts");
 
   return new Promise((resolveLaunch, reject) => {
-    const proc = spawn("bun", ["run", script], {
+    const proc = spawn(nodeExecutable(), tsxEntrypointArgs(script), {
       env: buildChildProcessEnv({
         PP_ANVIL_ASP_STATE_FILE: stateFile,
       }),
@@ -283,7 +288,7 @@ export async function killAnvilAspServer(server: AnvilAspServer): Promise<void> 
   await terminateChildProcess(server.proc);
 }
 
-if (import.meta.main) {
+if (isDirectEntrypoint(import.meta.url)) {
   const stateFile = process.env.PP_ANVIL_ASP_STATE_FILE?.trim();
 
   if (!stateFile) {

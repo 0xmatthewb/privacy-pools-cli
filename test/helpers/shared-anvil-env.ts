@@ -100,6 +100,7 @@ export async function resetSharedAnvilEnv(env: SharedAnvilEnv): Promise<void> {
 
   const relayerReset = await fetch(`${resetState.relayerUrl}/__reset`, {
     method: "POST",
+    headers: { Connection: "close" },
   });
   if (!relayerReset.ok) {
     throw new Error(`Failed to reset Anvil relayer state: HTTP ${relayerReset.status}`);
@@ -115,7 +116,10 @@ export async function configureSharedRelayer(
 ): Promise<void> {
   const response = await fetch(`${env.relayerUrl}/__configure`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Connection: "close",
+    },
     body: JSON.stringify(body),
   });
   if (!response.ok) {

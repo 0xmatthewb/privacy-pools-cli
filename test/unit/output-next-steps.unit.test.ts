@@ -476,9 +476,11 @@ describe("emitted nextActions are fully runnable", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() => renderDepositSuccess(ctx, STUB_DEPOSIT));
     const actions = getNextActions(stdout);
-    expect(actions).toHaveLength(1);
+    expect(actions).toHaveLength(2);
     expect(actions[0].command).toBe("accounts");
     expect(actions[0].runnable).toBeUndefined();
+    expect(actions[1].command).toBe("ragequit");
+    expect(actions[1].runnable).toBeUndefined();
   });
 });
 

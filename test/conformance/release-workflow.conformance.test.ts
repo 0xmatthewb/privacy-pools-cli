@@ -18,6 +18,22 @@ const crossPlatformWorkflow = readFileSync(
   join(CLI_ROOT, ".github", "workflows", "cross-platform.yml"),
   "utf8",
 );
+const conformanceWorkflow = readFileSync(
+  join(CLI_ROOT, ".github", "workflows", "conformance.yml"),
+  "utf8",
+);
+const frontendParityWorkflow = readFileSync(
+  join(CLI_ROOT, ".github", "workflows", "frontend-parity.yml"),
+  "utf8",
+);
+const fullAnvilWorkflow = readFileSync(
+  join(CLI_ROOT, ".github", "workflows", "full-anvil.yml"),
+  "utf8",
+);
+const nativePreviewWorkflow = readFileSync(
+  join(CLI_ROOT, ".github", "workflows", "native-preview.yml"),
+  "utf8",
+);
 const nativeCoverageWorkflow = readFileSync(
   join(CLI_ROOT, ".github", "workflows", "native-coverage.yml"),
   "utf8",
@@ -64,6 +80,8 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain("npm-test:");
     expect(ciWorkflow).toContain("Run npm test");
     expect(ciWorkflow).toContain("run: npm test");
+    expect(ciWorkflow).not.toContain("bun install --frozen-lockfile");
+    expect(ciWorkflow).toContain("run: npm ci");
     expect(ciWorkflow).toContain("native-unit:");
     expect(ciWorkflow).toContain("Restore Rust cache");
     expect(ciWorkflow).toContain("Swatinem/rust-cache@v2");
@@ -151,6 +169,43 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("node scripts/verify-release-install.mjs");
     expect(packNativeTarballScript).toContain("prepare-native-package.mjs");
     expect(packNativeTarballScript).toContain("verify-packed-native-package.mjs");
+  });
+
+  test("release workflow installs dependencies with npm ci and keeps Bun only on Bun-backed test lanes", () => {
+    expect(releaseWorkflow).not.toContain("bun install --frozen-lockfile");
+    expect(releaseWorkflow).toContain("run: npm ci");
+    expect(releaseWorkflow).toContain("Stage 2: Create the distributable npm package");
+    const packageSectionStart = releaseWorkflow.indexOf("package:");
+    const packageSectionEnd = releaseWorkflow.indexOf("package-native:", packageSectionStart);
+    const packageSection = releaseWorkflow.slice(packageSectionStart, packageSectionEnd);
+    expect(packageSection).not.toContain("Setup Bun");
+    expect(packageSection).toContain("run: npm ci");
+  });
+
+  test("workflow dependency setup matches the Bun-backed test runner boundary", () => {
+    expect(conformanceWorkflow).toContain("Setup Bun");
+    expect(conformanceWorkflow).toContain("run: npm ci");
+
+    expect(frontendParityWorkflow).toContain("Setup Bun");
+    expect(frontendParityWorkflow).toContain("run: npm ci");
+
+    expect(fullAnvilWorkflow).toContain("Setup Bun");
+    expect(fullAnvilWorkflow).toContain("run: npm ci");
+
+    expect(nativePreviewWorkflow).not.toContain("Setup Bun");
+    expect(nativePreviewWorkflow).toContain("run: npm ci");
+
+    const nativeUnitSectionStart = ciWorkflow.indexOf("native-unit:");
+    const nativeUnitSectionEnd = ciWorkflow.indexOf("supported-native-smoke:", nativeUnitSectionStart);
+    const nativeUnitSection = ciWorkflow.slice(
+      nativeUnitSectionStart,
+      nativeUnitSectionEnd === -1 ? ciWorkflow.length : nativeUnitSectionEnd,
+    );
+    expect(nativeUnitSection).not.toContain("Setup Bun");
+    expect(nativeUnitSection).not.toContain("run: npm ci");
+
+    expect(nativeCoverageWorkflow).not.toContain("Setup Bun");
+    expect(nativeCoverageWorkflow).not.toContain("run: npm ci");
   });
 
   test("release workflow publishes native optional packages to npm", () => {

@@ -55,7 +55,6 @@ describe("sdk dependency conformance", () => {
 
   test("lockfiles resolve the exact SDK version from npm", () => {
     const packageLock = readFileSync(`${CLI_ROOT}/package-lock.json`, "utf8");
-    const bunLock = readFileSync(`${CLI_ROOT}/bun.lock`, "utf8");
 
     expect(packageLock).toContain(
       '"@0xbow/privacy-pools-core-sdk": "1.2.0"'
@@ -63,8 +62,6 @@ describe("sdk dependency conformance", () => {
     expect(packageLock).toContain(
       "https://registry.npmjs.org/@0xbow/privacy-pools-core-sdk/-/privacy-pools-core-sdk-1.2.0.tgz"
     );
-    expect(bunLock).toContain('@0xbow/privacy-pools-core-sdk": "1.2.0"');
-    expect(bunLock).toContain("@0xbow/privacy-pools-core-sdk@1.2.0");
   });
 
   test("installed SDK bundle derives master keys with bytesToBigInt", () => {

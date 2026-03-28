@@ -9,6 +9,7 @@ import {
 import type { Command } from "commander";
 import type { Address } from "viem";
 import { CHAINS } from "../../src/config/chains.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
@@ -89,6 +90,14 @@ const ETH_POOL = {
   deploymentBlock: 1n,
   minimumDepositAmount: 10000000000000000n,
   maxRelayFeeBPS: 300n,
+};
+
+const USDC_POOL = {
+  ...ETH_POOL,
+  symbol: "USDC",
+  asset: "0x2222222222222222222222222222222222222222",
+  decimals: 6,
+  minimumDepositAmount: 1_000_000n,
 };
 
 const APPROVED_POOL_ACCOUNT = {
@@ -958,6 +967,28 @@ describe("withdraw command handler", () => {
     expect(exitCode).toBe(2);
   });
 
+  test("fails closed in machine mode when no asset is supplied", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        undefined,
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "No asset specified",
+    );
+    expect(exitCode).toBe(2);
+  });
+
   test("requires an explicit recipient for direct unsigned withdrawals", async () => {
     useIsolatedHome();
 
@@ -1443,6 +1474,108 @@ describe("withdraw command handler", () => {
     expect(stderr).toContain("Withdrawal Review");
   });
 
+  test("warns humans when --extra-gas is requested for native withdrawals", async () => {
+    useIsolatedHome({ withSigner: true });
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+          extraGas: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain(
+      "Extra gas is not applicable for ETH withdrawals",
+    );
+    expect(stderr).toContain("Withdrawal cancelled.");
+  });
+
+  test("downgrades unsupported extra gas requests before human relayed withdrawal review", async () => {
+    useIsolatedHome({ withSigner: true });
+    resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
+    getRelayerDetailsMock.mockImplementationOnce(async () => ({
+      minWithdrawAmount: "1000000",
+      feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+    }));
+    requestQuoteMock
+      .mockImplementationOnce(async (_chainConfig, params) => {
+        expect(params?.extraGas).toBe(true);
+        throw new CLIError(
+          "Relayer returned UNSUPPORTED_FEATURE for extra gas.",
+          "RELAYER",
+          "UNSUPPORTED_FEATURE",
+        );
+      })
+      .mockImplementationOnce(async (_chainConfig, params) => {
+        expect(params?.extraGas).toBe(false);
+        return buildRelayerQuote({
+          recipient: params?.recipient,
+          asset: USDC_POOL.asset,
+          amount: params?.amount?.toString(),
+          extraGas: false,
+        });
+      });
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "100",
+        "USDC",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(requestQuoteMock).toHaveBeenCalledTimes(2);
+    expect(stderr).toContain("Continuing without it.");
+    expect(stderr).toContain("Withdrawal cancelled.");
+  });
+
+  test("shows extra gas funding details during human relayed withdrawal review", async () => {
+    useIsolatedHome({ withSigner: true });
+    resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
+    getRelayerDetailsMock.mockImplementationOnce(async () => ({
+      minWithdrawAmount: "1000000",
+      feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+    }));
+    requestQuoteMock.mockImplementationOnce(async (_chainConfig, params) => ({
+      ...buildRelayerQuote({
+        recipient: params?.recipient,
+        asset: USDC_POOL.asset,
+        amount: params?.amount?.toString(),
+        extraGas: true,
+      }),
+      detail: {
+        relayTxCost: { gas: "0", eth: "0" },
+        extraGasFundAmount: { eth: "1000000000000000" },
+      },
+    }));
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "100",
+        "USDC",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Extra gas fund:");
+    expect(stderr).toContain("Gas token drop:  enabled");
+    expect(stderr).toContain("Withdrawal cancelled.");
+  });
+
   test("returns a structured relayer quote in JSON mode", async () => {
     useIsolatedHome();
 
@@ -1568,6 +1701,44 @@ describe("withdraw command handler", () => {
     expect(json.success).toBe(true);
     expect(json.feeCommitmentPresent).toBe(false);
     expect(json.quoteExpiresAt).toBeNull();
+  });
+
+  test("quote downgrades unsupported extra gas requests and keeps the result machine-readable", async () => {
+    useIsolatedHome();
+    resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
+    requestQuoteMock
+      .mockImplementationOnce(async (_chainConfig, params) => {
+        expect(params?.extraGas).toBe(true);
+        throw new CLIError(
+          "Relayer returned UNSUPPORTED_FEATURE for extra gas.",
+          "RELAYER",
+          "UNSUPPORTED_FEATURE",
+        );
+      })
+      .mockImplementationOnce(async (_chainConfig, params) => {
+        expect(params?.extraGas).toBe(false);
+        return buildRelayerQuote({
+          recipient: params?.recipient,
+          asset: USDC_POOL.asset,
+          amount: params?.amount?.toString(),
+          extraGas: false,
+        });
+      });
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleWithdrawQuoteCommand(
+        "100",
+        "USDC",
+        {
+          to: "0x7777777777777777777777777777777777777777",
+        },
+        fakeQuoteCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(requestQuoteMock).toHaveBeenCalledTimes(2);
+    expect(json.success).toBe(true);
+    expect(json.extraGas).toBe(false);
   });
 
   test("fails closed when relayed withdrawals omit the recipient in machine mode", async () => {

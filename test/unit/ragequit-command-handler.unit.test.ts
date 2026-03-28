@@ -935,7 +935,7 @@ describe("ragequit command handler", () => {
     expect(stderr).toContain("Exit confirmed");
   });
 
-  test("continues when onchain depositor preverification is unavailable", async () => {
+  test("fails closed when onchain depositor preverification is unavailable in human mode", async () => {
     useIsolatedHome({ withSigner: true });
     getPublicClientMock.mockImplementation(() => ({
       readContract: async () => {
@@ -947,7 +947,7 @@ describe("ragequit command handler", () => {
       }),
     }));
 
-    const { stderr } = await captureAsyncOutput(() =>
+    const { stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
       handleRagequitCommand(
         "ETH",
         { fromPa: "PA-1" },
@@ -955,6 +955,10 @@ describe("ragequit command handler", () => {
       ),
     );
 
-    expect(stderr).toContain("Exit confirmed");
+    expect(stderr).toContain("Unable to verify the original depositor for ragequit");
+    expect(stderr).toContain(
+      "Ragequit transactions must be sent by the original deposit address",
+    );
+    expect(exitCode).toBe(3);
   });
 });

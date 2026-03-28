@@ -6,11 +6,9 @@
  * a malicious .env in a cloned repo from silently redirecting RPC/ASP/relayer
  * endpoints or swapping the signer key.
  *
- * NOTE: Bun auto-loads .env from CWD before user code runs. We use
- * `--no-env-file` to disable this so we can test the CLI's OWN dotenv
- * loading in isolation.  In production (`node dist/index.js`), Node.js
- * does not auto-load .env files, so only the CLI's explicit
- * `loadEnv({ path: configHome })` call applies.
+ * NOTE: Source-mode CLI tests now run under Node + tsx. Node does not
+ * auto-load CWD .env files, so these subprocesses exercise only the CLI's
+ * own `loadEnv({ path: configHome })` behavior.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -44,12 +42,11 @@ describe(".env trust boundary", () => {
       "utf-8"
     );
 
-    // 3. Run `status --json` from the poisoned CWD with --no-env-file to
-    //    disable Bun's auto-loading.  This isolates the CLI's own dotenv
-    //    call, which should only load from config home.
+    // 3. Run `status --json` from the poisoned CWD. Node does not auto-load
+    //    CWD .env files, so the CLI should only read from config home.
     const result = spawnSync(
-      "bun",
-      ["--no-env-file", join(CLI_CWD, "src/index.ts"), "--json", "status"],
+      process.platform === "win32" ? "node.exe" : "node",
+      ["--import", "tsx", join(CLI_CWD, "src/index.ts"), "--json", "status"],
       {
         cwd: poisonedCwd,
         env: buildChildProcessEnv({
@@ -100,8 +97,8 @@ describe(".env trust boundary", () => {
     );
 
     const result = spawnSync(
-      "bun",
-      ["--no-env-file", join(CLI_CWD, "src/index.ts"), "--json", "status"],
+      process.platform === "win32" ? "node.exe" : "node",
+      ["--import", "tsx", join(CLI_CWD, "src/index.ts"), "--json", "status"],
       {
         cwd: CLI_CWD,
         env: buildChildProcessEnv({

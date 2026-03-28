@@ -154,6 +154,33 @@ describe("init command handler interactive coverage", () => {
     expect(existsSync(join(home, ".signer"))).toBe(false);
   });
 
+  test("imports a valid recovery phrase interactively, saves an entered signer key, and picks a chain", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "import")
+      .mockImplementationOnce(async () => "sepolia");
+    passwordPromptMock
+      .mockImplementationOnce(async () => VALID_MNEMONIC)
+      .mockImplementationOnce(async () => "0x" + "55".repeat(32));
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Signer key saved.");
+    expect(stderr).not.toContain("IMPORTANT: Save your recovery phrase securely");
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      VALID_MNEMONIC,
+    );
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "55".repeat(32),
+    );
+    expect(readFileSync(join(home, "config.json"), "utf8")).toContain(
+      '"defaultChain": "sepolia"',
+    );
+  });
+
   test("warns humans when secrets are supplied through visible command flags", async () => {
     useIsolatedHome();
 
@@ -172,6 +199,41 @@ describe("init command handler interactive coverage", () => {
     expect(stderr).toContain("--mnemonic is visible in process list");
     expect(stderr).toContain("--private-key is visible in process list");
     expect(stderr).toContain("Signer key saved.");
+  });
+
+  test("requires humans to confirm that the recovery phrase is backed up", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "copied");
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("must confirm that your recovery phrase is backed up");
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("rejects invalid signer keys entered interactively", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "copied");
+    confirmPromptMock.mockImplementationOnce(async () => true);
+    passwordPromptMock.mockImplementationOnce(async () => "0x1234");
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("Invalid private key format");
+    expect(existsSync(join(home, ".signer"))).toBe(false);
   });
 
   test("refuses to overwrite an existing recovery backup file", async () => {

@@ -35,7 +35,7 @@ describe("start script", () => {
     expect(result.status).toBe(1);
     expect(result.stdout.trim()).toBe("");
     expect(result.stderr).toContain("Built CLI not found.");
-    expect(result.stderr).toContain("bun run build");
-    expect(result.stderr).toContain("bun run dev --");
+    expect(result.stderr).toContain("npm run build");
+    expect(result.stderr).toContain("npm run dev --");
   });
 });

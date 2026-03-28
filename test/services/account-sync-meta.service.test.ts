@@ -272,6 +272,69 @@ describe("account sync metadata + event syncing", () => {
     expect(accountService.account.poolAccounts.get(3n)).toBeUndefined();
   });
 
+  test("syncAccountEvents preserves targeted scopes when rebuild returns them empty", async () => {
+    useIsolatedHome();
+    saveAccount(1, {
+      masterKeys: [1n, 2n],
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+      poolAccounts: new Map([
+        [1n, [{ label: 11n }]],
+        [2n, [{ label: 22n }]],
+      ]),
+    } as never);
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: {
+          masterKeys: [1n, 2n],
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+          poolAccounts: new Map(),
+        },
+      } as never,
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const accountService = {
+      account: {
+        masterKeys: [1n, 2n],
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+        poolAccounts: new Map([[3n, [{ label: 33n }]]]),
+      },
+    };
+
+    const synced = await syncAccountEvents(
+      accountService as never,
+      [
+        {
+          chainId: 1,
+          address: "0x1111111111111111111111111111111111111111",
+          scope: 1n,
+          deploymentBlock: 1n,
+        },
+      ],
+      [{ pool: "0x1111111111111111111111111111111111111111", symbol: "ETH" }],
+      1,
+      {
+        skip: false,
+        force: true,
+        silent: true,
+        isJson: true,
+        isVerbose: false,
+        errorLabel: "Account",
+        dataService: {} as never,
+        mnemonic: MNEMONIC,
+      },
+    );
+
+    expect(synced).toBe(true);
+    expect(accountService.account.poolAccounts.get(1n)).toEqual([{ label: 11n }]);
+    expect(accountService.account.poolAccounts.get(2n)).toEqual([{ label: 22n }]);
+    expect(accountService.account.poolAccounts.get(3n)).toBeUndefined();
+    expect(loadSyncMeta(1)).not.toBeNull();
+  });
+
   test("syncAccountEvents fails closed on partial pool sync failures", async () => {
     useIsolatedHome();
     AccountService.initializeWithEvents = (async () => ({

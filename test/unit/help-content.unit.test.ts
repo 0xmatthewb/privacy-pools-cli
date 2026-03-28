@@ -35,14 +35,15 @@ describe("help content", () => {
   test("guideText prefers the packaged install path and keeps the github fallback", () => {
     const guide = guideText();
     expect(guide).toContain("npm i -g privacy-pools-cli");
-    expect(guide).toContain("bun add -g privacy-pools-cli");
+    expect(guide).toContain("privacy-pools upgrade --check");
+    expect(guide).toContain("npm run dev -- status");
     expect(guide).toContain("github:0xmatthewb/privacy-pools-cli");
     expect(guide).toContain("unreleased/source builds");
   });
 
-  test("welcomeScreen includes bun link hint when running from source with bun", () => {
+  test("welcomeScreen includes npm link hint when running from source", () => {
     process.env.npm_lifecycle_event = "dev";
-    process.env.npm_execpath = "/usr/local/bin/bun";
+    process.env.npm_execpath = "/usr/local/bin/npm";
     const packageRoot = join(tmpdir(), `pp-help-source-${Date.now()}`);
     mkdirSync(packageRoot, { recursive: true });
     writeFileSync(join(packageRoot, ".git"), "gitdir: test\n", "utf8");
@@ -50,7 +51,7 @@ describe("help content", () => {
     try {
       const welcome = welcomeScreen({ packageRoot });
       expect(welcome).toContain("Running from source?");
-      expect(welcome).toContain("bun link");
+      expect(welcome).toContain("npm link");
       expect(helpTestInternals.shouldShowPathRegistrationHint(packageRoot)).toBe(
         true,
       );
@@ -59,17 +60,17 @@ describe("help content", () => {
     }
   });
 
-  test("welcomeScreen prefers bun link when bun is the active runtime", () => {
+  test("welcomeScreen keeps the npm link hint even when npm_execpath is absent", () => {
     process.env.npm_lifecycle_event = "dev";
-    process.env.npm_execpath = "/usr/local/bin/npm";
-    const packageRoot = join(tmpdir(), `pp-help-source-${Date.now()}-bun`);
+    delete process.env.npm_execpath;
+    const packageRoot = join(tmpdir(), `pp-help-source-${Date.now()}-npm`);
     mkdirSync(packageRoot, { recursive: true });
     writeFileSync(join(packageRoot, ".git"), "gitdir: test\n", "utf8");
 
     try {
       const welcome = welcomeScreen({ packageRoot });
       expect(welcome).toContain("Running from source?");
-      expect(welcome).toContain("bun link");
+      expect(welcome).toContain("npm link");
     } finally {
       rmSync(packageRoot, { recursive: true, force: true });
     }
@@ -88,7 +89,6 @@ describe("help content", () => {
       const welcome = welcomeScreen({ packageRoot });
       expect(welcome).not.toContain("Running from source?");
       expect(welcome).not.toContain("npm link");
-      expect(welcome).not.toContain("bun link");
     } finally {
       rmSync(packageRoot, { recursive: true, force: true });
     }

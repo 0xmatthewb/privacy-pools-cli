@@ -1,17 +1,15 @@
 /**
- * Reads source-of-truth files for conformance checks.
+ * Reads source-of-truth files for conformance checks from public upstream repos.
  *
  * Preferred order:
- *   1. Local checked-out source repos beside this workspace
- *   2. Explicit CONFORMANCE_*_ROOT env overrides
- *   3. Public GitHub fallback (main or CONFORMANCE_UPSTREAM_REF)
+ *   1. Public raw GitHub content (main or CONFORMANCE_UPSTREAM_REF)
+ *   2. Shallow git checkout fallback when raw fetch is unavailable
  */
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { CLI_ROOT } from "./paths.ts";
 
 const RAW_BASE = "https://raw.githubusercontent.com";
 
@@ -20,12 +18,6 @@ const GIT_TIMEOUT_MS = 30_000;
 
 export const CORE_REPO = "0xbow-io/privacy-pools-core";
 export const FRONTEND_REPO = "0xbow-io/privacy-pools-website";
-export const LOCAL_CORE_ROOT =
-  process.env.CONFORMANCE_CORE_ROOT ||
-  resolve(CLI_ROOT, "..", "..", "docs", "privacy-pools-core-main");
-export const LOCAL_FRONTEND_ROOT =
-  process.env.CONFORMANCE_FRONTEND_ROOT ||
-  resolve(CLI_ROOT, "..", "privacy-pools-website");
 
 const cache = new Map<string, string>();
 const checkoutCache = new Map<string, string>();
@@ -33,12 +25,6 @@ let cleanupRegistered = false;
 
 function upstreamRefFor(): string {
   return process.env.CONFORMANCE_UPSTREAM_REF || "main";
-}
-
-function localRepoRoot(repo: string): string | null {
-  if (repo === CORE_REPO) return LOCAL_CORE_ROOT;
-  if (repo === FRONTEND_REPO) return LOCAL_FRONTEND_ROOT;
-  return null;
 }
 
 function readGitHubFileViaCheckout(repo: string, path: string): string {
@@ -112,20 +98,9 @@ export async function fetchGitHubFile(
   repo: string,
   path: string,
 ): Promise<string> {
-  const localRoot = localRepoRoot(repo);
-  const key = `${localRoot ?? repo}@${upstreamRefFor()}:${path}`;
+  const key = `${repo}@${upstreamRefFor()}:${path}`;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
-
-  if (localRoot && existsSync(localRoot)) {
-    const filePath = resolve(localRoot, path);
-    if (!existsSync(filePath)) {
-      throw new Error(`Local source checkout missing ${repo}/${path} at ${filePath}`);
-    }
-    const text = readFileSync(filePath, "utf8");
-    cache.set(key, text);
-    return text;
-  }
 
   const ref = upstreamRefFor();
   const url = `${RAW_BASE}/${repo}/${ref}/${path}`;
