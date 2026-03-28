@@ -7,6 +7,7 @@ import {
 import { readCliPackageInfo } from "../../src/package-info.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { writeTestSecretFiles } from "../helpers/cli.ts";
+import { writeWorkflowSnapshot } from "../helpers/workflow-snapshot.ts";
 import {
   assertExit,
   assertJson,
@@ -246,7 +247,97 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.success).toBe(true);
       expect(json.defaultChain).toBe("sepolia");
       expect(json.signerKeySet).toBe(true);
-      expect(json.nextActions?.[0]?.command).toBe("accounts");
+      expect(json.nextActions?.[0]?.command).toBe("migrate status");
+    }),
+  ]),
+  defineScenario("flow status keeps the saved workflow JSON contract", [
+    (ctx) => {
+      writeWorkflowSnapshot(ctx.home, "wf-json-flow", {
+        phase: "approved_waiting_privacy_delay",
+        chain: "mainnet",
+        asset: "USDC",
+        assetDecimals: 6,
+        depositAmount: "100000000",
+        recipient: "0x7777777777777777777777777777777777777777",
+        poolAccountId: "PA-7",
+        poolAccountNumber: 7,
+        committedValue: "99500000",
+        aspStatus: "approved",
+        privacyDelayProfile: "balanced",
+        privacyDelayConfigured: true,
+        privacyDelayUntil: "2026-03-28T16:00:00.000Z",
+      });
+    },
+    runCliStep(["--json", "flow", "status", "wf-json-flow"], {
+      timeoutMs: 10_000,
+    }),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      mode: string;
+      action: string;
+      workflowId: string;
+      phase: string;
+      walletMode: string;
+      chain: string;
+      asset: string;
+      recipient: string;
+      poolAccountId: string | null;
+      poolAccountNumber: number | null;
+      committedValue: string | null;
+      aspStatus?: string;
+      privacyDelayProfile: string;
+      privacyDelayConfigured: boolean;
+      privacyDelayUntil: string | null;
+      warnings?: Array<{ code: string; category: string; message: string }>;
+      nextActions?: Array<{
+        command: string;
+        reason: string;
+        when: string;
+        args?: string[];
+        options?: Record<string, unknown>;
+      }>;
+    }>((json) => {
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.success).toBe(true);
+      expect(json.mode).toBe("flow");
+      expect(json.action).toBe("status");
+      expect(json.workflowId).toBe("wf-json-flow");
+      expect(json.phase).toBe("approved_waiting_privacy_delay");
+      expect(json.walletMode).toBe("configured");
+      expect(json.chain).toBe("mainnet");
+      expect(json.asset).toBe("USDC");
+      expect(json.recipient).toBe("0x7777777777777777777777777777777777777777");
+      expect(json.poolAccountId).toBe("PA-7");
+      expect(json.poolAccountNumber).toBe(7);
+      expect(json.committedValue).toBe("99500000");
+      expect(json.aspStatus).toBe("approved");
+      expect(json.privacyDelayProfile).toBe("balanced");
+      expect(json.privacyDelayConfigured).toBe(true);
+      expect(json.privacyDelayUntil).toBe("2026-03-28T16:00:00.000Z");
+      expect(json.warnings).toEqual([
+        {
+          code: "amount_pattern_linkability",
+          category: "privacy",
+          message:
+            "This saved flow will auto-withdraw the full 99.5 USDC. That pattern can make the withdrawal more identifiable even though the protocol breaks the direct onchain link. Consider manual round partial withdrawals such as 99 USDC if you want better amount privacy.",
+        },
+      ]);
+      expect(json.nextActions).toHaveLength(1);
+      expect(json.nextActions?.[0]).toMatchObject({
+        command: "flow watch",
+        when: "flow_resume",
+        args: ["wf-json-flow"],
+        options: { agent: true },
+      });
+      expect(json.nextActions?.[0]?.reason).toContain(
+        "This workflow is intentionally waiting until",
+      );
+      expect(json.nextActions?.[0]?.reason).toContain(
+        "before requesting the private withdrawal.",
+      );
     }),
   ]),
 ]);

@@ -6,6 +6,7 @@ import {
   CHAIN_NAMES,
   MAINNET_CHAIN_NAMES,
 } from "../../src/config/chains.ts";
+import { createTempHome, runCli } from "../helpers/cli.ts";
 import {
   GENERATED_COMMAND_ALIAS_MAP,
   GENERATED_COMMAND_MANIFEST,
@@ -76,5 +77,26 @@ describe("native manifest conformance", () => {
     expect(nativeManifest.runtimeConfig.mainnetChainNames).toEqual(
       MAINNET_CHAIN_NAMES,
     );
+  });
+
+  test("native manifest per-command help matches the live commander help", async () => {
+    const nativeManifest = JSON.parse(
+      readFileSync(nativeManifestPath, "utf8"),
+    ) as {
+      helpTextByPath: Record<string, string>;
+    };
+    expect(Object.keys(nativeManifest.helpTextByPath).sort()).toEqual(
+      [...GENERATED_COMMAND_PATHS].sort(),
+    );
+
+    for (const path of GENERATED_COMMAND_PATHS) {
+      const result = runCli([...path.split(" "), "--help"], {
+        home: createTempHome(),
+        timeoutMs: 10_000,
+      });
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(nativeManifest.helpTextByPath[path]).toBe(result.stdout.trim());
+    }
   });
 });
