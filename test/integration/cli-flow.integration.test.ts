@@ -21,7 +21,190 @@ function writeWorkflow(
   );
 }
 
+function buildFlowSnapshot(
+  workflowId: string,
+  phase: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+    workflowId,
+    createdAt: "2026-03-24T12:00:00.000Z",
+    updatedAt: "2026-03-24T12:00:00.000Z",
+    phase,
+    chain: "sepolia",
+    asset: "ETH",
+    assetDecimals: 18,
+    depositAmount: "10000000000000000",
+    recipient: "0x4444444444444444444444444444444444444444",
+    ...overrides,
+  };
+}
+
+function expectFlowStatusAgentContract(
+  home: string,
+  workflowId: string,
+  phase: string,
+  expectedNextAction:
+    | null
+    | {
+        command: string;
+        when: string;
+      } = null,
+): void {
+  const result = runCli(["--agent", "flow", "status", workflowId], {
+    home,
+    timeoutMs: 10_000,
+  });
+
+  expect(result.status).toBe(0);
+  expect(result.stderr.trim()).toBe("");
+
+  const json = parseJsonOutput<{
+    success: boolean;
+    mode: string;
+    action: string;
+    workflowId: string;
+    phase: string;
+    nextActions?: Array<{
+      command: string;
+      when: string;
+      args?: string[];
+      options?: Record<string, boolean | string>;
+    }>;
+  }>(result.stdout);
+
+  expect(json.success).toBe(true);
+  expect(json.mode).toBe("flow");
+  expect(json.action).toBe("status");
+  expect(json.workflowId).toBe(workflowId);
+  expect(json.phase).toBe(phase);
+
+  if (!expectedNextAction) {
+    expect(json.nextActions ?? []).toEqual([]);
+    return;
+  }
+
+  expect(json.nextActions).toEqual([
+    {
+      command: expectedNextAction.command,
+      reason: expect.any(String),
+      when: expectedNextAction.when,
+      args: [workflowId],
+      options: { agent: true },
+    },
+  ]);
+}
+
 describe("flow command", () => {
+  const statusPhaseCases = [
+    {
+      phase: "awaiting_funding",
+      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      overrides: {
+        walletMode: "new_wallet",
+        walletAddress: "0x5555555555555555555555555555555555555555",
+        requiredNativeFunding: "10000000000000000",
+      },
+    },
+    {
+      phase: "depositing_publicly",
+      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      overrides: {
+        walletMode: "new_wallet",
+        walletAddress: "0x5555555555555555555555555555555555555555",
+        requiredNativeFunding: "10000000000000000",
+      },
+    },
+    {
+      phase: "awaiting_asp",
+      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "pending",
+      },
+    },
+    {
+      phase: "approved_ready_to_withdraw",
+      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "approved",
+      },
+    },
+    {
+      phase: "withdrawing",
+      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "approved",
+      },
+    },
+    {
+      phase: "completed",
+      expectedNextAction: null,
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "approved",
+        withdrawTxHash:
+          "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        withdrawBlockNumber: "12399",
+      },
+    },
+    {
+      phase: "completed_public_recovery",
+      expectedNextAction: null,
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "declined",
+        ragequitTxHash:
+          "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        ragequitBlockNumber: "12400",
+      },
+    },
+    {
+      phase: "paused_declined",
+      expectedNextAction: { command: "flow ragequit", when: "flow_declined" },
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "declined",
+      },
+    },
+    {
+      phase: "paused_poi_required",
+      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "poi_required",
+      },
+    },
+    {
+      phase: "stopped_external",
+      expectedNextAction: null,
+      overrides: {
+        poolAccountId: "PA-1",
+        poolAccountNumber: 1,
+        aspStatus: "approved",
+      },
+    },
+  ] as const;
+
+  for (const { phase, expectedNextAction, overrides } of statusPhaseCases) {
+    test(`flow status keeps ${phase} machine-readable and phase-stable`, () => {
+      const home = createTempHome();
+      const workflowId = `wf-${phase}`;
+      writeWorkflow(home, buildFlowSnapshot(workflowId, phase, overrides));
+      expectFlowStatusAgentContract(home, workflowId, phase, expectedNextAction);
+    });
+  }
+
   test("flow start requires --to", () => {
     const result = runCli(["--json", "flow", "start", "0.1", "ETH"], {
       home: createTempHome(),
@@ -208,11 +391,26 @@ describe("flow command", () => {
       success: boolean;
       workflowId: string;
       phase: string;
+      nextActions?: Array<{
+        command: string;
+        when: string;
+        args?: string[];
+        options?: Record<string, boolean | string>;
+      }>;
     }>(result.stdout);
 
     expect(json.success).toBe(true);
     expect(json.workflowId).toBe("wf-latest");
     expect(json.phase).toBe("paused_declined");
+    expect(json.nextActions).toEqual([
+      {
+        command: "flow ragequit",
+        reason: expect.any(String),
+        when: "flow_declined",
+        args: ["wf-latest"],
+        options: { agent: true },
+      },
+    ]);
   });
 
   test("flow watch latest returns the newest saved terminal workflow", () => {
@@ -260,11 +458,13 @@ describe("flow command", () => {
       success: boolean;
       workflowId: string;
       phase: string;
+      nextActions?: unknown[];
     }>(result.stdout);
 
     expect(json.success).toBe(true);
     expect(json.workflowId).toBe("wf-latest");
     expect(json.phase).toBe("completed");
+    expect(json.nextActions ?? []).toEqual([]);
   });
 
   test("flow ragequit latest resolves the newest saved workflow before validation", () => {

@@ -6,9 +6,18 @@ import {
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY,
   createTempHome,
+  mustInitSeededHome,
   parseJsonOutput,
   runBuiltCli,
 } from "../helpers/cli.ts";
+import {
+  assertCapabilitiesAgentContract,
+  assertDescribeWithdrawQuoteAgentContract,
+  assertGuideAgentContract,
+  assertStatusDegradedHealthAgentContract,
+  assertStatusSetupRequiredAgentContract,
+  assertUnknownCommandAgentContract,
+} from "../helpers/agent-contract.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
@@ -192,6 +201,50 @@ describe("native package smoke", () => {
     ).toMatchObject({
       success: true,
     });
+  });
+
+  nativePackageSmokeTest("representative agent contracts stay stable through the packaged native path", () => {
+    assertGuideAgentContract(
+      runBuiltCli(["--agent", "guide"], {
+        cwd: snapshotRoot,
+      }),
+    );
+    assertCapabilitiesAgentContract(
+      runBuiltCli(["--agent", "capabilities"], {
+        cwd: snapshotRoot,
+      }),
+    );
+    assertDescribeWithdrawQuoteAgentContract(
+      runBuiltCli(["--agent", "describe", "withdraw", "quote"], {
+        cwd: snapshotRoot,
+      }),
+    );
+    assertStatusSetupRequiredAgentContract(
+      runBuiltCli(["--agent", "status", "--no-check"], {
+        cwd: snapshotRoot,
+        home: createTempHome("pp-native-agent-setup-"),
+      }),
+    );
+
+    const degradedHome = createTempHome("pp-native-agent-degraded-");
+    mustInitSeededHome(degradedHome, "sepolia");
+    assertStatusDegradedHealthAgentContract(
+      runBuiltCli(["--agent", "status", "--check"], {
+        cwd: snapshotRoot,
+        home: degradedHome,
+        env: {
+          PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
+          PRIVACY_POOLS_RPC_URL: "http://127.0.0.1:9",
+        },
+        timeoutMs: 30_000,
+      }),
+    );
+
+    assertUnknownCommandAgentContract(
+      runBuiltCli(["--agent", "not-a-command"], {
+        cwd: snapshotRoot,
+      }),
+    );
   });
 
   nativePackageSmokeTest("packaged native still serves native-owned help when the JS worker path is broken", () => {
