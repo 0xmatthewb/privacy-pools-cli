@@ -44,6 +44,7 @@ describe("status and init integration", () => {
       recoveryPhraseSet: boolean;
       signerKeySet: boolean;
       signerAddress: string;
+      recommendedMode: string;
     }>(statusResult.stdout);
 
     expect(statusJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
@@ -52,6 +53,7 @@ describe("status and init integration", () => {
     expect(statusJson.recoveryPhraseSet).toBe(true);
     expect(statusJson.signerKeySet).toBe(true);
     expect(statusJson.signerAddress).toBe("0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A");
+    expect(statusJson.recommendedMode).toBe("ready");
   });
 
   test("status honors --chain override without mutating configured defaultChain", () => {
@@ -99,12 +101,15 @@ describe("status and init integration", () => {
       success: boolean;
       aspLive?: unknown;
       rpcLive?: unknown;
+      warnings?: Array<{ code: string }>;
     }>(statusResult.stdout);
 
     expect(statusJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(statusJson.success).toBe(true);
     expect(typeof statusJson.aspLive).toBe("boolean");
     expect(typeof statusJson.rpcLive).toBe("boolean");
+    expect(statusJson.warnings?.map((issue) => issue.code)).toContain("asp_unreachable");
+    expect(statusJson.warnings?.map((issue) => issue.code)).toContain("rpc_unreachable");
   });
 
   test("status --no-check still succeeds when one account file is corrupt", () => {
@@ -170,12 +175,18 @@ describe("status and init integration", () => {
       signerKeySet: boolean;
       signerKeyValid: boolean;
       signerAddress: string | null;
+      recommendedMode: string;
+      blockingIssues?: Array<{ code: string }>;
     }>(statusResult.stdout);
 
     expect(statusJson.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(statusJson.signerKeySet).toBe(true);
     expect(statusJson.signerKeyValid).toBe(false);
     expect(statusJson.signerAddress).toBeNull();
+    expect(statusJson.recommendedMode).toBe("unsigned-only");
+    expect(statusJson.blockingIssues?.map((issue) => issue.code)).toContain(
+      "signer_key_invalid",
+    );
   });
 
   test("malformed config fails with INPUT category", () => {

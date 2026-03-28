@@ -63,6 +63,11 @@ describe("status command handler", () => {
     expect(json.recoveryPhraseSet).toBe(false);
     expect(json.readyForDeposit).toBe(false);
     expect(json.readyForUnsigned).toBe(false);
+    expect(json.recommendedMode).toBe("setup-required");
+    expect(json.blockingIssues.map((issue: { code: string }) => issue.code)).toEqual([
+      "config_missing",
+      "recovery_phrase_missing",
+    ]);
     expect(json.nextActions[0].command).toBe("init");
     expect(stderr).toBe("");
   });
@@ -100,6 +105,7 @@ describe("status command handler", () => {
     expect(json.signerKeyValid).toBe(true);
     expect(json.readyForDeposit).toBe(true);
     expect(json.readyForUnsigned).toBe(true);
+    expect(json.recommendedMode).toBe("ready");
     expect(json.accountFiles).toEqual([
       { chain: "sepolia", chainId: 11155111 },
     ]);
@@ -147,6 +153,10 @@ describe("status command handler", () => {
     );
     expect(json.aspHost).toBe(
       "https://asp.example.invalid/api/<redacted-segment>",
+    );
+    expect(json.recommendedMode).toBe("setup-required");
+    expect(json.blockingIssues.map((issue: { code: string }) => issue.code)).toContain(
+      "recovery_phrase_missing",
     );
   });
 });

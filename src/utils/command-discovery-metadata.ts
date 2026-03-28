@@ -10,7 +10,9 @@ import type {
   CapabilitiesPayload,
   CommandExecutionDescriptor,
   CommandLatencyClass,
+  CommandSideEffectClass,
   DetailedCommandDescriptor,
+  PreferredSafeVariant,
 } from "../types.js";
 import type { CommandHelpConfig } from "./help.js";
 
@@ -59,6 +61,10 @@ interface CommandDescriptorSeed {
   requiresInit: boolean;
   expectedLatencyClass: CommandLatencyClass;
   safeReadOnly: boolean;
+  sideEffectClass: CommandSideEffectClass;
+  touchesFunds: boolean;
+  requiresHumanReview: boolean;
+  preferredSafeVariant?: PreferredSafeVariant;
   prerequisites: string[];
   examples: string[];
   jsonFields: string | null;
@@ -403,7 +409,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools status --chain mainnet --rpc-url https://...",
       ],
       jsonFields:
-        "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+        "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
     },
     capabilities: {
       flags: ["--check", "--no-check", "--check-rpc", "--check-asp"],
@@ -444,7 +450,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "privacy-pools describe stats global --agent",
       ],
       jsonFields:
-        "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+        "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
     },
     capabilities: {
       usage: "describe <command...>",
@@ -921,7 +927,7 @@ const AGENT_NOTES: Record<string, string> = {
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
-    "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags; they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard.",
+    "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard.",
 };
 
 export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
@@ -958,7 +964,99 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
       "When runnable is omitted or true, the command is fully specified and can be executed as shown. " +
       "When runnable is false, the action is a template and requires additional user input before execution.",
   },
+  sideEffectClass: {
+    values: ["read_only", "local_state_write", "network_write", "fund_movement"],
+    description:
+      "Machine-readable risk classification for a command path. read_only never mutates local or remote protocol state. local_state_write may mutate local CLI state or secrets. network_write is reserved for remote mutations that do not directly move user funds. fund_movement may submit deposits, withdrawals, or public recoveries.",
+  },
+  statusRecommendedMode: {
+    values: ["setup-required", "read-only", "unsigned-only", "ready"],
+    description:
+      "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only is reserved for discovery-only states where transacting is intentionally unavailable.",
+  },
+  statusIssues: {
+    blockingIssueShape:
+      "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+    warningShape:
+      "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+    description:
+      "Structured preflight issues returned by status --agent. blockingIssues describe setup blockers that should stop execution. warnings describe degraded or follow-up-worthy states that may still allow safe read-only usage.",
+  },
 };
+
+const READ_ONLY_COMMANDS = new Set<CommandPath>([
+  "guide",
+  "capabilities",
+  "describe",
+  "completion",
+  "pools",
+  "activity",
+  "stats",
+  "stats global",
+  "stats pool",
+  "status",
+  "flow status",
+  "migrate",
+  "migrate status",
+  "withdraw quote",
+]);
+
+const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
+  "init",
+  "accounts",
+  "history",
+  "sync",
+]);
+
+const FUND_MOVEMENT_COMMANDS = new Set<CommandPath>([
+  "flow",
+  "flow start",
+  "flow watch",
+  "flow ragequit",
+  "deposit",
+  "withdraw",
+  "ragequit",
+]);
+
+const PREFERRED_SAFE_VARIANTS: Partial<Record<CommandPath, PreferredSafeVariant>> = {
+  flow: {
+    command: "flow status",
+    reason: "Inspect the saved workflow state before advancing a persisted flow.",
+  },
+  "flow watch": {
+    command: "flow status",
+    reason: "Inspect the saved workflow state before re-attaching a long-running flow.",
+  },
+  "flow ragequit": {
+    command: "flow status",
+    reason: "Inspect the saved workflow state before triggering the public recovery path.",
+  },
+  deposit: {
+    command: "pools",
+    reason: "Browse pools and balances before submitting a new deposit.",
+  },
+  withdraw: {
+    command: "withdraw quote",
+    reason: "Check relayer fees and confirm the withdrawal inputs before submitting.",
+  },
+};
+
+function sideEffectClassFor(path: CommandPath): CommandSideEffectClass {
+  if (FUND_MOVEMENT_COMMANDS.has(path)) {
+    return "fund_movement";
+  }
+  if (LOCAL_STATE_WRITE_COMMANDS.has(path)) {
+    return "local_state_write";
+  }
+  if (READ_ONLY_COMMANDS.has(path)) {
+    return "read_only";
+  }
+  return "read_only";
+}
+
+function preferredSafeVariantFor(path: CommandPath): PreferredSafeVariant | undefined {
+  return PREFERRED_SAFE_VARIANTS[path];
+}
 
 function descriptorSeed(path: CommandPath): CommandDescriptorSeed {
   const metadata = getCommandMetadata(path);
@@ -966,6 +1064,9 @@ function descriptorSeed(path: CommandPath): CommandDescriptorSeed {
   if (!capabilities) {
     throw new Error(`Missing capabilities metadata for command path '${path}'.`);
   }
+
+  const sideEffectClass = sideEffectClassFor(path);
+  const touchesFunds = sideEffectClass === "fund_movement";
 
   return {
     description: metadata.description,
@@ -976,6 +1077,10 @@ function descriptorSeed(path: CommandPath): CommandDescriptorSeed {
     requiresInit: capabilities.requiresInit,
     expectedLatencyClass: capabilities.expectedLatencyClass ?? "fast",
     safeReadOnly: metadata.safeReadOnly ?? false,
+    sideEffectClass,
+    touchesFunds,
+    requiresHumanReview: touchesFunds || path === "init",
+    preferredSafeVariant: preferredSafeVariantFor(path),
     prerequisites: metadata.help?.prerequisites ? [metadata.help.prerequisites] : [],
     examples: metadata.help?.examples ?? [],
     jsonFields: metadata.help?.jsonFields ?? null,
@@ -1000,6 +1105,10 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     requiresInit: seed.requiresInit,
     expectedLatencyClass: seed.expectedLatencyClass,
     safeReadOnly: seed.safeReadOnly,
+    sideEffectClass: seed.sideEffectClass,
+    touchesFunds: seed.touchesFunds,
+    requiresHumanReview: seed.requiresHumanReview,
+    preferredSafeVariant: seed.preferredSafeVariant,
     prerequisites: seed.prerequisites,
     examples: seed.examples,
     jsonFields: seed.jsonFields,

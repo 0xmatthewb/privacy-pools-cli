@@ -57,7 +57,17 @@ describe("command docs alignment", () => {
       { path: "activity", markers: ["events", "reviewStatus", "chainFiltered"] },
       { path: "stats global", markers: ["perChain", "cacheTimestamp", "allTime"] },
       { path: "stats pool", markers: ["cacheTimestamp", "allTime", "last24h"] },
-      { path: "status", markers: ["readyForDeposit", "readyForWithdraw", "nextActions"] },
+      {
+        path: "status",
+        markers: [
+          "readyForDeposit",
+          "readyForWithdraw",
+          "recommendedMode",
+          "blockingIssues",
+          "warnings",
+          "nextActions",
+        ],
+      },
       { path: "accounts", markers: ["balances", "pendingCount", "nextActions"] },
       { path: "history", markers: ["events", "poolAccountId", "explorerUrl"] },
       {
@@ -104,6 +114,9 @@ describe("command docs alignment", () => {
       "agentGuide",
       "runtimeUpgrades",
       "jsonContract",
+      "sideEffectClass",
+      "requiresHumanReview",
+      "preferredSafeVariant",
       "error.{ code, category, message, hint?, retryable? }",
       "Exception: --unsigned tx emits a raw transaction array without the envelope.",
     ]);
@@ -243,6 +256,8 @@ describe("command docs alignment", () => {
 
     expect(normalizedSection).toContain("signerKeyValid: true");
     expect(normalizedSection).toContain("readyForDeposit: true");
+    expect(normalizedSection).toContain("recommendedMode");
+    expect(normalizedSection).toContain("blockingIssues");
     expect(normalizedSection).not.toContain("signerKeySet: true");
   });
 

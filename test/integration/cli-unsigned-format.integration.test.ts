@@ -100,7 +100,7 @@ describe("--json output includes operation field", () => {
     );
     expect(result.stdout.trim()).not.toBe("");
     const parsed = parseJsonOutput<{ schemaVersion?: string; success?: boolean }>(result.stdout);
-    expect(parsed.schemaVersion).toBe("1.5.0");
+    expect(parsed.schemaVersion).toBe("1.6.0");
     expect(typeof parsed.success).toBe("boolean");
   });
 });

@@ -20,7 +20,12 @@ import {
 } from "./common.js";
 import { highlight, accentBold } from "../utils/theme.js";
 import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
-import type { NextActionOptionValue } from "../types.js";
+import type {
+  NextActionOptionValue,
+  StatusIssue,
+  StatusIssueAffect,
+  StatusRecommendedMode,
+} from "../types.js";
 
 export interface StatusCheckResult {
   configExists: boolean;
@@ -49,6 +54,119 @@ export interface StatusCheckResult {
   accountFiles: [string, number][];
 }
 
+interface StatusPreflightGuidance {
+  recommendedMode: StatusRecommendedMode;
+  blockingIssues?: StatusIssue[];
+  warnings?: StatusIssue[];
+}
+
+function makeStatusIssue(
+  code: string,
+  message: string,
+  affects: StatusIssueAffect[],
+): StatusIssue {
+  return { code, message, affects };
+}
+
+export function deriveStatusPreflightGuidance(
+  result: StatusCheckResult,
+): StatusPreflightGuidance {
+  const readyForDeposit =
+    result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
+  const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
+  const blockingIssues: StatusIssue[] = [];
+  const warnings: StatusIssue[] = [];
+
+  if (!result.configExists) {
+    blockingIssues.push(
+      makeStatusIssue(
+        "config_missing",
+        "CLI configuration is missing. Run init before building or submitting wallet-dependent commands.",
+        ["deposit", "withdraw", "unsigned"],
+      ),
+    );
+  }
+
+  if (!result.recoveryPhraseSet) {
+    blockingIssues.push(
+      makeStatusIssue(
+        "recovery_phrase_missing",
+        "No recovery phrase is configured. Wallet-dependent commands cannot run safely.",
+        ["deposit", "withdraw", "unsigned"],
+      ),
+    );
+  }
+
+  if (result.configExists && result.recoveryPhraseSet && !result.signerKeySet) {
+    blockingIssues.push(
+      makeStatusIssue(
+        "signer_key_missing",
+        "No signer key is configured. Read-only commands remain safe, but deposits and withdrawals require a signer.",
+        ["deposit", "withdraw"],
+      ),
+    );
+  }
+
+  if (result.signerKeySet && !result.signerKeyValid) {
+    blockingIssues.push(
+      makeStatusIssue(
+        "signer_key_invalid",
+        "The configured signer key is invalid. Reconfigure it before signing deposit or withdrawal transactions.",
+        ["deposit", "withdraw"],
+      ),
+    );
+  }
+
+  if (result.rpcLive === false) {
+    warnings.push(
+      makeStatusIssue(
+        "rpc_unreachable",
+        "The configured RPC endpoint is unreachable. Read-only discovery and transaction preparation may be degraded.",
+        ["deposit", "withdraw", "unsigned", "discovery"],
+      ),
+    );
+  }
+
+  if (result.aspLive === false) {
+    warnings.push(
+      makeStatusIssue(
+        "asp_unreachable",
+        "The ASP is unreachable. Review status, pool discovery, and private withdrawal readiness may be degraded.",
+        ["deposit", "withdraw", "unsigned", "discovery"],
+      ),
+    );
+  }
+
+  if (
+    result.configExists &&
+    result.recoveryPhraseSet &&
+    result.accountFiles.length === 0
+  ) {
+    warnings.push(
+      makeStatusIssue(
+        "restore_discovery_recommended",
+        "If this recovery phrase was imported, check accounts across all chains before assuming the wallet is empty.",
+        ["discovery"],
+      ),
+    );
+  }
+
+  let recommendedMode: StatusRecommendedMode = "read-only";
+  if (!result.configExists || !result.recoveryPhraseSet) {
+    recommendedMode = "setup-required";
+  } else if (readyForDeposit) {
+    recommendedMode = "ready";
+  } else if (readyForUnsigned) {
+    recommendedMode = "unsigned-only";
+  }
+
+  return {
+    recommendedMode,
+    ...(blockingIssues.length > 0 ? { blockingIssues } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
+  };
+}
+
 /**
  * Render the status command output.
  */
@@ -57,6 +175,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   const readyForDeposit = result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
   const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
+  const preflight = deriveStatusPreflightGuidance(result);
   const workflowChain = result.selectedChain ?? result.defaultChain;
   const notReady = !result.configExists || !result.recoveryPhraseSet;
   const unsignedOnly = readyForUnsigned && !readyForDeposit;
@@ -253,6 +372,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     status.readyForDeposit = readyForDeposit;
     status.readyForWithdraw = readyForDeposit;
     status.readyForUnsigned = readyForUnsigned;
+    status.recommendedMode = preflight.recommendedMode;
+    if (preflight.blockingIssues) status.blockingIssues = preflight.blockingIssues;
+    if (preflight.warnings) status.warnings = preflight.warnings;
     printJsonSuccess(status);
     return;
   }

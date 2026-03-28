@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "1.5.0",
-  "schemaVersion": "1.5.0",
+  "version": "1.6.0",
+  "schemaVersion": "1.6.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {
@@ -90,7 +90,10 @@
         "readyForDeposit": "boolean (configuration capability flag: configExists && recoveryPhraseSet && signerKeyValid)",
         "readyForWithdraw": "boolean (configuration capability flag: configExists && recoveryPhraseSet && signerKeyValid)",
         "readyForUnsigned": "boolean (configuration capability flag: configExists && recoveryPhraseSet)",
-        "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
+        "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)",
+        "recommendedMode": "\"setup-required\"|\"read-only\"|\"unsigned-only\"|\"ready\"",
+        "blockingIssues": "StatusIssue[]? ({ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] })",
+        "warnings": "StatusIssue[]? ({ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] })"
       }
     },
     "pools": {
@@ -489,7 +492,11 @@
         "safetyNotes": "string[]",
         "supportsUnsigned": "boolean",
         "supportsDryRun": "boolean",
-        "agentWorkflowNotes": "string[]"
+        "agentWorkflowNotes": "string[]",
+        "sideEffectClass": "\"read_only\"|\"local_state_write\"|\"network_write\"|\"fund_movement\"",
+        "touchesFunds": "boolean",
+        "requiresHumanReview": "boolean",
+        "preferredSafeVariant": "{ command: string, reason: string }|undefined"
       }
     },
     "sync": {

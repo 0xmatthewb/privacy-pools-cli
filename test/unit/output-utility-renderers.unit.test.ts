@@ -95,6 +95,9 @@ const STUB_CAPABILITIES: CapabilitiesPayload = {
       supportsUnsigned: false,
       supportsDryRun: false,
       agentWorkflowNotes: [],
+      sideEffectClass: "read_only",
+      touchesFunds: false,
+      requiresHumanReview: false,
     },
   },
   executionRoutes: {
@@ -356,6 +359,8 @@ describe("renderStatus parity", () => {
     expect(json.signerAddress).toBe(
       "0x1234567890abcdef1234567890abcdef12345678",
     );
+    expect(json.recommendedMode).toBe("ready");
+    expect(json.warnings).toBeUndefined();
     expect(json.nextActions).toEqual([
       {
         command: "accounts",
@@ -373,6 +378,14 @@ describe("renderStatus parity", () => {
     const { json } = captureJsonOutput(() => renderStatus(ctx, result));
     expect(json.aspLive).toBe(true);
     expect(json.rpcLive).toBe(false);
+    expect(json.warnings).toEqual([
+      {
+        code: "rpc_unreachable",
+        message:
+          "The configured RPC endpoint is unreachable. Read-only discovery and transaction preparation may be degraded.",
+        affects: ["deposit", "withdraw", "unsigned", "discovery"],
+      },
+    ]);
   });
 
   test("JSON mode: emits init remediation in nextActions when setup is incomplete", () => {
@@ -388,6 +401,21 @@ describe("renderStatus parity", () => {
       accountFiles: [],
     };
     const { json } = captureJsonOutput(() => renderStatus(ctx, result));
+    expect(json.recommendedMode).toBe("setup-required");
+    expect(json.blockingIssues).toEqual([
+      {
+        code: "config_missing",
+        message:
+          "CLI configuration is missing. Run init before building or submitting wallet-dependent commands.",
+        affects: ["deposit", "withdraw", "unsigned"],
+      },
+      {
+        code: "recovery_phrase_missing",
+        message:
+          "No recovery phrase is configured. Wallet-dependent commands cannot run safely.",
+        affects: ["deposit", "withdraw", "unsigned"],
+      },
+    ]);
     expect(json.nextActions).toEqual([
       {
         command: "init",
@@ -410,6 +438,23 @@ describe("renderStatus parity", () => {
     const { json } = captureJsonOutput(() => renderStatus(ctx, result));
     expect(json.readyForDeposit).toBe(false);
     expect(json.readyForUnsigned).toBe(true);
+    expect(json.recommendedMode).toBe("unsigned-only");
+    expect(json.blockingIssues).toEqual([
+      {
+        code: "signer_key_missing",
+        message:
+          "No signer key is configured. Read-only commands remain safe, but deposits and withdrawals require a signer.",
+        affects: ["deposit", "withdraw"],
+      },
+    ]);
+    expect(json.warnings).toEqual([
+      {
+        code: "restore_discovery_recommended",
+        message:
+          "If this recovery phrase was imported, check accounts across all chains before assuming the wallet is empty.",
+        affects: ["discovery"],
+      },
+    ]);
     expect(json.nextActions).toEqual([
       {
         command: "accounts",

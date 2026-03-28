@@ -670,6 +670,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "fast",
       "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": true,
       "prerequisites": [],
       "examples": [
         "privacy-pools init",
@@ -727,6 +730,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "fund_movement",
+      "touchesFunds": true,
+      "requiresHumanReview": true,
+      "preferredSafeVariant": {
+        "command": "flow status",
+        "reason": "Inspect the saved workflow state before advancing a persisted flow."
+      },
       "prerequisites": [
         "init for start/watch/ragequit; saved workflow for status"
       ],
@@ -778,6 +788,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "fund_movement",
+      "touchesFunds": true,
+      "requiresHumanReview": true,
       "prerequisites": [
         "init"
       ],
@@ -833,6 +846,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "fund_movement",
+      "touchesFunds": true,
+      "requiresHumanReview": true,
+      "preferredSafeVariant": {
+        "command": "flow status",
+        "reason": "Inspect the saved workflow state before re-attaching a long-running flow."
+      },
       "prerequisites": [
         "init"
       ],
@@ -884,6 +904,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "fast",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [
         "saved workflow (usually created after init)"
       ],
@@ -929,6 +952,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "fund_movement",
+      "touchesFunds": true,
+      "requiresHumanReview": true,
+      "preferredSafeVariant": {
+        "command": "flow status",
+        "reason": "Inspect the saved workflow state before triggering the public recovery path."
+      },
       "prerequisites": [
         "init"
       ],
@@ -982,6 +1012,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "medium",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools pools",
@@ -1038,6 +1071,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "medium",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools activity",
@@ -1086,6 +1122,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "medium",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools stats global",
@@ -1129,6 +1168,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "medium",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools stats global",
@@ -1174,6 +1216,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "medium",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools stats pool --asset ETH",
@@ -1219,6 +1264,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "fast",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools status",
@@ -1227,7 +1275,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools status --agent --check-rpc",
         "privacy-pools status --chain mainnet --rpc-url https://..."
       ],
-      "jsonFields": "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+      "jsonFields": "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -1263,6 +1311,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "fast",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools capabilities",
@@ -1306,13 +1357,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "fast",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
         "privacy-pools describe stats global --agent"
       ],
-      "jsonFields": "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+      "jsonFields": "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -1348,6 +1402,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "fast",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools guide",
@@ -1393,6 +1450,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "fund_movement",
+      "touchesFunds": true,
+      "requiresHumanReview": true,
+      "preferredSafeVariant": {
+        "command": "pools",
+        "reason": "Browse pools and balances before submitting a new deposit."
+      },
       "prerequisites": [
         "init"
       ],
@@ -1459,6 +1523,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "fund_movement",
+      "touchesFunds": true,
+      "requiresHumanReview": true,
+      "preferredSafeVariant": {
+        "command": "withdraw quote",
+        "reason": "Check relayer fees and confirm the withdrawal inputs before submitting."
+      },
       "prerequisites": [
         "init (account state should be synced)"
       ],
@@ -1519,6 +1590,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "medium",
       "safeReadOnly": false,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [
         "init"
       ],
@@ -1570,6 +1644,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "fund_movement",
+      "touchesFunds": true,
+      "requiresHumanReview": true,
       "prerequisites": [
         "init (account state should be synced)"
       ],
@@ -1626,6 +1703,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [
         "init"
       ],
@@ -1682,6 +1762,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [
         "init"
       ],
@@ -1727,6 +1810,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [
         "init"
       ],
@@ -1779,6 +1865,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [
         "init"
       ],
@@ -1825,6 +1914,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": true,
       "expectedLatencyClass": "slow",
       "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [
         "init"
       ],
@@ -1872,6 +1964,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresInit": false,
       "expectedLatencyClass": "fast",
       "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
         "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
@@ -2122,7 +2217,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-    "statusCheck": "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags; they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
+    "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
   },
   "schemas": {
     "aspApprovalStatus": {
@@ -2176,6 +2271,29 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "nextActions": {
       "shape": "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null>, runnable?: boolean }",
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. When runnable is omitted or true, the command is fully specified and can be executed as shown. When runnable is false, the action is a template and requires additional user input before execution."
+    },
+    "sideEffectClass": {
+      "values": [
+        "read_only",
+        "local_state_write",
+        "network_write",
+        "fund_movement"
+      ],
+      "description": "Machine-readable risk classification for a command path. read_only never mutates local or remote protocol state. local_state_write may mutate local CLI state or secrets. network_write is reserved for remote mutations that do not directly move user funds. fund_movement may submit deposits, withdrawals, or public recoveries."
+    },
+    "statusRecommendedMode": {
+      "values": [
+        "setup-required",
+        "read-only",
+        "unsigned-only",
+        "ready"
+      ],
+      "description": "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only is reserved for discovery-only states where transacting is intentionally unavailable."
+    },
+    "statusIssues": {
+      "blockingIssueShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+      "warningShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+      "description": "Structured preflight issues returned by status --agent. blockingIssues describe setup blockers that should stop execution. warnings describe degraded or follow-up-worthy states that may still allow safe read-only usage."
     }
   },
   "supportedChains": [
@@ -2220,7 +2338,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   },
   "runtime": {
     "cliVersion": "1.7.0",
-    "jsonSchemaVersion": "1.5.0",
+    "jsonSchemaVersion": "1.6.0",
     "accountFileVersion": 3,
     "workflowSnapshotVersion": "1",
     "workflowSecretVersion": "1",
@@ -2250,7 +2368,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v1.5.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v1.6.0.json"
   }
 };
 

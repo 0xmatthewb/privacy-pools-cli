@@ -68,8 +68,8 @@ loading an incompatible native package.
 **JSON envelope**: Every response follows the schema:
 
 ```
-{ "schemaVersion": "1.5.0", "success": true, ...payload }
-{ "schemaVersion": "1.5.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
+{ "schemaVersion": "1.6.0", "success": true, ...payload }
+{ "schemaVersion": "1.6.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
 Parse `success` first. On failure, read `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
@@ -85,6 +85,8 @@ privacy-pools status --agent
 ```
 
 Check `recoveryPhraseSet: true`. Most transaction commands also require `signerKeyValid: true` and `readyForDeposit: true`; if `readyForDeposit: false` because the signer is missing or invalid, set `PRIVACY_POOLS_PRIVATE_KEY` in the agent's environment before running transaction commands.
+
+For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from booleans alone. `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` remain configuration capability flags, not fund-availability checks.
 
 Exception: `flow start --new-wallet` creates and uses a dedicated per-workflow wallet, so it can begin without a configured global signer key as long as the recovery phrase is present.
 
@@ -193,9 +195,9 @@ privacy-pools status --agent
 privacy-pools status --agent --check
 ```
 
-JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
+JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[] }], warnings?: [{ code, message, affects[] }], nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
 
-`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
+`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. `recommendedMode`, `blockingIssues[]`, and `warnings[]` are the higher-level preflight contract for agents. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
 When `rpcUrl` or `aspHost` comes from a custom endpoint, the CLI redacts userinfo, query strings, and token-like path segments before printing them.
 
 #### `capabilities`
@@ -208,7 +210,7 @@ privacy-pools capabilities --agent
 
 JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }`
 
-`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package.
+`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package.
 
 #### `describe`
 
@@ -219,7 +221,7 @@ privacy-pools describe withdraw quote --agent
 privacy-pools describe stats global --agent
 ```
 
-JSON payload: `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
+JSON payload: `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
 
 ### Wallet Required
 
@@ -465,7 +467,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "1.5.0",
+  "schemaVersion": "1.6.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",

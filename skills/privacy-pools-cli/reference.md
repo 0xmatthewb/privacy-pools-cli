@@ -20,7 +20,7 @@ Flow JSON payloads share this shape:
 
 ```json
 {
-  "schemaVersion": "1.5.0",
+  "schemaVersion": "1.6.0",
   "success": true,
   "mode": "flow",
   "action": "start",
@@ -73,7 +73,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: your 
 
 ```json
 {
-  "schemaVersion": "1.5.0",
+  "schemaVersion": "1.6.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -156,7 +156,7 @@ The envelope format includes additional context fields depending on the operatio
 
 ## JSON output shapes by command
 
-All responses include `{ "schemaVersion": "1.5.0", "success": true, ... }` envelope.
+All responses include `{ "schemaVersion": "1.6.0", "success": true, ... }` envelope.
 
 Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
@@ -349,6 +349,7 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
   "readyForDeposit": true,
   "readyForWithdraw": true,
   "readyForUnsigned": true,
+  "recommendedMode": "ready",
   "nextActions": [
     {
       "command": "accounts",
@@ -363,7 +364,7 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
 Health checks run by default when a chain is selected. Pass `--no-check` to suppress them, or use `--check-rpc` / `--check-asp` to run only specific checks.
 Custom `rpcUrl` and `aspHost` values are rendered in a display-safe form: userinfo, query strings, and token-like path segments are redacted before they are printed.
 
-When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When no deposits exist, `nextActions` points to `pools`; when deposits already exist, it points to `accounts`. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`.
+When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When no deposits exist, `nextActions` points to `pools`; when deposits already exist, it points to `accounts`. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from the boolean readiness flags alone.
 
 | Field | Type | When present |
 |-------|------|-------------|
@@ -393,7 +394,10 @@ Representative payload (abridged):
   "commandDetails": {
     "accounts": {
       "command": "accounts",
-      "flags": ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"]
+      "flags": ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"],
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false
     }
   },
   "executionRoutes": {
@@ -419,7 +423,7 @@ Representative payload (abridged):
     "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-    "statusCheck": "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags; they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
+    "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
   },
   "schemas": {
     "aspApprovalStatus": { "values": ["approved", "pending", "poi_required", "declined", "unknown"] },
@@ -441,7 +445,7 @@ Representative payload (abridged):
   },
   "runtime": {
     "cliVersion": "1.7.0",
-    "jsonSchemaVersion": "1.5.0",
+    "jsonSchemaVersion": "1.6.0",
     "runtimeVersion": "v1",
     "workerProtocolVersion": "1",
     "manifestVersion": "1",
@@ -463,12 +467,12 @@ Representative payload (abridged):
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v1.5.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v1.6.0.json"
   }
 }
 ```
 
-`executionRoutes` is the canonical execution-ownership map. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions.
+`executionRoutes` is the canonical execution-ownership map. `commandDetails` also includes risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions.
 
 ### `describe`
 
@@ -487,7 +491,10 @@ privacy-pools describe stats global --agent
   "globalFlags": ["--agent", "-j, --json", "-y, --yes"],
   "requiresInit": true,
   "expectedLatencyClass": "medium",
-  "safeReadOnly": false,
+  "safeReadOnly": true,
+  "sideEffectClass": "read_only",
+  "touchesFunds": false,
+  "requiresHumanReview": false,
   "prerequisites": ["init"],
   "examples": ["privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."],
   "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions? }",
@@ -964,7 +971,7 @@ All errors in JSON mode:
 
 ```json
 {
-  "schemaVersion": "1.5.0",
+  "schemaVersion": "1.6.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",

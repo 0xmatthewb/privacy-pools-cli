@@ -46,9 +46,9 @@
     "stats": "Usage: privacy-pools stats [options] [command]\n\nShow public statistics\n\nOptions:\n  -h, --help      display help for command\n\nCommands:\n  global          Show global Privacy Pools statistics (all-time and last 24h)\n  pool [options]  Show statistics for a specific pool (all-time and last 24h)\n  help [command]  display help for command\n\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --agent --chain mainnet",
     "stats global": "Usage: privacy-pools stats global [options]\n\nShow global Privacy Pools statistics (all-time and last 24h)\n\nOptions:\n  -h, --help  display help for command\n\nAlways returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data.\n\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --agent\n\nJSON output (--json):\n  { mode, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
     "stats pool": "Usage: privacy-pools stats pool [options]\n\nShow statistics for a specific pool (all-time and last 24h)\n\nOptions:\n  -a, --asset <symbol|address>  Pool asset (symbol like ETH, USDC, or token\n                                address)\n  -h, --help                    display help for command\n\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --agent --chain mainnet\n\nJSON output (--json):\n  { mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
-    "status": "Usage: privacy-pools status [options]\n\nShow configuration and check connection health\n\nOptions:\n  --check      Run both RPC and ASP health checks\n  --no-check   Suppress default health checks\n  --check-rpc  Actively test RPC connectivity\n  --check-asp  Actively test ASP liveness\n  -h, --help   display help for command\n\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --agent --check-rpc\n  privacy-pools status --chain mainnet --rpc-url https://...\n\nJSON output (--json):\n  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+    "status": "Usage: privacy-pools status [options]\n\nShow configuration and check connection health\n\nOptions:\n  --check      Run both RPC and ASP health checks\n  --no-check   Suppress default health checks\n  --check-rpc  Actively test RPC connectivity\n  --check-asp  Actively test ASP liveness\n  -h, --help   display help for command\n\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --agent --check-rpc\n  privacy-pools status --chain mainnet --rpc-url https://...\n\nJSON output (--json):\n  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
     "capabilities": "Usage: privacy-pools capabilities [options]\n\nDescribe CLI capabilities for agent discovery\n\nOptions:\n  -h, --help  display help for command\n\nExamples:\n  privacy-pools capabilities\n  privacy-pools capabilities --agent\n\nJSON output (--json):\n  { commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
-    "describe": "Usage: privacy-pools describe [options] <command...>\n\nDescribe one command for runtime agent introspection\n\nArguments:\n  command     Command path to describe\n\nOptions:\n  -h, --help  display help for command\n\nUseful when a human or agent wants the runtime contract for one command without parsing long-form docs. Accepts spaced command paths like 'withdraw quote' and 'stats global'.\n\nExamples:\n  privacy-pools describe withdraw\n  privacy-pools describe withdraw quote --agent\n  privacy-pools describe stats global --agent\n\nJSON output (--json):\n  { command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+    "describe": "Usage: privacy-pools describe [options] <command...>\n\nDescribe one command for runtime agent introspection\n\nArguments:\n  command     Command path to describe\n\nOptions:\n  -h, --help  display help for command\n\nUseful when a human or agent wants the runtime contract for one command without parsing long-form docs. Accepts spaced command paths like 'withdraw quote' and 'stats global'.\n\nExamples:\n  privacy-pools describe withdraw\n  privacy-pools describe withdraw quote --agent\n  privacy-pools describe stats global --agent\n\nJSON output (--json):\n  { command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
     "guide": "Usage: privacy-pools guide [options]\n\nShow usage guide, workflow, and reference\n\nOptions:\n  -h, --help  display help for command",
     "deposit": "Usage: privacy-pools deposit [options] <amount> [asset]\n\nDeposit into a pool\n\nArguments:\n  amount                        Amount to deposit (e.g. 0.1)\n  asset                         Asset symbol (e.g. ETH, USDC)\n\nOptions:\n  -a, --asset <symbol|address>  Asset to deposit (symbol like ETH, USDC, or\n                                contract address)\n  --unsigned [format]           Build unsigned payload; format: envelope\n                                (default) or tx (choices: \"envelope\", \"tx\")\n  --dry-run                     Validate and preview the transaction without\n                                submitting\n  --ignore-unique-amount        Bypass the non-round amount privacy check\n  -h, --help                    display help for command\n\nDeposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may provision checksum-verified circuit artifacts (~60s). Subsequent runs typically complete in 10-30s.\n\nNon-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.\n\nExamples:\n  privacy-pools deposit 0.1 ETH\n  privacy-pools deposit 100 USDC\n  privacy-pools deposit 0.05 ETH --agent\n  privacy-pools deposit 0.1 ETH --unsigned\n  privacy-pools deposit 0.1 ETH --dry-run\n  privacy-pools deposit 0.1 --asset ETH --chain mainnet\n\nPrerequisites:\n  Requires: init\n\nSafety notes:\n  Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.\n  A vetting fee is deducted from the deposit amount by the pool's ASP.\n  Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.\n\nAgent workflow:\n  Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.\n\nJSON output (--json):\n  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }\n  --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }\n  --unsigned tx: [{ to, data, value, valueHex, chainId }]\n  --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }\n\nAdditional modes:\n  --unsigned builds transaction payloads without submitting.\n  --dry-run validates the operation without submitting it.",
     "withdraw": "Usage: privacy-pools withdraw [options] [command] [amount] [asset]\n\nWithdraw from a pool\n\nArguments:\n  amount                                    Amount to withdraw (e.g. 0.05, 50%)\n  asset                                     Asset symbol (e.g. ETH, USDC)\n\nOptions:\n  -t, --to <address>                        Recipient address (required for relayed)\n  -p, --from-pa <PA-#|#>                    Withdraw from a specific Pool Account (e.g. PA-2)\n  --unsigned [format]                       Build unsigned payload; format: envelope (default) or tx (choices: \"envelope\", \"tx\")\n  --dry-run                                 Generate and verify withdrawal artifacts without submitting\n  -a, --asset <symbol|address>              Asset to withdraw\n  --all                                     Withdraw entire Pool Account balance\n  --extra-gas                               Request gas tokens with withdrawal (default: true for ERC20)\n  --no-extra-gas                            Disable extra gas request\n  -h, --help                                display help for command\n\nCommands:\n  quote [options] <amountOrAsset> [amount]  Request relayer quote and limits without generating a proof\n\nWithdraws funds from a Privacy Pool via a relayer (default, recommended) for enhanced privacy. The relayer pays gas on your behalf and takes a small fee, keeping your withdrawal address unlinkable to your deposit. ASP approval is required before withdrawal. If a deposit is poi_required, complete Proof of Association at tornado.0xbow.io first. If it is declined, the recovery path is ragequit. Proof generation may take 10-30s. Use 'withdraw quote' to check relayer fees first.\n\nA --direct mode exists but is not recommended: it interacts with the pool contract directly, publicly linking your deposit and withdrawal addresses onchain. Prefer relayed withdrawals for privacy.\n\nNon-round withdrawal amounts may reduce privacy. The CLI suggests round alternatives.\n\nExamples:\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2\n  privacy-pools withdraw --all ETH --to 0xRecipient...\n  privacy-pools withdraw 50% ETH --to 0xRecipient...\n  privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet\n\nPrerequisites:\n  Requires: init (account state should be synced)\n\nSafety notes:\n  Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.\n  ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.\n  Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.\n\nJSON output (--json):\n  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }\n  direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.\n  quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }\n  --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }\n  --unsigned tx: [{ to, data, value, valueHex, chainId }]\n  --dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }\n\nAdditional modes:\n  --unsigned builds transaction payloads without submitting.\n  --dry-run validates the operation without submitting it.",
@@ -75,9 +75,9 @@
     "stats": "\nCommand: stats\n\nDescription: Show public statistics\nUsage: privacy-pools stats\nRequires init: no\nSafe read-only: yes\nExpected latency: medium\n\nFlags:\n  global\n  pool --asset <symbol|address>\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools stats global\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --agent --chain mainnet",
     "stats global": "\nCommand: stats global\n\nDescription: Show global Privacy Pools statistics (all-time and last 24h)\nUsage: privacy-pools stats global\nRequires init: no\nSafe read-only: yes\nExpected latency: medium\n\nGlobal flags:\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools stats global\n  privacy-pools stats global --agent\n\nJSON fields:\n  { mode, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
     "stats pool": "\nCommand: stats pool\n\nDescription: Show statistics for a specific pool (all-time and last 24h)\nUsage: privacy-pools stats pool --asset <symbol|address>\nRequires init: no\nSafe read-only: yes\nExpected latency: medium\n\nFlags:\n  --asset <symbol|address>\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools stats pool --asset ETH\n  privacy-pools stats pool --asset USDC --agent --chain mainnet\n\nJSON fields:\n  { mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
-    "status": "\nCommand: status\n\nDescription: Show configuration and check connection health\nUsage: privacy-pools status\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nFlags:\n  --check\n  --no-check\n  --check-rpc\n  --check-asp\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --agent --check-rpc\n  privacy-pools status --chain mainnet --rpc-url https://...\n\nJSON fields:\n  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+    "status": "\nCommand: status\n\nDescription: Show configuration and check connection health\nUsage: privacy-pools status\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nFlags:\n  --check\n  --no-check\n  --check-rpc\n  --check-asp\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools status\n  privacy-pools status --check\n  privacy-pools status --no-check\n  privacy-pools status --agent --check-rpc\n  privacy-pools status --chain mainnet --rpc-url https://...\n\nJSON fields:\n  { configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
     "capabilities": "\nCommand: capabilities\n\nDescription: Describe CLI capabilities for agent discovery\nUsage: privacy-pools capabilities\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools capabilities\n  privacy-pools capabilities --agent\n\nJSON fields:\n  { commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
-    "describe": "\nCommand: describe\n\nDescription: Describe one command for runtime agent introspection\nUsage: privacy-pools describe <command...>\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nFlags:\n  <command...>\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools describe withdraw\n  privacy-pools describe withdraw quote --agent\n  privacy-pools describe stats global --agent\n\nJSON fields:\n  { command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+    "describe": "\nCommand: describe\n\nDescription: Describe one command for runtime agent introspection\nUsage: privacy-pools describe <command...>\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nFlags:\n  <command...>\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools describe withdraw\n  privacy-pools describe withdraw quote --agent\n  privacy-pools describe stats global --agent\n\nJSON fields:\n  { command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
     "guide": "\nCommand: guide\n\nDescription: Show usage guide, workflow, and reference\nUsage: privacy-pools guide\nRequires init: no\nSafe read-only: yes\nExpected latency: fast\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nExamples:\n  privacy-pools guide\n  privacy-pools guide --agent\n\nJSON fields:\n  { mode: \"help\", help }",
     "deposit": "\nCommand: deposit\n\nDescription: Deposit into a pool\nUsage: privacy-pools deposit <amount> [asset]\nRequires init: yes\nSafe read-only: no\nExpected latency: slow\n\nFlags:\n  --asset <symbol|address>\n  --unsigned [envelope|tx]\n  --dry-run\n  --ignore-unique-amount\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nPrerequisites:\n  init\n\nExamples:\n  privacy-pools deposit 0.1 ETH\n  privacy-pools deposit 100 USDC\n  privacy-pools deposit 0.05 ETH --agent\n  privacy-pools deposit 0.1 ETH --unsigned\n  privacy-pools deposit 0.1 ETH --dry-run\n  privacy-pools deposit 0.1 --asset ETH --chain mainnet\n\nJSON fields:\n  { operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }\n\nJSON variants:\n  --unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }\n  --unsigned tx: [{ to, data, value, valueHex, chainId }]\n  --dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }\n\nSafety notes:\n  Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.\n  A vetting fee is deducted from the deposit amount by the pool's ASP.\n  Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.\n\nAgent workflow:\n  Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.\n\nAdditional modes:\n  --unsigned builds transaction payloads without submitting.\n  --dry-run validates the operation without submitting it.",
     "withdraw": "\nCommand: withdraw\n\nDescription: Withdraw from a pool\nUsage: privacy-pools withdraw [amount] [asset] --to <address>\nRequires init: yes\nSafe read-only: no\nExpected latency: slow\n\nFlags:\n  --asset <symbol|address>\n  --to <address>\n  --from-pa <PA-#>\n  --all\n  --direct\n  --extra-gas\n  --no-extra-gas\n  --unsigned [envelope|tx]\n  --dry-run\n\nGlobal flags:\n  -c, --chain <name>\n  -j, --json\n  --format <format>\n  -y, --yes\n  -r, --rpc-url <url>\n  --agent\n  -q, --quiet\n  --no-banner\n  -v, --verbose\n  --timeout <seconds>\n  --no-color\n\nPrerequisites:\n  init (account state should be synced)\n\nExamples:\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2\n  privacy-pools withdraw --all ETH --to 0xRecipient...\n  privacy-pools withdraw 50% ETH --to 0xRecipient...\n  privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run\n  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...\n  privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet\n\nJSON fields:\n  { operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }\n\nJSON variants:\n  direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.\n  quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, extraGas?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }\n  --unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }\n  --unsigned tx: [{ to, data, value, valueHex, chainId }]\n  --dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }\n\nSafety notes:\n  Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.\n  ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.\n  Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.\n\nAdditional modes:\n  --unsigned builds transaction payloads without submitting.\n  --dry-run validates the operation without submitting it.",
@@ -1545,6 +1545,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "fast",
         "safeReadOnly": false,
+        "sideEffectClass": "local_state_write",
+        "touchesFunds": false,
+        "requiresHumanReview": true,
         "prerequisites": [],
         "examples": [
           "privacy-pools init",
@@ -1602,6 +1605,13 @@
         "requiresInit": false,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "fund_movement",
+        "touchesFunds": true,
+        "requiresHumanReview": true,
+        "preferredSafeVariant": {
+          "command": "flow status",
+          "reason": "Inspect the saved workflow state before advancing a persisted flow."
+        },
         "prerequisites": [
           "init for start/watch/ragequit; saved workflow for status"
         ],
@@ -1653,6 +1663,9 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "fund_movement",
+        "touchesFunds": true,
+        "requiresHumanReview": true,
         "prerequisites": [
           "init"
         ],
@@ -1708,6 +1721,13 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "fund_movement",
+        "touchesFunds": true,
+        "requiresHumanReview": true,
+        "preferredSafeVariant": {
+          "command": "flow status",
+          "reason": "Inspect the saved workflow state before re-attaching a long-running flow."
+        },
         "prerequisites": [
           "init"
         ],
@@ -1759,6 +1779,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "fast",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [
           "saved workflow (usually created after init)"
         ],
@@ -1804,6 +1827,13 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "fund_movement",
+        "touchesFunds": true,
+        "requiresHumanReview": true,
+        "preferredSafeVariant": {
+          "command": "flow status",
+          "reason": "Inspect the saved workflow state before triggering the public recovery path."
+        },
         "prerequisites": [
           "init"
         ],
@@ -1857,6 +1887,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "medium",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools pools",
@@ -1913,6 +1946,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "medium",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools activity",
@@ -1961,6 +1997,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "medium",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools stats global",
@@ -2004,6 +2043,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "medium",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools stats global",
@@ -2049,6 +2091,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "medium",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools stats pool --asset ETH",
@@ -2094,6 +2139,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "fast",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools status",
@@ -2102,7 +2150,7 @@
           "privacy-pools status --agent --check-rpc",
           "privacy-pools status --chain mainnet --rpc-url https://..."
         ],
-        "jsonFields": "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+        "jsonFields": "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
         "jsonVariants": [],
         "safetyNotes": [],
         "supportsUnsigned": false,
@@ -2138,6 +2186,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "fast",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools capabilities",
@@ -2181,13 +2232,16 @@
         "requiresInit": false,
         "expectedLatencyClass": "fast",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools describe withdraw",
           "privacy-pools describe withdraw quote --agent",
           "privacy-pools describe stats global --agent"
         ],
-        "jsonFields": "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+        "jsonFields": "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
         "jsonVariants": [],
         "safetyNotes": [],
         "supportsUnsigned": false,
@@ -2223,6 +2277,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "fast",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools guide",
@@ -2268,6 +2325,13 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "fund_movement",
+        "touchesFunds": true,
+        "requiresHumanReview": true,
+        "preferredSafeVariant": {
+          "command": "pools",
+          "reason": "Browse pools and balances before submitting a new deposit."
+        },
         "prerequisites": [
           "init"
         ],
@@ -2334,6 +2398,13 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "fund_movement",
+        "touchesFunds": true,
+        "requiresHumanReview": true,
+        "preferredSafeVariant": {
+          "command": "withdraw quote",
+          "reason": "Check relayer fees and confirm the withdrawal inputs before submitting."
+        },
         "prerequisites": [
           "init (account state should be synced)"
         ],
@@ -2394,6 +2465,9 @@
         "requiresInit": true,
         "expectedLatencyClass": "medium",
         "safeReadOnly": false,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [
           "init"
         ],
@@ -2445,6 +2519,9 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "fund_movement",
+        "touchesFunds": true,
+        "requiresHumanReview": true,
         "prerequisites": [
           "init (account state should be synced)"
         ],
@@ -2501,6 +2578,9 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "local_state_write",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [
           "init"
         ],
@@ -2557,6 +2637,9 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [
           "init"
         ],
@@ -2602,6 +2685,9 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [
           "init"
         ],
@@ -2654,6 +2740,9 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "local_state_write",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [
           "init"
         ],
@@ -2700,6 +2789,9 @@
         "requiresInit": true,
         "expectedLatencyClass": "slow",
         "safeReadOnly": false,
+        "sideEffectClass": "local_state_write",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [
           "init"
         ],
@@ -2747,6 +2839,9 @@
         "requiresInit": false,
         "expectedLatencyClass": "fast",
         "safeReadOnly": true,
+        "sideEffectClass": "read_only",
+        "touchesFunds": false,
+        "requiresHumanReview": false,
         "prerequisites": [],
         "examples": [
           "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
@@ -2997,7 +3092,7 @@
       "firstRun": "First proof generation may provision checksum-verified circuit artifacts automatically (~60s one-time). Subsequent proofs are faster (~10-30s).",
       "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is null; the signing party fills in their own address.",
       "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-      "statusCheck": "Run 'status --agent' before transacting. readyForDeposit/readyForWithdraw/readyForUnsigned are configuration capability flags; they confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
+      "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard."
     },
     "schemas": {
       "aspApprovalStatus": {
@@ -3051,6 +3146,29 @@
       "nextActions": {
         "shape": "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null>, runnable?: boolean }",
         "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. When runnable is omitted or true, the command is fully specified and can be executed as shown. When runnable is false, the action is a template and requires additional user input before execution."
+      },
+      "sideEffectClass": {
+        "values": [
+          "read_only",
+          "local_state_write",
+          "network_write",
+          "fund_movement"
+        ],
+        "description": "Machine-readable risk classification for a command path. read_only never mutates local or remote protocol state. local_state_write may mutate local CLI state or secrets. network_write is reserved for remote mutations that do not directly move user funds. fund_movement may submit deposits, withdrawals, or public recoveries."
+      },
+      "statusRecommendedMode": {
+        "values": [
+          "setup-required",
+          "read-only",
+          "unsigned-only",
+          "ready"
+        ],
+        "description": "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only is reserved for discovery-only states where transacting is intentionally unavailable."
+      },
+      "statusIssues": {
+        "blockingIssueShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+        "warningShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+        "description": "Structured preflight issues returned by status --agent. blockingIssues describe setup blockers that should stop execution. warnings describe degraded or follow-up-worthy states that may still allow safe read-only usage."
       }
     },
     "supportedChains": [
@@ -3095,7 +3213,7 @@
     },
     "runtime": {
       "cliVersion": "1.7.0",
-      "jsonSchemaVersion": "1.5.0",
+      "jsonSchemaVersion": "1.6.0",
       "accountFileVersion": 3,
       "workflowSnapshotVersion": "1",
       "workflowSecretVersion": "1",
@@ -3125,7 +3243,7 @@
       "agentGuide": "AGENTS.md",
       "changelog": "CHANGELOG.md",
       "runtimeUpgrades": "docs/runtime-upgrades.md",
-      "jsonContract": "docs/contracts/cli-json-contract.v1.5.0.json"
+      "jsonContract": "docs/contracts/cli-json-contract.v1.6.0.json"
     }
   }
 }

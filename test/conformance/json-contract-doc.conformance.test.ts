@@ -72,6 +72,9 @@ describe("external JSON contract doc conformance", () => {
     const status = commands.status as { successFields?: Record<string, string> };
     expect(status.successFields?.selectedChain).toBe("string|null");
     expect(status.successFields?.recoveryPhraseSet).toBe("boolean");
+    expect(status.successFields?.recommendedMode).toContain('"setup-required"');
+    expect(status.successFields?.blockingIssues).toContain("StatusIssue[]?");
+    expect(status.successFields?.warnings).toContain("StatusIssue[]?");
 
     const meta = commands.meta as Record<string, unknown>;
     expect(meta.helpEnvelope).toBeTruthy();
@@ -114,5 +117,9 @@ describe("external JSON contract doc conformance", () => {
     expect(describe.successFields?.command).toContain("canonical command path");
     expect(describe.successFields?.globalFlags).toBe("string[]");
     expect(describe.successFields?.execution).toContain('"js-runtime"|"native-shell"|"hybrid"');
+    expect(describe.successFields?.sideEffectClass).toContain('"fund_movement"');
+    expect(describe.successFields?.touchesFunds).toBe("boolean");
+    expect(describe.successFields?.requiresHumanReview).toBe("boolean");
+    expect(describe.successFields?.preferredSafeVariant).toContain("command: string");
   });
 });

@@ -75,6 +75,20 @@ describe("command metadata conformance", () => {
     expect(payload.executionRoutes["pools"]).toEqual(
       getCommandExecutionMetadata("pools"),
     );
+    expect(payload.commandDetails["withdraw"]?.sideEffectClass).toBe("fund_movement");
+    expect(payload.commandDetails["withdraw"]?.touchesFunds).toBe(true);
+    expect(payload.commandDetails["withdraw"]?.requiresHumanReview).toBe(true);
+    expect(payload.commandDetails["withdraw"]?.preferredSafeVariant).toEqual({
+      command: "withdraw quote",
+      reason: "Check relayer fees and confirm the withdrawal inputs before submitting.",
+    });
+    expect(payload.commandDetails["flow"]?.sideEffectClass).toBe("fund_movement");
+    expect(payload.commandDetails["flow"]?.preferredSafeVariant?.command).toBe("flow status");
+    expect(payload.commandDetails["deposit"]?.preferredSafeVariant?.command).toBe("pools");
+    expect(payload.commandDetails["init"]?.sideEffectClass).toBe("local_state_write");
+    expect(payload.commandDetails["init"]?.touchesFunds).toBe(false);
+    expect(payload.commandDetails["init"]?.requiresHumanReview).toBe(true);
+    expect(payload.commandDetails["guide"]?.sideEffectClass).toBe("read_only");
     expect(payload.commandDetails["flow"]?.safeReadOnly).toBe(false);
     expect(payload.commandDetails["flow status"]?.safeReadOnly).toBe(true);
     expect(payload.commandDetails["guide"]?.safeReadOnly).toBe(true);
@@ -128,6 +142,8 @@ describe("command metadata conformance", () => {
     expect(payload.jsonOutputContract).toContain("--json or --agent");
     expect(guideDescriptor?.examples ?? []).toContain("privacy-pools guide --agent");
     expect(guideDescriptor?.jsonFields).toBe('{ mode: "help", help }');
+    expect(payload.agentNotes?.statusCheck).toContain("recommendedMode");
+    expect(payload.agentNotes?.statusCheck).toContain("blockingIssues[]");
   });
 
   test("command metadata examples prefer canonical --agent usage", () => {

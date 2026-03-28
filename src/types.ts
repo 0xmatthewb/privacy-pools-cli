@@ -69,10 +69,20 @@ export interface NextAction {
 
 export type CommandLatencyClass = "fast" | "medium" | "slow";
 export type CommandExecutionOwner = "js-runtime" | "native-shell" | "hybrid";
+export type CommandSideEffectClass =
+  | "read_only"
+  | "local_state_write"
+  | "network_write"
+  | "fund_movement";
 
 export interface CommandExecutionDescriptor {
   owner: CommandExecutionOwner;
   nativeModes: string[];
+}
+
+export interface PreferredSafeVariant {
+  command: string;
+  reason: string;
 }
 
 export interface CapabilityCommandSummary {
@@ -97,6 +107,10 @@ export interface DetailedCommandDescriptor {
   requiresInit: boolean;
   expectedLatencyClass: CommandLatencyClass;
   safeReadOnly: boolean;
+  sideEffectClass: CommandSideEffectClass;
+  touchesFunds: boolean;
+  requiresHumanReview: boolean;
+  preferredSafeVariant?: PreferredSafeVariant;
   prerequisites: string[];
   examples: string[];
   jsonFields: string | null;
@@ -128,6 +142,24 @@ export interface RuntimeCompatibilityDescriptor {
   workerProtocolVersion: string;
   manifestVersion: string;
   nativeBridgeVersion: string;
+}
+
+export type StatusRecommendedMode =
+  | "setup-required"
+  | "read-only"
+  | "unsigned-only"
+  | "ready";
+
+export type StatusIssueAffect =
+  | "deposit"
+  | "withdraw"
+  | "unsigned"
+  | "discovery";
+
+export interface StatusIssue {
+  code: string;
+  message: string;
+  affects: StatusIssueAffect[];
 }
 
 export interface CapabilitiesPayload {

@@ -44,6 +44,10 @@ describe("agent-focused improvements", () => {
       globalFlags: string[];
       requiresInit: boolean;
       expectedLatencyClass: string;
+      sideEffectClass: string;
+      touchesFunds: boolean;
+      requiresHumanReview: boolean;
+      preferredSafeVariant?: { command: string; reason: string };
     }>(result.stdout);
     expect(json.command).toBe("withdraw quote");
     expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
@@ -51,6 +55,9 @@ describe("agent-focused improvements", () => {
     expect(json.globalFlags).toContain("--agent");
     expect(json.requiresInit).toBe(true);
     expect(json.expectedLatencyClass).toBe("medium");
+    expect(json.sideEffectClass).toBe("read_only");
+    expect(json.touchesFunds).toBe(false);
+    expect(json.requiresHumanReview).toBe(false);
     expect(result.stderr.trim()).toBe("");
   });
 
@@ -109,6 +116,10 @@ describe("agent-focused improvements", () => {
         flags: string[];
         globalFlags: string[];
         safeReadOnly: boolean;
+        sideEffectClass: string;
+        touchesFunds: boolean;
+        requiresHumanReview: boolean;
+        preferredSafeVariant?: { command: string; reason: string };
       }>;
       executionRoutes: Record<string, { owner: string; nativeModes: string[] }>;
       safeReadOnlyCommands: string[];
@@ -124,6 +135,11 @@ describe("agent-focused improvements", () => {
     expect(json.commandDetails["status"]?.execution.owner).toBe("js-runtime");
     expect(json.commandDetails["capabilities"]?.execution.owner).toBe("native-shell");
     expect(json.executionRoutes["stats pool"]?.owner).toBe("hybrid");
+    expect(json.commandDetails["withdraw"]?.sideEffectClass).toBe("fund_movement");
+    expect(json.commandDetails["withdraw"]?.touchesFunds).toBe(true);
+    expect(json.commandDetails["withdraw"]?.requiresHumanReview).toBe(true);
+    expect(json.commandDetails["withdraw"]?.preferredSafeVariant?.command).toBe("withdraw quote");
+    expect(json.commandDetails["status"]?.sideEffectClass).toBe("read_only");
     expect(json.commandDetails["guide"]?.safeReadOnly).toBe(true);
     expect(json.commandDetails["completion"]?.safeReadOnly).toBe(true);
     expect(json.safeReadOnlyCommands).toContain("guide");

@@ -30,6 +30,9 @@ describe("JSON contract coverage", () => {
       readyForDeposit: boolean;
       readyForWithdraw: boolean;
       readyForUnsigned: boolean;
+      recommendedMode: string;
+      blockingIssues?: Array<{ code: string; affects: string[] }>;
+      warnings?: Array<{ code: string; affects: string[] }>;
     }>(result.stdout);
 
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
@@ -41,6 +44,9 @@ describe("JSON contract coverage", () => {
     expect(json.readyForDeposit).toBe(false);
     expect(json.readyForWithdraw).toBe(false);
     expect(json.readyForUnsigned).toBe(false);
+    expect(json.recommendedMode).toBe("setup-required");
+    expect(json.blockingIssues?.map((issue) => issue.code)).toContain("config_missing");
+    expect(json.blockingIssues?.map((issue) => issue.code)).toContain("recovery_phrase_missing");
   });
 
   test("status --json with init keeps semantic health fields", () => {
@@ -62,6 +68,8 @@ describe("JSON contract coverage", () => {
       signerKeySet: boolean;
       signerKeyValid: boolean;
       signerAddress: string | null;
+      recommendedMode: string;
+      warnings?: Array<{ code: string; affects: string[] }>;
       aspLive?: boolean;
       rpcLive?: boolean;
     }>(result.stdout);
@@ -74,9 +82,12 @@ describe("JSON contract coverage", () => {
     expect(json.recoveryPhraseSet).toBe(true);
     expect(json.signerKeySet).toBe(true);
     expect(json.signerKeyValid).toBe(true);
+    expect(json.recommendedMode).toBe("ready");
     expect(typeof json.signerAddress).toBe("string");
     expect(typeof json.aspLive).toBe("boolean");
     expect(typeof json.rpcLive).toBe("boolean");
+    expect(json.warnings?.map((issue) => issue.code)).toContain("rpc_unreachable");
+    expect(json.warnings?.map((issue) => issue.code)).toContain("asp_unreachable");
   });
 
   test("capabilities --json exposes the expected machine metadata", () => {
@@ -90,7 +101,14 @@ describe("JSON contract coverage", () => {
       schemaVersion: string;
       success: boolean;
       commands: Array<{ name: string }>;
-      commandDetails: Record<string, { command: string; usage?: string }>;
+      commandDetails: Record<string, {
+        command: string;
+        usage?: string;
+        sideEffectClass: string;
+        touchesFunds: boolean;
+        requiresHumanReview: boolean;
+        preferredSafeVariant?: { command: string; reason: string };
+      }>;
       documentation?: { reference?: string; agentGuide?: string };
       safeReadOnlyCommands: string[];
     }>(result.stdout);
@@ -101,6 +119,11 @@ describe("JSON contract coverage", () => {
     expect(json.commands.map((command) => command.name)).toContain("capabilities");
     expect(json.commandDetails["withdraw quote"]?.command).toBe("withdraw quote");
     expect(json.commandDetails["withdraw quote"]?.usage).toBe("withdraw quote <amount|asset> [amount]");
+    expect(json.commandDetails["withdraw"]?.sideEffectClass).toBe("fund_movement");
+    expect(json.commandDetails["withdraw"]?.touchesFunds).toBe(true);
+    expect(json.commandDetails["withdraw"]?.requiresHumanReview).toBe(true);
+    expect(json.commandDetails["withdraw"]?.preferredSafeVariant?.command).toBe("withdraw quote");
+    expect(json.commandDetails["guide"]?.sideEffectClass).toBe("read_only");
     expect(json.documentation).toMatchObject({
       reference: "docs/reference.md",
       agentGuide: "AGENTS.md",
