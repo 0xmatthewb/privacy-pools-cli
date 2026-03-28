@@ -33,6 +33,7 @@ export const TEST_PROFILE_FRAGMENTS = {
     ["npm", ["run", "test:native:lint"]],
     ["npm", ["run", "test:native"]],
   ],
+  "native-shell-parity": [["npm", ["run", "test:smoke:native:shell"]]],
   coverage: [["npm", ["run", "test:coverage"]]],
   "anvil-smoke": [["npm", ["run", "test:e2e:anvil:smoke"]]],
   "anvil-full": [["npm", ["run", "test:e2e:anvil"]]],
@@ -51,15 +52,29 @@ export const TEST_PROFILES = {
   ci: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
-    ...composeProfile("native-core", "coverage", "anvil-smoke", "evals"),
+    ...composeProfile(
+      "native-core",
+      "coverage",
+      "anvil-smoke",
+      "evals",
+      "build",
+      "native-shell-parity",
+    ),
     ...composeProfile("build", "docs-reference-check", "repo-conformance-live"),
   ],
   release: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
-    ...composeProfile("native-core", "coverage", "anvil-full", "anvil-smoke", "evals"),
     ...composeProfile(
+      "native-core",
+      "coverage",
+      "anvil-full",
+      "anvil-smoke",
+      "evals",
       "build",
+      "native-shell-parity",
+    ),
+    ...composeProfile(
       "docs-reference-check",
       "repo-conformance-live",
       "release-bench",
@@ -68,9 +83,16 @@ export const TEST_PROFILES = {
   all: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
-    ...composeProfile("native-core", "coverage", "anvil-full", "anvil-smoke", "evals"),
     ...composeProfile(
+      "native-core",
+      "coverage",
+      "anvil-full",
+      "anvil-smoke",
+      "evals",
       "build",
+      "native-shell-parity",
+    ),
+    ...composeProfile(
       "docs-reference-check",
       "repo-conformance-all",
       "release-bench",

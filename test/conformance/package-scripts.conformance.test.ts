@@ -57,9 +57,12 @@ describe("package scripts conformance", () => {
     );
   });
 
-  test("native package smoke scripts distinguish packaged smoke from installed-artifact checks", () => {
+  test("native smoke scripts publish both packaged and launcher-parity lanes", () => {
     expect(packageJson.scripts?.["test:smoke:native"]).toBe(
       "npm run test:smoke:native:package",
+    );
+    expect(packageJson.scripts?.["test:smoke:native:shell"]).toBe(
+      "node scripts/run-bun-tests.mjs ./test/integration/cli-native-shell.integration.test.ts --timeout 300000",
     );
     expect(packageJson.scripts?.["test:smoke:native:package"]).toBe(
       "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000",

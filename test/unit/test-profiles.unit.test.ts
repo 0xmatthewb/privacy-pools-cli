@@ -67,6 +67,9 @@ describe("test profiles", () => {
       ["npm", ["run", "test:native:lint"]],
       ["npm", ["run", "test:native"]],
     ]);
+    expect(TEST_PROFILE_FRAGMENTS["native-shell-parity"]).toEqual([
+      ["npm", ["run", "test:smoke:native:shell"]],
+    ]);
     expect(TEST_PROFILE_FRAGMENTS.coverage).toEqual([
       ["npm", ["run", "test:coverage"]],
     ]);
@@ -84,13 +87,25 @@ describe("test profiles", () => {
     ]);
 
     expect(resolveProfile("ci")).toContainEqual(["npm", ["run", "test:native"]]);
+    expect(resolveProfile("ci")).toContainEqual([
+      "npm",
+      ["run", "test:smoke:native:shell"],
+    ]);
     expect(resolveProfile("release")).toContainEqual([
+      "npm",
+      ["run", "test:e2e:anvil:smoke"],
+    ]);
+    expect(resolveProfile("release")).toContainEqual([
+      "npm",
+      ["run", "test:smoke:native:shell"],
+    ]);
+    expect(resolveProfile("all")).toContainEqual([
       "npm",
       ["run", "test:e2e:anvil:smoke"],
     ]);
     expect(resolveProfile("all")).toContainEqual([
       "npm",
-      ["run", "test:e2e:anvil:smoke"],
+      ["run", "test:smoke:native:shell"],
     ]);
     expect(resolveProfile("release")).toContainEqual([
       "npm",
