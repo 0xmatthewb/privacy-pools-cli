@@ -45,12 +45,13 @@ function expectFlowStatusAgentContract(
   home: string,
   workflowId: string,
   phase: string,
-  expectedNextAction:
+  expectedNextActions:
     | null
-    | {
+    | Array<{
         command: string;
         when: string;
-      } = null,
+        runnable?: boolean;
+      }> = null,
 ): void {
   const result = runCli(["--agent", "flow", "status", workflowId], {
     home,
@@ -80,27 +81,28 @@ function expectFlowStatusAgentContract(
   expect(json.workflowId).toBe(workflowId);
   expect(json.phase).toBe(phase);
 
-  if (!expectedNextAction) {
+  if (!expectedNextActions) {
     expect(json.nextActions ?? []).toEqual([]);
     return;
   }
 
-  expect(json.nextActions).toEqual([
-    {
+  expect(json.nextActions).toEqual(
+    expectedNextActions.map((expectedNextAction) => ({
       command: expectedNextAction.command,
       reason: expect.any(String),
       when: expectedNextAction.when,
       args: [workflowId],
       options: { agent: true },
-    },
-  ]);
+      ...(expectedNextAction.runnable === false ? { runnable: false } : {}),
+    })),
+  );
 }
 
 describe("flow command", () => {
   const statusPhaseCases = [
     {
       phase: "awaiting_funding",
-      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
       overrides: {
         walletMode: "new_wallet",
         walletAddress: "0x5555555555555555555555555555555555555555",
@@ -109,7 +111,7 @@ describe("flow command", () => {
     },
     {
       phase: "depositing_publicly",
-      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
       overrides: {
         walletMode: "new_wallet",
         walletAddress: "0x5555555555555555555555555555555555555555",
@@ -118,7 +120,7 @@ describe("flow command", () => {
     },
     {
       phase: "awaiting_asp",
-      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -127,7 +129,7 @@ describe("flow command", () => {
     },
     {
       phase: "approved_waiting_privacy_delay",
-      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -138,7 +140,7 @@ describe("flow command", () => {
     },
     {
       phase: "approved_ready_to_withdraw",
-      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -147,7 +149,7 @@ describe("flow command", () => {
     },
     {
       phase: "withdrawing",
-      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      expectedNextActions: [{ command: "flow watch", when: "flow_resume" }],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -156,7 +158,7 @@ describe("flow command", () => {
     },
     {
       phase: "completed",
-      expectedNextAction: null,
+      expectedNextActions: null,
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -168,7 +170,7 @@ describe("flow command", () => {
     },
     {
       phase: "completed_public_recovery",
-      expectedNextAction: null,
+      expectedNextActions: null,
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -180,7 +182,7 @@ describe("flow command", () => {
     },
     {
       phase: "paused_declined",
-      expectedNextAction: { command: "flow ragequit", when: "flow_declined" },
+      expectedNextActions: [{ command: "flow ragequit", when: "flow_declined" }],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -189,7 +191,10 @@ describe("flow command", () => {
     },
     {
       phase: "paused_poi_required",
-      expectedNextAction: { command: "flow watch", when: "flow_resume" },
+      expectedNextActions: [
+        { command: "flow watch", when: "flow_resume", runnable: false },
+        { command: "flow ragequit", when: "flow_public_recovery_optional" },
+      ],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -198,7 +203,7 @@ describe("flow command", () => {
     },
     {
       phase: "stopped_external",
-      expectedNextAction: null,
+      expectedNextActions: null,
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -207,12 +212,12 @@ describe("flow command", () => {
     },
   ] as const;
 
-  for (const { phase, expectedNextAction, overrides } of statusPhaseCases) {
+  for (const { phase, expectedNextActions, overrides } of statusPhaseCases) {
     test(`flow status keeps ${phase} machine-readable and phase-stable`, () => {
       const home = createTempHome();
       const workflowId = `wf-${phase}`;
       writeWorkflow(home, buildFlowSnapshot(workflowId, phase, overrides));
-      expectFlowStatusAgentContract(home, workflowId, phase, expectedNextAction);
+      expectFlowStatusAgentContract(home, workflowId, phase, expectedNextActions);
     });
   }
 
@@ -351,7 +356,7 @@ describe("flow command", () => {
       {
         command: "flow ragequit",
         reason:
-          "This workflow was declined. flow ragequit is the canonical saved-workflow recovery path.",
+          "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path.",
         when: "flow_declined",
         args: ["wf-123"],
         options: { agent: true },

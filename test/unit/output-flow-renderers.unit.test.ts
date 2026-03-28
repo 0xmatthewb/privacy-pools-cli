@@ -91,7 +91,7 @@ describe("renderFlowResult", () => {
       {
         command: "flow ragequit",
         reason:
-          "This workflow was declined. flow ragequit is the canonical saved-workflow recovery path.",
+          "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path.",
         when: "flow_declined",
         args: ["wf-123"],
         options: {
@@ -118,6 +118,41 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("tornado.0xbow.io");
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools flow watch wf-123");
+    expect(stderr).toContain("privacy-pools flow ragequit wf-123");
+  });
+
+  test("JSON mode marks PoA watch follow-up as non-runnable and surfaces public recovery", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "paused_poi_required",
+          aspStatus: "poi_required",
+        }),
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toEqual([
+      {
+        command: "flow watch",
+        reason:
+          "Complete Proof of Association externally first, then re-check this workflow to continue privately.",
+        when: "flow_resume",
+        args: ["wf-123"],
+        options: { agent: true },
+        runnable: false,
+      },
+      {
+        command: "flow ragequit",
+        reason:
+          "Use flow ragequit instead if you want to recover publicly without completing Proof of Association.",
+        when: "flow_public_recovery_optional",
+        args: ["wf-123"],
+        options: { agent: true },
+      },
+    ]);
   });
 
   test("human mode omits next steps for completed workflows", () => {
@@ -169,6 +204,7 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("Required token funding: 100 USDC");
     expect(stderr).toContain("Required native funding: 0.1 ETH");
     expect(stderr).toContain("Committed value: 99.5 USDC");
+    expect(stderr).toContain("Wallet mode: Dedicated workflow wallet");
   });
 
   test("human mode falls back to raw stored amounts when snapshot values are corrupt", () => {

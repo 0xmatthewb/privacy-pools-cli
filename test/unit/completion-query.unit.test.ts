@@ -44,6 +44,13 @@ describe("completion query helpers", () => {
     expect(
       queryCompletionCandidates(["privacy-pools", "--format=j"], 1),
     ).toEqual(["--format=json"]);
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "flow", "start", "0.1", "ETH", "--privacy-delay", ""],
+        6,
+      ),
+    ).toEqual(["aggressive", "balanced", "off"]);
   });
 
   test("returns no candidates when a free-form option value is expected", () => {

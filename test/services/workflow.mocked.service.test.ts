@@ -177,12 +177,14 @@ function setPromptResponses({
   input = join(state.tempHome, "unused-wallet.txt"),
   select = "copied",
 }: {
-  confirm?: boolean;
+  confirm?: boolean | boolean[];
   input?: string;
   select?: PromptBackupChoice;
 } = {}): void {
   confirmPromptMock.mockClear();
-  confirmPromptMock.mockImplementation(async () => confirm);
+  const confirmQueue = Array.isArray(confirm) ? [...confirm] : [confirm];
+  const finalConfirm = confirmQueue[confirmQueue.length - 1] ?? true;
+  confirmPromptMock.mockImplementation(async () => confirmQueue.shift() ?? finalConfirm);
   inputPromptMock.mockClear();
   inputPromptMock.mockImplementation(async () => input);
   selectPromptMock.mockClear();
@@ -3977,6 +3979,10 @@ describe("workflow service mocked coverage", () => {
         expect(BigInt(snapshot.requiredNativeFunding ?? "0")).toBeGreaterThan(0n);
       });
 
+      expect(stderr).toContain("Expected committed value:");
+      expect(stderr).toContain("Auto-withdrawal:");
+      expect(stderr).toContain("Privacy delay: Off (no added hold)");
+      expect(stderr).toContain("Wallet setup:");
       expect(stderr).toContain("\n");
       expect(readFileSync(promptedBackupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
     } finally {
@@ -3984,8 +3990,38 @@ describe("workflow service mocked coverage", () => {
     }
   });
 
-  test("interactive new-wallet flows stop when backup confirmation is declined", async () => {
+  test("interactive new-wallet flows can cancel at the shared flow review prompt", async () => {
     setPromptResponses({ confirm: false });
+    state.currentSignerPrivateKey = null;
+
+    await expect(
+      startWorkflow({
+        amountInput: "100",
+        assetInput: "USDC",
+        recipient: "0x7777777777777777777777777777777777777777",
+        newWallet: true,
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: false,
+          isJson: false,
+          isCsv: false,
+          isQuiet: false,
+          format: "table",
+          skipPrompts: false,
+        },
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toThrow("Flow cancelled.");
+
+    const secretFiles = existsSync(realConfig.getWorkflowSecretsDir())
+      ? readdirSync(realConfig.getWorkflowSecretsDir())
+      : [];
+    expect(secretFiles).toHaveLength(0);
+  });
+
+  test("interactive new-wallet flows stop when backup confirmation is declined", async () => {
+    setPromptResponses({ confirm: [true, false] });
     state.currentSignerPrivateKey = null;
 
     const { stdout, stderr } = await captureAsyncOutput(async () => {

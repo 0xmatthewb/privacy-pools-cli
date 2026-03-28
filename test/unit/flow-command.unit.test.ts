@@ -19,11 +19,17 @@ describe("flow command shell", () => {
         "--watch",
       ]),
     );
+    expect(
+      start?.options.find((option) => option.long === "--privacy-delay")?.argChoices,
+    ).toEqual(["off", "balanced", "aggressive"]);
 
     const watch = command.commands.find((subcommand) => subcommand.name() === "watch");
     expect(watch).toBeDefined();
     expect(watch?.options.map((option) => option.flags)).toEqual(
       expect.arrayContaining(["--privacy-delay <profile>"]),
     );
+    expect(
+      watch?.options.find((option) => option.long === "--privacy-delay")?.argChoices,
+    ).toEqual(["off", "balanced", "aggressive"]);
   });
 });
