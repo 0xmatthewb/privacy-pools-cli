@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 type WorkflowSnapshot = Record<string, unknown> & {
@@ -33,22 +33,17 @@ function readLatestWorkflowSnapshot(home: string): WorkflowSnapshot | null {
     .map((entry) => {
       const filePath = join(workflowDir, entry);
       try {
-        return {
-          snapshot: JSON.parse(readFileSync(filePath, "utf8")) as WorkflowSnapshot,
-          mtimeMs: statSync(filePath).mtimeMs,
-        };
+        return JSON.parse(readFileSync(filePath, "utf8")) as WorkflowSnapshot;
       } catch {
         return null;
       }
     })
-    .filter((entry): entry is { snapshot: WorkflowSnapshot; mtimeMs: number } => entry !== null)
-    .sort((left, right) => {
-      const timeDiff = snapshotTimestamp(right.snapshot) - snapshotTimestamp(left.snapshot);
-      if (timeDiff !== 0) return timeDiff;
-      return right.mtimeMs - left.mtimeMs;
-    });
+    .filter((entry): entry is WorkflowSnapshot => entry !== null)
+    .sort(
+      (left, right) => snapshotTimestamp(right) - snapshotTimestamp(left),
+    );
 
-  return snapshots[0]?.snapshot ?? null;
+  return snapshots[0] ?? null;
 }
 
 export async function waitForWorkflowSnapshotPhase(

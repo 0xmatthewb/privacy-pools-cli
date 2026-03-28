@@ -81,6 +81,19 @@ describe("external JSON contract doc conformance", () => {
     expect(meta.versionEnvelope).toBeTruthy();
   });
 
+  test("doc reflects current flow machine fields", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const commands = doc.commands as Record<string, unknown>;
+
+    const flow = commands.flow as { successFields?: Record<string, string> };
+    expect(flow.successFields?.phase).toContain("\"approved_waiting_privacy_delay\"");
+    expect(flow.successFields?.privacyDelayProfile).toContain("\"balanced\"");
+    expect(flow.successFields?.privacyDelayConfigured).toContain("legacy snapshots");
+    expect(flow.successFields?.privacyDelayUntil).toContain("iso8601-string");
+    expect(flow.successFields?.warnings).toContain("FlowWarning[]");
+    expect(flow.successFields?.nextActions).toContain("canonical saved-workflow");
+  });
+
   test("doc reflects current activity/accounts/stats machine fields", () => {
     const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
     const commands = doc.commands as Record<string, unknown>;

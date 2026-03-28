@@ -2022,6 +2022,48 @@ describe("workflow service mocked coverage", () => {
     expect(sleepCalls).toHaveLength(0);
   });
 
+  test("watchWorkflow prints a human acknowledgment when clearing a saved privacy delay", async () => {
+    overrideWorkflowTimingForTests({
+      nowMs: () => Date.parse("2026-03-24T12:00:00.000Z"),
+      sleep: async () => undefined,
+    });
+
+    writeWorkflowSnapshot("wf-privacy-delay-off-message", {
+      phase: "approved_waiting_privacy_delay",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+      privacyDelayProfile: "balanced",
+      privacyDelayConfigured: true,
+      approvalObservedAt: "2026-03-24T11:00:00.000Z",
+      privacyDelayUntil: "2026-03-24T13:00:00.000Z",
+      aspStatus: "approved",
+    });
+
+    const { stderr } = await captureAsyncOutput(async () => {
+      const snapshot = await watchWorkflow({
+        workflowId: "wf-privacy-delay-off-message",
+        privacyDelayProfile: "off",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: false,
+          isJson: false,
+          isCsv: false,
+          isQuiet: false,
+          format: "table",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      });
+
+      expect(snapshot.phase).toBe("completed");
+    });
+
+    expect(stderr).toContain(
+      "Saved privacy-delay policy updated to Off (no added hold). Any existing privacy-delay hold was cleared.",
+    );
+  });
+
   test("watchWorkflow reschedules approved privacy delays when switching profiles", async () => {
     let nowMs = Date.parse("2026-03-24T12:00:00.000Z");
     const stop = new Error("stop after reschedule");
@@ -2073,6 +2115,54 @@ describe("workflow service mocked coverage", () => {
     expect(rescheduled.approvalObservedAt).toBe("2026-03-24T12:00:00.000Z");
     expect(rescheduled.privacyDelayUntil).toBe("2026-03-24T16:00:00.000Z");
     expect(sampleCalls).toBe(1);
+  });
+
+  test("watchWorkflow prints a human acknowledgment when rescheduling privacy delay", async () => {
+    let nowMs = Date.parse("2026-03-24T12:00:00.000Z");
+    const stop = new Error("stop after reschedule");
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowMs,
+      samplePrivacyDelayMs: () => 4 * 60 * 60_000,
+      sleep: async (ms) => {
+        nowMs += ms;
+        throw stop;
+      },
+    });
+
+    writeWorkflowSnapshot("wf-privacy-delay-switch-message", {
+      phase: "approved_waiting_privacy_delay",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositLabel: state.label.toString(),
+      privacyDelayProfile: "balanced",
+      privacyDelayConfigured: true,
+      approvalObservedAt: "2026-03-24T11:00:00.000Z",
+      privacyDelayUntil: "2026-03-24T12:30:00.000Z",
+      aspStatus: "approved",
+    });
+
+    const { stderr } = await captureAsyncOutput(async () => {
+      await expect(
+        watchWorkflow({
+          workflowId: "wf-privacy-delay-switch-message",
+          privacyDelayProfile: "aggressive",
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: false,
+            isJson: false,
+            isCsv: false,
+            isQuiet: false,
+            format: "table",
+            skipPrompts: true,
+          },
+          isVerbose: false,
+        }),
+      ).rejects.toThrow(stop.message);
+    });
+
+    expect(stderr).toContain("Saved privacy-delay policy updated from");
+    expect(stderr).toContain("Aggressive (randomized 2 to 12 hours)");
+    expect(stderr).toContain("local time");
   });
 
   test("watchWorkflow pauses flows that require Proof of Association", async () => {

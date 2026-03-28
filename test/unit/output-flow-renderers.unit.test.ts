@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, mock, test } from "bun:test";
+import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import type { FlowSnapshot } from "../../src/services/workflow.ts";
 import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
@@ -70,14 +71,6 @@ describe("renderFlowResult", () => {
         args: ["wf-123"],
         options: { agent: true },
       },
-      {
-        command: "flow ragequit",
-        reason:
-          "Use flow ragequit instead if you want to stop waiting and recover publicly to the original deposit address.",
-        when: "flow_public_recovery_optional",
-        args: ["wf-123"],
-        options: { agent: true },
-      },
     ]);
     expect(stderr).toBe("");
   });
@@ -123,7 +116,7 @@ describe("renderFlowResult", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Proof of Association");
-    expect(stderr).toContain("tornado.0xbow.io");
+    expect(stderr).toContain(POA_PORTAL_URL);
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools flow watch wf-123");
     expect(stderr).toContain("privacy-pools flow ragequit wf-123");
@@ -146,7 +139,7 @@ describe("renderFlowResult", () => {
       {
         command: "flow watch",
         reason:
-          "Complete Proof of Association externally first, then re-check this workflow to continue privately.",
+          `Complete Proof of Association at ${POA_PORTAL_URL} first, then re-check this workflow to continue privately.`,
         when: "flow_resume",
         args: ["wf-123"],
         options: { agent: true },
@@ -335,7 +328,8 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain("Approved and waiting for privacy delay");
-    expect(stderr).toContain("Privacy delay until: 2026-03-24T13:00:00.000Z");
+    expect(stderr).toContain("Privacy delay until:");
+    expect(stderr).toContain("local time");
     expect(stderr).toContain("Balanced (randomized 15 to 90 minutes)");
     expect(stderr).toContain("manual round partial withdrawals");
   });
@@ -365,10 +359,12 @@ describe("renderFlowResult", () => {
         action: "status",
         snapshot: sampleSnapshot({
           phase: "awaiting_funding",
+          asset: "USDC",
+          assetDecimals: 6,
           walletMode: "new_wallet",
           walletAddress: "0x5555555555555555555555555555555555555555",
-          requiredNativeFunding: "123",
-          requiredTokenFunding: "456",
+          requiredNativeFunding: "123000000000000000",
+          requiredTokenFunding: "456000000",
           backupConfirmed: true,
           poolAccountId: null,
           poolAccountNumber: null,
@@ -385,19 +381,101 @@ describe("renderFlowResult", () => {
     expect(json.phase).toBe("awaiting_funding");
     expect(json.walletMode).toBe("new_wallet");
     expect(json.walletAddress).toBe("0x5555555555555555555555555555555555555555");
-    expect(json.requiredNativeFunding).toBe("123");
-    expect(json.requiredTokenFunding).toBe("456");
+    expect(json.requiredNativeFunding).toBe("123000000000000000");
+    expect(json.requiredTokenFunding).toBe("456000000");
     expect(json.backupConfirmed).toBe(true);
     expect(json.nextActions).toEqual([
       {
         command: "flow watch",
         reason:
-          "Resume this saved workflow and continue toward the private withdrawal.",
+          "Fund the dedicated workflow wallet with 456 USDC and 0.12 ETH first, then re-run flow watch to continue.",
         when: "flow_resume",
         args: ["wf-123"],
         options: { agent: true },
       },
     ]);
+  });
+
+  test("JSON mode adds signer caveats to configured-wallet public recovery guidance", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          walletMode: "configured",
+          phase: "paused_declined",
+          aspStatus: "declined",
+        }),
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toEqual([
+      {
+        command: "flow ragequit",
+        reason:
+          "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path. This configured-wallet workflow still requires the original depositor signer.",
+        when: "flow_declined",
+        args: ["wf-123"],
+        options: { agent: true },
+      },
+    ]);
+  });
+
+  test("JSON mode surfaces a manual accounts follow-up for externally stopped workflows", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "stopped_external",
+          aspStatus: "approved",
+        }),
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toEqual([
+      {
+        command: "accounts",
+        reason:
+          "This saved workflow stopped after PA-1 changed externally. Inspect the latest account state, then continue manually with withdraw or ragequit.",
+        when: "flow_manual_followup",
+        options: { agent: true, chain: "sepolia" },
+      },
+    ]);
+  });
+
+  test("JSON mode suppresses privacy warnings for terminal and ragequit outputs", () => {
+    const jsonCtx = createOutputContext(makeMode({ isJson: true }));
+
+    const completed = captureOutput(() =>
+      renderFlowResult(jsonCtx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "completed",
+          aspStatus: "approved",
+          committedValue: "100198474",
+          privacyDelayProfile: "off",
+          privacyDelayConfigured: true,
+        }),
+      }),
+    );
+    expect(parseCapturedJson(completed.stdout).warnings).toBeUndefined();
+
+    const ragequit = captureOutput(() =>
+      renderFlowResult(jsonCtx, {
+        action: "ragequit",
+        snapshot: sampleSnapshot({
+          phase: "completed_public_recovery",
+          aspStatus: "declined",
+          committedValue: "100198474",
+          privacyDelayProfile: "off",
+          privacyDelayConfigured: true,
+        }),
+      }),
+    );
+    expect(parseCapturedJson(ragequit.stdout).warnings).toBeUndefined();
   });
 
   test("JSON mode keeps internal deposit label anchors out of the public contract", () => {

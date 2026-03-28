@@ -149,8 +149,9 @@ defineScenarioSuite("flow acceptance", [
         expect(json.nextActions).toEqual([
           {
             command: "flow ragequit",
-            reason:
-              "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path.",
+            reason: expect.stringContaining(
+              "canonical saved-workflow public recovery path",
+            ),
             when: "flow_declined",
             args: ["wf-123"],
             options: { agent: true },

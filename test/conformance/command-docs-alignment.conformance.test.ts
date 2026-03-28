@@ -328,6 +328,45 @@ describe("command docs alignment", () => {
     expect(normalizedReference).toContain("privacy-pools flow ragequit [workflowId|latest] [options]");
   });
 
+  test("flow docs and discovery metadata keep the privacy-delay agent surface aligned", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const flowStartMetadata = getCommandMetadata("flow start");
+    const flowWatchMetadata = getCommandMetadata("flow watch");
+    const normalizedAgents = normalizeWhitespace(agents);
+    const normalizedReference = normalizeWhitespace(reference);
+    const normalizedSkillReference = normalizeWhitespace(skillReference);
+
+    expect(flowStartMetadata.capabilities.agentFlags).toContain("--privacy-delay <profile>");
+    expect(flowWatchMetadata.capabilities.agentFlags).toContain("--privacy-delay <profile>");
+    expect(flowStartMetadata.help?.jsonFields).toContain("privacyDelayProfile");
+    expect(flowWatchMetadata.help?.jsonFields).toContain("privacyDelayUntil");
+    expect(normalizeWhitespace((flowWatchMetadata.help?.safetyNotes ?? []).join(" "))).toContain(
+      "Passing --privacy-delay on flow watch updates the saved workflow policy",
+    );
+    expect(normalizedAgents).toContain("flow watch latest --privacy-delay aggressive --agent");
+    expect(normalizedReference).toContain("--privacy-delay <profile>");
+    expect(normalizedSkillReference).toContain("flow watch latest --privacy-delay aggressive --agent");
+  });
+
+  test("flow ragequit docs keep the flow JSON contract aligned", () => {
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const flowRagequitMetadata = getCommandMetadata("flow ragequit");
+    const referenceSection = extractDocumentSection(reference, "### `flow ragequit`", [
+      "### `flow ragequit`",
+      "### `pools`",
+    ]);
+    const normalizedSection = normalizeWhitespace(referenceSection);
+
+    expect(flowRagequitMetadata.help?.jsonFields).toContain("privacyDelayProfile");
+    expect(flowRagequitMetadata.help?.jsonFields).toContain("privacyDelayConfigured");
+    expect(flowRagequitMetadata.help?.jsonFields).toContain("privacyDelayUntil?");
+    expect(normalizedSection).toContain("privacyDelayProfile");
+    expect(normalizedSection).toContain("privacyDelayConfigured");
+    expect(normalizedSection).toContain("privacyDelayUntil");
+  });
+
   test("flow watch docs explain the external-timeout expectation for agents", () => {
     const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
     const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
@@ -543,10 +582,10 @@ describe("command docs alignment", () => {
     ) as { capabilitiesHumanText: string };
 
     expect(nativeManifest.capabilitiesHumanText).toContain(
-      "privacy-pools flow start <amount> <asset> --to <address> --agent [--watch] [--new-wallet] [--export-new-wallet <path>]",
+      "privacy-pools flow start <amount> <asset> --to <address> --agent [--privacy-delay <profile>] [--watch] [--new-wallet] [--export-new-wallet <path>]",
     );
     expect(nativeManifest.capabilitiesHumanText).toContain(
-      "privacy-pools flow watch [workflowId|latest] --agent",
+      "privacy-pools flow watch [workflowId|latest] --agent [--privacy-delay <profile>]",
     );
     expect(nativeManifest.capabilitiesHumanText).toContain(
       "privacy-pools flow status [workflowId|latest] --agent",

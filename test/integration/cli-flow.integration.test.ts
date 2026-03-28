@@ -51,6 +51,8 @@ function expectFlowStatusAgentContract(
         command: string;
         when: string;
         runnable?: boolean;
+        args?: string[];
+        options?: Record<string, boolean | string>;
       }> = null,
 ): void {
   const result = runCli(["--agent", "flow", "status", workflowId], {
@@ -91,8 +93,12 @@ function expectFlowStatusAgentContract(
       command: expectedNextAction.command,
       reason: expect.any(String),
       when: expectedNextAction.when,
-      args: [workflowId],
-      options: { agent: true },
+      ...(expectedNextAction.args === undefined
+        ? { args: [workflowId] }
+        : expectedNextAction.args.length > 0
+          ? { args: expectedNextAction.args }
+          : {}),
+      options: expectedNextAction.options ?? { agent: true },
       ...(expectedNextAction.runnable === false ? { runnable: false } : {}),
     })),
   );
@@ -203,7 +209,14 @@ describe("flow command", () => {
     },
     {
       phase: "stopped_external",
-      expectedNextActions: null,
+      expectedNextActions: [
+        {
+          command: "accounts",
+          when: "flow_manual_followup",
+          args: [],
+          options: { agent: true, chain: "sepolia" },
+        },
+      ],
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
@@ -344,7 +357,13 @@ describe("flow command", () => {
       action: string;
       workflowId: string;
       phase: string;
-      nextActions: Array<{ command: string; options?: Record<string, string> }>;
+      nextActions: Array<{
+        command: string;
+        reason: string;
+        when: string;
+        args?: string[];
+        options?: Record<string, boolean | string>;
+      }>;
     }>(result.stdout);
 
     expect(json.success).toBe(true);
@@ -355,8 +374,9 @@ describe("flow command", () => {
     expect(json.nextActions).toEqual([
       {
         command: "flow ragequit",
-        reason:
-          "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path.",
+        reason: expect.stringContaining(
+          "canonical saved-workflow public recovery path",
+        ),
         when: "flow_declined",
         args: ["wf-123"],
         options: { agent: true },
@@ -408,6 +428,51 @@ describe("flow command", () => {
     expect(json.warnings?.every((warning) => warning.category === "privacy")).toBe(
       true,
     );
+  });
+
+  test("flow status normalizes legacy workflows without saved privacy-delay fields", () => {
+    const home = createTempHome();
+    writeWorkflow(home, {
+      workflowId: "wf-legacy",
+      createdAt: "2026-03-24T12:00:00.000Z",
+      updatedAt: "2026-03-24T12:00:00.000Z",
+      phase: "awaiting_asp",
+      chain: "sepolia",
+      asset: "ETH",
+      assetDecimals: 18,
+      depositAmount: "10000000000000000",
+      recipient: "0x4444444444444444444444444444444444444444",
+      poolAccountId: "PA-1",
+      poolAccountNumber: 1,
+      depositTxHash:
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      depositBlockNumber: "12345",
+      depositExplorerUrl: "https://example.test/deposit",
+      committedValue: "9950000000000000",
+      aspStatus: "pending",
+    });
+
+    const result = runCli(["--json", "flow", "status", "wf-legacy"], {
+      home,
+      timeoutMs: 10_000,
+    });
+
+    expect(result.status).toBe(0);
+    const json = parseJsonOutput<{
+      success: boolean;
+      privacyDelayProfile: string;
+      privacyDelayConfigured: boolean;
+      privacyDelayUntil?: string | null;
+      warnings?: Array<{ code: string }>;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
+    expect(json.privacyDelayProfile).toBe("off");
+    expect(json.privacyDelayConfigured).toBe(false);
+    expect(json.privacyDelayUntil).toBeNull();
+    expect(json.warnings?.map((warning) => warning.code)).toEqual([
+      "amount_pattern_linkability",
+    ]);
   });
 
   test("flow status latest resolves the newest saved workflow", () => {
