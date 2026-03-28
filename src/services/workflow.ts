@@ -24,7 +24,7 @@ import {
   TransactionReceiptNotFoundError,
 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { explorerTxUrl, NATIVE_ASSET_ADDRESS } from "../config/chains.js";
+import { explorerTxUrl, isNativePoolAsset } from "../config/chains.js";
 import {
   initializeAccountService,
   saveAccount,
@@ -786,6 +786,29 @@ async function withProcessLock<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+const activeWorkflowOperations = new Set<string>();
+
+async function withWorkflowOperationLock<T>(
+  workflowId: string,
+  action: "watch" | "ragequit",
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (activeWorkflowOperations.has(workflowId)) {
+    throw new CLIError(
+      "Another saved workflow operation is already in progress for this workflow.",
+      "INPUT",
+      `Wait for it to finish before retrying 'privacy-pools flow ${action} ${workflowId}'.`,
+    );
+  }
+
+  activeWorkflowOperations.add(workflowId);
+  try {
+    return await fn();
+  } finally {
+    activeWorkflowOperations.delete(workflowId);
+  }
+}
+
 export function isTerminalFlowPhase(phase: FlowPhase): boolean {
   return (
     phase === "completed" ||
@@ -1184,8 +1207,7 @@ async function confirmHumanFlowStartReview(params: {
   const amountUsd = usdSuffix(amount, pool.decimals, tokenPrice);
   const feeUsd = usdSuffix(feeAmount, pool.decimals, tokenPrice);
   const committedUsd = usdSuffix(estimatedCommitted, pool.decimals, tokenPrice);
-  const isErc20 =
-    pool.asset.toLowerCase() !== NATIVE_ASSET_ADDRESS.toLowerCase();
+  const isErc20 = !isNativePoolAsset(resolveChain(chainName).id, pool.asset);
 
   info(`Recipient: ${formatAddress(recipient)}`, silent);
   info(
@@ -1512,21 +1534,16 @@ export async function getFlowFundingRequirements(params: {
 
   const bufferedGasPrice =
     (gasPrice * FLOW_GAS_PRICE_BUFFER_NUMERATOR) / FLOW_GAS_PRICE_BUFFER_DENOMINATOR;
+  const isNativeAsset = isNativePoolAsset(params.chainConfig.id, params.pool.asset);
   const gasUnits =
-    params.pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase()
+    isNativeAsset
       ? FLOW_GAS_NATIVE_DEPOSIT + FLOW_GAS_RAGEQUIT
       : FLOW_GAS_ERC20_APPROVAL + FLOW_GAS_ERC20_DEPOSIT + FLOW_GAS_RAGEQUIT;
   const reserve = gasUnits * bufferedGasPrice * FLOW_GAS_RESERVE_MULTIPLIER;
 
   return {
-    requiredNativeFunding:
-      params.pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase()
-        ? params.amount + reserve
-        : reserve,
-    requiredTokenFunding:
-      params.pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase()
-        ? null
-        : params.amount,
+    requiredNativeFunding: isNativeAsset ? params.amount + reserve : reserve,
+    requiredTokenFunding: isNativeAsset ? null : params.amount,
   };
 }
 
@@ -1595,8 +1612,7 @@ async function executeDepositForFlow(params: {
     isVerbose,
   } = params;
   const silent = mode.isQuiet || mode.isJson;
-  const isNative =
-    pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
+  const isNative = isNativePoolAsset(chainConfig.id, pool.asset);
 
   return withProcessLock(async () => {
     const mnemonic = loadMnemonic();
@@ -2056,7 +2072,7 @@ export async function readFlowFundingState(params: {
     ? BigInt(params.snapshot.requiredNativeFunding)
     : 0n;
   const tokenBalance =
-    params.pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase()
+    isNativePoolAsset(resolveChain(params.snapshot.chain).id, params.pool.asset)
       ? null
       : ((await publicClient.readContract({
           address: params.pool.asset,
@@ -2769,10 +2785,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
   const silent = mode.isQuiet || mode.isJson;
   const { chainConfig, pool, accountService, publicClient, selectedPoolAccount } =
     context;
-  let extraGas =
-    pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase()
-      ? false
-      : true;
+  let extraGas = isNativePoolAsset(chainConfig.id, pool.asset) ? false : true;
 
   const withdrawalAmount = selectedPoolAccount.value;
   validatePositive(withdrawalAmount, "Flow withdrawal amount");
@@ -4044,161 +4057,164 @@ export async function watchWorkflow(
   const privacyDelayOverride = resolveOptionalFlowPrivacyDelayProfile(
     params.privacyDelayProfile,
   );
-  let delayMs = initialPollDelayMs(loadWorkflowSnapshot(workflowId).phase);
 
-  while (true) {
-    let snapshot = loadWorkflowSnapshot(workflowId);
-    let privacyDelayUpdateMessage: string | null = null;
-    if (
-      privacyDelayOverride &&
-      (snapshot.privacyDelayProfile !== privacyDelayOverride ||
-        snapshot.privacyDelayConfigured !== true)
-    ) {
-      const previousProfile = snapshot.privacyDelayProfile ?? "off";
-      const previousConfigured = snapshot.privacyDelayConfigured ?? false;
-      snapshot = await withProcessLock(async () =>
-        saveWorkflowSnapshotIfChanged(
-          snapshot,
-          applyFlowPrivacyDelayPolicy(snapshot, privacyDelayOverride, {
-            configured: true,
-            rescheduleApproved: true,
-          }),
-        ),
-      );
+  return withWorkflowOperationLock(workflowId, "watch", async () => {
+    let delayMs = initialPollDelayMs(loadWorkflowSnapshot(workflowId).phase);
+
+    while (true) {
+      let snapshot = loadWorkflowSnapshot(workflowId);
+      let privacyDelayUpdateMessage: string | null = null;
       if (
-        previousProfile !== snapshot.privacyDelayProfile ||
-        previousConfigured !== (snapshot.privacyDelayConfigured ?? false)
+        privacyDelayOverride &&
+        (snapshot.privacyDelayProfile !== privacyDelayOverride ||
+          snapshot.privacyDelayConfigured !== true)
       ) {
-        if (privacyDelayOverride === "off") {
-          privacyDelayUpdateMessage =
-            "Saved privacy-delay policy updated to Off (no added hold). Any existing privacy-delay hold was cleared.";
-        } else if (snapshot.privacyDelayUntil) {
-          const delaySummary =
-            describeFlowPrivacyDelayDeadline(snapshot.privacyDelayUntil) ??
-            snapshot.privacyDelayUntil;
-          privacyDelayUpdateMessage =
-            `Saved privacy-delay policy updated from ${flowPrivacyDelayProfileSummary(previousProfile, previousConfigured)} to ${flowPrivacyDelayProfileSummary(snapshot.privacyDelayProfile ?? privacyDelayOverride, snapshot.privacyDelayConfigured ?? true)}. ` +
-            `This workflow is now waiting until ${delaySummary}.`;
-        } else {
-          privacyDelayUpdateMessage =
-            `Saved privacy-delay policy updated from ${flowPrivacyDelayProfileSummary(previousProfile, previousConfigured)} to ${flowPrivacyDelayProfileSummary(snapshot.privacyDelayProfile ?? privacyDelayOverride, snapshot.privacyDelayConfigured ?? true)}.`;
+        const previousProfile = snapshot.privacyDelayProfile ?? "off";
+        const previousConfigured = snapshot.privacyDelayConfigured ?? false;
+        snapshot = await withProcessLock(async () =>
+          saveWorkflowSnapshotIfChanged(
+            snapshot,
+            applyFlowPrivacyDelayPolicy(snapshot, privacyDelayOverride, {
+              configured: true,
+              rescheduleApproved: true,
+            }),
+          ),
+        );
+        if (
+          previousProfile !== snapshot.privacyDelayProfile ||
+          previousConfigured !== (snapshot.privacyDelayConfigured ?? false)
+        ) {
+          if (privacyDelayOverride === "off") {
+            privacyDelayUpdateMessage =
+              "Saved privacy-delay policy updated to Off (no added hold). Any existing privacy-delay hold was cleared.";
+          } else if (snapshot.privacyDelayUntil) {
+            const delaySummary =
+              describeFlowPrivacyDelayDeadline(snapshot.privacyDelayUntil) ??
+              snapshot.privacyDelayUntil;
+            privacyDelayUpdateMessage =
+              `Saved privacy-delay policy updated from ${flowPrivacyDelayProfileSummary(previousProfile, previousConfigured)} to ${flowPrivacyDelayProfileSummary(snapshot.privacyDelayProfile ?? privacyDelayOverride, snapshot.privacyDelayConfigured ?? true)}. ` +
+              `This workflow is now waiting until ${delaySummary}.`;
+          } else {
+            privacyDelayUpdateMessage =
+              `Saved privacy-delay policy updated from ${flowPrivacyDelayProfileSummary(previousProfile, previousConfigured)} to ${flowPrivacyDelayProfileSummary(snapshot.privacyDelayProfile ?? privacyDelayOverride, snapshot.privacyDelayConfigured ?? true)}.`;
+          }
         }
       }
-    }
 
-    if (privacyDelayUpdateMessage) {
-      info(privacyDelayUpdateMessage, silent);
-    }
-
-    if (isTerminalFlowPhase(snapshot.phase)) {
-      return snapshot;
-    }
-
-    let sleepMs = delayMs;
-    try {
-      const result = await withProcessLock(async () =>
-        inspectAndAdvanceFlow({
-          snapshot,
-          globalOpts,
-          mode,
-          isVerbose,
-        }),
-      );
-
-      if (!result.continueWatching) {
-        return result.snapshot;
+      if (privacyDelayUpdateMessage) {
+        info(privacyDelayUpdateMessage, silent);
       }
 
-      if (result.snapshot.phase === "approved_ready_to_withdraw") {
-        info("ASP approval confirmed. Preparing the private withdrawal now.", silent);
-        delayMs = initialPollDelayMs(result.snapshot.phase);
-        continue;
+      if (isTerminalFlowPhase(snapshot.phase)) {
+        return snapshot;
       }
 
-      sleepMs = computeFlowWatchDelayMs(result.snapshot, delayMs);
-
-      if (result.snapshot.phase === "awaiting_funding" && result.snapshot.walletAddress) {
-        const fundingSummary = formatWorkflowFundingSummary(result.snapshot);
-        info(
-          fundingSummary
-            ? `Still waiting for funding at ${result.snapshot.walletAddress}. Need ${fundingSummary}. Checking again in ${humanPollDelayLabel(sleepMs)}.`
-            : `Still waiting for funding at ${result.snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
-          silent,
-        );
-      } else if (result.snapshot.phase === "depositing_publicly") {
-        info(
-          "Still reconciling the public deposit step. Checking again shortly.",
-          silent,
-        );
-      } else if (
-        result.snapshot.phase === "approved_waiting_privacy_delay" &&
-        result.snapshot.privacyDelayUntil
-      ) {
-        const delaySummary =
-          describeFlowPrivacyDelayDeadline(result.snapshot.privacyDelayUntil) ??
-          result.snapshot.privacyDelayUntil;
-        info(
-          `ASP approval is confirmed, and this workflow is waiting until ${delaySummary} before requesting the private withdrawal. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
-          silent,
-        );
-      } else {
-        info(
-          `Still waiting for ASP approval for ${result.snapshot.poolAccountId} on ${result.snapshot.chain}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
-          silent,
-        );
-      }
-    } catch (error) {
-      const latestSnapshot = loadWorkflowSnapshot(workflowId);
-      const step =
-        latestSnapshot.phase === "awaiting_funding"
-          ? "funding"
-          : latestSnapshot.phase === "depositing_publicly"
-            ? "deposit"
-            :
-        latestSnapshot.phase === "withdrawing" ||
-        latestSnapshot.phase === "approved_ready_to_withdraw"
-          ? "withdraw"
-          : "inspect_approval";
-      const flowLastError = buildFlowLastError(step, error);
-      const errored = updateSnapshot(latestSnapshot, {
-        lastError: flowLastError,
-      });
+      let sleepMs = delayMs;
       try {
-        await saveWorkflowSnapshotIfChangedWithLock(latestSnapshot, errored);
-      } catch {
-        // Best effort only. Preserve the original workflow error when the
-        // workflow directory itself is the thing that is failing.
-      }
-      if (flowLastError.retryable) {
-        let retrySnapshot = latestSnapshot;
-        try {
-          retrySnapshot = loadWorkflowSnapshot(workflowId);
-        } catch {
-          // Fall back to the in-memory snapshot when the saved workflow cannot
-          // be reloaded yet.
-        }
-        const retrySleepMs = computeFlowWatchDelayMs(
-          retrySnapshot,
-          nextPollDelayMs(delayMs, retrySnapshot.phase),
+        const result = await withProcessLock(async () =>
+          inspectAndAdvanceFlow({
+            snapshot,
+            globalOpts,
+            mode,
+            isVerbose,
+          }),
         );
-        warn(
-          `Temporary issue while resuming this workflow: ${flowLastError.errorMessage} Retrying in ${humanPollDelayLabel(retrySleepMs)}.`,
-          silent,
-        );
-        if (retrySleepMs > 0) {
-          await sleep(retrySleepMs);
-        }
-        delayMs = retrySleepMs;
-        continue;
-      }
-      throw error;
-    }
 
-    if (sleepMs > 0) {
-      await sleep(sleepMs);
+        if (!result.continueWatching) {
+          return result.snapshot;
+        }
+
+        if (result.snapshot.phase === "approved_ready_to_withdraw") {
+          info("ASP approval confirmed. Preparing the private withdrawal now.", silent);
+          delayMs = initialPollDelayMs(result.snapshot.phase);
+          continue;
+        }
+
+        sleepMs = computeFlowWatchDelayMs(result.snapshot, delayMs);
+
+        if (result.snapshot.phase === "awaiting_funding" && result.snapshot.walletAddress) {
+          const fundingSummary = formatWorkflowFundingSummary(result.snapshot);
+          info(
+            fundingSummary
+              ? `Still waiting for funding at ${result.snapshot.walletAddress}. Need ${fundingSummary}. Checking again in ${humanPollDelayLabel(sleepMs)}.`
+              : `Still waiting for funding at ${result.snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+            silent,
+          );
+        } else if (result.snapshot.phase === "depositing_publicly") {
+          info(
+            "Still reconciling the public deposit step. Checking again shortly.",
+            silent,
+          );
+        } else if (
+          result.snapshot.phase === "approved_waiting_privacy_delay" &&
+          result.snapshot.privacyDelayUntil
+        ) {
+          const delaySummary =
+            describeFlowPrivacyDelayDeadline(result.snapshot.privacyDelayUntil) ??
+            result.snapshot.privacyDelayUntil;
+          info(
+            `ASP approval is confirmed, and this workflow is waiting until ${delaySummary} before requesting the private withdrawal. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+            silent,
+          );
+        } else {
+          info(
+            `Still waiting for ASP approval for ${result.snapshot.poolAccountId} on ${result.snapshot.chain}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+            silent,
+          );
+        }
+      } catch (error) {
+        const latestSnapshot = loadWorkflowSnapshot(workflowId);
+        const step =
+          latestSnapshot.phase === "awaiting_funding"
+            ? "funding"
+            : latestSnapshot.phase === "depositing_publicly"
+              ? "deposit"
+              :
+          latestSnapshot.phase === "withdrawing" ||
+          latestSnapshot.phase === "approved_ready_to_withdraw"
+            ? "withdraw"
+            : "inspect_approval";
+        const flowLastError = buildFlowLastError(step, error);
+        const errored = updateSnapshot(latestSnapshot, {
+          lastError: flowLastError,
+        });
+        try {
+          await saveWorkflowSnapshotIfChangedWithLock(latestSnapshot, errored);
+        } catch {
+          // Best effort only. Preserve the original workflow error when the
+          // workflow directory itself is the thing that is failing.
+        }
+        if (flowLastError.retryable) {
+          let retrySnapshot = latestSnapshot;
+          try {
+            retrySnapshot = loadWorkflowSnapshot(workflowId);
+          } catch {
+            // Fall back to the in-memory snapshot when the saved workflow cannot
+            // be reloaded yet.
+          }
+          const retrySleepMs = computeFlowWatchDelayMs(
+            retrySnapshot,
+            nextPollDelayMs(delayMs, retrySnapshot.phase),
+          );
+          warn(
+            `Temporary issue while resuming this workflow: ${flowLastError.errorMessage} Retrying in ${humanPollDelayLabel(retrySleepMs)}.`,
+            silent,
+          );
+          if (retrySleepMs > 0) {
+            await sleep(retrySleepMs);
+          }
+          delayMs = retrySleepMs;
+          continue;
+        }
+        throw error;
+      }
+
+      if (sleepMs > 0) {
+        await sleep(sleepMs);
+      }
+      delayMs = nextPollDelayMs(delayMs, loadWorkflowSnapshot(workflowId).phase);
     }
-    delayMs = nextPollDelayMs(delayMs, loadWorkflowSnapshot(workflowId).phase);
-  }
+  });
 }
 
 export function getWorkflowStatus(
@@ -4211,89 +4227,91 @@ export async function ragequitWorkflow(
   params: RagequitFlowParams,
 ): Promise<FlowSnapshot> {
   const workflowId = resolveWorkflowId(params.workflowId);
-  const releaseLock = acquireProcessLock();
-  try {
-    const snapshot = loadWorkflowSnapshot(workflowId);
-    const silent = params.mode.isQuiet || params.mode.isJson;
-    if (!snapshot.depositTxHash || !snapshot.poolAccountId || !snapshot.poolAccountNumber) {
-      throw new CLIError(
-        "This workflow has not deposited publicly yet.",
-        "INPUT",
-        "Wait for the funding/deposit step to finish before using 'privacy-pools flow ragequit'.",
+  return withWorkflowOperationLock(workflowId, "ragequit", async () => {
+    const releaseLock = acquireProcessLock();
+    try {
+      const snapshot = loadWorkflowSnapshot(workflowId);
+      const silent = params.mode.isQuiet || params.mode.isJson;
+      if (!snapshot.depositTxHash || !snapshot.poolAccountId || !snapshot.poolAccountNumber) {
+        throw new CLIError(
+          "This workflow has not deposited publicly yet.",
+          "INPUT",
+          "Wait for the funding/deposit step to finish before using 'privacy-pools flow ragequit'.",
+        );
+      }
+      if (
+        snapshot.phase === "completed" ||
+        snapshot.phase === "completed_public_recovery" ||
+        snapshot.phase === "stopped_external"
+      ) {
+        throw new CLIError(
+          "This workflow is already terminal.",
+          "INPUT",
+          "Run 'privacy-pools flow status' to inspect the saved workflow instead of trying to ragequit it again.",
+        );
+      }
+      if (snapshot.withdrawTxHash && !snapshot.withdrawBlockNumber) {
+        throw new CLIError(
+          "A relayed withdrawal is already in flight for this workflow.",
+          "INPUT",
+          "Wait for it to settle, then re-run 'privacy-pools flow watch' or 'privacy-pools flow status' instead of starting a public recovery now.",
+        );
+      }
+      if (snapshot.pendingSubmission === "ragequit" && !snapshot.ragequitTxHash) {
+        throw new CLIError(
+          WORKFLOW_RAGEQUIT_CHECKPOINT_AMBIGUOUS_MESSAGE,
+          "INPUT",
+          `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow ragequit'.`,
+          WORKFLOW_RAGEQUIT_CHECKPOINT_ERROR_CODE,
+        );
+      }
+      if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
+        const completed = await awaitPendingRagequitReceipt({
+          snapshot,
+          globalOpts: params.globalOpts,
+          mode: params.mode,
+          isVerbose: params.isVerbose,
+        });
+        const savedCompleted = saveWorkflowSnapshotIfChanged(snapshot, completed);
+        cleanupTerminalWorkflowSecret(savedCompleted);
+        return savedCompleted;
+      }
+
+      const mutationContext = await loadWorkflowPoolAccountContext(
+        snapshot,
+        params.globalOpts,
+        silent,
+        false,
       );
-    }
-    if (
-      snapshot.phase === "completed" ||
-      snapshot.phase === "completed_public_recovery" ||
-      snapshot.phase === "stopped_external"
-    ) {
-      throw new CLIError(
-        "This workflow is already terminal.",
-        "INPUT",
-        "Run 'privacy-pools flow status' to inspect the saved workflow instead of trying to ragequit it again.",
+      const mutatedSnapshot = saveMutatedWorkflowSnapshot(
+        snapshot,
+        mutationContext.selectedPoolAccount,
       );
-    }
-    if (snapshot.withdrawTxHash && !snapshot.withdrawBlockNumber) {
-      throw new CLIError(
-        "A relayed withdrawal is already in flight for this workflow.",
-        "INPUT",
-        "Wait for it to settle, then re-run 'privacy-pools flow watch' or 'privacy-pools flow status' instead of starting a public recovery now.",
-      );
-    }
-    if (snapshot.pendingSubmission === "ragequit" && !snapshot.ragequitTxHash) {
-      throw new CLIError(
-        WORKFLOW_RAGEQUIT_CHECKPOINT_AMBIGUOUS_MESSAGE,
-        "INPUT",
-        `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow ragequit'.`,
-        WORKFLOW_RAGEQUIT_CHECKPOINT_ERROR_CODE,
-      );
-    }
-    if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
-      const completed = await awaitPendingRagequitReceipt({
+      if (mutatedSnapshot) {
+        cleanupTerminalWorkflowSecret(mutatedSnapshot);
+        return mutatedSnapshot;
+      }
+
+      const ragequitResult = await executeRagequitForFlow({
         snapshot,
         globalOpts: params.globalOpts,
         mode: params.mode,
         isVerbose: params.isVerbose,
       });
+      const completed = clearLastError(
+        attachRagequitResultToSnapshot(snapshot, {
+          chainId: assertWorkflowChain(snapshot).id,
+          aspStatus: ragequitResult.aspStatus,
+          ragequitTxHash: ragequitResult.ragequitTxHash,
+          ragequitBlockNumber: ragequitResult.ragequitBlockNumber,
+          ragequitExplorerUrl: ragequitResult.ragequitExplorerUrl,
+        }),
+      );
       const savedCompleted = saveWorkflowSnapshotIfChanged(snapshot, completed);
       cleanupTerminalWorkflowSecret(savedCompleted);
       return savedCompleted;
+    } finally {
+      releaseLock();
     }
-
-    const mutationContext = await loadWorkflowPoolAccountContext(
-      snapshot,
-      params.globalOpts,
-      silent,
-      false,
-    );
-    const mutatedSnapshot = saveMutatedWorkflowSnapshot(
-      snapshot,
-      mutationContext.selectedPoolAccount,
-    );
-    if (mutatedSnapshot) {
-      cleanupTerminalWorkflowSecret(mutatedSnapshot);
-      return mutatedSnapshot;
-    }
-
-    const ragequitResult = await executeRagequitForFlow({
-      snapshot,
-      globalOpts: params.globalOpts,
-      mode: params.mode,
-      isVerbose: params.isVerbose,
-    });
-    const completed = clearLastError(
-      attachRagequitResultToSnapshot(snapshot, {
-        chainId: assertWorkflowChain(snapshot).id,
-        aspStatus: ragequitResult.aspStatus,
-        ragequitTxHash: ragequitResult.ragequitTxHash,
-        ragequitBlockNumber: ragequitResult.ragequitBlockNumber,
-        ragequitExplorerUrl: ragequitResult.ragequitExplorerUrl,
-      }),
-    );
-    const savedCompleted = saveWorkflowSnapshotIfChanged(snapshot, completed);
-    cleanupTerminalWorkflowSecret(savedCompleted);
-    return savedCompleted;
-  } finally {
-    releaseLock();
-  }
+  });
 }

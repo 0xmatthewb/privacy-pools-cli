@@ -73,7 +73,7 @@ import {
   buildUnsignedDirectWithdrawOutput,
   buildUnsignedRelayedWithdrawOutput,
 } from "../utils/unsigned-flows.js";
-import { explorerTxUrl, NATIVE_ASSET_ADDRESS, POA_PORTAL_URL } from "../config/chains.js";
+import { explorerTxUrl, isNativePoolAsset, POA_PORTAL_URL } from "../config/chains.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions, PoolStats, RelayerQuoteResponse } from "../types.js";
@@ -495,12 +495,11 @@ export async function handleWithdrawCommand(
     );
 
     // Resolve --extra-gas: default true for ERC20, always false for native asset (ETH)
-    const isNativeAsset =
-      pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
+    const isNativeAsset = isNativePoolAsset(chainConfig.id, pool.asset);
     let effectiveExtraGas = isNativeAsset ? false : (opts.extraGas ?? true);
     if (isNativeAsset && opts.extraGas === true) {
       info(
-        "Extra gas is not applicable for ETH withdrawals (ETH is the gas token).",
+        "Extra gas is not applicable for native-asset withdrawals because the chain native token already covers gas.",
         silent,
       );
     }
@@ -1744,13 +1743,12 @@ export async function handleWithdrawQuoteCommand(
 
     // Resolve --extra-gas: read from parent withdraw opts (same pattern as --asset/--to).
     // Default true for ERC20, always false for native asset (ETH).
-    const quoteIsNativeAsset =
-      pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
+    const quoteIsNativeAsset = isNativePoolAsset(chainConfig.id, pool.asset);
     const parentExtraGas = withdrawOpts?.extraGas as boolean | undefined;
     const quoteExtraGas = quoteIsNativeAsset ? false : (parentExtraGas ?? true);
     if (quoteIsNativeAsset && parentExtraGas === true) {
       info(
-        "Extra gas is not applicable for ETH withdrawals (ETH is the gas token).",
+        "Extra gas is not applicable for native-asset withdrawals because the chain native token already covers gas.",
         silent,
       );
     }

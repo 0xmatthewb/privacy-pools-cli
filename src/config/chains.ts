@@ -156,6 +156,31 @@ export const NATIVE_ASSET_ADDRESS =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as const;
 
 /**
+ * Native-asset aliases from the website source of truth.
+ *
+ * Some pools use a wrapped-native address onchain while the product treats the
+ * asset as the chain's native token for balance lookup, funding, and payable
+ * deposit UX. Keep this map aligned with website `chainData.ts`.
+ */
+const NATIVE_ASSET_ALIASES: Record<number, Address[]> = {
+  11155420: ["0x4200000000000000000000000000000000000006"],
+};
+
+export function isNativePoolAsset(
+  chainId: number,
+  assetAddress: string | Address,
+): boolean {
+  const normalized = assetAddress.toLowerCase();
+  if (normalized === NATIVE_ASSET_ADDRESS.toLowerCase()) {
+    return true;
+  }
+
+  return (NATIVE_ASSET_ALIASES[chainId] ?? []).some(
+    (alias) => alias.toLowerCase() === normalized,
+  );
+}
+
+/**
  * Hardcoded symbol → asset-address map for on-chain-verified fallback.
  * Sourced from the Privacy Pools website `chainData.ts`.
  * When public pool discovery is unavailable or incomplete, `resolvePool()`

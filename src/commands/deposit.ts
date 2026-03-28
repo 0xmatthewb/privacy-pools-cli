@@ -18,7 +18,7 @@ import {
   saveSyncMeta,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
-import { NATIVE_ASSET_ADDRESS, explorerTxUrl } from "../config/chains.js";
+import { explorerTxUrl, isNativePoolAsset } from "../config/chains.js";
 import {
   spinner,
   stageHeader,
@@ -240,8 +240,7 @@ export async function handleDepositCommand(
       tokenPrice,
     );
     if (!skipPrompts) {
-      const isErc20 =
-        pool.asset.toLowerCase() !== NATIVE_ASSET_ADDRESS.toLowerCase();
+      const isErc20 = !isNativePoolAsset(chainConfig.id, pool.asset);
       info(
         `Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)}${feeUsd})`,
         silent,
@@ -311,8 +310,7 @@ export async function handleDepositCommand(
         silent,
       );
 
-      const isNative =
-        pool.asset.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
+      const isNative = isNativePoolAsset(chainConfig.id, pool.asset);
 
       // Pre-flight balance check (skip for unsigned - signer may not exist)
       let balanceSufficient: boolean | "unknown" = "unknown";

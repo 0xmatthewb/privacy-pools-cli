@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
-import { extname } from "node:path";
+import { basename, extname } from "node:path";
 import type { CliPackageInfo } from "./package-info.js";
 import { CLI_PROTOCOL_PROFILE } from "./config/protocol-profile.js";
 import {
@@ -93,6 +93,31 @@ function resolveCliPackageInfo(
 
 function defaultJsWorkerPath(): string {
   return resolveCurrentWorkerPath();
+}
+
+function defaultJsRuntimeCommand(): string {
+  return process.platform === "win32" ? "node.exe" : "node";
+}
+
+function looksLikeNodeExecutable(command: string): boolean {
+  const name = basename(command).toLowerCase();
+  return name === "node" || name === "node.exe";
+}
+
+function resolveJsRuntimeCommand(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const npmNodeExecPath = env.npm_node_execpath?.trim();
+  if (npmNodeExecPath) {
+    return npmNodeExecPath;
+  }
+
+  const execPath = process.execPath?.trim();
+  if (execPath && !process.versions.bun && looksLikeNodeExecutable(execPath)) {
+    return execPath;
+  }
+
+  return defaultJsRuntimeCommand();
 }
 
 function defaultJsWorkerArgs(workerPath: string): string[] {
@@ -206,7 +231,7 @@ function createJsWorkerTarget(
   const childArgs = defaultJsWorkerArgs(workerPath);
   return {
     kind: "js-worker",
-    command: process.execPath,
+    command: resolveJsRuntimeCommand(env),
     args: childArgs,
     env: {
       ...env,
@@ -228,7 +253,7 @@ function createNativeForwardingEnv(
     ...nextEnv,
     [ENV_CLI_JS_WORKER]: workerPath,
     [NATIVE_JS_BRIDGE_ENV]: encodeNativeJsBridgeDescriptor(
-      createNativeJsBridgeDescriptor(process.execPath, workerArgs),
+      createNativeJsBridgeDescriptor(resolveJsRuntimeCommand(env), workerArgs),
     ),
   };
 }
@@ -591,6 +616,7 @@ export const launcherTestInternals = {
   createNativeForwardingEnv,
   createJsWorkerTarget,
   defaultJsWorkerPath,
+  resolveJsRuntimeCommand,
   hasExplicitBinaryOverride,
   hasExplicitJsWorkerOverride,
   invocationRequiresJsWorker,
