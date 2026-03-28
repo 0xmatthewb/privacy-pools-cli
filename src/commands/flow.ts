@@ -10,6 +10,7 @@ import {
 } from "../services/workflow.js";
 import type { GlobalOptions } from "../types.js";
 import { CLIError, printError } from "../utils/errors.js";
+import { info } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 
 interface FlowStartCommandOptions {
@@ -40,15 +41,20 @@ function flowCancelledCliError(): CLIError {
   );
 }
 
-function handleFlowCommandError(error: unknown, json: boolean): void {
+function handleFlowCommandError(
+  error: unknown,
+  options: { json: boolean; silent: boolean },
+): void {
   if (error instanceof FlowCancelledError) {
-    if (json) {
+    if (options.json) {
       printError(flowCancelledCliError(), true);
+    } else {
+      info("Flow cancelled.", options.silent);
     }
     return;
   }
 
-  printError(error, json);
+  printError(error, options.json);
 }
 
 export async function handleFlowStartCommand(
@@ -96,7 +102,10 @@ export async function handleFlowStartCommand(
       snapshot,
     });
   } catch (error) {
-    handleFlowCommandError(error, mode.isJson);
+    handleFlowCommandError(error, {
+      json: mode.isJson,
+      silent: mode.isQuiet,
+    });
   }
 }
 
@@ -123,7 +132,10 @@ export async function handleFlowRagequitCommand(
       snapshot,
     });
   } catch (error) {
-    handleFlowCommandError(error, mode.isJson);
+    handleFlowCommandError(error, {
+      json: mode.isJson,
+      silent: mode.isQuiet,
+    });
   }
 }
 
@@ -150,7 +162,10 @@ export async function handleFlowWatchCommand(
       snapshot,
     });
   } catch (error) {
-    handleFlowCommandError(error, mode.isJson);
+    handleFlowCommandError(error, {
+      json: mode.isJson,
+      silent: mode.isQuiet,
+    });
   }
 }
 
@@ -171,6 +186,9 @@ export async function handleFlowStatusCommand(
       snapshot,
     });
   } catch (error) {
-    handleFlowCommandError(error, mode.isJson);
+    handleFlowCommandError(error, {
+      json: mode.isJson,
+      silent: mode.isQuiet,
+    });
   }
 }

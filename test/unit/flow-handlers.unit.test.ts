@@ -16,6 +16,9 @@ const realOutputCommon = captureModuleExports(
 const realFlowOutput = captureModuleExports(
   await import("../../src/output/flow.ts"),
 );
+const realFormat = captureModuleExports(
+  await import("../../src/utils/format.ts"),
+);
 const realWorkflow = captureModuleExports(
   await import("../../src/services/workflow.ts"),
 );
@@ -23,6 +26,7 @@ const realWorkflow = captureModuleExports(
 const FLOW_MODULE_RESTORES = [
   ["../../src/output/common.ts", realOutputCommon],
   ["../../src/output/flow.ts", realFlowOutput],
+  ["../../src/utils/format.ts", realFormat],
   ["../../src/services/workflow.ts", realWorkflow],
   ["../../src/utils/mode.ts", realMode],
   ["../../src/utils/errors.ts", realErrors],
@@ -44,6 +48,7 @@ const startWorkflowMock = mock(async () => startSnapshot);
 const watchWorkflowMock = mock(async () => watchSnapshot);
 const getWorkflowStatusMock = mock(() => statusSnapshot);
 const ragequitWorkflowMock = mock(async () => ragequitSnapshot);
+const infoMock = mock(() => undefined);
 const resolveGlobalModeMock = mock((globalOpts: Record<string, unknown> = {}) => ({
   isAgent: Boolean(globalOpts.agent),
   isJson: Boolean(globalOpts.json),
@@ -67,6 +72,10 @@ async function loadFlowHandlers(): Promise<void> {
     })],
     ["../../src/output/flow.ts", () => ({
       renderFlowResult: renderFlowResultMock,
+    })],
+    ["../../src/utils/format.ts", () => ({
+      ...realFormat,
+      info: infoMock,
     })],
     ["../../src/services/workflow.ts", () => ({
       FlowCancelledError: MockFlowCancelledError,
@@ -127,6 +136,7 @@ describe("flow command handlers", () => {
     clearMockCalls(watchWorkflowMock);
     clearMockCalls(getWorkflowStatusMock);
     clearMockCalls(ragequitWorkflowMock);
+    clearMockCalls(infoMock);
     clearMockCalls(resolveGlobalModeMock);
     clearMockCalls(printErrorMock);
 
@@ -231,7 +241,7 @@ describe("flow command handlers", () => {
     expect(isJson).toBe(true);
   });
 
-  test("human mode swallows flow cancellation without rendering or printing an error", async () => {
+  test("human mode reports flow cancellation without printing an error", async () => {
     startWorkflowMock.mockImplementationOnce(async () => {
       throw new MockFlowCancelledError("Flow cancelled.");
     });
@@ -248,6 +258,7 @@ describe("flow command handlers", () => {
 
     expect(renderFlowResultMock).not.toHaveBeenCalled();
     expect(printErrorMock).not.toHaveBeenCalled();
+    expect(infoMock).toHaveBeenCalledWith("Flow cancelled.", false);
   });
 
   test("watch delegates to the workflow service and renders the snapshot", async () => {
@@ -282,6 +293,18 @@ describe("flow command handlers", () => {
       "Flow cancelled.",
     );
     expect(isJson).toBe(true);
+  });
+
+  test("watch reports flow cancellation without printing an error in human mode", async () => {
+    watchWorkflowMock.mockImplementationOnce(async () => {
+      throw new MockFlowCancelledError("Flow cancelled.");
+    });
+
+    await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({}));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).not.toHaveBeenCalled();
+    expect(infoMock).toHaveBeenCalledWith("Flow cancelled.", false);
   });
 
   test("watch forwards non-cancellation failures to printError", async () => {
@@ -337,7 +360,7 @@ describe("flow command handlers", () => {
     });
   });
 
-  test("ragequit swallows flow cancellation in human mode", async () => {
+  test("ragequit reports flow cancellation without printing an error in human mode", async () => {
     ragequitWorkflowMock.mockImplementationOnce(async () => {
       throw new MockFlowCancelledError("Flow cancelled.");
     });
@@ -346,5 +369,6 @@ describe("flow command handlers", () => {
 
     expect(renderFlowResultMock).not.toHaveBeenCalled();
     expect(printErrorMock).not.toHaveBeenCalled();
+    expect(infoMock).toHaveBeenCalledWith("Flow cancelled.", false);
   });
 });
