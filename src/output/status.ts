@@ -74,6 +74,8 @@ export function deriveStatusPreflightGuidance(
   const readyForDeposit =
     result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
   const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
+  const transactingHealthDegraded =
+    result.rpcLive === false || result.aspLive === false;
   const blockingIssues: StatusIssue[] = [];
   const warnings: StatusIssue[] = [];
 
@@ -154,6 +156,8 @@ export function deriveStatusPreflightGuidance(
   let recommendedMode: StatusRecommendedMode = "read-only";
   if (!result.configExists || !result.recoveryPhraseSet) {
     recommendedMode = "setup-required";
+  } else if (transactingHealthDegraded) {
+    recommendedMode = "read-only";
   } else if (readyForDeposit) {
     recommendedMode = "ready";
   } else if (readyForUnsigned) {

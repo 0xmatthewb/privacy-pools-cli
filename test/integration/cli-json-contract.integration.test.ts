@@ -82,7 +82,7 @@ describe("JSON contract coverage", () => {
     expect(json.recoveryPhraseSet).toBe(true);
     expect(json.signerKeySet).toBe(true);
     expect(json.signerKeyValid).toBe(true);
-    expect(json.recommendedMode).toBe("ready");
+    expect(json.recommendedMode).toBe("read-only");
     expect(typeof json.signerAddress).toBe("string");
     expect(typeof json.aspLive).toBe("boolean");
     expect(typeof json.rpcLive).toBe("boolean");

@@ -86,7 +86,7 @@ privacy-pools status --agent
 
 Check `recoveryPhraseSet: true`. Most transaction commands also require `signerKeyValid: true` and `readyForDeposit: true`; if `readyForDeposit: false` because the signer is missing or invalid, set `PRIVACY_POOLS_PRIVATE_KEY` in the agent's environment before running transaction commands.
 
-For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from booleans alone. `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` remain configuration capability flags, not fund-availability checks.
+For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from booleans alone. `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` remain configuration capability flags, not fund-availability checks. When `recommendedMode = "read-only"`, status detected degraded RPC or ASP health and agents should stick to non-transactional commands until connectivity is restored.
 
 Exception: `flow start --new-wallet` creates and uses a dedicated per-workflow wallet, so it can begin without a configured global signer key as long as the recovery phrase is present.
 

@@ -378,6 +378,7 @@ describe("renderStatus parity", () => {
     const { json } = captureJsonOutput(() => renderStatus(ctx, result));
     expect(json.aspLive).toBe(true);
     expect(json.rpcLive).toBe(false);
+    expect(json.recommendedMode).toBe("read-only");
     expect(json.warnings).toEqual([
       {
         code: "rpc_unreachable",

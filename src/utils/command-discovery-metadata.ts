@@ -972,7 +972,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   statusRecommendedMode: {
     values: ["setup-required", "read-only", "unsigned-only", "ready"],
     description:
-      "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only is reserved for discovery-only states where transacting is intentionally unavailable.",
+      "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only means status detected degraded RPC or ASP health, so only discovery and other non-transactional commands are recommended until connectivity is restored.",
   },
   statusIssues: {
     blockingIssueShape:

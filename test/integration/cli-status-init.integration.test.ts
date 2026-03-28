@@ -101,6 +101,7 @@ describe("status and init integration", () => {
       success: boolean;
       aspLive?: unknown;
       rpcLive?: unknown;
+      recommendedMode: string;
       warnings?: Array<{ code: string }>;
     }>(statusResult.stdout);
 
@@ -108,6 +109,7 @@ describe("status and init integration", () => {
     expect(statusJson.success).toBe(true);
     expect(typeof statusJson.aspLive).toBe("boolean");
     expect(typeof statusJson.rpcLive).toBe("boolean");
+    expect(statusJson.recommendedMode).toBe("read-only");
     expect(statusJson.warnings?.map((issue) => issue.code)).toContain("asp_unreachable");
     expect(statusJson.warnings?.map((issue) => issue.code)).toContain("rpc_unreachable");
   });
@@ -183,7 +185,7 @@ describe("status and init integration", () => {
     expect(statusJson.signerKeySet).toBe(true);
     expect(statusJson.signerKeyValid).toBe(false);
     expect(statusJson.signerAddress).toBeNull();
-    expect(statusJson.recommendedMode).toBe("unsigned-only");
+    expect(statusJson.recommendedMode).toBe("read-only");
     expect(statusJson.blockingIssues?.map((issue) => issue.code)).toContain(
       "signer_key_invalid",
     );

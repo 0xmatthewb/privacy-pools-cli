@@ -364,7 +364,7 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
 Health checks run by default when a chain is selected. Pass `--no-check` to suppress them, or use `--check-rpc` / `--check-asp` to run only specific checks.
 Custom `rpcUrl` and `aspHost` values are rendered in a display-safe form: userinfo, query strings, and token-like path segments are redacted before they are printed.
 
-When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When no deposits exist, `nextActions` points to `pools`; when deposits already exist, it points to `accounts`. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from the boolean readiness flags alone.
+When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When no deposits exist, `nextActions` points to `pools`; when deposits already exist, it points to `accounts`. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from the boolean readiness flags alone. When `recommendedMode = "read-only"`, status detected degraded RPC or ASP health and only non-transactional commands should be treated as safe until connectivity is restored.
 
 | Field | Type | When present |
 |-------|------|-------------|
