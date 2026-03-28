@@ -12,6 +12,7 @@ import type { GlobalOptions } from "../types.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { info } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { validateAddress } from "../utils/validation.js";
 
 interface FlowStartCommandOptions {
   to?: string;
@@ -74,7 +75,24 @@ export async function handleFlowStartCommand(
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
-    if (!opts.to) {
+    let recipient = opts.to?.trim();
+    if (!recipient && !mode.skipPrompts) {
+      const { input } = await import("@inquirer/prompts");
+      const prompted = await input({
+        message: "Recipient address:",
+        validate: (value) => {
+          try {
+            validateAddress(value, "Recipient");
+            return true;
+          } catch (error) {
+            return error instanceof Error ? error.message : "Invalid address.";
+          }
+        },
+      });
+      recipient = validateAddress(prompted, "Recipient");
+    }
+
+    if (!recipient) {
       throw new CLIError(
         "Missing required --to <address>.",
         "INPUT",
@@ -93,7 +111,7 @@ export async function handleFlowStartCommand(
     const snapshot = await startWorkflow({
       amountInput: amount,
       assetInput: asset,
-      recipient: opts.to,
+      recipient,
       privacyDelayProfile: opts.privacyDelay,
       newWallet: opts.newWallet ?? false,
       exportNewWallet: opts.exportNewWallet,

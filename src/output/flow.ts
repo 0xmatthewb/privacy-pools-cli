@@ -86,7 +86,7 @@ function phaseLabel(phase: FlowPhase): string {
 function humanWalletModeLabel(walletMode: FlowSnapshot["walletMode"]): string {
   return walletMode === "new_wallet"
     ? "Dedicated workflow wallet"
-    : "Original depositor / required signer";
+    : "Configured signer (must match original depositor)";
 }
 
 function joinWithAnd(parts: string[]): string {
@@ -126,8 +126,38 @@ function awaitingFundingReason(snapshot: FlowSnapshot): string {
   return "Fund the dedicated workflow wallet first, then re-run flow watch to continue.";
 }
 
+function privacyDelayWaitingReason(snapshot: FlowSnapshot): string {
+  const delaySummary = describeFlowPrivacyDelayDeadline(
+    snapshot.privacyDelayUntil,
+  );
+  if (delaySummary) {
+    return `This workflow is intentionally waiting until ${delaySummary} before requesting the private withdrawal. Re-run flow watch to keep watching or after that time to continue.`;
+  }
+  return "This workflow is intentionally waiting for the saved privacy-delay window to expire before requesting the private withdrawal. Re-run flow watch to continue.";
+}
+
+function requiresPublicRecoveryBecauseRelayerMinimum(
+  snapshot: FlowSnapshot,
+): boolean {
+  return snapshot.lastError?.errorCode === "FLOW_RELAYER_MINIMUM_BLOCKED";
+}
+
+function relayerMinimumRecoveryReason(snapshot: FlowSnapshot): string {
+  return `This saved workflow cannot continue privately because the full remaining balance is below the relayer minimum. Use flow ragequit for public recovery instead.${configuredSignerRecoverySuffix(snapshot)}`;
+}
+
+function shouldExposeConfirmedPoolAccount(snapshot: FlowSnapshot): boolean {
+  return Boolean(
+    snapshot.depositBlockNumber ||
+      snapshot.depositLabel ||
+      snapshot.committedValue ||
+      (snapshot.phase !== "awaiting_funding" &&
+        snapshot.phase !== "depositing_publicly"),
+  );
+}
+
 function configuredSignerRecoverySuffix(snapshot: FlowSnapshot): string {
-  return snapshot.walletMode === "configured"
+  return (snapshot.walletMode ?? "configured") === "configured"
     ? " This configured-wallet workflow still requires the original depositor signer."
     : "";
 }
@@ -177,6 +207,20 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
     ];
   }
 
+  if (requiresPublicRecoveryBecauseRelayerMinimum(snapshot)) {
+    return [
+      createNextAction(
+        "flow ragequit",
+        relayerMinimumRecoveryReason(snapshot),
+        "flow_public_recovery_required",
+        {
+          args: [snapshot.workflowId],
+          options: { agent: true },
+        },
+      ),
+    ];
+  }
+
   switch (snapshot.phase) {
     case "awaiting_funding":
       return [
@@ -203,12 +247,23 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
         ),
       ];
     case "awaiting_asp":
-    case "approved_waiting_privacy_delay":
     case "approved_ready_to_withdraw":
       return [
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
+          "flow_resume",
+          {
+            args: [snapshot.workflowId],
+            options: { agent: true },
+          },
+        ),
+      ];
+    case "approved_waiting_privacy_delay":
+      return [
+        createNextAction(
+          "flow watch",
+          privacyDelayWaitingReason(snapshot),
           "flow_resume",
           {
             args: [snapshot.workflowId],
@@ -289,6 +344,19 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
     ];
   }
 
+  if (requiresPublicRecoveryBecauseRelayerMinimum(snapshot)) {
+    return [
+      createNextAction(
+        "flow ragequit",
+        relayerMinimumRecoveryReason(snapshot),
+        "flow_public_recovery_required",
+        {
+          args: [snapshot.workflowId],
+        },
+      ),
+    ];
+  }
+
   switch (snapshot.phase) {
     case "awaiting_funding":
       return [
@@ -313,12 +381,22 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         ),
       ];
     case "awaiting_asp":
-    case "approved_waiting_privacy_delay":
     case "approved_ready_to_withdraw":
       return [
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
+          "flow_resume",
+          {
+            args: [snapshot.workflowId],
+          },
+        ),
+      ];
+    case "approved_waiting_privacy_delay":
+      return [
+        createNextAction(
+          "flow watch",
+          privacyDelayWaitingReason(snapshot),
           "flow_resume",
           {
             args: [snapshot.workflowId],
@@ -381,6 +459,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
 
 function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowSnapshot) {
   const warnings = action === "ragequit" ? [] : buildFlowWarnings(snapshot);
+  const exposedPoolAccount = shouldExposeConfirmedPoolAccount(snapshot);
   return {
     mode: "flow",
     action,
@@ -401,8 +480,9 @@ function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowS
     asset: snapshot.asset,
     depositAmount: snapshot.depositAmount,
     recipient: snapshot.recipient,
-    poolAccountId: snapshot.poolAccountId ?? null,
-    poolAccountNumber: snapshot.poolAccountNumber ?? null,
+    poolAccountId: exposedPoolAccount ? snapshot.poolAccountId ?? null : null,
+    poolAccountNumber:
+      exposedPoolAccount ? snapshot.poolAccountNumber ?? null : null,
     depositTxHash: snapshot.depositTxHash ?? null,
     depositBlockNumber: snapshot.depositBlockNumber ?? null,
     depositExplorerUrl: snapshot.depositExplorerUrl ?? null,
@@ -480,6 +560,8 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       `${data.snapshot.poolAccountId ?? "This workflow"} changed outside this saved workflow, so the easy path stopped without taking further action.`,
       silent,
     );
+  } else if (requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot)) {
+    warn(relayerMinimumRecoveryReason(data.snapshot), silent);
   } else if (data.action === "start") {
     if (data.snapshot.phase === "awaiting_funding" && data.snapshot.walletAddress) {
       success(
@@ -488,7 +570,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       );
     } else {
       success(
-        `Flow started for ${data.snapshot.poolAccountId}. The deposit is public now; the private withdrawal will run after ASP approval and any configured privacy delay.`,
+        `Flow started for ${data.snapshot.poolAccountId}. The deposit is public now, and this saved workflow is ready for flow watch to continue toward the private withdrawal after ASP approval and any configured privacy delay.`,
         silent,
       );
     }
@@ -500,6 +582,13 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   } else {
     info(
       `Workflow ${data.snapshot.workflowId} is ${phaseLabel(data.snapshot.phase).toLowerCase()}.`,
+      silent,
+    );
+  }
+
+  if (data.action === "status") {
+    info(
+      "This is the saved local workflow snapshot. Run flow watch for a live re-check and to advance it.",
       silent,
     );
   }
@@ -522,11 +611,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   }
   if (data.snapshot.walletAddress) {
     info(
-      `${
-        data.snapshot.walletMode === "new_wallet"
-          ? "Dedicated workflow wallet"
-          : "Original depositor / required signer"
-      }: ${data.snapshot.walletAddress}`,
+      `${humanWalletModeLabel(data.snapshot.walletMode)}: ${data.snapshot.walletAddress}`,
       silent,
     );
   }
@@ -543,7 +628,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       silent,
     );
   }
-  if (data.snapshot.poolAccountId) {
+  if (shouldExposeConfirmedPoolAccount(data.snapshot) && data.snapshot.poolAccountId) {
     info(`Pool Account: ${data.snapshot.poolAccountId}`, silent);
   }
   const depositAmount = formatFlowAssetAmount(
@@ -606,6 +691,19 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   if (data.snapshot.phase === "stopped_external") {
     info(
       `Inspect accounts on ${data.snapshot.chain}, then continue manually with withdraw or ragequit.`,
+      silent,
+    );
+  }
+  if (
+    data.action === "status" &&
+    data.snapshot.depositTxHash &&
+    (data.snapshot.phase === "awaiting_asp" ||
+      data.snapshot.phase === "approved_waiting_privacy_delay" ||
+      data.snapshot.phase === "approved_ready_to_withdraw" ||
+      data.snapshot.phase === "withdrawing")
+  ) {
+    info(
+      "Optional public recovery: flow ragequit remains available while this workflow stays non-terminal, but flow watch is the normal private path.",
       silent,
     );
   }

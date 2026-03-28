@@ -181,6 +181,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions? }",
       safetyNotes: [
         "The deposit is still public and reviewed by the ASP before private withdrawal is possible.",
+        "If --to is omitted in interactive mode, the CLI prompts for the recipient. In machine modes, --to remains required.",
         "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
         "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
         "Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.",
@@ -235,7 +236,8 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions? }",
       safetyNotes: [
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
-        "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting. The happy-path canonical resume command remains flow watch.",
+        "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
+        "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.",
         "Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
         "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.",
       ],
@@ -258,6 +260,8 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action.",
+        "This is a saved local snapshot only. Run flow watch to re-check live state and advance the workflow.",
+        "When using latest, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow.",
         "This is read-only and does not require init if the saved workflow already exists locally.",
       ],
       examples: [
@@ -284,6 +288,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Uses the saved workflow context to perform the public recovery path without changing any manual commands.",
         "Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path.",
+        "If a saved full-balance workflow can no longer satisfy the relayer minimum, flow ragequit becomes the required recovery path because the saved flow only supports relayed private withdrawal.",
         "For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.",
       ],
       examples: [

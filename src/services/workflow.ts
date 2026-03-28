@@ -843,8 +843,15 @@ export function loadWorkflowSnapshot(workflowId: string): FlowSnapshot {
 }
 
 function listWorkflowSnapshots(): {
-  snapshots: FlowSnapshot[];
-  invalidFiles: string[];
+  snapshots: Array<{
+    snapshot: FlowSnapshot;
+    filePath: string;
+    fileMtimeMs: number;
+  }>;
+  invalidFiles: Array<{
+    filePath: string;
+    fileMtimeMs: number;
+  }>;
 } {
   const dir = getWorkflowsDir();
   if (!existsSync(dir)) {
@@ -854,14 +861,32 @@ function listWorkflowSnapshots(): {
     };
   }
 
-  const snapshots: FlowSnapshot[] = [];
-  const invalidFiles: string[] = [];
+  const snapshots: Array<{
+    snapshot: FlowSnapshot;
+    filePath: string;
+    fileMtimeMs: number;
+  }> = [];
+  const invalidFiles: Array<{
+    filePath: string;
+    fileMtimeMs: number;
+  }> = [];
   for (const entry of readdirSync(dir).filter((name) => name.endsWith(".json"))) {
     const filePath = join(dir, entry);
+    const fileMtimeMs = (() => {
+      try {
+        return statSync(filePath).mtimeMs;
+      } catch {
+        return Number.POSITIVE_INFINITY;
+      }
+    })();
     try {
-      snapshots.push(parseWorkflowSnapshot(readFileSync(filePath, "utf-8"), filePath));
+      snapshots.push({
+        snapshot: parseWorkflowSnapshot(readFileSync(filePath, "utf-8"), filePath),
+        filePath,
+        fileMtimeMs,
+      });
     } catch {
-      invalidFiles.push(filePath);
+      invalidFiles.push({ filePath, fileMtimeMs });
     }
   }
 
@@ -875,8 +900,12 @@ export function resolveLatestWorkflowId(): string {
   const { snapshots, invalidFiles } = listWorkflowSnapshots();
   const latest = snapshots
     .sort((left, right) => {
-      const leftTime = Date.parse(left.updatedAt || left.createdAt);
-      const rightTime = Date.parse(right.updatedAt || right.createdAt);
+      const leftTime = Date.parse(
+        left.snapshot.updatedAt || left.snapshot.createdAt,
+      );
+      const rightTime = Date.parse(
+        right.snapshot.updatedAt || right.snapshot.createdAt,
+      );
       return rightTime - leftTime;
     })[0];
 
@@ -895,7 +924,19 @@ export function resolveLatestWorkflowId(): string {
     );
   }
 
-  return latest.workflowId;
+  const hasUnreadablePotentiallyNewerWorkflow = invalidFiles.some(
+    ({ fileMtimeMs }) =>
+      !Number.isFinite(fileMtimeMs) || fileMtimeMs >= latest.fileMtimeMs,
+  );
+  if (hasUnreadablePotentiallyNewerWorkflow) {
+    throw new CLIError(
+      "Cannot resolve 'latest' because one or more saved workflow files are unreadable and could be newer than the latest readable workflow.",
+      "INPUT",
+      "Fix or remove the unreadable workflow files, or pass an explicit workflow id instead of 'latest'.",
+    );
+  }
+
+  return latest.snapshot.workflowId;
 }
 
 function resolveWorkflowId(input: string | undefined): string {
@@ -1343,6 +1384,39 @@ export function computeFlowWatchDelayMs(
   return Math.max(0, Math.min(deadlineMs - nowMs, FLOW_POLL_MAX_MS));
 }
 
+function formatWorkflowFundingSummary(snapshot: FlowSnapshot): string | null {
+  const parts: string[] = [];
+
+  if (
+    snapshot.requiredTokenFunding &&
+    typeof snapshot.assetDecimals === "number"
+  ) {
+    try {
+      parts.push(
+        formatAmount(
+          BigInt(snapshot.requiredTokenFunding),
+          snapshot.assetDecimals,
+          snapshot.asset,
+        ),
+      );
+    } catch {
+      parts.push(`${snapshot.requiredTokenFunding} ${snapshot.asset}`);
+    }
+  }
+
+  if (snapshot.requiredNativeFunding) {
+    try {
+      parts.push(formatAmount(BigInt(snapshot.requiredNativeFunding), 18, "ETH"));
+    } catch {
+      parts.push(`${snapshot.requiredNativeFunding} ETH`);
+    }
+  }
+
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} and ${parts[1]}`;
+}
+
 export function classifyFlowMutation(
   current: FlowSnapshot,
   poolAccount: PoolAccountRef | undefined,
@@ -1486,6 +1560,10 @@ async function executeDepositForFlow(params: {
   pool: WorkflowPool;
   amount: bigint;
   privateKeyOverride?: Hex;
+  onDepositPreparing?: (prepared: {
+    poolAccountNumber: number;
+    poolAccountId: string;
+  }) => Promise<void> | void;
   onDepositSubmitted?: (pending: PendingDepositSnapshotData) => Promise<void> | void;
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
@@ -1496,6 +1574,7 @@ async function executeDepositForFlow(params: {
     pool,
     amount,
     privateKeyOverride,
+    onDepositPreparing,
     onDepositSubmitted,
     globalOpts,
     mode,
@@ -1584,7 +1663,7 @@ async function executeDepositForFlow(params: {
           throw new CLIError(
             "Timed out waiting for approval confirmation.",
             "RPC",
-            `Tx ${approveTx.hash} may still confirm. Retry the flow start command to check allowance before depositing again.`,
+            `Tx ${approveTx.hash} may still confirm. Re-run the saved workflow to check allowance before depositing again.`,
           );
         });
         if (approvalReceipt.status !== "success") {
@@ -1604,6 +1683,10 @@ async function executeDepositForFlow(params: {
     if (!isNative) {
       stageHeader(2, depositSteps, "Submitting deposit", silent);
     }
+    await onDepositPreparing?.({
+      poolAccountNumber: nextPANumber,
+      poolAccountId: nextPAId,
+    });
     const depositSpin = spinner("Submitting deposit transaction...", silent);
     depositSpin.start();
 
@@ -1948,6 +2031,37 @@ export async function readFlowFundingState(params: {
     nativeSatisfied: nativeBalance >= requiredNativeFunding,
     tokenSatisfied: tokenBalance === null || tokenBalance >= requiredTokenFunding,
   };
+}
+
+async function refreshWorkflowFundingRequirements(params: {
+  snapshot: FlowSnapshot;
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  globalOpts?: GlobalOptions;
+}): Promise<FlowSnapshot> {
+  const { snapshot, chainConfig, pool, globalOpts } = params;
+  if (!isNewWalletFlow(snapshot) || snapshot.depositTxHash) {
+    return snapshot;
+  }
+
+  const refreshedRequirements = await getFlowFundingRequirements({
+    chainConfig,
+    pool,
+    amount: BigInt(snapshot.depositAmount),
+    globalOpts,
+  });
+
+  return saveWorkflowSnapshotIfChanged(
+    snapshot,
+    normalizeWorkflowSnapshot(
+      updateSnapshot(snapshot, {
+        requiredNativeFunding:
+          refreshedRequirements.requiredNativeFunding.toString(),
+        requiredTokenFunding:
+          refreshedRequirements.requiredTokenFunding?.toString() ?? null,
+      }),
+    ),
+  );
 }
 
 async function reconcileDepositingSnapshot(
@@ -2357,6 +2471,13 @@ export async function inspectFundingAndDeposit(params: {
     }
   }
 
+  currentSnapshot = await refreshWorkflowFundingRequirements({
+    snapshot: currentSnapshot,
+    chainConfig,
+    pool,
+    globalOpts,
+  });
+
   const fundingState = await readFlowFundingState({
     snapshot: currentSnapshot,
     pool,
@@ -2579,6 +2700,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
       `Workflow amount is below the relayer minimum of ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`,
       "RELAYER",
       `This workflow only supports relayed private withdrawals. Use '${buildSavedWorkflowRecoveryCommand(snapshot)}' for the public recovery path.`,
+      "FLOW_RELAYER_MINIMUM_BLOCKED",
     );
   }
 
@@ -3592,45 +3714,116 @@ export async function startWorkflow(
       }
     });
   } else {
+    const configuredWalletAddress = privateKeyToAccount(loadPrivateKey()).address;
+    let checkpointedSnapshot: FlowSnapshot | null = null;
     stageHeader(1, effectiveWatch ? 2 : 1, "Submitting deposit", silent);
-    const depositResult = await executeDepositForFlow({
-      chainConfig,
-      pool,
-      amount,
-      globalOpts,
-      mode,
-      isVerbose,
-    });
-
     try {
-      snapshot = await withProcessLock(async () =>
-        saveWorkflowSnapshot(
-          createInitialSnapshot({
-            walletMode: "configured",
-            walletAddress: privateKeyToAccount(loadPrivateKey()).address,
-            chain: depositResult.chain,
-            asset: depositResult.asset,
-            assetDecimals: pool.decimals,
-            depositAmount: depositResult.amount,
-            recipient: validatedRecipient,
-            privacyDelayProfile: resolvedPrivacyDelayProfile,
-            privacyDelayConfigured: true,
-            poolAccountNumber: depositResult.poolAccountNumber,
-            poolAccountId: depositResult.poolAccountId,
-            depositTxHash: depositResult.depositTxHash,
-            depositBlockNumber: depositResult.depositBlockNumber,
-            depositExplorerUrl: depositResult.depositExplorerUrl,
-            depositLabel: depositResult.depositLabel,
-            committedValue: depositResult.committedValue,
-          }),
-        ),
-      );
-    } catch {
-      throw new CLIError(
-        "Deposit succeeded, but the workflow could not be saved locally.",
-        "INPUT",
-        `Tx ${depositResult.depositTxHash} is confirmed onchain. Continue manually with 'privacy-pools accounts --chain ${depositResult.chain}', or fix the workflow directory and retry.`,
-      );
+      const depositResult = await executeDepositForFlow({
+        chainConfig,
+        pool,
+        amount,
+        onDepositPreparing: async (prepared) => {
+          if (checkpointedSnapshot) {
+            return;
+          }
+
+          try {
+            checkpointedSnapshot = await withProcessLock(async () =>
+              saveWorkflowSnapshot(
+                createInitialSnapshot({
+                  walletMode: "configured",
+                  walletAddress: configuredWalletAddress,
+                  chain: chainConfig.name,
+                  asset: pool.symbol,
+                  assetDecimals: pool.decimals,
+                  depositAmount: amount,
+                  recipient: validatedRecipient,
+                  privacyDelayProfile: resolvedPrivacyDelayProfile,
+                  privacyDelayConfigured: true,
+                  phase: "depositing_publicly",
+                  poolAccountNumber: prepared.poolAccountNumber,
+                  poolAccountId: prepared.poolAccountId,
+                }),
+              ),
+            );
+          } catch {
+            throw new CLIError(
+              "Could not save this workflow locally before submitting the public deposit.",
+              "INPUT",
+              "Fix the workflow directory and retry. No funds were moved.",
+            );
+          }
+        },
+        onDepositSubmitted: async (pending) => {
+          if (!checkpointedSnapshot) {
+            return;
+          }
+          checkpointedSnapshot = saveWorkflowSnapshotIfChanged(
+            checkpointedSnapshot,
+            attachPendingDepositToSnapshot(checkpointedSnapshot, pending),
+          );
+        },
+        globalOpts,
+        mode,
+        isVerbose,
+      });
+
+      if (!checkpointedSnapshot) {
+        checkpointedSnapshot = await withProcessLock(async () =>
+          saveWorkflowSnapshot(
+            createInitialSnapshot({
+              walletMode: "configured",
+              walletAddress: configuredWalletAddress,
+              chain: depositResult.chain,
+              asset: depositResult.asset,
+              assetDecimals: pool.decimals,
+              depositAmount: depositResult.amount,
+              recipient: validatedRecipient,
+              privacyDelayProfile: resolvedPrivacyDelayProfile,
+              privacyDelayConfigured: true,
+              phase: "depositing_publicly",
+              poolAccountNumber: depositResult.poolAccountNumber,
+              poolAccountId: depositResult.poolAccountId,
+            }),
+          ),
+        );
+      }
+
+      try {
+        snapshot = await withProcessLock(async () =>
+          saveWorkflowSnapshotIfChanged(
+            checkpointedSnapshot as FlowSnapshot,
+            attachDepositResultToSnapshot(
+              checkpointedSnapshot as FlowSnapshot,
+              depositResult,
+            ),
+          ),
+        );
+      } catch {
+        throw new CLIError(
+          "Deposit succeeded, but the workflow could not finalize its saved state locally.",
+          "INPUT",
+          `Tx ${depositResult.depositTxHash} is confirmed onchain. Re-run 'privacy-pools flow watch ${(checkpointedSnapshot as FlowSnapshot).workflowId}' after fixing the workflow directory, or continue manually with 'privacy-pools accounts --chain ${depositResult.chain}'.`,
+        );
+      }
+    } catch (error) {
+      if (checkpointedSnapshot) {
+        try {
+          checkpointedSnapshot = await withProcessLock(async () =>
+            saveWorkflowSnapshotIfChanged(
+              checkpointedSnapshot as FlowSnapshot,
+              normalizeWorkflowSnapshot(
+                updateSnapshot(checkpointedSnapshot as FlowSnapshot, {
+                  lastError: buildFlowLastError("deposit", error),
+                }),
+              ),
+            ),
+          );
+        } catch {
+          // Best effort only. Surface the original error below.
+        }
+      }
+      throw error;
     }
   }
 
@@ -3729,8 +3922,11 @@ export async function watchWorkflow(
       sleepMs = computeFlowWatchDelayMs(result.snapshot, delayMs);
 
       if (result.snapshot.phase === "awaiting_funding" && result.snapshot.walletAddress) {
+        const fundingSummary = formatWorkflowFundingSummary(result.snapshot);
         info(
-          `Still waiting for funding at ${result.snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+          fundingSummary
+            ? `Still waiting for funding at ${result.snapshot.walletAddress}. Need ${fundingSummary}. Checking again in ${humanPollDelayLabel(sleepMs)}.`
+            : `Still waiting for funding at ${result.snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
           silent,
         );
       } else if (result.snapshot.phase === "depositing_publicly") {
@@ -3742,8 +3938,11 @@ export async function watchWorkflow(
         result.snapshot.phase === "approved_waiting_privacy_delay" &&
         result.snapshot.privacyDelayUntil
       ) {
+        const delaySummary =
+          describeFlowPrivacyDelayDeadline(result.snapshot.privacyDelayUntil) ??
+          result.snapshot.privacyDelayUntil;
         info(
-          `ASP approval is confirmed, and this workflow is waiting until ${result.snapshot.privacyDelayUntil} before requesting the private withdrawal. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+          `ASP approval is confirmed, and this workflow is waiting until ${delaySummary} before requesting the private withdrawal. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
           silent,
         );
       } else {
@@ -3764,10 +3963,27 @@ export async function watchWorkflow(
         latestSnapshot.phase === "approved_ready_to_withdraw"
           ? "withdraw"
           : "inspect_approval";
+      const flowLastError = buildFlowLastError(step, error);
       const errored = updateSnapshot(latestSnapshot, {
-        lastError: buildFlowLastError(step, error),
+        lastError: flowLastError,
       });
       await saveWorkflowSnapshotIfChangedWithLock(latestSnapshot, errored);
+      if (flowLastError.retryable) {
+        const retrySnapshot = loadWorkflowSnapshot(workflowId);
+        const retrySleepMs = computeFlowWatchDelayMs(
+          retrySnapshot,
+          nextPollDelayMs(delayMs, retrySnapshot.phase),
+        );
+        warn(
+          `Temporary issue while resuming this workflow: ${flowLastError.errorMessage} Retrying in ${humanPollDelayLabel(retrySleepMs)}.`,
+          silent,
+        );
+        if (retrySleepMs > 0) {
+          await sleep(retrySleepMs);
+        }
+        delayMs = retrySleepMs;
+        continue;
+      }
       throw error;
     }
 

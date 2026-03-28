@@ -47,7 +47,7 @@ Install: `npm i -g privacy-pools-cli` or `bun add -g privacy-pools-cli`. For unr
 | Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-mnemonic` | One-time setup |
 | Start easy flow | `privacy-pools flow start 0.1 ETH --to 0x... --agent` | Deposit now, save later private withdrawal |
 | Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet, stores it locally for the workflow, and exports a backup before waiting for token funding plus ETH gas |
-| Watch easy flow | `privacy-pools flow watch latest --agent` | Wait for approval, honor any saved privacy delay, and withdraw privately when ready |
+| Watch easy flow | `privacy-pools flow watch latest --agent` | Resume the saved workflow through funding, approval, privacy delay, and withdrawal |
 | Check easy flow | `privacy-pools flow status latest --agent` | Inspect the saved workflow snapshot |
 | Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined flow, a PoA-paused flow, or any saved flow where the operator intentionally stops waiting |
 | Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
@@ -273,14 +273,16 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
 4. privacy-pools flow start 0.1 ETH --to <addr> --agent                 # Easy path: deposit now, save later withdrawal
 5. privacy-pools flow watch latest --agent                              # Resume the saved workflow until it finishes or pauses
-6. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined or you intentionally stop waiting
+6. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined, relayer-blocked, or you intentionally choose the public path
 ```
 
 The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `aggressive` randomizes the hold between 2 and 12 hours. Passing `flow watch --privacy-delay ...` persistently updates the saved workflow policy: `off` clears any saved hold immediately, while switching between `balanced` and `aggressive` resamples from the override time. `flow watch` is intentionally unbounded and may intentionally remain in `approved_waiting_privacy_delay` for that window; if your automation needs a wall-clock limit, wrap it in an external timeout.
 
 Flow caveats for agents:
 - `flow watch` is the canonical happy-path resume command. Once the public deposit exists, `flow ragequit` remains available as an optional manual recovery path, but it is not the default next step while the flow is still progressing normally.
+- If the saved full-balance withdrawal falls below the relayer minimum, `flow watch` switches the canonical next step to `flow ragequit` because saved flows only support relayed private withdrawals.
 - `flow start` rejects non-round amounts in machine mode. Use a round amount in agent/non-interactive runs, or switch to interactive mode if a human intentionally accepts that privacy tradeoff.
+- In interactive mode, omitting `--to` prompts for the saved recipient.
 - `flow start --new-wallet` requires `--export-new-wallet <path>` in machine mode before the flow begins.
 - `flow` spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.
 - Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.
@@ -322,7 +324,7 @@ Recommended retry strategy:
 - `CONTRACT_INCORRECT_ASP_ROOT` / `CONTRACT_UNKNOWN_STATE_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent` first, then retry.
 - `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR` / `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` / `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry.
 - `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
-- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
+- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at the Privacy Pools portal first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
 
 ---
 

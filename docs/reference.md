@@ -89,6 +89,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 | `--watch` | Keep watching this workflow until it finishes or pauses |
 
 **Safety:** The deposit is still public and reviewed by the ASP before private withdrawal is possible.
+**Safety:** If --to is omitted in interactive mode, the CLI prompts for the recipient. In machine modes, --to remains required.
 **Safety:** In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.
 **Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
 **Safety:** Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
@@ -122,7 +123,8 @@ privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000
 | `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized) |
 
 **Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.
-**Safety:** Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting. The happy-path canonical resume command remains flow watch.
+**Safety:** If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.
+**Safety:** Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.
 **Safety:** Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
 **Safety:** Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.
 
@@ -134,7 +136,7 @@ Show the saved easy-path workflow state
 
 **Usage:** `privacy-pools flow status [workflowId|latest] [options]`
 
-Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action. This is read-only and does not require init if the saved workflow already exists locally.
+Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action. This is a saved local snapshot only. Run flow watch to re-check live state and advance the workflow. When using latest, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow. This is read-only and does not require init if the saved workflow already exists locally.
 
 ```bash
 privacy-pools flow status
@@ -150,7 +152,7 @@ Recover a saved workflow publicly via ragequit
 
 **Usage:** `privacy-pools flow ragequit [workflowId|latest] [options]`
 
-Uses the saved workflow context to perform the public recovery path without changing any manual commands. Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
+Uses the saved workflow context to perform the public recovery path without changing any manual commands. Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path. If a saved full-balance workflow can no longer satisfy the relayer minimum, flow ragequit becomes the required recovery path because the saved flow only supports relayed private withdrawal. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
 
 ```bash
 privacy-pools flow ragequit
