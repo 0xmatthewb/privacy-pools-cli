@@ -126,5 +126,8 @@ describe("runtime guidance conformance", () => {
     expect(packageJson.scripts?.["test:runtime:boundary"]).toContain(
       "./test/integration/cli-bun-runtime.integration.test.ts",
     );
+    expect(packageJson.scripts?.["test:runtime:boundary"]).toContain(
+      "./test/unit/launcher-runtime.unit.test.ts",
+    );
   });
 });

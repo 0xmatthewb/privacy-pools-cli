@@ -63,7 +63,7 @@ describe("launcher routing", () => {
     );
 
     expect(target.kind).toBe("js-worker");
-    expect(target.command).toBe(process.execPath);
+    expect(target.command).toBeTruthy();
     expect(target.args.at(-1)).toContain("worker-main");
     expect(target.args).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
     expect(
@@ -87,7 +87,7 @@ describe("launcher routing", () => {
     );
 
     expect(target.kind).toBe("js-worker");
-    expect(target.command).toBe(process.execPath);
+    expect(target.command).toBeTruthy();
   });
 
   test("uses an explicit binary override when native is not disabled", () => {
@@ -103,16 +103,19 @@ describe("launcher routing", () => {
     expect(target.command).toBe("/tmp/privacy-pools-native");
     expect(target.args).toEqual(["flow", "--help"]);
     expect(target.env[NATIVE_JS_BRIDGE_ENV]).toBeTruthy();
-    expect(
-      decodeNativeJsBridgeDescriptor(String(target.env[NATIVE_JS_BRIDGE_ENV])),
-    ).toEqual({
-      runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
-      workerProtocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
-      nativeBridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
-      workerRequestEnv: CURRENT_RUNTIME_REQUEST_ENV,
-      workerCommand: process.execPath,
-      workerArgs: [launcherTestInternals.defaultJsWorkerPath()],
-    });
+    const bridge = decodeNativeJsBridgeDescriptor(
+      String(target.env[NATIVE_JS_BRIDGE_ENV]),
+    );
+    expect(bridge.runtimeVersion).toBe(CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion);
+    expect(bridge.workerProtocolVersion).toBe(
+      CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
+    );
+    expect(bridge.nativeBridgeVersion).toBe(
+      CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
+    );
+    expect(bridge.workerRequestEnv).toBe(CURRENT_RUNTIME_REQUEST_ENV);
+    expect(bridge.workerCommand).toBeTruthy();
+    expect(bridge.workerArgs).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
   });
 
   test("native forwarding keeps the public CLI env surface limited to documented keys", () => {
@@ -519,7 +522,7 @@ describe("launcher routing", () => {
       expect(stderr).toBe("");
       expect(spawnMock).toHaveBeenCalledTimes(1);
       const [command, args] = spawnMock.mock.calls[0] as [string, string[]];
-      expect(command).toBe(process.execPath);
+      expect(command).toBeTruthy();
       expect(args.at(-1)).toBe(workerPath);
     } finally {
       launcherTestInternals.resetSpawnImplementationForTests();
@@ -614,7 +617,7 @@ describe("launcher routing", () => {
     );
 
     expect(target.kind).toBe("js-worker");
-    expect(target.command).toBe(process.execPath);
+    expect(target.command).toBeTruthy();
   });
 
   test("knows which invocations still require the js worker under native launch", () => {

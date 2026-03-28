@@ -100,9 +100,30 @@ function setDirectIndexArgv(
   process.argv = [runtime, entryPath, ...args];
 }
 
-async function runImportedIndex(query: string): Promise<void> {
-  const module = await import(`../../src/index.ts?${query}=${Date.now()}`);
-  await module.runCliEntrypoint();
+async function runImportedIndex(
+  query: string,
+  options: { simulateNodeRuntime?: boolean } = {},
+): Promise<void> {
+  const shouldSimulateNodeRuntime = options.simulateNodeRuntime !== false;
+  const originalBunVersion = process.versions.bun;
+
+  if (shouldSimulateNodeRuntime) {
+    delete process.versions.bun;
+  }
+
+  try {
+    const module = await import(`../../src/index.ts?${query}=${Date.now()}`);
+    await module.runCliEntrypoint();
+  } finally {
+    if (originalBunVersion === undefined) {
+      delete process.versions.bun;
+    } else {
+      Object.defineProperty(process.versions, "bun", {
+        configurable: true,
+        value: originalBunVersion,
+      });
+    }
+  }
 }
 
 function expectInlineWorkerRequestArgv(
@@ -1472,6 +1493,32 @@ describe("bootstrap runtime coverage", () => {
 
     const { json, stderr } = await captureAsyncJsonOutput(async () => {
       await import(`../../src/index.ts?bun-runtime-guard=${Date.now()}`);
+    });
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("UNSUPPORTED_RUNTIME");
+    expect(json.error.message).toContain("Node.js only");
+    expect(stderr).toBe("");
+    expect(process.exitCode).toBe(2);
+    expect(runLauncherMock).not.toHaveBeenCalled();
+  });
+
+  test("runCliEntrypoint rejects Bun when imported and invoked manually", async () => {
+    const runLauncherMock = mock(async () => undefined);
+
+    mock.module("../../src/launcher.ts", () => ({
+      runLauncher: runLauncherMock,
+    }));
+
+    setIndexArgv(["--json", "status"]);
+    Object.defineProperty(process.versions, "bun", {
+      configurable: true,
+      value: "1.3.11",
+    });
+
+    const { json, stderr } = await captureAsyncJsonOutput(async () => {
+      const module = await import(`../../src/index.ts?bun-import-call=${Date.now()}`);
+      await module.runCliEntrypoint(["--json", "status"]);
     });
 
     expect(json.success).toBe(false);

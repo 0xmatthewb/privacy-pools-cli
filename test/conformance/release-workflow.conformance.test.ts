@@ -87,6 +87,19 @@ function expectedNativePackageNames(): string[] {
     .sort();
 }
 
+function extractJobSection(workflow: string, jobName: string): string {
+  const sectionStart = workflow.indexOf(`${jobName}:`);
+  expect(sectionStart).toBeGreaterThanOrEqual(0);
+
+  const remaining = workflow.slice(sectionStart + jobName.length + 1);
+  const nextJobMatch = remaining.match(/\n[a-z0-9-]+:\n/);
+  const sectionEnd = nextJobMatch
+    ? sectionStart + jobName.length + 1 + nextJobMatch.index!
+    : workflow.length;
+
+  return workflow.slice(sectionStart, sectionEnd);
+}
+
 describe("release workflow conformance", () => {
   test("blocking CI includes a packaged native smoke gate", () => {
     expect(ciWorkflow).toContain("npm-test:");
@@ -192,6 +205,10 @@ describe("release workflow conformance", () => {
     const packageSection = releaseWorkflow.slice(packageSectionStart, packageSectionEnd);
     expect(packageSection).not.toContain("Setup Bun");
     expect(packageSection).toContain("run: npm ci");
+
+    expect(extractJobSection(releaseWorkflow, "publish-root")).toContain("run: npm ci");
+    expect(extractJobSection(releaseWorkflow, "publish-native")).toContain("run: npm ci");
+    expect(extractJobSection(releaseWorkflow, "verify-registry-install")).toContain("run: npm ci");
   });
 
   test("workflow dependency setup matches the Bun-backed test runner boundary", () => {
