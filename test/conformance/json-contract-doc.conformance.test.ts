@@ -87,9 +87,13 @@ describe("external JSON contract doc conformance", () => {
 
     const flow = commands.flow as { successFields?: Record<string, string> };
     expect(flow.successFields?.phase).toContain("\"approved_waiting_privacy_delay\"");
+    expect(flow.successFields?.walletMode).toBe("\"configured\"|\"new_wallet\"");
+    expect(flow.successFields?.walletAddress).toBe("0x-prefixed-address|null");
+    expect(flow.successFields?.requiredNativeFunding).toBe("decimal-string-wei|null");
+    expect(flow.successFields?.poolAccountId).toBe("string (PA-#)|null");
     expect(flow.successFields?.privacyDelayProfile).toContain("\"balanced\"");
     expect(flow.successFields?.privacyDelayConfigured).toContain("legacy snapshots");
-    expect(flow.successFields?.privacyDelayUntil).toContain("iso8601-string");
+    expect(flow.successFields?.privacyDelayUntil).toBe("iso8601-string|null");
     expect(flow.successFields?.warnings).toContain("FlowWarning[]");
     expect(flow.successFields?.nextActions).toContain("canonical saved-workflow");
   });

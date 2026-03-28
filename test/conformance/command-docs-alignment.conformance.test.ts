@@ -361,10 +361,54 @@ describe("command docs alignment", () => {
 
     expect(flowRagequitMetadata.help?.jsonFields).toContain("privacyDelayProfile");
     expect(flowRagequitMetadata.help?.jsonFields).toContain("privacyDelayConfigured");
-    expect(flowRagequitMetadata.help?.jsonFields).toContain("privacyDelayUntil?");
+    expect(flowRagequitMetadata.help?.jsonFields).toContain("privacyDelayUntil|null");
     expect(normalizedSection).toContain("privacyDelayProfile");
     expect(normalizedSection).toContain("privacyDelayConfigured");
     expect(normalizedSection).toContain("privacyDelayUntil");
+  });
+
+  test("flow docs describe net received and match the null-heavy wire shape", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const flowStartMetadata = getCommandMetadata("flow start");
+    const normalizedAgents = normalizeWhitespace(agents);
+    const normalizedReference = normalizeWhitespace(reference);
+    const normalizedSkillReference = normalizeWhitespace(skillReference);
+    const normalizedSafetyNotes = normalizeWhitespace(
+      (flowStartMetadata.help?.safetyNotes ?? []).join(" "),
+    );
+
+    expect(normalizedAgents).toContain(
+      "recipient receives the net amount after relayer fees and any ERC20 extra-gas funding",
+    );
+    expect(normalizedReference).toContain(
+      "recipient receives the net amount after relayer fees and any ERC20 extra-gas funding",
+    );
+    expect(normalizedSkillReference).toContain(
+      "recipient receives the net amount after relayer fees and any ERC20 extra-gas funding",
+    );
+    expect(flowStartMetadata.help?.jsonFields).toContain("walletAddress|null");
+    expect(flowStartMetadata.help?.jsonFields).toContain("poolAccountId|null");
+    expect(normalizedSafetyNotes).toContain(
+      "recipient receives the net amount after relayer fees and any ERC20 extra-gas funding",
+    );
+  });
+
+  test("skill examples omit empty warnings and default runnable flags", () => {
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const flowSection = extractDocumentSection(skillReference, "Flow JSON payloads share this shape:", [
+      "Flow JSON payloads share this shape:",
+      "Possible `phase` values:",
+    ]);
+    const accountsSection = extractDocumentSection(skillReference, "Representative payload (abridged):", [
+      "Representative payload (abridged):",
+      "`status` values:",
+    ]);
+
+    expect(flowSection).not.toContain('"warnings": []');
+    expect(flowSection).not.toContain('"runnable": true');
+    expect(accountsSection).not.toContain('"warnings": []');
   });
 
   test("flow watch docs explain the external-timeout expectation for agents", () => {

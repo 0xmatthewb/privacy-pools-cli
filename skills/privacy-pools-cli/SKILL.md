@@ -282,6 +282,7 @@ Flow caveats for agents:
 - `flow watch` is the canonical happy-path resume command. Once the public deposit exists, `flow ragequit` remains available as an optional manual recovery path, but it is not the default next step while the flow is still progressing normally.
 - `flow start` rejects non-round amounts in machine mode. Use a round amount in agent/non-interactive runs, or switch to interactive mode if a human intentionally accepts that privacy tradeoff.
 - `flow start --new-wallet` requires `--export-new-wallet <path>` in machine mode before the flow begins.
+- `flow` spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.
 - Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.
 
 If `status --agent --check` returns `recommendedMode: "read-only"`, follow the status `nextActions` rather than guessing. That usually means public discovery only. If the ASP is down but RPC is healthy, public recovery still remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the affected account or workflow is already known. Avoid `accounts`, `deposit`, `withdraw`, or `flow` advancement until RPC and ASP connectivity recover.

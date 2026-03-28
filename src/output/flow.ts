@@ -533,6 +533,16 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   info(`Chain: ${data.snapshot.chain}`, silent);
   info(`Asset: ${data.snapshot.asset}`, silent);
   info(`Recipient: ${data.snapshot.recipient}`, silent);
+  if (
+    data.action !== "ragequit" &&
+    data.snapshot.phase !== "completed" &&
+    data.snapshot.phase !== "completed_public_recovery"
+  ) {
+    info(
+      "This saved flow spends the full remaining Pool Account balance. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
+      silent,
+    );
+  }
   if (data.snapshot.poolAccountId) {
     info(`Pool Account: ${data.snapshot.poolAccountId}`, silent);
   }
