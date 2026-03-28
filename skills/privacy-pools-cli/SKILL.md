@@ -52,7 +52,7 @@ Install: `npm i -g privacy-pools-cli` or `bun add -g privacy-pools-cli`. For unr
 | Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined saved workflow |
 | Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
-| Check accounts | `privacy-pools accounts --agent` | Dashboard view across all mainnet chains by default |
+| Check accounts | `privacy-pools accounts --agent` | Dashboard view across all CLI-supported mainnet chains by default |
 | Compact account poll | `privacy-pools accounts --agent --summary` | Counts + balances only |
 | Pending-only poll | `privacy-pools accounts --agent --chain <chain> --pending-only` | Pending approvals only; preserve --chain |
 | Withdraw (relayed) | `privacy-pools withdraw 0.05 ETH --to 0x... --agent` | Requires init |
@@ -260,7 +260,7 @@ The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not fr
 | `sepolia` | 11155111 | Yes |
 | `op-sepolia` | 11155420 | Yes |
 
-Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only commands (`pools`, `activity`) default to all mainnet chains when no `--chain` is specified. `stats global` always returns cross-chain aggregates and does not accept `--chain`; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
+Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only commands (`pools`, `activity`) default to all CLI-supported mainnet chains when no `--chain` is specified. `stats global` always returns cross-chain aggregates and does not accept `--chain`; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
 
 ---
 

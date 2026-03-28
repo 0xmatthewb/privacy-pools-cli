@@ -652,7 +652,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }",
       ],
       agentWorkflowNotes: [
-        "Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.",
+        "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --all-chains to include testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
         `When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (${POA_PORTAL_URL}) before choosing withdraw or ragequit.`,
       ],
@@ -694,7 +694,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead.",
-        "Without --chain, migrate status checks all mainnet chains by default. Use --all-chains to include testnets.",
+        "Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include testnets.",
       ],
       examples: [
         "privacy-pools migrate status",

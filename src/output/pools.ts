@@ -243,7 +243,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     chalk.dim(
       "\nVetting fees are deducted on deposit.\n" +
       "Pool Balance: current total value in the pool (accepted + pending deposits).\n" +
-      "Pending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
+      "Pending: deposits not yet accepted (pending ASP review or declined deposits).\n",
     ),
   );
 }

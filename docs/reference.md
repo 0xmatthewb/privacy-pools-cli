@@ -153,7 +153,7 @@ List available pools and assets
 
 **Usage:** `privacy-pools pools [asset] [options]`
 
-When no --chain is specified, shows all mainnet chains. Use --all-chains to include testnets. Pools are sorted by pool balance (highest first) by default. Pass a single asset symbol (e.g. 'pools ETH') for a detail view with your funds, recent activity, and pool stats.
+When no --chain is specified, shows all CLI-supported mainnet chains. Use --all-chains to include testnets. Pools are sorted by pool balance (highest first) by default. Pass a single asset symbol (e.g. 'pools ETH') for a detail view with your funds, recent activity, and pool stats.
 
 ```bash
 privacy-pools pools
@@ -339,7 +339,7 @@ privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 
 List your Pool Accounts (individual deposit lineages) with balances
 
-Without --chain, accounts acts like a dashboard and aggregates your holdings across all mainnet chains. Use --all-chains to include testnets or --chain <name> to focus on one chain.
+Without --chain, accounts acts like a dashboard and aggregates your holdings across all CLI-supported mainnet chains. Use --all-chains to include testnets or --chain <name> to focus on one chain.
 
 Pool Account statuses: approved, pending, poi_required, declined, unknown, spent (fully withdrawn), exited (exit/ragequit).
 
@@ -383,7 +383,7 @@ privacy-pools migrate status --all-chains --agent
 
 Show legacy migration readiness on CLI-supported chains
 
-Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all mainnet chains by default. Use --all-chains to include testnets.
+Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include testnets.
 
 ```bash
 privacy-pools migrate status
@@ -537,7 +537,7 @@ privacy-pools capabilities --agent
 | `-y, --yes` | Skip confirmation prompts |
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `--agent` | Machine-friendly mode (alias for --json --yes --quiet) |
-| `-q, --quiet` | Suppress human-readable success output; errors still print |
+| `-q, --quiet` | Suppress non-essential stderr output |
 | `--no-banner` | Disable ASCII banner output |
 | `-v, --verbose` | Enable verbose/debug output |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |

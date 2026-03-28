@@ -108,7 +108,7 @@ When a human delegates CLI operations to an agent:
 | `-y, --yes` | Skip confirmation prompts |
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-r, --rpc-url <url>` | Override RPC URL |
-| `-q, --quiet` | Suppress human-readable success output; errors still print |
+| `-q, --quiet` | Suppress non-essential stderr output |
 | `-v, --verbose` | Enable verbose/debug output |
 | `--no-banner` | Disable ASCII banner output |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
@@ -122,7 +122,7 @@ These commands work immediately after install, no `init` or private keys needed.
 
 #### `pools`
 
-List available Privacy Pools. When no `--chain` is specified, defaults to querying all mainnet chains.
+List available Privacy Pools. When no `--chain` is specified, defaults to querying all CLI-supported mainnet chains.
 
 ```bash
 privacy-pools pools --agent
@@ -144,7 +144,7 @@ With `--all-chains`, each pool includes a `chain` field and the root includes `a
 
 #### `activity`
 
-Public onchain activity feed. When no `--chain` is specified, defaults to querying all mainnet chains.
+Public onchain activity feed. When no `--chain` is specified, defaults to querying all CLI-supported mainnet chains.
 
 ```bash
 privacy-pools activity --agent
@@ -153,7 +153,7 @@ privacy-pools activity --agent --asset ETH --limit 20
 
 JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }] }`
 
-When querying all mainnet chains (no `--chain`), `chain` is `"all-mainnets"` and `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
+When querying all CLI-supported mainnet chains (no `--chain`), `chain` is `"all-mainnets"` and `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
 
 When filtering by `--chain` without `--asset`, events are filtered client-side. In this case `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
@@ -365,7 +365,7 @@ privacy-pools accounts --agent --chain <chain> --pending-only
 privacy-pools accounts --agent --details
 ```
 
-When no `--chain` is specified, `accounts` aggregates all mainnet chains by default. Use `--all-chains` to include testnets.
+When no `--chain` is specified, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--all-chains` to include testnets.
 
 JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
@@ -391,7 +391,7 @@ privacy-pools migrate status --agent --chain mainnet
 
 `migrate status` rebuilds the legacy account view from the installed SDK, the built-in CLI pool registry for CLI-supported chains, and current onchain events without persisting trusted account state. It reports whether legacy pre-upgrade commitments still need website migration, already appear fully migrated, require website-based public recovery because they were declined, or cannot be classified safely because ASP review data is incomplete. The CLI does **not** submit migration transactions.
 
-Without `--chain`, `migrate status` checks all mainnet chains supported by the CLI by default. Use `--all-chains` to include supported testnets. Like other multi-chain read-only commands, `--rpc-url` is only valid with `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
+Without `--chain`, `migrate status` checks all CLI-supported mainnet chains by default. Use `--all-chains` to include supported testnets. Like other multi-chain read-only commands, `--rpc-url` is only valid with `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
 
 JSON payload: `{ mode: "migration-status", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }`
 

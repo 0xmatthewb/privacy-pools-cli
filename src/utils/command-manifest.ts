@@ -1647,7 +1647,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
-        "Without --chain, accounts aggregates all mainnet chains by default. Use --all-chains to include testnets.",
+        "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --all-chains to include testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
         "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit."
       ]
@@ -2086,7 +2086,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "flag": "-q, --quiet",
-      "description": "Suppress human-readable success output; errors still print"
+      "description": "Suppress non-essential stderr output"
     },
     {
       "flag": "--no-banner",

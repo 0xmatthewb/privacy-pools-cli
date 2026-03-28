@@ -167,7 +167,7 @@ privacy-pools pools --agent [--all-chains] [--search <query>] [--sort <mode>]
 privacy-pools pools ETH --agent                    # detail view for a specific pool
 ```
 
-Defaults to all mainnet chains when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
+Defaults to all CLI-supported mainnet chains when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
 
 **Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. Does not support CSV.
 
@@ -228,7 +228,7 @@ All numeric token amounts are in wei (strings). USD values, counts, and growth r
 privacy-pools activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
 ```
 
-Defaults to all mainnet chains when no `--chain` is specified.
+Defaults to all CLI-supported mainnet chains when no `--chain` is specified.
 
 **Global:**
 
@@ -808,7 +808,7 @@ privacy-pools accounts --agent --chain <chain> --pending-only
 
 `status` values: `"approved"`, `"pending"`, `"poi_required"`, `"declined"`, `"unknown"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`, `"poi_required"`, `"declined"`, `"unknown"` (`"unknown"` for spent or exited accounts, or when ASP review data is unavailable). `pendingCount` is the number of accounts with `status: "pending"`.
 
-Without `--chain`, `accounts` aggregates all mainnet chains by default. Use `--all-chains` to include testnets. In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId`.
+Without `--chain`, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--all-chains` to include testnets. In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId`.
 
 `balances` contains per-pool totals for Pool Accounts with remaining balance. `balance` is the total amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
 
@@ -828,7 +828,7 @@ privacy-pools migrate status --agent --chain mainnet
 
 `migrate status` is a strictly read-only legacy website migration or recovery check on CLI-supported chains. It rebuilds the legacy account view from the installed SDK, the built-in CLI pool registry for CLI-supported chains, and current onchain events without persisting trusted account or sync state, then reports whether legacy pre-upgrade commitments still need website migration, already appear fully migrated, require website-based public recovery because they were declined, or cannot be classified safely because ASP review data is incomplete.
 
-Without `--chain`, `migrate status` checks all mainnet chains supported by the CLI by default. Use `--all-chains` to include supported testnets. As with other multi-chain read-only commands, `--rpc-url` is only valid alongside `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
+Without `--chain`, `migrate status` checks all CLI-supported mainnet chains by default. Use `--all-chains` to include supported testnets. As with other multi-chain read-only commands, `--rpc-url` is only valid alongside `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
 
 ```json
 {
