@@ -1,6 +1,7 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
+import { FLOW_PRIVACY_DELAY_PROFILES } from "../utils/flow-privacy-delay.js";
 import { createLazyAction } from "../utils/lazy-command.js";
 
 export function createFlowCommand(): Command {
@@ -20,9 +21,11 @@ export function createFlowCommand(): Command {
     .argument("<amount>", "Amount to deposit (e.g. 0.1)")
     .argument("<asset>", "Asset symbol (e.g. ETH, USDC)")
     .option("-t, --to <address>", "Recipient address for the later private withdrawal")
-    .option(
-      "--privacy-delay <profile>",
-      "Privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized)",
+    .addOption(
+      new Option(
+        "--privacy-delay <profile>",
+        "Privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized)",
+      ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .option("--new-wallet", "Create and use a dedicated wallet for this workflow")
     .option("--export-new-wallet <path>", "Export the generated workflow wallet backup before continuing (requires --new-wallet)")
@@ -39,9 +42,11 @@ export function createFlowCommand(): Command {
     .command("watch")
     .description(watchMetadata.description)
     .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
-    .option(
-      "--privacy-delay <profile>",
-      "Persist or override the saved privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized)",
+    .addOption(
+      new Option(
+        "--privacy-delay <profile>",
+        "Persist or override the saved privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized)",
+      ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .addHelpText("after", commandHelpText(watchMetadata.help ?? {}))
     .action(

@@ -82,6 +82,12 @@ function phaseLabel(phase: FlowPhase): string {
   }
 }
 
+function humanWalletModeLabel(walletMode: FlowSnapshot["walletMode"]): string {
+  return walletMode === "new_wallet"
+    ? "Dedicated workflow wallet"
+    : "Configured signer";
+}
+
 function buildAgentNextActions(snapshot: FlowSnapshot) {
   if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
     return [
@@ -104,14 +110,33 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
     case "approved_ready_to_withdraw":
     case "withdrawing":
     case "depositing_publicly":
+      return [
+        createNextAction(
+          "flow watch",
+          "Resume this saved workflow and continue toward the private withdrawal.",
+          "flow_resume",
+          {
+            args: [snapshot.workflowId],
+            options: { agent: true },
+          },
+        ),
+      ];
     case "paused_poi_required":
       return [
         createNextAction(
           "flow watch",
-          snapshot.phase === "paused_poi_required"
-            ? "Re-check this workflow after completing Proof of Association externally."
-            : "Resume this saved workflow and continue toward the private withdrawal.",
+          "Complete Proof of Association externally first, then re-check this workflow to continue privately.",
           "flow_resume",
+          {
+            args: [snapshot.workflowId],
+            options: { agent: true },
+            runnable: false,
+          },
+        ),
+        createNextAction(
+          "flow ragequit",
+          "Use flow ragequit instead if you want to recover publicly without completing Proof of Association.",
+          "flow_public_recovery_optional",
           {
             args: [snapshot.workflowId],
             options: { agent: true },
@@ -122,7 +147,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
       return [
         createNextAction(
           "flow ragequit",
-          "This workflow was declined. flow ragequit is the canonical saved-workflow recovery path.",
+          "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path.",
           "flow_declined",
           {
             args: [snapshot.workflowId],
@@ -140,7 +165,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
     return [
       createNextAction(
         "flow ragequit",
-        "A public recovery transaction was already submitted, so re-run ragequit to wait for confirmation.",
+        "A public recovery transaction was already submitted, so re-run flow ragequit to wait for confirmation.",
         "flow_public_recovery_pending",
         {
           args: [snapshot.workflowId],
@@ -156,14 +181,30 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
     case "approved_ready_to_withdraw":
     case "withdrawing":
     case "depositing_publicly":
+      return [
+        createNextAction(
+          "flow watch",
+          "Resume this saved workflow and continue toward the private withdrawal.",
+          "flow_resume",
+          {
+            args: [snapshot.workflowId],
+          },
+        ),
+      ];
     case "paused_poi_required":
       return [
         createNextAction(
           "flow watch",
-          snapshot.phase === "paused_poi_required"
-            ? "Complete Proof of Association externally first, then re-run the watcher."
-            : "Resume this saved workflow and continue toward the private withdrawal.",
+          "Complete Proof of Association at tornado.0xbow.io, then re-run the watcher to continue privately.",
           "flow_resume",
+          {
+            args: [snapshot.workflowId],
+          },
+        ),
+        createNextAction(
+          "flow ragequit",
+          "Use flow ragequit instead if you want to recover publicly without completing Proof of Association.",
+          "flow_public_recovery_optional",
           {
             args: [snapshot.workflowId],
           },
@@ -173,7 +214,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       return [
         createNextAction(
           "flow ragequit",
-          "This workflow was declined, so the saved easy path cannot finish privately.",
+          "This workflow was declined, so run flow ragequit to recover publicly to the original deposit address.",
           "flow_declined",
           {
             args: [snapshot.workflowId],
@@ -262,12 +303,12 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     );
   } else if (data.snapshot.phase === "paused_declined") {
     warn(
-      `${data.snapshot.poolAccountId ?? "This workflow"} was declined by the ASP. This saved workflow is paused on the public recovery path.`,
+      `${data.snapshot.poolAccountId ?? "This workflow"} was declined by the ASP. This saved workflow is paused and ready for public recovery via flow ragequit.`,
       silent,
     );
   } else if (data.snapshot.phase === "paused_poi_required") {
     warn(
-      `${data.snapshot.poolAccountId} needs Proof of Association before the private withdrawal can continue.`,
+      `${data.snapshot.poolAccountId} needs Proof of Association before the private withdrawal can continue. Complete PoA to continue privately, or use flow ragequit to recover publicly.`,
       silent,
     );
   } else if (
@@ -309,7 +350,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
 
   info(`Workflow: ${data.snapshot.workflowId}`, silent);
   info(`Phase: ${phaseLabel(data.snapshot.phase)}`, silent);
-  info(`Wallet mode: ${data.snapshot.walletMode ?? "configured"}`, silent);
+  info(`Wallet mode: ${humanWalletModeLabel(data.snapshot.walletMode)}`, silent);
   info(
     `Privacy delay: ${flowPrivacyDelayProfileSummary(
       data.snapshot.privacyDelayProfile ?? "off",
@@ -324,7 +365,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     info(
       `${
         data.snapshot.walletMode === "new_wallet"
-          ? "Workflow wallet"
+          ? "Dedicated workflow wallet"
           : "Configured signer"
       }: ${data.snapshot.walletAddress}`,
       silent,

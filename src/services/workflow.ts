@@ -97,6 +97,10 @@ import {
   checkHasGas,
   checkNativeBalance,
 } from "../utils/preflight.js";
+import {
+  FLOW_PRIVACY_DELAY_PROFILES,
+  type FlowPrivacyDelayProfile,
+} from "../utils/flow-privacy-delay.js";
 import { validateAddress, parseAmount, resolveChain, validatePositive } from "../utils/validation.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import {
@@ -192,7 +196,7 @@ export type FlowPhase =
   | "stopped_external";
 
 export type FlowWalletMode = "configured" | "new_wallet";
-export type FlowPrivacyDelayProfile = "off" | "balanced" | "aggressive";
+export type { FlowPrivacyDelayProfile } from "../utils/flow-privacy-delay.js";
 
 export interface FlowWarning {
   code: string;
@@ -978,12 +982,6 @@ function sleep(ms: number): Promise<void> {
   return workflowSleepFn(ms);
 }
 
-const FLOW_PRIVACY_DELAY_PROFILES = [
-  "off",
-  "balanced",
-  "aggressive",
-] as const satisfies readonly FlowPrivacyDelayProfile[];
-
 export function flowPrivacyDelayProfileSummary(
   profile: FlowPrivacyDelayProfile,
   configured: boolean = true,
@@ -1115,6 +1113,83 @@ export function buildFlowWarnings(snapshot: FlowSnapshot): FlowWarning[] {
     buildFlowPrivacyDelayWarning(snapshot),
     buildFlowAmountPrivacyWarning(snapshot),
   ].filter((warning): warning is FlowWarning => warning !== null);
+}
+
+async function confirmHumanFlowStartReview(params: {
+  chainName: string;
+  pool: WorkflowPool;
+  amount: bigint;
+  recipient: Address;
+  privacyDelayProfile: FlowPrivacyDelayProfile;
+  silent: boolean;
+  newWallet: boolean;
+}): Promise<void> {
+  const { chainName, pool, amount, recipient, privacyDelayProfile, silent, newWallet } = params;
+  const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
+  const estimatedCommitted = amount - feeAmount;
+  const estimatedAmountPatternWarning = buildAmountPatternLinkabilityWarning(
+    estimatedCommitted,
+    pool.decimals,
+    pool.symbol,
+    { estimated: true },
+  );
+  const tokenPrice = deriveTokenPrice(pool);
+  const amountUsd = usdSuffix(amount, pool.decimals, tokenPrice);
+  const feeUsd = usdSuffix(feeAmount, pool.decimals, tokenPrice);
+  const committedUsd = usdSuffix(estimatedCommitted, pool.decimals, tokenPrice);
+  const isErc20 =
+    pool.asset.toLowerCase() !== NATIVE_ASSET_ADDRESS.toLowerCase();
+
+  info(`Recipient: ${formatAddress(recipient)}`, silent);
+  info(
+    `Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)}${feeUsd})`,
+    silent,
+  );
+  info(
+    `Expected committed value: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd}`,
+    silent,
+  );
+  info(
+    `Auto-withdrawal: This saved flow will privately withdraw the full approved balance of that Pool Account to ${formatAddress(recipient)}.`,
+    silent,
+  );
+  info(
+    `Privacy delay: ${flowPrivacyDelayProfileSummary(privacyDelayProfile)}. After approval, flow watch will wait through that window before requesting the private withdrawal.`,
+    silent,
+  );
+  if (newWallet) {
+    info(
+      "Wallet setup: This flow will create a dedicated workflow wallet, and you must confirm a backup before funding it.",
+      silent,
+    );
+    if (isErc20) {
+      info(
+        "Once funded, the workflow wallet will automatically submit the token approval and deposit for you.",
+        silent,
+      );
+    }
+  } else if (isErc20) {
+    info("This will require 2 transactions: token approval + deposit.", silent);
+  }
+  if (estimatedAmountPatternWarning) {
+    warn(estimatedAmountPatternWarning.message, silent);
+    info(
+      "A round deposit input can still become a non-round committed balance after the vetting fee is deducted.",
+      silent,
+    );
+  }
+
+  process.stderr.write("\n");
+  const { confirm } = await import("@inquirer/prompts");
+  const ok = await confirm({
+    message:
+      `${newWallet ? "Create a dedicated workflow wallet, then " : ""}start flow by depositing ${formatAmount(amount, pool.decimals, pool.symbol)}${amountUsd} on ${chainName}, ` +
+      `then privately auto-withdraw the full approved balance to ${formatAddress(recipient)} after approval and the selected privacy delay?`,
+    default: true,
+  });
+  if (!ok) {
+    throw new FlowCancelledError();
+  }
 }
 
 export function resolveFlowPrivacyDelayProfile(
@@ -3472,63 +3547,16 @@ export async function startWorkflow(
     }
   }
 
-  const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
-  const estimatedCommitted = amount - feeAmount;
-  const estimatedAmountPatternWarning = buildAmountPatternLinkabilityWarning(
-    estimatedCommitted,
-    pool.decimals,
-    pool.symbol,
-    { estimated: true },
-  );
-  const tokenPrice = deriveTokenPrice(pool);
-  const amountUsd = usdSuffix(amount, pool.decimals, tokenPrice);
-  const feeUsd = usdSuffix(feeAmount, pool.decimals, tokenPrice);
-  const committedUsd = usdSuffix(estimatedCommitted, pool.decimals, tokenPrice);
-
-  if (!skipPrompts && !newWallet) {
-    const isErc20 =
-      pool.asset.toLowerCase() !== NATIVE_ASSET_ADDRESS.toLowerCase();
-    info(
-      `Recipient: ${formatAddress(validatedRecipient)}`,
+  if (!skipPrompts) {
+    await confirmHumanFlowStartReview({
+      chainName: chainConfig.name,
+      pool,
+      amount,
+      recipient: validatedRecipient,
+      privacyDelayProfile: resolvedPrivacyDelayProfile,
       silent,
-    );
-    info(
-      `Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)}${feeUsd})`,
-      silent,
-    );
-    info(
-      `Expected committed value: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd}`,
-      silent,
-    );
-    info(
-      `Auto-withdrawal: This saved flow will privately withdraw the full approved balance of that Pool Account to ${formatAddress(validatedRecipient)}.`,
-      silent,
-    );
-    info(
-      `Privacy delay: ${flowPrivacyDelayProfileSummary(resolvedPrivacyDelayProfile)}. After approval, flow watch will wait through that window before requesting the private withdrawal.`,
-      silent,
-    );
-    if (estimatedAmountPatternWarning) {
-      warn(estimatedAmountPatternWarning.message, silent);
-      info(
-        "A round deposit input can still become a non-round committed balance after the vetting fee is deducted.",
-        silent,
-      );
-    }
-    if (isErc20) {
-      info("This will require 2 transactions: token approval + deposit.", silent);
-    }
-    process.stderr.write("\n");
-    const { confirm } = await import("@inquirer/prompts");
-    const ok = await confirm({
-      message:
-        `Start flow by depositing ${formatAmount(amount, pool.decimals, pool.symbol)}${amountUsd} on ${chainConfig.name}, ` +
-        `then privately auto-withdraw the full approved balance to ${formatAddress(validatedRecipient)} after approval and the selected privacy delay?`,
-      default: true,
+      newWallet,
     });
-    if (!ok) {
-      throw new FlowCancelledError();
-    }
   }
 
   let snapshot: FlowSnapshot;

@@ -1,4 +1,5 @@
 import { CHAIN_NAMES } from "../config/chains.js";
+import { FLOW_PRIVACY_DELAY_PROFILES } from "./flow-privacy-delay.js";
 import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
 
 export const SUPPORTED_COMPLETION_SHELLS = [
@@ -122,7 +123,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionCommand("start", {
             options: [
               completionOption("-t, --to <address>"),
-              completionOption("--privacy-delay <profile>"),
+              completionOption("--privacy-delay <profile>", FLOW_PRIVACY_DELAY_PROFILES),
               completionOption("--watch"),
               completionOption("--new-wallet"),
               completionOption("--export-new-wallet <path>"),
@@ -130,7 +131,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           }),
           completionCommand("watch", {
             options: [
-              completionOption("--privacy-delay <profile>"),
+              completionOption("--privacy-delay <profile>", FLOW_PRIVACY_DELAY_PROFILES),
             ],
           }),
           completionCommand("status"),
