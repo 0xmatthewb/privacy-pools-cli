@@ -42,6 +42,7 @@ export {
   type SyncResult,
 } from "./sync.js";
 export {
+  deriveStatusPreflightGuidance,
   renderStatus,
   type StatusCheckResult,
 } from "./status.js";
