@@ -150,9 +150,9 @@ bun run test:e2e:anvil:smoke # required happy-path smoke lane
 bun run test:fuzz         # fuzz tests (longer timeout)
 bun run test:stress       # stress test (120 rounds)
 bun run test:coverage     # coverage guard for key source directories
-bun run test:conformance  # core conformance tests (extended timeout)
-bun run test:conformance:frontend # optional frontend parity (website access required)
-bun run test:conformance:all # core conformance + frontend parity
+bun run test:conformance  # live conformance against npm + public 0xbow-io GitHub sources
+bun run test:conformance:frontend # focused website/frontend parity only
+bun run test:conformance:all # alias for the full live conformance suite
 bun run bench:gate        # native perf gate against the current checkout JS fallback
 bun run bench:gate:release # native perf gate against the v1.7.0 release baseline
 ```

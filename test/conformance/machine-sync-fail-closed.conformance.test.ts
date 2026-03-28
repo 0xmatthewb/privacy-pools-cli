@@ -38,11 +38,19 @@ describe("machine sync fail-closed conformance", () => {
 
   test("partial sync failures skip account persistence entirely", () => {
     const partialFailureGuard = accountServiceSource.indexOf(
-      "if (syncFailures > 0) {\n    throw new CLIError(",
+      "if (errors.length > 0) {",
+    );
+    const throwPos = accountServiceSource.indexOf(
+      "throw new CLIError(",
+      partialFailureGuard,
+    );
+    const assignAccountPos = accountServiceSource.indexOf(
+      "accountService.account = account;",
+      throwPos,
     );
     const saveAccountPos = accountServiceSource.indexOf(
       "saveAccount(chainId, accountService.account)",
-      partialFailureGuard,
+      assignAccountPos,
     );
     const saveSyncMetaPos = accountServiceSource.indexOf(
       "saveSyncMeta(chainId)",
@@ -50,7 +58,9 @@ describe("machine sync fail-closed conformance", () => {
     );
 
     expect(partialFailureGuard).toBeGreaterThan(-1);
-    expect(saveAccountPos).toBeGreaterThan(partialFailureGuard);
+    expect(throwPos).toBeGreaterThan(partialFailureGuard);
+    expect(assignAccountPos).toBeGreaterThan(throwPos);
+    expect(saveAccountPos).toBeGreaterThan(assignAccountPos);
     expect(saveSyncMetaPos).toBeGreaterThan(saveAccountPos);
   });
 

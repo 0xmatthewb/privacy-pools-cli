@@ -6,10 +6,10 @@
 #   - Manually via the "Run workflow" button on GitHub
 #
 # WHAT does it do?
-#   Runs the frontend-dependent parity checks that compare the CLI's
-#   ASP/relayer client assumptions against the website repo. This is
-#   intentionally separate from the core conformance workflow so a
-#   temporarily private or unavailable frontend repo does not block merges.
+#   Runs the focused frontend-only parity slice that compares the CLI's
+#   ASP/relayer and website-facing assumptions against the public website
+#   repo. The blocking conformance suite already covers this live path; this
+#   workflow keeps a narrower website-only lane visible on PRs.
 #
 # WHERE do results show up?
 #   Go to the "Actions" tab on GitHub → click "Frontend Parity" in the

@@ -42,13 +42,17 @@ describe("test profiles", () => {
       ["npm", ["run", "test:scripts"]],
       ["node", ["scripts/run-conformance-suite.mjs", "core"]],
     ]);
+    expect(TEST_PROFILE_FRAGMENTS["repo-conformance-live"]).toEqual([
+      ["npm", ["run", "test:scripts"]],
+      ["node", ["scripts/run-conformance-suite.mjs", "all"]],
+    ]);
     expect(TEST_PROFILE_FRAGMENTS["repo-conformance-all"]).toEqual([
       ["npm", ["run", "test:scripts"]],
       ["node", ["scripts/run-conformance-suite.mjs", "all"]],
     ]);
     expect(resolveProfile("conformance")).toEqual([
       ...TEST_PROFILE_FRAGMENTS.build,
-      ...TEST_PROFILE_FRAGMENTS["repo-conformance-core"],
+      ...TEST_PROFILE_FRAGMENTS["repo-conformance-live"],
     ]);
     expect(resolveProfile("conformance-all")).toEqual([
       ...TEST_PROFILE_FRAGMENTS.build,

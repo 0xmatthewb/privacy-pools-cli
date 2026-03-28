@@ -75,18 +75,12 @@ if (mode === "all") {
     process.exit(coreStatus);
   }
 
-  const frontendStatus = runSuite(selectTests("frontend"), {
-    ...process.env,
-    CONFORMANCE_FETCH_LIVE: "1",
-  });
+  const frontendStatus = runSuite(selectTests("frontend"));
   process.exit(frontendStatus);
 }
 
 if (mode === "frontend") {
-  process.exit(runSuite(selectTests("frontend"), {
-    ...process.env,
-    CONFORMANCE_FETCH_LIVE: "1",
-  }));
+  process.exit(runSuite(selectTests("frontend")));
 }
 
 process.exit(runSuite(selectTests("core")));

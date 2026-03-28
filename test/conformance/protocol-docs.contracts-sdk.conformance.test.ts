@@ -53,6 +53,22 @@ const cliProofs = readFileSync(resolve(CLI_ROOT, "src/services/proofs.ts"), "utf
 const cliWallet = readFileSync(resolve(CLI_ROOT, "src/services/wallet.ts"), "utf8");
 const cliAccount = readFileSync(resolve(CLI_ROOT, "src/services/account.ts"), "utf8");
 const cliUnsignedFlows = readFileSync(resolve(CLI_ROOT, "src/utils/unsigned-flows.ts"), "utf8");
+const cliWorkflow = readFileSync(resolve(CLI_ROOT, "src/services/workflow.ts"), "utf8");
+const cliInstallAnvilVerifier = readFileSync(
+  resolve(CLI_ROOT, "scripts/verify-cli-install-anvil.mjs"),
+  "utf8",
+);
+const syncGateRpcServer = readFileSync(
+  resolve(CLI_ROOT, "test/helpers/sync-gate-rpc-server.ts"),
+  "utf8",
+);
+
+const DEPOSIT_EVENT_SIGNATURE =
+  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)";
+const WITHDRAWN_EVENT_SIGNATURE =
+  "event Withdrawn(address indexed _processooor, uint256 _value, uint256 _spentNullifier, uint256 _newCommitment)";
+const RAGEQUIT_EVENT_SIGNATURE =
+  "event Ragequit(address indexed _ragequitter, uint256 _commitment, uint256 _label, uint256 _value)";
 
 let fetchFailed = false;
 
@@ -251,9 +267,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     // If the upstream changes parameter types or indexed modifiers, the
     // CLI would silently decode events incorrectly, producing wrong account
     // state.  This checks the full signature, not just parameter names.
-    const cliEventSig =
-      "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)";
-    expect(cliDeposit).toContain(cliEventSig);
+    expect(cliDeposit).toContain(DEPOSIT_EVENT_SIGNATURE);
 
     // Upstream must define the same event shape (whitespace may differ)
     expect(upstreamIPrivacyPool).toContain("event Deposited(");
@@ -264,10 +278,39 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     }
   });
 
+  run("all deposit event parser copies used by sync and install remain aligned with upstream", () => {
+    expect(upstreamIPrivacyPool).toContain("event Deposited(");
+    expect(upstreamIPrivacyPool).toContain("address indexed _depositor");
+    for (const field of [
+      "uint256 _commitment",
+      "uint256 _label",
+      "uint256 _value",
+      "uint256 _precommitmentHash",
+    ]) {
+      expect(upstreamIPrivacyPool).toContain(field);
+    }
+
+    for (const source of [
+      cliDeposit,
+      cliWorkflow,
+      cliInstallAnvilVerifier,
+      syncGateRpcServer,
+    ]) {
+      expect(source).toContain(DEPOSIT_EVENT_SIGNATURE);
+    }
+  });
+
   run("upstream IPrivacyPool.sol defines Withdrawn and Ragequit events the CLI rebuild path depends on", () => {
     expect(cliAccount).toContain("initializeWithEvents");
     expect(upstreamIPrivacyPool).toContain("event Withdrawn");
     expect(upstreamIPrivacyPool).toContain("event Ragequit");
+  });
+
+  run("sync reconstruction parser signatures stay aligned with upstream withdraw and ragequit events", () => {
+    expect(upstreamIPrivacyPool).toContain(WITHDRAWN_EVENT_SIGNATURE);
+    expect(upstreamIPrivacyPool).toContain(RAGEQUIT_EVENT_SIGNATURE);
+    expect(cliSdk).toContain(WITHDRAWN_EVENT_SIGNATURE);
+    expect(cliSdk).toContain(RAGEQUIT_EVENT_SIGNATURE);
   });
 
   run("CLI Withdrawal struct fields match upstream IPrivacyPool.sol", () => {
