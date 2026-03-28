@@ -44,7 +44,7 @@ const ROOT_HELP_BASE_LINES = [
   "Commands:",
   "  init                 Initialize wallet and configuration",
   "  upgrade              Check npm for updates or upgrade this CLI",
-  "  flow                 Run the easy-path deposit-to-withdraw workflow",
+  "  flow                 Manage the easy-path deposit-to-withdraw workflow",
   "  pools                List available pools and assets",
   "  deposit              Deposit into a pool",
   "  accounts             List your Pool Accounts (individual deposit lineages)",
