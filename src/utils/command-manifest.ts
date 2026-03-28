@@ -344,7 +344,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "status [workflowId|latest]",
         "ragequit [workflowId|latest]"
       ],
-      "agentFlags": "start <amount> <asset> --to <address> --agent (or: watch/status/ragequit --agent)",
+      "agentFlags": "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent (or: watch [workflowId|latest] [--privacy-delay <profile>] --agent; status/ragequit --agent)",
       "requiresInit": false,
       "expectedLatencyClass": "slow"
     },
@@ -359,19 +359,19 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
-      "agentFlags": "--agent [--watch] [--new-wallet] [--export-new-wallet <path>]",
+      "agentFlags": "--agent [--privacy-delay <profile>] [--watch] [--new-wallet] [--export-new-wallet <path>]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
     {
       "name": "flow watch",
-      "description": "Poll ASP approval and withdraw privately when ready",
+      "description": "Resume a saved flow through funding, approval, delay, and withdrawal",
       "usage": "flow watch [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
         "--privacy-delay <profile>"
       ],
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--privacy-delay <profile>]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -808,13 +808,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "The deposit is still public and reviewed by the ASP before private withdrawal is possible.",
-        "In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.",
+        "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
         "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
         "Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.",
         "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
         "--export-new-wallet is only valid with --new-wallet.",
         "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
         "The generated workflow key is also stored locally under workflow-secrets until the workflow completes or recovers publicly, so --export-new-wallet is a backup copy rather than the only retained secret.",
+        "Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.",
         "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode."
       ],
       "supportsUnsigned": false,
@@ -826,7 +827,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "flow watch": {
       "command": "flow watch",
-      "description": "Poll ASP approval and withdraw privately when ready",
+      "description": "Resume a saved flow through funding, approval, delay, and withdrawal",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -875,6 +876,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
+        "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting. The happy-path canonical resume command remains flow watch.",
         "Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
         "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time."
       ],
@@ -979,7 +981,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools flow ragequit latest --agent",
         "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
+      "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }",
       "jsonVariants": [],
       "safetyNotes": [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",

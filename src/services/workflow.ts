@@ -98,6 +98,7 @@ import {
   checkNativeBalance,
 } from "../utils/preflight.js";
 import {
+  describeFlowPrivacyDelayDeadline,
   FLOW_PRIVACY_DELAY_PROFILES,
   type FlowPrivacyDelayProfile,
 } from "../utils/flow-privacy-delay.js";
@@ -3536,7 +3537,7 @@ export async function startWorkflow(
       throw new CLIError(
         `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy.`,
         "INPUT",
-        `Unique amounts can be linked between deposits and withdrawals.${suggestionText}`,
+        `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText}`,
       );
     }
 
@@ -3683,9 +3684,12 @@ export async function watchWorkflow(
           privacyDelayUpdateMessage =
             "Saved privacy-delay policy updated to Off (no added hold). Any existing privacy-delay hold was cleared.";
         } else if (snapshot.privacyDelayUntil) {
+          const delaySummary =
+            describeFlowPrivacyDelayDeadline(snapshot.privacyDelayUntil) ??
+            snapshot.privacyDelayUntil;
           privacyDelayUpdateMessage =
             `Saved privacy-delay policy updated from ${flowPrivacyDelayProfileSummary(previousProfile, previousConfigured)} to ${flowPrivacyDelayProfileSummary(snapshot.privacyDelayProfile ?? privacyDelayOverride, snapshot.privacyDelayConfigured ?? true)}. ` +
-            `This workflow is now waiting until ${snapshot.privacyDelayUntil}.`;
+            `This workflow is now waiting until ${delaySummary}.`;
         } else {
           privacyDelayUpdateMessage =
             `Saved privacy-delay policy updated from ${flowPrivacyDelayProfileSummary(previousProfile, previousConfigured)} to ${flowPrivacyDelayProfileSummary(snapshot.privacyDelayProfile ?? privacyDelayOverride, snapshot.privacyDelayConfigured ?? true)}.`;

@@ -89,24 +89,25 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 | `--watch` | Keep watching this workflow until it finishes or pauses |
 
 **Safety:** The deposit is still public and reviewed by the ASP before private withdrawal is possible.
-**Safety:** In machine modes, non-round flow amounts are rejected by default for the same privacy reasons as deposit. Prefer round amounts unless you intentionally accept that tradeoff.
+**Safety:** In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.
 **Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
 **Safety:** Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
 **Safety:** flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.
 **Safety:** --export-new-wallet is only valid with --new-wallet.
 **Safety:** Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.
 **Safety:** The generated workflow key is also stored locally under workflow-secrets until the workflow completes or recovers publicly, so --export-new-wallet is a backup copy rather than the only retained secret.
+**Safety:** Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.
 **Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
 
 **JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, warnings?: [{ code, category: "privacy", message }], lastError?, nextActions? }`
 
 ### `flow watch`
 
-Poll ASP approval and withdraw privately when ready
+Resume a saved flow through funding, approval, delay, and withdrawal
 
 **Usage:** `privacy-pools flow watch [workflowId|latest] [options]`
 
-Re-checks a saved workflow using the same protocol realities as the frontend. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
+Re-checks a saved workflow using the same protocol realities as the frontend. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
 
 ```bash
 privacy-pools flow watch
@@ -120,6 +121,7 @@ privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000
 | `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized) |
 
 **Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.
+**Safety:** Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting. The happy-path canonical resume command remains flow watch.
 **Safety:** Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
 **Safety:** Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.
 
@@ -147,7 +149,7 @@ Recover a saved workflow publicly via ragequit
 
 **Usage:** `privacy-pools flow ragequit [workflowId|latest] [options]`
 
-Uses the saved workflow context to perform the public recovery path without changing any manual commands. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
+Uses the saved workflow context to perform the public recovery path without changing any manual commands. Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
 
 ```bash
 privacy-pools flow ragequit
@@ -158,7 +160,7 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 **Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
 **Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.
 
-**JSON output:** `{ mode: "flow", action: "ragequit", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
+**JSON output:** `{ mode: "flow", action: "ragequit", workflowId, phase, walletMode?, walletAddress?, requiredNativeFunding?, requiredTokenFunding?, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId?, poolAccountNumber?, depositTxHash?, depositBlockNumber?, depositExplorerUrl?, committedValue?, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil?, withdrawTxHash?, withdrawBlockNumber?, withdrawExplorerUrl?, ragequitTxHash?, ragequitBlockNumber?, ragequitExplorerUrl?, lastError?, nextActions? }`
 
 ### `pools`
 
