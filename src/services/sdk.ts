@@ -13,7 +13,7 @@ const LOG_PROBE_ADDRESS = "0x0000000000000000000000000000000000000000";
 const LOG_PROBE_RANGE = 1_024n;
 
 const LOCAL_DEPOSIT_EVENT = parseAbiItem(
-  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)"
+  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)"
 );
 const LOCAL_WITHDRAWAL_EVENT = parseAbiItem(
   "event Withdrawn(address indexed _processooor, uint256 _value, uint256 _spentNullifier, uint256 _newCommitment)"
@@ -220,11 +220,20 @@ class LocalCompatDataService {
     private readonly chainConfig: ChainConfig
   ) {}
 
+  private async resolveFromBlock(candidate?: bigint): Promise<bigint> {
+    const requested = candidate ?? this.chainConfig.startBlock;
+    const latest = await this.client.getBlockNumber();
+    return requested > latest ? 0n : requested;
+  }
+
   async getDeposits(pool: PoolInfo) {
+    const fromBlock = await this.resolveFromBlock(
+      pool.deploymentBlock ?? this.chainConfig.startBlock,
+    );
     const logs = await this.client.getLogs({
       address: pool.address,
       event: LOCAL_DEPOSIT_EVENT,
-      fromBlock: pool.deploymentBlock ?? this.chainConfig.startBlock,
+      fromBlock,
     });
 
     return logs.map((log) => {
@@ -233,7 +242,7 @@ class LocalCompatDataService {
         _commitment?: bigint;
         _label?: bigint;
         _value?: bigint;
-        _merkleRoot?: bigint;
+        _precommitmentHash?: bigint;
       };
 
       if (
@@ -242,8 +251,8 @@ class LocalCompatDataService {
         !args._label ||
         !log.blockNumber ||
         !log.transactionHash ||
-        args._merkleRoot === undefined ||
-        args._merkleRoot === null
+        args._precommitmentHash === undefined ||
+        args._precommitmentHash === null
       ) {
         throw new Error("Malformed deposit log");
       }
@@ -253,7 +262,7 @@ class LocalCompatDataService {
         commitment: args._commitment,
         label: args._label,
         value: args._value ?? 0n,
-        precommitment: args._merkleRoot,
+        precommitment: args._precommitmentHash,
         blockNumber: BigInt(log.blockNumber),
         transactionHash: log.transactionHash as Hex,
       };
@@ -261,10 +270,13 @@ class LocalCompatDataService {
   }
 
   async getWithdrawals(pool: PoolInfo, fromBlock?: bigint) {
+    const resolvedFromBlock = await this.resolveFromBlock(
+      fromBlock ?? pool.deploymentBlock ?? this.chainConfig.startBlock,
+    );
     const logs = await this.client.getLogs({
       address: pool.address,
       event: LOCAL_WITHDRAWAL_EVENT,
-      fromBlock: fromBlock ?? pool.deploymentBlock ?? this.chainConfig.startBlock,
+      fromBlock: resolvedFromBlock,
     });
 
     return logs.map((log) => {
@@ -296,10 +308,13 @@ class LocalCompatDataService {
   }
 
   async getRagequits(pool: PoolInfo, fromBlock?: bigint) {
+    const resolvedFromBlock = await this.resolveFromBlock(
+      fromBlock ?? pool.deploymentBlock ?? this.chainConfig.startBlock,
+    );
     const logs = await this.client.getLogs({
       address: pool.address,
       event: LOCAL_RAGEQUIT_EVENT,
-      fromBlock: fromBlock ?? pool.deploymentBlock ?? this.chainConfig.startBlock,
+      fromBlock: resolvedFromBlock,
     });
 
     return logs.map((log) => {

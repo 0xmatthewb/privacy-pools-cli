@@ -201,6 +201,8 @@ export async function handleHistoryCommand(
         isJson: mode.isJson,
         isVerbose,
         errorLabel: "History",
+        dataService,
+        mnemonic,
       }),
     );
 

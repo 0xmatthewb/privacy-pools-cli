@@ -264,10 +264,8 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     }
   });
 
-  run("upstream IPrivacyPool.sol defines Withdrawn and Ragequit events the CLI syncs from", () => {
-    // CLI's AccountService sync reads these events via getWithdrawalEvents / getRagequitEvents
-    expect(cliAccount).toContain("getWithdrawalEvents");
-    expect(cliAccount).toContain("getRagequitEvents");
+  run("upstream IPrivacyPool.sol defines Withdrawn and Ragequit events the CLI rebuild path depends on", () => {
+    expect(cliAccount).toContain("initializeWithEvents");
     expect(upstreamIPrivacyPool).toContain("event Withdrawn");
     expect(upstreamIPrivacyPool).toContain("event Ragequit");
   });
@@ -329,9 +327,6 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     { method: "addPoolAccount", usedBy: "deposit.ts" },
     { method: "addRagequitToAccount", usedBy: "ragequit.ts" },
     { method: "addWithdrawalCommitment", usedBy: "withdraw.ts" },
-    { method: "getDepositEvents", usedBy: "account.ts (sync)" },
-    { method: "getWithdrawalEvents", usedBy: "account.ts (sync)" },
-    { method: "getRagequitEvents", usedBy: "account.ts (sync)" },
   ];
 
   for (const { method, usedBy } of ACCOUNT_SERVICE_METHODS) {
@@ -342,7 +337,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     });
   }
 
-  run("AccountService.initializeWithEvents() exists upstream and is used by CLI", () => {
+  run("AccountService.initializeWithEvents() exists upstream and is used by CLI init and sync paths", () => {
     expect(cliAccount).toContain("initializeWithEvents");
     expect(upstreamAccountService).toContain("initializeWithEvents");
   });

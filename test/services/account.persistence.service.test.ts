@@ -238,8 +238,25 @@ describe("account persistence", () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
 
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        },
+      } as any,
+      errors: [{ scope: 1n, reason: "mock rpc timeout" }],
+    })) as typeof AccountService.initializeWithEvents;
+
     // Write a saved account file
-    const fakeAccount = { poolAccounts: new Map() };
+    const fakeAccount = {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map(),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+    };
     saveAccount(11155111, fakeAccount);
 
     const mockDataService = {} as any;
@@ -267,7 +284,11 @@ describe("account persistence", () => {
       expect(service).toBeDefined();
       expect(service).toBeInstanceOf(AccountService);
       // Should have emitted a warning
-      expect(stderrWrites.some((w) => w.includes("Warning: sync failed"))).toBe(true);
+      expect(
+        stderrWrites.some((w) =>
+          w.includes("Warning: account sync had partial failures"),
+        ),
+      ).toBe(true);
     } finally {
       process.stderr.write = origWrite;
     }
@@ -726,6 +747,18 @@ describe("account persistence", () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
 
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        },
+      } as any,
+      errors: [{ scope: 1n, reason: "mock sync failure" }],
+    })) as typeof AccountService.initializeWithEvents;
+
     const accountService = {
       account: {
         masterKeys: [1n, 2n],
@@ -733,11 +766,6 @@ describe("account persistence", () => {
         creationTimestamp: 0n,
         lastUpdateTimestamp: 0n,
       },
-      getDepositEvents: async () => undefined,
-      getWithdrawalEvents: async () => {
-        throw new Error("mock sync failure");
-      },
-      getRagequitEvents: async () => undefined,
     } as unknown as AccountService;
 
     await expect(
@@ -753,6 +781,8 @@ describe("account persistence", () => {
           isJson: false,
           isVerbose: false,
           errorLabel: "Sync",
+          dataService: {} as any,
+          mnemonic: MNEMONIC,
         },
       ),
     ).rejects.toMatchObject({

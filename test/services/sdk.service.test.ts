@@ -332,6 +332,7 @@ describe("sdk service", () => {
       );
 
       (ds as any).client = {
+        getBlockNumber: async () => 1_000n,
         getLogs: async ({ event }: { event: { name: string } }) => {
           switch (event.name) {
             case "Deposited":
@@ -341,7 +342,7 @@ describe("sdk service", () => {
                   _commitment: 11n,
                   _label: 22n,
                   _value: 33n,
-                  _merkleRoot: 44n,
+                  _precommitmentHash: 44n,
                 },
                 blockNumber: 55n,
                 transactionHash:
@@ -407,6 +408,27 @@ describe("sdk service", () => {
       }]);
     });
 
+    test("local compatibility data service clamps future deployment blocks on localhost", async () => {
+      const ds = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "http://127.0.0.1:8545"
+      );
+
+      let seenFromBlock: bigint | undefined;
+      (ds as any).client = {
+        getBlockNumber: async () => 12n,
+        getLogs: async ({ fromBlock }: { fromBlock: bigint }) => {
+          seenFromBlock = fromBlock;
+          return [];
+        },
+      };
+
+      await (ds as any).getDeposits(poolInfo);
+
+      expect(seenFromBlock).toBe(0n);
+    });
+
     test("local compatibility data service rejects malformed logs", async () => {
       const ds = await getDataService(
         CHAINS.sepolia,
@@ -415,6 +437,7 @@ describe("sdk service", () => {
       );
 
       (ds as any).client = {
+        getBlockNumber: async () => 1_000n,
         getLogs: async ({ event }: { event: { name: string } }) => {
           switch (event.name) {
             case "Deposited":
@@ -423,7 +446,7 @@ describe("sdk service", () => {
                   _depositor: "0x1111111111111111111111111111111111111111",
                   _label: 22n,
                   _value: 33n,
-                  _merkleRoot: 44n,
+                  _precommitmentHash: 44n,
                 },
                 blockNumber: 55n,
                 transactionHash:

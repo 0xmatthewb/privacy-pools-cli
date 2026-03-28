@@ -99,6 +99,8 @@ export async function handleSyncCommand(
           isJson: mode.isJson,
           isVerbose,
           errorLabel: "Sync",
+          dataService,
+          mnemonic,
         }),
     );
 

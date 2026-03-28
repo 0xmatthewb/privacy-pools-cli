@@ -27,7 +27,7 @@ const poolAbi = parseAbi([
 ]);
 
 const depositEventAbi = parseAbi([
-  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)",
+  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
 ]);
 
 const depositTopic0 = encodeEventTopics({

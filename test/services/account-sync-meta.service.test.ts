@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { AccountService } from "@0xbow/privacy-pools-core-sdk";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -14,6 +15,8 @@ import {
 } from "../helpers/temp.ts";
 
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+const ORIGINAL_INIT_WITH_EVENTS = AccountService.initializeWithEvents;
+const MNEMONIC = "test test test test test test test test test test test junk";
 
 function useIsolatedHome(): string {
   const home = createTrackedTempDir("pp-account-sync-meta-");
@@ -23,6 +26,7 @@ function useIsolatedHome(): string {
 }
 
 afterEach(() => {
+  AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -67,15 +71,6 @@ describe("account sync metadata + event syncing", () => {
     useIsolatedHome();
     const accountService = {
       account: { poolAccounts: new Map() },
-      getDepositEvents: async () => {
-        throw new Error("should not run");
-      },
-      getWithdrawalEvents: async () => {
-        throw new Error("should not run");
-      },
-      getRagequitEvents: async () => {
-        throw new Error("should not run");
-      },
     };
 
     const synced = await syncAccountEvents(
@@ -97,6 +92,8 @@ describe("account sync metadata + event syncing", () => {
         isJson: true,
         isVerbose: false,
         errorLabel: "Account",
+        dataService: {} as never,
+        mnemonic: MNEMONIC,
       },
     );
 
@@ -109,17 +106,13 @@ describe("account sync metadata + event syncing", () => {
     saveSyncMeta(1);
 
     let called = false;
+    AccountService.initializeWithEvents = (async () => {
+      called = true;
+      throw new Error("should not run");
+    }) as typeof AccountService.initializeWithEvents;
+
     const accountService = {
       account: { poolAccounts: new Map() },
-      getDepositEvents: async () => {
-        called = true;
-      },
-      getWithdrawalEvents: async () => {
-        called = true;
-      },
-      getRagequitEvents: async () => {
-        called = true;
-      },
     };
 
     const synced = await syncAccountEvents(
@@ -141,6 +134,8 @@ describe("account sync metadata + event syncing", () => {
         isJson: true,
         isVerbose: false,
         errorLabel: "Account",
+        dataService: {} as never,
+        mnemonic: MNEMONIC,
       },
     );
 
@@ -148,21 +143,26 @@ describe("account sync metadata + event syncing", () => {
     expect(called).toBe(false);
   });
 
-  test("syncAccountEvents persists account state and sync metadata on success", async () => {
+  test("syncAccountEvents rebuilds target scopes and preserves untouched ones", async () => {
     useIsolatedHome();
-    const calls: string[] = [];
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: {
+          masterKeys: [1n, 2n],
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+          poolAccounts: new Map([[1n, [{ label: 11n }]]]),
+        },
+      } as never,
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
     const accountService = {
       account: {
-        poolAccounts: new Map([[1n, [{ label: 11n }]]]),
-      },
-      getDepositEvents: async () => {
-        calls.push("deposit");
-      },
-      getWithdrawalEvents: async () => {
-        calls.push("withdrawal");
-      },
-      getRagequitEvents: async () => {
-        calls.push("ragequit");
+        masterKeys: [1n, 2n],
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+        poolAccounts: new Map([[2n, [{ label: 22n }]]]),
       },
     };
 
@@ -185,25 +185,38 @@ describe("account sync metadata + event syncing", () => {
         isJson: true,
         isVerbose: false,
         errorLabel: "Account",
+        dataService: {} as never,
+        mnemonic: MNEMONIC,
       },
     );
 
     expect(synced).toBe(true);
-    expect(calls).toEqual(["deposit", "withdrawal", "ragequit"]);
+    expect(accountService.account.poolAccounts.get(1n)).toEqual([{ label: 11n }]);
+    expect(accountService.account.poolAccounts.get(2n)).toEqual([{ label: 22n }]);
     expect(loadSyncMeta(1)).not.toBeNull();
   });
 
   test("syncAccountEvents fails closed on partial pool sync failures", async () => {
     useIsolatedHome();
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: {
+          masterKeys: [1n, 2n],
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+          poolAccounts: new Map(),
+        },
+      } as never,
+      errors: [{ scope: 2n, reason: "rpc down" }],
+    })) as typeof AccountService.initializeWithEvents;
+
     const accountService = {
-      account: { poolAccounts: new Map() },
-      getDepositEvents: async (poolInfo: { address: string }) => {
-        if (poolInfo.address.endsWith("2")) {
-          throw new Error("rpc down");
-        }
+      account: {
+        masterKeys: [1n, 2n],
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+        poolAccounts: new Map(),
       },
-      getWithdrawalEvents: async () => undefined,
-      getRagequitEvents: async () => undefined,
     };
 
     await expect(
@@ -235,6 +248,8 @@ describe("account sync metadata + event syncing", () => {
           isJson: true,
           isVerbose: false,
           errorLabel: "Account",
+          dataService: {} as never,
+          mnemonic: MNEMONIC,
         },
       ),
     ).rejects.toMatchObject({

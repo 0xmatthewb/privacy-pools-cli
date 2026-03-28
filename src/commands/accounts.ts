@@ -192,6 +192,8 @@ async function loadAccountsForChain(
       isJson: mode.isJson,
       isVerbose,
       errorLabel: "Account",
+      dataService,
+      mnemonic,
     });
   if (spin && showPerChainProgress) {
     await withSpinnerProgress(

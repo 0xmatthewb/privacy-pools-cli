@@ -4,6 +4,7 @@ import {
   initializeAccountService,
   loadAccount,
   loadSyncMeta,
+  saveAccount,
 } from "../../src/services/account.ts";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
@@ -104,5 +105,44 @@ describe("account service strict sync behavior", () => {
     expect(service.account.poolAccounts.size).toBe(0);
     expect(loadAccount(11155111)).toBeNull();
     expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("forceSync rebuilds targeted scopes without dropping untouched ones", async () => {
+    process.env.PRIVACY_POOLS_HOME = isolatedHome();
+
+    saveAccount(11155111, {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map([
+        [1n, [{ label: 10n }]],
+        [2n, [{ label: 20n }]],
+      ]),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+    });
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map([[1n, [{ label: 11n }]]]),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        },
+      } as any,
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const service = await initializeAccountService(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      true,
+      true,
+      true,
+    );
+
+    expect(service.account.poolAccounts.get(1n)).toEqual([{ label: 11n }]);
+    expect(service.account.poolAccounts.get(2n)).toEqual([{ label: 20n }]);
   });
 });

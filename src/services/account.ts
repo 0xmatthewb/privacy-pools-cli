@@ -110,6 +110,9 @@ export interface InitializeAccountServiceState {
   rebuiltLegacyAccount: boolean;
 }
 
+type AccountState = AccountService["account"];
+type AccountScope = Parameters<AccountState["poolAccounts"]["delete"]>[0];
+
 function staleAccountRefreshRequiredError(): CLIError {
   return new CLIError(
     "Stored account state is outdated and must be refreshed before it can be used safely.",
@@ -192,6 +195,63 @@ function isLegacyRestoreBlockingError(error: unknown): boolean {
       error.code === "ACCOUNT_WEBSITE_RECOVERY_REQUIRED" ||
       error.code === "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE")
   );
+}
+
+function mergeRebuiltScopes(
+  currentAccount: AccountState,
+  rebuiltAccount: AccountState,
+  scopes: AccountScope[],
+): AccountState {
+  const poolAccounts = new Map(currentAccount.poolAccounts);
+  for (const scope of scopes) {
+    poolAccounts.delete(scope);
+  }
+  for (const [scope, accounts] of rebuiltAccount.poolAccounts.entries()) {
+    poolAccounts.set(scope, accounts);
+  }
+  return {
+    ...currentAccount,
+    masterKeys: rebuiltAccount.masterKeys,
+    creationTimestamp: rebuiltAccount.creationTimestamp,
+    lastUpdateTimestamp: rebuiltAccount.lastUpdateTimestamp,
+    poolAccounts,
+  };
+}
+
+async function rebuildAccountScopesFromEvents(
+  dataService: DataService,
+  mnemonic: string,
+  currentAccount: AccountState,
+  pools: Array<{
+    chainId: number;
+    address: Address;
+    scope: bigint;
+    deploymentBlock: bigint;
+  }>,
+): Promise<{
+  account: AccountState;
+  errors: Array<{ scope: bigint; reason: string }>;
+}> {
+  if (pools.length === 0) {
+    return { account: currentAccount, errors: [] };
+  }
+
+  const result = await withSuppressedSdkStdout(async () =>
+    AccountService.initializeWithEvents(
+      dataService,
+      { mnemonic },
+      pools.map(toPoolInfo),
+    ),
+  );
+
+  return {
+    account: mergeRebuiltScopes(
+      currentAccount,
+      result.account.account,
+      pools.map((pool) => pool.scope as AccountScope),
+    ),
+    errors: result.errors ?? [],
+  };
 }
 
 export async function initializeAccountServiceWithState(
@@ -287,34 +347,30 @@ export async function initializeAccountServiceWithState(
       async () => new AccountService(dataService, { account: savedAccount }),
     );
 
-    // Sync to pick up any events that happened since last save
     if (forceSyncSavedAccount && pools.length > 0) {
-      let syncFailures = 0;
-      for (const pool of pools) {
-        const poolInfo = toPoolInfo(pool);
-        try {
-          await withSuppressedSdkStdout(async () => {
-            await service.getDepositEvents(poolInfo);
-            await service.getWithdrawalEvents(poolInfo);
-            await service.getRagequitEvents(poolInfo);
-          });
-        } catch (err) {
-          syncFailures++;
-          if (!suppressWarnings) {
-            process.stderr.write(
-              `Warning: sync failed for pool ${pool.address}: ${err instanceof Error ? err.message : String(err)}\n`,
-            );
-          }
+      const { account, errors } = await rebuildAccountScopesFromEvents(
+        dataService,
+        mnemonic,
+        service.account,
+        pools,
+      );
+
+      if (errors.length > 0) {
+        const details = summarizeInitErrors(errors);
+        if (strictSync) {
+          throw new CLIError(
+            `Failed to sync account state for ${errors.length} pool(s). ${details}`,
+            "RPC",
+            "Check your RPC connectivity and retry.",
+          );
         }
-      }
-      if (strictSync && syncFailures > 0) {
-        throw new CLIError(
-          `Failed to sync account state for ${syncFailures} pool(s).`,
-          "RPC",
-          "Check your RPC connectivity and retry.",
+        warnOnPartialInitialization(
+          suppressWarnings,
+          `account sync had partial failures for ${errors.length} pool(s): ${details}`,
         );
+      } else {
+        service.account = account;
       }
-      // Caller is responsible for saving within a critical section guard.
     }
 
     return {
@@ -484,6 +540,8 @@ export interface SyncEventsOptions {
   isVerbose: boolean;
   /** Prefix for error messages, e.g. "Balance" or "Sync". */
   errorLabel: string;
+  dataService: DataService;
+  mnemonic: string;
 }
 
 /**
@@ -509,37 +567,38 @@ export async function syncAccountEvents(
     return false;
   }
 
-  let syncFailures = 0;
-  for (const poolInfo of poolInfos) {
-    const pi = toPoolInfo(poolInfo);
-    try {
-      await withSuppressedSdkStdout(async () => {
-        await accountService.getDepositEvents(pi);
-        await accountService.getWithdrawalEvents(pi);
-        await accountService.getRagequitEvents(pi);
-      });
-    } catch (err) {
-      syncFailures++;
+  const { account, errors } = await rebuildAccountScopesFromEvents(
+    opts.dataService,
+    opts.mnemonic,
+    accountService.account,
+    poolInfos,
+  );
+
+  if (errors.length > 0) {
+    for (const error of errors) {
       const symbol =
-        pools.find(
-          (p) => p.pool.toLowerCase() === poolInfo.address.toLowerCase(),
-        )?.symbol ?? poolInfo.address;
+        pools.find((pool) => {
+          const poolInfo = poolInfos.find((info) => info.scope === error.scope);
+          return poolInfo ? pool.pool.toLowerCase() === poolInfo.address.toLowerCase() : false;
+        })?.symbol ?? error.scope.toString();
       warn(
-        `Sync failed for ${symbol} pool: ${err instanceof Error ? err.message : String(err)}`,
+        `Sync failed for ${symbol} pool: ${sanitizeDiagnosticText(error.reason)}`,
         opts.silent,
       );
     }
   }
 
-  if (syncFailures > 0) {
+  if (errors.length > 0) {
     throw new CLIError(
-      `${opts.errorLabel} sync failed for ${syncFailures} pool(s).`,
+      `${opts.errorLabel} sync failed for ${errors.length} pool(s).`,
       "RPC",
       "Retry with a healthy RPC before using this data.",
       undefined,
       true,
     );
   }
+
+  accountService.account = account;
 
   const releaseLock = acquireProcessLock();
   try {
