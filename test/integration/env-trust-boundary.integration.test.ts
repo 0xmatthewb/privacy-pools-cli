@@ -15,10 +15,19 @@ import { describe, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { createSeededHome } from "../helpers/cli.ts";
+import { privateKeyToAccount } from "viem/accounts";
+import { createSeededHome, TEST_PRIVATE_KEY } from "../helpers/cli.ts";
 import { CLI_CWD } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
+
+const TSX_LOADER_PATH = join(
+  CLI_CWD,
+  "node_modules",
+  "tsx",
+  "dist",
+  "loader.mjs",
+);
 
 describe(".env trust boundary", () => {
   test("CWD .env does not override config-home for sensitive env vars", () => {
@@ -31,6 +40,10 @@ describe(".env trust boundary", () => {
     const POISONED_RPC = "http://evil.example.com:8545";
     const POISONED_KEY =
       "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    const expectedSignerAddress = privateKeyToAccount(TEST_PRIVATE_KEY).address;
+    const poisonedSignerAddress = privateKeyToAccount(
+      POISONED_KEY as `0x${string}`,
+    ).address;
     writeFileSync(
       join(poisonedCwd, ".env"),
       [
@@ -46,7 +59,13 @@ describe(".env trust boundary", () => {
     //    CWD .env files, so the CLI should only read from config home.
     const result = spawnSync(
       process.platform === "win32" ? "node.exe" : "node",
-      ["--import", "tsx", join(CLI_CWD, "src/index.ts"), "--json", "status"],
+      [
+        "--import",
+        TSX_LOADER_PATH,
+        join(CLI_CWD, "src/index.ts"),
+        "--json",
+        "status",
+      ],
       {
         cwd: poisonedCwd,
         env: buildChildProcessEnv({
@@ -70,18 +89,13 @@ describe(".env trust boundary", () => {
       rpcUrl?: string | null;
     };
     expect(json.success).toBe(true);
+    expect(json.rpcUrl).not.toBe(POISONED_RPC);
+    expect(json.signerAddress).toBe(expectedSignerAddress);
+    expect(json.signerAddress).not.toBe(poisonedSignerAddress);
 
     // 4. The poisoned RPC should NOT appear anywhere in the output.
     expect(result.stdout).not.toContain("evil.example.com");
     expect(result.stderr).not.toContain("evil.example.com");
-
-    // 5. The signer address should match the seeded key (0x1111...),
-    //    NOT the poisoned deadbeef key.
-    //    Seeded key 0x1111... produces address 0xC96aAa54E2d44c299564da76e1cD3184A2386B8D
-    //    (derived via the SDK's poseidon path, not raw ethers).
-    if (json.signerAddress) {
-      expect(json.signerAddress.toLowerCase()).not.toContain("deadbeef");
-    }
   });
 
   test("config-home .env IS loaded for sensitive vars", () => {
@@ -98,7 +112,13 @@ describe(".env trust boundary", () => {
 
     const result = spawnSync(
       process.platform === "win32" ? "node.exe" : "node",
-      ["--import", "tsx", join(CLI_CWD, "src/index.ts"), "--json", "status"],
+      [
+        "--import",
+        TSX_LOADER_PATH,
+        join(CLI_CWD, "src/index.ts"),
+        "--json",
+        "status",
+      ],
       {
         cwd: CLI_CWD,
         env: buildChildProcessEnv({

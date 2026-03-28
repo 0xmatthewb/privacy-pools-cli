@@ -1,13 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CLI_ROOT } from "../helpers/paths.ts";
 import { GENERATED_COMMAND_ROUTES } from "../../src/utils/command-manifest.ts";
 
-const nativeShellSource = readFileSync(
-  join(CLI_ROOT, "native", "shell", "src", "main.rs"),
-  "utf8",
-);
+const nativeShellSource = readdirSync(
+  join(CLI_ROOT, "native", "shell", "src"),
+)
+  .filter((entry) => entry.endsWith(".rs"))
+  .sort()
+  .map((entry) =>
+    readFileSync(join(CLI_ROOT, "native", "shell", "src", entry), "utf8"),
+  )
+  .join("\n");
 const nativeManifest = JSON.parse(
   readFileSync(
     join(CLI_ROOT, "native", "shell", "generated", "manifest.json"),

@@ -3725,6 +3725,125 @@ describe("workflow service mocked coverage", () => {
     expect(submitRelayRequestMock).toHaveBeenCalledTimes(1);
   });
 
+  test("watchWorkflow rejects a concurrent same-process watch for the same workflow", async () => {
+    let releaseRelaySubmission: (() => void) | null = null;
+    const relaySubmissionStarted = new Promise<void>((resolve) => {
+      submitRelayRequestMock.mockImplementationOnce(async () => {
+        resolve();
+        await new Promise<void>((resume) => {
+          releaseRelaySubmission = resume;
+        });
+        return {
+          txHash: state.relayTxHash,
+        };
+      });
+    });
+
+    writeWorkflowSnapshot("wf-concurrent-watch", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "approved",
+    });
+
+    const firstWatch = watchWorkflow({
+      workflowId: "wf-concurrent-watch",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    await relaySubmissionStarted;
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-concurrent-watch",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Another saved workflow operation is already in progress");
+
+    releaseRelaySubmission?.();
+    const snapshot = await firstWatch;
+    expect(snapshot.phase).toBe("completed");
+    expect(submitRelayRequestMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("ragequitWorkflow rejects while a same-process watch is advancing the same workflow", async () => {
+    let releaseRelaySubmission: (() => void) | null = null;
+    const relaySubmissionStarted = new Promise<void>((resolve) => {
+      submitRelayRequestMock.mockImplementationOnce(async () => {
+        resolve();
+        await new Promise<void>((resume) => {
+          releaseRelaySubmission = resume;
+        });
+        return {
+          txHash: state.relayTxHash,
+        };
+      });
+    });
+
+    writeWorkflowSnapshot("wf-watch-ragequit-conflict", {
+      phase: "awaiting_asp",
+      walletMode: "configured",
+      walletAddress: GLOBAL_SIGNER_ADDRESS,
+      depositBlockNumber: "101",
+      aspStatus: "approved",
+    });
+
+    const firstWatch = watchWorkflow({
+      workflowId: "wf-watch-ragequit-conflict",
+      globalOpts: { chain: "sepolia" },
+      mode: {
+        isAgent: true,
+        isJson: true,
+        isCsv: false,
+        isQuiet: true,
+        format: "json",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    await relaySubmissionStarted;
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-watch-ragequit-conflict",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Another saved workflow operation is already in progress");
+
+    releaseRelaySubmission?.();
+    await firstWatch;
+    expect(submitRelayRequestMock).toHaveBeenCalledTimes(1);
+  });
+
   test("watchWorkflow fails closed when a new-wallet funding snapshot is missing the wallet address", async () => {
     writeWorkflowSecret("wf-missing-wallet-address");
     writeWorkflowSnapshot("wf-missing-wallet-address", {

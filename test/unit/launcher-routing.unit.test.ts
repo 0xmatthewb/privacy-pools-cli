@@ -63,7 +63,7 @@ describe("launcher routing", () => {
     );
 
     expect(target.kind).toBe("js-worker");
-    expect(target.command).toBeTruthy();
+    expect(target.command).toBe(launcherTestInternals.resolveJsRuntimeCommand({}));
     expect(target.args.at(-1)).toContain("worker-main");
     expect(target.args).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
     expect(
@@ -87,7 +87,10 @@ describe("launcher routing", () => {
     );
 
     expect(target.kind).toBe("js-worker");
-    expect(target.command).toBeTruthy();
+    expect(target.command).toBe(launcherTestInternals.resolveJsRuntimeCommand({
+      PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+      PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+    }));
   });
 
   test("uses an explicit binary override when native is not disabled", () => {
@@ -114,7 +117,11 @@ describe("launcher routing", () => {
       CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
     );
     expect(bridge.workerRequestEnv).toBe(CURRENT_RUNTIME_REQUEST_ENV);
-    expect(bridge.workerCommand).toBeTruthy();
+    expect(bridge.workerCommand).toBe(
+      launcherTestInternals.resolveJsRuntimeCommand({
+        PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+      }),
+    );
     expect(bridge.workerArgs).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
   });
 
@@ -617,7 +624,9 @@ describe("launcher routing", () => {
     );
 
     expect(target.kind).toBe("js-worker");
-    expect(target.command).toBeTruthy();
+    expect(target.command).toBe(launcherTestInternals.resolveJsRuntimeCommand({
+      PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+    }));
   });
 
   test("knows which invocations still require the js worker under native launch", () => {

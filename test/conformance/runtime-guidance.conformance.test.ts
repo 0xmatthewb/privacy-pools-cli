@@ -124,6 +124,9 @@ describe("runtime guidance conformance", () => {
     };
 
     expect(packageJson.scripts?.["test:runtime:boundary"]).toContain(
+      "scripts/run-test-suite.mjs",
+    );
+    expect(packageJson.scripts?.["test:runtime:boundary"]).toContain(
       "./test/integration/cli-bun-runtime.integration.test.ts",
     );
     expect(packageJson.scripts?.["test:runtime:boundary"]).toContain(

@@ -64,6 +64,12 @@ const USDC_POOL = {
   decimals: 6,
 };
 
+const OP_SEPOLIA_WETH_POOL = {
+  ...ETH_POOL,
+  asset: "0x4200000000000000000000000000000000000006" as Address,
+  symbol: "WETH",
+};
+
 const DEFAULT_WORKFLOW_RECIPIENT =
   "0x5555555555555555555555555555555555555555" as Address;
 const DEFAULT_WORKFLOW_FEE_RECEIVER =
@@ -701,6 +707,17 @@ describe("workflow internal helpers", () => {
       category: "RPC",
       message: "Could not estimate the workflow wallet gas reserve.",
     } satisfies Partial<CLIError>);
+  });
+
+  test("getFlowFundingRequirements treats op-sepolia WETH as native funding", async () => {
+    const result = await getFlowFundingRequirements({
+      chainConfig: CHAINS["op-sepolia"],
+      pool: OP_SEPOLIA_WETH_POOL,
+      amount: 500n,
+    });
+
+    expect(result.requiredNativeFunding).toBeGreaterThan(500n);
+    expect(result.requiredTokenFunding).toBeNull();
   });
 
   test("readFlowFundingState rejects snapshots without a workflow wallet address", async () => {

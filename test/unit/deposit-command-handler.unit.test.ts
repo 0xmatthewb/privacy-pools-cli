@@ -84,6 +84,12 @@ const USDC_POOL = {
   minimumDepositAmount: 1_000_000n,
 };
 
+const OP_SEPOLIA_WETH_POOL = {
+  ...ETH_POOL,
+  symbol: "WETH",
+  asset: "0x4200000000000000000000000000000000000006",
+};
+
 const initializeAccountServiceMock = mock(async () => ({
   account: { poolAccounts: new Map() },
   createDepositSecrets: () => ({
@@ -526,6 +532,28 @@ describe("deposit command handler", () => {
     expect(depositERC20Mock).toHaveBeenCalledTimes(1);
     expect(checkErc20BalanceMock).toHaveBeenCalledTimes(1);
     expect(checkHasGasMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("treats op-sepolia WETH as a native deposit path", async () => {
+    useIsolatedHome({ withSigner: true });
+    resolvePoolMock.mockImplementationOnce(async () => OP_SEPOLIA_WETH_POOL);
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleDepositCommand(
+        "0.1",
+        "WETH",
+        {},
+        fakeCommand({ json: true, chain: "op-sepolia" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.asset).toBe("WETH");
+    expect(approveERC20Mock).not.toHaveBeenCalled();
+    expect(depositERC20Mock).not.toHaveBeenCalled();
+    expect(checkErc20BalanceMock).not.toHaveBeenCalled();
+    expect(checkHasGasMock).not.toHaveBeenCalled();
+    expect(checkNativeBalanceMock).toHaveBeenCalledTimes(1);
   });
 
   test("succeeds but skips local persistence when the deposit event cannot be decoded", async () => {

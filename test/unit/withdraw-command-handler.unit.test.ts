@@ -100,6 +100,12 @@ const USDC_POOL = {
   minimumDepositAmount: 1_000_000n,
 };
 
+const OP_SEPOLIA_WETH_POOL = {
+  ...ETH_POOL,
+  symbol: "WETH",
+  asset: "0x4200000000000000000000000000000000000006" as Address,
+};
+
 const APPROVED_POOL_ACCOUNT = {
   paNumber: 1,
   paId: "PA-1",
@@ -1491,7 +1497,7 @@ describe("withdraw command handler", () => {
     );
 
     expect(stderr).toContain(
-      "Extra gas is not applicable for ETH withdrawals",
+      "Extra gas is not applicable for native-asset withdrawals",
     );
     expect(stderr).toContain("Withdrawal cancelled.");
   });
@@ -1668,11 +1674,47 @@ describe("withdraw command handler", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Extra gas is not applicable for ETH withdrawals");
+    expect(stderr).toContain(
+      "Extra gas is not applicable for native-asset withdrawals",
+    );
     expect(requestQuoteMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         asset: ETH_POOL.asset,
+        extraGas: false,
+        recipient: "0x7777777777777777777777777777777777777777",
+      }),
+    );
+  });
+
+  test("quote suppresses extra gas for op-sepolia WETH native-ux withdrawals", async () => {
+    useIsolatedHome();
+    resolvePoolMock.mockImplementationOnce(async () => OP_SEPOLIA_WETH_POOL);
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawQuoteCommand(
+        "0.1",
+        undefined,
+        {},
+        fakeQuoteCommand(
+          { chain: "op-sepolia" },
+          {
+            asset: "WETH",
+            to: "0x7777777777777777777777777777777777777777",
+            extraGas: true,
+          },
+        ),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain(
+      "Extra gas is not applicable for native-asset withdrawals",
+    );
+    expect(requestQuoteMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        asset: OP_SEPOLIA_WETH_POOL.asset,
         extraGas: false,
         recipient: "0x7777777777777777777777777777777777777777",
       }),
