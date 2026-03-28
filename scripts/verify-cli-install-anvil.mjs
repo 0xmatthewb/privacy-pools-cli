@@ -10,6 +10,15 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
+import {
+  createPublicClient,
+  createWalletClient,
+  decodeEventLog,
+  http,
+  parseAbi,
+} from "viem";
+import { sepolia } from "viem/chains";
 import {
   formatResultDiagnostics,
   npmProcessEnv,
@@ -38,6 +47,17 @@ const TEST_MNEMONIC =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 const TEST_PRIVATE_KEY =
   "0x1111111111111111111111111111111111111111111111111111111111111111";
+const RELAYED_RECIPIENT = "0x4444444444444444444444444444444444444444";
+const DUMMY_CID =
+  "bafybeigdyrzt5sharedanvile2etests12345678901234567890";
+
+const entrypointAbi = parseAbi([
+  "function updateRoot(uint256 _root, string _ipfsCID) returns (uint256 _index)",
+]);
+
+const depositedEventAbi = parseAbi([
+  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
+]);
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -98,6 +118,186 @@ function readSharedFixtureEnv(sharedEnvFile) {
   }
 }
 
+async function anvilRpc(rpcUrl, method, params = []) {
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+  });
+
+  const payload = await response.json();
+  if (!response.ok || payload.error) {
+    throw new Error(
+      payload?.error?.message
+        ? `${method} failed: ${payload.error.message}`
+        : `${method} failed with HTTP ${response.status}`,
+    );
+  }
+
+  return payload.result;
+}
+
+async function setBalance(rpcUrl, address, amount) {
+  await anvilRpc(rpcUrl, "anvil_setBalance", [
+    address,
+    `0x${amount.toString(16)}`,
+  ]);
+}
+
+async function impersonateAccount(rpcUrl, address) {
+  await anvilRpc(rpcUrl, "anvil_impersonateAccount", [address]);
+}
+
+async function stopImpersonatingAccount(rpcUrl, address) {
+  await anvilRpc(rpcUrl, "anvil_stopImpersonatingAccount", [address]);
+}
+
+function readAspState(env) {
+  return JSON.parse(readFileSync(env.aspStateFile, "utf8"));
+}
+
+function writeAspState(env, state) {
+  writeFileSync(env.aspStateFile, JSON.stringify(state, null, 2), "utf8");
+}
+
+async function resetSharedFixture(env) {
+  if (!env.resetStateFile) {
+    fail("Shared Anvil env is missing resetStateFile.");
+  }
+
+  const resetState = JSON.parse(readFileSync(env.resetStateFile, "utf8"));
+  const reverted = await anvilRpc(env.rpcUrl, "evm_revert", [
+    resetState.currentSnapshotId,
+  ]);
+  if (!reverted) {
+    fail(
+      `Failed to revert shared Anvil snapshot ${resetState.currentSnapshotId}.`,
+    );
+  }
+
+  writeFileSync(
+    resetState.aspStateFile,
+    JSON.stringify(resetState.baselineAspState, null, 2),
+    "utf8",
+  );
+
+  const relayerReset = await fetch(`${resetState.relayerUrl}/__reset`, {
+    method: "POST",
+  });
+  if (!relayerReset.ok) {
+    fail(
+      `Failed to reset Anvil relayer state: HTTP ${relayerReset.status}.`,
+    );
+  }
+
+  resetState.currentSnapshotId = await anvilRpc(env.rpcUrl, "evm_snapshot");
+  writeFileSync(env.resetStateFile, JSON.stringify(resetState, null, 2), "utf8");
+}
+
+function appendInsertedEthLeaf(env, commitment) {
+  const state = readAspState(env);
+  const [ethPool, ...restPools] = state.pools;
+  writeAspState(env, {
+    ...state,
+    pools: [
+      {
+        ...ethPool,
+        insertedStateTreeLeaves: [
+          ...ethPool.insertedStateTreeLeaves,
+          commitment.toString(),
+        ],
+      },
+      ...restPools,
+    ],
+  });
+}
+
+function computeMerkleRoot(leaves) {
+  const normalized = leaves.map((leaf) => BigInt(leaf));
+  const proof = generateMerkleProof(
+    normalized,
+    normalized[normalized.length - 1],
+  );
+  return BigInt(proof.root);
+}
+
+async function approveEthLabel(env, publicClient, label) {
+  const labelString = label.toString();
+  const root = computeMerkleRoot([labelString]);
+
+  await impersonateAccount(env.rpcUrl, env.postmanAddress);
+  await setBalance(env.rpcUrl, env.postmanAddress, 10n ** 20n);
+
+  try {
+    const walletClient = createWalletClient({
+      account: env.postmanAddress,
+      chain: { ...sepolia, id: env.chainId },
+      transport: http(env.rpcUrl),
+    });
+
+    const txHash = await walletClient.writeContract({
+      address: env.entrypoint,
+      abi: entrypointAbi,
+      functionName: "updateRoot",
+      args: [root, DUMMY_CID],
+    });
+
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+    if (receipt.status !== "success") {
+      throw new Error(`updateRoot reverted: ${txHash}`);
+    }
+  } finally {
+    await stopImpersonatingAccount(env.rpcUrl, env.postmanAddress);
+  }
+
+  const state = readAspState(env);
+  const [ethPool, ...restPools] = state.pools;
+  writeAspState(env, {
+    ...state,
+    pools: [
+      {
+        ...ethPool,
+        approvedLabels: [...new Set([...ethPool.approvedLabels, labelString])],
+        reviewStatuses: {
+          ...ethPool.reviewStatuses,
+          [labelString]: "approved",
+        },
+      },
+      ...restPools,
+    ],
+  });
+}
+
+async function decodeEthDepositEvent(env, publicClient, txHash) {
+  const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== env.pools.eth.poolAddress.toLowerCase()) {
+      continue;
+    }
+
+    try {
+      const decoded = decodeEventLog({
+        abi: depositedEventAbi,
+        data: log.data,
+        topics: log.topics,
+      });
+      return {
+        commitment: decoded.args._commitment,
+        label: decoded.args._label,
+      };
+    } catch {
+      // Ignore unrelated logs.
+    }
+  }
+
+  throw new Error(`Deposit event not found for tx ${txHash}`);
+}
+
 function sharedAnvilCliEnv(sharedEnvFile, env) {
   const suffix = env.chainName.replace(/[^a-z0-9]/gi, "_").toUpperCase();
   return {
@@ -110,12 +310,61 @@ function sharedAnvilCliEnv(sharedEnvFile, env) {
   };
 }
 
+function delay(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+}
+
+async function runInstalledRelayedWithdrawWithCatchup({
+  installRoot,
+  homeDir,
+  args,
+  env,
+  readyTimeout = 20_000,
+}) {
+  const deadline = Date.now() + readyTimeout;
+  let lastResult = null;
+  let lastPayload = null;
+
+  while (Date.now() < deadline) {
+    const result = runInstalledCli(installRoot, homeDir, args, {
+      env,
+      timeout: 300_000,
+    });
+    const payload = parseJson(result.stdout, "installed withdraw --agent");
+
+    if (result.status === 0) {
+      return { result, payload };
+    }
+
+    lastResult = result;
+    lastPayload = payload;
+
+    const stillUpdating =
+      payload?.success === false
+      && payload?.errorCode === "ASP_ERROR"
+      && payload?.errorMessage === "Withdrawal service data is still updating.";
+    if (!stillUpdating) {
+      break;
+    }
+
+    await delay(500);
+  }
+
+  fail(
+    `Installed CLI failed relayed withdraw parity against shared Anvil:\n${formatResultDiagnostics(lastResult ?? { status: null, stdout: JSON.stringify(lastPayload ?? {}), stderr: "" })}`,
+  );
+}
+
 const sharedEnvFile = process.env.PP_ANVIL_SHARED_ENV_FILE?.trim();
 if (!sharedEnvFile) {
   fail("PP_ANVIL_SHARED_ENV_FILE is required for installed Anvil artifact verification.");
 }
 
 const sharedEnv = readSharedFixtureEnv(sharedEnvFile);
+const anvilClient = createPublicClient({
+  chain: { ...sepolia, id: sharedEnv.chainId },
+  transport: http(sharedEnv.rpcUrl),
+});
 const currentTriplet = nativeTriplet();
 
 const distIndexPath = join(repoRoot, "dist", "index.js");
@@ -132,6 +381,8 @@ mkdirSync(nativeTarballDir, { recursive: true });
 mkdirSync(installRoot, { recursive: true });
 
 try {
+  await resetSharedFixture(sharedEnv);
+
   run(npmCommand, ["run", "build"]);
 
   if (!existsSync(distIndexPath)) {
@@ -303,6 +554,115 @@ try {
 
   const anvilEnv = sharedAnvilCliEnv(sharedEnvFile, sharedEnv);
 
+  const withdrawDepositResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
+    {
+      env: anvilEnv,
+    },
+  );
+  const withdrawDepositPayload = parseJson(
+    withdrawDepositResult.stdout,
+    "installed deposit --agent",
+  );
+  if (
+    withdrawDepositResult.status !== 0 ||
+    withdrawDepositPayload.success !== true ||
+    withdrawDepositPayload.operation !== "deposit" ||
+    typeof withdrawDepositPayload.poolAccountId !== "string"
+  ) {
+    fail(
+      `Installed CLI failed deposit parity against shared Anvil:\n${formatResultDiagnostics(withdrawDepositResult)}`,
+    );
+  }
+
+  const depositEvent = await decodeEthDepositEvent(
+    sharedEnv,
+    anvilClient,
+    withdrawDepositPayload.txHash,
+  );
+  appendInsertedEthLeaf(sharedEnv, depositEvent.commitment);
+  await approveEthLabel(sharedEnv, anvilClient, depositEvent.label);
+
+  const { result: withdrawResult, payload: withdrawPayload } =
+    await runInstalledRelayedWithdrawWithCatchup({
+      installRoot,
+      homeDir,
+      args: [
+        "--agent",
+        "withdraw",
+        "--all",
+        "ETH",
+        "--to",
+        RELAYED_RECIPIENT,
+        "--from-pa",
+        withdrawDepositPayload.poolAccountId,
+        "--chain",
+        "sepolia",
+      ],
+      env: anvilEnv,
+    });
+  if (
+    withdrawResult.status !== 0 ||
+    withdrawPayload.success !== true ||
+    withdrawPayload.operation !== "withdraw" ||
+    withdrawPayload.mode !== "relayed" ||
+    withdrawPayload.remainingBalance !== "0"
+  ) {
+    fail(
+      `Installed CLI failed relayed withdraw parity against shared Anvil:\n${formatResultDiagnostics(withdrawResult)}`,
+    );
+  }
+
+  const withdrawSyncResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+    {
+      env: anvilEnv,
+    },
+  );
+  const withdrawSyncPayload = parseJson(
+    withdrawSyncResult.stdout,
+    "installed sync --agent after withdraw",
+  );
+  if (
+    withdrawSyncResult.status !== 0 ||
+    withdrawSyncPayload.success !== true
+  ) {
+    fail(
+      `Installed CLI failed sync parity after withdraw against shared Anvil:\n${formatResultDiagnostics(withdrawSyncResult)}`,
+    );
+  }
+
+  const withdrawHistoryResult = runInstalledCli(
+    installRoot,
+    homeDir,
+    ["--agent", "history", "--chain", "sepolia"],
+    {
+      env: anvilEnv,
+    },
+  );
+  const withdrawHistoryPayload = parseJson(
+    withdrawHistoryResult.stdout,
+    "installed history --agent after withdraw",
+  );
+  if (
+    withdrawHistoryResult.status !== 0 ||
+    withdrawHistoryPayload.success !== true ||
+    !Array.isArray(withdrawHistoryPayload.events) ||
+    !withdrawHistoryPayload.events.some(
+      (event) =>
+        event?.type === "withdrawal"
+        && event?.poolAccountId === withdrawDepositPayload.poolAccountId,
+    )
+  ) {
+    fail(
+      `Installed CLI failed history parity after relayed withdraw against shared Anvil:\n${formatResultDiagnostics(withdrawHistoryResult)}`,
+    );
+  }
+
   const depositResult = runInstalledCli(
     installRoot,
     homeDir,
@@ -313,7 +673,7 @@ try {
   );
   const depositPayload = parseJson(
     depositResult.stdout,
-    "installed deposit --agent",
+    "installed second deposit --agent",
   );
   if (
     depositResult.status !== 0 ||
@@ -322,7 +682,7 @@ try {
     typeof depositPayload.poolAccountId !== "string"
   ) {
     fail(
-      `Installed CLI failed deposit parity against shared Anvil:\n${formatResultDiagnostics(depositResult)}`,
+      `Installed CLI failed second deposit parity against shared Anvil:\n${formatResultDiagnostics(depositResult)}`,
     );
   }
 
