@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   resolveProfile,
+  resolveProfileRunEnv,
   TEST_PROFILE_FRAGMENTS,
   TEST_PROFILES,
 } from "../../scripts/test-profiles.mjs";
@@ -99,5 +100,43 @@ describe("test profiles", () => {
 
   test("unknown profiles return null", () => {
     expect(resolveProfile("missing-profile")).toBeNull();
+  });
+
+  test("profile runner env is sanitized by default", () => {
+    const env = resolveProfileRunEnv({
+      env: {
+        PATH: "/usr/bin:/bin",
+        HOME: "/tmp/profile-home",
+        PRIVACY_POOLS_PRIVATE_KEY:
+          "0x1111111111111111111111111111111111111111111111111111111111111111",
+        PP_RPC_URL: "https://poison.invalid/rpc",
+        PP_ANVIL_SHARED_ENV_FILE: "/tmp/shared.env",
+        PP_KEEP_COVERAGE_ROOT: "1",
+      },
+    });
+
+    expect(env.PATH).toBe("/usr/bin:/bin");
+    expect(env.HOME).toBe("/tmp/profile-home");
+    expect(env.PRIVACY_POOLS_PRIVATE_KEY).toBeUndefined();
+    expect(env.PP_RPC_URL).toBeUndefined();
+    expect(env.PP_ANVIL_SHARED_ENV_FILE).toBe("/tmp/shared.env");
+    expect(env.PP_KEEP_COVERAGE_ROOT).toBe("1");
+  });
+
+  test("profile runner env allows explicit harness overrides", () => {
+    const env = resolveProfileRunEnv({
+      env: {
+        PATH: "/usr/bin:/bin",
+        PP_KEEP_COVERAGE_ROOT: "1",
+      },
+      envOverrides: {
+        PP_TEST_RUN_ID: "profile-run",
+        PP_KEEP_COVERAGE_ROOT: undefined,
+      },
+    });
+
+    expect(env.PATH).toBe("/usr/bin:/bin");
+    expect(env.PP_TEST_RUN_ID).toBe("profile-run");
+    expect(env.PP_KEEP_COVERAGE_ROOT).toBeUndefined();
   });
 });

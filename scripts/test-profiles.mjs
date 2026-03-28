@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(__dirname, "..");
@@ -81,6 +82,13 @@ export function resolveProfile(name) {
   return TEST_PROFILES[name] ?? null;
 }
 
+export function resolveProfileRunEnv(options = {}) {
+  return buildTestRunnerEnv(
+    options.envOverrides ?? {},
+    options.env ?? process.env,
+  );
+}
+
 export function runProfile(name, options = {}) {
   const profile = resolveProfile(name);
   if (!profile) {
@@ -92,7 +100,7 @@ export function runProfile(name, options = {}) {
     const result = spawnSync(command, args, {
       cwd: options.cwd ?? ROOT,
       stdio: "inherit",
-      env: options.env ?? process.env,
+      env: resolveProfileRunEnv(options),
     });
 
     if (result.error) {

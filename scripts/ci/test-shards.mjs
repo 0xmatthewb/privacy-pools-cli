@@ -4,6 +4,7 @@ import {
   collectLinuxCoreTestFiles,
   shardMatrix,
 } from "./lib.mjs";
+import { buildTestRunnerEnv } from "../test-runner-env.mjs";
 
 function parseArgs(argv) {
   const parsed = {
@@ -66,7 +67,7 @@ const result = spawnSync(
   ["scripts/run-test-suite.mjs", ...selected.files, ...args.forwardedArgs],
   {
     stdio: "inherit",
-    env: process.env,
+    env: buildTestRunnerEnv(),
   },
 );
 
