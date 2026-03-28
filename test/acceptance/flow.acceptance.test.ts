@@ -1,4 +1,5 @@
 import { expect } from "bun:test";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import {
   assertExit,
   assertJson,
@@ -16,7 +17,7 @@ function workflowFileStep(
     `.privacy-pools/workflows/${workflowId}.json`,
     JSON.stringify(
       {
-        schemaVersion: "1.5.0",
+        schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
         workflowId,
         ...workflow,
       },

@@ -27,7 +27,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tiny_keccak::{Hasher, Keccak};
 
-const JSON_SCHEMA_VERSION: &str = "1.5.0";
+const JSON_SCHEMA_VERSION: &str = "1.6.0";
 const ENV_JS_WORKER_PATH: &str = "PRIVACY_POOLS_CLI_JS_WORKER";
 const OUTPUT_FORMAT_CHOICES: &str = "table, csv, json";
 
@@ -3155,7 +3155,7 @@ fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         .collect::<Vec<_>>();
     print_table(headers, rows);
     write_stderr_text(
-        "\nVetting fees are deducted on deposit.\nPool Balance: current total value in the pool (accepted + pending deposits).\nPending: deposits awaiting ASP review (most approve within 1 hour, up to 7 days).\n",
+        "\nVetting fees are deducted on deposit.\nPool Balance: current total value in the pool (accepted + pending deposits).\nPending: deposits not yet accepted (pending ASP review or declined deposits).\n",
     );
 }
 

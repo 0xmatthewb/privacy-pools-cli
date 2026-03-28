@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import {
   createTempHome,
   parseJsonOutput,
@@ -113,7 +114,7 @@ describe("flow command", () => {
   test("flow status returns the saved snapshot contract and canonical next action", () => {
     const home = createTempHome();
     writeWorkflow(home, {
-      schemaVersion: "1.5.0",
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
       workflowId: "wf-123",
       createdAt: "2026-03-24T12:00:00.000Z",
       updatedAt: "2026-03-24T12:00:00.000Z",
@@ -167,7 +168,7 @@ describe("flow command", () => {
   test("flow status latest resolves the newest saved workflow", () => {
     const home = createTempHome();
     writeWorkflow(home, {
-      schemaVersion: "1.5.0",
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
       workflowId: "wf-older",
       createdAt: "2026-03-24T12:00:00.000Z",
       updatedAt: "2026-03-24T12:00:00.000Z",
@@ -178,7 +179,7 @@ describe("flow command", () => {
       recipient: "0x4444444444444444444444444444444444444444",
     });
     writeWorkflow(home, {
-      schemaVersion: "1.5.0",
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
       workflowId: "wf-latest",
       createdAt: "2026-03-24T12:05:00.000Z",
       updatedAt: "2026-03-24T12:10:00.000Z",
@@ -217,7 +218,7 @@ describe("flow command", () => {
   test("flow watch latest returns the newest saved terminal workflow", () => {
     const home = createTempHome();
     writeWorkflow(home, {
-      schemaVersion: "1.5.0",
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
       workflowId: "wf-older",
       createdAt: "2026-03-24T12:00:00.000Z",
       updatedAt: "2026-03-24T12:00:00.000Z",
@@ -231,7 +232,7 @@ describe("flow command", () => {
       poolAccountNumber: 1,
     });
     writeWorkflow(home, {
-      schemaVersion: "1.5.0",
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
       workflowId: "wf-latest",
       createdAt: "2026-03-24T12:05:00.000Z",
       updatedAt: "2026-03-24T12:10:00.000Z",
@@ -269,7 +270,7 @@ describe("flow command", () => {
   test("flow ragequit latest resolves the newest saved workflow before validation", () => {
     const home = createTempHome();
     writeWorkflow(home, {
-      schemaVersion: "1.5.0",
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
       workflowId: "wf-older",
       createdAt: "2026-03-24T12:00:00.000Z",
       updatedAt: "2026-03-24T12:00:00.000Z",
@@ -284,7 +285,7 @@ describe("flow command", () => {
         "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     });
     writeWorkflow(home, {
-      schemaVersion: "1.5.0",
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
       workflowId: "wf-latest",
       createdAt: "2026-03-24T12:05:00.000Z",
       updatedAt: "2026-03-24T12:10:00.000Z",

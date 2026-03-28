@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createOutputContext } from "../../src/output/common.ts";
 import { renderFlowResult } from "../../src/output/flow.ts";
 import type { FlowSnapshot } from "../../src/services/workflow.ts";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
@@ -9,7 +10,7 @@ function sampleSnapshot(
   patch: Partial<FlowSnapshot> = {},
 ): FlowSnapshot {
   return {
-    schemaVersion: "1.5.0",
+    schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
     workflowId: "wf-123",
     createdAt: "2026-03-24T12:00:00.000Z",
     updatedAt: "2026-03-24T12:00:00.000Z",

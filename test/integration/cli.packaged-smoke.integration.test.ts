@@ -31,6 +31,7 @@ import {
 } from "../helpers/process.ts";
 import { waitForWorkflowSnapshotPhase } from "../helpers/workflow-snapshot.ts";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import {
   JSON_SCHEMA_VERSION,
   jsonContractDocRelativePath,
@@ -508,7 +509,7 @@ describe("packaged CLI smoke", () => {
     test("flow status latest --agent reads the saved workflow from the packed artifact", () => {
       const flowHome = createTempHome("pp-smoke-flow-status-");
       writeWorkflow(flowHome, {
-        schemaVersion: "1.5.0",
+        schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
         workflowId: "wf-latest",
         createdAt: "2026-03-24T12:00:00.000Z",
         updatedAt: "2026-03-24T12:05:00.000Z",
@@ -551,7 +552,7 @@ describe("packaged CLI smoke", () => {
     test("flow watch latest --agent resolves the newest saved workflow", () => {
       const flowHome = createTempHome("pp-smoke-flow-watch-");
       writeWorkflow(flowHome, {
-        schemaVersion: "1.5.0",
+        schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
         workflowId: "wf-older",
         createdAt: "2026-03-24T12:00:00.000Z",
         updatedAt: "2026-03-24T12:00:00.000Z",
@@ -565,7 +566,7 @@ describe("packaged CLI smoke", () => {
         poolAccountNumber: 1,
       });
       writeWorkflow(flowHome, {
-        schemaVersion: "1.5.0",
+        schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
         workflowId: "wf-latest",
         createdAt: "2026-03-24T12:00:00.000Z",
         updatedAt: "2026-03-24T12:10:00.000Z",
