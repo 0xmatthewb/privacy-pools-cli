@@ -118,6 +118,9 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--force"),
         ],
       }),
+      completionCommand("upgrade", {
+        options: [completionOption("--check")],
+      }),
       completionCommand("flow", {
         subcommands: [
           completionCommand("start", {

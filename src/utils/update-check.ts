@@ -16,10 +16,14 @@ import { homedir } from "os";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const PACKAGE_NAME = "privacy-pools-cli";
-const REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const FETCH_TIMEOUT_MS = 5_000;
+export const CLI_NPM_PACKAGE_NAME = "privacy-pools-cli";
+export const REGISTRY_URL = `https://registry.npmjs.org/${CLI_NPM_PACKAGE_NAME}/latest`;
+export const UPDATE_CHECK_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const UPDATE_CHECK_FETCH_TIMEOUT_MS = 5_000;
+
+function registryUrl(): string {
+  return process.env.PRIVACY_POOLS_NPM_REGISTRY_URL?.trim() || REGISTRY_URL;
+}
 
 function configDir(): string {
   return (
@@ -68,13 +72,13 @@ function writeCache(cache: UpdateCache): void {
 
 // ── Semver comparison (major.minor.patch only) ───────────────────────────────
 
-function parseVersion(v: string): [number, number, number] | null {
+export function parseVersion(v: string): [number, number, number] | null {
   const m = v.match(/^(\d+)\.(\d+)\.(\d+)/);
   if (!m) return null;
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
-function isNewer(latest: string, current: string): boolean {
+export function isNewer(latest: string, current: string): boolean {
   const l = parseVersion(latest);
   const c = parseVersion(current);
   if (!l || !c) return false;
@@ -97,12 +101,12 @@ export function getUpdateNotice(currentVersion: string): string | null {
 
   // Only show if cached value is fresh enough and actually newer.
   const age = Date.now() - cache.checkedAt;
-  if (age > CACHE_TTL_MS) return null;
+  if (age > UPDATE_CHECK_CACHE_TTL_MS) return null;
   if (!isNewer(cache.latestVersion, currentVersion)) return null;
 
   return (
     `  Update available: ${currentVersion} \u2192 ${cache.latestVersion}  ` +
-    `(npm i -g ${PACKAGE_NAME}@${cache.latestVersion})`
+    `(npm i -g ${CLI_NPM_PACKAGE_NAME}@${cache.latestVersion})`
   );
 }
 
@@ -115,7 +119,7 @@ export function checkForUpdateInBackground(): void {
 
   // Skip if cache is still fresh.
   const cache = readCache();
-  if (cache && Date.now() - cache.checkedAt < CACHE_TTL_MS) return;
+  if (cache && Date.now() - cache.checkedAt < UPDATE_CHECK_CACHE_TTL_MS) return;
 
   // Fire and forget — we intentionally do not await this.
   fetchLatestVersion()
@@ -129,11 +133,14 @@ export function checkForUpdateInBackground(): void {
     });
 }
 
-async function fetchLatestVersion(): Promise<string | null> {
+export async function fetchLatestVersion(): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    UPDATE_CHECK_FETCH_TIMEOUT_MS,
+  );
   try {
-    const res = await fetch(REGISTRY_URL, {
+    const res = await fetch(registryUrl(), {
       signal: controller.signal,
       headers: { Accept: "application/json" },
     });

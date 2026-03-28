@@ -11,8 +11,6 @@ For flags, configuration, and environment variables, see [`docs/reference.md`](d
 ```bash
 # Install
 npm i -g privacy-pools-cli
-# or
-bun add -g privacy-pools-cli
 
 # Unreleased/source builds
 npm i -g github:0xmatthewb/privacy-pools-cli
@@ -23,6 +21,7 @@ privacy-pools describe withdraw quote --agent
 
 # Browse pools (no wallet needed)
 privacy-pools pools --agent
+privacy-pools upgrade --agent --check
 
 # Easy workflow
 privacy-pools status --agent
@@ -199,6 +198,19 @@ JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, r
 
 `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. `recommendedMode`, `blockingIssues[]`, and `warnings[]` are the higher-level preflight contract for agents. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. When `recommendedMode = "read-only"` because RPC or ASP health is degraded, `nextActions` stays on public discovery and intentionally avoids account-state guidance until connectivity is restored. If only the ASP is down while RPC is still healthy, public recovery remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the operator already knows the affected account or workflow. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
 When `rpcUrl` or `aspHost` comes from a custom endpoint, the CLI redacts userinfo, query strings, and token-like path segments before printing them.
+
+#### `upgrade`
+
+Check npm for updates or upgrade this CLI.
+
+```bash
+privacy-pools upgrade --agent --check
+privacy-pools upgrade --agent --yes
+```
+
+JSON payload: `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }`
+
+`upgrade` checks npm for the latest published `privacy-pools-cli` release. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine modes, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
 
 #### `capabilities`
 

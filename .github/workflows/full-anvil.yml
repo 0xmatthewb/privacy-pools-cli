@@ -114,7 +114,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run full Anvil end-to-end suite
         if: steps.select.outputs.should_run == 'true'

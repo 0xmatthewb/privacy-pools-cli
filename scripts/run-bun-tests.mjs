@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
+import { shouldTreatBunExitAsSuccess } from "./bun-runner-exit.mjs";
 import {
   expandPathArgsWithExcludes,
   hasExplicitTestTarget,
@@ -117,7 +118,9 @@ if (!hasExplicitTestTarget(bunArgs, process.cwd())) {
 let result;
 try {
   result = spawnSync("bun", ["test", ...bunArgs], {
-    stdio: "inherit",
+    stdio: ["inherit", "pipe", "pipe"],
+    encoding: "utf8",
+    maxBuffer: 50 * 1024 * 1024,
     env: buildTestRunnerEnv({
       PP_TEST_RUN_ID: runId,
     }),
@@ -126,11 +129,22 @@ try {
   cleanupRunTempDirs();
 }
 
+if (typeof result.stdout === "string" && result.stdout.length > 0) {
+  process.stdout.write(result.stdout);
+}
+
+if (typeof result.stderr === "string" && result.stderr.length > 0) {
+  process.stderr.write(result.stderr);
+}
+
 if (result.error) {
   throw result.error;
 }
 
 if (typeof result.status === "number") {
+  if (result.status === 0 || shouldTreatBunExitAsSuccess(result)) {
+    process.exit(0);
+  }
   process.exit(result.status);
 }
 

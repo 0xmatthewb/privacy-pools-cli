@@ -362,6 +362,7 @@ export async function handleInitCommand(
 
     // --- Mnemonic ---
     let mnemonic: string;
+    let importedMnemonic = Boolean(mnemonicSource);
 
     if (mnemonicSource) {
       if (opts.mnemonic && !silent) {
@@ -396,14 +397,17 @@ export async function handleInitCommand(
           );
         }
         mnemonic = phrase.trim();
+        importedMnemonic = true;
       } else {
         mnemonic = generateMnemonic();
+        importedMnemonic = false;
       }
     }
 
     // Display mnemonic (only this once) — always to stderr to keep stdout clean
-    // Skip display if mnemonic was imported (--mnemonic or --mnemonic-file)
-    if (!mnemonicSource && !isJson) {
+    // Skip display if mnemonic was imported from any source, including the
+    // interactive import path.
+    if (!importedMnemonic && !isJson) {
       process.stderr.write("\n");
       process.stderr.write(
         chalk.bold(
@@ -468,7 +472,7 @@ export async function handleInitCommand(
         }
         process.stderr.write("\n");
       }
-    } else if (!mnemonicSource && isJson && !isQuiet) {
+    } else if (!importedMnemonic && isJson && !isQuiet) {
       if (opts.showMnemonic) {
         process.stderr.write(
           chalk.bold(

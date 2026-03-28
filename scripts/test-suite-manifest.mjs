@@ -65,6 +65,10 @@ export const WORKFLOW_SERVICE_TEST =
   "./test/services/workflow.service.test.ts";
 export const WORKFLOW_INTERNAL_TEST =
   "./test/services/workflow.internal.service.test.ts";
+export const WORKFLOW_BACKUP_PATHS_TEST =
+  "./test/services/workflow.backup-paths.service.test.ts";
+export const WORKFLOW_BACKUP_WRITE_TEST =
+  "./test/services/workflow.backup-write.service.test.ts";
 export const ACCOUNT_SYNC_META_TEST =
   "./test/services/account-sync-meta.service.test.ts";
 export const FLOW_HANDLERS_TEST = "./test/unit/flow-handlers.unit.test.ts";
@@ -78,6 +82,8 @@ export const LAUNCHER_RUNTIME_TEST =
   "./test/unit/launcher-runtime.unit.test.ts";
 export const INIT_INTERACTIVE_TEST =
   "./test/unit/init-command-interactive.unit.test.ts";
+export const INIT_COMMAND_HANDLER_TEST =
+  "./test/unit/init-command-handler.unit.test.ts";
 export const DEPOSIT_HANDLER_TEST =
   "./test/unit/deposit-command-handler.unit.test.ts";
 export const WITHDRAW_HANDLER_TEST =
@@ -167,6 +173,24 @@ export const ISOLATED_SUITES = [
       "installs deep workflow-internal mocks that still collide under Bun's shared module state",
   },
   {
+    label: "workflow-backup-paths",
+    tests: [WORKFLOW_BACKUP_PATHS_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    reason:
+      "mocks node:fs before importing workflow helpers, which must stay in its own Bun process to avoid cross-suite module pollution",
+  },
+  {
+    label: "workflow-backup-write",
+    tests: [WORKFLOW_BACKUP_WRITE_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    reason:
+      "mocks config persistence before importing workflow helpers, which must stay isolated from other workflow helper suites",
+  },
+  {
     label: "account-handler-errors",
     tests: [ACCOUNT_HANDLER_ERRORS_TEST],
     timeoutMs: 120_000,
@@ -185,13 +209,94 @@ export const ISOLATED_SUITES = [
       "shared service and sdk-package mocks are restored to captured real exports after each test batch",
   },
   {
+    label: "account-readonly-accounts-coverage",
+    tests: [ACCOUNT_READONLY_HANDLERS_TEST],
+    coverageArgs: [ACCOUNT_READONLY_HANDLERS_TEST, "-t", "accounts"],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the accounts-only shard of the read-only handler suite",
+  },
+  {
+    label: "account-readonly-sync-coverage",
+    tests: [ACCOUNT_READONLY_HANDLERS_TEST],
+    coverageArgs: [ACCOUNT_READONLY_HANDLERS_TEST, "-t", "sync"],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the sync-only shard of the read-only handler suite",
+  },
+  {
+    label: "account-readonly-migrate-coverage",
+    tests: [ACCOUNT_READONLY_HANDLERS_TEST],
+    coverageArgs: [ACCOUNT_READONLY_HANDLERS_TEST, "-t", "migrate"],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the migrate-only shard of the read-only handler suite",
+  },
+  {
     label: "init-interactive",
     tests: [INIT_INTERACTIVE_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
-    isolateInCoverage: true,
+    isolateInCoverage: false,
     reason:
       "replaces the prompt module globally and still collides with other prompt-driven suites",
+  },
+  {
+    label: "init-interactive-cancel-and-invalid-coverage",
+    tests: [INIT_INTERACTIVE_TEST],
+    coverageArgs: [
+      INIT_INTERACTIVE_TEST,
+      "-t",
+      "cancel reinitialization|invalid recovery phrases",
+    ],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the init-interactive cancel and invalid-input shard",
+  },
+  {
+    label: "init-interactive-generate-coverage",
+    tests: [INIT_INTERACTIVE_TEST],
+    coverageArgs: [
+      INIT_INTERACTIVE_TEST,
+      "-t",
+      "generates a wallet interactively|requires humans to confirm|rejects invalid signer keys|refuses to overwrite",
+    ],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the init-interactive generate-and-backup shard",
+  },
+  {
+    label: "init-interactive-import-coverage",
+    tests: [INIT_INTERACTIVE_TEST],
+    coverageArgs: [
+      INIT_INTERACTIVE_TEST,
+      "-t",
+      "imports a valid recovery phrase interactively|warns humans when secrets are supplied",
+    ],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the init-interactive import-and-visible-secret-warning shard",
+  },
+  {
+    label: "init-command-handler",
+    tests: [INIT_COMMAND_HANDLER_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov stays stable for the stateful init handler only when coverage runs through a non-tty child process",
   },
   {
     label: "deposit-handler",
@@ -219,6 +324,54 @@ export const ISOLATED_SUITES = [
     isolateInCoverage: false,
     reason:
       "ragequit handler mocks now restore shared unsigned, sdk, and pool-account modules to real export snapshots",
+  },
+  {
+    label: "ragequit-handler-entry-and-submit-coverage",
+    tests: [RAGEQUIT_HANDLER_TEST],
+    coverageArgs: [
+      RAGEQUIT_HANDLER_TEST,
+      "-t",
+      "malformed|submits a signed ragequit",
+    ],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the entry-validation and signed-submit shard of the ragequit handler suite",
+  },
+  {
+    label: "ragequit-handler-unsigned-coverage",
+    tests: [RAGEQUIT_HANDLER_TEST],
+    coverageArgs: [RAGEQUIT_HANDLER_TEST, "-t", "unsigned|commitment"],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the unsigned-output shard of the ragequit handler suite",
+  },
+  {
+    label: "ragequit-handler-ownership-coverage",
+    tests: [RAGEQUIT_HANDLER_TEST],
+    coverageArgs: [RAGEQUIT_HANDLER_TEST, "-t", "signers|original depositor"],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the original-depositor verification shard of the ragequit handler suite",
+  },
+  {
+    label: "ragequit-handler-human-and-confirmation-coverage",
+    tests: [RAGEQUIT_HANDLER_TEST],
+    coverageArgs: [
+      RAGEQUIT_HANDLER_TEST,
+      "-t",
+      "humans|human|Pool Account|asset|confirmation|reverts|saving local ragequit state fails|recording fails",
+    ],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "Bun lcov is stable for the human-selection and confirmation shard of the ragequit handler suite",
   },
   {
     label: "pools-handler",
@@ -276,5 +429,7 @@ export const DEFAULT_MAIN_EXCLUDED_TESTS = [
 export const COVERAGE_MAIN_EXCLUDED_TESTS = [
   ...ANVIL_E2E_TESTS,
   ...COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests),
+  ACCOUNT_READONLY_HANDLERS_TEST,
+  RAGEQUIT_HANDLER_TEST,
   "./test/unit/launcher-routing.unit.test.ts",
 ];

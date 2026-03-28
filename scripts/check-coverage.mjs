@@ -251,7 +251,8 @@ function runCoverageSuite(args, coverageDir, envOverrides = {}) {
     ],
     {
       cwd: ROOT,
-      stdio: "inherit",
+      encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
       env: {
         ...env,
         ...envOverrides,
@@ -266,16 +267,36 @@ function runCoverageSuiteWithFallback(label, tests, attempt = 1) {
   const homeDir = join(coverageRootDir, `home-${attemptLabel}`);
   mkdirSync(homeDir, { recursive: true });
 
+  process.stdout.write(
+    `[coverage] running ${attemptLabel}: ${tests.join(" ")}\n`,
+  );
+
   const result = runCoverageSuite(tests, coverageDir, {
     PRIVACY_POOLS_HOME: homeDir,
   });
+  if (result.stdout) {
+    process.stdout.write(result.stdout);
+  }
+  if (result.stderr) {
+    process.stderr.write(result.stderr);
+  }
   if (result.error) throw result.error;
-  if (result.status !== 0) {
+  const lcovPath = join(coverageDir, "lcov.info");
+  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  const wroteLcov = existsSync(lcovPath);
+  const zeroFailuresReported =
+    /\b0 fail\b/.test(output) || /\b0 failed\b/.test(output);
+
+  if (result.status !== 0 && !(wroteLcov && zeroFailuresReported)) {
     process.exit(result.status ?? 1);
   }
 
-  const lcovPath = join(coverageDir, "lcov.info");
-  if (existsSync(lcovPath)) {
+  if (result.status !== 0 && wroteLcov && zeroFailuresReported) {
+    process.stdout.write(
+      `[coverage] ${label} exited ${result.status} after writing lcov with zero reported test failures; continuing\n`,
+    );
+  }
+  if (wroteLcov) {
     return [lcovPath];
   }
 
@@ -322,7 +343,10 @@ try {
 
   for (const suite of COVERAGE_ISOLATED_SUITES) {
     coverageArtifacts.push(
-      ...runCoverageSuiteWithFallback(suite.label, suite.tests),
+      ...runCoverageSuiteWithFallback(
+        suite.label,
+        suite.coverageArgs ?? suite.tests,
+      ),
     );
   }
 

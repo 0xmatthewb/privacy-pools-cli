@@ -31,7 +31,7 @@ triggers:
 
 SDK-powered CLI for [Privacy Pools v1](https://privacypools.com). Compliant, private transactions across the CLI's supported mainnet and testnet chains, including Ethereum, Arbitrum, Optimism, Sepolia, and OP Sepolia.
 
-Install: `npm i -g privacy-pools-cli` or `bun add -g privacy-pools-cli`. For unreleased or source builds, use `npm i -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`. For native runtime troubleshooting or fallback controls, see `docs/runtime-upgrades.md`.
+Install: `npm i -g privacy-pools-cli`. For unreleased or source builds, use `npm i -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`. For native runtime troubleshooting or fallback controls, see `docs/runtime-upgrades.md`.
 
 ## Quick reference
 
@@ -42,6 +42,7 @@ Install: `npm i -g privacy-pools-cli` or `bun add -g privacy-pools-cli`. For unr
 | Pool stats | `privacy-pools stats pool --asset ETH --agent` | No wallet needed |
 | Activity feed | `privacy-pools activity --agent` | No wallet needed |
 | Check status | `privacy-pools status --agent --check` | No wallet needed |
+| Check upgrade availability | `privacy-pools upgrade --agent --check` | Read-only unless `--yes` is also present and the install is a supported global npm install |
 | Discover capabilities | `privacy-pools capabilities --agent` | No wallet needed |
 | Describe one command | `privacy-pools describe withdraw quote --agent` | No wallet needed |
 | Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-mnemonic` | One-time setup |

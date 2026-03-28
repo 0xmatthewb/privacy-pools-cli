@@ -6,7 +6,7 @@
  *   node scripts/generate-reference.mjs --write   # write to docs/reference.md
  *   node scripts/generate-reference.mjs --check   # compare with docs/reference.md, exit 1 on drift
  *
- * Requires a prior build (`bun run build`).
+ * Requires a prior build (`npm run build`).
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -21,7 +21,7 @@ const repoRoot = dirname(scriptDir);
 const distPath = join(repoRoot, "dist", "program.js");
 if (!existsSync(distPath)) {
   console.error(
-    "Built CLI not found. Run `bun run build` first, or use `bun run dev -- ...` from source.",
+    "Built CLI not found. Run `npm run build` first, or use `npm run dev -- ...` from source.",
   );
   process.exit(1);
 }
@@ -268,7 +268,7 @@ if (args.includes("--write")) {
   }
   const current = readFileSync(refPath, "utf8");
   if (current !== output) {
-    console.error("docs/reference.md is out of date. Run `bun run docs:generate` to regenerate.");
+    console.error("docs/reference.md is out of date. Run `npm run docs:generate` to regenerate.");
     process.exit(1);
   }
   console.log("docs/reference.md is up to date.");

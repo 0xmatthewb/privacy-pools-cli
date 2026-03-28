@@ -84,11 +84,9 @@ jobs:
         with:
           bun-version: "1.3.11"
 
-      # --frozen-lockfile ensures CI uses the exact same dependency
-      # versions you committed, instead of quietly upgrading anything.
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Typecheck
         if: steps.select.outputs.should_run == 'true' && matrix.shard == 1
@@ -153,7 +151,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run npm test
         if: steps.select.outputs.should_run == 'true'
@@ -201,7 +199,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run packaged smoke tests
         if: steps.select.outputs.should_run == 'true'
@@ -234,15 +232,9 @@ jobs:
         run: |
           echo "Skipping root-install-smoke: ${{ steps.select.outputs.reason }}"
 
-      - name: Setup Bun
-        if: steps.select.outputs.should_run == 'true'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.11"
-
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Build
         if: steps.select.outputs.should_run == 'true'
@@ -304,7 +296,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run native package smoke tests
         if: steps.select.outputs.should_run == 'true'
@@ -400,12 +392,6 @@ jobs:
         run: |
           echo "Skipping supported-native-smoke: ${{ steps.select.outputs.reason }}"
 
-      - name: Setup Bun
-        if: steps.select.outputs.should_run == 'true'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.11"
-
       - name: Setup Rust
         if: steps.select.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@stable
@@ -418,7 +404,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Build package
         if: steps.select.outputs.should_run == 'true'
@@ -525,7 +511,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run Anvil happy-path smoke tests
         if: steps.select.outputs.should_run == 'true'
@@ -568,7 +554,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Enforce coverage thresholds
         if: steps.select.outputs.should_run == 'true'
@@ -609,7 +595,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run eval suites
         if: steps.select.outputs.should_run == 'true'
@@ -650,7 +636,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run live conformance
         if: steps.select.outputs.should_run == 'true'

@@ -105,7 +105,7 @@ jobs:
         run: forge build
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run release-readiness suite
         env:
@@ -134,13 +134,8 @@ jobs:
         with:
           node-version: "25.x"
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.11"
-
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Build
         run: npm run build
@@ -264,7 +259,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Download root npm package artifact
         uses: actions/download-artifact@v6

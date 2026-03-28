@@ -13,7 +13,7 @@ const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
 
 const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities", "describe"];
 const TRANSACT_ORDER = ["init", "flow", "deposit", "accounts", "migrate", "withdraw", "ragequit", "history", "sync"];
-const TOOLING_ORDER = ["completion"];
+const TOOLING_ORDER = ["upgrade", "completion"];
 const EXPLORE_SET = new Set(EXPLORE_ORDER);
 const TRANSACT_SET = new Set(TRANSACT_ORDER);
 const TOOLING_SET = new Set(TOOLING_ORDER);
@@ -43,6 +43,7 @@ const ROOT_HELP_BASE_LINES = [
   "",
   "Commands:",
   "  init                 Initialize wallet and configuration",
+  "  upgrade              Check npm for updates or upgrade this CLI",
   "  flow                 Run the easy-path deposit-to-withdraw workflow",
   "  pools                List available pools and assets",
   "  deposit              Deposit into a pool",

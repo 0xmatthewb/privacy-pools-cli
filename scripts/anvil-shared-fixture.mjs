@@ -42,6 +42,7 @@ const RELAYER_SERVER_SCRIPT = resolve(
   "helpers",
   "anvil-relayer-server.ts",
 );
+const NODE_EXECUTABLE = process.platform === "win32" ? "node.exe" : "node";
 const CREATE2_FACTORY_ADDRESS = "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed";
 const POSTMAN_ADDRESS = "0x696fe46495688fc9e99bad2daf2133b33de364ea";
 const SIGNER_PRIVATE_KEY =
@@ -690,8 +691,8 @@ function waitForServerPort(proc, pattern, label) {
   });
 }
 
-function launchBunServer(scriptPath, env, label, baseEnv = process.env) {
-  const proc = spawn("bun", ["run", scriptPath], {
+function launchTsxServer(scriptPath, env, label, baseEnv = process.env) {
+  const proc = spawn(NODE_EXECUTABLE, ["--import", "tsx", scriptPath], {
     cwd: ROOT,
     env: {
       ...baseEnv,
@@ -758,13 +759,13 @@ export async function setupSharedAnvilFixture(options = {}) {
     };
     writeFileSync(aspStateFile, JSON.stringify(baselineAspState, null, 2), "utf8");
 
-    aspServer = await launchBunServer(
+    aspServer = await launchTsxServer(
       ASP_SERVER_SCRIPT,
       { PP_ANVIL_ASP_STATE_FILE: aspStateFile },
       "asp",
       baseEnv,
     );
-    relayerServer = await launchBunServer(
+    relayerServer = await launchTsxServer(
       RELAYER_SERVER_SCRIPT,
       {
         PP_ANVIL_RELAYER_CONFIG: JSON.stringify({

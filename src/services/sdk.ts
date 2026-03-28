@@ -199,7 +199,7 @@ async function rpcProbe<T>(
   return json.result;
 }
 
-function isLocalRpcUrl(url: string): boolean {
+export function isLocalRpcUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return (

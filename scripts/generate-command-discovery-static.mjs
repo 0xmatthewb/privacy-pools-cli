@@ -181,8 +181,8 @@ function captureBuiltCli(args) {
 
   try {
     const result = spawnSync(
-      "bun",
-      [sourceCliPath, ...args],
+      "node",
+      ["--import", "tsx", sourceCliPath, ...args],
       {
         cwd: repoRoot,
         env: {

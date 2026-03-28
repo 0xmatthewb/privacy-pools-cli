@@ -4,7 +4,7 @@ import type { ChainConfig, PoolStats } from "../types.js";
 import { NATIVE_ASSET_ADDRESS, KNOWN_POOLS } from "../config/chains.js";
 import { resolvePoolDeploymentBlock } from "../config/deployment-hints.js";
 import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
-import { getPublicClient } from "./sdk.js";
+import { getHealthyRpcUrl, getPublicClient, isLocalRpcUrl } from "./sdk.js";
 import { CLIError, sanitizeEndpointForDisplay } from "../utils/errors.js";
 
 // Entrypoint ABI fragment for read-only calls
@@ -241,6 +241,23 @@ async function getScopeReadOnly(
   }) as Promise<bigint>;
 }
 
+async function resolveRuntimeDeploymentBlock(
+  chainConfig: ChainConfig,
+  rpcOverride: string | undefined,
+  ...addresses: Array<string | null | undefined>
+): Promise<bigint> {
+  const effectiveRpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
+  if (isLocalRpcUrl(effectiveRpcUrl)) {
+    return chainConfig.startBlock;
+  }
+
+  return resolvePoolDeploymentBlock(
+    chainConfig.id,
+    chainConfig.startBlock,
+    ...addresses,
+  );
+}
+
 export async function listPools(
   chainConfig: ChainConfig,
   rpcOverride?: string
@@ -294,11 +311,11 @@ export async function listPools(
             publicClient,
             assetConfig.pool
           );
-          const deploymentBlock = resolvePoolDeploymentBlock(
-            chainConfig.id,
-            chainConfig.startBlock,
+          const deploymentBlock = await resolveRuntimeDeploymentBlock(
+            chainConfig,
+            rpcOverride,
             assetAddress,
-            assetConfig.pool
+            assetConfig.pool,
           );
           const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
 
@@ -352,7 +369,8 @@ async function resolveKnownPoolAddress(
   publicClient: PublicClient,
   chainConfig: ChainConfig,
   knownAddress: Address,
-  assetInput: string
+  assetInput: string,
+  rpcOverride?: string,
 ): Promise<PoolStats> {
   try {
     const assetConfig = await getAssetConfigReadOnly(
@@ -365,16 +383,17 @@ async function resolveKnownPoolAddress(
       publicClient,
       knownAddress
     );
+    const deploymentBlock = await resolveRuntimeDeploymentBlock(
+      chainConfig,
+      rpcOverride,
+      knownAddress,
+      assetConfig.pool,
+    );
 
     return {
       asset: knownAddress,
       pool: assetConfig.pool,
-      deploymentBlock: resolvePoolDeploymentBlock(
-        chainConfig.id,
-        chainConfig.startBlock,
-        knownAddress,
-        assetConfig.pool
-      ),
+      deploymentBlock,
       scope,
       symbol,
       decimals,
@@ -397,7 +416,8 @@ async function resolveKnownPool(
   publicClient: PublicClient,
   chainConfig: ChainConfig,
   normalizedSymbol: string,
-  assetInput: string
+  assetInput: string,
+  rpcOverride?: string,
 ): Promise<PoolStats | null> {
   const knownAddress = KNOWN_POOLS[chainConfig.id]?.[normalizedSymbol];
   if (!knownAddress) return null;
@@ -406,7 +426,8 @@ async function resolveKnownPool(
     publicClient,
     chainConfig,
     knownAddress,
-    assetInput
+    assetInput,
+    rpcOverride,
   );
 }
 
@@ -430,6 +451,7 @@ export async function listKnownPoolsFromRegistry(
         chainConfig,
         address,
         symbol,
+        rpcOverride,
       ),
     ),
   );
@@ -467,16 +489,17 @@ export async function resolvePool(
         publicClient,
         assetAddress
       );
+      const deploymentBlock = await resolveRuntimeDeploymentBlock(
+        chainConfig,
+        rpcOverride,
+        assetAddress,
+        assetConfig.pool,
+      );
 
       return {
         asset: assetAddress,
         pool: assetConfig.pool,
-        deploymentBlock: resolvePoolDeploymentBlock(
-          chainConfig.id,
-          chainConfig.startBlock,
-          assetAddress,
-          assetConfig.pool
-        ),
+        deploymentBlock,
         scope,
         symbol,
         decimals,
@@ -529,7 +552,8 @@ export async function resolvePool(
     publicClient,
     chainConfig,
     normalized,
-    assetInput
+    assetInput,
+    rpcOverride,
   );
   if (knownPool) {
     return knownPool;

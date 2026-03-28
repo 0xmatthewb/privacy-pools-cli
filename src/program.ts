@@ -8,6 +8,7 @@ import { allNonOptionTokens } from "./utils/root-argv.js";
 
 const ROOT_COMMAND_NAMES = [
   "init",
+  "upgrade",
   "flow",
   "pools",
   "deposit",
@@ -34,6 +35,8 @@ const ROOT_COMMAND_ALIASES: Record<string, RootCommandName> = {
 
 const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   init: async () => (await import("./command-shells/init.js")).createInitCommand(),
+  upgrade: async () =>
+    (await import("./command-shells/upgrade.js")).createUpgradeCommand(),
   flow: async () => (await import("./command-shells/flow.js")).createFlowCommand(),
   pools: async () => (await import("./command-shells/pools.js")).createPoolsCommand(),
   deposit: async () =>

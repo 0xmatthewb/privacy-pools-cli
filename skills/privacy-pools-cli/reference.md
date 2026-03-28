@@ -516,6 +516,46 @@ privacy-pools describe stats global --agent
 }
 ```
 
+### `upgrade`
+
+```bash
+privacy-pools upgrade --agent --check
+privacy-pools upgrade --agent --yes
+```
+
+```json
+{
+  "mode": "upgrade",
+  "status": "manual",
+  "currentVersion": "1.0.0",
+  "latestVersion": "1.1.0",
+  "updateAvailable": true,
+  "performed": false,
+  "command": "npm install privacy-pools-cli@1.1.0",
+  "installContext": {
+    "kind": "local_project",
+    "supportedAutoRun": false,
+    "reason": "This CLI appears to be installed inside a local project. Upgrade that project dependency with npm manually."
+  },
+  "installedVersion": null
+}
+```
+
+Automatic upgrade is supported only for recognized global npm installs. Source checkouts, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine mode, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `status` | string | `"up_to_date"`, `"ready"`, `"manual"`, `"cancelled"`, or `"upgraded"` |
+| `currentVersion` | string | Currently running CLI version |
+| `latestVersion` | string | Latest version reported by npm |
+| `updateAvailable` | boolean | Whether npm reported a newer version |
+| `performed` | boolean | `true` only when the install command actually ran |
+| `command` | string\|null | Follow-up command when the install context is clear enough to recommend one |
+| `installContext.kind` | string | `"global_npm"`, `"source_checkout"`, `"local_project"`, `"npx"`, `"ci"`, or `"unknown"` |
+| `installContext.supportedAutoRun` | boolean | Whether `upgrade --yes` may run automatically |
+| `installContext.reason` | string | Human-readable explanation of the detected install context |
+| `installedVersion` | string\|null | Version installed by a completed upgrade |
+
 ### `init`
 
 ```bash

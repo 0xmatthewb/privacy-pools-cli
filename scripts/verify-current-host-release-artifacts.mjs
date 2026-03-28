@@ -78,7 +78,7 @@ const cargoCheck = triplet
 
 const distIndexPath = join(repoRoot, "dist", "index.js");
 if (!existsSync(distIndexPath)) {
-  fail("dist/index.js not found. Run `bun run build` before verifying release artifacts.");
+  fail("dist/index.js not found. Run `npm run build` before verifying release artifacts.");
 }
 const tempRoot = mkdtempSync(join(tmpdir(), "pp-release-artifacts-host-"));
 const cliTarballDir = join(tempRoot, "cli");

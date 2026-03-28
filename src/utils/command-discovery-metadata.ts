@@ -20,6 +20,7 @@ const CLI_PACKAGE_INFO = readCliPackageInfo(import.meta.url);
 
 export type CommandPath =
   | "init"
+  | "upgrade"
   | "flow"
   | "flow start"
   | "flow watch"
@@ -132,6 +133,42 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     agentsDocMarker: "#### `init`",
+  },
+  upgrade: {
+    description: "Check npm for updates or upgrade this CLI",
+    help: {
+      overview: [
+        "Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place.",
+        "Automatic upgrade is supported only for recognized global npm installs. Source checkouts, local project installs, npx-style ephemeral runs, CI, and other ambiguous contexts never mutate; the CLI returns manual guidance plus an exact follow-up npm command.",
+        "Machine modes (--json / --agent) stay check-only unless --yes is also present.",
+      ],
+      examples: [
+        "privacy-pools upgrade --check",
+        "privacy-pools upgrade",
+        "privacy-pools upgrade --yes",
+        "privacy-pools upgrade --agent --check",
+        "privacy-pools upgrade --agent --yes",
+      ],
+      jsonFields:
+        "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }",
+      safetyNotes: [
+        "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
+        "Source checkouts, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
+        "A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes.",
+      ],
+      agentWorkflowNotes: [
+        "In machine modes, upgrade is check-only unless --yes is explicitly present.",
+        "Treat status = ready as an available update on a supported global npm install, status = manual as an available update requiring manual follow-up, and status = upgraded as a completed install that still requires a fresh CLI invocation.",
+      ],
+    },
+    capabilities: {
+      flags: ["--check"],
+      agentFlags: "--agent [--check] [--yes]",
+      requiresInit: false,
+      expectedLatencyClass: "medium",
+    },
+    safeReadOnly: false,
+    agentsDocMarker: "#### `upgrade`",
   },
   flow: {
     description: "Run the easy-path deposit-to-withdraw workflow",
@@ -897,6 +934,7 @@ export const COMMAND_PATHS = Object.keys(COMMAND_METADATA) as CommandPath[];
 
 export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "init",
+  "upgrade",
   "flow",
   "flow start",
   "flow watch",
@@ -1047,6 +1085,7 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
 ]);
 
 const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
+  "upgrade",
   "init",
   "accounts",
   "history",
@@ -1064,6 +1103,10 @@ const FUND_MOVEMENT_COMMANDS = new Set<CommandPath>([
 ]);
 
 const PREFERRED_SAFE_VARIANTS: Partial<Record<CommandPath, PreferredSafeVariant>> = {
+  upgrade: {
+    command: "upgrade --check",
+    reason: "Check for a newer npm release without mutating the installed CLI.",
+  },
   flow: {
     command: "flow status",
     reason: "Inspect the saved workflow state before advancing a persisted flow.",
@@ -1124,7 +1167,7 @@ function descriptorSeed(path: CommandPath): CommandDescriptorSeed {
     safeReadOnly: metadata.safeReadOnly ?? false,
     sideEffectClass,
     touchesFunds,
-    requiresHumanReview: touchesFunds || path === "init",
+    requiresHumanReview: touchesFunds || path === "init" || path === "upgrade",
     preferredSafeVariant: preferredSafeVariantFor(path),
     prerequisites: metadata.help?.prerequisites ? [metadata.help.prerequisites] : [],
     examples: metadata.help?.examples ?? [],

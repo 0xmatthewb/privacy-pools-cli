@@ -53,7 +53,7 @@ function run(command, args, options = {}) {
 const distIndexPath = join(repoRoot, "dist", "index.js");
 if (!existsSync(distIndexPath)) {
   fail(
-    "dist/index.js not found. Run `bun run build` before verifying the root-only artifact.",
+    "dist/index.js not found. Run `npm run build` before verifying the root-only artifact.",
   );
 }
 

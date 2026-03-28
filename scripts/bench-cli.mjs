@@ -244,7 +244,7 @@ function parseArgs(argv) {
 function ensureNodeModules() {
   if (!existsSync(repoNodeModules)) {
     throw new Error(
-      "node_modules not found. Run `bun install --frozen-lockfile` first.",
+      "node_modules not found. Run `npm ci` first.",
     );
   }
 }
@@ -283,7 +283,7 @@ function withRepoBinPath(
 
 function launchFixtureServer() {
   return new Promise((resolve, reject) => {
-    const proc = spawn("bun", ["run", fixtureServerScript], {
+    const proc = spawn(process.execPath, ["--import", "tsx", fixtureServerScript], {
       stdio: ["ignore", "pipe", "ignore"],
       env: withRepoBinPath(),
     });
@@ -331,7 +331,7 @@ function stopFixtureServer(fixture) {
 }
 
 function buildCheckout(cwd) {
-  spawnOrThrow("bun", ["run", "build"], {
+  spawnOrThrow("npm", ["run", "build"], {
     cwd,
     env: withRepoBinPath(),
   });

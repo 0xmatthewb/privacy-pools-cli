@@ -94,7 +94,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Typecheck
         if: steps.select.outputs.should_run == 'true'

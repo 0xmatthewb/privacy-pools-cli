@@ -11,10 +11,11 @@ export const TEST_PROFILE_FRAGMENTS = {
   install: [
     ["npm", ["run", "test:smoke"]],
     ["npm", ["run", "test:smoke:native:package"]],
+    ["npm", ["run", "build"]],
     ["npm", ["run", "test:artifacts:root"]],
     ["npm", ["run", "test:artifacts:host"]],
   ],
-  build: [["bun", ["run", "build"]]],
+  build: [["npm", ["run", "build"]]],
   "docs-reference-check": [["node", ["scripts/generate-reference.mjs", "--check"]]],
   "repo-conformance-core": [
     ["npm", ["run", "test:scripts"]],

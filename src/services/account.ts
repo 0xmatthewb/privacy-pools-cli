@@ -208,9 +208,24 @@ function mergeRebuiltScopes(
 ): AccountState {
   const poolAccounts = new Map(currentAccount.poolAccounts);
   for (const scope of scopes) {
-    poolAccounts.delete(scope);
+    const rebuiltScopeAccounts = rebuiltAccount.poolAccounts.get(scope);
+    if (Array.isArray(rebuiltScopeAccounts) && rebuiltScopeAccounts.length > 0) {
+      poolAccounts.set(scope, rebuiltScopeAccounts);
+      continue;
+    }
+
+    // Fail closed for event-sync gaps: once we have ever observed a Pool Account
+    // for a scope, a later rebuild should not erase that scope entirely. Even a
+    // fully spent or exited history remains durable account state.
+    if (!poolAccounts.has(scope)) {
+      poolAccounts.delete(scope);
+    }
   }
+
   for (const [scope, accounts] of rebuiltAccount.poolAccounts.entries()) {
+    if (scopes.includes(scope as AccountScope)) {
+      continue;
+    }
     poolAccounts.set(scope, accounts);
   }
   return {
@@ -220,6 +235,54 @@ function mergeRebuiltScopes(
     lastUpdateTimestamp: rebuiltAccount.lastUpdateTimestamp,
     poolAccounts,
   };
+}
+
+function preserveRegressedScopeEntries(
+  currentAccount: AccountState,
+  rebuiltAccount: AccountState,
+  scopes: AccountScope[],
+): {
+  account: AccountState;
+  preservedScopes: AccountScope[];
+} {
+  let nextPoolAccounts: Map<AccountScope, AccountState["poolAccounts"] extends Map<any, infer V> ? V : never> | null = null;
+  const preservedScopes: AccountScope[] = [];
+
+  for (const scope of scopes) {
+    const currentEntries = currentAccount.poolAccounts.get(scope) ?? [];
+    if (currentEntries.length === 0) continue;
+
+    const rebuiltEntries = rebuiltAccount.poolAccounts.get(scope) ?? [];
+    if (rebuiltEntries.length >= currentEntries.length) continue;
+
+    if (!nextPoolAccounts) {
+      nextPoolAccounts = new Map(rebuiltAccount.poolAccounts);
+    }
+    nextPoolAccounts.set(scope, currentEntries);
+    preservedScopes.push(scope);
+  }
+
+  if (!nextPoolAccounts) {
+    return {
+      account: rebuiltAccount,
+      preservedScopes,
+    };
+  }
+
+  return {
+    account: {
+      ...rebuiltAccount,
+      poolAccounts: nextPoolAccounts,
+    },
+    preservedScopes,
+  };
+}
+
+function summarizeScopePreservations(scopes: AccountScope[]): string {
+  return scopes
+    .slice(0, 3)
+    .map((scope) => `scope ${scope.toString()}`)
+    .join("; ");
 }
 
 async function rebuildAccountScopesFromEvents(
@@ -378,9 +441,25 @@ export async function initializeAccountServiceWithState(
           `account sync had partial failures for ${errors.length} pool(s): ${details}`,
         );
       } else {
+        const requestedScopes = pools.map((pool) => pool.scope as AccountScope);
+        const {
+          account: reconciledAccount,
+          preservedScopes,
+        } = preserveRegressedScopeEntries(
+          service.account,
+          account,
+          requestedScopes,
+        );
+        if (preservedScopes.length > 0) {
+          const details = summarizeScopePreservations(preservedScopes);
+          warnOnPartialInitialization(
+            suppressWarnings,
+            `account sync returned fewer Pool Accounts than the saved state for ${preservedScopes.length} pool(s); keeping the saved account entries for ${details}`,
+          );
+        }
         const releaseLock = acquireProcessLock();
         try {
-          service.account = account;
+          service.account = reconciledAccount;
           guardCriticalSection();
           try {
             saveAccount(chainId, service.account);
@@ -622,7 +701,24 @@ export async function syncAccountEvents(
       );
     }
 
-    accountService.account = account;
+    const requestedScopes = poolInfos.map((poolInfo) => poolInfo.scope as AccountScope);
+    const {
+      account: reconciledAccount,
+      preservedScopes,
+    } = preserveRegressedScopeEntries(
+      persistedAccount ?? accountService.account,
+      account,
+      requestedScopes,
+    );
+    if (preservedScopes.length > 0) {
+      const details = summarizeScopePreservations(preservedScopes);
+      warn(
+        `Sync rebuilt fewer Pool Accounts than the saved state for ${preservedScopes.length} pool(s); keeping the saved account entries for ${details}.`,
+        opts.silent,
+      );
+    }
+
+    accountService.account = reconciledAccount;
     guardCriticalSection();
     try {
       saveAccount(chainId, accountService.account);

@@ -9,7 +9,7 @@ const builtCliPath = join(repoRoot, "dist", "index.js");
 
 if (!existsSync(builtCliPath)) {
   console.error(
-    "Built CLI not found. Run `bun run build` first, or use `bun run dev -- ...` from source.",
+    "Built CLI not found. Run `npm run build` first, or use `npm run dev -- ...` from source.",
   );
   process.exit(1);
 }

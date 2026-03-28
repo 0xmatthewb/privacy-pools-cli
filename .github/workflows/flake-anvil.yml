@@ -8,7 +8,7 @@
 # WHAT does it do?
 #   - Runs the shared-Anvil smoke lane twice through `npm run test:flake:anvil`
 #   - Re-exercises native launcher, packaged install, and fund-moving smoke paths
-#   - Keeps the lighter Bun-native flake workflow focused on fast subprocess suites
+#   - Keeps the lighter flake workflow focused on fast subprocess suites
 #
 # WHY separate?
 #   Stateful Anvil reruns are valuable, but they are slower and provision Foundry,
@@ -107,7 +107,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Run shared-Anvil flake suite
         if: steps.select.outputs.should_run == 'true'

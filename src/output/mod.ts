@@ -25,6 +25,10 @@ export {
 // Command renderers
 export { renderGuide } from "./guide.js";
 export {
+  renderUpgradeResult,
+  type UpgradeResult,
+} from "./upgrade.js";
+export {
   renderCapabilities,
   type CapabilitiesPayload,
 } from "./capabilities.js";

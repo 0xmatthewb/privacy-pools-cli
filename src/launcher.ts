@@ -96,9 +96,7 @@ function defaultJsWorkerPath(): string {
 }
 
 function defaultJsWorkerArgs(workerPath: string): string[] {
-  return process.versions.bun
-    ? ["--no-env-file", workerPath]
-    : [workerPath];
+  return [workerPath];
 }
 
 function resolveConfiguredJsWorkerPath(

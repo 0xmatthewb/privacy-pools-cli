@@ -24,8 +24,8 @@ This repository uses a Bun-aligned test architecture. The important constraint i
   - Source-of-truth, docs, discovery, and generated-artifact alignment.
   - Also owns fast syntax/integrity checks for Node-side release/install helper scripts under `scripts/**/*.mjs`.
 - Anvil E2E
-  - `bun run test:e2e:anvil:smoke` is the fast representative lane.
-  - `bun run test:e2e:anvil` is the broader local-only matrix built on the shared self-contained fixture.
+  - `npm run test:e2e:anvil:smoke` is the fast representative lane.
+  - `npm run test:e2e:anvil` is the broader local-only matrix built on the shared self-contained fixture.
 
 ## Isolation Policy
 
@@ -128,10 +128,10 @@ Current policy:
 
 Local targets on the current machine:
 
-- `bun run test`: about 95 seconds or better
-- `bun run test:coverage`: about 20 seconds or better
-- `bun run test:e2e:anvil:smoke`: about 30 seconds or better
-- `bun run test:e2e:anvil`: about 150 seconds or better
+- `npm test`: about 95 seconds or better
+- `npm run test:coverage`: about 20 seconds or better
+- `npm run test:e2e:anvil:smoke`: about 30 seconds or better
+- `npm run test:e2e:anvil`: about 150 seconds or better
 
 If a target is missed:
 

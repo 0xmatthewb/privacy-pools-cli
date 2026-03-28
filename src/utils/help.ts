@@ -29,6 +29,9 @@ export function welcomeScreen(
     chalk.bold("  Transact (run init first)"),
     `    ${highlight("init")}  ${highlight("flow")}  ${highlight("deposit")}  ${highlight("accounts")}  ${highlight("migrate")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("history")}  ${highlight("sync")}`,
     "",
+    chalk.bold("  Tooling"),
+    `    ${highlight("upgrade")}  ${highlight("completion")}  ${highlight("--help")}`,
+    "",
     `  Get started:      ${accent("privacy-pools init")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
     `  All commands:     ${accent("privacy-pools --help")}`,
@@ -36,12 +39,10 @@ export function welcomeScreen(
 
   // Nudge from-source users to register the CLI commands on their PATH.
   if (shouldShowPathRegistrationHint(options.packageRoot)) {
-    const isBun = !!(process.versions.bun || process.env.npm_execpath?.includes("bun"));
-    const linkCmd = isBun ? "bun link" : "npm link";
     lines.push(
       "",
       chalk.dim("  Running from source? Register the CLI on your PATH:"),
-      chalk.dim(`    ${linkCmd}`),
+      chalk.dim("    npm link"),
     );
   }
 
@@ -65,10 +66,10 @@ export function guideText(): string {
     "",
     chalk.bold("Install & Run"),
     `  ${accent("npm i -g privacy-pools-cli")}`,
-    `  ${accent("bun add -g privacy-pools-cli")}`,
     `  ${accent("npm i -g github:0xmatthewb/privacy-pools-cli")}  ${chalk.dim("(unreleased/source builds)")}`,
     `  ${accent("privacy-pools status")}`,
-    `  ${accent("bun run dev -- status")}                        ${chalk.dim("(from source, no global install)")}`,
+    `  ${accent("privacy-pools upgrade --check")}                ${chalk.dim("(check npm for a newer installed release)")}`,
+    `  ${accent("npm run dev -- status")}                        ${chalk.dim("(from source, no global install)")}`,
     `  ${accent("privacy-pools completion --help")}                  ${chalk.dim("(shell autocomplete setup)")}`,
     "",
     chalk.bold("Quick Start"),
@@ -110,6 +111,7 @@ export function guideText(): string {
     `  9. ${highlight("withdraw")}       Manual path: withdraw privately (once approved; fee shown before confirming)`,
     ` 10. ${highlight("history")}        View transaction history`,
     `  *  ${highlight("status")}         Check setup and connection health (checks run by default)`,
+    `  *  ${highlight("upgrade")}        Check npm for updates or upgrade this CLI`,
     `  *  ${highlight("activity")}       Public onchain feed ${chalk.dim("(for your history, use 'history')")}`,
     `  *  ${highlight("ragequit")}       Public withdrawal. Returns funds to deposit address (alias: exit)`,
     `  *  ${highlight("withdraw quote")} Check relayer fees before withdrawing`,
@@ -166,6 +168,7 @@ export function guideText(): string {
     "  Long proof time?  First proof may provision circuits into your CLI home (~60s). Subsequent proofs are faster.",
     "  Native fallback?  Set PRIVACY_POOLS_CLI_DISABLE_NATIVE=1 to force the JS launcher,",
     "                   or see docs/runtime-upgrades.md for runtime troubleshooting and overrides.",
+    `  Upgrade path?     Run ${accent("privacy-pools upgrade")} to check npm for updates or upgrade this CLI.`,
     "  Not approved?     Deposits are reviewed by the ASP. Most approve within 1 hour;",
     "                   some may require Proof of Association or be declined.",
     "                   Declined deposits must use ragequit to exit publicly.",

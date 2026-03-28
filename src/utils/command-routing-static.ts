@@ -9,6 +9,7 @@ export interface GeneratedCommandRoute {
 
 export const GENERATED_COMMAND_PATHS = [
   "init",
+  "upgrade",
   "flow",
   "flow start",
   "flow watch",
@@ -55,6 +56,12 @@ export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> =
 
 export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = {
   "init": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "upgrade": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -287,6 +294,12 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "route": "init",
     "tokens": [
       "init"
+    ]
+  },
+  {
+    "route": "upgrade",
+    "tokens": [
+      "upgrade"
     ]
   },
   {

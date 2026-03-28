@@ -8,7 +8,37 @@ import type {
 } from "@0xbow/privacy-pools-core-sdk";
 import { getCircuitArtifactPaths } from "./circuits.js";
 import { CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
-const SINGLE_THREAD_PROVER_OPTIONS = { singleThread: true } as const;
+
+type SnarkjsCurveCacheKey = "curve_bn128" | "curve_bls12381";
+
+interface TerminableSnarkjsCurve {
+  terminate?: () => Promise<void> | void;
+}
+
+async function cleanupSnarkjsCurveCaches(): Promise<void> {
+  const curveCacheKeys: SnarkjsCurveCacheKey[] = [
+    "curve_bn128",
+    "curve_bls12381",
+  ];
+  const cleanupTasks: Promise<void>[] = [];
+
+  for (const key of curveCacheKeys) {
+    const curve = (globalThis as typeof globalThis & {
+      curve_bn128?: TerminableSnarkjsCurve | null;
+      curve_bls12381?: TerminableSnarkjsCurve | null;
+    })[key];
+    if (!curve?.terminate) continue;
+
+    cleanupTasks.push(
+      Promise.resolve(curve.terminate()).catch(() => {
+        // Best effort only. Proof generation already completed or failed with a
+        // more relevant error, and cleanup should not replace that outcome.
+      }),
+    );
+  }
+
+  await Promise.all(cleanupTasks);
+}
 
 export async function proveCommitment(
   value: bigint,
@@ -21,10 +51,7 @@ export async function proveCommitment(
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
       { value, label, nullifier, secret },
       wasm,
-      zkey,
-      undefined,
-      undefined,
-      SINGLE_THREAD_PROVER_OPTIONS
+      zkey
     );
     return { proof, publicSignals };
   } catch (error) {
@@ -37,6 +64,8 @@ export async function proveCommitment(
       ),
       "PROOF_GENERATION_FAILED"
     );
+  } finally {
+    await cleanupSnarkjsCurveCaches();
   }
 }
 
@@ -90,10 +119,7 @@ export async function proveWithdrawal(
     const { proof, publicSignals } = await snarkjs.groth16.fullProve(
       prepareWithdrawalInputSignals(commitment, input),
       wasm,
-      zkey,
-      undefined,
-      undefined,
-      SINGLE_THREAD_PROVER_OPTIONS
+      zkey
     );
     return { proof, publicSignals };
   } catch (error) {
@@ -106,5 +132,7 @@ export async function proveWithdrawal(
       ),
       "PROOF_GENERATION_FAILED"
     );
+  } finally {
+    await cleanupSnarkjsCurveCaches();
   }
 }

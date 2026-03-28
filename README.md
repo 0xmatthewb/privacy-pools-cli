@@ -66,7 +66,6 @@ The manual commands (`deposit`, `accounts`, `withdraw`) remain available when yo
 
 ```bash
 npm i -g privacy-pools-cli
-# or: bun add -g privacy-pools-cli
 
 # unreleased/source builds
 npm i -g github:0xmatthewb/privacy-pools-cli
@@ -97,12 +96,12 @@ Or run from source:
 
 ```bash
 git clone https://github.com/0xmatthewb/privacy-pools-cli.git
-cd privacy-pools-cli && bun install
-bun run dev -- pools
+cd privacy-pools-cli && npm ci
+npm run dev -- pools
 
 # Built checkout entrypoint
-bun run build
-bun run start -- --help
+npm run build
+npm run start -- --help
 ```
 
 ## Runtime Requirements
@@ -110,7 +109,6 @@ bun run start -- --help
 - Supported runtime range: Node >=22 <26
 - CI-tested runtimes: Node 22.x, 24.x, and 25.x
 - Recommended dev/CI runtime: Node 25.x
-- Recommended Bun version for repo workflows: 1.3.11
 
 ## Commands
 
@@ -123,6 +121,7 @@ bun run start -- --help
 | `describe` | Describe one command (for agents or quick reference) | |
 | `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
+| `upgrade` | Check npm for updates or upgrade this CLI | |
 | `init` | Set up wallet and config (run once) | |
 | `flow` | Easy-path deposit now, withdraw later workflow | Yes |
 | `deposit` | Deposit into a pool | Yes |

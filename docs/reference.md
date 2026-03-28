@@ -49,6 +49,30 @@ printf '%s\n' 0x... | privacy-pools init --mnemonic-file ./my-mnemonic.txt --pri
 
 **JSON output:** `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
 
+### `upgrade`
+
+Check npm for updates or upgrade this CLI
+
+Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, local project installs, npx-style ephemeral runs, CI, and other ambiguous contexts never mutate; the CLI returns manual guidance plus an exact follow-up npm command. Machine modes (--json / --agent) stay check-only unless --yes is also present.
+
+```bash
+privacy-pools upgrade --check
+privacy-pools upgrade
+privacy-pools upgrade --yes
+privacy-pools upgrade --agent --check
+privacy-pools upgrade --agent --yes
+```
+
+| Flag | Description |
+|------|-------------|
+| `--check` | Check npm for a newer privacy-pools-cli release without installing it |
+
+**Safety:** Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.
+**Safety:** Source checkouts, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.
+**Safety:** A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes.
+
+**JSON output:** `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }`
+
 ### `flow`
 
 Run the easy-path deposit-to-withdraw workflow
@@ -688,17 +712,17 @@ For future `runtime/vN` work, follow [`docs/runtime-upgrades.md`](runtime-upgrad
 
 ```bash
 # Run from source
-bun install
-bun run dev -- --help
-bun run dev -- init
-bun run dev -- status
+npm ci
+npm run dev -- --help
+npm run dev -- init
+npm run dev -- status
 
 # Build the packaged CLI, then run the built entrypoint
-bun run build
-bun run start -- --help
+npm run build
+npm run start -- --help
 
 # Link for local testing
-bun run circuits:provision
+npm run circuits:provision
 npm link
 privacy-pools --help
 
@@ -711,30 +735,30 @@ npm unlink -g privacy-pools-cli
 - Supported runtime range: Node >=22 <26
 - CI-tested runtimes: Node 22.x, 24.x, and 25.x
 - Recommended dev/CI runtime: Node 25.x
-- Recommended Bun version for repo workflows: 1.3.11
+- Bun is internal test tooling only. The supported CLI runtime is Node.js.
 
 ### Scripts
 
 ```bash
-bun run test              # fast default suite (excludes packaged smoke)
-bun run test:ci           # local single-host mirror of the required CI checks
-bun run test:release      # release-readiness suite (root + host artifact gates + benchmark gate + full Anvil matrix)
-bun run test:smoke        # packaged CLI smoke against a packed tarball
-bun run test:artifacts:host # pack/install the current-host CLI + native artifacts
-bun run typecheck         # TypeScript type check (no emit)
-bun run circuits:provision # prefetch proof artifacts into the CLI home
-bun run test:e2e:anvil    # full Sepolia-fork E2E
-bun run test:e2e:anvil:smoke # required happy-path smoke lane
-bun run test:fuzz         # fuzz tests (longer timeout)
-bun run test:stress       # stress test (120 rounds)
-bun run test:coverage     # coverage guard for key source directories
-bun run test:conformance  # live conformance against npm + public 0xbow-io GitHub sources
-bun run test:conformance:frontend # focused website/frontend parity only
-bun run test:conformance:all # alias for the full live conformance suite
-bun run bench:gate        # native perf gate against the current checkout JS fallback
-bun run bench:gate:release # native perf gate against the v1.7.0 release baseline
+npm run test              # fast default suite (excludes packaged smoke)
+npm run test:ci           # local single-host mirror of the required CI checks
+npm run test:release      # release-readiness suite (root + host artifact gates + benchmark gate + full Anvil matrix)
+npm run test:smoke        # packaged CLI smoke against a packed tarball
+npm run test:artifacts:host # pack/install the current-host CLI + native artifacts
+npm run typecheck         # TypeScript type check (no emit)
+npm run circuits:provision # prefetch proof artifacts into the CLI home
+npm run test:e2e:anvil    # full Sepolia-fork E2E
+npm run test:e2e:anvil:smoke # required happy-path smoke lane
+npm run test:fuzz         # fuzz tests (longer timeout)
+npm run test:stress       # stress test (120 rounds)
+npm run test:coverage     # coverage guard for key source directories
+npm run test:conformance  # live conformance against npm + public 0xbow-io GitHub sources
+npm run test:conformance:frontend # focused website/frontend parity only
+npm run test:conformance:all # alias for the full live conformance suite
+npm run bench:gate        # native perf gate against the current checkout JS fallback
+npm run bench:gate:release # native perf gate against the v1.7.0 release baseline
 ```
 
-Use `bun run test`, `bun run test:ci`, and `bun run test:release` rather than bare `bun test`. The package scripts encode the intended suite split and required timeouts.
+Use the package scripts above. Bun remains an internal test-runner implementation detail, but the maintainer contract is `npm run ...`.
 
 The Anvil E2E harness starts local ASP and relayer shims against a forked Sepolia state snapshot. Install Anvil via Foundry (`https://www.getfoundry.sh/anvil`) or set `PP_ANVIL_BIN` if `anvil` is not discoverable on your `PATH`.

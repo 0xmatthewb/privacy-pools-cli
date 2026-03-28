@@ -11,6 +11,7 @@ export interface GeneratedCommandRoute {
 
 export const GENERATED_COMMAND_PATHS = [
   "init",
+  "upgrade",
   "flow",
   "flow start",
   "flow watch",
@@ -44,6 +45,11 @@ export const GENERATED_ROOT_COMMANDS = [
     "name": "init",
     "aliases": [],
     "description": "Initialize wallet and configuration"
+  },
+  {
+    "name": "upgrade",
+    "aliases": [],
+    "description": "Check npm for updates or upgrade this CLI"
   },
   {
     "name": "flow",
@@ -142,6 +148,12 @@ export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> =
 
 export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = {
   "init": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "upgrade": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -333,6 +345,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlags": "--agent --default-chain <chain> --show-mnemonic",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "upgrade",
+      "description": "Check npm for updates or upgrade this CLI",
+      "usage": "upgrade",
+      "flags": [
+        "--check"
+      ],
+      "agentFlags": "--agent [--check] [--yes]",
+      "requiresInit": false,
+      "expectedLatencyClass": "medium"
     },
     {
       "name": "flow",
@@ -697,6 +720,65 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [
         "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
         "When importing an existing recovery phrase, nextActions points to migrate status --agent --all-chains first so the CLI can check legacy migration or website-recovery readiness before restoring account state."
+      ]
+    },
+    "upgrade": {
+      "command": "upgrade",
+      "description": "Check npm for updates or upgrade this CLI",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "upgrade",
+      "flags": [
+        "--check"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--timeout <seconds>",
+        "--no-color"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "medium",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": true,
+      "preferredSafeVariant": {
+        "command": "upgrade --check",
+        "reason": "Check for a newer npm release without mutating the installed CLI."
+      },
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools upgrade --check",
+        "privacy-pools upgrade",
+        "privacy-pools upgrade --yes",
+        "privacy-pools upgrade --agent --check",
+        "privacy-pools upgrade --agent --yes"
+      ],
+      "jsonFields": "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
+        "Source checkouts, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
+        "A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "In machine modes, upgrade is check-only unless --yes is explicitly present.",
+        "Treat status = ready as an available update on a supported global npm install, status = manual as an available update requiring manual follow-up, and status = upgraded as a completed install that still requires a fresh CLI invocation."
       ]
     },
     "flow": {
@@ -2009,6 +2091,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   },
   "executionRoutes": {
     "init": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "upgrade": {
       "owner": "js-runtime",
       "nativeModes": [
         "help"
