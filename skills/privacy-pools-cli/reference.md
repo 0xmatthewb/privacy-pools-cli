@@ -541,7 +541,7 @@ privacy-pools upgrade --agent --yes
 }
 ```
 
-Automatic upgrade is supported only for recognized global npm installs. Source checkouts, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine mode, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
+Automatic upgrade is supported only for recognized global npm installs. Source checkouts, Bun global installs, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine mode, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -551,7 +551,7 @@ Automatic upgrade is supported only for recognized global npm installs. Source c
 | `updateAvailable` | boolean | Whether npm reported a newer version |
 | `performed` | boolean | `true` only when the install command actually ran |
 | `command` | string\|null | Follow-up command when the install context is clear enough to recommend one |
-| `installContext.kind` | string | `"global_npm"`, `"source_checkout"`, `"local_project"`, `"npx"`, `"ci"`, or `"unknown"` |
+| `installContext.kind` | string | `"global_npm"`, `"bun_global"`, `"source_checkout"`, `"local_project"`, `"npx"`, `"ci"`, or `"unknown"` |
 | `installContext.supportedAutoRun` | boolean | Whether `upgrade --yes` may run automatically |
 | `installContext.reason` | string | Human-readable explanation of the detected install context |
 | `installedVersion` | string\|null | Version installed by a completed upgrade |
