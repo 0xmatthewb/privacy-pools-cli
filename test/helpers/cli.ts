@@ -20,7 +20,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterAll } from "bun:test";
 import { CLI_ROOT } from "./paths.ts";
 import { buildChildProcessEnv } from "./child-env.ts";
@@ -70,7 +70,8 @@ function shouldUseIsolatedBuiltWorkspace(
   cwd: string,
   binPath?: string,
 ): boolean {
-  return cwd === CLI_CWD && binPath === undefined;
+  const requestedBinPath = binPath ?? "dist/index.js";
+  return resolve(cwd, requestedBinPath) === resolve(CLI_CWD, "dist/index.js");
 }
 
 function npmBin(): string {

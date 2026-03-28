@@ -25,6 +25,12 @@ describe("built cli helper isolation", () => {
       cliTestInternals.shouldUseIsolatedBuiltWorkspace(CLI_CWD),
     ).toBe(true);
     expect(
+      cliTestInternals.shouldUseIsolatedBuiltWorkspace(
+        CLI_CWD,
+        "dist/index.js",
+      ),
+    ).toBe(true);
+    expect(
       cliTestInternals.shouldUseIsolatedBuiltWorkspace("/tmp/custom-built-root"),
     ).toBe(false);
     expect(
