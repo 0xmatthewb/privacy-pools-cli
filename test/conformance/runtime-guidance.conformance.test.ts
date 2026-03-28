@@ -27,6 +27,7 @@ function expectNoBunRuntimeCommands(text: string): void {
     /\bbun install\b/i,
     /\bbun run (?:dev|start|build|typecheck|docs:(?:generate|check|preview))\b/i,
     /\bbun\s+(?:src\/index\.ts|dist\/index\.js)\b/i,
+    /\bBun global installs\b/i,
   ];
 
   for (const pattern of forbiddenPatterns) {

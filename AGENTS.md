@@ -210,7 +210,7 @@ privacy-pools upgrade --agent --yes
 
 JSON payload: `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }`
 
-`upgrade` checks npm for the latest published `privacy-pools-cli` release. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, Bun global installs, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine modes, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
+`upgrade` checks npm for the latest published `privacy-pools-cli` release. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine modes, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
 
 #### `capabilities`
 

@@ -771,7 +771,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
-        "Source checkouts, Bun global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
+        "Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
         "A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes."
       ],
       "supportsUnsigned": false,

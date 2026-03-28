@@ -53,7 +53,7 @@ printf '%s\n' 0x... | privacy-pools init --mnemonic-file ./my-mnemonic.txt --pri
 
 Check npm for updates or upgrade this CLI
 
-Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, Bun global installs, local project installs, npx-style ephemeral runs, CI, and other ambiguous contexts never mutate; the CLI returns manual guidance plus an exact follow-up npm command. Machine modes (--json / --agent) stay check-only unless --yes is also present.
+Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and other ambiguous contexts never mutate; the CLI returns manual guidance plus an exact follow-up npm command. Machine modes (--json / --agent) stay check-only unless --yes is also present.
 
 ```bash
 privacy-pools upgrade --check
@@ -68,7 +68,7 @@ privacy-pools upgrade --agent --yes
 | `--check` | Check npm for a newer privacy-pools-cli release without installing it |
 
 **Safety:** Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.
-**Safety:** Source checkouts, Bun global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.
+**Safety:** Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.
 **Safety:** A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes.
 
 **JSON output:** `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }`

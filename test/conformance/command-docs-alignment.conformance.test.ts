@@ -611,11 +611,13 @@ describe("command docs alignment", () => {
     expect(normalizedAgents).toContain("command|null");
     expect(normalizedAgents).toContain("installContext");
     expect(normalizedAgents).toContain("manual guidance");
+    expect(normalizedAgents).not.toContain("Bun global installs");
     expect(normalizedReference).toContain("\"mode\": \"upgrade\"");
     expect(normalizedReference).toContain("\"status\": \"manual\"");
     expect(normalizedReference).toContain("\"installContext\"");
     expect(normalizedReference).toContain("\"command\"");
     expect(normalizedReference).toContain("manual guidance");
+    expect(normalizedReference).not.toContain("Bun global installs");
   });
 
   test("reference and skill docs list the full supported env-var override surface", () => {

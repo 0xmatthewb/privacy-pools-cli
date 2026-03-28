@@ -541,7 +541,7 @@ privacy-pools upgrade --agent --yes
 }
 ```
 
-Automatic upgrade is supported only for recognized global npm installs. Source checkouts, Bun global installs, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine mode, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
+Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine mode, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
 
 | Field | Type | Notes |
 |-------|------|-------|

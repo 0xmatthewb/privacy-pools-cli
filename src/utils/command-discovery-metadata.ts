@@ -139,7 +139,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place.",
-        "Automatic upgrade is supported only for recognized global npm installs. Source checkouts, Bun global installs, local project installs, npx-style ephemeral runs, CI, and other ambiguous contexts never mutate; the CLI returns manual guidance plus an exact follow-up npm command.",
+        "Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and other ambiguous contexts never mutate; the CLI returns manual guidance plus an exact follow-up npm command.",
         "Machine modes (--json / --agent) stay check-only unless --yes is also present.",
       ],
       examples: [
@@ -153,7 +153,7 @@ export const COMMAND_METADATA: Record<CommandPath, CommandMetadata> = {
         "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }",
       safetyNotes: [
         "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
-        "Source checkouts, Bun global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
+        "Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
         "A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes.",
       ],
       agentWorkflowNotes: [
