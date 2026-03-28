@@ -13,7 +13,7 @@ const LOG_PROBE_ADDRESS = "0x0000000000000000000000000000000000000000";
 const LOG_PROBE_RANGE = 1_024n;
 
 const LOCAL_DEPOSIT_EVENT = parseAbiItem(
-  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)"
+  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)"
 );
 const LOCAL_WITHDRAWAL_EVENT = parseAbiItem(
   "event Withdrawn(address indexed _processooor, uint256 _value, uint256 _spentNullifier, uint256 _newCommitment)"
@@ -242,7 +242,7 @@ class LocalCompatDataService {
         _commitment?: bigint;
         _label?: bigint;
         _value?: bigint;
-        _precommitmentHash?: bigint;
+        _merkleRoot?: bigint;
       };
 
       if (
@@ -251,8 +251,8 @@ class LocalCompatDataService {
         !args._label ||
         !log.blockNumber ||
         !log.transactionHash ||
-        args._precommitmentHash === undefined ||
-        args._precommitmentHash === null
+        args._merkleRoot === undefined ||
+        args._merkleRoot === null
       ) {
         throw new Error("Malformed deposit log");
       }
@@ -262,7 +262,7 @@ class LocalCompatDataService {
         commitment: args._commitment,
         label: args._label,
         value: args._value ?? 0n,
-        precommitment: args._precommitmentHash,
+        precommitment: args._merkleRoot,
         blockNumber: BigInt(log.blockNumber),
         transactionHash: log.transactionHash as Hex,
       };

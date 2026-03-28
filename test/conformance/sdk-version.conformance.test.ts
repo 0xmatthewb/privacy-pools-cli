@@ -104,6 +104,19 @@ describe("sdk dependency conformance", () => {
     expect(walletService).not.toContain("bytesToBigInt");
   });
 
+  test("local sdk compatibility parser mirrors the installed deposit event field naming", () => {
+    const sdkCompatSource = readFileSync(
+      `${CLI_ROOT}/src/services/sdk.ts`,
+      "utf8"
+    );
+
+    expect(sdkCompatSource).toContain(
+      'event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)'
+    );
+    expect(sdkCompatSource).toContain("_merkleRoot?: bigint");
+    expect(sdkCompatSource).toContain("precommitment: args._merkleRoot");
+  });
+
   test("cli source tree does not reimplement mnemonic master-key derivation or import local SDK copies", () => {
     const srcFiles = collectTsFiles(join(CLI_ROOT, "src"));
     const suspiciousDerivationFiles: string[] = [];
