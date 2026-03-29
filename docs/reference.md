@@ -18,7 +18,7 @@ Initialize wallet and configuration
 > During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
 > Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
 > Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
-> Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. Run `npm run circuits:provision` only if you want to materialize a trusted copy under ~/.privacy-pools/circuits/v<sdk-version>/ or point PRIVACY_POOLS_CIRCUITS_DIR at a trusted override.
+> Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. Set PRIVACY_POOLS_CIRCUITS_DIR only if you already have a trusted pre-provisioned directory that you want the CLI to use instead.
 
 ```bash
 privacy-pools init
@@ -654,7 +654,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PP_ASP_HOST` | Alias for `PRIVACY_POOLS_ASP_HOST` |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
 | `PP_RELAYER_HOST` | Alias for `PRIVACY_POOLS_RELAYER_HOST` |
-| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact directory. By default the CLI uses bundled packaged artifacts; `npm run circuits:provision` materializes a verified copy under `~/.privacy-pools/circuits/v<sdk-version>` |
+| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact directory. By default the CLI uses bundled packaged artifacts. Set this only if you already have a trusted pre-provisioned directory |
 | `PRIVACY_POOLS_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PRIVACY_POOLS_RPC_URL_ARBITRUM`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PRIVACY_POOLS_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PRIVACY_POOLS_ASP_HOST_SEPOLIA`) |
@@ -722,7 +722,7 @@ npm run build
 npm run start -- --help
 
 # Link for local testing
-npm run circuits:provision
+npm run circuits:provision   # source checkout only: materialize bundled proof artifacts into the CLI home
 npm link
 privacy-pools --help
 
@@ -746,7 +746,7 @@ npm run test:release      # release-readiness suite (root + host artifact gates 
 npm run test:smoke        # packaged CLI smoke against a packed tarball
 npm run test:artifacts:host # pack/install the current-host CLI + native artifacts
 npm run typecheck         # TypeScript type check (no emit)
-npm run circuits:provision # materialize bundled proof artifacts into the CLI home
+npm run circuits:provision # source checkout only: materialize bundled proof artifacts into the CLI home
 npm run test:e2e:anvil    # full Sepolia-fork E2E
 npm run test:e2e:anvil:smoke # required happy-path smoke lane
 npm run test:fuzz         # fuzz tests (longer timeout)
@@ -759,6 +759,6 @@ npm run bench:gate        # native perf gate against the current checkout JS fal
 npm run bench:gate:release # native perf gate against the v1.7.0 release baseline
 ```
 
-Use the package scripts above. Bun remains an internal test-runner implementation detail, but the maintainer contract is `npm run ...`.
+When working from a source checkout, use the package scripts above. Installed npm packages ship the `privacy-pools` binary and bundled docs, not the repository helper scripts. Bun remains an internal test-runner implementation detail, but the maintainer contract is still `npm run ...`.
 
 The Anvil E2E harness starts local ASP and relayer shims against a forked Sepolia state snapshot. Install Anvil via Foundry (`https://www.getfoundry.sh/anvil`) or set `PP_ANVIL_BIN` if `anvil` is not discoverable on your `PATH`.

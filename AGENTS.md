@@ -267,7 +267,7 @@ Use only one secret stdin source per invocation: either `--mnemonic-stdin` or `-
 
 Inline `--mnemonic` and `--private-key` are still supported as a last resort, but they are intentionally omitted from the primary examples because shell history and process listings can expose them.
 
-Proof commands use bundled checksum-verified circuit artifacts shipped with the CLI. Set `PRIVACY_POOLS_CIRCUITS_DIR` to use a trusted pre-provisioned directory instead, or run `npm run circuits:provision` to materialize the bundled assets under `~/.privacy-pools/circuits/v<sdk-version>`.
+Proof commands use bundled checksum-verified circuit artifacts shipped with the CLI. Set `PRIVACY_POOLS_CIRCUITS_DIR` only when you already have a trusted pre-provisioned directory that you want the CLI to use instead.
 
 #### `flow`
 

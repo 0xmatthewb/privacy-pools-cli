@@ -130,7 +130,7 @@ function buildMissingArtifactsError(
   return new CLIError(
     "Circuit artifacts are missing or failed verification for local proof generation.",
     "PROOF",
-    `Checked ${locationText}. Missing or invalid: ${remaining.join(", ")}. Reinstall the CLI, run \`npm run circuits:provision\` to materialize a trusted override directory, or set PRIVACY_POOLS_CIRCUITS_DIR to a trusted pre-provisioned directory.`,
+    `Checked ${locationText}. Missing or invalid: ${remaining.join(", ")}. Reinstall the CLI, or set PRIVACY_POOLS_CIRCUITS_DIR to a trusted pre-provisioned directory.`,
     "PROOF_GENERATION_FAILED",
   );
 }

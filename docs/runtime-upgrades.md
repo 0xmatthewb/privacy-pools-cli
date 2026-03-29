@@ -1,5 +1,8 @@
 # Runtime Upgrade Playbook
 
+This playbook is for maintainers working from a source checkout. The repository
+script paths below are repo-only tooling, not installed-package commands.
+
 Use this checklist whenever the CLI needs a new `runtime/vN` or a new JS/native
 bridge for a future Privacy Pools protocol generation.
 

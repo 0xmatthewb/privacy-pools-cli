@@ -112,6 +112,24 @@ describe("runtime guidance conformance", () => {
     expectNoBunRuntimeCommands(runtimeFacingSections);
   });
 
+  test("shipped maintainer docs label repo-only script paths clearly", () => {
+    const reference = readFileSync(REFERENCE_PATH, "utf8");
+    const runtimeUpgrades = readFileSync(RUNTIME_UPGRADES_PATH, "utf8");
+
+    expect(reference).toContain(
+      "When working from a source checkout, use the package scripts above.",
+    );
+    expect(reference).toContain(
+      "Installed npm packages ship the `privacy-pools` binary and bundled docs, not the repository helper scripts.",
+    );
+    expect(runtimeUpgrades).toContain(
+      "This playbook is for maintainers working from a source checkout.",
+    );
+    expect(runtimeUpgrades).toContain(
+      "repo-only tooling, not installed-package commands.",
+    );
+  });
+
   test("shipped changelog omits bun-based install and verification commands", () => {
     expectNoBunInstallOrVerificationCommands(readFileSync(CHANGELOG_PATH, "utf8"));
   });

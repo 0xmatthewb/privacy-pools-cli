@@ -241,6 +241,37 @@ describe("command docs alignment", () => {
     expect(normalizedReference).toContain("privacy-pools describe stats global --agent");
   });
 
+  test("bundled proof guidance keeps repo-only provisioning out of shipped init docs", () => {
+    const agents = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+    const markers = getDocumentedAgentMarkers();
+    const agentsSection = extractDocumentSection(agents, "#### `init`", markers);
+    const referenceSection = extractDocumentSection(reference, "### `init`", [
+      "### `init`",
+      "### `flow`",
+    ]);
+    const normalizedAgentsSection = normalizeWhitespace(agentsSection);
+    const normalizedReferenceSection = normalizeWhitespace(referenceSection);
+    const normalizedSkillReference = normalizeWhitespace(skillReference);
+
+    expect(normalizedAgentsSection).toContain("bundled checksum-verified circuit artifacts");
+    expect(normalizedAgentsSection).not.toContain("npm run circuits:provision");
+    expect(normalizedReferenceSection).toContain("bundled checksum-verified circuit artifacts");
+    expect(normalizedReferenceSection).not.toContain("npm run circuits:provision");
+    expect(normalizedSkillReference).not.toContain("npm run circuits:provision");
+  });
+
+  test("development docs keep circuits provisioning scoped to source checkouts", () => {
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const staticSections = readFileSync(`${CLI_ROOT}/docs/reference-static-sections.md`, "utf8");
+    const normalizedReference = normalizeWhitespace(reference);
+    const normalizedStaticSections = normalizeWhitespace(staticSections);
+
+    expect(normalizedReference).toContain("source checkout only: materialize bundled proof artifacts");
+    expect(normalizedStaticSections).toContain("source checkout only: materialize bundled proof artifacts");
+  });
+
   test("README restore guidance stays aligned with the init recovery contract", () => {
     const readme = readFileSync(`${CLI_ROOT}/README.md`, "utf8");
     const normalizedReadme = normalizeWhitespace(readme);

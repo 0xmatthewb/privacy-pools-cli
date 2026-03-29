@@ -173,9 +173,12 @@ describe("command metadata conformance", () => {
 
   test("proof metadata copy stays aligned with bundled circuit guidance", () => {
     const depositOverview = (getCommandMetadata("deposit").help?.overview ?? []).join(" ");
+    const initOverview = (getCommandMetadata("init").help?.overview ?? []).join(" ");
 
     expect(depositOverview).toContain("bundled checksum-verified circuit artifacts");
     expect(depositOverview).toContain("no runtime download step");
     expect(depositOverview).toContain("10-30s");
+    expect(initOverview).toContain("bundled checksum-verified circuit artifacts");
+    expect(initOverview).not.toContain("npm run circuits:provision");
   });
 });
