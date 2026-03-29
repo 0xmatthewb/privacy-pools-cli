@@ -82,6 +82,8 @@ run("node", [
   "3",
   "--timeout",
   "120000",
+  "--process-timeout-ms",
+  "600000",
 ]);
 run(npmCommand, ["run", "test:smoke"]);
 run(npmCommand, ["run", "test:smoke:native:package"]);

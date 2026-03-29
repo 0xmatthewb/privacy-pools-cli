@@ -243,6 +243,8 @@ function runCoverageSuite(args, coverageDir, envOverrides = {}) {
       ...args,
       "--timeout",
       "600000",
+      "--process-timeout-ms",
+      "900000",
       "--coverage",
       "--coverage-reporter",
       "lcov",

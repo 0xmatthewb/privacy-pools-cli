@@ -9,6 +9,7 @@ const FLAGS_WITH_VALUES = new Set([
   "--filter",
   "--max-concurrency",
   "--preload",
+  "--process-timeout-ms",
   "--reporter",
   "--rerun-each",
   "--seed",
@@ -44,6 +45,13 @@ export function hasExplicitTimeoutArg(args) {
   return args.some((token) => {
     const normalized = normalizeFlagToken(token);
     return normalized === "--timeout";
+  });
+}
+
+export function hasExplicitProcessTimeoutArg(args) {
+  return args.some((token) => {
+    const normalized = normalizeFlagToken(token);
+    return normalized === "--process-timeout-ms";
   });
 }
 

@@ -13,6 +13,30 @@ const stressRunnerSource = readFileSync(
   join(CLI_ROOT, "scripts", "run-stress.mjs"),
   "utf8",
 );
+const testSuiteRunnerSource = readFileSync(
+  join(CLI_ROOT, "scripts", "run-test-suite.mjs"),
+  "utf8",
+);
+const flakeRunnerSource = readFileSync(
+  join(CLI_ROOT, "scripts", "run-flake-suite.mjs"),
+  "utf8",
+);
+const anvilRunnerSource = readFileSync(
+  join(CLI_ROOT, "scripts", "run-anvil-tests.mjs"),
+  "utf8",
+);
+const anvilSmokeRunnerSource = readFileSync(
+  join(CLI_ROOT, "scripts", "run-anvil-smoke.mjs"),
+  "utf8",
+);
+const conformanceRunnerSource = readFileSync(
+  join(CLI_ROOT, "scripts", "run-conformance-suite.mjs"),
+  "utf8",
+);
+const coverageRunnerSource = readFileSync(
+  join(CLI_ROOT, "scripts", "check-coverage.mjs"),
+  "utf8",
+);
 
 describe("package scripts conformance", () => {
   test("top-level test wrapper remains the shared suite runner", () => {
@@ -115,6 +139,15 @@ describe("package scripts conformance", () => {
     expect(stressRunnerSource).toContain('resolve(ROOT, "scripts", "run-bun-tests.mjs")');
     expect(stressRunnerSource).toContain('"--process-timeout-ms"');
     expect(stressRunnerSource).not.toContain('spawnSync("bun"');
+  });
+
+  test("repo suite wrappers make Bun watchdog budgets explicit", () => {
+    expect(testSuiteRunnerSource).toContain('"--process-timeout-ms"');
+    expect(flakeRunnerSource).toContain('"--process-timeout-ms"');
+    expect(anvilRunnerSource).toContain('"--process-timeout-ms"');
+    expect(anvilSmokeRunnerSource).toContain('"--process-timeout-ms"');
+    expect(conformanceRunnerSource).toContain('"--process-timeout-ms"');
+    expect(coverageRunnerSource).toContain('"--process-timeout-ms"');
   });
 
   test("test:install mirrors the current-host installed-artifact gate", () => {

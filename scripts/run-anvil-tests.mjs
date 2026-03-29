@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { setupSharedAnvilFixture } from "./anvil-shared-fixture.mjs";
 import { collectTestFiles } from "./test-file-collector.mjs";
 import {
+  hasExplicitProcessTimeoutArg,
   hasExplicitTestTarget,
   hasExplicitTimeoutArg,
   splitExplicitTargets,
@@ -90,6 +91,9 @@ try {
   const baseArgs = hasExplicitTimeoutArg(sharedArgs)
     ? sharedArgs
     : ["--timeout", "600000", ...sharedArgs];
+  const bunRunnerArgs = hasExplicitProcessTimeoutArg(baseArgs)
+    ? baseArgs
+    : [...baseArgs, "--process-timeout-ms", "900000"];
 
   for (const testFile of selectedTests) {
     process.stdout.write(`\n[anvil] ${testFile}\n`);
@@ -104,7 +108,7 @@ try {
         )
       : spawnSync(
           "node",
-          [RUNNER, testFile, ...baseArgs],
+          [RUNNER, testFile, ...bunRunnerArgs],
           {
             stdio: "inherit",
             env: sharedEnv,

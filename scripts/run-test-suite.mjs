@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   groupTargetsByIsolation,
+  hasExplicitProcessTimeoutArg,
   hasExplicitTestTarget,
   hasExplicitTimeoutArg,
   splitExplicitTargets,
@@ -19,12 +20,17 @@ import { collectTestFiles } from "./test-file-collector.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
+const DEFAULT_BUN_PROCESS_TIMEOUT_MS = 900_000;
 const forwardedArgs = process.argv.slice(2);
 
 function runSuite(label, args) {
   process.stdout.write(`\n[test] ${label}\n`);
 
-  const result = spawnSync("node", [RUNNER, ...args], {
+  const runnerArgs = hasExplicitProcessTimeoutArg(args)
+    ? args
+    : [...args, "--process-timeout-ms", String(DEFAULT_BUN_PROCESS_TIMEOUT_MS)];
+
+  const result = spawnSync("node", [RUNNER, ...runnerArgs], {
     cwd: ROOT,
     stdio: "inherit",
     env: buildTestRunnerEnv(),

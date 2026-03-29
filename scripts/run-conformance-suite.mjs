@@ -51,10 +51,21 @@ function runSuite(testNames, env = process.env) {
     throw new Error("Conformance suite selected no test files.");
   }
 
-  const result = spawnSync("node", [RUNNER, ...selected, "--timeout", "120000"], {
-    stdio: "inherit",
-    env,
-  });
+  const result = spawnSync(
+    "node",
+    [
+      RUNNER,
+      ...selected,
+      "--timeout",
+      "120000",
+      "--process-timeout-ms",
+      "900000",
+    ],
+    {
+      stdio: "inherit",
+      env,
+    },
+  );
 
   if (result.error) {
     throw result.error;

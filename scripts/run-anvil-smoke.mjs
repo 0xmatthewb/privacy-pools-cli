@@ -46,6 +46,8 @@ try {
           TEST_FILE,
           "--timeout",
           "600000",
+          "--process-timeout-ms",
+          "900000",
           "--test-name-pattern",
           smokePattern,
         ],

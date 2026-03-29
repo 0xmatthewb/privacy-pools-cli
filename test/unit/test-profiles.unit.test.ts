@@ -128,6 +128,15 @@ describe("test profiles", () => {
       "npm",
       ["run", "bench:gate:release"],
     ]);
+
+    const countBuildSteps = (profileName: "ci" | "release" | "all") =>
+      resolveProfile(profileName).filter(([command, args]) => {
+        return command === "npm" && args[0] === "run" && args[1] === "build";
+      }).length;
+
+    expect(countBuildSteps("ci")).toBe(1);
+    expect(countBuildSteps("release")).toBe(1);
+    expect(countBuildSteps("all")).toBe(1);
   });
 
   test("profile runner applies a shared outer watchdog to raw npm/node steps", () => {

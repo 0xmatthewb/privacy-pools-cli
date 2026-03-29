@@ -3,6 +3,7 @@ import {
   annotateArgs,
   expandPathArgsWithExcludes,
   groupTargetsByIsolation,
+  hasExplicitProcessTimeoutArg,
   hasExplicitTestTarget,
   hasExplicitTimeoutArg,
   splitExplicitTargets,
@@ -27,6 +28,21 @@ describe("test runner arg helpers", () => {
       false,
     );
     expect(hasExplicitTimeoutArg([TEST_FILE])).toBe(false);
+  });
+
+  test("hasExplicitProcessTimeoutArg detects inline and split watchdog flags", () => {
+    expect(
+      hasExplicitProcessTimeoutArg(
+        [TEST_FILE, "--process-timeout-ms", "600000"],
+      ),
+    ).toBe(true);
+    expect(
+      hasExplicitProcessTimeoutArg([TEST_FILE, "--process-timeout-ms=600000"]),
+    ).toBe(true);
+    expect(hasExplicitProcessTimeoutArg([TEST_FILE, "--timeout", "123"])).toBe(
+      false,
+    );
+    expect(hasExplicitProcessTimeoutArg([TEST_FILE])).toBe(false);
   });
 
   test("hasExplicitTestTarget ignores values consumed by Bun flags", () => {
