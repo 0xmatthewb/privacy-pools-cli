@@ -5,7 +5,6 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
@@ -74,35 +73,39 @@ interface PackedArtifact {
 
 function sourcePackageJson(): {
   bin?: string | Record<string, string>;
-  dependencies?: Record<string, string>;
 } {
   return JSON.parse(
     readFileSync(join(CLI_CWD, "package.json"), "utf8"),
   ) as {
     bin?: string | Record<string, string>;
-    dependencies?: Record<string, string>;
   };
 }
 
-function linkDeclaredProdDependencies(packageRoot: string): void {
-  const sourcePkg = sourcePackageJson();
-  const nodeModulesRoot = join(packageRoot, "node_modules");
-  mkdirSync(nodeModulesRoot, { recursive: true });
-
-  for (const depName of Object.keys(sourcePkg.dependencies ?? {})) {
-    const sourcePath = join(CLI_CWD, "node_modules", depName);
-    const targetPath = join(nodeModulesRoot, depName);
-
-    if (depName.startsWith("@")) {
-      mkdirSync(join(nodeModulesRoot, depName.split("/")[0]!), { recursive: true });
-    }
-
-    symlinkSync(
-      sourcePath,
-      targetPath,
-      process.platform === "win32" ? "junction" : "dir",
-    );
-  }
+function installPackagedProdDependencies(packageRoot: string): void {
+  const npmCacheDir = createTrackedTempDir("pp-smoke-npm-cache-");
+  const install = spawnSync(
+    npmBin(),
+    [
+      "install",
+      "--ignore-scripts",
+      "--omit=dev",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "--package-lock=false",
+      "--prefer-offline",
+    ],
+    {
+      cwd: packageRoot,
+      encoding: "utf8",
+      timeout: 240_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: buildChildProcessEnv({
+        npm_config_cache: npmCacheDir,
+      }),
+    },
+  );
+  expect(install.status).toBe(0);
 }
 
 async function waitForCondition<T>(
@@ -158,10 +161,10 @@ function packAndExtractCli(
   expect(extract.status).toBe(0);
 
   const packageRoot = join(extractDir, "package");
-  // Keep smoke deterministic and offline by linking only declared prod deps.
-  // This still catches undeclared direct runtime imports that a full
-  // workspace node_modules symlink would mask.
-  linkDeclaredProdDependencies(packageRoot);
+  // Install declared prod dependencies into the extracted package so this
+  // smoke lane exercises a clean packed-package dependency closure rather than
+  // borrowing the workspace's live node_modules tree.
+  installPackagedProdDependencies(packageRoot);
 
   const listedFiles = spawnSync("tar", ["-tzf", tarballPath], {
     encoding: "utf8",
