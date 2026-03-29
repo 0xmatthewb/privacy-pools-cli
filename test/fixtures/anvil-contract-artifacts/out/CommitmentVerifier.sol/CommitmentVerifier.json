@@ -1,0 +1,159 @@
+{
+  "abi": [
+    {
+      "type": "function",
+      "name": "verifyProof",
+      "inputs": [
+        {
+          "name": "_pA",
+          "type": "uint256[2]",
+          "internalType": "uint256[2]"
+        },
+        {
+          "name": "_pB",
+          "type": "uint256[2][2]",
+          "internalType": "uint256[2][2]"
+        },
+        {
+          "name": "_pC",
+          "type": "uint256[2]",
+          "internalType": "uint256[2]"
+        },
+        {
+          "name": "_pubSignals",
+          "type": "uint256[4]",
+          "internalType": "uint256[4]"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": {
+    "object": "0x6080604052348015600e575f5ffd5b5061062e8061001c5f395ff3fe608060405234801561000f575f5ffd5b5060043610610029575f3560e01c80635fe8c13b1461002d575b5f5ffd5b61004061003b3660046105d7565b610054565b604051901515815260200160405180910390f35b5f61055c565b7f30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f00000018110610089575f5f5260205ff35b50565b5f60405183815284602082015285604082015260408160608360076107d05a03fa9150816100bc575f5f5260205ff35b825160408201526020830151606082015260408360808360066107d05a03fa915050806100eb575f5f5260205ff35b5050505050565b7f2ade2c53047954a5ad6969e7b70f4ff608aacf111d8b66c1dc63226bcf6de2cf85527f2f3e090ff76f88f5d5a627f050342f39d9adc2c372fb733d6c02cc13a6f83ab260208601525f608086018661018e87357f0e77a72ecd48381c209fff0841c05918ebdabf07d37c5a3a71181b7d8deb2fb67f2d477aa96e1d137ce2e37c3748312b12e11405c67d24f2e4461d5f6f6306ada88461008c565b6101de60208801357f06950503de103bf7ce2326ec646d70e22bfa2cb4a8f0462dd1860b8b5bf40de17f0dc18689190366ef77dd4bc41b17e7a5df69c0694c5cbea68ce66e9934aa53df8461008c565b61022e60408801357f071bfb4e3df1c0c7a8afa33e3b2d3cba71c3d3db2b9fdc3e405dc3622975814a7f266ed03cdf008f2b491370a20c8d844a53392824a3de99e35d2c066b64f18cf98461008c565b61027e60608801357f1e92f69b1d359c02f7626d2f9c120914dd1f06328a444f51a8d51818335a97f17f124e3f33f588e75243a4263afb2c43ea42784fad36607b0a7c52c93ca21ba26f8461008c565b50823581527f30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd4760208401357f30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd4703066020820152833560408201526020840135606082015260408401356080820152606084013560a08201527f245229d9b076b3c0e8a4d70bde8c1cccffa08a9fae7557b165b3b0dbd653e2c760c08201527f253ec85988dbb84e46e94b5efa3373b47a000b4ac6c86b2d4b798d274a18230260e08201527f07090a82e8fabbd39299be24705b92cf208ee8b3487f6f2b39ff27978a29a1db6101008201527f2424bcc1f60a5472685fd50705b2809626e170120acaf441e133a2bd5e61d2446101208201527f0ae1135cffdaf227c5dc266740607aa930bc3bd92ddc2b135086d9da2dfd3e2a6101408201527f2b86859fd3d55c9d150fb3f0aeba798826493dd73d357ab0f9fdaced9fc818296101608201525f87015161018082015260205f018701516101a08201527f198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c26101c08201527f1800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed6101e08201527f090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b6102008201527f12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa610220820152843561024082015260208501356102608201527f1f1c19f8e758c9c72df662f40ca0869ed1794f47c584b7fc4f60bc450d04fe916102808201527f302542f4c6ca4486483a722fc1a80c42bf2affc703b830fb4ef1df92c9bceab36102a08201527f2748cb51245c087fc8a46cf7592bca57da2e6ab9a314794e8840f4845af75cec6102c08201527f20c96c77ffd34928fb9a9f8752d1b4a208a462b1f4ee8df23d5266d95898ccf56102e08201526020816103008360086107d05a03fa9051169695505050505050565b60405161038081016040526105735f84013561005a565b610580602084013561005a565b61058d604084013561005a565b61059a606084013561005a565b6105a7818486888a6100f2565b9050805f5260205ff35b80604081018310156105c1575f5ffd5b92915050565b80608081018310156105c1575f5ffd5b5f5f5f5f61018085870312156105eb575f5ffd5b6105f586866105b1565b935061060486604087016105c7565b92506106138660c087016105b1565b91506106238661010087016105c7565b90509295919450925056",
+    "sourceMap": "858:7412:110:-:0;;;;;;;;;;;;;;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x608060405234801561000f575f5ffd5b5060043610610029575f3560e01c80635fe8c13b1461002d575b5f5ffd5b61004061003b3660046105d7565b610054565b604051901515815260200160405180910390f35b5f61055c565b7f30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f00000018110610089575f5f5260205ff35b50565b5f60405183815284602082015285604082015260408160608360076107d05a03fa9150816100bc575f5f5260205ff35b825160408201526020830151606082015260408360808360066107d05a03fa915050806100eb575f5f5260205ff35b5050505050565b7f2ade2c53047954a5ad6969e7b70f4ff608aacf111d8b66c1dc63226bcf6de2cf85527f2f3e090ff76f88f5d5a627f050342f39d9adc2c372fb733d6c02cc13a6f83ab260208601525f608086018661018e87357f0e77a72ecd48381c209fff0841c05918ebdabf07d37c5a3a71181b7d8deb2fb67f2d477aa96e1d137ce2e37c3748312b12e11405c67d24f2e4461d5f6f6306ada88461008c565b6101de60208801357f06950503de103bf7ce2326ec646d70e22bfa2cb4a8f0462dd1860b8b5bf40de17f0dc18689190366ef77dd4bc41b17e7a5df69c0694c5cbea68ce66e9934aa53df8461008c565b61022e60408801357f071bfb4e3df1c0c7a8afa33e3b2d3cba71c3d3db2b9fdc3e405dc3622975814a7f266ed03cdf008f2b491370a20c8d844a53392824a3de99e35d2c066b64f18cf98461008c565b61027e60608801357f1e92f69b1d359c02f7626d2f9c120914dd1f06328a444f51a8d51818335a97f17f124e3f33f588e75243a4263afb2c43ea42784fad36607b0a7c52c93ca21ba26f8461008c565b50823581527f30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd4760208401357f30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd4703066020820152833560408201526020840135606082015260408401356080820152606084013560a08201527f245229d9b076b3c0e8a4d70bde8c1cccffa08a9fae7557b165b3b0dbd653e2c760c08201527f253ec85988dbb84e46e94b5efa3373b47a000b4ac6c86b2d4b798d274a18230260e08201527f07090a82e8fabbd39299be24705b92cf208ee8b3487f6f2b39ff27978a29a1db6101008201527f2424bcc1f60a5472685fd50705b2809626e170120acaf441e133a2bd5e61d2446101208201527f0ae1135cffdaf227c5dc266740607aa930bc3bd92ddc2b135086d9da2dfd3e2a6101408201527f2b86859fd3d55c9d150fb3f0aeba798826493dd73d357ab0f9fdaced9fc818296101608201525f87015161018082015260205f018701516101a08201527f198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c26101c08201527f1800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed6101e08201527f090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b6102008201527f12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa610220820152843561024082015260208501356102608201527f1f1c19f8e758c9c72df662f40ca0869ed1794f47c584b7fc4f60bc450d04fe916102808201527f302542f4c6ca4486483a722fc1a80c42bf2affc703b830fb4ef1df92c9bceab36102a08201527f2748cb51245c087fc8a46cf7592bca57da2e6ab9a314794e8840f4845af75cec6102c08201527f20c96c77ffd34928fb9a9f8752d1b4a208a462b1f4ee8df23d5266d95898ccf56102e08201526020816103008360086107d05a03fa9051169695505050505050565b60405161038081016040526105735f84013561005a565b610580602084013561005a565b61058d604084013561005a565b61059a606084013561005a565b6105a7818486888a6100f2565b9050805f5260205ff35b80604081018310156105c1575f5ffd5b92915050565b80608081018310156105c1575f5ffd5b5f5f5f5f61018085870312156105eb575f5ffd5b6105f586866105b1565b935061060486604087016105c7565b92506106138660c087016105b1565b91506106238661010087016105c7565b90509295919450925056",
+    "sourceMap": "858:7412:110:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;3939:4328;;;;;;:::i;:::-;;:::i;:::-;;;1190:14:145;;1183:22;1165:41;;1153:2;1138:18;3939:4328:110;;;;;;;;4092:4;4131:163;;;4188:1;4185;4182:8;4172:108;;4224:1;4221;4214:12;4257:4;4254:1;4247:15;4172:108;4131:163;:::o;4398:738::-;4449:11;4494:4;4488:11;4528:1;4523:3;4516:14;4568:1;4563:2;4558:3;4554:12;4547:23;4608:1;4603:2;4598:3;4594:12;4587:23;4685:2;4680:3;4676:2;4671:3;4668:1;4661:4;4654:5;4650:16;4639:49;4628:60;;4716:7;4706:107;;4757:1;4754;4747:12;4790:4;4787:1;4780:15;4706:107;4858:2;4852:9;4847:2;4842:3;4838:12;4831:31;4914:2;4910;4906:11;4900:18;4895:2;4890:3;4886:12;4879:40;4994:2;4990;4985:3;4980;4977:1;4970:4;4963:5;4959:16;4948:49;4937:60;;;5025:7;5015:107;;5066:1;5063;5056:12;5099:4;5096:1;5089:15;5015:107;;4398:738;;;;:::o;5150:2488::-;5338:4;5325:18;;5382:4;5377:2;5367:13;;5360:27;5205:4;5255:8;5245:19;;5249:4;5477:62;5506:32;;5500:4;5494;5249;5477:62;:::i;:::-;5573:63;5631:2;5619:10;5615:19;5602:33;5596:4;5590;5584;5573:63;:::i;:::-;5670;5728:2;5716:10;5712:19;5699:33;5693:4;5687;5681;5670:63;:::i;:::-;5767;5825:2;5813:10;5809:19;5796:33;5790:4;5784;5778;5767:63;:::i;:::-;;5918:2;5905:16;5894:9;5887:35;6005:1;5998:2;5994;5990:11;5977:25;5974:1;5970:33;5966:41;5961:2;5950:9;5946:18;5939:69;6087:2;6074:16;6069:2;6058:9;6054:18;6047:44;6156:2;6152;6148:11;6135:25;6130:2;6119:9;6115:18;6108:53;6227:2;6223;6219:11;6206:25;6200:3;6189:9;6185:19;6178:54;6298:2;6294;6290:11;6277:25;6271:3;6260:9;6256:19;6249:54;6375:6;6369:3;6358:9;6354:19;6347:35;6427:6;6421:3;6410:9;6406:19;6399:35;6505:6;6499:3;6488:9;6484:19;6477:35;6557:6;6551:3;6540:9;6536:19;6529:35;6609:6;6603:3;6592:9;6588:19;6581:35;6661:6;6655:3;6644:9;6640:19;6633:35;6754:3;6748:4;6744:14;6738:21;6732:3;6721:9;6717:19;6710:50;6830:2;6825:3;6821:12;6815:4;6811:23;6805:30;6799:3;6788:9;6784:19;6777:59;6909:7;6903:3;6892:9;6888:19;6881:36;6962:7;6956:3;6945:9;6941:19;6934:36;7015:7;7009:3;6998:9;6994:19;6987:36;7068:7;7062:3;7051:9;7047:19;7040:36;7156:2;7143:16;7137:3;7126:9;7122:19;7115:45;7226:2;7222;7218:11;7205:25;7199:3;7188:9;7184:19;7177:54;7303:7;7297:3;7286:9;7282:19;7275:36;7356:7;7350:3;7339:9;7335:19;7328:36;7409:7;7403:3;7392:9;7388:19;7381:36;7462:7;7456:3;7445:9;7441:19;7434:36;7563:4;7552:9;7547:3;7536:9;7533:1;7526:4;7519:5;7515:16;7504:64;7607:16;;7594:30;;5150:2488;-1:-1:-1;;;;;;5150:2488:110:o;:::-;7670:4;7664:11;7711:8;7705:4;7701:19;7695:4;7688:33;7799:45;7840:1;7827:11;7823:19;7810:33;7799:45;:::i;:::-;7870:46;7911:2;7898:11;7894:20;7881:34;7870:46;:::i;:::-;7942;7983:2;7970:11;7966:20;7953:34;7942:46;:::i;:::-;8014;8055:2;8042:11;8038:20;8025:34;8014:46;:::i;:::-;8142;8183:4;8170:11;8165:3;8160;8155;8142:46;:::i;:::-;8127:61;;8212:7;8209:1;8202:18;8244:4;8241:1;8234:15;14:159:145;108:6;141:2;129:15;;126:24;-1:-1:-1;123:44:145;;;163:1;160;153:12;123:44;14:159;;;;:::o;178:175::-;287:6;320:3;308:16;;305:25;-1:-1:-1;302:45:145;;;343:1;340;333:12;358:662;569:6;577;585;593;646:3;634:9;625:7;621:23;617:33;614:53;;;663:1;660;653:12;614:53;686;731:7;720:9;686:53;:::i;:::-;676:63;;758:77;827:7;822:2;811:9;807:18;758:77;:::i;:::-;748:87;;854:63;909:7;903:3;892:9;888:19;854:63;:::i;:::-;844:73;;936:78;1006:7;1000:3;989:9;985:19;936:78;:::i;:::-;926:88;;358:662;;;;;;;:::o",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": {
+    "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[4])": "5fe8c13b"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256[2]\",\"name\":\"_pA\",\"type\":\"uint256[2]\"},{\"internalType\":\"uint256[2][2]\",\"name\":\"_pB\",\"type\":\"uint256[2][2]\"},{\"internalType\":\"uint256[2]\",\"name\":\"_pC\",\"type\":\"uint256[2]\"},{\"internalType\":\"uint256[4]\",\"name\":\"_pubSignals\",\"type\":\"uint256[4]\"}],\"name\":\"verifyProof\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/contracts/verifiers/CommitmentVerifier.sol\":\"CommitmentVerifier\"},\"evmVersion\":\"prague\",\"libraries\":{},\"metadata\":{\"appendCBOR\":false,\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":10000},\"remappings\":[\":@openzeppelin/=node_modules/@openzeppelin/\",\":@oz-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/\",\":@oz/=node_modules/@openzeppelin/contracts/\",\":@uniswap/=../../node_modules/@uniswap/\",\":@upgrades/=../../node_modules/@openzeppelin/foundry-upgrades/src/\",\":@zk-kit/=../../node_modules/@zk-kit/\",\":base64-sol/=../../node_modules/base64-sol/\",\":contracts/=src/contracts/\",\":ds-test/=../../node_modules/@uniswap/universal-router/lib/forge-std/lib/ds-test/\",\":erc4626-tests/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-gas-snapshot/=../../node_modules/@uniswap/universal-router/lib/permit2/lib/forge-gas-snapshot/\",\":forge-std/=../../node_modules/forge-std/src/\",\":halmos-cheatcodes/=../../node_modules/halmos-cheatcodes/\",\":interfaces/=src/interfaces/\",\":lean-imt/=lib/lean-imt/\",\":openzeppelin-contracts/=../../node_modules/@uniswap/universal-router/lib/permit2/lib/openzeppelin-contracts/\",\":permit2/=../../node_modules/@uniswap/universal-router/lib/permit2/\",\":poseidon-solidity/=../../node_modules/poseidon-solidity/\",\":poseidon/=../../node_modules/poseidon-solidity/\",\":solidity-stringutils/=../../node_modules/@openzeppelin/foundry-upgrades/lib/solidity-stringutils/\",\":solmate/=../../node_modules/@uniswap/universal-router/lib/solmate/\",\":v3-periphery/=../../node_modules/@uniswap/universal-router/lib/v3-periphery/\",\":v4-core/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/lib/v4-core/\",\":v4-periphery/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/\"]},\"sources\":{\"src/contracts/verifiers/CommitmentVerifier.sol\":{\"keccak256\":\"0x8527eb819572abd502a54721ded570bd85da96e3a49dadf001db689af4f64e19\",\"license\":\"GPL-3.0\",\"urls\":[\"bzz-raw://1ac94a131b6e624cd083de73ed4dcbfd5fce0f8f22d8c9627c551f402bc252fb\",\"dweb:/ipfs/QmdgDUdtE5t96hznDuyZoWaJFC43mP5HjquVDqupYSDcgp\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": {
+      "version": "0.8.28+commit.7893614a"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "uint256[2]",
+              "name": "_pA",
+              "type": "uint256[2]"
+            },
+            {
+              "internalType": "uint256[2][2]",
+              "name": "_pB",
+              "type": "uint256[2][2]"
+            },
+            {
+              "internalType": "uint256[2]",
+              "name": "_pC",
+              "type": "uint256[2]"
+            },
+            {
+              "internalType": "uint256[4]",
+              "name": "_pubSignals",
+              "type": "uint256[4]"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "verifyProof",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ]
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {},
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {},
+        "version": 1
+      }
+    },
+    "settings": {
+      "remappings": [
+        "@openzeppelin/=node_modules/@openzeppelin/",
+        "@oz-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/",
+        "@oz/=node_modules/@openzeppelin/contracts/",
+        "@uniswap/=../../node_modules/@uniswap/",
+        "@upgrades/=../../node_modules/@openzeppelin/foundry-upgrades/src/",
+        "@zk-kit/=../../node_modules/@zk-kit/",
+        "base64-sol/=../../node_modules/base64-sol/",
+        "contracts/=src/contracts/",
+        "ds-test/=../../node_modules/@uniswap/universal-router/lib/forge-std/lib/ds-test/",
+        "erc4626-tests/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/lib/erc4626-tests/",
+        "forge-gas-snapshot/=../../node_modules/@uniswap/universal-router/lib/permit2/lib/forge-gas-snapshot/",
+        "forge-std/=../../node_modules/forge-std/src/",
+        "halmos-cheatcodes/=../../node_modules/halmos-cheatcodes/",
+        "interfaces/=src/interfaces/",
+        "lean-imt/=lib/lean-imt/",
+        "openzeppelin-contracts/=../../node_modules/@uniswap/universal-router/lib/permit2/lib/openzeppelin-contracts/",
+        "permit2/=../../node_modules/@uniswap/universal-router/lib/permit2/",
+        "poseidon-solidity/=../../node_modules/poseidon-solidity/",
+        "poseidon/=../../node_modules/poseidon-solidity/",
+        "solidity-stringutils/=../../node_modules/@openzeppelin/foundry-upgrades/lib/solidity-stringutils/",
+        "solmate/=../../node_modules/@uniswap/universal-router/lib/solmate/",
+        "v3-periphery/=../../node_modules/@uniswap/universal-router/lib/v3-periphery/",
+        "v4-core/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/lib/v4-core/",
+        "v4-periphery/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/"
+      ],
+      "optimizer": {
+        "enabled": true,
+        "runs": 10000
+      },
+      "metadata": {
+        "bytecodeHash": "none",
+        "appendCBOR": false
+      },
+      "compilationTarget": {
+        "src/contracts/verifiers/CommitmentVerifier.sol": "CommitmentVerifier"
+      },
+      "evmVersion": "prague",
+      "libraries": {}
+    },
+    "sources": {
+      "src/contracts/verifiers/CommitmentVerifier.sol": {
+        "keccak256": "0x8527eb819572abd502a54721ded570bd85da96e3a49dadf001db689af4f64e19",
+        "urls": [
+          "bzz-raw://1ac94a131b6e624cd083de73ed4dcbfd5fce0f8f22d8c9627c551f402bc252fb",
+          "dweb:/ipfs/QmdgDUdtE5t96hznDuyZoWaJFC43mP5HjquVDqupYSDcgp"
+        ],
+        "license": "GPL-3.0"
+      }
+    },
+    "version": 1
+  },
+  "id": 110
+}

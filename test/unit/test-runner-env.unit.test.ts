@@ -6,6 +6,7 @@ const ORIGINAL_PP_RPC_URL = process.env.PP_RPC_URL;
 const ORIGINAL_PP_ANVIL_SHARED_ENV_FILE = process.env.PP_ANVIL_SHARED_ENV_FILE;
 const ORIGINAL_PP_KEEP_COVERAGE_ROOT = process.env.PP_KEEP_COVERAGE_ROOT;
 const ORIGINAL_PP_INSTALL_CLI_TARBALL = process.env.PP_INSTALL_CLI_TARBALL;
+const ORIGINAL_PP_CONTRACTS_ROOT = process.env.PP_CONTRACTS_ROOT;
 
 afterEach(() => {
   if (ORIGINAL_PRIVATE_KEY === undefined) {
@@ -37,6 +38,12 @@ afterEach(() => {
   } else {
     process.env.PP_INSTALL_CLI_TARBALL = ORIGINAL_PP_INSTALL_CLI_TARBALL;
   }
+
+  if (ORIGINAL_PP_CONTRACTS_ROOT === undefined) {
+    delete process.env.PP_CONTRACTS_ROOT;
+  } else {
+    process.env.PP_CONTRACTS_ROOT = ORIGINAL_PP_CONTRACTS_ROOT;
+  }
 });
 
 describe("test runner env", () => {
@@ -47,6 +54,7 @@ describe("test runner env", () => {
     process.env.PP_ANVIL_SHARED_ENV_FILE = "/tmp/shared.env";
     process.env.PP_KEEP_COVERAGE_ROOT = "1";
     process.env.PP_INSTALL_CLI_TARBALL = "/tmp/stale-cli.tgz";
+    process.env.PP_CONTRACTS_ROOT = "/tmp/stale-contracts";
 
     const env = buildTestRunnerEnv();
 
@@ -55,6 +63,7 @@ describe("test runner env", () => {
     expect(env.PP_ANVIL_SHARED_ENV_FILE).toBe("/tmp/shared.env");
     expect(env.PP_KEEP_COVERAGE_ROOT).toBe("1");
     expect(env.PP_INSTALL_CLI_TARBALL).toBeUndefined();
+    expect(env.PP_CONTRACTS_ROOT).toBeUndefined();
   });
 
   test("overrides can restore or remove runner variables explicitly", () => {

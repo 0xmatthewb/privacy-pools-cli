@@ -53,6 +53,15 @@ describe("test profiles", () => {
       ...TEST_PROFILE_FRAGMENTS.build,
       ...TEST_PROFILE_FRAGMENTS["repo-conformance-live"],
     ]);
+    expect(resolveProfile("ci")).toContainEqual(
+      TEST_PROFILE_FRAGMENTS["repo-conformance-core"][0]!,
+    );
+    expect(resolveProfile("release")).toContainEqual(
+      TEST_PROFILE_FRAGMENTS["repo-conformance-core"][0]!,
+    );
+    expect(resolveProfile("release")).not.toContainEqual(
+      TEST_PROFILE_FRAGMENTS["repo-conformance-live"][1]!,
+    );
   });
 
   test("higher-cost profiles compose native, e2e, and repo-validation fragments", () => {
@@ -124,15 +133,17 @@ describe("test profiles", () => {
       "npm",
       ["run", "bench:gate:release"],
     ]);
+    expect(resolveProfile("all")).toEqual(resolveProfile("release"));
+    expect(resolveProfile("all")).toBe(resolveProfile("release"));
 
     const countBuildSteps = (profileName: "ci" | "release" | "all") =>
       resolveProfile(profileName).filter(([command, args]) => {
         return command === "npm" && args[0] === "run" && args[1] === "build";
       }).length;
 
-    expect(countBuildSteps("ci")).toBe(1);
-    expect(countBuildSteps("release")).toBe(1);
-    expect(countBuildSteps("all")).toBe(1);
+    expect(countBuildSteps("ci")).toBe(0);
+    expect(countBuildSteps("release")).toBe(0);
+    expect(countBuildSteps("all")).toBe(0);
   });
 
   test("profile runner applies a shared outer watchdog to raw npm/node steps", () => {

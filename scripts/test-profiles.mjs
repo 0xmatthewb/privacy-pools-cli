@@ -51,6 +51,24 @@ function composeProfile(...fragmentNames) {
   return fragmentNames.flatMap((name) => TEST_PROFILE_FRAGMENTS[name] ?? []);
 }
 
+const RELEASE_GRADE_PROFILE = [
+  ["npm", ["test"]],
+  ["npm", ["run", "test:install"]],
+  ...composeProfile(
+    "native-core",
+    "coverage",
+    "anvil-full",
+    "anvil-installed-smoke",
+    "evals",
+    "native-shell-parity",
+  ),
+  ...composeProfile(
+    "docs-reference-check",
+    "repo-conformance-core",
+    "release-bench",
+  ),
+];
+
 export const TEST_PROFILES = {
   install: composeProfile("install"),
   conformance: composeProfile("build", "repo-conformance-core"),
@@ -65,44 +83,10 @@ export const TEST_PROFILES = {
       "evals",
       "native-shell-parity",
     ),
-    ...composeProfile("build", "docs-reference-check", "repo-conformance-live"),
+    ...composeProfile("docs-reference-check", "repo-conformance-core"),
   ],
-  release: [
-    ["npm", ["test"]],
-    ["npm", ["run", "test:install"]],
-    ...composeProfile(
-      "native-core",
-      "coverage",
-      "anvil-full",
-      "anvil-installed-smoke",
-      "evals",
-      "native-shell-parity",
-    ),
-    ...composeProfile(
-      "build",
-      "docs-reference-check",
-      "repo-conformance-live",
-      "release-bench",
-    ),
-  ],
-  all: [
-    ["npm", ["test"]],
-    ["npm", ["run", "test:install"]],
-    ...composeProfile(
-      "native-core",
-      "coverage",
-      "anvil-full",
-      "anvil-installed-smoke",
-      "evals",
-      "native-shell-parity",
-    ),
-    ...composeProfile(
-      "build",
-      "docs-reference-check",
-      "repo-conformance-live",
-      "release-bench",
-    ),
-  ],
+  release: RELEASE_GRADE_PROFILE,
+  all: RELEASE_GRADE_PROFILE,
 };
 
 export function resolveProfile(name) {

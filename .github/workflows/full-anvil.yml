@@ -8,7 +8,9 @@
 # WHAT does it do?
 #   Runs the complete Anvil matrix as `npm run test:e2e:anvil`, including
 #   the saved-flow and `--new-wallet` journeys that are too heavy for the
-#   required fast CI lane.
+#   required fast CI lane. The suite uses the repo's committed contract
+#   fixture and bundled proving assets, so it does not need an external
+#   contracts checkout.
 #
 # WHY separate from the main CI workflow?
 #   The required CI workflow intentionally keeps the Anvil gate to the smoke
@@ -84,40 +86,10 @@ jobs:
         with:
           cache: true
 
-      - name: Checkout contracts
-        if: steps.select.outputs.should_run == 'true'
-        uses: actions/checkout@v6
-        with:
-          repository: 0xmatthewb/privacy-pools-core
-          ref: a80836a47451e662f127af17e11430ffa976c234
-          path: privacy-pools-core
-
-      - name: Install contract dependencies
-        if: steps.select.outputs.should_run == 'true'
-        working-directory: privacy-pools-core/packages/contracts
-        run: |
-          corepack enable
-          yarn --frozen-lockfile --network-concurrency 1
-
-      - name: Normalize contract remappings
-        if: steps.select.outputs.should_run == 'true'
-        working-directory: privacy-pools-core/packages/contracts
-        run: |
-          ln -sfn @zk-kit/lean-imt.sol ../../node_modules/lean-imt
-          sed -i.bak 's#^lean-imt/=.*$#lean-imt/=../../node_modules/lean-imt/#' remappings.txt
-          rm -f remappings.txt.bak
-
-      - name: Build contract artifacts
-        if: steps.select.outputs.should_run == 'true'
-        working-directory: privacy-pools-core/packages/contracts
-        run: forge build
-
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
 
       - name: Run full Anvil end-to-end suite
         if: steps.select.outputs.should_run == 'true'
-        env:
-          PP_CONTRACTS_ROOT: ${{ github.workspace }}/privacy-pools-core/packages/contracts
         run: npm run test:e2e:anvil

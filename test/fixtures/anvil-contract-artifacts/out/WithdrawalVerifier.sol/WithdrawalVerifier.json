@@ -1,0 +1,159 @@
+{
+  "abi": [
+    {
+      "type": "function",
+      "name": "verifyProof",
+      "inputs": [
+        {
+          "name": "_pA",
+          "type": "uint256[2]",
+          "internalType": "uint256[2]"
+        },
+        {
+          "name": "_pB",
+          "type": "uint256[2][2]",
+          "internalType": "uint256[2][2]"
+        },
+        {
+          "name": "_pC",
+          "type": "uint256[2]",
+          "internalType": "uint256[2]"
+        },
+        {
+          "name": "_pubSignals",
+          "type": "uint256[8]",
+          "internalType": "uint256[8]"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool",
+          "internalType": "bool"
+        }
+      ],
+      "stateMutability": "view"
+    }
+  ],
+  "bytecode": {
+    "object": "0x6080604052348015600e575f5ffd5b5061079b8061001c5f395ff3fe608060405234801561000f575f5ffd5b5060043610610029575f3560e01c8063c9219a7a1461002d575b5f5ffd5b61004061003b366004610739565b610054565b604051901515815260200160405180910390f35b5f61069a565b7f30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f00000018110610089575f5f5260205ff35b50565b5f60405183815284602082015285604082015260408160608360076107d05a03fa9150816100bc575f5f5260205ff35b825160408201526020830151606082015260408360808360066107d05a03fa915050806100eb575f5f5260205ff35b5050505050565b7f2e3f15ca0e087b7f48dce82a6876f02489bb578631a83458d87e580afa75ab8585527f1fa2b469eb7621c286837cbba8e9d524b01c3b670cb6391ef722d9392a8e89a560208601525f608086018661018e87357f2add88562182b89f45f48a16790ce2c62b4e1ebdbda6758c02b7e1675c5af6ee7f08d93b65fb2b4a515e81b2ab3b22d1d75d9f34669f956310e7e63e8a6899e8588461008c565b6101de60208801357f2b4a85ed815e83559c3181c4293bbf71be41dbde75cc14bb17ba2b80b9bae4d67f0967bfab48a43033827d689c0f9043c7b2a0c77db5492677668909a624b990e88461008c565b61022e60408801357f1a531d94a667a7cb2792cb3983fcf5109de74da944c3073b8772f49399ecbb167f1c5d0a9e48db2c637c0ece5a852f719b48ffbfa9ce9aeb8c980147c1178b27bf8461008c565b61027e60608801357f25ecd19d9a51ec7d6d450ab2beec9b6c387d6993e6c076ae2b3ea97d8ed1c3107f2112c9ae2b1341b915e8b3b7211d53bfadc334ee7f641b63aae8ca7084b759728461008c565b6102cd60808801357f0e788b5e81533e425ab999b42ef78ba19a1250ced3b46e172879ee81794284937edacdcb0c339f0563741bb942ca1fcd7804f374beec8b2dcb21f1cb9e4a6a318461008c565b61031d60a08801357f0d22fa52971b070b46f574f414293bb2298ac685c5ec52cdd66e2580412cba4e7f1fd92166e89ed9e6eb979ed2fe7562ca45f20abef7fb7711e8a13f340c64350c8461008c565b61036d60c08801357f2b93d9ad8aee9dc2348e6da82c8ca65f02ee8dd0bccbe41e266f2cbdcc94ad767f0e93b09bee364673b9808f90b88e2718387dbf6b0d84f538a2f7e671624ae0318461008c565b6103bd60e08801357f047f4a5ba16de1f449c9d04173b9d0c3fd2dd40ee9ced150c03648b2ebd661447f1e9512a844a821c28d81ae3ab3881b7864ed5fae912a029383d7a4c8c0be1c448461008c565b50823581527f30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd4760208401357f30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd4703066020820152833560408201526020840135606082015260408401356080820152606084013560a08201527f245229d9b076b3c0e8a4d70bde8c1cccffa08a9fae7557b165b3b0dbd653e2c760c08201527f253ec85988dbb84e46e94b5efa3373b47a000b4ac6c86b2d4b798d274a18230260e08201527f07090a82e8fabbd39299be24705b92cf208ee8b3487f6f2b39ff27978a29a1db6101008201527f2424bcc1f60a5472685fd50705b2809626e170120acaf441e133a2bd5e61d2446101208201527f0ae1135cffdaf227c5dc266740607aa930bc3bd92ddc2b135086d9da2dfd3e2a6101408201527f2b86859fd3d55c9d150fb3f0aeba798826493dd73d357ab0f9fdaced9fc818296101608201525f87015161018082015260205f018701516101a08201527f198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c26101c08201527f1800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed6101e08201527f090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b6102008201527f12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa610220820152843561024082015260208501356102608201527ec9560dfa0911f375e8225b33d9bd2d707bd3729c628cf5d0e94eab2ba53ef76102808201527f19277684a5069d1a65cb37928e6b969d40187ab23296a35227ebf0d3f58fbe096102a08201527f20c8ac7d5d6ba4db6ca057163ccba43def21d2a35b0829578659839340d5f4bf6102c08201527f20ffa16778bd754333e431c81f0de4f5cd59caad70e9a173b25928e25e3abd086102e08201526020816103008360086107d05a03fa9051169695505050505050565b60405161038081016040526106b15f84013561005a565b6106be602084013561005a565b6106cb604084013561005a565b6106d8606084013561005a565b6106e5608084013561005a565b6106f260a084013561005a565b6106ff60c084013561005a565b61070c60e084013561005a565b610719818486888a6100f2565b9050805f5260205ff35b8060408101831015610733575f5ffd5b92915050565b5f5f5f5f610200858703121561074d575f5ffd5b6107578686610723565b935060c0850186811115610769575f5ffd5b6040860193506107798782610723565b925050856102008601111561078c575f5ffd5b5091949093509091610100019056",
+    "sourceMap": "858:8967:111:-:0;;;;;;;;;;;;;;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x608060405234801561000f575f5ffd5b5060043610610029575f3560e01c8063c9219a7a1461002d575b5f5ffd5b61004061003b366004610739565b610054565b604051901515815260200160405180910390f35b5f61069a565b7f30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f00000018110610089575f5f5260205ff35b50565b5f60405183815284602082015285604082015260408160608360076107d05a03fa9150816100bc575f5f5260205ff35b825160408201526020830151606082015260408360808360066107d05a03fa915050806100eb575f5f5260205ff35b5050505050565b7f2e3f15ca0e087b7f48dce82a6876f02489bb578631a83458d87e580afa75ab8585527f1fa2b469eb7621c286837cbba8e9d524b01c3b670cb6391ef722d9392a8e89a560208601525f608086018661018e87357f2add88562182b89f45f48a16790ce2c62b4e1ebdbda6758c02b7e1675c5af6ee7f08d93b65fb2b4a515e81b2ab3b22d1d75d9f34669f956310e7e63e8a6899e8588461008c565b6101de60208801357f2b4a85ed815e83559c3181c4293bbf71be41dbde75cc14bb17ba2b80b9bae4d67f0967bfab48a43033827d689c0f9043c7b2a0c77db5492677668909a624b990e88461008c565b61022e60408801357f1a531d94a667a7cb2792cb3983fcf5109de74da944c3073b8772f49399ecbb167f1c5d0a9e48db2c637c0ece5a852f719b48ffbfa9ce9aeb8c980147c1178b27bf8461008c565b61027e60608801357f25ecd19d9a51ec7d6d450ab2beec9b6c387d6993e6c076ae2b3ea97d8ed1c3107f2112c9ae2b1341b915e8b3b7211d53bfadc334ee7f641b63aae8ca7084b759728461008c565b6102cd60808801357f0e788b5e81533e425ab999b42ef78ba19a1250ced3b46e172879ee81794284937edacdcb0c339f0563741bb942ca1fcd7804f374beec8b2dcb21f1cb9e4a6a318461008c565b61031d60a08801357f0d22fa52971b070b46f574f414293bb2298ac685c5ec52cdd66e2580412cba4e7f1fd92166e89ed9e6eb979ed2fe7562ca45f20abef7fb7711e8a13f340c64350c8461008c565b61036d60c08801357f2b93d9ad8aee9dc2348e6da82c8ca65f02ee8dd0bccbe41e266f2cbdcc94ad767f0e93b09bee364673b9808f90b88e2718387dbf6b0d84f538a2f7e671624ae0318461008c565b6103bd60e08801357f047f4a5ba16de1f449c9d04173b9d0c3fd2dd40ee9ced150c03648b2ebd661447f1e9512a844a821c28d81ae3ab3881b7864ed5fae912a029383d7a4c8c0be1c448461008c565b50823581527f30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd4760208401357f30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd4703066020820152833560408201526020840135606082015260408401356080820152606084013560a08201527f245229d9b076b3c0e8a4d70bde8c1cccffa08a9fae7557b165b3b0dbd653e2c760c08201527f253ec85988dbb84e46e94b5efa3373b47a000b4ac6c86b2d4b798d274a18230260e08201527f07090a82e8fabbd39299be24705b92cf208ee8b3487f6f2b39ff27978a29a1db6101008201527f2424bcc1f60a5472685fd50705b2809626e170120acaf441e133a2bd5e61d2446101208201527f0ae1135cffdaf227c5dc266740607aa930bc3bd92ddc2b135086d9da2dfd3e2a6101408201527f2b86859fd3d55c9d150fb3f0aeba798826493dd73d357ab0f9fdaced9fc818296101608201525f87015161018082015260205f018701516101a08201527f198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c26101c08201527f1800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed6101e08201527f090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b6102008201527f12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa610220820152843561024082015260208501356102608201527ec9560dfa0911f375e8225b33d9bd2d707bd3729c628cf5d0e94eab2ba53ef76102808201527f19277684a5069d1a65cb37928e6b969d40187ab23296a35227ebf0d3f58fbe096102a08201527f20c8ac7d5d6ba4db6ca057163ccba43def21d2a35b0829578659839340d5f4bf6102c08201527f20ffa16778bd754333e431c81f0de4f5cd59caad70e9a173b25928e25e3abd086102e08201526020816103008360086107d05a03fa9051169695505050505050565b60405161038081016040526106b15f84013561005a565b6106be602084013561005a565b6106cb604084013561005a565b6106d8606084013561005a565b6106e5608084013561005a565b6106f260a084013561005a565b6106ff60c084013561005a565b61070c60e084013561005a565b610719818486888a6100f2565b9050805f5260205ff35b8060408101831015610733575f5ffd5b92915050565b5f5f5f5f610200858703121561074d575f5ffd5b6107578686610723565b935060c0850186811115610769575f5ffd5b6040860193506107798782610723565b925050856102008601111561078c575f5ffd5b5091949093509091610100019056",
+    "sourceMap": "858:8967:111:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;4810:5012;;;;;;:::i;:::-;;:::i;:::-;;;1018:14:145;;1011:22;993:41;;981:2;966:18;4810:5012:111;;;;;;;;4963:4;5002:163;;;5059:1;5056;5053:8;5043:108;;5095:1;5092;5085:12;5128:4;5125:1;5118:15;5043:108;5002:163;:::o;5269:738::-;5320:11;5365:4;5359:11;5399:1;5394:3;5387:14;5439:1;5434:2;5429:3;5425:12;5418:23;5479:1;5474:2;5469:3;5465:12;5458:23;5556:2;5551:3;5547:2;5542:3;5539:1;5532:4;5525:5;5521:16;5510:49;5499:60;;5587:7;5577:107;;5628:1;5625;5618:12;5661:4;5658:1;5651:15;5577:107;5729:2;5723:9;5718:2;5713:3;5709:12;5702:31;5785:2;5781;5777:11;5771:18;5766:2;5761:3;5757:12;5750:40;5865:2;5861;5856:3;5851;5848:1;5841:4;5834:5;5830:16;5819:49;5808:60;;;5896:7;5886:107;;5937:1;5934;5927:12;5970:4;5967:1;5960:15;5886:107;;5269:738;;;;:::o;6021:2880::-;6209:4;6196:18;;6253:4;6248:2;6238:13;;6231:27;6076:4;6126:8;6116:19;;6120:4;6348:62;6377:32;;6371:4;6365;6120;6348:62;:::i;:::-;6444:63;6502:2;6490:10;6486:19;6473:33;6467:4;6461;6455;6444:63;:::i;:::-;6541;6599:2;6587:10;6583:19;6570:33;6564:4;6558;6552;6541:63;:::i;:::-;6638;6696:2;6684:10;6680:19;6667:33;6661:4;6655;6649;6638:63;:::i;:::-;6735:64;6793:3;6781:10;6777:20;6764:34;6758:4;6752;6746;6735:64;:::i;:::-;6833;6891:3;6879:10;6875:20;6862:34;6856:4;6850;6844;6833:64;:::i;:::-;6931;6989:3;6977:10;6973:20;6960:34;6954:4;6948;6942;6931:64;:::i;:::-;7029;7087:3;7075:10;7071:20;7058:34;7052:4;7046;7040;7029:64;:::i;:::-;;7181:2;7168:16;7157:9;7150:35;7268:1;7261:2;7257;7253:11;7240:25;7237:1;7233:33;7229:41;7224:2;7213:9;7209:18;7202:69;7350:2;7337:16;7332:2;7321:9;7317:18;7310:44;7419:2;7415;7411:11;7398:25;7393:2;7382:9;7378:18;7371:53;7490:2;7486;7482:11;7469:25;7463:3;7452:9;7448:19;7441:54;7561:2;7557;7553:11;7540:25;7534:3;7523:9;7519:19;7512:54;7638:6;7632:3;7621:9;7617:19;7610:35;7690:6;7684:3;7673:9;7669:19;7662:35;7768:6;7762:3;7751:9;7747:19;7740:35;7820:6;7814:3;7803:9;7799:19;7792:35;7872:6;7866:3;7855:9;7851:19;7844:35;7924:6;7918:3;7907:9;7903:19;7896:35;8017:3;8011:4;8007:14;8001:21;7995:3;7984:9;7980:19;7973:50;8093:2;8088:3;8084:12;8078:4;8074:23;8068:30;8062:3;8051:9;8047:19;8040:59;8172:7;8166:3;8155:9;8151:19;8144:36;8225:7;8219:3;8208:9;8204:19;8197:36;8278:7;8272:3;8261:9;8257:19;8250:36;8331:7;8325:3;8314:9;8310:19;8303:36;8419:2;8406:16;8400:3;8389:9;8385:19;8378:45;8489:2;8485;8481:11;8468:25;8462:3;8451:9;8447:19;8440:54;8566:7;8560:3;8549:9;8545:19;8538:36;8619:7;8613:3;8602:9;8598:19;8591:36;8672:7;8666:3;8655:9;8651:19;8644:36;8725:7;8719:3;8708:9;8704:19;8697:36;8826:4;8815:9;8810:3;8799:9;8796:1;8789:4;8782:5;8778:16;8767:64;8870:16;;8857:30;;6021:2880;-1:-1:-1;;;;;;6021:2880:111:o;:::-;8933:4;8927:11;8974:8;8968:4;8964:19;8958:4;8951:33;9062:45;9103:1;9090:11;9086:19;9073:33;9062:45;:::i;:::-;9133:46;9174:2;9161:11;9157:20;9144:34;9133:46;:::i;:::-;9205;9246:2;9233:11;9229:20;9216:34;9205:46;:::i;:::-;9277;9318:2;9305:11;9301:20;9288:34;9277:46;:::i;:::-;9349:47;9390:3;9377:11;9373:21;9360:35;9349:47;:::i;:::-;9422;9463:3;9450:11;9446:21;9433:35;9422:47;:::i;:::-;9495;9536:3;9523:11;9519:21;9506:35;9495:47;:::i;:::-;9568;9609:3;9596:11;9592:21;9579:35;9568:47;:::i;:::-;9697:46;9738:4;9725:11;9720:3;9715;9710;9697:46;:::i;:::-;9682:61;;9767:7;9764:1;9757:18;9799:4;9796:1;9789:15;14:159:145;108:6;141:2;129:15;;126:24;-1:-1:-1;123:44:145;;;163:1;160;153:12;123:44;14:159;;;;:::o;178:670::-;389:6;397;405;413;466:3;454:9;445:7;441:23;437:33;434:53;;;483:1;480;473:12;434:53;506;551:7;540:9;506:53;:::i;:::-;496:63;;593:3;582:9;578:19;616:7;612:2;609:15;606:35;;;637:1;634;627:12;606:35;675:2;664:9;660:18;650:28;;697:46;735:7;731:2;697:46;:::i;:::-;687:56;;;779:7;773:3;762:9;758:19;755:32;752:52;;;800:1;797;790:12;752:52;-1:-1:-1;178:670:145;;;;-1:-1:-1;178:670:145;;838:3;823:19;;178:670::o",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": {
+    "verifyProof(uint256[2],uint256[2][2],uint256[2],uint256[8])": "c9219a7a"
+  },
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.28+commit.7893614a\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256[2]\",\"name\":\"_pA\",\"type\":\"uint256[2]\"},{\"internalType\":\"uint256[2][2]\",\"name\":\"_pB\",\"type\":\"uint256[2][2]\"},{\"internalType\":\"uint256[2]\",\"name\":\"_pC\",\"type\":\"uint256[2]\"},{\"internalType\":\"uint256[8]\",\"name\":\"_pubSignals\",\"type\":\"uint256[8]\"}],\"name\":\"verifyProof\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/contracts/verifiers/WithdrawalVerifier.sol\":\"WithdrawalVerifier\"},\"evmVersion\":\"prague\",\"libraries\":{},\"metadata\":{\"appendCBOR\":false,\"bytecodeHash\":\"none\"},\"optimizer\":{\"enabled\":true,\"runs\":10000},\"remappings\":[\":@openzeppelin/=node_modules/@openzeppelin/\",\":@oz-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/\",\":@oz/=node_modules/@openzeppelin/contracts/\",\":@uniswap/=../../node_modules/@uniswap/\",\":@upgrades/=../../node_modules/@openzeppelin/foundry-upgrades/src/\",\":@zk-kit/=../../node_modules/@zk-kit/\",\":base64-sol/=../../node_modules/base64-sol/\",\":contracts/=src/contracts/\",\":ds-test/=../../node_modules/@uniswap/universal-router/lib/forge-std/lib/ds-test/\",\":erc4626-tests/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/lib/erc4626-tests/\",\":forge-gas-snapshot/=../../node_modules/@uniswap/universal-router/lib/permit2/lib/forge-gas-snapshot/\",\":forge-std/=../../node_modules/forge-std/src/\",\":halmos-cheatcodes/=../../node_modules/halmos-cheatcodes/\",\":interfaces/=src/interfaces/\",\":lean-imt/=lib/lean-imt/\",\":openzeppelin-contracts/=../../node_modules/@uniswap/universal-router/lib/permit2/lib/openzeppelin-contracts/\",\":permit2/=../../node_modules/@uniswap/universal-router/lib/permit2/\",\":poseidon-solidity/=../../node_modules/poseidon-solidity/\",\":poseidon/=../../node_modules/poseidon-solidity/\",\":solidity-stringutils/=../../node_modules/@openzeppelin/foundry-upgrades/lib/solidity-stringutils/\",\":solmate/=../../node_modules/@uniswap/universal-router/lib/solmate/\",\":v3-periphery/=../../node_modules/@uniswap/universal-router/lib/v3-periphery/\",\":v4-core/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/lib/v4-core/\",\":v4-periphery/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/\"]},\"sources\":{\"src/contracts/verifiers/WithdrawalVerifier.sol\":{\"keccak256\":\"0xf44a4974c6ae22c898ee333544bd6d0d4d0f3e1e1dafe40a95e1577bf0699544\",\"license\":\"GPL-3.0\",\"urls\":[\"bzz-raw://acfd16a8e7d9358e8bbb192e31c750b03da659b7986f96fc7083d0a2ed70cc76\",\"dweb:/ipfs/QmWjxrHwbiffqD8KuY1SaevSRkRbfi5TcT1FEmKVLj5RdX\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": {
+      "version": "0.8.28+commit.7893614a"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "uint256[2]",
+              "name": "_pA",
+              "type": "uint256[2]"
+            },
+            {
+              "internalType": "uint256[2][2]",
+              "name": "_pB",
+              "type": "uint256[2][2]"
+            },
+            {
+              "internalType": "uint256[2]",
+              "name": "_pC",
+              "type": "uint256[2]"
+            },
+            {
+              "internalType": "uint256[8]",
+              "name": "_pubSignals",
+              "type": "uint256[8]"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function",
+          "name": "verifyProof",
+          "outputs": [
+            {
+              "internalType": "bool",
+              "name": "",
+              "type": "bool"
+            }
+          ]
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {},
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {},
+        "version": 1
+      }
+    },
+    "settings": {
+      "remappings": [
+        "@openzeppelin/=node_modules/@openzeppelin/",
+        "@oz-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/",
+        "@oz/=node_modules/@openzeppelin/contracts/",
+        "@uniswap/=../../node_modules/@uniswap/",
+        "@upgrades/=../../node_modules/@openzeppelin/foundry-upgrades/src/",
+        "@zk-kit/=../../node_modules/@zk-kit/",
+        "base64-sol/=../../node_modules/base64-sol/",
+        "contracts/=src/contracts/",
+        "ds-test/=../../node_modules/@uniswap/universal-router/lib/forge-std/lib/ds-test/",
+        "erc4626-tests/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/lib/v4-core/lib/openzeppelin-contracts/lib/erc4626-tests/",
+        "forge-gas-snapshot/=../../node_modules/@uniswap/universal-router/lib/permit2/lib/forge-gas-snapshot/",
+        "forge-std/=../../node_modules/forge-std/src/",
+        "halmos-cheatcodes/=../../node_modules/halmos-cheatcodes/",
+        "interfaces/=src/interfaces/",
+        "lean-imt/=lib/lean-imt/",
+        "openzeppelin-contracts/=../../node_modules/@uniswap/universal-router/lib/permit2/lib/openzeppelin-contracts/",
+        "permit2/=../../node_modules/@uniswap/universal-router/lib/permit2/",
+        "poseidon-solidity/=../../node_modules/poseidon-solidity/",
+        "poseidon/=../../node_modules/poseidon-solidity/",
+        "solidity-stringutils/=../../node_modules/@openzeppelin/foundry-upgrades/lib/solidity-stringutils/",
+        "solmate/=../../node_modules/@uniswap/universal-router/lib/solmate/",
+        "v3-periphery/=../../node_modules/@uniswap/universal-router/lib/v3-periphery/",
+        "v4-core/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/lib/v4-core/",
+        "v4-periphery/=../../node_modules/@uniswap/universal-router/lib/v4-periphery/"
+      ],
+      "optimizer": {
+        "enabled": true,
+        "runs": 10000
+      },
+      "metadata": {
+        "bytecodeHash": "none",
+        "appendCBOR": false
+      },
+      "compilationTarget": {
+        "src/contracts/verifiers/WithdrawalVerifier.sol": "WithdrawalVerifier"
+      },
+      "evmVersion": "prague",
+      "libraries": {}
+    },
+    "sources": {
+      "src/contracts/verifiers/WithdrawalVerifier.sol": {
+        "keccak256": "0xf44a4974c6ae22c898ee333544bd6d0d4d0f3e1e1dafe40a95e1577bf0699544",
+        "urls": [
+          "bzz-raw://acfd16a8e7d9358e8bbb192e31c750b03da659b7986f96fc7083d0a2ed70cc76",
+          "dweb:/ipfs/QmWjxrHwbiffqD8KuY1SaevSRkRbfi5TcT1FEmKVLj5RdX"
+        ],
+        "license": "GPL-3.0"
+      }
+    },
+    "version": 1
+  },
+  "id": 111
+}

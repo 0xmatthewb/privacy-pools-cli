@@ -9,11 +9,13 @@
 #   - Runs the shared-Anvil smoke lane twice through `npm run test:flake:anvil`
 #   - Re-exercises native launcher, packaged install, and fund-moving smoke paths
 #   - Keeps the lighter flake workflow focused on fast subprocess suites
+#   - Uses the repo-local contract fixture instead of preparing a separate
+#     contracts checkout on the runner
 #
 # WHY separate?
-#   Stateful Anvil reruns are valuable, but they are slower and provision Foundry,
-#   contracts, and Rust. Keeping them in their own informational lane preserves
-#   quick feedback while still surfacing stateful flakes before release day.
+#   Stateful Anvil reruns are valuable, but they are slower and provision Foundry
+#   and Rust. Keeping them in their own informational lane preserves quick
+#   feedback while still surfacing stateful flakes before release day.
 
 name: Anvil Flake Detection
 
@@ -77,40 +79,10 @@ jobs:
         with:
           cache: true
 
-      - name: Checkout contracts
-        if: steps.select.outputs.should_run == 'true'
-        uses: actions/checkout@v6
-        with:
-          repository: 0xmatthewb/privacy-pools-core
-          ref: a80836a47451e662f127af17e11430ffa976c234
-          path: privacy-pools-core
-
-      - name: Install contract dependencies
-        if: steps.select.outputs.should_run == 'true'
-        working-directory: privacy-pools-core/packages/contracts
-        run: |
-          corepack enable
-          yarn --frozen-lockfile --network-concurrency 1
-
-      - name: Normalize contract remappings
-        if: steps.select.outputs.should_run == 'true'
-        working-directory: privacy-pools-core/packages/contracts
-        run: |
-          ln -sfn @zk-kit/lean-imt.sol ../../node_modules/lean-imt
-          sed -i.bak 's#^lean-imt/=.*$#lean-imt/=../../node_modules/lean-imt/#' remappings.txt
-          rm -f remappings.txt.bak
-
-      - name: Build contract artifacts
-        if: steps.select.outputs.should_run == 'true'
-        working-directory: privacy-pools-core/packages/contracts
-        run: forge build
-
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
 
       - name: Run shared-Anvil flake suite
         if: steps.select.outputs.should_run == 'true'
-        env:
-          PP_CONTRACTS_ROOT: ${{ github.workspace }}/privacy-pools-core/packages/contracts
         run: npm run test:flake:anvil

@@ -50,6 +50,10 @@ describe("flake workflow conformance", () => {
     expect(flakeAnvilWorkflow).toContain("Setup Rust");
     expect(flakeAnvilWorkflow).toContain("Restore Rust cache");
     expect(flakeAnvilWorkflow).toContain("Swatinem/rust-cache@v2");
-    expect(flakeAnvilWorkflow).toContain("PP_CONTRACTS_ROOT:");
+    expect(flakeAnvilWorkflow).not.toContain("PP_CONTRACTS_ROOT:");
+    expect(flakeAnvilWorkflow).not.toContain("Checkout contracts");
+    expect(flakeAnvilWorkflow).not.toContain("yarn --frozen-lockfile");
+    expect(flakeAnvilWorkflow).not.toContain("remappings.txt");
+    expect(flakeAnvilWorkflow).not.toContain("forge build");
   });
 });

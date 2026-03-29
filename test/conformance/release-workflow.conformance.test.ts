@@ -183,6 +183,7 @@ describe("release workflow conformance", () => {
     expect(anvilSection).toContain("Setup Rust");
     expect(anvilSection).toContain("dtolnay/rust-toolchain@stable");
     expect(anvilSection).toContain("npm run test:e2e:anvil:smoke");
+    expect(anvilSection).not.toContain("PP_CONTRACTS_ROOT");
   });
 
   test("release workflow signs and publishes the checksum manifest", () => {
@@ -220,6 +221,11 @@ describe("release workflow conformance", () => {
 
     expect(fullAnvilWorkflow).toContain("Setup Bun");
     expect(fullAnvilWorkflow).toContain("run: npm ci");
+    expect(fullAnvilWorkflow).not.toContain("Checkout contracts");
+    expect(fullAnvilWorkflow).not.toContain("PP_CONTRACTS_ROOT");
+    expect(fullAnvilWorkflow).not.toContain("yarn --frozen-lockfile");
+    expect(fullAnvilWorkflow).not.toContain("remappings.txt");
+    expect(fullAnvilWorkflow).not.toContain("forge build");
 
     expect(nativePreviewWorkflow).not.toContain("Setup Bun");
     expect(nativePreviewWorkflow).toContain("run: npm ci");

@@ -7,7 +7,6 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,13 +25,12 @@ import { sepolia } from "viem/chains";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const require = createRequire(import.meta.url);
-const RAW_CONTRACTS_ROOT = process.env.PP_CONTRACTS_ROOT?.trim();
-if (!RAW_CONTRACTS_ROOT) {
-  throw new Error(
-    "PP_CONTRACTS_ROOT is required for shared-Anvil fixtures. Point it at a built privacy-pools-core contracts workspace.",
-  );
-}
-const CONTRACTS_ROOT = resolve(RAW_CONTRACTS_ROOT);
+const ANVIL_CONTRACT_FIXTURE_ROOT = resolve(
+  ROOT,
+  "test",
+  "fixtures",
+  "anvil-contract-artifacts",
+);
 const ASP_SERVER_SCRIPT = resolve(ROOT, "test", "helpers", "anvil-asp-server.ts");
 const RELAYER_SERVER_SCRIPT = resolve(
   ROOT,
@@ -57,33 +55,17 @@ const INITIAL_ROOT_CID =
 const LOCAL_TEST_CHAIN = { ...sepolia, id: 11155111 };
 const ERC20_SYMBOL = "USDC";
 const ERC20_DECIMALS = 6;
-const CONTRACTS_ARTIFACT_SENTINEL = resolve(
-  CONTRACTS_ROOT,
-  "out",
-  "Entrypoint.sol",
-  "Entrypoint.json",
-);
-const CONTRACTS_PROXY_ARTIFACT = resolve(
-  CONTRACTS_ROOT,
-  "node_modules",
-  "@openzeppelin",
-  "contracts",
-  "build",
-  "contracts",
-  "ERC1967Proxy.json",
-);
-const CONTRACTS_WORKSPACE_NODE_MODULES = resolve(
-  CONTRACTS_ROOT,
-  "..",
-  "..",
-  "node_modules",
-);
-const LEAN_IMT_SOURCE = resolve(
-  CONTRACTS_WORKSPACE_NODE_MODULES,
-  "@zk-kit",
-  "lean-imt.sol",
-);
-const LEAN_IMT_ALIAS = resolve(CONTRACTS_WORKSPACE_NODE_MODULES, "lean-imt");
+const REQUIRED_CONTRACT_FIXTURE_FILES = [
+  "out/WithdrawalVerifier.sol/WithdrawalVerifier.json",
+  "out/CommitmentVerifier.sol/CommitmentVerifier.json",
+  "out/Entrypoint.sol/Entrypoint.json",
+  "out/PoseidonT3.sol/PoseidonT3.json",
+  "out/PoseidonT4.sol/PoseidonT4.json",
+  "out/PrivacyPoolSimple.sol/PrivacyPoolSimple.json",
+  "out/PrivacyPoolComplex.sol/PrivacyPoolComplex.json",
+  "out/MintableUsdToken.sol/MintableUsdToken.json",
+  "vendor/ERC1967Proxy.json",
+];
 
 function resolveSharedCircuitCacheDir() {
   const sdkEntry = require.resolve("@0xbow/privacy-pools-core-sdk");
@@ -145,82 +127,18 @@ function linkArtifactBytecode(artifact, libraries) {
 
 function readArtifact(relativePath) {
   return JSON.parse(
-    readFileSync(resolve(CONTRACTS_ROOT, relativePath), "utf8"),
+    readFileSync(resolve(ANVIL_CONTRACT_FIXTURE_ROOT, relativePath), "utf8"),
   );
 }
 
-function ensureContractsWorkspaceDependencies() {
-  if (
-    existsSync(LEAN_IMT_SOURCE)
-    && existsSync(CONTRACTS_PROXY_ARTIFACT)
-  ) {
-    return;
-  }
-
-  const result = spawnSync(
-    "bash",
-    [
-      "-lc",
-      "corepack enable >/dev/null 2>&1 || true; yarn --frozen-lockfile --network-concurrency 1",
-    ],
-    {
-      cwd: CONTRACTS_ROOT,
-      encoding: "utf8",
-    },
-  );
-
-  if (result.status !== 0) {
-    throw new Error(
-      result.stderr || result.stdout || "failed to install contracts workspace dependencies",
-    );
-  }
-}
-
-function normalizeContractsRemappings() {
-  const remappingsPath = resolve(CONTRACTS_ROOT, "remappings.txt");
-  if (!existsSync(remappingsPath)) {
-    return;
-  }
-
-  const current = readFileSync(remappingsPath, "utf8");
-  const updated = current
-    .split("\n")
-    .map((line) => (
-      line.startsWith("lean-imt/=")
-        ? "lean-imt/=../../node_modules/lean-imt/"
-        : line
-    ))
-    .join("\n");
-
-  if (updated !== current) {
-    writeFileSync(remappingsPath, updated, "utf8");
-  }
-}
-
-function ensureLeanImtAlias() {
-  if (!existsSync(LEAN_IMT_SOURCE) || existsSync(LEAN_IMT_ALIAS)) {
-    return;
-  }
-
-  symlinkSync(LEAN_IMT_SOURCE, LEAN_IMT_ALIAS, "dir");
-}
-
-function ensureContractsArtifacts() {
-  ensureContractsWorkspaceDependencies();
-  ensureLeanImtAlias();
-  normalizeContractsRemappings();
-
-  if (existsSync(CONTRACTS_ARTIFACT_SENTINEL) && existsSync(CONTRACTS_PROXY_ARTIFACT)) {
-    return;
-  }
-
-  const result = spawnSync("forge", ["build"], {
-    cwd: CONTRACTS_ROOT,
-    encoding: "utf8",
-  });
-
-  if (result.status !== 0) {
-    throw new Error(result.stderr || result.stdout || "forge build failed");
+function validateContractFixture() {
+  for (const relativePath of REQUIRED_CONTRACT_FIXTURE_FILES) {
+    const absolutePath = resolve(ANVIL_CONTRACT_FIXTURE_ROOT, relativePath);
+    if (!existsSync(absolutePath)) {
+      throw new Error(
+        `Shared-Anvil contract fixture is missing ${relativePath}. Refresh it with \`node scripts/refresh-anvil-contract-fixture.mjs --contracts-root <privacy-pools-core/contracts path>\`.`,
+      );
+    }
   }
 }
 
@@ -362,96 +280,8 @@ async function terminateChild(proc) {
   });
 }
 
-function compileMintableUsdToken(outDir) {
-  const projectRoot = mkdtempSync(join(tmpdir(), "pp-anvil-token-"));
-  mkdirSync(join(projectRoot, "src"), { recursive: true });
-  writeFileSync(
-    join(projectRoot, "foundry.toml"),
-    [
-      "[profile.default]",
-      "src = 'src'",
-      "out = 'out'",
-      "solc_version = '0.8.28'",
-    ].join("\n"),
-    "utf8",
-  );
-  writeFileSync(
-    join(projectRoot, "src", "MintableUsdToken.sol"),
-    `// SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.28;
-
-contract MintableUsdToken {
-  string public constant name = "USD Coin";
-  string public constant symbol = "USDC";
-  uint8 public constant decimals = 6;
-  uint256 public totalSupply;
-
-  mapping(address => uint256) public balanceOf;
-  mapping(address => mapping(address => uint256)) public allowance;
-
-  event Transfer(address indexed from, address indexed to, uint256 value);
-  event Approval(address indexed owner, address indexed spender, uint256 value);
-
-  function mint(address to, uint256 amount) external returns (bool) {
-    totalSupply += amount;
-    balanceOf[to] += amount;
-    emit Transfer(address(0), to, amount);
-    return true;
-  }
-
-  function approve(address spender, uint256 amount) external returns (bool) {
-    allowance[msg.sender][spender] = amount;
-    emit Approval(msg.sender, spender, amount);
-    return true;
-  }
-
-  function transfer(address to, uint256 amount) external returns (bool) {
-    _transfer(msg.sender, to, amount);
-    return true;
-  }
-
-  function transferFrom(address from, address to, uint256 amount) external returns (bool) {
-    uint256 currentAllowance = allowance[from][msg.sender];
-    require(currentAllowance >= amount, "ERC20: insufficient allowance");
-    unchecked {
-      allowance[from][msg.sender] = currentAllowance - amount;
-    }
-    emit Approval(from, msg.sender, allowance[from][msg.sender]);
-    _transfer(from, to, amount);
-    return true;
-  }
-
-  function _transfer(address from, address to, uint256 amount) internal {
-    require(balanceOf[from] >= amount, "ERC20: insufficient balance");
-    unchecked {
-      balanceOf[from] -= amount;
-    }
-    balanceOf[to] += amount;
-    emit Transfer(from, to, amount);
-  }
-}
-`,
-    "utf8",
-  );
-
-  const result = spawnSync("forge", ["build", "--root", projectRoot, "--out", outDir], {
-    cwd: projectRoot,
-    encoding: "utf8",
-  });
-  const artifactPath = join(outDir, "MintableUsdToken.sol", "MintableUsdToken.json");
-
-  try {
-    if (result.status !== 0) {
-      throw new Error(result.stderr || result.stdout || "forge build failed");
-    }
-    return JSON.parse(readFileSync(artifactPath, "utf8"));
-  } finally {
-    rmSync(projectRoot, { recursive: true, force: true });
-  }
-}
-
 async function deployProtocol(rpcUrl) {
-  ensureContractsArtifacts();
+  validateContractFixture();
 
   const deployer = privateKeyToAccount(DEPLOYER_PRIVATE_KEY);
   const relayer = privateKeyToAccount(RELAYER_PRIVATE_KEY);
@@ -482,23 +312,10 @@ async function deployProtocol(rpcUrl) {
   const entrypointArtifact = readArtifact("out/Entrypoint.sol/Entrypoint.json");
   const poseidonT3Artifact = readArtifact("out/PoseidonT3.sol/PoseidonT3.json");
   const poseidonT4Artifact = readArtifact("out/PoseidonT4.sol/PoseidonT4.json");
-  const proxyArtifact = JSON.parse(
-    readFileSync(
-      resolve(
-        CONTRACTS_ROOT,
-        "node_modules",
-        "@openzeppelin",
-        "contracts",
-        "build",
-        "contracts",
-        "ERC1967Proxy.json",
-      ),
-      "utf8",
-    ),
-  );
+  const proxyArtifact = readArtifact("vendor/ERC1967Proxy.json");
   const simplePoolArtifact = readArtifact("out/PrivacyPoolSimple.sol/PrivacyPoolSimple.json");
   const complexPoolArtifact = readArtifact("out/PrivacyPoolComplex.sol/PrivacyPoolComplex.json");
-  const tokenArtifact = compileMintableUsdToken(join(tmpdir(), "pp-anvil-token-artifacts"));
+  const tokenArtifact = readArtifact("out/MintableUsdToken.sol/MintableUsdToken.json");
 
   const withdrawalVerifierHash = await walletClient.deployContract({
     abi: withdrawalVerifierArtifact.abi,

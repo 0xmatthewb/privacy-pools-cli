@@ -80,36 +80,10 @@ jobs:
         with:
           cache: true
 
-      - name: Checkout contracts
-        uses: actions/checkout@v6
-        with:
-          repository: 0xmatthewb/privacy-pools-core
-          ref: a80836a47451e662f127af17e11430ffa976c234
-          path: privacy-pools-core
-
-      - name: Install contract dependencies
-        working-directory: privacy-pools-core/packages/contracts
-        run: |
-          corepack enable
-          yarn --frozen-lockfile --network-concurrency 1
-
-      - name: Normalize contract remappings
-        working-directory: privacy-pools-core/packages/contracts
-        run: |
-          ln -sfn @zk-kit/lean-imt.sol ../../node_modules/lean-imt
-          sed -i.bak 's#^lean-imt/=.*$#lean-imt/=../../node_modules/lean-imt/#' remappings.txt
-          rm -f remappings.txt.bak
-
-      - name: Build contract artifacts
-        working-directory: privacy-pools-core/packages/contracts
-        run: forge build
-
       - name: Install dependencies
         run: npm ci
 
       - name: Run release-readiness suite
-        env:
-          PP_CONTRACTS_ROOT: ${{ github.workspace }}/privacy-pools-core/packages/contracts
         run: npm run test:release
 
   # -----------------------------------------------------------

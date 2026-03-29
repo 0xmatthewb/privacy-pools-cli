@@ -38,20 +38,6 @@ Rules:
 - `mock.restore()` and `mock.clearAllMocks()` clean up spies/functions only. They do not fully undo `mock.module()`.
 - Do not try to "fix" a documented isolated suite by adding more restore calls unless the suite genuinely stops replacing shared modules.
 
-Current default isolated suites:
-
-- `contracts-service`
-- `proofs-service`
-- `workflow-mocked`
-- `workflow-internal`
-- `init-interactive`
-
-Current coverage-only isolated suites:
-
-- `workflow-service`
-- `bootstrap-runtime`
-- `launcher-runtime`
-
 Coverage also runs the remaining shared source suites in deterministic fixed-size batches via
 [`scripts/coverage-suite-plan.mjs`](../scripts/coverage-suite-plan.mjs). If Bun finishes a batch
 without writing `lcov.info`, the coverage guard retries that exact batch before splitting it into
@@ -151,6 +137,7 @@ CI notes:
 - `npm run test:release` and `npm run test:all` no longer rerun the source shared-Anvil smoke trio after `test:e2e:anvil`; they reuse the full shared-Anvil coverage and then run the installed-artifact verification directly so the highest-cost profiles stay meaningful without duplicating the same source E2E coverage.
 - Public GitHub plus npm are the conformance sources of truth. Use `CONFORMANCE_UPSTREAM_REF=<sha>` only when you intentionally want to audit against a specific public upstream revision instead of `main`.
 - `npm run test:conformance` is the faster core public-source conformance lane. `npm run test:conformance:all` adds the slower frontend-parity shard on top.
+- `npm run test:ci` and `npm run test:release` stay on the faster core conformance lane. Use `npm run test:conformance:all` when you explicitly want the slower frontend-parity/live-source superset too.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
 - `.github/workflows/flake-anvil.yml` is the separate heavier flake lane for shared-Anvil smoke reruns. It is informational and changed-path selected on pull requests so the fast flake job stays lightweight.
 - `.github/workflows/native-coverage.yml` is the separate informative Rust-native coverage lane. Blocking CI keeps the faster `native-unit` lane so PR feedback stays quick while native coverage drift is still visible on pull requests and `main`.
@@ -158,7 +145,8 @@ CI notes:
 - `npm run test:release` adds those same root-only and current-host artifact checks plus `npm run bench:gate:release`, matching the release workflow's pinned performance gate.
 - `npm run test:smoke:native:package` is the packaged native smoke lane. `npm run test:artifacts:host` is the installed-artifact lane and now verifies both root-only and native-resolved installs. `npm run test:smoke:native` remains as a compatibility alias for the packaged smoke lane.
 - `npm run test:flake:anvil` reruns the representative Anvil smoke suite so stateful/native/install paths get nightly flake coverage without inflating the required CI lane.
-- Shared-Anvil lanes require an explicit `PP_CONTRACTS_ROOT` pointing at a built `privacy-pools-core` contracts workspace. The CLI test harness no longer guesses a sibling local checkout layout.
+- Shared-Anvil lanes use the repo-local fixture in `test/fixtures/anvil-contract-artifacts`, so standard Anvil commands no longer need a separate contracts checkout or extra contracts-specific environment setup.
+- `npm run anvil:fixture:refresh -- --contracts-root <privacy-pools-core/contracts path>` is the maintainer-only refresh path when the committed fixture needs to be updated from upstream contract artifacts.
 - Bun remains test-runner-only. Slow Bun-backed lanes now have both per-test timeouts and an outer process watchdog so wedged subprocesses fail boundedly instead of hanging indefinitely.
 - Raw profile steps are bounded too: `scripts/test-profiles.mjs` now applies a shared outer watchdog to long `npm`/`node`/`cargo` legs so a wedged build or native step cannot hang `test:ci`, `test:release`, or `test:all` indefinitely.
 
