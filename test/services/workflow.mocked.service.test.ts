@@ -4598,7 +4598,13 @@ describe("workflow service mocked coverage", () => {
 
       expect(stderr).toContain("Expected committed value:");
       expect(stderr).toContain("Auto-withdrawal:");
+      expect(stderr).toContain(
+        "The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
+      );
       expect(stderr).toContain("Privacy delay: Off (no added hold)");
+      expect(stderr).toContain(
+        "Privacy delay is disabled for this saved flow.",
+      );
       expect(stderr).toContain("Wallet setup:");
       expect(stderr).toContain("\n");
       expect(readFileSync(promptedBackupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);

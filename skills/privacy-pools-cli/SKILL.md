@@ -50,7 +50,7 @@ Install: `npm i -g privacy-pools-cli`. For unreleased or source builds, use `npm
 | Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet, stores it locally for the workflow, and exports a backup before waiting for token funding plus ETH gas |
 | Watch easy flow | `privacy-pools flow watch latest --agent` | Resume the saved workflow through funding, approval, privacy delay, and withdrawal |
 | Check easy flow | `privacy-pools flow status latest --agent` | Inspect the saved workflow snapshot |
-| Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined flow, a PoA-paused flow, or any saved flow where the operator intentionally stops waiting |
+| Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined flow, a relayer-minimum-blocked flow, a PoA-paused flow, or any saved flow where the operator intentionally stops waiting |
 | Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
 | Check accounts | `privacy-pools accounts --agent` | Dashboard view across all CLI-supported mainnet chains by default |

@@ -208,6 +208,9 @@ export interface FlowWarning {
   message: string;
 }
 
+const FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE =
+  "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will move toward relayer quote and withdrawal immediately, which may create an off-chain timing signal.";
+
 export class FlowCancelledError extends Error {
   constructor() {
     super("Flow cancelled.");
@@ -1161,9 +1164,13 @@ function buildFlowAmountPrivacyWarning(
 
 function buildFlowPrivacyDelayWarning(
   snapshot: FlowSnapshot,
+  options: {
+    forceConfiguredPrivacyDelayWarning?: boolean;
+  } = {},
 ): FlowWarning | null {
   if (
-    !flowHasPendingPrivateWithdrawalTarget(snapshot) ||
+    (!options.forceConfiguredPrivacyDelayWarning &&
+      !flowHasPendingPrivateWithdrawalTarget(snapshot)) ||
     snapshot.privacyDelayProfile !== "off" ||
     snapshot.privacyDelayConfigured !== true
   ) {
@@ -1173,14 +1180,18 @@ function buildFlowPrivacyDelayWarning(
   return {
     code: "timing_delay_disabled",
     category: "privacy",
-    message:
-      "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will move toward relayer quote and withdrawal immediately, which may create an off-chain timing signal.",
+    message: FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE,
   };
 }
 
-export function buildFlowWarnings(snapshot: FlowSnapshot): FlowWarning[] {
+export function buildFlowWarnings(
+  snapshot: FlowSnapshot,
+  options: {
+    forceConfiguredPrivacyDelayWarning?: boolean;
+  } = {},
+): FlowWarning[] {
   return [
-    buildFlowPrivacyDelayWarning(snapshot),
+    buildFlowPrivacyDelayWarning(snapshot, options),
     buildFlowAmountPrivacyWarning(snapshot),
   ].filter((warning): warning is FlowWarning => warning !== null);
 }
@@ -1219,13 +1230,16 @@ async function confirmHumanFlowStartReview(params: {
     silent,
   );
   info(
-    `Auto-withdrawal: This saved flow will privately withdraw the full approved balance of that Pool Account to ${formatAddress(recipient)}.`,
+    `Auto-withdrawal: This saved flow will privately withdraw the full approved balance of that Pool Account to ${formatAddress(recipient)}. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.`,
     silent,
   );
   info(
     `Privacy delay: ${flowPrivacyDelayProfileSummary(privacyDelayProfile)}. After approval, flow watch will wait through that window before requesting the private withdrawal.`,
     silent,
   );
+  if (privacyDelayProfile === "off") {
+    warn(FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE, silent);
+  }
   if (newWallet) {
     info(
       "Wallet setup: This flow will create a dedicated workflow wallet, and you must confirm a backup before funding it.",
@@ -1253,7 +1267,7 @@ async function confirmHumanFlowStartReview(params: {
   const ok = await confirm({
     message:
       `${newWallet ? "Create a dedicated workflow wallet, then " : ""}start flow by depositing ${formatAmount(amount, pool.decimals, pool.symbol)}${amountUsd} on ${chainName}, ` +
-      `then privately auto-withdraw the full approved balance to ${formatAddress(recipient)} after approval and the selected privacy delay?`,
+      `then privately auto-withdraw the full approved balance to ${formatAddress(recipient)} after approval and the selected privacy delay? The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.`,
     default: true,
   });
   if (!ok) {

@@ -458,7 +458,13 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
 }
 
 function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowSnapshot) {
-  const warnings = action === "ragequit" ? [] : buildFlowWarnings(snapshot);
+  const warnings =
+    action === "ragequit"
+      ? []
+      : buildFlowWarnings(snapshot, {
+          forceConfiguredPrivacyDelayWarning:
+            action === "start" || action === "watch",
+        });
   const exposedPoolAccount = shouldExposeConfirmedPoolAccount(snapshot);
   return {
     mode: "flow",
@@ -517,9 +523,24 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  const warnings = data.action === "ragequit" ? [] : buildFlowWarnings(data.snapshot);
+  const warnings =
+    data.action === "ragequit"
+      ? []
+      : buildFlowWarnings(data.snapshot, {
+          forceConfiguredPrivacyDelayWarning:
+            data.action === "start" || data.action === "watch",
+        });
+  const usesPublicRecoveryPath =
+    data.action === "ragequit" ||
+    data.snapshot.phase === "completed_public_recovery" ||
+    Boolean(data.snapshot.ragequitTxHash);
 
-  if (data.snapshot.phase === "completed") {
+  if (data.action === "ragequit") {
+    success(
+      `Workflow ${data.snapshot.workflowId} returned funds publicly from ${data.snapshot.poolAccountId} to the original deposit address. Privacy was not preserved.`,
+      silent,
+    );
+  } else if (data.snapshot.phase === "completed") {
     success(
       `Flow completed for ${data.snapshot.poolAccountId}. The approved deposit was withdrawn privately to ${data.snapshot.recipient}.`,
       silent,
@@ -574,11 +595,6 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         silent,
       );
     }
-  } else if (data.action === "ragequit") {
-    success(
-      `Workflow ${data.snapshot.workflowId} recovered funds publicly from ${data.snapshot.poolAccountId}.`,
-      silent,
-    );
   } else {
     info(
       `Workflow ${data.snapshot.workflowId} is ${phaseLabel(data.snapshot.phase).toLowerCase()}.`,
@@ -617,7 +633,11 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   }
   info(`Chain: ${data.snapshot.chain}`, silent);
   info(`Asset: ${data.snapshot.asset}`, silent);
-  info(`Recipient: ${data.snapshot.recipient}`, silent);
+  if (usesPublicRecoveryPath) {
+    info("Public recovery destination: original deposit address", silent);
+  } else {
+    info(`Recipient: ${data.snapshot.recipient}`, silent);
+  }
   if (
     data.action !== "ragequit" &&
     data.snapshot.phase !== "completed" &&

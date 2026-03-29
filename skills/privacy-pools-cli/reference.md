@@ -422,7 +422,7 @@ Representative payload (abridged):
     "3. privacy-pools pools --agent --chain <chain>",
     "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
     "5. privacy-pools flow watch [workflowId|latest] --agent",
-    "6. privacy-pools flow ragequit [workflowId|latest] --agent  (optional public recovery after the deposit exists; canonical if the saved workflow is declined)",
+    "6. privacy-pools flow ragequit [workflowId|latest] --agent  (optional public recovery after the deposit exists; canonical if the saved workflow is declined or the private path is blocked below the relayer minimum)",
     "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
     "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
     "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"

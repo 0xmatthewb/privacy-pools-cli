@@ -278,9 +278,15 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain(
-      "Workflow wf-123 recovered funds publicly to the original deposit address.",
+      "Workflow wf-123 returned funds publicly from PA-1 to the original deposit address.",
     );
     expect(stderr).toContain("Privacy was not preserved.");
+    expect(stderr).toContain(
+      "Public recovery destination: original deposit address",
+    );
+    expect(stderr).not.toContain(
+      "Recipient: 0x4444444444444444444444444444444444444444",
+    );
   });
 
   test("human mode formats saved funding and committed amounts", () => {
@@ -688,6 +694,27 @@ describe("renderFlowResult", () => {
       }),
     );
     expect(parseCapturedJson(completed.stdout).warnings).toBeUndefined();
+
+    const watchedCompleted = captureOutput(() =>
+      renderFlowResult(jsonCtx, {
+        action: "watch",
+        snapshot: sampleSnapshot({
+          phase: "completed",
+          aspStatus: "approved",
+          committedValue: "100198474",
+          privacyDelayProfile: "off",
+          privacyDelayConfigured: true,
+        }),
+      }),
+    );
+    expect(parseCapturedJson(watchedCompleted.stdout).warnings).toEqual([
+      {
+        code: "timing_delay_disabled",
+        category: "privacy",
+        message:
+          "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will move toward relayer quote and withdrawal immediately, which may create an off-chain timing signal.",
+      },
+    ]);
 
     const ragequit = captureOutput(() =>
       renderFlowResult(jsonCtx, {

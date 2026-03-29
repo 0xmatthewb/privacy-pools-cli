@@ -27,6 +27,7 @@ import {
   packTarball,
   resolveInstalledDependencyPackagePath,
   runInstalledCli as runInstalledCliBase,
+  runNpmInstallWithRetry,
   writeInstallSecretFile,
 } from "./lib/install-verification.mjs";
 
@@ -320,7 +321,8 @@ async function runInstalledRelayedWithdrawWithCatchup({
   homeDir,
   args,
   env,
-  readyTimeout = 20_000,
+  readyTimeout = 60_000,
+  stage = "installed",
 }) {
   const deadline = Date.now() + readyTimeout;
   let lastResult = null;
@@ -352,7 +354,7 @@ async function runInstalledRelayedWithdrawWithCatchup({
   }
 
   fail(
-    `Installed CLI failed relayed withdraw parity against shared Anvil:\n${formatResultDiagnostics(lastResult ?? { status: null, stdout: JSON.stringify(lastPayload ?? {}), stderr: "" })}`,
+    `Installed CLI failed ${stage} relayed withdraw parity against shared Anvil:\n${formatResultDiagnostics(lastResult ?? { status: null, stdout: JSON.stringify(lastPayload ?? {}), stderr: "" })}`,
   );
 }
 
@@ -451,8 +453,7 @@ try {
     "utf8",
   );
 
-  run(
-    npmCommand,
+  const installResult = runNpmInstallWithRetry(
     [
       "install",
       "--silent",
@@ -464,8 +465,14 @@ try {
     {
       cwd: installRoot,
       env: npmProcessEnv(tempRoot),
+      timeout: 300_000,
     },
   );
+  if (installResult.error || installResult.status !== 0) {
+    fail(
+      `Installed CLI Anvil verification failed to npm install prepared artifacts:\n${formatResultDiagnostics(installResult)}`,
+    );
+  }
 
   const installedCliPath = packageInstallPath(installRoot, "privacy-pools-cli");
   const installedNativePackagePath = resolveInstalledDependencyPackagePath(
@@ -553,6 +560,10 @@ try {
   }
 
   const anvilEnv = sharedAnvilCliEnv(sharedEnvFile, sharedEnv);
+  const jsFallbackAnvilEnv = {
+    ...anvilEnv,
+    PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+  };
 
   const withdrawDepositResult = runInstalledCli(
     installRoot,
@@ -602,6 +613,7 @@ try {
         "sepolia",
       ],
       env: anvilEnv,
+      stage: "native",
     });
   if (
     withdrawResult.status !== 0 ||
@@ -823,6 +835,113 @@ try {
   ) {
     fail(
       `Installed CLI failed history parity after ragequit against shared Anvil:\n${formatResultDiagnostics(historyResult)}`,
+    );
+  }
+
+  await resetSharedFixture(sharedEnv);
+
+  const jsFallbackHomeDir = join(installRoot, ".privacy-pools-js-fallback");
+  mkdirSync(jsFallbackHomeDir, { recursive: true });
+
+  const jsFallbackMnemonicFile = writeInstallSecretFile(
+    jsFallbackHomeDir,
+    "install-anvil-mnemonic.txt",
+    TEST_MNEMONIC,
+  );
+  const jsFallbackInitResult = runInstalledCli(
+    installRoot,
+    jsFallbackHomeDir,
+    [
+      "--agent",
+      "init",
+      "--mnemonic-file",
+      jsFallbackMnemonicFile,
+      "--private-key-stdin",
+      "--default-chain",
+      "sepolia",
+      "--yes",
+    ],
+    {
+      input: `${TEST_PRIVATE_KEY}\n`,
+      timeout: 60_000,
+    },
+  );
+  const jsFallbackInitPayload = parseJson(
+    jsFallbackInitResult.stdout,
+    "installed js-fallback init --agent",
+    [TEST_MNEMONIC, TEST_PRIVATE_KEY],
+  );
+  if (
+    jsFallbackInitResult.status !== 0 ||
+    jsFallbackInitPayload.success !== true ||
+    jsFallbackInitPayload.defaultChain !== "sepolia"
+  ) {
+    fail(
+      `Installed CLI failed JS-fallback init parity:\n${formatResultDiagnostics(jsFallbackInitResult, [TEST_MNEMONIC, TEST_PRIVATE_KEY])}`,
+    );
+  }
+
+  const jsFallbackDepositResult = runInstalledCli(
+    installRoot,
+    jsFallbackHomeDir,
+    ["--agent", "deposit", "0.01", "ETH", "--chain", "sepolia"],
+    {
+      env: jsFallbackAnvilEnv,
+    },
+  );
+  const jsFallbackDepositPayload = parseJson(
+    jsFallbackDepositResult.stdout,
+    "installed js-fallback deposit --agent",
+  );
+  if (
+    jsFallbackDepositResult.status !== 0 ||
+    jsFallbackDepositPayload.success !== true ||
+    jsFallbackDepositPayload.operation !== "deposit" ||
+    typeof jsFallbackDepositPayload.poolAccountId !== "string"
+  ) {
+    fail(
+      `Installed CLI failed JS-fallback deposit parity against shared Anvil:\n${formatResultDiagnostics(jsFallbackDepositResult)}`,
+    );
+  }
+
+  const jsFallbackDepositEvent = await decodeEthDepositEvent(
+    sharedEnv,
+    anvilClient,
+    jsFallbackDepositPayload.txHash,
+  );
+  appendInsertedEthLeaf(sharedEnv, jsFallbackDepositEvent.commitment);
+  await approveEthLabel(sharedEnv, anvilClient, jsFallbackDepositEvent.label);
+
+  const {
+    result: jsFallbackWithdrawResult,
+    payload: jsFallbackWithdrawPayload,
+  } = await runInstalledRelayedWithdrawWithCatchup({
+    installRoot,
+    homeDir: jsFallbackHomeDir,
+    args: [
+      "--agent",
+      "withdraw",
+      "--all",
+      "ETH",
+      "--to",
+      RELAYED_RECIPIENT,
+      "--from-pa",
+      jsFallbackDepositPayload.poolAccountId,
+      "--chain",
+      "sepolia",
+    ],
+    env: jsFallbackAnvilEnv,
+    stage: "js fallback",
+  });
+  if (
+    jsFallbackWithdrawResult.status !== 0 ||
+    jsFallbackWithdrawPayload.success !== true ||
+    jsFallbackWithdrawPayload.operation !== "withdraw" ||
+    jsFallbackWithdrawPayload.mode !== "relayed" ||
+    jsFallbackWithdrawPayload.remainingBalance !== "0"
+  ) {
+    fail(
+      `Installed CLI failed JS-fallback relayed withdraw parity against shared Anvil:\n${formatResultDiagnostics(jsFallbackWithdrawResult)}`,
     );
   }
 
