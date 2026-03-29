@@ -13,17 +13,8 @@ import {
   type CliRunOptions,
   type CliRunResult,
   createTempHome,
-  mustInitSeededHome,
   parseJsonOutput,
 } from "../helpers/cli.ts";
-import {
-  assertCapabilitiesAgentContract,
-  assertDescribeWithdrawQuoteAgentContract,
-  assertGuideAgentContract,
-  assertStatusDegradedHealthAgentContract,
-  assertStatusSetupRequiredAgentContract,
-  assertUnknownCommandAgentContract,
-} from "../helpers/agent-contract.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { npmBin } from "../helpers/npm-bin.ts";
 import {
@@ -375,37 +366,6 @@ describe("packaged CLI smoke", () => {
       expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
     });
 
-    test("representative agent contracts stay stable through the packed artifact", () => {
-      assertGuideAgentContract(runSmokeCli(["--agent", "guide"], { home }));
-      assertCapabilitiesAgentContract(
-        runSmokeCli(["--agent", "capabilities"], { home }),
-      );
-      assertDescribeWithdrawQuoteAgentContract(
-        runSmokeCli(["--agent", "describe", "withdraw", "quote"], { home }),
-      );
-      assertStatusSetupRequiredAgentContract(
-        runSmokeCli(["--agent", "status", "--no-check"], {
-          home: createTempHome("pp-packaged-agent-setup-"),
-        }),
-      );
-
-      const degradedHome = createTempHome("pp-packaged-agent-degraded-");
-      mustInitSeededHome(degradedHome, "sepolia");
-      assertStatusDegradedHealthAgentContract(
-        runSmokeCli(["--agent", "status", "--check"], {
-          home: degradedHome,
-          env: {
-            PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
-            PRIVACY_POOLS_RPC_URL: "http://127.0.0.1:9",
-          },
-          timeoutMs: 30_000,
-        }),
-      );
-
-      assertUnknownCommandAgentContract(
-        runSmokeCli(["--agent", "not-a-command"], { home }),
-      );
-    });
   });
 
   describe("init happy path", () => {

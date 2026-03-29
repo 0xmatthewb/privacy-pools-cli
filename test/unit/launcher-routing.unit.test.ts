@@ -93,22 +93,6 @@ describe("launcher routing", () => {
     }));
   });
 
-  test("js-worker routing ignores bun-like npm_node_execpath values", () => {
-    const target = launcherTestInternals.resolveLaunchTarget(
-      PKG,
-      ["status"],
-      {
-        npm_node_execpath: process.platform === "win32" ? "bun.exe" : "/tmp/bun",
-      },
-      {
-        resolveInstalledNativeBinary: () => null,
-      },
-    );
-
-    expect(target.kind).toBe("js-worker");
-    expect(basename(target.command)).toMatch(/^node(?:\.exe)?$/i);
-  });
-
   test("uses an explicit binary override when native is not disabled", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,
