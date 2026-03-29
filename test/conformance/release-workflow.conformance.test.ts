@@ -346,6 +346,10 @@ describe("release workflow conformance", () => {
     }
   });
 
+  test("installed anvil verifier relies on bundled packaged circuits", () => {
+    expect(verifyCliInstallAnvilScript).not.toContain("PRIVACY_POOLS_CIRCUITS_DIR");
+  });
+
   test("release workflow validates the tag against package.json version", () => {
     expect(releaseWorkflow).toContain("Validate release tag and native dependency versions");
     expect(releaseWorkflow).toContain('PKG_VERSION="$(node -p "require(\'./package.json\').version")"');

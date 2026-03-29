@@ -20,10 +20,6 @@ export const TEST_PROFILE_FRAGMENTS = {
     ["npm", ["run", "test:scripts"]],
     ["node", ["scripts/run-conformance-suite.mjs", "all"]],
   ],
-  "repo-conformance-all": [
-    ["npm", ["run", "test:scripts"]],
-    ["node", ["scripts/run-conformance-suite.mjs", "all"]],
-  ],
   "native-core": [
     ["npm", ["run", "test:native:fmt"]],
     ["npm", ["run", "test:native:lint"]],
@@ -57,8 +53,8 @@ function composeProfile(...fragmentNames) {
 
 export const TEST_PROFILES = {
   install: composeProfile("install"),
-  conformance: composeProfile("build", "repo-conformance-live"),
-  "conformance-all": composeProfile("build", "repo-conformance-all"),
+  conformance: composeProfile("build", "repo-conformance-core"),
+  "conformance-all": composeProfile("build", "repo-conformance-live"),
   ci: [
     ["npm", ["test"]],
     ["npm", ["run", "test:install"]],
@@ -103,7 +99,7 @@ export const TEST_PROFILES = {
     ...composeProfile(
       "build",
       "docs-reference-check",
-      "repo-conformance-all",
+      "repo-conformance-live",
       "release-bench",
     ),
   ],

@@ -17,6 +17,8 @@ export const PACKAGED_SMOKE_TEST =
   "./test/integration/cli.packaged-smoke.integration.test.ts";
 export const NATIVE_PACKAGE_SMOKE_TEST =
   "./test/integration/cli-native-package-smoke.integration.test.ts";
+export const NATIVE_SHELL_SMOKE_TEST =
+  "./test/integration/cli-native-shell.integration.test.ts";
 export const BUILT_ENTRYPOINT_TEST =
   "./test/integration/cli-built-entrypoint.integration.test.ts";
 export const STATUS_INIT_INTEGRATION_TEST =
@@ -423,6 +425,7 @@ export const COVERAGE_ISOLATED_SUITES = ISOLATED_SUITES.filter(
 export const DEFAULT_MAIN_EXCLUDED_TESTS = [
   PACKAGED_SMOKE_TEST,
   NATIVE_PACKAGE_SMOKE_TEST,
+  NATIVE_SHELL_SMOKE_TEST,
   ...ACCEPTANCE_REPLACED_TESTS,
   ...ANVIL_E2E_TESTS,
   ...DEFAULT_TEST_ISOLATED_SUITES.flatMap((suite) => suite.tests),

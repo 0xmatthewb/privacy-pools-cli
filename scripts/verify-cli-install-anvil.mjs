@@ -308,7 +308,6 @@ function sharedAnvilCliEnv(sharedEnvFile, env) {
     [`PRIVACY_POOLS_RPC_URL_${suffix}`]: env.rpcUrl,
     PRIVACY_POOLS_ASP_HOST: env.aspUrl,
     PRIVACY_POOLS_RELAYER_HOST: env.relayerUrl,
-    PRIVACY_POOLS_CIRCUITS_DIR: env.circuitsDir,
   };
 }
 

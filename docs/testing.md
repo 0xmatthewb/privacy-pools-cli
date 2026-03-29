@@ -147,8 +147,10 @@ CI notes:
 - `npm run test:native` runs the Rust-native suite directly against `native/shell`, including binary integration tests for the compiled native shell.
 - `npm run test:coverage:native` is the Rust line-coverage guard for the native bootstrap/parser/routing modules. It requires `cargo-llvm-cov`; CI installs it with `taiki-e/install-action`.
 - `scripts/run-test-profile.mjs` is the shared source of truth for the higher-level repo test profiles (`test:install`, `test:conformance`, `test:ci`, `test:release`, `test:all`) so gate ordering only has to change in one place.
+- `npm test` stays fast and host-neutral: it excludes packaged smoke, packaged native smoke, native-shell parity, and shared-Anvil suites. Those lanes still run in explicit higher-cost profiles.
 - `npm run test:release` and `npm run test:all` no longer rerun the source shared-Anvil smoke trio after `test:e2e:anvil`; they reuse the full shared-Anvil coverage and then run the installed-artifact verification directly so the highest-cost profiles stay meaningful without duplicating the same source E2E coverage.
 - Public GitHub plus npm are the conformance sources of truth. Use `CONFORMANCE_UPSTREAM_REF=<sha>` only when you intentionally want to audit against a specific public upstream revision instead of `main`.
+- `npm run test:conformance` is the faster core public-source conformance lane. `npm run test:conformance:all` adds the slower frontend-parity shard on top.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
 - `.github/workflows/flake-anvil.yml` is the separate heavier flake lane for shared-Anvil smoke reruns. It is informational and changed-path selected on pull requests so the fast flake job stays lightweight.
 - `.github/workflows/native-coverage.yml` is the separate informative Rust-native coverage lane. Blocking CI keeps the faster `native-unit` lane so PR feedback stays quick while native coverage drift is still visible on pull requests and `main`.

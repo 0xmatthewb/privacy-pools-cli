@@ -740,7 +740,7 @@ npm unlink -g privacy-pools-cli
 ### Scripts
 
 ```bash
-npm run test              # fast default suite (excludes packaged smoke)
+npm run test              # fast default suite (excludes packaged and native-shell smoke)
 npm run test:ci           # local single-host mirror of the required CI checks
 npm run test:release      # release-readiness suite (root + host artifact gates + benchmark gate + full Anvil matrix)
 npm run test:smoke        # packaged CLI smoke against a packed tarball
@@ -752,9 +752,9 @@ npm run test:e2e:anvil:smoke # required happy-path smoke lane
 npm run test:fuzz         # fuzz tests (longer timeout)
 npm run test:stress       # stress test (120 rounds)
 npm run test:coverage     # coverage guard for key source directories
-npm run test:conformance  # live conformance against npm + public 0xbow-io GitHub sources
+npm run test:conformance  # core conformance against npm + public 0xbow-io sources
 npm run test:conformance:frontend # focused website/frontend parity only
-npm run test:conformance:all # alias for the full live conformance suite
+npm run test:conformance:all # full live conformance suite, including frontend parity
 npm run bench:gate        # native perf gate against the current checkout JS fallback
 npm run bench:gate:release # native perf gate against the v1.7.0 release baseline
 ```
