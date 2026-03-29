@@ -350,6 +350,26 @@ describe("flow command handlers", () => {
     expect(printErrorMock).toHaveBeenCalledWith(boom, true);
   });
 
+  test("watch re-renders the saved snapshot when the relayer minimum blocks the private path", async () => {
+    watchWorkflowMock.mockImplementationOnce(async () => {
+      throw new realErrors.CLIError(
+        "Workflow amount is below the relayer minimum of 0.01 ETH.",
+        "RELAYER",
+        "Use flow ragequit.",
+        "FLOW_RELAYER_MINIMUM_BLOCKED",
+      );
+    });
+
+    await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true }));
+
+    expect(getWorkflowStatusMock).toHaveBeenCalledWith({ workflowId: "wf-watch" });
+    expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
+      action: "watch",
+      snapshot: statusSnapshot,
+    });
+    expect(printErrorMock).not.toHaveBeenCalled();
+  });
+
   test("status loads the snapshot and renders the status action", async () => {
     const cmd = fakeCommand({ quiet: true });
 

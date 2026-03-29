@@ -1182,6 +1182,25 @@ describe("workflow internal helpers", () => {
     expect(result.snapshot.phase).toBe("stopped_external");
   });
 
+  test("continueApprovedWorkflowWithdrawal keeps the workflow ready-to-withdraw when the relayer minimum blocks it before submission", async () => {
+    state.relayerDetails = {
+      ...state.relayerDetails,
+      minWithdrawAmount: "600",
+    };
+
+    await expect(
+      continueApprovedWorkflowWithdrawal({
+        snapshot: sampleSnapshot({
+          phase: "approved_ready_to_withdraw",
+          aspStatus: "approved",
+          committedValue: "500",
+        }),
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Workflow amount is below the relayer minimum");
+  });
+
   test("continueApprovedWorkflowWithdrawal completes the relayed withdrawal and finalizes the workflow", async () => {
     const approvedPoolAccount: MockPoolAccount = {
       ...state.allPoolAccounts[0],

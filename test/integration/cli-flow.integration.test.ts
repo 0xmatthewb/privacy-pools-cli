@@ -265,7 +265,7 @@ describe("flow command", () => {
       expectedNextActions: [
         {
           command: "accounts",
-          reasonContains: "continue manually with withdraw or ragequit",
+          reasonContains: "choose the manual follow-up from the current account state",
           when: "flow_manual_followup",
           args: [],
           options: { agent: true, chain: "sepolia" },

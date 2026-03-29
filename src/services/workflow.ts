@@ -2776,12 +2776,13 @@ export async function executeRelayedWithdrawalForFlow(params: {
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
+  relayerDetails?: Awaited<ReturnType<typeof getRelayerDetails>>;
 }): Promise<{
   withdrawTxHash: string;
   withdrawBlockNumber: string;
   withdrawExplorerUrl: string | null;
 }> {
-  const { snapshot, context, globalOpts, mode, isVerbose } = params;
+  const { snapshot, context, globalOpts, mode, isVerbose, relayerDetails } = params;
   const silent = mode.isQuiet || mode.isJson;
   const { chainConfig, pool, accountService, publicClient, selectedPoolAccount } =
     context;
@@ -2794,7 +2795,8 @@ export async function executeRelayedWithdrawalForFlow(params: {
   const withdrawSpin = spinner("Requesting relayer quote...", silent);
   withdrawSpin.start();
 
-  const details = await getRelayerDetails(chainConfig, pool.asset);
+  const details =
+    relayerDetails ?? (await getRelayerDetails(chainConfig, pool.asset));
   if (withdrawalAmount < BigInt(details.minWithdrawAmount)) {
     throw new CLIError(
       `Workflow amount is below the relayer minimum of ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`,
@@ -3194,6 +3196,21 @@ export async function continueApprovedWorkflowWithdrawal(params: {
     alignedSnapshot,
   );
 
+  const relayerDetails = await getRelayerDetails(
+    context.chainConfig,
+    context.pool.asset,
+  );
+  if (
+    context.selectedPoolAccount.value < BigInt(relayerDetails.minWithdrawAmount)
+  ) {
+    throw new CLIError(
+      `Workflow amount is below the relayer minimum of ${formatAmount(BigInt(relayerDetails.minWithdrawAmount), context.pool.decimals, context.pool.symbol)}.`,
+      "RELAYER",
+      `This workflow only supports relayed private withdrawals. Use '${buildSavedWorkflowRecoveryCommand(savedAligned)}' for the public recovery path.`,
+      "FLOW_RELAYER_MINIMUM_BLOCKED",
+    );
+  }
+
   const withdrawing = clearLastError(
     updateSnapshot(savedAligned, {
       phase: "withdrawing",
@@ -3211,6 +3228,7 @@ export async function continueApprovedWorkflowWithdrawal(params: {
     globalOpts,
     mode,
     isVerbose,
+    relayerDetails,
   });
 
   const completed = clearLastError(

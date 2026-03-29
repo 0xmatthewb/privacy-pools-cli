@@ -173,7 +173,7 @@ function ragequitDeclinedReason(snapshot: FlowSnapshot, base: string): string {
 function buildStoppedExternalAgentNextAction(snapshot: FlowSnapshot) {
   return createNextAction(
     "accounts",
-    `This saved workflow stopped after ${snapshot.poolAccountId ?? "the Pool Account"} changed externally. Inspect the latest account state, then continue manually with withdraw or ragequit.`,
+    `This saved workflow stopped after ${snapshot.poolAccountId ?? "the Pool Account"} changed externally. Inspect the latest account state, then choose the manual follow-up from the current account state.`,
     "flow_manual_followup",
     {
       options: { agent: true, chain: snapshot.chain },
@@ -184,7 +184,7 @@ function buildStoppedExternalAgentNextAction(snapshot: FlowSnapshot) {
 function buildStoppedExternalHumanNextAction(snapshot: FlowSnapshot) {
   return createNextAction(
     "accounts",
-    `Inspect ${snapshot.poolAccountId ?? "the affected Pool Account"} on ${snapshot.chain}, then continue manually with withdraw or ragequit.`,
+    `Inspect ${snapshot.poolAccountId ?? "the affected Pool Account"} on ${snapshot.chain}, then choose the manual follow-up from the current account state.`,
     "flow_manual_followup",
     {
       options: { chain: snapshot.chain },
@@ -690,13 +690,14 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   }
   if (data.snapshot.phase === "stopped_external") {
     info(
-      `Inspect accounts on ${data.snapshot.chain}, then continue manually with withdraw or ragequit.`,
+      `Inspect accounts on ${data.snapshot.chain}, then choose the manual follow-up from the current account state.`,
       silent,
     );
   }
   if (
     data.action === "status" &&
     data.snapshot.depositTxHash &&
+    !requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot) &&
     (data.snapshot.phase === "awaiting_asp" ||
       data.snapshot.phase === "approved_waiting_privacy_delay" ||
       data.snapshot.phase === "approved_ready_to_withdraw" ||

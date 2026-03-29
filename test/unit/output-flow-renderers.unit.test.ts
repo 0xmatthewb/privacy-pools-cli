@@ -161,7 +161,7 @@ describe("renderFlowResult", () => {
       renderFlowResult(ctx, {
         action: "status",
         snapshot: sampleSnapshot({
-          phase: "withdrawing",
+          phase: "approved_ready_to_withdraw",
           aspStatus: "approved",
           lastError: {
             step: "withdraw",
@@ -489,7 +489,7 @@ describe("renderFlowResult", () => {
 
     expect(stderr).toContain("changed outside this saved workflow");
     expect(stderr).toContain(
-      "Inspect accounts on sepolia, then continue manually with withdraw or ragequit.",
+      "Inspect accounts on sepolia, then choose the manual follow-up from the current account state.",
     );
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });
@@ -552,6 +552,30 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain(
       "Optional public recovery: flow ragequit remains available while this workflow stays non-terminal, but flow watch is the normal private path.",
     );
+  });
+
+  test("human status mode suppresses optional public recovery copy when relayer minimum already blocks the private path", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "approved_ready_to_withdraw",
+          aspStatus: "approved",
+          lastError: {
+            step: "withdraw",
+            errorCode: "FLOW_RELAYER_MINIMUM_BLOCKED",
+            errorMessage:
+              "Workflow amount is below the relayer minimum of 0.01 ETH.",
+            retryable: false,
+            at: "2026-03-24T12:00:00.000Z",
+          },
+        }),
+      }),
+    );
+
+    expect(stderr).not.toContain("Optional public recovery");
+    expect(stderr).toContain("privacy-pools flow ragequit wf-123");
   });
 
   test("JSON mode includes funding guidance for awaiting_funding workflows", () => {
@@ -641,7 +665,7 @@ describe("renderFlowResult", () => {
       {
         command: "accounts",
         reason:
-          "This saved workflow stopped after PA-1 changed externally. Inspect the latest account state, then continue manually with withdraw or ragequit.",
+          "This saved workflow stopped after PA-1 changed externally. Inspect the latest account state, then choose the manual follow-up from the current account state.",
         when: "flow_manual_followup",
         options: { agent: true, chain: "sepolia" },
       },

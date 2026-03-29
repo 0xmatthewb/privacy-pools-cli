@@ -102,6 +102,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const confirmHint = isTestnet
     ? `re-run accounts --chain ${data.chain}`
     : "re-run accounts";
+  const humanConfirmCommand = `privacy-pools accounts --chain ${data.chain}`;
   const agentNextActions = [
     createNextAction(
       "accounts",
@@ -122,23 +123,20 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const humanNextActions = [
     createNextAction(
       "accounts",
-      `Check the final review status for ${data.poolAccountId}. Withdraw only after approval. If it is declined, use ragequit; if it needs Proof of Association, complete the PoA flow at ${POA_PORTAL_URL} first.`,
+      `Poll pending review for ${data.poolAccountId}. When it disappears from pending results, re-run ${humanConfirmCommand} to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.`,
       "after_deposit",
       {
-        options:
-          data.chainOverridden || isTestnet
-            ? { chain: data.chain }
-            : undefined,
+        options: { chain: data.chain, pendingOnly: true },
       },
     ),
     createNextAction(
       "ragequit",
-      `If you prefer public recovery instead of waiting for approval, ragequit remains available for ${data.poolAccountId}.`,
+      `If ${humanConfirmCommand} later shows ${data.poolAccountId} as declined, or if you decide not to wait for approval, ragequit remains available for public recovery. Complete Proof of Association at ${POA_PORTAL_URL} first if it is required instead.`,
       "after_deposit",
       {
         args: [data.asset],
         options: {
-          ...(data.chainOverridden || isTestnet ? { chain: data.chain } : {}),
+          chain: data.chain,
           fromPa: data.poolAccountId,
         },
       },

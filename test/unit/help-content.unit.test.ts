@@ -41,6 +41,23 @@ describe("help content", () => {
     expect(guide).toContain("unreleased/source builds");
   });
 
+  test("guideText teaches the pending-only approval flow after deposits", () => {
+    const guide = guideText();
+    expect(guide).toContain("privacy-pools accounts --chain mainnet --pending-only");
+    expect(guide).toContain("poll ASP review");
+    expect(guide).toContain("then confirm approved vs declined vs PoA-needed");
+    expect(guide).toContain("Accounts is wallet-dependent");
+    expect(guide).not.toContain("pools/activity/stats/accounts default");
+  });
+
+  test("guideText frames bundled docs as package-relative and points users at built-in help", () => {
+    const guide = guideText();
+    expect(guide).toContain("privacy-pools <command> --help");
+    expect(guide).toContain(
+      "Package-relative docs (open from a source checkout or installed package root):",
+    );
+  });
+
   test("welcomeScreen includes npm link hint when running from source", () => {
     process.env.npm_lifecycle_event = "dev";
     process.env.npm_execpath = "/usr/local/bin/npm";

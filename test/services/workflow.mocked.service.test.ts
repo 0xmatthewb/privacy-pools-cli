@@ -3341,6 +3341,7 @@ describe("workflow service mocked coverage", () => {
     ).rejects.toThrow("Workflow amount is below the relayer minimum");
 
     const snapshot = getWorkflowStatus({ workflowId: "wf-relayer-min" });
+    expect(snapshot.phase).toBe("approved_ready_to_withdraw");
     expect(snapshot.lastError?.step).toBe("withdraw");
     expect(snapshot.lastError?.errorMessage).toContain("below the relayer minimum");
   });

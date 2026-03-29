@@ -187,6 +187,22 @@ export async function handleFlowWatchCommand(
       snapshot,
     });
   } catch (error) {
+    if (
+      error instanceof CLIError &&
+      error.code === "FLOW_RELAYER_MINIMUM_BLOCKED"
+    ) {
+      try {
+        const snapshot = getWorkflowStatus({ workflowId });
+        renderFlowResult(ctx, {
+          action: "watch",
+          snapshot,
+        });
+        return;
+      } catch {
+        // Fall through to the original error if the saved workflow itself
+        // cannot be reloaded cleanly.
+      }
+    }
     handleFlowCommandError(error, {
       json: mode.isJson,
       silent: mode.isQuiet,

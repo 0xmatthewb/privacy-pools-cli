@@ -261,7 +261,11 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Pending ASP approval");
     expect(stderr).toContain("Next steps:");
-    expect(stderr).toContain("privacy-pools accounts --chain sepolia");
+    expect(stderr).toContain("privacy-pools accounts --chain sepolia --pending-only");
+    expect(stderr).toContain(
+      "When it disappears from pending results, re-run privacy-pools accounts --chain sepolia",
+    );
+    expect(stderr).toContain("privacy-pools ragequit ETH --chain sepolia --from-pa PA-1");
   });
 
   test("human mode: omits Net deposited when committedValue is undefined", () => {
