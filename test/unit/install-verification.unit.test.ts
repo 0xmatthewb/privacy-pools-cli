@@ -283,4 +283,50 @@ describe("install verification env hygiene", () => {
     expect(result.status).toBe(1);
     expect(isRetriableNpmInstallFailure(result)).toBe(false);
   });
+
+  test("runNpmInstallWithRetry retries silent abnormal npm exits", () => {
+    let calls = 0;
+    const sleeps: number[] = [];
+    const result = runNpmInstallWithRetry(
+      ["install", "--silent"],
+      {
+        cwd: "/tmp/privacy-pools-install-check",
+        env: { PATH: process.env.PATH ?? "" },
+        spawnSyncImpl: () => {
+          calls += 1;
+          if (calls === 1) {
+            return {
+              status: 196,
+              signal: null,
+              stdout: "",
+              stderr: "",
+              error: undefined,
+            };
+          }
+
+          return {
+            status: 0,
+            signal: null,
+            stdout: "",
+            stderr: "",
+            error: undefined,
+          };
+        },
+        sleepImpl: (ms) => {
+          sleeps.push(ms);
+        },
+      },
+    );
+
+    expect(calls).toBe(2);
+    expect(sleeps).toEqual([1_000]);
+    expect(result.status).toBe(0);
+    expect(isRetriableNpmInstallFailure({
+      status: 196,
+      signal: null,
+      stdout: "",
+      stderr: "",
+      error: undefined,
+    })).toBe(true);
+  });
 });

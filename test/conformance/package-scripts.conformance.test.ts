@@ -145,7 +145,9 @@ describe("package scripts conformance", () => {
     expect(testSuiteRunnerSource).toContain('"--process-timeout-ms"');
     expect(flakeRunnerSource).toContain('"--process-timeout-ms"');
     expect(anvilRunnerSource).toContain('"--process-timeout-ms"');
+    expect(anvilRunnerSource).toContain("timeout: processTimeoutMs");
     expect(anvilSmokeRunnerSource).toContain('"--process-timeout-ms"');
+    expect(anvilSmokeRunnerSource).toContain("timeout: processTimeoutMs");
     expect(conformanceRunnerSource).toContain('"--process-timeout-ms"');
     expect(coverageRunnerSource).toContain('"--process-timeout-ms"');
   });

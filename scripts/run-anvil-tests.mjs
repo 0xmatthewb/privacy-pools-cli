@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { setupSharedAnvilFixture } from "./anvil-shared-fixture.mjs";
 import { collectTestFiles } from "./test-file-collector.mjs";
 import {
+  extractProcessTimeoutArg,
   hasExplicitProcessTimeoutArg,
   hasExplicitTestTarget,
   hasExplicitTimeoutArg,
@@ -47,6 +48,7 @@ const selectedTests = explicitTargets?.targetFiles ?? TEST_FILES;
 const runnerEnv = buildTestRunnerEnv();
 const sharedFixture = await setupSharedAnvilFixture({ baseEnv: runnerEnv });
 let result = { status: 0, signal: null, error: undefined };
+let processTimeoutMs = 900_000;
 
 function translateNodeTestArgs(args) {
   const nodeArgs = ["--import", "tsx", "--test"];
@@ -91,19 +93,30 @@ try {
   const baseArgs = hasExplicitTimeoutArg(sharedArgs)
     ? sharedArgs
     : ["--timeout", "600000", ...sharedArgs];
-  const bunRunnerArgs = hasExplicitProcessTimeoutArg(baseArgs)
-    ? baseArgs
-    : [...baseArgs, "--process-timeout-ms", "900000"];
+  const {
+    args: boundedArgs,
+    processTimeoutMs: resolvedProcessTimeoutMs,
+  } = extractProcessTimeoutArg(
+    baseArgs,
+    hasExplicitProcessTimeoutArg(baseArgs) ? null : 900_000,
+  );
+  processTimeoutMs = resolvedProcessTimeoutMs;
+  const bunRunnerArgs = [
+    ...boundedArgs,
+    "--process-timeout-ms",
+    String(processTimeoutMs),
+  ];
 
   for (const testFile of selectedTests) {
     process.stdout.write(`\n[anvil] ${testFile}\n`);
     result = NODE_ONLY_TEST_FILES.has(resolve(testFile))
       ? spawnSync(
           "node",
-          [...translateNodeTestArgs(baseArgs), testFile],
+          [...translateNodeTestArgs(boundedArgs), testFile],
           {
             stdio: "inherit",
             env: sharedEnv,
+            timeout: processTimeoutMs,
           },
         )
       : spawnSync(
@@ -124,6 +137,15 @@ try {
 }
 
 if (result.error) {
+  const timedOut =
+    typeof result.error.message === "string"
+    && result.error.message.includes("ETIMEDOUT");
+  if (timedOut) {
+    process.stderr.write(
+      `anvil test runner exceeded the outer process timeout (${processTimeoutMs}ms)\n`,
+    );
+    process.exit(1);
+  }
   throw result.error;
 }
 

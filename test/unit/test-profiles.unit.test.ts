@@ -93,14 +93,10 @@ describe("test profiles", () => {
     ]);
     expect(TEST_PROFILE_FRAGMENTS.evals).toEqual([
       [
-        "node",
+        "npm",
         [
-          "scripts/run-bun-tests.mjs",
-          "./test/evals",
-          "--timeout",
-          "120000",
-          "--process-timeout-ms",
-          "600000",
+          "run",
+          "test:evals",
         ],
       ],
     ]);

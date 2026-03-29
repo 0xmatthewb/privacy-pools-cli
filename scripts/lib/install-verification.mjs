@@ -88,6 +88,7 @@ export function previewOutput(text, secrets = []) {
 export function formatResultDiagnostics(result, secrets = []) {
   return [
     `status=${result.status}`,
+    `signal=${result.signal ?? "<none>"}`,
     `stdout=${previewOutput(result.stdout ?? "", secrets)}`,
     `stderr=${previewOutput(result.stderr ?? "", secrets)}`,
   ].join("\n");
@@ -165,6 +166,16 @@ export function isRetriableNpmInstallFailure(result) {
   ]
     .filter(Boolean)
     .join("\n");
+
+  if (
+    haystack.length === 0
+    && (
+      result.signal
+      || (typeof result.status === "number" && result.status !== 0)
+    )
+  ) {
+    return true;
+  }
 
   return RETRIABLE_NPM_INSTALL_PATTERNS.some((pattern) => haystack.includes(pattern));
 }

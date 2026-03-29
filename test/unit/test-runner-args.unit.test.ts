@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   annotateArgs,
+  extractProcessTimeoutArg,
   expandPathArgsWithExcludes,
   groupTargetsByIsolation,
   hasExplicitProcessTimeoutArg,
@@ -43,6 +44,33 @@ describe("test runner arg helpers", () => {
       false,
     );
     expect(hasExplicitProcessTimeoutArg([TEST_FILE])).toBe(false);
+  });
+
+  test("extractProcessTimeoutArg removes the watchdog flag and keeps the selected budget", () => {
+    expect(
+      extractProcessTimeoutArg(
+        [TEST_FILE, "--process-timeout-ms", "600000"],
+        900000,
+      ),
+    ).toEqual({
+      args: [TEST_FILE],
+      processTimeoutMs: 600000,
+    });
+
+    expect(
+      extractProcessTimeoutArg(
+        [TEST_FILE, "--process-timeout-ms=700000"],
+        900000,
+      ),
+    ).toEqual({
+      args: [TEST_FILE],
+      processTimeoutMs: 700000,
+    });
+
+    expect(extractProcessTimeoutArg([TEST_FILE], 900000)).toEqual({
+      args: [TEST_FILE],
+      processTimeoutMs: 900000,
+    });
   });
 
   test("hasExplicitTestTarget ignores values consumed by Bun flags", () => {

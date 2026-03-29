@@ -55,6 +55,47 @@ export function hasExplicitProcessTimeoutArg(args) {
   });
 }
 
+function parseProcessTimeout(rawValue) {
+  const processTimeoutMs = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(processTimeoutMs) || processTimeoutMs <= 0) {
+    throw new Error("--process-timeout-ms must be a positive integer");
+  }
+  return processTimeoutMs;
+}
+
+export function extractProcessTimeoutArg(
+  args,
+  defaultProcessTimeoutMs = null,
+) {
+  const forwardedArgs = [];
+  let processTimeoutMs = defaultProcessTimeoutMs;
+
+  for (let i = 0; i < args.length; i += 1) {
+    const token = args[i];
+    if (token === "--process-timeout-ms") {
+      const rawValue = args[i + 1];
+      if (!rawValue) {
+        throw new Error("--process-timeout-ms requires a value");
+      }
+      processTimeoutMs = parseProcessTimeout(rawValue);
+      i += 1;
+      continue;
+    }
+
+    if (token.startsWith("--process-timeout-ms=")) {
+      processTimeoutMs = parseProcessTimeout(token.split("=", 2)[1] ?? "");
+      continue;
+    }
+
+    forwardedArgs.push(token);
+  }
+
+  return {
+    args: forwardedArgs,
+    processTimeoutMs,
+  };
+}
+
 export function hasExplicitTestTarget(args, rootDir = process.cwd()) {
   return annotateArgs(args).some(({ token, consumedAsValue }) => {
     if (consumedAsValue || token.startsWith("-")) return false;

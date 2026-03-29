@@ -33,17 +33,7 @@ export const TEST_PROFILE_FRAGMENTS = {
     ["scripts/run-anvil-smoke.mjs", "--installed-only"],
   ]],
   "anvil-full": [["npm", ["run", "test:e2e:anvil"]]],
-  evals: [[
-    "node",
-    [
-      "scripts/run-bun-tests.mjs",
-      "./test/evals",
-      "--timeout",
-      "120000",
-      "--process-timeout-ms",
-      "600000",
-    ],
-  ]],
+  evals: [["npm", ["run", "test:evals"]]],
   "release-bench": [["npm", ["run", "bench:gate:release"]]],
 };
 
