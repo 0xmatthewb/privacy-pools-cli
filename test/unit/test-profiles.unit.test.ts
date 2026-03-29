@@ -86,16 +86,31 @@ describe("test profiles", () => {
     expect(TEST_PROFILE_FRAGMENTS["release-bench"]).toEqual([
       ["npm", ["run", "bench:gate:release"]],
     ]);
+    expect(TEST_PROFILE_FRAGMENTS.evals).toEqual([
+      [
+        "node",
+        [
+          "scripts/run-bun-tests.mjs",
+          "./test/evals",
+          "--timeout",
+          "120000",
+          "--process-timeout-ms",
+          "600000",
+        ],
+      ],
+    ]);
 
     expect(resolveProfile("ci")).toContainEqual(["npm", ["run", "test:native"]]);
     expect(resolveProfile("ci")).toContainEqual([
       "npm",
       ["run", "test:smoke:native:shell"],
     ]);
+    expect(resolveProfile("ci")).toContainEqual(TEST_PROFILE_FRAGMENTS.evals[0]!);
     expect(resolveProfile("release")).toContainEqual([
       "node",
       ["scripts/run-anvil-smoke.mjs", "--installed-only"],
     ]);
+    expect(resolveProfile("release")).toContainEqual(TEST_PROFILE_FRAGMENTS.evals[0]!);
     expect(resolveProfile("release")).toContainEqual([
       "npm",
       ["run", "test:smoke:native:shell"],
@@ -104,6 +119,7 @@ describe("test profiles", () => {
       "node",
       ["scripts/run-anvil-smoke.mjs", "--installed-only"],
     ]);
+    expect(resolveProfile("all")).toContainEqual(TEST_PROFILE_FRAGMENTS.evals[0]!);
     expect(resolveProfile("all")).toContainEqual([
       "npm",
       ["run", "test:smoke:native:shell"],
