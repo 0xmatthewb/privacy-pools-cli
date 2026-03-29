@@ -9,6 +9,10 @@ const packageJson = JSON.parse(
   files?: string[];
   scripts?: Record<string, string>;
 };
+const stressRunnerSource = readFileSync(
+  join(CLI_ROOT, "scripts", "run-stress.mjs"),
+  "utf8",
+);
 
 describe("package scripts conformance", () => {
   test("top-level test wrapper remains the shared suite runner", () => {
@@ -104,6 +108,13 @@ describe("package scripts conformance", () => {
     expect(packageJson.scripts?.["test:evals"]).toBe(
       "node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 --process-timeout-ms 600000",
     );
+  });
+
+  test("stress lane uses the bounded Bun wrapper instead of spawning Bun directly", () => {
+    expect(packageJson.scripts?.["test:stress"]).toBe("node scripts/run-stress.mjs");
+    expect(stressRunnerSource).toContain('resolve(ROOT, "scripts", "run-bun-tests.mjs")');
+    expect(stressRunnerSource).toContain('"--process-timeout-ms"');
+    expect(stressRunnerSource).not.toContain('spawnSync("bun"');
   });
 
   test("test:install mirrors the current-host installed-artifact gate", () => {
