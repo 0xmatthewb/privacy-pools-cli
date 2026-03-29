@@ -23,7 +23,17 @@ export const rootPackageJson = JSON.parse(
   readFileSync(join(repoRoot, "package.json"), "utf8"),
 );
 export const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+export const supportedInstallNodeRange = rootPackageJson.engines?.node ?? ">=22 <26";
 const STRIPPED_INSTALL_ENV_PREFIXES = ["PRIVACY_POOLS_", "PP_"];
+const NPM_INSTALL_RETRY_DELAYS_MS = [1_000, 2_000];
+const RETRIABLE_NPM_INSTALL_PATTERNS = [
+  "ETIMEDOUT",
+  "ECONNRESET",
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "socket hang up",
+  "network timeout",
+];
 
 const nativeDistributionModulePath = join(
   repoRoot,
@@ -116,6 +126,24 @@ export function currentNativePackageName(
   return resolveNativePackageName(platform, arch);
 }
 
+export function supportedInstallNodeMajor(version = process.versions.node) {
+  const normalized = String(version).replace(/^v/, "");
+  const major = Number.parseInt(normalized.split(".")[0] ?? "", 10);
+  return Number.isFinite(major) ? major : null;
+}
+
+export function isSupportedInstallNodeVersion(version = process.versions.node) {
+  const major = supportedInstallNodeMajor(version);
+  return major !== null && major >= 22 && major < 26;
+}
+
+export function unsupportedInstallNodeMessage(
+  label = "Installed-artifact verification",
+  version = process.version,
+) {
+  return `${label} skipped because the current host runtime ${version} is outside the supported Node.js range ${supportedInstallNodeRange}.`;
+}
+
 export function npmProcessEnv(stateRoot, env = {}) {
   return buildInstallBaseEnv(process.env, {
     npm_config_cache: join(stateRoot, ".npm-cache"),
@@ -125,9 +153,61 @@ export function npmProcessEnv(stateRoot, env = {}) {
   });
 }
 
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+export function isRetriableNpmInstallFailure(result) {
+  const haystack = [
+    result.error?.message,
+    result.stderr,
+    result.stdout,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return RETRIABLE_NPM_INSTALL_PATTERNS.some((pattern) => haystack.includes(pattern));
+}
+
+export function runNpmInstallWithRetry(args, options = {}) {
+  const spawnSyncImpl = options.spawnSyncImpl ?? spawnSync;
+  const sleepImpl = options.sleepImpl ?? sleepMs;
+
+  let lastResult = null;
+  for (let attempt = 0; attempt <= NPM_INSTALL_RETRY_DELAYS_MS.length; attempt += 1) {
+    const result = spawnSyncImpl(npmCommand, args, {
+      cwd: options.cwd,
+      encoding: "utf8",
+      timeout: options.timeout ?? 180_000,
+      maxBuffer: options.maxBuffer ?? 10 * 1024 * 1024,
+      env: options.env,
+    });
+
+    if (!result.error && result.status === 0) {
+      return result;
+    }
+
+    lastResult = result;
+    if (
+      attempt >= NPM_INSTALL_RETRY_DELAYS_MS.length
+      || !isRetriableNpmInstallFailure(result)
+    ) {
+      return result;
+    }
+
+    sleepImpl(NPM_INSTALL_RETRY_DELAYS_MS[attempt]);
+  }
+
+  return lastResult;
+}
+
 export function packTarball(cwd, destinationDir, options = {}) {
   mkdirSync(destinationDir, { recursive: true });
-  const packResult = spawnSync(npmCommand, ["pack", "--silent"], {
+  const packArgs = ["pack", "--silent"];
+  if (options.ignoreScripts) {
+    packArgs.push("--ignore-scripts");
+  }
+  const packResult = spawnSync(npmCommand, packArgs, {
     cwd,
     encoding: "utf8",
     timeout: options.timeout ?? 300_000,
@@ -137,13 +217,13 @@ export function packTarball(cwd, destinationDir, options = {}) {
 
   if (packResult.error) {
     fail(
-      `Failed to execute ${npmCommand} pack --silent:\n${packResult.error.message}`,
+      `Failed to execute ${npmCommand} ${packArgs.join(" ")}:\n${packResult.error.message}`,
     );
   }
 
   if (packResult.status !== 0) {
     fail(
-      `Command failed: ${npmCommand} pack --silent\n${packResult.stderr ?? ""}\n${packResult.stdout ?? ""}`.trim(),
+      `Command failed: ${npmCommand} ${packArgs.join(" ")}\n${packResult.stderr ?? ""}\n${packResult.stdout ?? ""}`.trim(),
     );
   }
 

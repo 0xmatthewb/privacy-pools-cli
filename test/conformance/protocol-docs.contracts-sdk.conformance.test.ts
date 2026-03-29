@@ -11,7 +11,7 @@
  *
  * @frontend-parity
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, test } from "bun:test";
 import {
@@ -46,7 +46,13 @@ const cliAsp = readFileSync(resolve(CLI_ROOT, "src/services/asp.ts"), "utf8");
 const cliRelayer = readFileSync(resolve(CLI_ROOT, "src/services/relayer.ts"), "utf8");
 const cliPools = readFileSync(resolve(CLI_ROOT, "src/services/pools.ts"), "utf8");
 const cliSdk = readFileSync(resolve(CLI_ROOT, "src/services/sdk.ts"), "utf8");
-const cliCircuits = readFileSync(resolve(CLI_ROOT, "src/services/circuits.ts"), "utf8");
+const cliCircuitAssets = readFileSync(
+  resolve(CLI_ROOT, "src/services/circuit-assets.js"),
+  "utf8",
+);
+const bundledCircuitFiles = readdirSync(
+  resolve(CLI_ROOT, "assets/circuits/v1.2.0"),
+);
 const cliContracts = readFileSync(resolve(CLI_ROOT, "src/services/contracts.ts"), "utf8");
 const cliProofs = readFileSync(resolve(CLI_ROOT, "src/services/proofs.ts"), "utf8");
 const cliWallet = readFileSync(resolve(CLI_ROOT, "src/services/wallet.ts"), "utf8");
@@ -421,9 +427,12 @@ describe("protocol conformance: CLI ↔ upstream", () => {
 
   run("CLI-managed circuit artifacts match upstream circuit names and files", () => {
     for (const circuit of ["commitment", "withdraw"]) {
-      expect(cliCircuits).toContain(`${circuit}.wasm`);
-      expect(cliCircuits).toContain(`${circuit}.zkey`);
-      expect(cliCircuits).toContain(`${circuit}.vkey`);
+      expect(cliCircuitAssets).toContain(`${circuit}.wasm`);
+      expect(cliCircuitAssets).toContain(`${circuit}.zkey`);
+      expect(cliCircuitAssets).toContain(`${circuit}.vkey`);
+      expect(bundledCircuitFiles).toContain(`${circuit}.wasm`);
+      expect(bundledCircuitFiles).toContain(`${circuit}.zkey`);
+      expect(bundledCircuitFiles).toContain(`${circuit}.vkey`);
       expect(upstreamCircuitsIndex).toContain(`"${circuit}"`);
     }
   });

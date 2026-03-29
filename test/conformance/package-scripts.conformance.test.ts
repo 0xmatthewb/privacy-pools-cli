@@ -6,12 +6,17 @@ import { CLI_ROOT } from "../helpers/paths.ts";
 const packageJson = JSON.parse(
   readFileSync(join(CLI_ROOT, "package.json"), "utf8"),
 ) as {
+  files?: string[];
   scripts?: Record<string, string>;
 };
 
 describe("package scripts conformance", () => {
   test("top-level test wrapper remains the shared suite runner", () => {
     expect(packageJson.scripts?.test).toBe("node scripts/run-test-suite.mjs");
+  });
+
+  test("published package includes bundled circuit artifacts", () => {
+    expect(packageJson.files).toContain("assets");
   });
 
   test("runtime-facing scripts use node plus tsx rather than bun", () => {
@@ -32,6 +37,12 @@ describe("package scripts conformance", () => {
   });
 
   test("conformance and release scripts route through the shared profile runner", () => {
+    expect(packageJson.scripts?.["circuits:provision"]).toBe(
+      "node scripts/provision-circuits.mjs",
+    );
+    expect(packageJson.scripts?.["circuits:refresh"]).toBe(
+      "node scripts/refresh-bundled-circuits.mjs",
+    );
     expect(packageJson.scripts?.["test:scripts"]).toBe(
       "node scripts/check-node-scripts.mjs",
     );
@@ -75,14 +86,23 @@ describe("package scripts conformance", () => {
   });
 
   test("native smoke scripts publish both packaged and launcher-parity lanes", () => {
+    expect(packageJson.scripts?.["test:smoke"]).toBe(
+      "node scripts/run-bun-tests.mjs ./test/integration/cli.packaged-smoke.integration.test.ts --timeout 180000 --process-timeout-ms 600000",
+    );
     expect(packageJson.scripts?.["test:smoke:native"]).toBe(
       "npm run test:smoke:native:package",
     );
     expect(packageJson.scripts?.["test:smoke:native:shell"]).toBe(
-      "node scripts/run-bun-tests.mjs ./test/integration/cli-native-shell.integration.test.ts --timeout 300000",
+      "node scripts/run-bun-tests.mjs ./test/integration/cli-native-shell.integration.test.ts --timeout 300000 --process-timeout-ms 900000",
     );
     expect(packageJson.scripts?.["test:smoke:native:package"]).toBe(
-      "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000",
+      "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000 --process-timeout-ms 900000",
+    );
+    expect(packageJson.scripts?.["test:fuzz"]).toBe(
+      "node scripts/run-bun-tests.mjs ./test/fuzz --timeout 120000 --process-timeout-ms 600000",
+    );
+    expect(packageJson.scripts?.["test:evals"]).toBe(
+      "node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 --process-timeout-ms 600000",
     );
   });
 

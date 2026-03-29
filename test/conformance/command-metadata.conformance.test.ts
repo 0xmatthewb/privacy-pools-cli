@@ -171,10 +171,11 @@ describe("command metadata conformance", () => {
     }
   });
 
-  test("proof provisioning copy stays aligned on first-run timing", () => {
+  test("proof metadata copy stays aligned with bundled circuit guidance", () => {
     const depositOverview = (getCommandMetadata("deposit").help?.overview ?? []).join(" ");
 
-    expect(depositOverview).toContain("(~60s)");
-    expect(depositOverview).not.toContain("(~30s)");
+    expect(depositOverview).toContain("bundled checksum-verified circuit artifacts");
+    expect(depositOverview).toContain("no runtime download step");
+    expect(depositOverview).toContain("10-30s");
   });
 });

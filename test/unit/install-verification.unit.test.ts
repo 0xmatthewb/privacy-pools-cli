@@ -5,8 +5,12 @@ import {
   assertInstalledPackageVersion,
   buildInstallBaseEnv,
   installCliEnv,
+  isSupportedInstallNodeVersion,
+  isRetriableNpmInstallFailure,
   npmProcessEnv,
   resolveInstalledDependencyPackagePath,
+  runNpmInstallWithRetry,
+  unsupportedInstallNodeMessage,
 } from "../../scripts/lib/install-verification.mjs";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 
@@ -190,5 +194,93 @@ describe("install verification env hygiene", () => {
       name: "privacy-pools-cli",
       version: "1.7.0",
     });
+  });
+
+  test("install verification helpers recognize the supported node range", () => {
+    expect(isSupportedInstallNodeVersion("v22.0.0")).toBe(true);
+    expect(isSupportedInstallNodeVersion("24.3.1")).toBe(true);
+    expect(isSupportedInstallNodeVersion("25.0.0")).toBe(true);
+    expect(isSupportedInstallNodeVersion("v20.20.0")).toBe(false);
+    expect(isSupportedInstallNodeVersion("26.0.0")).toBe(false);
+  });
+
+  test("unsupported node message is actionable", () => {
+    expect(
+      unsupportedInstallNodeMessage(
+        "Installed-artifact verification",
+        "v20.20.0",
+      ),
+    ).toContain("outside the supported Node.js range");
+  });
+
+  test("runNpmInstallWithRetry retries transient npm install timeouts", () => {
+    const calls: string[][] = [];
+    const sleeps: number[] = [];
+    const result = runNpmInstallWithRetry(
+      ["install", "--silent"],
+      {
+        cwd: "/tmp/privacy-pools-install-check",
+        env: { PATH: process.env.PATH ?? "" },
+        spawnSyncImpl: (_command, args) => {
+          calls.push(args);
+          if (calls.length === 1) {
+            return {
+              status: null,
+              signal: "SIGTERM",
+              stdout: "",
+              stderr: "",
+              error: new Error("spawnSync npm ETIMEDOUT"),
+            };
+          }
+
+          return {
+            status: 0,
+            signal: null,
+            stdout: "",
+            stderr: "",
+            error: undefined,
+          };
+        },
+        sleepImpl: (ms) => {
+          sleeps.push(ms);
+        },
+      },
+    );
+
+    expect(calls).toEqual([
+      ["install", "--silent"],
+      ["install", "--silent"],
+    ]);
+    expect(sleeps).toEqual([1_000]);
+    expect(result.status).toBe(0);
+    expect(result.error).toBeUndefined();
+  });
+
+  test("runNpmInstallWithRetry does not retry non-transient npm failures", () => {
+    let calls = 0;
+    const result = runNpmInstallWithRetry(
+      ["install", "--silent"],
+      {
+        cwd: "/tmp/privacy-pools-install-check",
+        env: { PATH: process.env.PATH ?? "" },
+        spawnSyncImpl: () => {
+          calls += 1;
+          return {
+            status: 1,
+            signal: null,
+            stdout: "",
+            stderr: "npm ERR! code E404",
+            error: undefined,
+          };
+        },
+        sleepImpl: () => {
+          throw new Error("sleep should not run for non-transient failures");
+        },
+      },
+    );
+
+    expect(calls).toBe(1);
+    expect(result.status).toBe(1);
+    expect(isRetriableNpmInstallFailure(result)).toBe(false);
   });
 });

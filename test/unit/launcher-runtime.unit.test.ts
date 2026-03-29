@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { CLI_PROTOCOL_PROFILE } from "../../src/config/protocol-profile.js";
 import { launcherTestInternals, runLauncher } from "../../src/launcher.ts";
 import {
@@ -141,6 +141,14 @@ describe("launcher runtime coverage", () => {
         parseRootArgv(["activity", "--format", "csv"]),
       ),
     ).toBe(false);
+  });
+
+  test("resolveJsRuntimeCommand ignores bun-like npm_node_execpath values", () => {
+    const resolved = launcherTestInternals.resolveJsRuntimeCommand({
+      npm_node_execpath: process.platform === "win32" ? "bun.exe" : "/tmp/bun",
+    });
+
+    expect(basename(resolved)).toMatch(/^node(?:\.exe)?$/i);
   });
 
   test("tryRunLocalFastPath skips local handling when an explicit native binary is configured", async () => {

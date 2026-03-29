@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  DEFAULT_PROFILE_STEP_TIMEOUT_MS,
   resolveProfile,
   resolveProfileRunEnv,
   TEST_PROFILE_FRAGMENTS,
@@ -20,11 +21,7 @@ describe("test profiles", () => {
 
   test("install profile stays shared across higher-cost profiles", () => {
     expect(TEST_PROFILE_FRAGMENTS.install).toEqual([
-      ["npm", ["run", "test:smoke"]],
-      ["npm", ["run", "test:smoke:native:package"]],
-      ["npm", ["run", "build"]],
-      ["npm", ["run", "test:artifacts:root"]],
-      ["npm", ["run", "test:artifacts:host"]],
+      ["node", ["scripts/run-install-profile.mjs"]],
     ]);
     expect(resolveProfile("install")).toEqual(TEST_PROFILE_FRAGMENTS.install);
 
@@ -80,6 +77,9 @@ describe("test profiles", () => {
     expect(TEST_PROFILE_FRAGMENTS["anvil-smoke"]).toEqual([
       ["npm", ["run", "test:e2e:anvil:smoke"]],
     ]);
+    expect(TEST_PROFILE_FRAGMENTS["anvil-installed-smoke"]).toEqual([
+      ["node", ["scripts/run-anvil-smoke.mjs", "--installed-only"]],
+    ]);
     expect(TEST_PROFILE_FRAGMENTS["anvil-full"]).toEqual([
       ["npm", ["run", "test:e2e:anvil"]],
     ]);
@@ -93,16 +93,16 @@ describe("test profiles", () => {
       ["run", "test:smoke:native:shell"],
     ]);
     expect(resolveProfile("release")).toContainEqual([
-      "npm",
-      ["run", "test:e2e:anvil:smoke"],
+      "node",
+      ["scripts/run-anvil-smoke.mjs", "--installed-only"],
     ]);
     expect(resolveProfile("release")).toContainEqual([
       "npm",
       ["run", "test:smoke:native:shell"],
     ]);
     expect(resolveProfile("all")).toContainEqual([
-      "npm",
-      ["run", "test:e2e:anvil:smoke"],
+      "node",
+      ["scripts/run-anvil-smoke.mjs", "--installed-only"],
     ]);
     expect(resolveProfile("all")).toContainEqual([
       "npm",
@@ -112,6 +112,10 @@ describe("test profiles", () => {
       "npm",
       ["run", "bench:gate:release"],
     ]);
+  });
+
+  test("profile runner applies a shared outer watchdog to raw npm/node steps", () => {
+    expect(DEFAULT_PROFILE_STEP_TIMEOUT_MS).toBe(1_800_000);
   });
 
   test("unknown profiles return null", () => {

@@ -43,7 +43,7 @@ export function annotateArgs(args) {
 export function hasExplicitTimeoutArg(args) {
   return args.some((token) => {
     const normalized = normalizeFlagToken(token);
-    return normalized === "--timeout" || normalized === "-t";
+    return normalized === "--timeout";
   });
 }
 

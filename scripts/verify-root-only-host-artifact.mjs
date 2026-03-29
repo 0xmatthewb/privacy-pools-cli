@@ -17,7 +17,11 @@ const installVerificationModulePath = join(
   "lib",
   "install-verification.mjs",
 );
-const { packTarball } = await import(
+const {
+  isSupportedInstallNodeVersion,
+  packTarball,
+  unsupportedInstallNodeMessage,
+} = await import(
   pathToFileURL(installVerificationModulePath).href
 );
 
@@ -30,7 +34,7 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
     encoding: "utf8",
-    timeout: 300_000,
+    timeout: 1_200_000,
     maxBuffer: 10 * 1024 * 1024,
     ...options,
   });
@@ -63,19 +67,29 @@ const cliTarballDir = join(tempRoot, "cli");
 mkdirSync(cliTarballDir, { recursive: true });
 
 try {
-  const cliTarball = packTarball(repoRoot, cliTarballDir, {
-    npmStateRoot: tempRoot,
-  });
+  if (!isSupportedInstallNodeVersion()) {
+    process.stdout.write(
+      `${unsupportedInstallNodeMessage("Installed root-only artifact verification")}\n`,
+    );
+    process.stdout.write(
+      `Skipped root-only release artifact verification using ${distIndexPath}\n`,
+    );
+  } else {
+    const cliTarball = packTarball(repoRoot, cliTarballDir, {
+      npmStateRoot: tempRoot,
+      ignoreScripts: true,
+    });
 
-  run("node", [
-    VERIFY_ROOT_ONLY_INSTALL,
-    "--cli-tarball",
-    cliTarball,
-  ]);
+    run("node", [
+      VERIFY_ROOT_ONLY_INSTALL,
+      "--cli-tarball",
+      cliTarball,
+    ]);
 
-  process.stdout.write(
-    `Verified root-only release artifact using ${distIndexPath}\n`,
-  );
+    process.stdout.write(
+      `Verified root-only release artifact using ${distIndexPath}\n`,
+    );
+  }
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });
 }

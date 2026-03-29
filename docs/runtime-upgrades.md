@@ -49,13 +49,19 @@ version literals.
 
 ## Run The Required Safety Checks
 
+- prefer `npm run test:install` for the shared install/distribution gate; it
+  builds once, packs once, and fans those prepared artifacts out to the
+  packaged and installed-artifact verifiers
 - `npm run build`
 - `npm run discovery:generate`
-- `npm run test:artifacts:host`
-- `npm run test:smoke:native:package`
+- `npm run test:install`
 - `npm run test:runtime:boundary`
 - `npm run docs:check`
 - `npm run test:release`
+
+Use the standalone `npm run test:artifacts:host` and
+`npm run test:smoke:native:package` lanes only for targeted debugging after the
+shared install profile has already narrowed the failing boundary.
 
 Also run a manual JS fallback drill:
 

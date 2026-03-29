@@ -5,6 +5,7 @@ const ORIGINAL_PRIVATE_KEY = process.env.PRIVACY_POOLS_PRIVATE_KEY;
 const ORIGINAL_PP_RPC_URL = process.env.PP_RPC_URL;
 const ORIGINAL_PP_ANVIL_SHARED_ENV_FILE = process.env.PP_ANVIL_SHARED_ENV_FILE;
 const ORIGINAL_PP_KEEP_COVERAGE_ROOT = process.env.PP_KEEP_COVERAGE_ROOT;
+const ORIGINAL_PP_INSTALL_CLI_TARBALL = process.env.PP_INSTALL_CLI_TARBALL;
 
 afterEach(() => {
   if (ORIGINAL_PRIVATE_KEY === undefined) {
@@ -30,6 +31,12 @@ afterEach(() => {
   } else {
     process.env.PP_KEEP_COVERAGE_ROOT = ORIGINAL_PP_KEEP_COVERAGE_ROOT;
   }
+
+  if (ORIGINAL_PP_INSTALL_CLI_TARBALL === undefined) {
+    delete process.env.PP_INSTALL_CLI_TARBALL;
+  } else {
+    process.env.PP_INSTALL_CLI_TARBALL = ORIGINAL_PP_INSTALL_CLI_TARBALL;
+  }
 });
 
 describe("test runner env", () => {
@@ -39,6 +46,7 @@ describe("test runner env", () => {
     process.env.PP_RPC_URL = "https://poison.invalid/rpc";
     process.env.PP_ANVIL_SHARED_ENV_FILE = "/tmp/shared.env";
     process.env.PP_KEEP_COVERAGE_ROOT = "1";
+    process.env.PP_INSTALL_CLI_TARBALL = "/tmp/stale-cli.tgz";
 
     const env = buildTestRunnerEnv();
 
@@ -46,6 +54,7 @@ describe("test runner env", () => {
     expect(env.PP_RPC_URL).toBeUndefined();
     expect(env.PP_ANVIL_SHARED_ENV_FILE).toBe("/tmp/shared.env");
     expect(env.PP_KEEP_COVERAGE_ROOT).toBe("1");
+    expect(env.PP_INSTALL_CLI_TARBALL).toBeUndefined();
   });
 
   test("overrides can restore or remove runner variables explicitly", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { basename, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { CLI_CWD, createTempHome, parseJsonOutput } from "../helpers/cli.ts";
@@ -17,8 +17,13 @@ function runBunCli(args: string[]) {
   });
 }
 
+let builtWorkspaceRoot: string;
+
+beforeAll(() => {
+  builtWorkspaceRoot = createBuiltWorkspaceSnapshot();
+}, 240_000);
+
 function runBuiltBunCli(args: string[]) {
-  const builtWorkspaceRoot = createBuiltWorkspaceSnapshot();
   return spawnSync("bun", ["dist/index.js", ...args], {
     cwd: builtWorkspaceRoot,
     encoding: "utf8",
@@ -31,7 +36,6 @@ function runBuiltBunCli(args: string[]) {
 }
 
 function runBuiltBunImportedEntrypoint(args: string[]) {
-  const builtWorkspaceRoot = createBuiltWorkspaceSnapshot();
   const script = `
     import { runCliEntrypoint } from "./dist/index.js";
     await runCliEntrypoint(${JSON.stringify(args)});
@@ -48,7 +52,6 @@ function runBuiltBunImportedEntrypoint(args: string[]) {
 }
 
 function runBuiltNodeEval(script: string) {
-  const builtWorkspaceRoot = createBuiltWorkspaceSnapshot();
   return spawnSync("node", ["--input-type=module", "--eval", script], {
     cwd: builtWorkspaceRoot,
     encoding: "utf8",
@@ -133,7 +136,7 @@ describe("unsupported Bun runtime", () => {
 });
 
 describe("supported Node runtime", () => {
-  test("built launcher resolves the JS worker through node under the supported runtime", () => {
+  test("built launcher resolves the JS worker through node even if npm_node_execpath points at bun", () => {
     const result = runBuiltNodeEval(`
       import { basename } from "node:path";
       import { launcherTestInternals } from "./dist/launcher.js";
@@ -145,7 +148,9 @@ describe("supported Node runtime", () => {
       const target = launcherTestInternals.resolveLaunchTarget(
         { version: "1.7.0" },
         ["flow", "--help"],
-        {},
+        {
+          npm_node_execpath: ${JSON.stringify(process.platform === "win32" ? "bun.exe" : "/tmp/bun")},
+        },
         {
           resolveInstalledNativeBinary: () => "/tmp/privacy-pools-native",
         },

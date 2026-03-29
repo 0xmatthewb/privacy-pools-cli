@@ -8,6 +8,7 @@ import { npmBin } from "./npm-bin.ts";
 
 interface WorkspaceSnapshotOptions {
   build?: boolean;
+  includeDist?: boolean;
   nodeModulesMode?: "symlink" | "copy";
 }
 
@@ -32,6 +33,7 @@ export function createWorkspaceSnapshot(
 ): string {
   const snapshotRoot = createTrackedTempDir("pp-workspace-snapshot-");
   const nodeModulesMode = options.nodeModulesMode ?? "symlink";
+  const includeDist = options.includeDist ?? false;
 
   cpSync(CLI_ROOT, snapshotRoot, {
     recursive: true,
@@ -46,7 +48,11 @@ export function createWorkspaceSnapshot(
       }
 
       const topLevel = relative.split(/[/\\]/)[0];
-      return topLevel !== ".git" && topLevel !== "node_modules" && topLevel !== "dist";
+      if (topLevel === "dist") {
+        return includeDist;
+      }
+
+      return topLevel !== ".git" && topLevel !== "node_modules";
     },
   });
 

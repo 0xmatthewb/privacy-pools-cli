@@ -6,15 +6,10 @@ import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(__dirname, "..");
 export const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+export const DEFAULT_PROFILE_STEP_TIMEOUT_MS = 1_800_000;
 
 export const TEST_PROFILE_FRAGMENTS = {
-  install: [
-    ["npm", ["run", "test:smoke"]],
-    ["npm", ["run", "test:smoke:native:package"]],
-    ["npm", ["run", "build"]],
-    ["npm", ["run", "test:artifacts:root"]],
-    ["npm", ["run", "test:artifacts:host"]],
-  ],
+  install: [["node", ["scripts/run-install-profile.mjs"]]],
   build: [["npm", ["run", "build"]]],
   "docs-reference-check": [["node", ["scripts/generate-reference.mjs", "--check"]]],
   "repo-conformance-core": [
@@ -37,6 +32,10 @@ export const TEST_PROFILE_FRAGMENTS = {
   "native-shell-parity": [["npm", ["run", "test:smoke:native:shell"]]],
   coverage: [["npm", ["run", "test:coverage"]]],
   "anvil-smoke": [["npm", ["run", "test:e2e:anvil:smoke"]]],
+  "anvil-installed-smoke": [[
+    "node",
+    ["scripts/run-anvil-smoke.mjs", "--installed-only"],
+  ]],
   "anvil-full": [["npm", ["run", "test:e2e:anvil"]]],
   evals: [["node", ["scripts/run-bun-tests.mjs", "./test/evals", "--timeout", "120000"]]],
   "release-bench": [["npm", ["run", "bench:gate:release"]]],
@@ -70,7 +69,7 @@ export const TEST_PROFILES = {
       "native-core",
       "coverage",
       "anvil-full",
-      "anvil-smoke",
+      "anvil-installed-smoke",
       "evals",
       "build",
       "native-shell-parity",
@@ -88,7 +87,7 @@ export const TEST_PROFILES = {
       "native-core",
       "coverage",
       "anvil-full",
-      "anvil-smoke",
+      "anvil-installed-smoke",
       "evals",
       "build",
       "native-shell-parity",
@@ -124,9 +123,18 @@ export function runProfile(name, options = {}) {
       cwd: options.cwd ?? ROOT,
       stdio: "inherit",
       env: resolveProfileRunEnv(options),
+      timeout: options.stepTimeoutMs ?? DEFAULT_PROFILE_STEP_TIMEOUT_MS,
     });
 
     if (result.error) {
+      const timedOut =
+        typeof result.error.message === "string"
+        && result.error.message.includes("ETIMEDOUT");
+      if (timedOut) {
+        throw new Error(
+          `Profile step timed out after ${options.stepTimeoutMs ?? DEFAULT_PROFILE_STEP_TIMEOUT_MS}ms: ${command} ${args.join(" ")}`,
+        );
+      }
       throw result.error;
     }
 

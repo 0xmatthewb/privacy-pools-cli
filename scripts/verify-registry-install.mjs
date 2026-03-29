@@ -17,6 +17,7 @@ import {
   npmProcessEnv,
   packageInstallPath,
   parseJson,
+  runNpmInstallWithRetry,
   resolveInstalledDependencyPackagePath,
   parseArgs,
   rootPackageJson,
@@ -212,8 +213,10 @@ const globalPrefix = join(installRoot, "global-prefix");
 const globalHomeDir = join(globalPrefix, ".privacy-pools");
 
 try {
-  await waitForRegistryPackage(nativePackageName, expectedVersion, timeoutMs);
-  await waitForRegistryPackage(packageName, expectedVersion, timeoutMs);
+  await Promise.all([
+    waitForRegistryPackage(nativePackageName, expectedVersion, timeoutMs),
+    waitForRegistryPackage(packageName, expectedVersion, timeoutMs),
+  ]);
 
   writeFileSync(
     join(installRoot, "package.json"),
@@ -231,8 +234,7 @@ try {
     "utf8",
   );
 
-  run(
-    npmCommand,
+  const localInstallResult = runNpmInstallWithRetry(
     [
       "install",
       "--silent",
@@ -246,6 +248,16 @@ try {
       env: npmProcessEnv(installRoot),
     },
   );
+  if (localInstallResult.error) {
+    fail(
+      `Failed to execute npm install for ${packageName}@${expectedVersion}:\n${localInstallResult.error.message}`,
+    );
+  }
+  if (localInstallResult.status !== 0) {
+    fail(
+      `Failed to install ${packageName}@${expectedVersion} from npm:\n${localInstallResult.stderr ?? ""}\n${localInstallResult.stdout ?? ""}`.trim(),
+    );
+  }
 
   const installedRootPath = packageInstallPath(installRoot, packageName);
   if (!existsSync(installedRootPath)) {
@@ -325,8 +337,7 @@ try {
     label: "Installed registry CLI",
   });
 
-  run(
-    npmCommand,
+  const globalInstallResult = runNpmInstallWithRetry(
     [
       "install",
       "-g",
@@ -343,6 +354,16 @@ try {
       env: npmProcessEnv(globalPrefix),
     },
   );
+  if (globalInstallResult.error) {
+    fail(
+      `Failed to execute global npm install for ${packageName}@${expectedVersion}:\n${globalInstallResult.error.message}`,
+    );
+  }
+  if (globalInstallResult.status !== 0) {
+    fail(
+      `Failed to install ${packageName}@${expectedVersion} globally from npm:\n${globalInstallResult.stderr ?? ""}\n${globalInstallResult.stdout ?? ""}`.trim(),
+    );
+  }
 
   const globalCliPath = globalPackageInstallPath(globalPrefix, packageName);
   if (!existsSync(globalCliPath)) {

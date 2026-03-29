@@ -52,7 +52,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PP_ASP_HOST` | Alias for `PRIVACY_POOLS_ASP_HOST` |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
 | `PP_RELAYER_HOST` | Alias for `PRIVACY_POOLS_RELAYER_HOST` |
-| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory (default: `~/.privacy-pools/circuits/v<sdk-version>`) |
+| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact directory. By default the CLI uses bundled packaged artifacts; `npm run circuits:provision` materializes a verified copy under `~/.privacy-pools/circuits/v<sdk-version>` |
 | `PRIVACY_POOLS_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PRIVACY_POOLS_RPC_URL_ARBITRUM`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PRIVACY_POOLS_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PRIVACY_POOLS_ASP_HOST_SEPOLIA`) |
@@ -144,7 +144,7 @@ npm run test:release      # release-readiness suite (root + host artifact gates 
 npm run test:smoke        # packaged CLI smoke against a packed tarball
 npm run test:artifacts:host # pack/install the current-host CLI + native artifacts
 npm run typecheck         # TypeScript type check (no emit)
-npm run circuits:provision # prefetch proof artifacts into the CLI home
+npm run circuits:provision # materialize bundled proof artifacts into the CLI home
 npm run test:e2e:anvil    # full Sepolia-fork E2E
 npm run test:e2e:anvil:smoke # required happy-path smoke lane
 npm run test:fuzz         # fuzz tests (longer timeout)

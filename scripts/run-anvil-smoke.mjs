@@ -24,6 +24,7 @@ const smokePattern = [
   "deposit -> approve -> withdraw \\(relayed\\) -> sync",
   "flow start -> approved watch -> completed",
 ].join("|");
+const installedOnly = process.argv.slice(2).includes("--installed-only");
 
 const runnerEnv = buildTestRunnerEnv();
 const sharedFixture = await setupSharedAnvilFixture({ baseEnv: runnerEnv });
@@ -36,21 +37,23 @@ const sharedEnv = buildTestRunnerEnv({
 let result;
 let installedArtifactResult;
 try {
-  result = spawnSync(
-    "node",
-    [
-      RUNNER,
-      TEST_FILE,
-      "--timeout",
-      "600000",
-      "--test-name-pattern",
-      smokePattern,
-    ],
-    {
-      stdio: "inherit",
-      env: sharedEnv,
-    }
-  );
+  result = installedOnly
+    ? { status: 0, signal: null, error: undefined }
+    : spawnSync(
+        "node",
+        [
+          RUNNER,
+          TEST_FILE,
+          "--timeout",
+          "600000",
+          "--test-name-pattern",
+          smokePattern,
+        ],
+        {
+          stdio: "inherit",
+          env: sharedEnv,
+        },
+      );
 
   if (!result.error && result.status === 0) {
     installedArtifactResult = spawnSync(

@@ -108,7 +108,7 @@ function resolveJsRuntimeCommand(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   const npmNodeExecPath = env.npm_node_execpath?.trim();
-  if (npmNodeExecPath) {
+  if (npmNodeExecPath && looksLikeNodeExecutable(npmNodeExecPath)) {
     return npmNodeExecPath;
   }
 

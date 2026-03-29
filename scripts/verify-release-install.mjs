@@ -20,6 +20,7 @@ import {
   assertInstalledStatusSuccess,
   currentNativePackageName,
   fail,
+  isSupportedInstallNodeVersion,
   launchAspFixtureServer,
   packTarball,
   packageInstallPath,
@@ -29,6 +30,8 @@ import {
   npmCommand,
   npmProcessEnv,
   parseJson,
+  runNpmInstallWithRetry,
+  unsupportedInstallNodeMessage,
 } from "./lib/install-verification.mjs";
 const TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
@@ -104,8 +107,7 @@ function installTarballForInspection(packageName, tarballPath) {
     "utf8",
   );
 
-  const installResult = spawnSync(
-    npmCommand,
+  const installResult = runNpmInstallWithRetry(
     [
       "install",
       "--silent",
@@ -475,6 +477,13 @@ if (!nativePackageName) {
 }
 
 async function main() {
+  if (!isSupportedInstallNodeVersion()) {
+    process.stdout.write(
+      `${unsupportedInstallNodeMessage("Installed release CLI verification")}\n`,
+    );
+    return;
+  }
+
   writeInstallProjectManifest(
     installRoot,
     cliTarballPath,
@@ -482,8 +491,7 @@ async function main() {
     nativeTarballPath,
   );
 
-  const installResult = spawnSync(
-    npmCommand,
+  const installResult = runNpmInstallWithRetry(
     [
       "install",
       "--silent",
@@ -626,8 +634,7 @@ async function main() {
   ]);
 
   try {
-    const globalInstallResult = spawnSync(
-      npmCommand,
+    const globalInstallResult = runNpmInstallWithRetry(
       [
         "install",
         "-g",
@@ -637,9 +644,6 @@ async function main() {
       ],
       {
         cwd: installRoot,
-        encoding: "utf8",
-        timeout: 180_000,
-        maxBuffer: 10 * 1024 * 1024,
         env: npmProcessEnv(globalPrefix, {
           npm_config_registry: `${downgradedRegistry.baseUrl}/`,
         }),

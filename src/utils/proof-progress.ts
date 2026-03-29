@@ -53,7 +53,8 @@ async function withElapsedSpinner<T>(
 /**
  * Wraps an async proof-generation call with a spinner that shows elapsed time.
  * Prevents the "frozen spinner" effect during 10-30+ second ZK proof generation.
- * On the first proof of the session, adds a brief note that circuits may be downloading.
+ * On the first proof of the session, adds a brief note that bundled circuits may
+ * still be verified before proving begins.
  */
 export async function withProofProgress<T>(
   spin: Ora,
@@ -63,7 +64,9 @@ export async function withProofProgress<T>(
   const isFirstRun = !firstRunMessageShown;
   firstRunMessageShown = true;
   return withElapsedSpinner(spin, label, fn, {
-    initialText: isFirstRun ? `${label}... (first proof may download circuits)` : undefined,
+    initialText: isFirstRun
+      ? `${label}... (first proof may verify bundled circuits)`
+      : undefined,
     longRunLabel: "almost there",
   });
 }

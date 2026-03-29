@@ -1,11 +1,17 @@
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
-import { getConfigDir } from "./config.js";
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { CLIError } from "../utils/errors.js";
 import defaultArtifactChecksums from "./circuit-checksums.js";
+import {
+  ALL_CIRCUIT_FILES,
+  bundledCircuitsDir,
+  CIRCUIT_FILES,
+  sdkTagFromVersion,
+} from "./circuit-assets.js";
 
 const require = createRequire(import.meta.url);
 
@@ -20,45 +26,20 @@ type CircuitName = "commitment" | "withdraw";
 type SdkInstall = {
   version: string;
   tag: string;
-  managedArtifactsDir: string;
-};
-
-const CIRCUIT_FILES: Record<CircuitName, CircuitArtifacts> = {
-  commitment: {
-    wasm: "commitment.wasm",
-    zkey: "commitment.zkey",
-    vkey: "commitment.vkey",
-  },
-  withdraw: {
-    wasm: "withdraw.wasm",
-    zkey: "withdraw.zkey",
-    vkey: "withdraw.vkey",
-  },
-};
-
-const CIRCUIT_SOURCES: Record<string, string> = {
-  "commitment.wasm":
-    "packages/circuits/build/commitment/commitment_js/commitment.wasm",
-  "commitment.zkey":
-    "packages/circuits/trusted-setup/final-keys/commitment.zkey",
-  "commitment.vkey":
-    "packages/circuits/trusted-setup/final-keys/commitment.vkey",
-  "withdraw.wasm":
-    "packages/circuits/build/withdraw/withdraw_js/withdraw.wasm",
-  "withdraw.zkey":
-    "packages/circuits/trusted-setup/final-keys/withdraw.zkey",
-  "withdraw.vkey":
-    "packages/circuits/trusted-setup/final-keys/withdraw.vkey",
+  bundledArtifactsDir: string;
+  overrideArtifactsDir: string | null;
 };
 
 const DEFAULT_ARTIFACT_CHECKSUMS: Record<string, Record<string, string>> =
   defaultArtifactChecksums;
-const ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS = [1_000, 2_000, 5_000] as const;
 
 let cachedSdkInstall: SdkInstall | null = null;
 let cachedArtifactsDir: string | null = null;
-let provisionPromise: Promise<string> | null = null;
 let artifactChecksums = DEFAULT_ARTIFACT_CHECKSUMS;
+
+function resolvePackageRoot(): string {
+  return resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+}
 
 function resolveSdkInstall(): SdkInstall {
   if (cachedSdkInstall) return cachedSdkInstall;
@@ -79,15 +60,14 @@ function resolveSdkInstall(): SdkInstall {
     );
   }
 
-  const tag = `v${version}`;
+  const tag = sdkTagFromVersion(version);
   const override = process.env.PRIVACY_POOLS_CIRCUITS_DIR?.trim();
 
   cachedSdkInstall = {
     version,
     tag,
-    managedArtifactsDir: override
-      ? resolve(override)
-      : join(getConfigDir(), "circuits", tag),
+    bundledArtifactsDir: bundledCircuitsDir(resolvePackageRoot(), version),
+    overrideArtifactsDir: override ? resolve(override) : null,
   };
 
   return cachedSdkInstall;
@@ -96,14 +76,6 @@ function resolveSdkInstall(): SdkInstall {
 function readFileSyncUtf8(path: string): string {
   const fs = require("node:fs") as typeof import("node:fs");
   return fs.readFileSync(path, "utf8");
-}
-
-function allArtifactFiles(): string[] {
-  return Object.values(CIRCUIT_FILES).flatMap((files) => [
-    files.wasm,
-    files.zkey,
-    files.vkey,
-  ]);
 }
 
 function checksumManifest(tag: string): Record<string, string> {
@@ -123,10 +95,6 @@ function sha256Bytes(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function sha256File(path: string): Promise<string> {
   return sha256Bytes(await readFile(path));
 }
@@ -135,7 +103,7 @@ async function invalidFiles(dir: string, tag: string): Promise<string[]> {
   const checksums = checksumManifest(tag);
   const invalid: string[] = [];
 
-  for (const file of allArtifactFiles()) {
+  for (const file of ALL_CIRCUIT_FILES) {
     const path = resolve(dir, file);
     if (!existsSync(path)) {
       invalid.push(file);
@@ -150,147 +118,48 @@ async function invalidFiles(dir: string, tag: string): Promise<string[]> {
   return invalid;
 }
 
-async function writeFileAtomic(path: string, bytes: Uint8Array): Promise<void> {
-  const tmpPath = `${path}.${process.pid}.tmp`;
-  await writeFile(tmpPath, bytes);
-  try {
-    await rename(tmpPath, path);
-  } catch (error) {
-    await unlink(tmpPath).catch(() => undefined);
-    throw error;
-  }
-}
-
-function buildArtifactDownloadError(
-  filename: string,
-  url: string,
-  reason: string,
+function buildMissingArtifactsError(
+  checkedDirs: string[],
+  remaining: string[],
 ): CLIError {
+  const locationText =
+    checkedDirs.length === 1
+      ? checkedDirs[0]!
+      : `${checkedDirs.join(" or ")}`;
+
   return new CLIError(
-    "Could not download circuit artifacts.",
+    "Circuit artifacts are missing or failed verification for local proof generation.",
     "PROOF",
-    `${reason} for ${filename} from ${url}. Set PRIVACY_POOLS_CIRCUITS_DIR to a pre-provisioned directory if you need offline proof generation.`,
+    `Checked ${locationText}. Missing or invalid: ${remaining.join(", ")}. Reinstall the CLI, run \`npm run circuits:provision\` to materialize a trusted override directory, or set PRIVACY_POOLS_CIRCUITS_DIR to a trusted pre-provisioned directory.`,
     "PROOF_GENERATION_FAILED",
   );
-}
-
-async function fetchArtifactBytes(
-  filename: string,
-  url: string,
-): Promise<Uint8Array> {
-  let lastError: CLIError | null = null;
-
-  for (
-    let attempt = 0;
-    attempt < ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS.length + 1;
-    attempt += 1
-  ) {
-    try {
-      const response = await fetch(url, {
-        signal: AbortSignal.timeout(60_000),
-      });
-
-      if (response.ok) {
-        return new Uint8Array(await response.arrayBuffer());
-      }
-
-      const isTransientStatus =
-        response.status === 429 || response.status >= 500;
-      const error = buildArtifactDownloadError(
-        filename,
-        url,
-        `Download failed (HTTP ${response.status})`,
-      );
-      if (!isTransientStatus) {
-        throw error;
-      }
-      lastError = error;
-    } catch (error) {
-      if (error instanceof CLIError) {
-        throw error;
-      }
-
-      lastError = buildArtifactDownloadError(
-        filename,
-        url,
-        error instanceof Error ? error.message : "Download failed",
-      );
-    }
-
-    if (attempt < ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS.length) {
-      await delay(ARTIFACT_DOWNLOAD_RETRY_DELAYS_MS[attempt]);
-    }
-  }
-
-  throw (
-    lastError ??
-    buildArtifactDownloadError(filename, url, "Download failed")
-  );
-}
-
-async function provisionArtifacts(targetDir: string, tag: string): Promise<void> {
-  await mkdir(targetDir, { recursive: true });
-  const checksums = checksumManifest(tag);
-
-  for (const [filename, sourcePath] of Object.entries(CIRCUIT_SOURCES)) {
-    const destination = resolve(targetDir, filename);
-    if (existsSync(destination)) {
-      if ((await sha256File(destination)) === checksums[filename]) {
-        continue;
-      }
-      await unlink(destination).catch(() => undefined);
-    }
-
-    const url =
-      `https://raw.githubusercontent.com/0xbow-io/privacy-pools-core/${tag}/${sourcePath}`;
-
-    const bytes = await fetchArtifactBytes(filename, url);
-    const actualHash = sha256Bytes(bytes);
-    if (actualHash !== checksums[filename]) {
-      throw new CLIError(
-        "Circuit artifact failed integrity verification.",
-        "PROOF",
-        `${filename} checksum mismatch for ${tag}. Delete the local cache and retry, or set PRIVACY_POOLS_CIRCUITS_DIR to a trusted pre-provisioned directory.`,
-        "PROOF_GENERATION_FAILED"
-      );
-    }
-
-    await writeFileAtomic(destination, bytes);
-  }
 }
 
 export async function ensureCircuitArtifacts(): Promise<string> {
   if (cachedArtifactsDir) return cachedArtifactsDir;
 
   const install = resolveSdkInstall();
-  const targetDir = install.managedArtifactsDir;
-  if ((await invalidFiles(targetDir, install.tag)).length === 0) {
-    cachedArtifactsDir = targetDir;
-    return cachedArtifactsDir;
+  const checkedDirs: string[] = [];
+  const candidates = [
+    install.overrideArtifactsDir,
+    install.bundledArtifactsDir,
+  ].filter((dir): dir is string => Boolean(dir));
+
+  for (const dir of candidates) {
+    checkedDirs.push(dir);
+    const remaining = await invalidFiles(dir, install.tag);
+    if (remaining.length === 0) {
+      cachedArtifactsDir = dir;
+      return cachedArtifactsDir;
+    }
   }
 
-  if (!provisionPromise) {
-    provisionPromise = provisionArtifacts(targetDir, install.tag)
-      .then(() => targetDir)
-      .finally(() => {
-        provisionPromise = null;
-      });
-  }
-
-  await provisionPromise;
-
-  const remaining = await invalidFiles(targetDir, install.tag);
-  if (remaining.length > 0) {
-    throw new CLIError(
-      "Circuit artifacts are missing or failed verification for local proof generation.",
-      "PROOF",
-      `Expected files in ${targetDir}. Missing: ${remaining.join(", ")}.`,
-      "PROOF_GENERATION_FAILED"
-    );
-  }
-
-  cachedArtifactsDir = targetDir;
-  return cachedArtifactsDir;
+  const primaryDir =
+    install.overrideArtifactsDir ?? install.bundledArtifactsDir;
+  throw buildMissingArtifactsError(
+    checkedDirs,
+    await invalidFiles(primaryDir, install.tag),
+  );
 }
 
 export async function getCircuitArtifactPaths(
@@ -308,7 +177,6 @@ export async function getCircuitArtifactPaths(
 export function resetCircuitArtifactsCacheForTests(): void {
   cachedSdkInstall = null;
   cachedArtifactsDir = null;
-  provisionPromise = null;
   artifactChecksums = DEFAULT_ARTIFACT_CHECKSUMS;
 }
 

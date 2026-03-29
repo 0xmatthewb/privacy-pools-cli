@@ -75,6 +75,7 @@ function collectTestFiles(pathArg) {
 
 const forwardedArgs = [];
 const excludedPaths = new Set();
+let processTimeoutMs = 900_000;
 
 for (let i = 2; i < process.argv.length; i += 1) {
   const token = process.argv[i];
@@ -84,6 +85,18 @@ for (let i = 2; i < process.argv.length; i += 1) {
       throw new Error("--exclude requires a path");
     }
     excludedPaths.add(resolve(target));
+    i += 1;
+    continue;
+  }
+  if (token === "--process-timeout-ms") {
+    const rawValue = process.argv[i + 1];
+    if (!rawValue) {
+      throw new Error("--process-timeout-ms requires a value");
+    }
+    processTimeoutMs = Number.parseInt(rawValue, 10);
+    if (!Number.isFinite(processTimeoutMs) || processTimeoutMs <= 0) {
+      throw new Error("--process-timeout-ms must be a positive integer");
+    }
     i += 1;
     continue;
   }
@@ -120,6 +133,7 @@ try {
   result = spawnSync("bun", ["test", ...bunArgs], {
     stdio: ["inherit", "pipe", "pipe"],
     encoding: "utf8",
+    timeout: processTimeoutMs,
     maxBuffer: 50 * 1024 * 1024,
     env: buildTestRunnerEnv({
       PP_TEST_RUN_ID: runId,
@@ -138,6 +152,16 @@ if (typeof result.stderr === "string" && result.stderr.length > 0) {
 }
 
 if (result.error) {
+  const timedOut =
+    typeof result.error.message === "string"
+    && result.error.message.includes("ETIMEDOUT");
+  if (timedOut) {
+    const targets = bunArgs.join(" ");
+    process.stderr.write(
+      `bun test exceeded the outer process timeout (${processTimeoutMs}ms): ${targets}\n`,
+    );
+    process.exit(1);
+  }
   throw result.error;
 }
 

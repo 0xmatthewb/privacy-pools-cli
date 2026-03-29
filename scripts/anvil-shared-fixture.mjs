@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import {
   existsSync,
@@ -24,17 +25,14 @@ import { sepolia } from "viem/chains";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-const CONTRACTS_ROOT = process.env.PP_CONTRACTS_ROOT
-  ? resolve(process.env.PP_CONTRACTS_ROOT)
-  : resolve(
-      ROOT,
-      "..",
-      "..",
-      "docs",
-      "privacy-pools-core-main",
-      "packages",
-      "contracts",
-    );
+const require = createRequire(import.meta.url);
+const RAW_CONTRACTS_ROOT = process.env.PP_CONTRACTS_ROOT?.trim();
+if (!RAW_CONTRACTS_ROOT) {
+  throw new Error(
+    "PP_CONTRACTS_ROOT is required for shared-Anvil fixtures. Point it at a built privacy-pools-core contracts workspace.",
+  );
+}
+const CONTRACTS_ROOT = resolve(RAW_CONTRACTS_ROOT);
 const ASP_SERVER_SCRIPT = resolve(ROOT, "test", "helpers", "anvil-asp-server.ts");
 const RELAYER_SERVER_SCRIPT = resolve(
   ROOT,
@@ -42,6 +40,7 @@ const RELAYER_SERVER_SCRIPT = resolve(
   "helpers",
   "anvil-relayer-server.ts",
 );
+const PROVISION_CIRCUITS_SCRIPT = resolve(ROOT, "scripts", "provision-circuits.mjs");
 const NODE_EXECUTABLE = process.platform === "win32" ? "node.exe" : "node";
 const CREATE2_FACTORY_ADDRESS = "0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed";
 const POSTMAN_ADDRESS = "0x696fe46495688fc9e99bad2daf2133b33de364ea";
@@ -85,6 +84,20 @@ const LEAN_IMT_SOURCE = resolve(
   "lean-imt.sol",
 );
 const LEAN_IMT_ALIAS = resolve(CONTRACTS_WORKSPACE_NODE_MODULES, "lean-imt");
+
+function resolveSharedCircuitCacheDir() {
+  const sdkEntry = require.resolve("@0xbow/privacy-pools-core-sdk");
+  const sdkRoot = resolve(dirname(sdkEntry), "..", "..");
+  const sdkPkg = JSON.parse(
+    readFileSync(resolve(sdkRoot, "package.json"), "utf8"),
+  );
+  const version = sdkPkg.version?.trim();
+  if (!version) {
+    throw new Error("Could not determine the installed SDK version for shared circuit caching");
+  }
+
+  return resolve(tmpdir(), "pp-anvil-circuits-cache", `v${version}`);
+}
 
 const entrypointAbi = parseAbi([
   "function initialize(address _owner, address _postman)",
@@ -208,6 +221,27 @@ function ensureContractsArtifacts() {
 
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout || "forge build failed");
+  }
+}
+
+function ensureSharedCircuitArtifacts(sharedCircuitsDir, baseEnv) {
+  mkdirSync(sharedCircuitsDir, { recursive: true });
+
+  const result = spawnSync(NODE_EXECUTABLE, [PROVISION_CIRCUITS_SCRIPT], {
+    cwd: ROOT,
+    encoding: "utf8",
+    timeout: 600_000,
+    maxBuffer: 10 * 1024 * 1024,
+    env: {
+      ...baseEnv,
+      PRIVACY_POOLS_CIRCUITS_DIR: sharedCircuitsDir,
+    },
+  });
+
+  if (result.status !== 0) {
+    throw new Error(
+      result.stderr || result.stdout || "failed to provision shared circuit artifacts",
+    );
   }
 }
 
@@ -716,7 +750,8 @@ export async function setupSharedAnvilFixture(options = {}) {
   const baseEnv = options.baseEnv ?? process.env;
   const stateRoot = mkdtempSync(join(tmpdir(), "pp-anvil-shared-"));
   const sharedCircuitsDir = baseEnv.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim()
-    || mkdtempSync(join(tmpdir(), "pp-anvil-circuits-"));
+    || resolveSharedCircuitCacheDir();
+  ensureSharedCircuitArtifacts(sharedCircuitsDir, baseEnv);
   const aspStateFile = join(stateRoot, "asp-state.json");
   const resetStateFile = join(stateRoot, "reset-state.json");
   const envFile = join(stateRoot, "env.json");
@@ -841,9 +876,6 @@ export async function setupSharedAnvilFixture(options = {}) {
           terminateChild(anvil.proc),
         ]);
         rmSync(stateRoot, { recursive: true, force: true });
-        if (!baseEnv.PP_ANVIL_SHARED_CIRCUITS_DIR) {
-          rmSync(sharedCircuitsDir, { recursive: true, force: true });
-        }
       },
     };
   } catch (error) {
@@ -853,9 +885,6 @@ export async function setupSharedAnvilFixture(options = {}) {
       terminateChild(anvil.proc),
     ]);
     rmSync(stateRoot, { recursive: true, force: true });
-    if (!baseEnv.PP_ANVIL_SHARED_CIRCUITS_DIR) {
-      rmSync(sharedCircuitsDir, { recursive: true, force: true });
-    }
     throw error;
   }
 }

@@ -8,7 +8,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   CLI_CWD,
   type CliRunOptions,
@@ -48,6 +48,7 @@ import {
 
 const PACKAGED_SMOKE_POOL =
   "0x1234567890abcdef1234567890abcdef12345678" as const;
+const PREPARED_CLI_TARBALL = process.env.PP_INSTALL_CLI_TARBALL?.trim() || null;
 
 function packedBaseNames(paths: Set<string>, prefix: string): string[] {
   return Array.from(new Set(
@@ -121,26 +122,33 @@ async function waitForCondition<T>(
   throw new Error(`Timed out waiting for ${label}`);
 }
 
-function packAndExtractCli(packRoot: string): PackedArtifact {
+function packAndExtractCli(
+  packRoot: string | null,
+  options: { tarballPath?: string } = {},
+): PackedArtifact {
   const extractDir = createTrackedTempDir("pp-smoke-extract-");
+  const preparedTarballPath = options.tarballPath?.trim();
+  let tarballPath = preparedTarballPath ?? "";
 
-  const pack = spawnSync(
-    npmBin(),
-    ["pack", "--ignore-scripts", "--silent"],
-    {
-      cwd: packRoot,
-      encoding: "utf8",
-      timeout: 120_000,
-      maxBuffer: 10 * 1024 * 1024,
-      env: buildChildProcessEnv(),
-    },
-  );
-  expect(pack.status).toBe(0);
+  if (!tarballPath) {
+    expect(packRoot).toBeTruthy();
+    const pack = spawnSync(
+      npmBin(),
+      ["pack", "--ignore-scripts", "--silent"],
+      {
+        cwd: packRoot!,
+        encoding: "utf8",
+        timeout: 120_000,
+        maxBuffer: 10 * 1024 * 1024,
+        env: buildChildProcessEnv(),
+      },
+    );
+    expect(pack.status).toBe(0);
 
-  const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
-  expect(tarballName).toBeTruthy();
-
-  const tarballPath = join(packRoot, tarballName!);
+    const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
+    expect(tarballName).toBeTruthy();
+    tarballPath = join(packRoot!, tarballName!);
+  }
   const extract = spawnSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
     encoding: "utf8",
     timeout: 120_000,
@@ -240,8 +248,11 @@ describe("packaged CLI smoke", () => {
   let syncGateRpc: SyncGateRpcServer | null = null;
 
   beforeAll(async () => {
-    const packRoot = createBuiltWorkspaceSnapshot();
-    packed = packAndExtractCli(packRoot);
+    packed = PREPARED_CLI_TARBALL
+      ? packAndExtractCli(null, {
+          tarballPath: resolve(PREPARED_CLI_TARBALL),
+        })
+      : packAndExtractCli(createBuiltWorkspaceSnapshot());
     home = createTempHome("pp-smoke-dist-");
     syncGateRpc = await launchSyncGateRpcServer({
       chainId: CHAINS.sepolia.id,
@@ -269,6 +280,19 @@ describe("packaged CLI smoke", () => {
   // ── Binary boot ──────────────────────────────────────────────────────────
 
   describe("binary boot", () => {
+    test("packed tarball includes bundled proving artifacts", () => {
+      for (const artifact of [
+        "assets/circuits/v1.2.0/commitment.wasm",
+        "assets/circuits/v1.2.0/commitment.zkey",
+        "assets/circuits/v1.2.0/commitment.vkey",
+        "assets/circuits/v1.2.0/withdraw.wasm",
+        "assets/circuits/v1.2.0/withdraw.zkey",
+        "assets/circuits/v1.2.0/withdraw.vkey",
+      ]) {
+        expect(packed.filePaths.has(artifact)).toBe(true);
+      }
+    });
+
     test("--version outputs semantic version string", () => {
       const result = runSmokeCli(["--version"], { home });
       expect(result.status).toBe(0);

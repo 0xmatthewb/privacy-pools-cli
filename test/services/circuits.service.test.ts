@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import {
@@ -8,8 +8,13 @@ import {
   overrideCircuitChecksumsForTests,
   resetCircuitArtifactsCacheForTests,
 } from "../../src/services/circuits.ts";
+import {
+  bundledCircuitsDir,
+  sdkTagFromVersion,
+} from "../../src/services/circuit-assets.js";
 import sharedChecksumManifest from "../../src/services/circuit-checksums.js";
 import { createTrackedTempDir } from "../helpers/temp.ts";
+import { CLI_ROOT } from "../helpers/paths.ts";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 const ORIGINAL_CIRCUITS_DIR = process.env.PRIVACY_POOLS_CIRCUITS_DIR;
@@ -37,7 +42,7 @@ function installedSdkTag(): string {
   const sdkPkg = JSON.parse(
     require("node:fs").readFileSync(sdkPackageJsonPath, "utf8")
   ) as { version: string };
-  return `v${sdkPkg.version}`;
+  return sdkTagFromVersion(sdkPkg.version);
 }
 
 function installTestChecksums(): void {
@@ -54,14 +59,8 @@ function tempDir(): string {
   return dir;
 }
 
-function requestUrl(input: RequestInfo | URL): string {
-  if (typeof input === "string") return input;
-  if (input instanceof URL) return input.toString();
-  return input.url;
-}
-
-function isArtifactDownloadUrl(url: string): boolean {
-  return url.startsWith("https://raw.githubusercontent.com/0xbow-io/privacy-pools-core/");
+function bundledArtifactsDir(): string {
+  return bundledCircuitsDir(CLI_ROOT, installedSdkTag());
 }
 
 describe("circuits service", () => {
@@ -84,39 +83,35 @@ describe("circuits service", () => {
     }
   });
 
-  test("downloads missing artifacts into the configured directory", async () => {
-    const dir = tempDir();
-    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
+  test("uses bundled artifacts by default without fetching", async () => {
+    delete process.env.PRIVACY_POOLS_CIRCUITS_DIR;
     delete process.env.PRIVACY_POOLS_HOME;
     delete process.env.PRIVACY_POOLS_CONFIG_DIR;
-    installTestChecksums();
 
-    const artifactRequests: string[] = [];
-    const fetchMock = mock((input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      expect(url).toContain("raw.githubusercontent.com/0xbow-io/privacy-pools-core/");
-      artifactRequests.push(url);
-      return Promise.resolve(new Response(TEST_BYTES, { status: 200 }));
+    const fetchMock = mock(() => {
+      throw new Error("fetch should not be called");
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
     const artifactsDir = await ensureCircuitArtifacts();
-    expect(artifactsDir).toBe(resolve(dir));
-    expect(artifactRequests).toHaveLength(ALL_FILES.length);
+    expect(artifactsDir).toBe(resolve(bundledArtifactsDir()));
+    expect(fetchMock).not.toHaveBeenCalled();
 
     for (const filename of ALL_FILES) {
-      expect(existsSync(join(dir, filename))).toBe(true);
+      expect(existsSync(join(artifactsDir, filename))).toBe(true);
     }
 
     const commitmentPaths = await getCircuitArtifactPaths("commitment");
-    expect(commitmentPaths.wasm).toBe(resolve(dir, "commitment.wasm"));
-    expect(commitmentPaths.zkey).toBe(resolve(dir, "commitment.zkey"));
-    expect(commitmentPaths.vkey).toBe(resolve(dir, "commitment.vkey"));
+    expect(commitmentPaths.wasm).toBe(resolve(artifactsDir, "commitment.wasm"));
+    expect(commitmentPaths.zkey).toBe(resolve(artifactsDir, "commitment.zkey"));
+    expect(commitmentPaths.vkey).toBe(resolve(artifactsDir, "commitment.vkey"));
   });
 
-  test("reuses a complete artifact directory without fetching", async () => {
+  test("reuses a verified override directory ahead of bundled assets", async () => {
     const dir = tempDir();
     process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
+    delete process.env.PRIVACY_POOLS_HOME;
+    delete process.env.PRIVACY_POOLS_CONFIG_DIR;
     installTestChecksums();
 
     for (const filename of ALL_FILES) {
@@ -128,104 +123,63 @@ describe("circuits service", () => {
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
-    await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(dir));
+    const artifactsDir = await ensureCircuitArtifacts();
+    expect(artifactsDir).toBe(resolve(dir));
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  test("reuses a complete managed cache directory without fetching", async () => {
-    const configHome = tempDir();
-    const managedDir = join(configHome, "circuits", installedSdkTag());
-    process.env.PRIVACY_POOLS_HOME = configHome;
-    delete process.env.PRIVACY_POOLS_CIRCUITS_DIR;
-    delete process.env.PRIVACY_POOLS_CONFIG_DIR;
-    installTestChecksums();
-    mkdirSync(managedDir, { recursive: true });
 
     for (const filename of ALL_FILES) {
-      writeFileSync(join(managedDir, filename), TEST_BYTES);
+      expect(existsSync(join(dir, filename))).toBe(true);
     }
+
+    const commitmentPaths = await getCircuitArtifactPaths("commitment");
+    expect(commitmentPaths.wasm).toBe(resolve(dir, "commitment.wasm"));
+    expect(commitmentPaths.zkey).toBe(resolve(dir, "commitment.zkey"));
+    expect(commitmentPaths.vkey).toBe(resolve(dir, "commitment.vkey"));
+  });
+
+  test("falls back to bundled artifacts when the override directory is invalid", async () => {
+    const dir = tempDir();
+    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
 
     const fetchMock = mock(() => {
       throw new Error("fetch should not be called");
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
-    await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(managedDir));
+    await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(bundledArtifactsDir()));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("surfaces download failures as proof errors", async () => {
-    const dir = tempDir();
-    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
-    installTestChecksums();
+  test("fails closed when neither the override nor bundled assets verify", async () => {
+    overrideCircuitChecksumsForTests({
+      [installedSdkTag()]: Object.fromEntries(
+        ALL_FILES.map((filename) => [filename, "0".repeat(64)])
+      ),
+    });
 
-    globalThis.fetch = mock(() =>
-      Promise.resolve(new Response("unavailable", { status: 503 }))
-    ) as typeof fetch;
+    delete process.env.PRIVACY_POOLS_CIRCUITS_DIR;
+    delete process.env.PRIVACY_POOLS_HOME;
+    delete process.env.PRIVACY_POOLS_CONFIG_DIR;
+
+    const fetchMock = mock(() => {
+      throw new Error("fetch should not be called");
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
 
     await expect(ensureCircuitArtifacts()).rejects.toMatchObject({
       name: "CLIError",
       category: "PROOF",
       code: "PROOF_GENERATION_FAILED",
     });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("retries transient artifact download failures before succeeding", async () => {
-    const dir = tempDir();
-    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
-    installTestChecksums();
-
-    let artifactAttempts = 0;
-    globalThis.fetch = mock((input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      if (!isArtifactDownloadUrl(url)) {
-        return Promise.resolve(new Response("{}", { status: 200 }));
-      }
-
-      artifactAttempts += 1;
-      if (artifactAttempts <= 2) {
-        return Promise.resolve(new Response("busy", { status: 429 }));
-      }
-      return Promise.resolve(new Response(TEST_BYTES, { status: 200 }));
-    }) as typeof fetch;
-
-    await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(dir));
-    expect(artifactAttempts).toBe(ALL_FILES.length + 2);
-  });
-
-  test("does not retry permanent artifact download failures", async () => {
-    const dir = tempDir();
-    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
-    installTestChecksums();
-
-    let attempts = 0;
-    globalThis.fetch = mock(() => {
-      attempts += 1;
-      return Promise.resolve(new Response("missing", { status: 404 }));
-    }) as typeof fetch;
-
-    await expect(ensureCircuitArtifacts()).rejects.toMatchObject({
-      name: "CLIError",
-      category: "PROOF",
-      code: "PROOF_GENERATION_FAILED",
-    });
-    expect(attempts).toBe(1);
-  });
-
-  test("rejects checksum mismatches for downloaded artifacts", async () => {
-    const dir = tempDir();
-    process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
-    installTestChecksums();
-
-    globalThis.fetch = mock(() =>
-      Promise.resolve(new Response(new Uint8Array([9, 9, 9]), { status: 200 }))
-    ) as typeof fetch;
-
-    await expect(ensureCircuitArtifacts()).rejects.toMatchObject({
-      name: "CLIError",
-      category: "PROOF",
-      code: "PROOF_GENERATION_FAILED",
-    });
+  test("runtime circuit service no longer references raw github downloads", () => {
+    const source = readFileSync(
+      join(CLI_ROOT, "src", "services", "circuits.ts"),
+      "utf8"
+    );
+    expect(source).not.toContain("raw.githubusercontent.com");
   });
 
   test("shared checksum manifest includes the installed SDK tag", () => {

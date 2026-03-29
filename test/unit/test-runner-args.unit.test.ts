@@ -23,7 +23,9 @@ describe("test runner arg helpers", () => {
   test("hasExplicitTimeoutArg detects inline and split timeout flags", () => {
     expect(hasExplicitTimeoutArg([TEST_FILE, "--timeout", "123"])).toBe(true);
     expect(hasExplicitTimeoutArg([TEST_FILE, "--timeout=123"])).toBe(true);
-    expect(hasExplicitTimeoutArg([TEST_FILE, "-t", "123"])).toBe(true);
+    expect(hasExplicitTimeoutArg([TEST_FILE, "-t", "focused test"])).toBe(
+      false,
+    );
     expect(hasExplicitTimeoutArg([TEST_FILE])).toBe(false);
   });
 

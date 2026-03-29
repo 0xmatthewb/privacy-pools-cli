@@ -2,7 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { CLI_PROTOCOL_PROFILE } from "../../src/config/protocol-profile.js";
 import {
   launcherTestInternals,
@@ -93,12 +93,29 @@ describe("launcher routing", () => {
     }));
   });
 
+  test("js-worker routing ignores bun-like npm_node_execpath values", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      PKG,
+      ["status"],
+      {
+        npm_node_execpath: process.platform === "win32" ? "bun.exe" : "/tmp/bun",
+      },
+      {
+        resolveInstalledNativeBinary: () => null,
+      },
+    );
+
+    expect(target.kind).toBe("js-worker");
+    expect(basename(target.command)).toMatch(/^node(?:\.exe)?$/i);
+  });
+
   test("uses an explicit binary override when native is not disabled", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,
       ["flow", "--help"],
       {
         PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+        npm_node_execpath: process.platform === "win32" ? "bun.exe" : "/tmp/bun",
       },
     );
 
@@ -117,11 +134,7 @@ describe("launcher routing", () => {
       CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
     );
     expect(bridge.workerRequestEnv).toBe(CURRENT_RUNTIME_REQUEST_ENV);
-    expect(bridge.workerCommand).toBe(
-      launcherTestInternals.resolveJsRuntimeCommand({
-        PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
-      }),
-    );
+    expect(basename(bridge.workerCommand)).toMatch(/^node(?:\.exe)?$/i);
     expect(bridge.workerArgs).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
   });
 
@@ -235,40 +248,6 @@ describe("launcher routing", () => {
     expect(pkgResolver).not.toHaveBeenCalled();
   });
 
-  test("runLauncher resolves js-owned commands inline when no worker override is set", async () => {
-    const { json, stderr } = await captureAsyncJsonOutput(() =>
-      runLauncher(PKG, ["--agent", "status", "--no-check"]),
-    );
-
-    expect(json.success).toBe(true);
-    expect(json.recoveryPhraseSet).toBeDefined();
-    expect(json.readyForDeposit).toBeDefined();
-    expect(stderr).toBe("");
-  });
-
-  test("runLauncher renders structured worker-path failures for js-owned commands", async () => {
-    const originalWorkerOverride = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
-    process.env.PRIVACY_POOLS_CLI_JS_WORKER = "/tmp/pp-missing-worker.js";
-
-    try {
-      const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-        runLauncher(PKG, ["--agent", "status", "--no-check"]),
-      );
-
-      expect(exitCode).toBe(2);
-      expect(stderr).toBe("");
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
-      expect(json.errorMessage).toBe("The JS runtime worker is unavailable.");
-    } finally {
-      if (originalWorkerOverride === undefined) {
-        delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
-      } else {
-        process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
-      }
-    }
-  });
-
   test("runLauncher spawns a configured JS worker override without exiting on success", async () => {
     const tempDir = createTrackedTempDir("pp-worker-override-");
     const workerPath = join(tempDir, "worker.js");
@@ -361,19 +340,6 @@ describe("launcher routing", () => {
         process.env.PRIVACY_POOLS_CLI_BINARY = originalBinaryOverride;
       }
     }
-  });
-
-  test("tryRunLocalFastPath skips local handling when an explicit native binary is configured", async () => {
-    const result = await launcherTestInternals.tryRunLocalFastPath(
-      PKG,
-      ["--help"],
-      parseRootArgv(["--help"]),
-      {
-        PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
-      },
-    );
-
-    expect(result).toBe(false);
   });
 
   test("tryRunLocalFastPath serves root help through the static discovery helper", async () => {

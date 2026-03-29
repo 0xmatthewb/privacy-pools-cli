@@ -109,17 +109,17 @@ describe("withProofProgress", () => {
     jest.useRealTimers();
   });
 
-  test("first call shows circuit download message", async () => {
+  test("first call shows bundled circuit verification message", async () => {
     const spin = mockSpinner();
     let captured = "";
     await withProofProgress(spin as any, "Generating", async () => {
       captured = spin.text;
       return "done";
     });
-    expect(captured).toBe("Generating... (first proof may download circuits)");
+    expect(captured).toBe("Generating... (first proof may verify bundled circuits)");
   });
 
-  test("second call omits circuit download message", async () => {
+  test("second call omits bundled circuit verification message", async () => {
     const spin1 = mockSpinner();
     await withProofProgress(spin1 as any, "First", async () => "ok");
 

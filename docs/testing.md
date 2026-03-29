@@ -142,11 +142,12 @@ CI notes:
 
 - `scripts/ci/test-shards.mjs` uses `scripts/ci/test-shard-weights.json` for deterministic runtime-aware shard balancing.
 - `npm run test:scripts` runs `node --check` across `scripts/**/*.mjs` and is included in the conformance path so broken release/install helpers fail in blocking CI before release day.
-- `npm run test:install` is the shared install/distribution contract: packaged JS smoke, packaged native smoke, root-only installed-artifact verification, then current-host installed-artifact verification.
+- `npm run test:install` is the shared install/distribution contract: build once, pack the CLI tarball once, then fan out packaged JS smoke, root-only installed-artifact verification, and current-host native packaging/install verification from those prepared artifacts. The installed-artifact legs run only on supported Node runtimes (`>=22 <26`); unsupported local hosts skip them with an explicit message instead of failing opaquely.
 - `npm run test:native:fmt` and `npm run test:native:lint` are the fast Rust-native formatting and clippy gates for `native/shell`.
 - `npm run test:native` runs the Rust-native suite directly against `native/shell`, including binary integration tests for the compiled native shell.
 - `npm run test:coverage:native` is the Rust line-coverage guard for the native bootstrap/parser/routing modules. It requires `cargo-llvm-cov`; CI installs it with `taiki-e/install-action`.
 - `scripts/run-test-profile.mjs` is the shared source of truth for the higher-level repo test profiles (`test:install`, `test:conformance`, `test:ci`, `test:release`, `test:all`) so gate ordering only has to change in one place.
+- `npm run test:release` and `npm run test:all` no longer rerun the source shared-Anvil smoke trio after `test:e2e:anvil`; they reuse the full shared-Anvil coverage and then run the installed-artifact verification directly so the highest-cost profiles stay meaningful without duplicating the same source E2E coverage.
 - Public GitHub plus npm are the conformance sources of truth. Use `CONFORMANCE_UPSTREAM_REF=<sha>` only when you intentionally want to audit against a specific public upstream revision instead of `main`.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
 - `.github/workflows/flake-anvil.yml` is the separate heavier flake lane for shared-Anvil smoke reruns. It is informational and changed-path selected on pull requests so the fast flake job stays lightweight.
@@ -155,6 +156,9 @@ CI notes:
 - `npm run test:release` adds those same root-only and current-host artifact checks plus `npm run bench:gate:release`, matching the release workflow's pinned performance gate.
 - `npm run test:smoke:native:package` is the packaged native smoke lane. `npm run test:artifacts:host` is the installed-artifact lane and now verifies both root-only and native-resolved installs. `npm run test:smoke:native` remains as a compatibility alias for the packaged smoke lane.
 - `npm run test:flake:anvil` reruns the representative Anvil smoke suite so stateful/native/install paths get nightly flake coverage without inflating the required CI lane.
+- Shared-Anvil lanes require an explicit `PP_CONTRACTS_ROOT` pointing at a built `privacy-pools-core` contracts workspace. The CLI test harness no longer guesses a sibling local checkout layout.
+- Bun remains test-runner-only. Slow Bun-backed lanes now have both per-test timeouts and an outer process watchdog so wedged subprocesses fail boundedly instead of hanging indefinitely.
+- Raw profile steps are bounded too: `scripts/test-profiles.mjs` now applies a shared outer watchdog to long `npm`/`node`/`cargo` legs so a wedged build or native step cannot hang `test:ci`, `test:release`, or `test:all` indefinitely.
 
 ## Runtime Upgrade Playbook
 

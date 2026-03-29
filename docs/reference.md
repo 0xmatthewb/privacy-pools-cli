@@ -18,7 +18,7 @@ Initialize wallet and configuration
 > During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
 > Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
 > Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
-> Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.
+> Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. Run `npm run circuits:provision` only if you want to materialize a trusted copy under ~/.privacy-pools/circuits/v<sdk-version>/ or point PRIVACY_POOLS_CIRCUITS_DIR at a trusted override.
 
 ```bash
 privacy-pools init
@@ -293,7 +293,7 @@ Deposit into a pool
 
 **Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
-Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may provision checksum-verified circuit artifacts (~60s). Subsequent runs typically complete in 10-30s.
+Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI, so there is no runtime download step. Proofs typically complete in 10-30s.
 
 Non-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.
 
@@ -654,7 +654,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PP_ASP_HOST` | Alias for `PRIVACY_POOLS_ASP_HOST` |
 | `PRIVACY_POOLS_RELAYER_HOST` | Override relayer host for all chains |
 | `PP_RELAYER_HOST` | Alias for `PRIVACY_POOLS_RELAYER_HOST` |
-| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact cache directory (default: `~/.privacy-pools/circuits/v<sdk-version>`) |
+| `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact directory. By default the CLI uses bundled packaged artifacts; `npm run circuits:provision` materializes a verified copy under `~/.privacy-pools/circuits/v<sdk-version>` |
 | `PRIVACY_POOLS_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PRIVACY_POOLS_RPC_URL_ARBITRUM`) |
 | `PP_RPC_URL_<CHAIN>` | Per-chain RPC override (e.g., `PP_RPC_URL_ARBITRUM`) |
 | `PRIVACY_POOLS_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PRIVACY_POOLS_ASP_HOST_SEPOLIA`) |
@@ -746,7 +746,7 @@ npm run test:release      # release-readiness suite (root + host artifact gates 
 npm run test:smoke        # packaged CLI smoke against a packed tarball
 npm run test:artifacts:host # pack/install the current-host CLI + native artifacts
 npm run typecheck         # TypeScript type check (no emit)
-npm run circuits:provision # prefetch proof artifacts into the CLI home
+npm run circuits:provision # materialize bundled proof artifacts into the CLI home
 npm run test:e2e:anvil    # full Sepolia-fork E2E
 npm run test:e2e:anvil:smoke # required happy-path smoke lane
 npm run test:fuzz         # fuzz tests (longer timeout)

@@ -38,7 +38,7 @@ export function createInitCommand(): Command {
     .addOption(
       new Option(
         "--skip-circuits",
-        "No-op (proof commands provision circuits automatically on first use)",
+        "No-op (proof commands use bundled circuit artifacts by default)",
       ).hideHelp(),
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))

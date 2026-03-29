@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY,
@@ -20,7 +20,11 @@ import {
 } from "../helpers/agent-contract.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
-import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+import { npmBin } from "../helpers/npm-bin.ts";
+import {
+  createBuiltWorkspaceSnapshot,
+  createWorkspaceSnapshot,
+} from "../helpers/workspace-snapshot.ts";
 import {
   killFixtureServer,
   launchFixtureServer,
@@ -38,6 +42,37 @@ const nativePackageSmokeTest =
   CARGO_AVAILABLE && currentTriplet && currentPackageName ? test : test.skip;
 const BANNER_SENTINEL =
   ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
+const PREPARED_NATIVE_TARBALL =
+  process.env.PP_INSTALL_NATIVE_TARBALL?.trim() || null;
+const USE_EXISTING_DIST = process.env.PP_INSTALL_USE_EXISTING_DIST?.trim() === "1";
+
+function installPreparedNativePackage(snapshotRoot: string, tarballPath: string): void {
+  const result = spawnSync(
+    npmBin(),
+    [
+      "install",
+      "--silent",
+      "--no-save",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      resolve(tarballPath),
+    ],
+    {
+      cwd: snapshotRoot,
+      encoding: "utf8",
+      timeout: 180_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: buildChildProcessEnv(),
+    },
+  );
+
+  if (result.status !== 0) {
+    throw new Error(
+      `installing prepared native tarball failed (exit ${result.status}):\n${result.stderr}\n${result.stdout}`,
+    );
+  }
+}
 
 describe("native package smoke", () => {
   let nativeBinary: string;
@@ -46,39 +81,50 @@ describe("native package smoke", () => {
 
   beforeAll(async () => {
     if (!CARGO_AVAILABLE || !currentTriplet) return;
-    nativeBinary = ensureNativeShellBinary();
-    snapshotRoot = createBuiltWorkspaceSnapshot({ nodeModulesMode: "copy" });
+    if (!PREPARED_NATIVE_TARBALL) {
+      nativeBinary = ensureNativeShellBinary();
+    }
+    snapshotRoot = USE_EXISTING_DIST
+      ? createWorkspaceSnapshot({
+          includeDist: true,
+          nodeModulesMode: "copy",
+        })
+      : createBuiltWorkspaceSnapshot({ nodeModulesMode: "copy" });
     fixture = await launchFixtureServer();
 
-    const outputDir = join(
-      snapshotRoot,
-      "node_modules",
-      ...currentPackageName!.split("/"),
-    );
-    const result = spawnSync(
-      "node",
-      [
-        join(CLI_ROOT, "scripts", "prepare-native-package.mjs"),
-        "--triplet",
-        currentTriplet,
-        "--binary",
-        nativeBinary,
-        "--out-dir",
-        outputDir,
-      ],
-      {
-        cwd: CLI_ROOT,
-        encoding: "utf8",
-        timeout: 180_000,
-        maxBuffer: 10 * 1024 * 1024,
-        env: buildChildProcessEnv(),
-      },
-    );
-
-    if (result.status !== 0) {
-      throw new Error(
-        `prepare-native-package failed (exit ${result.status}):\n${result.stderr}\n${result.stdout}`,
+    if (PREPARED_NATIVE_TARBALL) {
+      installPreparedNativePackage(snapshotRoot, PREPARED_NATIVE_TARBALL);
+    } else {
+      const outputDir = join(
+        snapshotRoot,
+        "node_modules",
+        ...currentPackageName!.split("/"),
       );
+      const result = spawnSync(
+        "node",
+        [
+          join(CLI_ROOT, "scripts", "prepare-native-package.mjs"),
+          "--triplet",
+          currentTriplet,
+          "--binary",
+          nativeBinary,
+          "--out-dir",
+          outputDir,
+        ],
+        {
+          cwd: CLI_ROOT,
+          encoding: "utf8",
+          timeout: 180_000,
+          maxBuffer: 10 * 1024 * 1024,
+          env: buildChildProcessEnv(),
+        },
+      );
+
+      if (result.status !== 0) {
+        throw new Error(
+          `prepare-native-package failed (exit ${result.status}):\n${result.stderr}\n${result.stdout}`,
+        );
+      }
     }
   }, 240_000);
 

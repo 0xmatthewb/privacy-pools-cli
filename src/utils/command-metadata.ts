@@ -39,7 +39,7 @@ const COMMAND_HELP_OVERVIEWS: Partial<Record<CommandPath, string[]>> = {
     "During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.",
     "Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.",
     "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.",
-    "Circuit artifacts are provisioned automatically on first proof, cached under ~/.privacy-pools/circuits/v<sdk-version>/, and verified against the shipped checksum manifest.",
+    "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. Run `npm run circuits:provision` only if you want to materialize a trusted copy under ~/.privacy-pools/circuits/v<sdk-version>/ or point PRIVACY_POOLS_CIRCUITS_DIR at a trusted override.",
   ],
   pools: [
     "When no --chain is specified, shows all CLI-supported mainnet chains. Use --all-chains to include testnets. Pools are sorted by pool balance (highest first) by default. Pass a single asset symbol (e.g. 'pools ETH') for a detail view with your funds, recent activity, and pool stats.",
@@ -48,7 +48,7 @@ const COMMAND_HELP_OVERVIEWS: Partial<Record<CommandPath, string[]>> = {
     "Useful when a human or agent wants the runtime contract for one command without parsing long-form docs. Accepts spaced command paths like 'withdraw quote' and 'stats global'.",
   ],
   deposit: [
-    "Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. The first run may provision checksum-verified circuit artifacts (~60s). Subsequent runs typically complete in 10-30s.",
+    "Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI, so there is no runtime download step. Proofs typically complete in 10-30s.",
     "",
     "Non-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.",
   ],
