@@ -120,6 +120,88 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
 }
 
 #[test]
+fn multi_chain_pools_queries_stay_deterministic_against_the_rust_fixture() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_MAINNET", rpc_url.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_ARBITRUM", rpc_url.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_OPTIMISM", rpc_url.as_str()),
+    ];
+
+    let pools = run_native_with_env(&["pools", "--agent"], &env);
+    assert!(pools.status.success());
+    assert!(stderr_string(&pools).trim().is_empty());
+
+    let payload = parse_stdout_json(&pools);
+    assert_eq!(payload["success"], Value::Bool(true));
+    assert_eq!(payload["allChains"], Value::Bool(true));
+    assert!(payload["warnings"].is_null());
+
+    let chains = payload["chains"]
+        .as_array()
+        .expect("multi-chain pools should expose chain summaries");
+    assert_eq!(chains.len(), 3);
+    assert_eq!(chains[0]["chain"], Value::String("mainnet".to_string()));
+    assert_eq!(chains[1]["chain"], Value::String("arbitrum".to_string()));
+    assert_eq!(chains[2]["chain"], Value::String("optimism".to_string()));
+    assert_eq!(chains[0]["error"], Value::Null);
+    assert_eq!(chains[1]["error"], Value::Null);
+    assert_eq!(chains[2]["error"], Value::Null);
+
+    let pools = payload["pools"]
+        .as_array()
+        .expect("multi-chain pools output should include pools");
+    assert_eq!(pools.len(), 3);
+}
+
+#[test]
+fn multi_chain_pools_queries_keep_partial_failure_warnings_stable() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_MAINNET", rpc_url.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_ARBITRUM", rpc_url.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_OPTIMISM", "http://127.0.0.1:9"),
+    ];
+
+    let pools = run_native_with_env(&["pools", "--agent"], &env);
+    assert!(pools.status.success());
+    assert!(stderr_string(&pools).trim().is_empty());
+
+    let payload = parse_stdout_json(&pools);
+    assert_eq!(payload["success"], Value::Bool(true));
+    assert_eq!(payload["allChains"], Value::Bool(true));
+    let warnings = payload["warnings"]
+        .as_array()
+        .expect("partial failures should produce warnings");
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(warnings[0]["chain"], Value::String("optimism".to_string()));
+
+    let chains = payload["chains"]
+        .as_array()
+        .expect("multi-chain pools should expose chain summaries");
+    assert_eq!(chains.len(), 3);
+    assert_eq!(chains[0]["chain"], Value::String("mainnet".to_string()));
+    assert_eq!(chains[1]["chain"], Value::String("arbitrum".to_string()));
+    assert_eq!(chains[2]["chain"], Value::String("optimism".to_string()));
+    assert_eq!(chains[2]["pools"], Value::Number(0.into()));
+    assert!(chains[2]["error"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("Failed to resolve pools on optimism"));
+
+    let pools = payload["pools"]
+        .as_array()
+        .expect("successful chains should still return their pools");
+    assert_eq!(pools.len(), 2);
+}
+
+#[test]
 fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();

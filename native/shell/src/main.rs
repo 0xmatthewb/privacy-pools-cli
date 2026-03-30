@@ -332,6 +332,13 @@ struct ChainSummary {
     error: Option<String>,
 }
 
+struct PoolsChainQueryResult {
+    entries: Vec<PoolListingEntry>,
+    warning: Option<PoolWarning>,
+    summary: ChainSummary,
+    error: Option<CliError>,
+}
+
 #[derive(Debug, Clone)]
 struct ActivityRenderData {
     mode: &'static str,
@@ -964,9 +971,10 @@ fn handle_pools_native(
     let config = load_config()?;
     let timeout_ms = parse_timeout_ms(argv);
     let explicit_chain = parsed.global_chain();
+    let rpc_override = parsed.global_rpc_url();
     let is_multi_chain = opts.all_chains || explicit_chain.is_none();
 
-    if is_multi_chain && parsed.global_rpc_url().is_some() {
+    if is_multi_chain && rpc_override.is_some() {
         return Err(CliError::input(
             "--rpc-url cannot be combined with multi-chain queries.",
             Some("Use --chain <name> to target a single chain with --rpc-url.".to_string()),
@@ -994,37 +1002,49 @@ fn handle_pools_native(
     let mut chain_summaries = Vec::<ChainSummary>::new();
     let mut first_error: Option<CliError> = None;
 
-    for chain in &chains_to_query {
-        match list_pools_native(
-            chain,
-            parsed.global_rpc_url(),
-            &config,
-            manifest,
-            timeout_ms,
-        ) {
-            Ok(chain_entries) => {
-                chain_summaries.push(ChainSummary {
-                    chain: chain.name.clone(),
-                    pools: chain_entries.len(),
-                    error: None,
-                });
-                entries.extend(chain_entries);
-            }
-            Err(error) => {
-                if first_error.is_none() {
-                    first_error = Some(error.clone());
-                }
-                warnings.push(PoolWarning {
-                    chain: chain.name.clone(),
-                    category: error.category.as_str().to_string(),
-                    message: error.message.clone(),
-                });
-                chain_summaries.push(ChainSummary {
-                    chain: chain.name.clone(),
-                    pools: 0,
-                    error: Some(error.message.clone()),
-                });
-            }
+    if is_multi_chain && chains_to_query.len() > 1 {
+        let runtime_config = manifest.runtime_config.clone();
+        let handles = chains_to_query
+            .iter()
+            .map(|chain| {
+                let chain = chain.clone();
+                let rpc_override = rpc_override.clone();
+                let config = config.clone();
+                let runtime_config = runtime_config.clone();
+                std::thread::spawn(move || {
+                    query_pools_for_chain(chain, rpc_override, config, runtime_config, timeout_ms)
+                })
+            })
+            .collect::<Vec<_>>();
+
+        for (index, handle) in handles.into_iter().enumerate() {
+            let result = match handle.join() {
+                Ok(result) => result,
+                Err(_) => pools_worker_join_failure(&chains_to_query[index].name),
+            };
+            apply_pools_chain_query_result(
+                result,
+                &mut entries,
+                &mut warnings,
+                &mut chain_summaries,
+                &mut first_error,
+            );
+        }
+    } else {
+        for chain in &chains_to_query {
+            apply_pools_chain_query_result(
+                query_pools_for_chain(
+                    chain.clone(),
+                    rpc_override.clone(),
+                    config.clone(),
+                    manifest.runtime_config.clone(),
+                    timeout_ms,
+                ),
+                &mut entries,
+                &mut warnings,
+                &mut chain_summaries,
+                &mut first_error,
+            );
         }
     }
 
@@ -1088,6 +1108,82 @@ fn handle_pools_native(
     );
 
     Ok(0)
+}
+
+fn query_pools_for_chain(
+    chain: ChainDefinition,
+    rpc_override: Option<String>,
+    config: CliConfig,
+    runtime_config: RuntimeConfig,
+    timeout_ms: u64,
+) -> PoolsChainQueryResult {
+    match list_pools_native(&chain, rpc_override, &config, &runtime_config, timeout_ms) {
+        Ok(chain_entries) => PoolsChainQueryResult {
+            summary: ChainSummary {
+                chain: chain.name,
+                pools: chain_entries.len(),
+                error: None,
+            },
+            entries: chain_entries,
+            warning: None,
+            error: None,
+        },
+        Err(error) => {
+            let message = error.message.clone();
+            PoolsChainQueryResult {
+                entries: vec![],
+                warning: Some(PoolWarning {
+                    chain: chain.name.clone(),
+                    category: error.category.as_str().to_string(),
+                    message: message.clone(),
+                }),
+                summary: ChainSummary {
+                    chain: chain.name,
+                    pools: 0,
+                    error: Some(message),
+                },
+                error: Some(error),
+            }
+        }
+    }
+}
+
+fn apply_pools_chain_query_result(
+    result: PoolsChainQueryResult,
+    entries: &mut Vec<PoolListingEntry>,
+    warnings: &mut Vec<PoolWarning>,
+    chain_summaries: &mut Vec<ChainSummary>,
+    first_error: &mut Option<CliError>,
+) {
+    chain_summaries.push(result.summary);
+    entries.extend(result.entries);
+    if let Some(warning) = result.warning {
+        warnings.push(warning);
+    }
+    if first_error.is_none() {
+        *first_error = result.error;
+    }
+}
+
+fn pools_worker_join_failure(chain_name: &str) -> PoolsChainQueryResult {
+    let error = CliError::unknown(
+        format!("Failed to resolve pools on {chain_name}."),
+        Some("Retry the command. If the issue persists, reinstall the CLI and retry.".to_string()),
+    );
+    PoolsChainQueryResult {
+        entries: vec![],
+        warning: Some(PoolWarning {
+            chain: chain_name.to_string(),
+            category: error.category.as_str().to_string(),
+            message: error.message.clone(),
+        }),
+        summary: ChainSummary {
+            chain: chain_name.to_string(),
+            pools: 0,
+            error: Some(error.message.clone()),
+        },
+        error: Some(error),
+    }
 }
 
 fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
@@ -2424,7 +2520,7 @@ fn list_pools_native(
     chain: &ChainDefinition,
     rpc_override: Option<String>,
     config: &CliConfig,
-    manifest: &Manifest,
+    runtime_config: &RuntimeConfig,
     timeout_ms: u64,
 ) -> Result<Vec<PoolListingEntry>, CliError> {
     let stats_data = fetch_pools_stats(chain, timeout_ms).map_err(|_| {
@@ -2445,7 +2541,7 @@ fn list_pools_native(
         ));
     }
 
-    let rpc_urls = get_rpc_urls(chain.id, rpc_override, config, &manifest.runtime_config)?;
+    let rpc_urls = get_rpc_urls(chain.id, rpc_override, config, runtime_config)?;
     let mut entries = vec![];
     let mut rpc_read_failures = 0usize;
     for stats_entry in stats_entries {
@@ -2458,7 +2554,7 @@ fn list_pools_native(
             let token_metadata = resolve_token_metadata(
                 &asset_address,
                 &rpc_urls,
-                &manifest.runtime_config.native_asset_address,
+                &runtime_config.native_asset_address,
                 timeout_ms,
             );
 
@@ -3938,7 +4034,13 @@ fn resolve_pool_native(
     let mut available_assets_hint: Option<String> = None;
     let mut asp_lookup_failed = false;
 
-    match list_pools_native(chain, rpc_override.clone(), config, manifest, timeout_ms) {
+    match list_pools_native(
+        chain,
+        rpc_override.clone(),
+        config,
+        &manifest.runtime_config,
+        timeout_ms,
+    ) {
         Ok(entries) => {
             if let Some(entry) = entries
                 .iter()

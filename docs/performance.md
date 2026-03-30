@@ -47,6 +47,7 @@ The default command matrix covers:
 - `flow --help`
 - `migrate --help`
 - `status --json --no-check`
+- `pools --agent`
 - `pools --agent --chain sepolia`
 - `activity --agent`
 - `activity --agent --chain sepolia --asset ETH`

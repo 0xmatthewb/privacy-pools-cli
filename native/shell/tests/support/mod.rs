@@ -16,6 +16,9 @@ use std::time::Duration;
 use tiny_keccak::{Hasher, Keccak};
 
 const FIXTURE_CHAIN_ID: u64 = 11_155_111;
+const FIXTURE_MAINNET_CHAIN_ID: u64 = 1;
+const FIXTURE_OPTIMISM_CHAIN_ID: u64 = 10;
+const FIXTURE_ARBITRUM_CHAIN_ID: u64 = 42_161;
 const FIXTURE_POOL: &str = "0x1234567890abcdef1234567890abcdef12345678";
 const FIXTURE_ASSET: &str = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
@@ -248,22 +251,10 @@ fn route_request(request: &str) -> (&'static str, String) {
             "total": 1,
             "totalPages": 1,
         }),
-        ("GET", "/11155111/public/pools-stats") => json!([
-            {
-                "scope": "12345",
-                "chainId": FIXTURE_CHAIN_ID,
-                "tokenAddress": FIXTURE_ASSET,
-                "tokenSymbol": "ETH",
-                "totalInPoolValue": "5000000000000000000",
-                "totalDepositsValue": "10000000000000000000",
-                "acceptedDepositsValue": "8000000000000000000",
-                "pendingDepositsValue": "2000000000000000000",
-                "totalDepositsCount": 42,
-                "acceptedDepositsCount": 35,
-                "pendingDepositsCount": 7,
-                "growth24h": 0.05
-            }
-        ]),
+        ("GET", "/1/public/pools-stats") => pools_stats(FIXTURE_MAINNET_CHAIN_ID),
+        ("GET", "/10/public/pools-stats") => pools_stats(FIXTURE_OPTIMISM_CHAIN_ID),
+        ("GET", "/42161/public/pools-stats") => pools_stats(FIXTURE_ARBITRUM_CHAIN_ID),
+        ("GET", "/11155111/public/pools-stats") => pools_stats(FIXTURE_CHAIN_ID),
         ("GET", "/11155111/public/pool-statistics") => json!({
             "pool": {
                 "scope": "12345",
@@ -371,6 +362,25 @@ fn activity_event(event_type: &str) -> Value {
             "denomination": "18"
         }
     })
+}
+
+fn pools_stats(chain_id: u64) -> Value {
+    json!([
+        {
+            "scope": "12345",
+            "chainId": chain_id,
+            "tokenAddress": FIXTURE_ASSET,
+            "tokenSymbol": "ETH",
+            "totalInPoolValue": "5000000000000000000",
+            "totalDepositsValue": "10000000000000000000",
+            "acceptedDepositsValue": "8000000000000000000",
+            "pendingDepositsValue": "2000000000000000000",
+            "totalDepositsCount": 42,
+            "acceptedDepositsCount": 35,
+            "pendingDepositsCount": 7,
+            "growth24h": 0.05
+        }
+    ])
 }
 
 fn function_selector(signature: &str) -> [u8; 4] {
