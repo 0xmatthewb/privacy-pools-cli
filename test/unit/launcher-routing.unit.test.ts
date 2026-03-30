@@ -122,6 +122,39 @@ describe("launcher routing", () => {
     expect(bridge.workerArgs).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
   });
 
+  test("explicit native overrides do not resolve package metadata before routing", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      () => {
+        throw new Error("package metadata should stay lazy for explicit native overrides");
+      },
+      ["flow", "--help"],
+      {
+        PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+      },
+    );
+
+    expect(target.kind).toBe("native-binary");
+    expect(target.command).toBe("/tmp/privacy-pools-native");
+  });
+
+  test("js-owned routes stay on the js worker without probing installed native packages", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      () => {
+        throw new Error("js-owned routes should not resolve package metadata before routing");
+      },
+      ["status", "--json", "--no-check"],
+      {},
+      {
+        parsed: parseRootArgv(["status", "--json", "--no-check"]),
+        resolveInstalledNativeBinary: () => {
+          throw new Error("js-owned routes should not probe installed native binaries");
+        },
+      },
+    );
+
+    expect(target.kind).toBe("js-worker");
+  });
+
   test("native forwarding keeps the public CLI env surface limited to documented keys", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,

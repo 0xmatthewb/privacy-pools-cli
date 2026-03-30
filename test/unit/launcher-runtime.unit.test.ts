@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { CLI_PROTOCOL_PROFILE } from "../../src/config/protocol-profile.js";
 import { launcherTestInternals, runLauncher } from "../../src/launcher.ts";
@@ -39,6 +39,12 @@ function writeNativePackageJson(
     }),
     "utf8",
   );
+}
+
+function createNativeVerificationHome(tempDir: string): string {
+  const home = join(tempDir, ".privacy-pools");
+  mkdirSync(home, { recursive: true });
+  return home;
 }
 
 describe("launcher runtime coverage", () => {
@@ -449,6 +455,270 @@ describe("launcher runtime coverage", () => {
         }),
       ).toBeNull();
     } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolveInstalledNativeBinary reuses the persistent verification cache on repeated launches", () => {
+    const tempDir = createTrackedTempDir("pp-native-runtime-cache-");
+    const home = createNativeVerificationHome(tempDir);
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+    let checksumCalls = 0;
+
+    try {
+      writeNativePackageJson(packageJsonPath, sha256);
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+
+      const options = {
+        platform: "darwin" as const,
+        arch: "arm64" as const,
+        env: {
+          PRIVACY_POOLS_HOME: home,
+        },
+        requireResolve: () => packageJsonPath,
+        hasValidChecksum: (packageJson: Parameters<
+          typeof launcherTestInternals.hasValidInstalledNativeChecksum
+        >[0], binaryPath: string) => {
+          checksumCalls += 1;
+          return launcherTestInternals.hasValidInstalledNativeChecksum(
+            packageJson,
+            binaryPath,
+          );
+        },
+      };
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, options),
+      ).toBe(binPath);
+      expect(checksumCalls).toBe(1);
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, options),
+      ).toBe(binPath);
+      expect(checksumCalls).toBe(1);
+    } finally {
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolveInstalledNativeBinary does not create the config home just to cache verification", () => {
+    const tempDir = createTrackedTempDir("pp-native-runtime-cache-side-effect-");
+    const home = join(tempDir, ".privacy-pools");
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+
+    try {
+      writeNativePackageJson(packageJsonPath, sha256);
+      expect(existsSync(home)).toBe(false);
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          env: {
+            PRIVACY_POOLS_HOME: home,
+          },
+          requireResolve: () => packageJsonPath,
+        }),
+      ).toBe(binPath);
+
+      expect(existsSync(home)).toBe(false);
+      expect(
+        existsSync(
+          launcherTestInternals.installedNativeVerificationCachePath({
+            PRIVACY_POOLS_HOME: home,
+          }),
+        ),
+      ).toBe(false);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolveInstalledNativeBinary ignores a corrupted persistent verification cache and recomputes", () => {
+    const tempDir = createTrackedTempDir("pp-native-runtime-cache-corrupt-");
+    const home = createNativeVerificationHome(tempDir);
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+    let checksumCalls = 0;
+
+    try {
+      writeNativePackageJson(packageJsonPath, sha256);
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+
+      const options = {
+        platform: "darwin" as const,
+        arch: "arm64" as const,
+        env: {
+          PRIVACY_POOLS_HOME: home,
+        },
+        requireResolve: () => packageJsonPath,
+        hasValidChecksum: (packageJson: Parameters<
+          typeof launcherTestInternals.hasValidInstalledNativeChecksum
+        >[0], binaryPath: string) => {
+          checksumCalls += 1;
+          return launcherTestInternals.hasValidInstalledNativeChecksum(
+            packageJson,
+            binaryPath,
+          );
+        },
+      };
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, options),
+      ).toBe(binPath);
+      expect(checksumCalls).toBe(1);
+
+      writeFileSync(
+        launcherTestInternals.installedNativeVerificationCachePath({
+          PRIVACY_POOLS_HOME: home,
+        }),
+        "{not-json",
+        "utf8",
+      );
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, options),
+      ).toBe(binPath);
+      expect(checksumCalls).toBe(2);
+    } finally {
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolveInstalledNativeBinary invalidates the persistent verification cache when the binary identity changes", () => {
+    const tempDir = createTrackedTempDir("pp-native-runtime-cache-invalidate-");
+    const home = createNativeVerificationHome(tempDir);
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+    let checksumCalls = 0;
+
+    try {
+      writeNativePackageJson(packageJsonPath, sha256);
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+
+      const options = {
+        platform: "darwin" as const,
+        arch: "arm64" as const,
+        env: {
+          PRIVACY_POOLS_HOME: home,
+        },
+        requireResolve: () => packageJsonPath,
+        hasValidChecksum: (packageJson: Parameters<
+          typeof launcherTestInternals.hasValidInstalledNativeChecksum
+        >[0], binaryPath: string) => {
+          checksumCalls += 1;
+          return launcherTestInternals.hasValidInstalledNativeChecksum(
+            packageJson,
+            binaryPath,
+          );
+        },
+      };
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, options),
+      ).toBe(binPath);
+      expect(checksumCalls).toBe(1);
+
+      writeFileSync(binPath, "#!/usr/bin/env bun!\n", "utf8");
+      const nextTime = new Date(Date.now() + 1_000);
+      utimesSync(binPath, nextTime, nextTime);
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, options),
+      ).toBeNull();
+      expect(checksumCalls).toBe(2);
+    } finally {
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolveInstalledNativeBinary never lets the persistent verification cache bypass metadata mismatches", () => {
+    const tempDir = createTrackedTempDir("pp-native-runtime-cache-metadata-");
+    const home = createNativeVerificationHome(tempDir);
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+
+    try {
+      writeNativePackageJson(packageJsonPath, sha256);
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          env: {
+            PRIVACY_POOLS_HOME: home,
+          },
+          requireResolve: () => packageJsonPath,
+        }),
+      ).toBe(binPath);
+
+      writeNativePackageJson(packageJsonPath, sha256, {
+        bridgeVersion: "2",
+      });
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          env: {
+            PRIVACY_POOLS_HOME: home,
+          },
+          requireResolve: () => packageJsonPath,
+        }),
+      ).toBeNull();
+    } finally {
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
       rmSync(tempDir, { recursive: true, force: true });
     }
   });

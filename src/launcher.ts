@@ -1,7 +1,15 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import { existsSync, readFileSync } from "node:fs";
-import { basename } from "node:path";
+import {
+  existsSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir } from "node:os";
+import { basename, join } from "node:path";
 import type { CliPackageInfo } from "./package-info.js";
 import { CLI_PROTOCOL_PROFILE } from "./config/protocol-profile.js";
 import {
@@ -43,6 +51,9 @@ const ENV_CLI_DISABLE_LOCAL_FAST_PATH = "PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PA
 const ENV_CLI_JS_WORKER = "PRIVACY_POOLS_CLI_JS_WORKER";
 const ENV_PRIVATE_KEY = "PRIVACY_POOLS_PRIVATE_KEY";
 const SECRET_BEARING_FLAGS = new Set(["--mnemonic", "--private-key"]);
+const INSTALLED_NATIVE_VERIFICATION_CACHE_VERSION = 1;
+const INSTALLED_NATIVE_VERIFICATION_CACHE_FILE =
+  ".native-binary-verification.json";
 
 const STATIC_DISCOVERY_COMMANDS = new Set<string>(
   [...GENERATED_STATIC_LOCAL_COMMANDS].filter((command) => command !== "completion"),
@@ -67,6 +78,22 @@ interface NativePackageJson {
   };
 }
 
+interface InstalledNativeVerificationCacheEntry {
+  binaryPath: string;
+  expectedSha: string;
+  size: number;
+  mtimeMs: number;
+  ctimeMs: number;
+  runtimeVersion: string;
+  nativeBridgeVersion: string;
+  protocolProfile: string;
+}
+
+interface InstalledNativeVerificationCache {
+  version: number;
+  entries: Record<string, InstalledNativeVerificationCacheEntry>;
+}
+
 export interface LaunchTarget {
   kind: "js-worker" | "native-binary";
   command: string;
@@ -87,6 +114,150 @@ function resolveCliPackageInfo(
   pkg: CliPackageInfoSource,
 ): CliPackageInfo {
   return typeof pkg === "function" ? pkg() : pkg;
+}
+
+function configHome(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return (
+    env.PRIVACY_POOLS_HOME?.trim() ||
+    env.PRIVACY_POOLS_CONFIG_DIR?.trim() ||
+    join(homedir(), ".privacy-pools")
+  );
+}
+
+function installedNativeVerificationCachePath(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return join(configHome(env), INSTALLED_NATIVE_VERIFICATION_CACHE_FILE);
+}
+
+function readInstalledNativeVerificationCache(
+  env: NodeJS.ProcessEnv = process.env,
+): InstalledNativeVerificationCache | null {
+  try {
+    const raw = readFileSync(installedNativeVerificationCachePath(env), "utf8");
+    const parsed = JSON.parse(raw) as {
+      version?: number;
+      entries?: Record<string, InstalledNativeVerificationCacheEntry>;
+    };
+    if (
+      parsed.version !== INSTALLED_NATIVE_VERIFICATION_CACHE_VERSION ||
+      typeof parsed.entries !== "object" ||
+      parsed.entries === null
+    ) {
+      return null;
+    }
+    return {
+      version: parsed.version,
+      entries: parsed.entries,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeInstalledNativeVerificationCache(
+  cache: InstalledNativeVerificationCache,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  const cacheHome = configHome(env);
+  if (!existsSync(cacheHome)) {
+    return;
+  }
+
+  const targetPath = installedNativeVerificationCachePath(env);
+  const tempPath = `${targetPath}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tempPath, JSON.stringify(cache), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    renameSync(tempPath, targetPath);
+  } catch {
+    try {
+      unlinkSync(tempPath);
+    } catch {
+      // Best effort cleanup only.
+    }
+  }
+}
+
+function clearInstalledNativeVerificationCache(
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  try {
+    unlinkSync(installedNativeVerificationCachePath(env));
+  } catch {
+    // Best effort cleanup only.
+  }
+}
+
+function createInstalledNativeVerificationCacheEntry(
+  packageJson: NativePackageJson,
+  binaryPath: string,
+): InstalledNativeVerificationCacheEntry | null {
+  const metadata = packageJson.privacyPoolsCliNative;
+  const expectedSha = metadata?.sha256?.trim();
+  const runtimeVersion = metadata?.runtimeVersion?.trim();
+  const nativeBridgeVersion = metadata?.bridgeVersion?.trim();
+  const protocolProfile = metadata?.protocolProfile?.trim() || "";
+  if (
+    !expectedSha ||
+    !runtimeVersion ||
+    !nativeBridgeVersion
+  ) {
+    return null;
+  }
+
+  try {
+    const stats = statSync(binaryPath);
+    return {
+      binaryPath,
+      expectedSha,
+      size: stats.size,
+      mtimeMs: stats.mtimeMs,
+      ctimeMs: stats.ctimeMs,
+      runtimeVersion,
+      nativeBridgeVersion,
+      protocolProfile,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function hasInstalledNativeVerificationCacheHit(
+  entry: InstalledNativeVerificationCacheEntry,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const cached = readInstalledNativeVerificationCache(env)?.entries[entry.binaryPath];
+  if (!cached) {
+    return false;
+  }
+
+  return (
+    cached.binaryPath === entry.binaryPath &&
+    cached.expectedSha === entry.expectedSha &&
+    cached.size === entry.size &&
+    cached.mtimeMs === entry.mtimeMs &&
+    cached.ctimeMs === entry.ctimeMs &&
+    cached.runtimeVersion === entry.runtimeVersion &&
+    cached.nativeBridgeVersion === entry.nativeBridgeVersion &&
+    cached.protocolProfile === entry.protocolProfile
+  );
+}
+
+function recordInstalledNativeVerificationCacheEntry(
+  entry: InstalledNativeVerificationCacheEntry,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  const cache = readInstalledNativeVerificationCache(env) ?? {
+    version: INSTALLED_NATIVE_VERIFICATION_CACHE_VERSION,
+    entries: {},
+  };
+  cache.entries[entry.binaryPath] = entry;
+  writeInstalledNativeVerificationCache(cache, env);
 }
 
 function defaultJsWorkerPath(): string {
@@ -181,7 +352,9 @@ export function resolveInstalledNativeBinary(
   options: {
     platform?: NodeJS.Platform;
     arch?: NodeJS.Architecture;
+    env?: NodeJS.ProcessEnv;
     requireResolve?: (id: string) => string;
+    hasValidChecksum?: typeof hasValidNativeChecksum;
   } = {},
 ): string | null {
   const packageName = nativePackageName(
@@ -209,9 +382,22 @@ export function resolveInstalledNativeBinary(
 
     const binaryPath = resolveNativeBinaryPath(packageJsonPath, packageJson);
     if (!binaryPath) return null;
-    if (!hasValidNativeChecksum(packageJson, binaryPath)) {
+    const cacheEntry = createInstalledNativeVerificationCacheEntry(
+      packageJson,
+      binaryPath,
+    );
+    if (!cacheEntry) {
       return null;
     }
+    if (hasInstalledNativeVerificationCacheHit(cacheEntry, options.env)) {
+      return binaryPath;
+    }
+    const hasValidChecksum =
+      options.hasValidChecksum ?? hasValidNativeChecksum;
+    if (!hasValidChecksum(packageJson, binaryPath)) {
+      return null;
+    }
+    recordInstalledNativeVerificationCacheEntry(cacheEntry, options.env);
 
     return binaryPath;
   } catch {
@@ -255,7 +441,7 @@ function createNativeForwardingEnv(
 }
 
 export function resolveLaunchTarget(
-  pkg: CliPackageInfo,
+  pkg: CliPackageInfoSource,
   argv: string[],
   env: NodeJS.ProcessEnv = process.env,
   options: {
@@ -284,7 +470,9 @@ export function resolveLaunchTarget(
 
   const resolveInstalledNativeBinaryFn =
     options.resolveInstalledNativeBinary ?? resolveInstalledNativeBinary;
-  const nativeBinary = resolveInstalledNativeBinaryFn(pkg);
+  const nativeBinary = resolveInstalledNativeBinaryFn(resolveCliPackageInfo(pkg), {
+    env,
+  });
   if (nativeBinary) {
     return {
       kind: "native-binary",
@@ -552,8 +740,7 @@ export async function runLauncher(
       return;
     }
 
-    const resolvedPackageInfo = resolveCliPackageInfo(pkg);
-    const target = resolveLaunchTarget(resolvedPackageInfo, argv, process.env, {
+    const target = resolveLaunchTarget(pkg, argv, process.env, {
       parsed,
     });
 
@@ -583,7 +770,7 @@ export async function runLauncher(
     }
 
     if (!hasExplicitJsWorkerOverride(target.env)) {
-      await runJsWorkerInline(resolvedPackageInfo, argv);
+      await runJsWorkerInline(pkg, argv);
       return;
     }
 
@@ -615,9 +802,15 @@ export const launcherTestInternals = {
   hasValidInstalledNativeChecksum: hasValidNativeChecksum,
   nativePackageName,
   nativeTriplet,
+  configHome,
   resolveCliPackageInfo,
   resolveConfiguredJsWorkerPath,
   resolveCommandRoute,
+  installedNativeVerificationCachePath,
+  clearInstalledNativeVerificationCache,
+  readInstalledNativeVerificationCache,
+  createInstalledNativeVerificationCacheEntry,
+  hasInstalledNativeVerificationCacheHit,
   resolveInstalledNativeBinary,
   resolveLaunchTarget,
   resetSpawnImplementationForTests: (): void => {
