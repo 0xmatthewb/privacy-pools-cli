@@ -83,7 +83,7 @@ describe("launcher runtime coverage", () => {
     ).toBe(false);
   });
 
-  test("validateJsWorkerPath accepts compiled workers and source twins", () => {
+  test("validateJsWorkerPath requires a real js worker file", () => {
     const tempDir = createTrackedTempDir("pp-worker-path-");
     const compiledWorker = join(tempDir, "worker.js");
     const sourceTwin = join(tempDir, "source-twin.ts");
@@ -100,7 +100,7 @@ describe("launcher runtime coverage", () => {
         launcherTestInternals.validateJsWorkerPath({
           PRIVACY_POOLS_CLI_JS_WORKER: sourceTwin.replace(/\.ts$/, ".js"),
         }),
-      ).not.toThrow();
+      ).toThrow("The JS runtime worker is unavailable.");
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

@@ -27,8 +27,6 @@
     "native:build:release": "cargo build --manifest-path native/shell/Cargo.toml --release",
     "native:package": "node scripts/prepare-native-package.mjs",
     "anvil:fixture:refresh": "node scripts/refresh-anvil-contract-fixture.mjs",
-    "circuits:provision": "node scripts/provision-circuits.mjs",
-    "circuits:refresh": "node scripts/refresh-bundled-circuits.mjs",
     "prepare": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
     "cli": "node --import tsx src/index.ts",
     "dev": "node --import tsx src/index.ts",

@@ -270,6 +270,8 @@ describe("command docs alignment", () => {
 
     expect(normalizedReference).toContain("source checkout only: materialize bundled proof artifacts");
     expect(normalizedStaticSections).toContain("source checkout only: materialize bundled proof artifacts");
+    expect(normalizedReference).toContain("node scripts/provision-circuits.mjs");
+    expect(normalizedStaticSections).toContain("node scripts/provision-circuits.mjs");
   });
 
   test("README restore guidance stays aligned with the init recovery contract", () => {
@@ -705,6 +707,24 @@ describe("command docs alignment", () => {
       expect(reference).toContain(marker);
       expect(skill).toContain(marker);
       expect(skillReference).toContain(marker);
+    }
+  });
+
+  test("reference and skill docs label launcher overrides as advanced maintainer controls", () => {
+    const reference = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
+    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+    const skillReference = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/reference.md`, "utf8");
+
+    const requiredPhrases = [
+      "Advanced maintainer override for the launcher target",
+      "Advanced maintainer override for the JS worker entrypoint",
+      "real packaged JS worker file",
+    ];
+
+    for (const phrase of requiredPhrases) {
+      expect(reference).toContain(phrase);
+      expect(skill).toContain(phrase);
+      expect(skillReference).toContain(phrase);
     }
   });
 

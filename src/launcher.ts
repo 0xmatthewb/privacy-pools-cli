@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { existsSync, readFileSync } from "node:fs";
-import { basename, extname } from "node:path";
+import { basename } from "node:path";
 import type { CliPackageInfo } from "./package-info.js";
 import { CLI_PROTOCOL_PROFILE } from "./config/protocol-profile.js";
 import {
@@ -401,15 +401,12 @@ function validateJsWorkerPath(
   env: NodeJS.ProcessEnv = process.env,
 ): void {
   const workerPath = resolveConfiguredJsWorkerPath(env);
-  const hasSourceTwin =
-    extname(workerPath) === ".js" &&
-    existsSync(workerPath.slice(0, -3) + ".ts");
-  if (existsSync(workerPath) || hasSourceTwin) {
+  if (existsSync(workerPath)) {
     return;
   }
 
   const overrideHint = env[ENV_CLI_JS_WORKER]?.trim()
-    ? `Unset ${ENV_CLI_JS_WORKER} or point it at a valid worker file, then retry.`
+    ? `Unset ${ENV_CLI_JS_WORKER} or point it at a real JS worker file, then retry.`
     : "Reinstall the CLI or restore the packaged JS worker, then retry.";
 
   throw new CLIError(

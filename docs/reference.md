@@ -642,8 +642,8 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PRIVACY_POOLS_CLI_DISABLE_NATIVE` | Set to `1` to force the pure JS runtime path |
-| `PRIVACY_POOLS_CLI_BINARY` | Override the launcher target with an explicit native shell binary path |
-| `PRIVACY_POOLS_CLI_JS_WORKER` | Override the JS worker entrypoint used by the launcher/native shell bridge |
+| `PRIVACY_POOLS_CLI_BINARY` | Advanced maintainer override for the launcher target; point it at an explicit native shell binary path |
+| `PRIVACY_POOLS_CLI_JS_WORKER` | Advanced maintainer override for the JS worker entrypoint; it must point at a real packaged JS worker file |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
 
@@ -701,7 +701,7 @@ npm run build
 npm run start -- --help
 
 # Link for local testing
-npm run circuits:provision   # source checkout only: materialize bundled proof artifacts into the CLI home
+node scripts/provision-circuits.mjs   # source checkout only: materialize bundled proof artifacts into the CLI home
 npm link
 privacy-pools --help
 
@@ -725,7 +725,6 @@ npm run test:release      # release-readiness suite (root + host artifact gates 
 npm run test:smoke        # packaged CLI smoke against a packed tarball
 npm run test:artifacts:host # pack/install the current-host CLI + native artifacts
 npm run typecheck         # TypeScript type check (no emit)
-npm run circuits:provision # source checkout only: materialize bundled proof artifacts into the CLI home
 npm run test:e2e:anvil    # full Sepolia-fork E2E
 npm run test:e2e:anvil:smoke # required happy-path smoke lane
 npm run test:fuzz         # fuzz tests (longer timeout)
@@ -736,6 +735,12 @@ npm run test:conformance:frontend # focused website/frontend parity only
 npm run test:conformance:all # full live conformance suite, including frontend parity
 npm run bench:gate        # native perf gate against the current checkout JS fallback
 npm run bench:gate:release # native perf gate against the v1.7.0 release baseline
+```
+
+Repo-only helper (source checkout only):
+
+```bash
+node scripts/provision-circuits.mjs # materialize bundled proof artifacts into the CLI home
 ```
 
 When working from a source checkout, use the package scripts above. Installed npm packages ship the `privacy-pools` binary and bundled docs, not the repository helper scripts. Bun remains an internal test-runner implementation detail, but the maintainer contract is still `npm run ...`.

@@ -65,12 +65,8 @@ describe("package scripts conformance", () => {
   });
 
   test("conformance and release scripts route through the shared profile runner", () => {
-    expect(packageJson.scripts?.["circuits:provision"]).toBe(
-      "node scripts/provision-circuits.mjs",
-    );
-    expect(packageJson.scripts?.["circuits:refresh"]).toBe(
-      "node scripts/refresh-bundled-circuits.mjs",
-    );
+    expect(packageJson.scripts?.["circuits:provision"]).toBeUndefined();
+    expect(packageJson.scripts?.["circuits:refresh"]).toBeUndefined();
     expect(packageJson.scripts?.["test:scripts"]).toBe(
       "node scripts/check-node-scripts.mjs",
     );

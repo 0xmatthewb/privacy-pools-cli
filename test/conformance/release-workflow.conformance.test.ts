@@ -101,6 +101,16 @@ function extractJobSection(workflow: string, jobName: string): string {
 }
 
 describe("release workflow conformance", () => {
+  test("installed anvil verifier keeps an explicit js-fallback proving path", () => {
+    expect(verifyCliInstallAnvilScript).toContain(
+      'PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1"',
+    );
+    expect(verifyCliInstallAnvilScript).toContain("jsFallbackHomeDir");
+    expect(verifyCliInstallAnvilScript).toContain(
+      "Installed CLI failed JS-fallback relayed withdraw parity against shared Anvil",
+    );
+  });
+
   test("blocking CI includes a packaged native smoke gate", () => {
     expect(ciWorkflow).toContain("npm-test:");
     expect(ciWorkflow).toContain("Run npm test");
