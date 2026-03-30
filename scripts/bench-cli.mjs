@@ -65,6 +65,7 @@ const COMMANDS = [
     args: ["pools", "--agent"],
     env: ({ fixtureUrl }) => ({
       PRIVACY_POOLS_ASP_HOST: fixtureUrl,
+      PRIVACY_POOLS_RPC_URL_ETHEREUM: fixtureUrl,
       PRIVACY_POOLS_RPC_URL_MAINNET: fixtureUrl,
       PRIVACY_POOLS_RPC_URL_ARBITRUM: fixtureUrl,
       PRIVACY_POOLS_RPC_URL_OPTIMISM: fixtureUrl,

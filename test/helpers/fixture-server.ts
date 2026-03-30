@@ -35,20 +35,34 @@ import {
 
 // ── Canned response data ─────────────────────────────────────────────────────
 
-const POOLS_STATS: object[] = [1, 10, 42161, 11155111, 11155420].map((chainId) => ({
-  scope: "12345",
-  chainId,
-  tokenAddress: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-  tokenSymbol: "ETH",
-  totalInPoolValue: "5000000000000000000",
-  totalDepositsValue: "10000000000000000000",
-  acceptedDepositsValue: "8000000000000000000",
-  pendingDepositsValue: "2000000000000000000",
-  totalDepositsCount: 42,
-  acceptedDepositsCount: 35,
-  pendingDepositsCount: 7,
-  growth24h: 0.05,
-}));
+interface ChainPoolFixture {
+  chainId: number;
+  entrypoint: Address;
+  asset: Address;
+  pool: Address;
+  symbol: string;
+  decimals: number;
+  scope: bigint;
+}
+
+const FIXTURE_NATIVE_ASSET =
+  "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
+const MAINNET_ENTRYPOINT =
+  "0x6818809eefce719e480a7526d76bd3e561526b46" as Address;
+const MAINNET_POOL =
+  "0x1111111111111111111111111111111111111111" as Address;
+const ARBITRUM_ENTRYPOINT =
+  "0x44192215fed782896be2ce24e0bfbf0bf825d15e" as Address;
+const ARBITRUM_USDC =
+  "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" as Address;
+const ARBITRUM_POOL =
+  "0x2222222222222222222222222222222222222222" as Address;
+const OPTIMISM_ENTRYPOINT =
+  "0x44192215fed782896be2ce24e0bfbf0bf825d15e" as Address;
+const OPTIMISM_USDC =
+  "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" as Address;
+const OPTIMISM_POOL =
+  "0x3333333333333333333333333333333333333333" as Address;
 
 const GLOBAL_EVENTS = {
   events: [
@@ -117,13 +131,138 @@ const SEPOLIA_ENTRYPOINT =
 const FIXTURE_POOL =
   "0x1234567890abcdef1234567890abcdef12345678" as Address;
 const FIXTURE_ASSET =
-  "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
+  FIXTURE_NATIVE_ASSET;
+const OP_SEPOLIA_ENTRYPOINT =
+  "0x54aca0d27500669fa37867233e05423701f11ba1" as Address;
+const OP_SEPOLIA_ASSET =
+  "0x4200000000000000000000000000000000000006" as Address;
+const OP_SEPOLIA_POOL =
+  "0x4444444444444444444444444444444444444444" as Address;
 const FIXTURE_FEE_RECEIVER =
   "0x00000000000000000000000000000000000000fe" as Address;
 const RELAYER_SECONDS_RECIPIENT =
   "0x0000000000000000000000000000000000000001";
 const RELAYER_MALFORMED_FEE_RECIPIENT =
   "0x0000000000000000000000000000000000000002";
+
+const CHAIN_POOL_FIXTURES = new Map<number, ChainPoolFixture>([
+  [1, {
+    chainId: 1,
+    entrypoint: MAINNET_ENTRYPOINT,
+    asset: FIXTURE_NATIVE_ASSET,
+    pool: MAINNET_POOL,
+    symbol: "ETH",
+    decimals: 18,
+    scope: 12345n,
+  }],
+  [10, {
+    chainId: 10,
+    entrypoint: OPTIMISM_ENTRYPOINT,
+    asset: OPTIMISM_USDC,
+    pool: OPTIMISM_POOL,
+    symbol: "USDC",
+    decimals: 6,
+    scope: 22345n,
+  }],
+  [42161, {
+    chainId: 42161,
+    entrypoint: ARBITRUM_ENTRYPOINT,
+    asset: ARBITRUM_USDC,
+    pool: ARBITRUM_POOL,
+    symbol: "USDC",
+    decimals: 6,
+    scope: 32345n,
+  }],
+  [11155111, {
+    chainId: 11155111,
+    entrypoint: SEPOLIA_ENTRYPOINT,
+    asset: FIXTURE_ASSET,
+    pool: FIXTURE_POOL,
+    symbol: "ETH",
+    decimals: 18,
+    scope: 12345n,
+  }],
+  [11155420, {
+    chainId: 11155420,
+    entrypoint: OP_SEPOLIA_ENTRYPOINT,
+    asset: OP_SEPOLIA_ASSET,
+    pool: OP_SEPOLIA_POOL,
+    symbol: "WETH",
+    decimals: 18,
+    scope: 42345n,
+  }],
+]);
+
+function poolStatsForChain(chainId: number): object[] {
+  const fixture = CHAIN_POOL_FIXTURES.get(chainId);
+  if (!fixture) {
+    return [];
+  }
+
+  return [{
+    scope: fixture.scope.toString(),
+    chainId: fixture.chainId,
+    poolAddress: fixture.pool,
+    tokenAddress: fixture.asset,
+    tokenSymbol: fixture.symbol,
+    totalInPoolValue: "5000000000000000000",
+    totalDepositsValue: "10000000000000000000",
+    acceptedDepositsValue: "8000000000000000000",
+    pendingDepositsValue: "2000000000000000000",
+    totalDepositsCount: 42,
+    acceptedDepositsCount: 35,
+    pendingDepositsCount: 7,
+    growth24h: 0.05,
+  }];
+}
+
+function chainIdFromPublicPath(
+  path: string,
+  endpoint: "pools-stats" | "pool-statistics",
+): number | null {
+  const match = path.match(new RegExp(`^/(\\d+)/public/${endpoint}$`));
+  if (!match) {
+    return null;
+  }
+
+  const chainId = Number.parseInt(match[1] ?? "", 10);
+  return Number.isFinite(chainId) ? chainId : null;
+}
+
+function findFixtureByEntrypointAndAsset(
+  entrypoint: string,
+  assetAddress: string,
+): ChainPoolFixture | undefined {
+  const normalizedEntrypoint = entrypoint.toLowerCase();
+  const normalizedAsset = assetAddress.toLowerCase();
+  return [...CHAIN_POOL_FIXTURES.values()].find((fixture) =>
+    fixture.entrypoint.toLowerCase() === normalizedEntrypoint
+    && fixture.asset.toLowerCase() === normalizedAsset,
+  );
+}
+
+function findFixtureByPoolAddress(poolAddress: string): ChainPoolFixture | undefined {
+  const normalizedPool = poolAddress.toLowerCase();
+  return [...CHAIN_POOL_FIXTURES.values()].find((fixture) =>
+    fixture.pool.toLowerCase() === normalizedPool,
+  );
+}
+
+function findFixtureByAssetAddress(assetAddress: string): ChainPoolFixture | undefined {
+  const normalizedAsset = assetAddress.toLowerCase();
+  return [...CHAIN_POOL_FIXTURES.values()].find((fixture) =>
+    fixture.asset.toLowerCase() === normalizedAsset,
+  );
+}
+
+function decodeAddressCallArgument(data: string): string | null {
+  const normalized = data.startsWith("0x") ? data.slice(2) : data;
+  if (normalized.length < 64) {
+    return null;
+  }
+
+  return `0x${normalized.slice(-40)}`.toLowerCase();
+}
 
 function buildRelayerQuote(request: {
   amount: string;
@@ -230,8 +369,11 @@ function route(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
-  if (path.match(/\/\d+\/public\/pools-stats$/)) {
-    body = POOLS_STATS;
+  const poolsStatsChainId = chainIdFromPublicPath(path, "pools-stats");
+  const poolStatisticsChainId = chainIdFromPublicPath(path, "pool-statistics");
+
+  if (poolsStatsChainId !== null) {
+    body = poolStatsForChain(poolsStatsChainId);
   } else if (path.match(/\/\d+\/public\/deposits-by-label$/)) {
     const labelsHeader = firstHeaderValue(req.headers["x-labels"]);
     const labels = labelsHeader?.split(",").map((label) => label.trim()).filter(Boolean) ?? [];
@@ -245,7 +387,7 @@ function route(req: IncomingMessage, res: ServerResponse): void {
     body = { ...GLOBAL_EVENTS, page, perPage };
   } else if (path.match(/\/global\/public\/statistics$/)) {
     body = GLOBAL_STATISTICS;
-  } else if (path.match(/\/\d+\/public\/pool-statistics$/)) {
+  } else if (poolStatisticsChainId === 11155111) {
     body = POOL_STATISTICS;
   } else if (path.match(/\/\d+\/public\/mt-leaves$/)) {
     body = MT_LEAVES;
@@ -307,21 +449,44 @@ function route(req: IncomingMessage, res: ServerResponse): void {
         const to = String(call.to ?? "").toLowerCase();
         const data = String(call.data ?? "").toLowerCase();
         let result = "0x";
+        const assetSelector = "0xd6dbaf58";
+        const scopeSelector = "0x33d09200";
+        const symbolSelector = "0x95d89b41";
+        const decimalsSelector = "0x313ce567";
 
         // assetConfig(address)
-        if (to === SEPOLIA_ENTRYPOINT.toLowerCase() && data.startsWith("0xd6dbaf58")) {
-          result = encodeAbiParameters(
-            [
-              { type: "address" },
-              { type: "uint256" },
-              { type: "uint256" },
-              { type: "uint256" },
-            ],
-            [FIXTURE_POOL, 1000000000000000n, 50n, 250n],
-          );
+        if (data.startsWith(assetSelector)) {
+          const assetAddress = decodeAddressCallArgument(data);
+          const fixture = assetAddress
+            ? findFixtureByEntrypointAndAsset(to, assetAddress)
+            : undefined;
+          if (fixture) {
+            result = encodeAbiParameters(
+              [
+                { type: "address" },
+                { type: "uint256" },
+                { type: "uint256" },
+                { type: "uint256" },
+              ],
+              [fixture.pool, 1000000000000000n, 50n, 250n],
+            );
+          }
         // SCOPE()
-        } else if (to === FIXTURE_POOL.toLowerCase()) {
-          result = encodeAbiParameters([{ type: "uint256" }], [12345n]);
+        } else if (data.startsWith(scopeSelector)) {
+          const fixture = findFixtureByPoolAddress(to);
+          if (fixture) {
+            result = encodeAbiParameters([{ type: "uint256" }], [fixture.scope]);
+          }
+        } else if (data.startsWith(symbolSelector)) {
+          const fixture = findFixtureByAssetAddress(to);
+          if (fixture) {
+            result = encodeAbiParameters([{ type: "string" }], [fixture.symbol]);
+          }
+        } else if (data.startsWith(decimalsSelector)) {
+          const fixture = findFixtureByAssetAddress(to);
+          if (fixture) {
+            result = encodeAbiParameters([{ type: "uint8" }], [fixture.decimals]);
+          }
         }
 
         res.writeHead(200, { "Content-Type": "application/json" });

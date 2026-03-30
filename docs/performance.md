@@ -37,6 +37,8 @@ It keeps the setup intentionally lightweight:
 - no external benchmark runner
 - isolated temp home for `status --json --no-check` in the JS lane
 - local fixture-backed ASP/RPC paths for public read-only commands
+- chain-scoped pool-stats fixtures plus matching RPC stubs for the default
+  multi-mainnet `pools --agent` success path
 
 The default command matrix covers:
 

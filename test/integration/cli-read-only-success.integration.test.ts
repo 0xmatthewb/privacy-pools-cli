@@ -36,6 +36,16 @@ function fixtureEnv() {
   return { PRIVACY_POOLS_ASP_HOST: fixture.url };
 }
 
+function multiChainFixtureEnv() {
+  return {
+    ...fixtureEnv(),
+    PRIVACY_POOLS_RPC_URL_ETHEREUM: fixture.url,
+    PRIVACY_POOLS_RPC_URL_MAINNET: fixture.url,
+    PRIVACY_POOLS_RPC_URL_ARBITRUM: fixture.url,
+    PRIVACY_POOLS_RPC_URL_OPTIMISM: fixture.url,
+  };
+}
+
 // ── activity ─────────────────────────────────────────────────────────────────
 
 describe("activity success path", () => {
@@ -169,6 +179,18 @@ describe("stats global success path", () => {
 // ── pools ────────────────────────────────────────────────────────────────────
 
 describe("pools with fixture server", () => {
+  test("fixture pools-stats endpoints stay chain-scoped", async () => {
+    for (const chainId of [1, 10, 42161, 11155111, 11155420]) {
+      const response = await fetch(`${fixture.url}/${chainId}/public/pools-stats`);
+      expect(response.ok).toBe(true);
+
+      const payload = await response.json() as Array<{ chainId?: number | string }>;
+      expect(Array.isArray(payload)).toBe(true);
+      expect(payload.length).toBeGreaterThan(0);
+      expect(payload.every((entry) => Number(entry.chainId) === chainId)).toBe(true);
+    }
+  });
+
   test("pools --json --chain sepolia returns a non-empty payload", () => {
     const result = runCli(
       ["--json", "--chain", "sepolia", "pools"],
@@ -210,13 +232,42 @@ describe("pools with fixture server", () => {
     expect(result.stderr.trim()).toBe("");
   });
 
-  test("pools --json --chain sepolia: ASP fixture reachable, RPC fails silently per-pool", () => {
-    // pools calls fetchPoolsStats (ASP) then does on-chain RPC reads per pool.
-    // With the fixture server handling ASP and no live RPC, the ASP fetch
-    // succeeds (returns pool entries) but each pool's RPC metadata read fails.
-    // The command returns success: true with empty pools (entries silently
-    // dropped), proving the fixture integration works — without the fixture
-    // the command would throw an ASP error instead.
+  test("pools --json exercises a realistic default multi-mainnet success path", () => {
+    const result = runCli(
+      ["--json", "pools"],
+      {
+        home: createTempHome(),
+        timeoutMs: 15_000,
+        env: multiChainFixtureEnv(),
+      },
+    );
+    expect(result.status).toBe(0);
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      allChains?: boolean;
+      warnings?: Array<{ chain?: string }> | null;
+      chains?: Array<{ chain?: string; pools?: number; error?: string | null }>;
+      pools: Array<{ chain?: string; asset?: string; pool?: string }>;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
+    expect(json.allChains).toBe(true);
+    expect(json.warnings ?? null).toBeNull();
+    expect(json.chains).toEqual([
+      { chain: "mainnet", pools: 1, error: null },
+      { chain: "arbitrum", pools: 1, error: null },
+      { chain: "optimism", pools: 1, error: null },
+    ]);
+    expect(json.pools).toHaveLength(3);
+    expect([...json.pools.map((entry) => entry.chain)].sort()).toEqual([
+      "arbitrum",
+      "mainnet",
+      "optimism",
+    ]);
+  });
+
+  test("pools --json --chain sepolia returns an RPC envelope when all pool reads fail", () => {
     const result = runCli(
       ["--json", "--chain", "sepolia", "pools"],
       {
@@ -225,19 +276,16 @@ describe("pools with fixture server", () => {
         env: { ...fixtureEnv(), PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9" },
       },
     );
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       success: boolean;
-      chain?: string;
-      pools: unknown[];
+      error: { category: string; code?: string };
     }>(result.stdout);
 
-    expect(json.success).toBe(true);
-    expect(json.chain).toBe("sepolia");
-    // Pools array is empty because RPC reads failed for each entry,
-    // but the command didn't throw an ASP error — proof the fixture served data.
-    expect(json.pools).toEqual([]);
+    expect(json.success).toBe(false);
+    expect(json.error.category).toBe("RPC");
+    expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
     expect(result.stderr.trim()).toBe("");
   });
 
