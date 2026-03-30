@@ -91,6 +91,18 @@ pub struct FixtureServer {
     join_handle: Option<JoinHandle<()>>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct FixtureBehavior {
+    pools_stats_overrides: std::collections::HashMap<u64, Value>,
+}
+
+impl FixtureBehavior {
+    pub fn with_pools_stats_override(mut self, chain_id: u64, payload: Value) -> Self {
+        self.pools_stats_overrides.insert(chain_id, payload);
+        self
+    }
+}
+
 impl FixtureServer {
     pub fn base_url(&self) -> &str {
         &self.base_url
@@ -113,6 +125,10 @@ impl Drop for FixtureServer {
 }
 
 pub fn launch_fixture_server() -> FixtureServer {
+    launch_fixture_server_with_behavior(FixtureBehavior::default())
+}
+
+pub fn launch_fixture_server_with_behavior(behavior: FixtureBehavior) -> FixtureServer {
     let listener =
         TcpListener::bind("127.0.0.1:0").expect("fixture listener should bind to a free port");
     listener
@@ -124,11 +140,13 @@ pub fn launch_fixture_server() -> FixtureServer {
     let base_url = format!("http://{address}");
     let running = Arc::new(AtomicBool::new(true));
     let running_for_thread = Arc::clone(&running);
+    let behavior = Arc::new(behavior);
+    let behavior_for_thread = Arc::clone(&behavior);
 
     let join_handle = thread::spawn(move || {
         while running_for_thread.load(Ordering::SeqCst) {
             match listener.accept() {
-                Ok((stream, _)) => handle_connection(stream),
+                Ok((stream, _)) => handle_connection(stream, &behavior_for_thread),
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                     thread::sleep(Duration::from_millis(10));
                 }
@@ -144,12 +162,12 @@ pub fn launch_fixture_server() -> FixtureServer {
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream, behavior: &FixtureBehavior) {
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
         .expect("fixture stream should support timeouts");
     let request = read_http_request(&mut stream);
-    let (status_line, body) = route_request(&request);
+    let (status_line, body) = route_request(&request, behavior);
     let response = format!(
         "{status_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         body.len(),
@@ -210,7 +228,7 @@ fn request_is_complete(buffer: &[u8]) -> bool {
     buffer.len() >= headers_len + content_length
 }
 
-fn route_request(request: &str) -> (&'static str, String) {
+fn route_request(request: &str, behavior: &FixtureBehavior) -> (&'static str, String) {
     let (request_line, body) = request
         .split_once("\r\n")
         .map(|(head, _)| (head, request_body(request)))
@@ -251,10 +269,18 @@ fn route_request(request: &str) -> (&'static str, String) {
             "total": 1,
             "totalPages": 1,
         }),
-        ("GET", "/1/public/pools-stats") => pools_stats(FIXTURE_MAINNET_CHAIN_ID),
-        ("GET", "/10/public/pools-stats") => pools_stats(FIXTURE_OPTIMISM_CHAIN_ID),
-        ("GET", "/42161/public/pools-stats") => pools_stats(FIXTURE_ARBITRUM_CHAIN_ID),
-        ("GET", "/11155111/public/pools-stats") => pools_stats(FIXTURE_CHAIN_ID),
+        ("GET", "/1/public/pools-stats") => {
+            pools_stats_for_chain(FIXTURE_MAINNET_CHAIN_ID, behavior)
+        }
+        ("GET", "/10/public/pools-stats") => {
+            pools_stats_for_chain(FIXTURE_OPTIMISM_CHAIN_ID, behavior)
+        }
+        ("GET", "/42161/public/pools-stats") => {
+            pools_stats_for_chain(FIXTURE_ARBITRUM_CHAIN_ID, behavior)
+        }
+        ("GET", "/11155111/public/pools-stats") => {
+            pools_stats_for_chain(FIXTURE_CHAIN_ID, behavior)
+        }
         ("GET", "/11155111/public/pool-statistics") => json!({
             "pool": {
                 "scope": "12345",
@@ -381,6 +407,14 @@ fn pools_stats(chain_id: u64) -> Value {
             "growth24h": 0.05
         }
     ])
+}
+
+fn pools_stats_for_chain(chain_id: u64, behavior: &FixtureBehavior) -> Value {
+    behavior
+        .pools_stats_overrides
+        .get(&chain_id)
+        .cloned()
+        .unwrap_or_else(|| pools_stats(chain_id))
 }
 
 fn function_selector(signature: &str) -> [u8; 4] {

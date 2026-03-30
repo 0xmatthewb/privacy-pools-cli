@@ -2,7 +2,8 @@ mod support;
 
 use serde_json::Value;
 use support::{
-    launch_fixture_server, parse_stdout_json, run_native_with_env, stderr_string, stdout_string,
+    launch_fixture_server, launch_fixture_server_with_behavior, parse_stdout_json,
+    run_native_with_env, stderr_string, stdout_string, FixtureBehavior,
 };
 
 #[test]
@@ -155,6 +156,93 @@ fn multi_chain_pools_queries_stay_deterministic_against_the_rust_fixture() {
         .as_array()
         .expect("multi-chain pools output should include pools");
     assert_eq!(pools.len(), 3);
+}
+
+#[test]
+fn single_chain_pools_deduplicate_duplicate_stats_entries() {
+    let fixture =
+        launch_fixture_server_with_behavior(FixtureBehavior::default().with_pools_stats_override(
+            1,
+            serde_json::json!([
+                {
+                    "scope": "12345",
+                    "chainId": 1,
+                    "poolAddress": "0x1234567890abcdef1234567890abcdef12345678",
+                    "tokenAddress": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                    "tokenSymbol": "ETH",
+                    "totalDepositsCount": 42
+                },
+                {
+                    "scope": "12345",
+                    "chainId": 1,
+                    "poolAddress": "0x1234567890abcdef1234567890abcdef12345678",
+                    "tokenAddress": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                    "tokenSymbol": "ETH",
+                    "totalDepositsCount": 84
+                }
+            ]),
+        ));
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_MAINNET", rpc_url.as_str()),
+    ];
+
+    let pools = run_native_with_env(&["--chain", "mainnet", "pools", "--agent"], &env);
+    assert!(pools.status.success());
+    assert!(stderr_string(&pools).trim().is_empty());
+
+    let payload = parse_stdout_json(&pools);
+    let pools = payload["pools"]
+        .as_array()
+        .expect("single-chain pools output should include pools");
+    assert_eq!(pools.len(), 1);
+    assert_eq!(pools[0]["chain"], Value::Null);
+}
+
+#[test]
+fn single_chain_pools_skip_foreign_chain_stats_entries_without_spurious_warnings() {
+    let fixture =
+        launch_fixture_server_with_behavior(FixtureBehavior::default().with_pools_stats_override(
+            1,
+            serde_json::json!([
+                {
+                    "scope": "12345",
+                    "chainId": 1,
+                    "poolAddress": "0x1234567890abcdef1234567890abcdef12345678",
+                    "tokenAddress": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                    "tokenSymbol": "ETH",
+                    "totalDepositsCount": 42
+                },
+                {
+                    "scope": "12345",
+                    "chainId": 10,
+                    "poolAddress": "0x9999999999999999999999999999999999999999",
+                    "tokenAddress": "0x9999999999999999999999999999999999999998",
+                    "tokenSymbol": "ETH",
+                    "totalDepositsCount": 99
+                }
+            ]),
+        ));
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_MAINNET", rpc_url.as_str()),
+    ];
+
+    let pools = run_native_with_env(&["--chain", "mainnet", "pools", "--agent"], &env);
+    assert!(pools.status.success());
+    assert!(stderr_string(&pools).trim().is_empty());
+
+    let payload = parse_stdout_json(&pools);
+    assert_eq!(payload["success"], Value::Bool(true));
+    let pools = payload["pools"]
+        .as_array()
+        .expect("single-chain pools output should include pools");
+    assert_eq!(pools.len(), 1);
+    assert_eq!(pools[0]["asset"], Value::String("ETH".to_string()));
 }
 
 #[test]

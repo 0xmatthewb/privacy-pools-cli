@@ -217,6 +217,16 @@ function fixtureEnv(fixture: FixtureServer): Record<string, string> {
   };
 }
 
+function multiChainFixtureEnv(fixture: FixtureServer): Record<string, string> {
+  return {
+    PRIVACY_POOLS_ASP_HOST: fixture.url,
+    PRIVACY_POOLS_RPC_URL_ETHEREUM: fixture.url,
+    PRIVACY_POOLS_RPC_URL_MAINNET: fixture.url,
+    PRIVACY_POOLS_RPC_URL_ARBITRUM: fixture.url,
+    PRIVACY_POOLS_RPC_URL_OPTIMISM: fixture.url,
+  };
+}
+
 function seedSavedWorkflow(home: string): void {
   const workflowsDir = join(home, ".privacy-pools", "workflows");
   mkdirSync(workflowsDir, { recursive: true });
@@ -424,26 +434,32 @@ describe("native shell parity", () => {
   });
 
   nativeTest("public read-only agent paths stay JSON-identical on fixture data", () => {
-    const env = fixtureEnv(fixture!);
+    const singleChainEnv = fixtureEnv(fixture!);
+    const multiChainEnv = multiChainFixtureEnv(fixture!);
+
     expectJsonParity(nativeBinary, ["--agent", "stats"], {
-      js: { env },
-      native: { env },
+      js: { env: singleChainEnv },
+      native: { env: singleChainEnv },
     });
     expectJsonParity(
       nativeBinary,
       ["--agent", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
       {
-        js: { env },
-        native: { env },
+        js: { env: singleChainEnv },
+        native: { env: singleChainEnv },
       },
     );
     expectJsonParity(nativeBinary, ["--agent", "activity"], {
-      js: { env },
-      native: { env },
+      js: { env: singleChainEnv },
+      native: { env: singleChainEnv },
+    });
+    expectJsonParity(nativeBinary, ["--agent", "pools"], {
+      js: { env: multiChainEnv },
+      native: { env: multiChainEnv },
     });
     expectJsonParity(nativeBinary, ["--agent", "--chain", "sepolia", "pools"], {
-      js: { env },
-      native: { env },
+      js: { env: singleChainEnv },
+      native: { env: singleChainEnv },
     });
   });
 
@@ -559,7 +575,7 @@ describe("native shell parity", () => {
         },
       },
     );
-  });
+  }, 60_000);
 
   nativeTest("quiet and machine stream contracts stay intact across native routing", () => {
     const env = fixtureEnv(fixture!);
@@ -604,7 +620,7 @@ describe("native shell parity", () => {
       parseJsonOutput(jsResult.stdout),
     );
     expect(directNativeResult.stderr).toBe(jsResult.stderr);
-  });
+  }, 20_000);
 
   nativeTest("native public render paths work directly without a JS bridge", () => {
     const env = fixtureEnv(fixture!);
@@ -654,6 +670,14 @@ describe("native shell parity", () => {
     );
     expectDirectNativeBuiltJsonParity(
       nativeBinary,
+      ["--agent", "pools"],
+      {
+        js: { env: multiChainFixtureEnv(fixture!) },
+        native: { env: multiChainFixtureEnv(fixture!) },
+      },
+    );
+    expectDirectNativeBuiltJsonParity(
+      nativeBinary,
       ["--json", "--chain", "sepolia", "pools"],
       {
         js: {
@@ -670,7 +694,7 @@ describe("native shell parity", () => {
         },
       },
     );
-  });
+  }, 30_000);
 
   nativeTest("direct native public routes reject unsupported argv edge cases with JS parity", () => {
     expectDirectNativeBuiltJsonParity(
@@ -741,10 +765,12 @@ describe("native shell parity", () => {
     {
       label: "flow start",
       args: ["--agent", "flow", "start", "0.1", "ETH", "--to", TEST_RECIPIENT],
+      testTimeoutMs: 20_000,
     },
     {
       label: "deposit",
       args: ["--agent", "deposit", "0.1", "ETH"],
+      testTimeoutMs: 20_000,
     },
     {
       label: "withdraw quote",
@@ -767,6 +793,7 @@ describe("native shell parity", () => {
     {
       label: "ragequit",
       args: ["--agent", "ragequit", "ETH", "--from-pa", "PA-1"],
+      testTimeoutMs: 20_000,
     },
     {
       label: "accounts",

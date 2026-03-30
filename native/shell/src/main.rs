@@ -23,7 +23,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tiny_keccak::{Hasher, Keccak};
 
@@ -31,6 +31,7 @@ const ENV_JS_WORKER_PATH: &str = "PRIVACY_POOLS_CLI_JS_WORKER";
 const OUTPUT_FORMAT_CHOICES: &str = "table, csv, json";
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+const POOL_RESOLUTION_BATCH_SIZE: usize = 4;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
 
 #[derive(Clone, Copy)]
@@ -337,6 +338,12 @@ struct PoolsChainQueryResult {
     warning: Option<PoolWarning>,
     summary: ChainSummary,
     error: Option<CliError>,
+}
+
+#[derive(Debug, Clone)]
+struct PoolStatsResolutionInput {
+    stats_entry: Map<String, Value>,
+    asset_address: String,
 }
 
 #[derive(Debug, Clone)]
@@ -2542,67 +2549,43 @@ fn list_pools_native(
     }
 
     let rpc_urls = get_rpc_urls(chain.id, rpc_override, config, runtime_config)?;
+    let resolution_inputs = prepare_pool_resolution_inputs(stats_entries, chain.id);
     let mut entries = vec![];
     let mut rpc_read_failures = 0usize;
-    for stats_entry in stats_entries {
-        let Some(asset_address) = resolve_pool_asset_address(&stats_entry) else {
-            continue;
-        };
-        let resolved_entry = (|| -> Result<PoolListingEntry, CliError> {
-            let asset_config = read_asset_config(chain, &asset_address, &rpc_urls, timeout_ms)?;
-            let scope = read_pool_scope(&asset_config.pool_address, &rpc_urls, timeout_ms)?;
-            let token_metadata = resolve_token_metadata(
-                &asset_address,
-                &rpc_urls,
-                &runtime_config.native_asset_address,
-                timeout_ms,
-            );
 
-            Ok(PoolListingEntry {
-                chain: chain.name.clone(),
-                chain_id: chain.id,
-                asset: token_metadata.symbol,
-                token_address: asset_address,
-                pool: asset_config.pool_address,
-                scope,
-                decimals: token_metadata.decimals,
-                minimum_deposit: asset_config.minimum_deposit_amount,
-                vetting_fee_bps: asset_config.vetting_fee_bps,
-                max_relay_fee_bps: asset_config.max_relay_fee_bps,
-                total_in_pool_value: parse_json_decimal_string(stats_entry.get("totalInPoolValue")),
-                total_in_pool_value_usd: parse_json_string(stats_entry.get("totalInPoolValueUsd")),
-                total_deposits_value: parse_json_decimal_string(
-                    stats_entry.get("totalDepositsValue"),
-                ),
-                total_deposits_value_usd: parse_json_string(
-                    stats_entry.get("totalDepositsValueUsd"),
-                ),
-                accepted_deposits_value: parse_json_decimal_string(
-                    stats_entry.get("acceptedDepositsValue"),
-                ),
-                accepted_deposits_value_usd: parse_json_string(
-                    stats_entry.get("acceptedDepositsValueUsd"),
-                ),
-                pending_deposits_value: parse_json_decimal_string(
-                    stats_entry.get("pendingDepositsValue"),
-                ),
-                pending_deposits_value_usd: parse_json_string(
-                    stats_entry.get("pendingDepositsValueUsd"),
-                ),
-                total_deposits_count: parse_json_u64(stats_entry.get("totalDepositsCount")),
-                accepted_deposits_count: parse_json_u64(stats_entry.get("acceptedDepositsCount")),
-                pending_deposits_count: parse_json_u64(stats_entry.get("pendingDepositsCount")),
-                growth24h: parse_json_number(stats_entry.get("growth24h")),
-                pending_growth24h: parse_json_number(stats_entry.get("pendingGrowth24h")),
+    for chunk in resolution_inputs.chunks(POOL_RESOLUTION_BATCH_SIZE) {
+        let handles = chunk
+            .iter()
+            .map(|input| {
+                let chain = chain.clone();
+                let input = input.clone();
+                let rpc_urls = rpc_urls.clone();
+                let native_asset_address = runtime_config.native_asset_address.clone();
+                std::thread::spawn(move || {
+                    resolve_pool_listing_entry(
+                        chain,
+                        input,
+                        rpc_urls,
+                        native_asset_address,
+                        timeout_ms,
+                    )
+                })
             })
-        })();
+            .collect::<Vec<_>>();
 
-        match resolved_entry {
-            Ok(entry) => entries.push(entry),
-            Err(error) if matches!(error.category, ErrorCategory::Rpc) => {
-                rpc_read_failures += 1;
+        for handle in handles {
+            let resolved_entry = match handle.join() {
+                Ok(result) => result,
+                Err(_) => Err(pool_resolution_worker_join_failure(&chain.name)),
+            };
+
+            match resolved_entry {
+                Ok(entry) => entries.push(entry),
+                Err(error) if matches!(error.category, ErrorCategory::Rpc) => {
+                    rpc_read_failures += 1;
+                }
+                Err(error) => return Err(error),
             }
-            Err(error) => return Err(error),
         }
     }
 
@@ -2658,6 +2641,113 @@ fn resolve_pool_asset_address(entry: &Map<String, Value>) -> Option<String> {
         .or_else(|| entry.get("tokenAddress").and_then(Value::as_str))
         .filter(|value| is_hex_address(value))
         .map(|value| value.to_string())
+}
+
+fn resolve_pool_stats_pool_address(entry: &Map<String, Value>) -> Option<String> {
+    entry
+        .get("poolAddress")
+        .and_then(Value::as_str)
+        .or_else(|| entry.get("pool").and_then(Value::as_str))
+        .filter(|value| is_hex_address(value))
+        .map(|value| value.to_string())
+}
+
+fn prepare_pool_resolution_inputs(
+    stats_entries: Vec<Map<String, Value>>,
+    chain_id: u64,
+) -> Vec<PoolStatsResolutionInput> {
+    let mut seen = BTreeSet::new();
+    let mut prepared = vec![];
+
+    for stats_entry in stats_entries {
+        if let Some(entry_chain_id) = parse_json_u64(stats_entry.get("chainId")) {
+            if entry_chain_id != chain_id {
+                continue;
+            }
+        }
+
+        let dedupe_key = resolve_pool_stats_pool_address(&stats_entry)
+            .map(|address| format!("pool:{}", address.to_lowercase()))
+            .or_else(|| {
+                resolve_pool_asset_address(&stats_entry)
+                    .map(|address| format!("asset:{}", address.to_lowercase()))
+            });
+        if let Some(key) = dedupe_key {
+            if !seen.insert(key) {
+                continue;
+            }
+        }
+
+        let Some(asset_address) = resolve_pool_asset_address(&stats_entry) else {
+            continue;
+        };
+
+        prepared.push(PoolStatsResolutionInput {
+            stats_entry,
+            asset_address,
+        });
+    }
+
+    prepared
+}
+
+fn resolve_pool_listing_entry(
+    chain: ChainDefinition,
+    input: PoolStatsResolutionInput,
+    rpc_urls: Vec<String>,
+    native_asset_address: String,
+    timeout_ms: u64,
+) -> Result<PoolListingEntry, CliError> {
+    let resolved = resolve_cached_pool_resolution(
+        &chain,
+        &input.asset_address,
+        &rpc_urls,
+        &native_asset_address,
+        timeout_ms,
+    )?;
+
+    Ok(PoolListingEntry {
+        chain: chain.name.clone(),
+        chain_id: chain.id,
+        asset: resolved.token_metadata.symbol,
+        token_address: input.asset_address,
+        pool: resolved.asset_config.pool_address,
+        scope: resolved.scope,
+        decimals: resolved.token_metadata.decimals,
+        minimum_deposit: resolved.asset_config.minimum_deposit_amount,
+        vetting_fee_bps: resolved.asset_config.vetting_fee_bps,
+        max_relay_fee_bps: resolved.asset_config.max_relay_fee_bps,
+        total_in_pool_value: parse_json_decimal_string(input.stats_entry.get("totalInPoolValue")),
+        total_in_pool_value_usd: parse_json_string(input.stats_entry.get("totalInPoolValueUsd")),
+        total_deposits_value: parse_json_decimal_string(
+            input.stats_entry.get("totalDepositsValue"),
+        ),
+        total_deposits_value_usd: parse_json_string(input.stats_entry.get("totalDepositsValueUsd")),
+        accepted_deposits_value: parse_json_decimal_string(
+            input.stats_entry.get("acceptedDepositsValue"),
+        ),
+        accepted_deposits_value_usd: parse_json_string(
+            input.stats_entry.get("acceptedDepositsValueUsd"),
+        ),
+        pending_deposits_value: parse_json_decimal_string(
+            input.stats_entry.get("pendingDepositsValue"),
+        ),
+        pending_deposits_value_usd: parse_json_string(
+            input.stats_entry.get("pendingDepositsValueUsd"),
+        ),
+        total_deposits_count: parse_json_u64(input.stats_entry.get("totalDepositsCount")),
+        accepted_deposits_count: parse_json_u64(input.stats_entry.get("acceptedDepositsCount")),
+        pending_deposits_count: parse_json_u64(input.stats_entry.get("pendingDepositsCount")),
+        growth24h: parse_json_number(input.stats_entry.get("growth24h")),
+        pending_growth24h: parse_json_number(input.stats_entry.get("pendingGrowth24h")),
+    })
+}
+
+fn pool_resolution_worker_join_failure(chain_name: &str) -> CliError {
+    CliError::unknown(
+        format!("Failed to resolve pools on {chain_name}."),
+        Some("Retry the command. If the issue persists, reinstall the CLI and retry.".to_string()),
+    )
 }
 
 fn parse_json_string(value: Option<&Value>) -> Option<String> {
@@ -3123,32 +3213,44 @@ fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData) {
 fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
     if mode.is_json() {
         if data.all_chains {
-            print_json_success(json!({
-                "allChains": true,
-                "search": data.search,
-                "sort": data.sort,
-                "chains": data
-                    .chain_summaries
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(chain_summary_to_json)
-                    .collect::<Vec<_>>(),
-                "pools": data
-                    .filtered_pools
-                    .iter()
-                    .map(|entry| pool_entry_to_json(entry, true))
-                    .collect::<Vec<_>>(),
-                "warnings": if data.warnings.is_empty() {
-                    Value::Null
-                } else {
+            let mut payload = Map::new();
+            payload.insert("allChains".to_string(), Value::Bool(true));
+            payload.insert(
+                "search".to_string(),
+                data.search.map(Value::String).unwrap_or(Value::Null),
+            );
+            payload.insert("sort".to_string(), Value::String(data.sort));
+            payload.insert(
+                "chains".to_string(),
+                Value::Array(
+                    data.chain_summaries
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(chain_summary_to_json)
+                        .collect::<Vec<_>>(),
+                ),
+            );
+            payload.insert(
+                "pools".to_string(),
+                Value::Array(
+                    data.filtered_pools
+                        .iter()
+                        .map(|entry| pool_entry_to_json(entry, true))
+                        .collect::<Vec<_>>(),
+                ),
+            );
+            if !data.warnings.is_empty() {
+                payload.insert(
+                    "warnings".to_string(),
                     Value::Array(
                         data.warnings
                             .into_iter()
                             .map(pool_warning_to_json)
                             .collect::<Vec<_>>(),
-                    )
-                },
-            }));
+                    ),
+                );
+            }
+            print_json_success(Value::Object(payload));
         } else {
             print_json_success(json!({
                 "chain": data.chain_name,
@@ -3609,6 +3711,100 @@ struct TokenMetadataResult {
     decimals: u32,
 }
 
+#[derive(Debug, Clone)]
+struct TokenMetadataLookupResult {
+    metadata: TokenMetadataResult,
+    cacheable: bool,
+}
+
+#[derive(Debug, Clone)]
+struct PoolResolutionCacheEntry {
+    asset_config: AssetConfigResult,
+    scope: String,
+    token_metadata: TokenMetadataResult,
+}
+
+fn pool_resolution_cache() -> &'static Mutex<HashMap<String, PoolResolutionCacheEntry>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, PoolResolutionCacheEntry>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn pool_resolution_cache_key(chain_id: u64, asset_address: &str) -> String {
+    format!("{chain_id}:{}", asset_address.to_lowercase())
+}
+
+fn resolve_cached_pool_resolution(
+    chain: &ChainDefinition,
+    asset_address: &str,
+    rpc_urls: &[String],
+    native_asset_address: &str,
+    timeout_ms: u64,
+) -> Result<PoolResolutionCacheEntry, CliError> {
+    let cache_key = pool_resolution_cache_key(chain.id, asset_address);
+    {
+        let cache = pool_resolution_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(cached) = cache.get(&cache_key) {
+            return Ok(cached.clone());
+        }
+    }
+
+    let chain_for_asset = chain.clone();
+    let asset_address_for_asset = asset_address.to_string();
+    let rpc_urls_for_asset = rpc_urls.to_vec();
+    let asset_handle = std::thread::spawn(move || {
+        read_asset_config(
+            &chain_for_asset,
+            &asset_address_for_asset,
+            &rpc_urls_for_asset,
+            timeout_ms,
+        )
+    });
+
+    let asset_address_for_metadata = asset_address.to_string();
+    let rpc_urls_for_metadata = rpc_urls.to_vec();
+    let native_asset_address = native_asset_address.to_string();
+    let metadata_handle = std::thread::spawn(move || {
+        resolve_token_metadata_lookup(
+            &asset_address_for_metadata,
+            &rpc_urls_for_metadata,
+            &native_asset_address,
+            timeout_ms,
+        )
+    });
+
+    let asset_config = match asset_handle.join() {
+        Ok(result) => result?,
+        Err(_) => return Err(pool_resolution_worker_join_failure(&chain.name)),
+    };
+    let token_lookup = match metadata_handle.join() {
+        Ok(result) => result,
+        Err(_) => TokenMetadataLookupResult {
+            metadata: TokenMetadataResult {
+                symbol: "???".to_string(),
+                decimals: 18,
+            },
+            cacheable: false,
+        },
+    };
+    let scope = read_pool_scope(&asset_config.pool_address, rpc_urls, timeout_ms)?;
+
+    let resolved = PoolResolutionCacheEntry {
+        asset_config,
+        scope,
+        token_metadata: token_lookup.metadata,
+    };
+    if token_lookup.cacheable {
+        let mut cache = pool_resolution_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache.insert(cache_key, resolved.clone());
+    }
+
+    Ok(resolved)
+}
+
 fn read_asset_config(
     chain: &ChainDefinition,
     asset_address: &str,
@@ -3664,10 +3860,23 @@ fn resolve_token_metadata(
     native_asset_address: &str,
     timeout_ms: u64,
 ) -> TokenMetadataResult {
+    resolve_token_metadata_lookup(asset_address, rpc_urls, native_asset_address, timeout_ms)
+        .metadata
+}
+
+fn resolve_token_metadata_lookup(
+    asset_address: &str,
+    rpc_urls: &[String],
+    native_asset_address: &str,
+    timeout_ms: u64,
+) -> TokenMetadataLookupResult {
     if asset_address.eq_ignore_ascii_case(native_asset_address) {
-        return TokenMetadataResult {
-            symbol: "ETH".to_string(),
-            decimals: 18,
+        return TokenMetadataLookupResult {
+            metadata: TokenMetadataResult {
+                symbol: "ETH".to_string(),
+                decimals: 18,
+            },
+            cacheable: true,
         };
     }
 
@@ -3693,9 +3902,12 @@ fn resolve_token_metadata(
     .map(|word| decode_uint256_word(&word))
     .and_then(|value| value.to_u32_digits().first().copied());
 
-    TokenMetadataResult {
-        symbol: symbol_result.unwrap_or_else(|| "???".to_string()),
-        decimals: decimals_result.unwrap_or(18),
+    TokenMetadataLookupResult {
+        metadata: TokenMetadataResult {
+            symbol: symbol_result.clone().unwrap_or_else(|| "???".to_string()),
+            decimals: decimals_result.unwrap_or(18),
+        },
+        cacheable: symbol_result.is_some() && decimals_result.is_some(),
     }
 }
 
