@@ -5,10 +5,10 @@ import { join, resolve } from "node:path";
 import {
   CLI_CWD,
   type CliRunOptions,
-  type CliRunResult,
   createTempHome,
   parseJsonOutput,
 } from "../helpers/cli.ts";
+import { assertUnknownCommandAgentContract } from "../helpers/agent-contract.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { npmBin } from "../helpers/npm-bin.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
@@ -284,6 +284,12 @@ describe("packaged CLI smoke", () => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(true);
       expect(typeof json.configExists).toBe("boolean");
+    });
+
+    test("packed js runtime keeps structured unknown-command errors", () => {
+      assertUnknownCommandAgentContract(
+        runSmokeCli(["--agent", "not-a-command"], { home }),
+      );
     });
   });
 
