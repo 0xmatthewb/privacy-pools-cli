@@ -7,7 +7,6 @@ import { dirname, resolve } from "node:path";
  *   binaryPath?: string;
  *   sha256?: string;
  *   bridgeVersion?: string;
- *   protocolVersion?: string;
  *   protocolProfile?: string;
  *   runtimeVersion?: string;
  *   triplet?: string;
@@ -23,34 +22,16 @@ import { dirname, resolve } from "node:path";
 const nativeChecksumCache = new Map();
 
 export function resolveNativeBridgeVersion(metadata = {}) {
-  return metadata.bridgeVersion?.trim() || metadata.protocolVersion?.trim() || null;
+  return metadata.bridgeVersion?.trim() || null;
 }
 
-export function resolveNativeBinaryPath(
-  packageJsonPath,
-  packageJson,
-  options = {},
-) {
+export function resolveNativeBinaryPath(packageJsonPath, packageJson) {
   const metadataBinaryPath =
     packageJson.privacyPoolsCliNative?.binaryPath?.trim() || null;
   if (metadataBinaryPath) {
     return resolve(dirname(packageJsonPath), metadataBinaryPath);
   }
-
-  if (options.allowLegacyBin === false) {
-    return null;
-  }
-
-  const legacyBinEntry =
-    typeof packageJson.bin === "string"
-      ? packageJson.bin
-      : packageJson.bin?.["privacy-pools"];
-
-  if (!legacyBinEntry) {
-    return null;
-  }
-
-  return resolve(dirname(packageJsonPath), legacyBinEntry);
+  return null;
 }
 
 export function sha256File(path) {
@@ -99,10 +80,7 @@ export function hasCompatibleNativeMetadata(packageJson, expected) {
     return false;
   }
 
-  if (
-    metadata?.bridgeVersion &&
-    metadata.runtimeVersion?.trim() !== expected.runtimeVersion
-  ) {
+  if (metadata?.runtimeVersion?.trim() !== expected.runtimeVersion) {
     return false;
   }
 

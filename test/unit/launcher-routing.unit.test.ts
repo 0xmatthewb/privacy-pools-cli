@@ -832,7 +832,7 @@ describe("launcher routing", () => {
     }
   });
 
-  test("accepts the legacy protocolVersion alias when bridgeVersion is absent", () => {
+  test("rejects installed native binaries when bridgeVersion is absent", () => {
     const tempDir = createTrackedTempDir("pp-native-pkg-legacy-");
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
@@ -844,7 +844,6 @@ describe("launcher routing", () => {
       .digest("hex");
     writeNativePackageJson(packageJsonPath, sha256, {
       bridgeVersion: undefined,
-      protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
     });
 
     try {
@@ -854,17 +853,17 @@ describe("launcher routing", () => {
           arch: "arm64",
           requireResolve: () => packageJsonPath,
         }),
-      ).toBe(binPath);
+      ).toBeNull();
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  test("accepts legacy native packages that still publish a public bin entry", () => {
+  test("rejects installed native binaries when binaryPath is absent", () => {
     const tempDir = createTrackedTempDir("pp-native-pkg-legacy-bin-");
     const packageJsonPath = join(tempDir, "package.json");
     const binDir = join(tempDir, "bin");
-    const binPath = join(binDir, "privacy-pools");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
     const sha256 = createHash("sha256")
@@ -874,10 +873,8 @@ describe("launcher routing", () => {
       packageJsonPath,
       JSON.stringify({
         version: "1.7.0",
-        bin: {
-          "privacy-pools": "bin/privacy-pools",
-        },
         privacyPoolsCliNative: {
+          binaryPath: undefined,
           bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
           protocolProfile: CLI_PROTOCOL_PROFILE.profile,
           runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
@@ -895,7 +892,7 @@ describe("launcher routing", () => {
           arch: "arm64",
           requireResolve: () => packageJsonPath,
         }),
-      ).toBe(binPath);
+      ).toBeNull();
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

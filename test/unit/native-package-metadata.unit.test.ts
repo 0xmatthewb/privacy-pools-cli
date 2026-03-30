@@ -65,53 +65,40 @@ describe("native package metadata", () => {
     }
   });
 
-  test("prefers bridgeVersion and falls back to legacy protocolVersion", () => {
+  test("reads only the explicit bridgeVersion field", () => {
     expect(
       resolveNativeBridgeVersion({
         bridgeVersion: " 2 ",
-        protocolVersion: "1",
       }),
     ).toBe("2");
-    expect(
-      resolveNativeBridgeVersion({
-        protocolVersion: " 1 ",
-      }),
-    ).toBe("1");
     expect(resolveNativeBridgeVersion({})).toBeNull();
   });
 
-  test("resolves metadata binary paths before considering legacy bins", () => {
+  test("requires the explicit metadata binary path", () => {
     const packageJsonPath = "/tmp/native/package.json";
     expect(
       resolveNativeBinaryPath(packageJsonPath, {
         privacyPoolsCliNative: {
           binaryPath: "bin/privacy-pools-cli-native-shell",
         },
-        bin: {
-          "privacy-pools": "bin/privacy-pools",
-        },
       }),
     ).toBe("/tmp/native/bin/privacy-pools-cli-native-shell");
 
     expect(
-      resolveNativeBinaryPath(
-        packageJsonPath,
-        {
-          bin: {
-            "privacy-pools": "bin/privacy-pools",
-          },
+      resolveNativeBinaryPath(packageJsonPath, {
+        bin: {
+          "privacy-pools": "bin/privacy-pools",
         },
-        { allowLegacyBin: false },
-      ),
+      }),
     ).toBeNull();
   });
 
-  test("accepts legacy protocolVersion metadata when the active bridge matches", () => {
+  test("requires current bridge and runtime metadata", () => {
     expect(
       hasCompatibleNativeMetadata(
         {
           privacyPoolsCliNative: {
-            protocolVersion: "1",
+            bridgeVersion: "1",
             runtimeVersion: "runtime-v1",
             protocolProfile: "privacy-pools-v1",
           },
@@ -123,6 +110,40 @@ describe("native package metadata", () => {
         },
       ),
     ).toBe(true);
+
+    expect(
+      hasCompatibleNativeMetadata(
+        {
+          privacyPoolsCliNative: {
+            bridgeVersion: undefined,
+            runtimeVersion: "runtime-v1",
+            protocolProfile: "privacy-pools-v1",
+          },
+        },
+        {
+          nativeBridgeVersion: "1",
+          runtimeVersion: "runtime-v1",
+          protocolProfile: "privacy-pools-v1",
+        },
+      ),
+    ).toBe(false);
+
+    expect(
+      hasCompatibleNativeMetadata(
+        {
+          privacyPoolsCliNative: {
+            bridgeVersion: "1",
+            runtimeVersion: undefined,
+            protocolProfile: "privacy-pools-v1",
+          },
+        },
+        {
+          nativeBridgeVersion: "1",
+          runtimeVersion: "runtime-v1",
+          protocolProfile: "privacy-pools-v1",
+        },
+      ),
+    ).toBe(false);
 
     expect(
       hasCompatibleNativeMetadata(

@@ -240,7 +240,6 @@ Responses include `"dryRun": true` and all validation results. Supported on: `de
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
-| `PRIVACY_POOLS_CLI_ENABLE_NATIVE` | Legacy compatibility alias for the default native-preferred launcher behavior |
 | `PRIVACY_POOLS_CLI_DISABLE_NATIVE` | Set to `1` to force the pure JS runtime path |
 | `PRIVACY_POOLS_CLI_BINARY` | Override the launcher target with an explicit native shell binary path |
 | `PRIVACY_POOLS_CLI_JS_WORKER` | Override the JS worker entrypoint used by the launcher/native bridge |

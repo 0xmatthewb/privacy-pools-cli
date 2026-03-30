@@ -40,7 +40,6 @@ import {
 const ENV_CLI_BINARY = "PRIVACY_POOLS_CLI_BINARY";
 const ENV_CLI_DISABLE_NATIVE = "PRIVACY_POOLS_CLI_DISABLE_NATIVE";
 const ENV_CLI_DISABLE_LOCAL_FAST_PATH = "PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH";
-const ENV_CLI_ENABLE_NATIVE = "PRIVACY_POOLS_CLI_ENABLE_NATIVE";
 const ENV_CLI_JS_WORKER = "PRIVACY_POOLS_CLI_JS_WORKER";
 const ENV_PRIVATE_KEY = "PRIVACY_POOLS_PRIVATE_KEY";
 const SECRET_BEARING_FLAGS = new Set(["--mnemonic", "--private-key"]);
@@ -62,7 +61,6 @@ interface NativePackageJson {
     binaryPath?: string;
     sha256?: string;
     bridgeVersion?: string;
-    protocolVersion?: string;
     protocolProfile?: string;
     runtimeVersion?: string;
     triplet?: string;
@@ -209,9 +207,7 @@ export function resolveInstalledNativeBinary(
       return null;
     }
 
-    const binaryPath = resolveNativeBinaryPath(packageJsonPath, packageJson, {
-      allowLegacyBin: true,
-    });
+    const binaryPath = resolveNativeBinaryPath(packageJsonPath, packageJson);
     if (!binaryPath) return null;
     if (!hasValidNativeChecksum(packageJson, binaryPath)) {
       return null;
@@ -288,10 +284,6 @@ export function resolveLaunchTarget(
 
   const resolveInstalledNativeBinaryFn =
     options.resolveInstalledNativeBinary ?? resolveInstalledNativeBinary;
-  // Same-version packaged native binaries are preferred by default once they
-  // pass the checksum/version gates. Keep reading the legacy preview opt-in so
-  // older automation can continue exporting it as a benign no-op.
-  void isFlagEnabled(env[ENV_CLI_ENABLE_NATIVE]);
   const nativeBinary = resolveInstalledNativeBinaryFn(pkg);
   if (nativeBinary) {
     return {

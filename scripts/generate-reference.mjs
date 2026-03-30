@@ -1,5 +1,5 @@
 /**
- * Generate docs/reference.md from the Commander tree + COMMAND_METADATA.
+ * Generate docs/reference.md from the Commander tree + canonical command catalog.
  *
  * Usage:
  *   node scripts/generate-reference.mjs          # preview to stdout
@@ -30,11 +30,11 @@ if (!existsSync(distPath)) {
 
 const { createRootProgram } = await import(join(repoRoot, "dist", "program.js"));
 const {
-  COMMAND_METADATA,
   CAPABILITIES_COMMAND_ORDER,
   GLOBAL_FLAG_METADATA,
   CAPABILITIES_SCHEMAS,
 } = await import(join(repoRoot, "dist", "utils", "command-metadata.js"));
+const { COMMAND_CATALOG } = await import(join(repoRoot, "dist", "utils", "command-catalog.js"));
 
 // ── Build Commander tree for flag descriptions ──
 
@@ -96,7 +96,7 @@ lines.push("");
 lines.push("## Commands");
 
 for (const path of CAPABILITIES_COMMAND_ORDER) {
-  const metadata = COMMAND_METADATA[path];
+  const metadata = COMMAND_CATALOG[path];
   if (!metadata) continue;
 
   const cmd = commandMap.get(path);

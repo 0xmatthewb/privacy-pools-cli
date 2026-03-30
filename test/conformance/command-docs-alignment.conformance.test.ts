@@ -696,7 +696,6 @@ describe("command docs alignment", () => {
       "PP_ASP_HOST_<CHAIN>",
       "PP_RELAYER_HOST_<CHAIN>",
       "PRIVACY_POOLS_CONFIG_DIR",
-      "PRIVACY_POOLS_CLI_ENABLE_NATIVE",
       "PRIVACY_POOLS_CLI_DISABLE_NATIVE",
       "PRIVACY_POOLS_CLI_BINARY",
       "PRIVACY_POOLS_CLI_JS_WORKER",

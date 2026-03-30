@@ -196,7 +196,6 @@ try {
   const binaryPath = resolveNativeBinaryPath(
     installedPackageJsonPath,
     installedPackageJson,
-    { allowLegacyBin: false },
   );
   if (!binaryPath) {
     fail("Packed native package is missing privacyPoolsCliNative.binaryPath.");

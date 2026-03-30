@@ -611,7 +611,6 @@ describe("native package smoke", () => {
     parsed.privacyPoolsCliNative = {
       ...parsed.privacyPoolsCliNative,
       bridgeVersion: "999",
-      protocolVersion: "999",
     };
     writeFileSync(packageJsonPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
 
@@ -656,7 +655,6 @@ describe("native package smoke", () => {
     parsed.privacyPoolsCliNative = {
       ...parsed.privacyPoolsCliNative,
       bridgeVersion: "999",
-      protocolVersion: "999",
     };
     writeFileSync(packageJsonPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
 

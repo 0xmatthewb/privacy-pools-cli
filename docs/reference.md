@@ -10,15 +10,7 @@ Detailed command reference for the Privacy Pools CLI. For a quick overview, see 
 
 Initialize wallet and configuration
 
-> Generates a BIP-39 mnemonic (used to derive deposit commitments) and a signer key (your onchain identity). Run once.
-> Privacy Pools uses two keys:
->   Recovery phrase: keeps your deposits private (generated during init)
->   Signer key:     pays gas and sends transactions (can be set later)
->   These are independent. Set the signer key via PRIVACY_POOLS_PRIVATE_KEY env var.
-> During interactive setup, init offers to write a recovery backup to ~/privacy-pools-recovery.txt. Use only one stdin secret source per invocation: either --mnemonic-stdin or --private-key-stdin.
-> Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
-> Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
-> Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. Set PRIVACY_POOLS_CIRCUITS_DIR only if you already have a trusted pre-provisioned directory that you want the CLI to use instead.
+Creates or imports the local Privacy Pools wallet state under ~/.privacy-pools/. The recovery phrase controls deposit privacy and account restoration, while the signer key pays gas and submits transactions; they are intentionally separate secrets. When you generate a fresh wallet, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
 
 ```bash
 privacy-pools init
@@ -195,7 +187,7 @@ List available pools and assets
 
 **Usage:** `privacy-pools pools [asset] [options]`
 
-When no --chain is specified, shows all CLI-supported mainnet chains. Use --all-chains to include testnets. Pools are sorted by pool balance (highest first) by default. Pass a single asset symbol (e.g. 'pools ETH') for a detail view with your funds, recent activity, and pool stats.
+Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets too.
 
 ```bash
 privacy-pools pools
@@ -277,7 +269,7 @@ Describe one command for runtime agent introspection
 
 **Usage:** `privacy-pools describe <command> [options]`
 
-Useful when a human or agent wants the runtime contract for one command without parsing long-form docs. Accepts spaced command paths like 'withdraw quote' and 'stats global'.
+Use spaced command paths such as `withdraw quote` or `stats global`. The JSON output is the runtime contract for agents and includes prerequisites, flags, risk metadata, and JSON field notes.
 
 ```bash
 privacy-pools describe withdraw
@@ -293,9 +285,7 @@ Deposit into a pool
 
 **Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
-Deposits funds (ETH or ERC-20 tokens) into a Privacy Pool, creating a private commitment. A ZK proof is generated locally and the transaction is submitted onchain. Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI, so there is no runtime download step. Proofs typically complete in 10-30s.
-
-Non-round deposit amounts can fingerprint your deposit in the anonymity set. The CLI warns and blocks deposits with excessive decimal precision (e.g. 1.276848 ETH), suggesting nearby round alternatives. Use --ignore-unique-amount to override.
+Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local commitment precomputation path, so there is no runtime download step when proofs are needed. Most proof-generation steps complete in roughly 10-30s once the packaged artifacts are verified locally. In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off.
 
 ```bash
 privacy-pools deposit 0.1 ETH
@@ -325,11 +315,7 @@ Withdraw from a pool
 
 **Usage:** `privacy-pools withdraw [amount] [asset] [options]`
 
-Withdraws funds from a Privacy Pool via a relayer (default, recommended) for enhanced privacy. The relayer pays gas on your behalf and takes a small fee, keeping your withdrawal address unlinkable to your deposit. ASP approval is required before withdrawal. If a deposit is poi_required, complete Proof of Association at tornado.0xbow.io first. If it is declined, the recovery path is ragequit. Proof generation may take 10-30s. Use 'withdraw quote' to check relayer fees first.
-
-A --direct mode exists but is not recommended: it interacts with the pool contract directly, publicly linking your deposit and withdrawal addresses onchain. Prefer relayed withdrawals for privacy.
-
-Non-round withdrawal amounts may reduce privacy. The CLI suggests round alternatives.
+Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off. Pool Accounts marked poi_required cannot withdraw privately until Proof of Association is completed at tornado.0xbow.io. Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off.
 
 ```bash
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
@@ -381,13 +367,7 @@ privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 
 List your Pool Accounts (individual deposit lineages) with balances
 
-Without --chain, accounts acts like a dashboard and aggregates your holdings across all CLI-supported mainnet chains. Use --all-chains to include testnets or --chain <name> to focus on one chain.
-
-Pool Account statuses: approved, pending, poi_required, declined, unknown, spent (fully withdrawn), exited (exit/ragequit).
-
-ASP statuses: approved (eligible for withdraw), pending (waiting for ASP), poi_required (complete Proof of Association at tornado.0xbow.io before withdraw), declined (cannot use withdraw; use ragequit), unknown.
-
-Compact modes --summary and --pending-only are intended for polling loops and do not support --details. When polling with --pending-only, Pool Accounts disappear from results when ASP review finishes. Re-run accounts without --pending-only to confirm whether the final status is approved, declined, or poi_required.
+Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --all-chains to include supported testnets. Compact modes like --summary and --pending-only are intended for agent polling loops so they do not have to parse the full account dataset on every check.
 
 ```bash
 privacy-pools accounts
@@ -465,7 +445,7 @@ privacy-pools history --no-sync --chain mainnet
 
 Force-sync local account state from onchain events
 
-Most commands auto-sync with a 2-minute freshness window. Use sync to force a refresh when you need the latest state immediately.
+Most wallet-aware commands already auto-sync with a 2-minute freshness window, so explicit sync is mainly a crash-recovery or reconciliation tool rather than a command you should need on every workflow step.
 
 ```bash
 privacy-pools sync
@@ -508,7 +488,7 @@ Publicly withdraw funds to your deposit address
 
 **Usage:** `privacy-pools ragequit [asset] [options]`
 
-Emergency withdrawal without ASP approval. The original depositor can publicly reclaim funds when the deposit label is not approved. Use 'withdraw' to withdraw privately once your deposit is ASP-approved. Use 'ragequit' at any time to recover funds publicly to your deposit address. Declined deposits must use this path; pending and poi_required deposits can also use it. Falls back to a built-in pool registry when public pool discovery is unavailable. 'exit' is an alias.
+Emergency public recovery path for declined or otherwise unrecoverable Pool Accounts. This exits to the original deposit address and does not preserve privacy. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.
 
 ```bash
 privacy-pools ragequit ETH --from-pa PA-1
@@ -545,7 +525,7 @@ Generate shell completion script
 
 **Usage:** `privacy-pools completion [shell] [options]`
 
-Generated scripts register the privacy-pools command.
+Generates shell-specific completion scripts for the installed CLI. The output is intended to be redirected into your shell’s completion directory or profile setup, not executed directly.
 
 ```bash
 privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools
@@ -661,7 +641,6 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PP_ASP_HOST_<CHAIN>` | Per-chain ASP override (e.g., `PP_ASP_HOST_SEPOLIA`) |
 | `PRIVACY_POOLS_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
 | `PP_RELAYER_HOST_<CHAIN>` | Per-chain relayer override |
-| `PRIVACY_POOLS_CLI_ENABLE_NATIVE` | Legacy compatibility alias for the default native-preferred launcher behavior |
 | `PRIVACY_POOLS_CLI_DISABLE_NATIVE` | Set to `1` to force the pure JS runtime path |
 | `PRIVACY_POOLS_CLI_BINARY` | Override the launcher target with an explicit native shell binary path |
 | `PRIVACY_POOLS_CLI_JS_WORKER` | Override the JS worker entrypoint used by the launcher/native shell bridge |
