@@ -83,7 +83,7 @@ without omitting optional dependencies.
 
 Parse `success` first. On failure, read `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
 
-Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
+Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
 ## Preflight Check
 
@@ -204,7 +204,7 @@ privacy-pools status --agent
 privacy-pools status --agent --check
 ```
 
-JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[] }], warnings?: [{ code, message, affects[] }], nextActions?: [{ command, reason, when, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
+JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[] }], warnings?: [{ code, message, affects[] }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
 
 `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. `recommendedMode`, `blockingIssues[]`, and `warnings[]` are the higher-level preflight contract for agents. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. When `recommendedMode = "read-only"` because RPC or ASP health is degraded, `nextActions` stays on public discovery and intentionally avoids account-state guidance until connectivity is restored. If only the ASP is down while RPC is still healthy, public recovery remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the operator already knows the affected account or workflow. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
 When `rpcUrl` or `aspHost` comes from a custom endpoint, the CLI redacts userinfo, query strings, and token-like path segments before printing them.
@@ -261,7 +261,7 @@ privacy-pools init --agent --private-key-file ./signer-key.txt --default-chain m
 printf '%s\n' 0x... | privacy-pools init --agent --mnemonic-file ./recovery.txt --private-key-stdin --default-chain mainnet
 ```
 
-JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
+JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 When `--show-mnemonic` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
 
@@ -324,7 +324,7 @@ Deposit ETH or ERC-20 tokens into a Privacy Pool.
 privacy-pools deposit 0.1 ETH --agent
 ```
 
-JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
+JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 All numeric values are strings (wei). `committedValue` and `label` may be `null`.
 
@@ -347,7 +347,7 @@ privacy-pools withdraw 0.1 ETH --direct --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
-JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [...] }`
+JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`. Human output includes a privacy note about direct withdrawals linking deposit and withdrawal onchain.
 
@@ -368,7 +368,7 @@ For relayed withdrawals, the CLI also warns if the chosen amount would leave a p
 privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 ```
 
-JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
+JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof generation takes longer, the CLI will auto-refresh the quote if the fee hasn't changed. If the fee changes, re-run the command to generate a fresh proof. `nextActions` provides the canonical `withdraw` follow-up; check `runnable` because quotes without a recipient produce a template action that still needs `--to`.
 
@@ -381,7 +381,7 @@ privacy-pools exit ETH --from-pa PA-1 --agent
 privacy-pools ragequit ETH --from-pa PA-1 --agent   # same thing
 ```
 
-JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, nextActions?: [...] }`
+JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 #### `accounts`
 
@@ -397,7 +397,7 @@ privacy-pools accounts --agent --details
 
 When no `--chain` is specified, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--all-chains` to include testnets.
 
-JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, args?, options?, runnable? }] }`
+JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId` before using it in follow-up commands.
 
