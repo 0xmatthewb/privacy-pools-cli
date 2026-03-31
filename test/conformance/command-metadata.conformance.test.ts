@@ -121,6 +121,7 @@ describe("command metadata conformance", () => {
     const payload = buildCapabilitiesPayload();
     const withdraw = payload.commands.find((command) => command.name === "withdraw");
     const history = payload.commands.find((command) => command.name === "history");
+    const accountsJsonVariants = getCommandMetadata("accounts").help?.jsonVariants ?? [];
     const poolsJsonFields = getCommandMetadata("pools").help?.jsonFields;
     const poolsJsonVariants = getCommandMetadata("pools").help?.jsonVariants ?? [];
 
@@ -128,6 +129,12 @@ describe("command metadata conformance", () => {
     expect(withdraw?.flags ?? []).toContain("--extra-gas");
     expect(withdraw?.flags ?? []).toContain("--no-extra-gas");
     expect(history?.expectedLatencyClass).toBe("slow");
+    expect(accountsJsonVariants).toContain(
+      "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+    );
+    expect(accountsJsonVariants).toContain(
+      "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+    );
     expect(poolsJsonFields).toContain("chain?");
     expect(poolsJsonFields).toContain("allChains?");
     expect(poolsJsonFields).toContain("chains?");
