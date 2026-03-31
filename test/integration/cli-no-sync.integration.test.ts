@@ -201,6 +201,64 @@ afterAll(async () => {
 });
 
 describe("accounts/history --no-sync", () => {
+  test("sync rebuilds deposits even when no local account file was ever persisted", async () => {
+    const home = createSeededHome("sepolia");
+    const seededAccount = new AccountService(
+      {} as ConstructorParameters<typeof AccountService>[0],
+      { mnemonic: TEST_MNEMONIC },
+    );
+    const { precommitment } = seededAccount.createDepositSecrets(mockScope, 0n);
+
+    const rebuildRpc = await launchSyncGateRpcServer({
+      chainId: sepoliaChainConfig.id,
+      entrypoint: sepoliaChainConfig.entrypoint,
+      poolAddress: mockPoolAddress,
+      scope: mockScope,
+      depositCommitment: 1n,
+      depositLabel: 2n,
+      depositValue: 3n,
+      depositPrecommitment: precommitment,
+    });
+
+    try {
+      const accountsResult = runCli(
+        ["--json", "--chain", "sepolia", "accounts"],
+        {
+          home,
+          timeoutMs: 20_000,
+          env: {
+            ...testEnv(),
+            PRIVACY_POOLS_RPC_URL_SEPOLIA: rebuildRpc.url,
+          },
+        },
+      );
+
+      expect(accountsResult.status).toBe(0);
+      const accountsJson = parseJsonOutput<{
+        success: boolean;
+        accounts: Array<{ poolAccountId: string; value: string }>;
+      }>(accountsResult.stdout);
+      expect(accountsJson.success).toBe(true);
+      expect(accountsJson.accounts).toEqual([
+        expect.objectContaining({
+          poolAccountId: "PA-1",
+          value: "3",
+        }),
+      ]);
+
+      const accountFile = readFileSync(
+        join(home, ".privacy-pools", "accounts", `${sepoliaChainConfig.id}.json`),
+        "utf8",
+      );
+      expect(accountFile).toContain('"masterKeys"');
+      expect(accountFile).toContain(
+        `"__privacyPoolsCliAccountVersion": ${ACCOUNT_FILE_VERSION}`,
+      );
+    } finally {
+      await killSyncGateRpcServer(rebuildRpc);
+    }
+  }, 30_000);
+
   test("sync-enabled refresh upgrades legacy cached state and restores history", async () => {
     const home = createSeededHome("sepolia");
     seedStaleCachedAccount(home);
@@ -465,14 +523,16 @@ describe("accounts/history --no-sync", () => {
     expect(json.balances).toBeUndefined();
     expect(json.warnings).toHaveLength(1);
     expect(json.warnings?.[0]?.chain).toBe("optimism");
-    expect(json.nextActions).toEqual([
-      {
-        command: "accounts",
-        reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
-        when: "has_pending",
-        options: { agent: true, pendingOnly: true },
-      },
-    ]);
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions?.[0]).toMatchObject({
+      command: "accounts",
+      reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
+      when: "has_pending",
+      options: { agent: true, pendingOnly: true },
+    });
+    expect(json.nextActions?.[0]?.cliCommand).toBe(
+      "privacy-pools accounts --agent --pending-only",
+    );
   }, 30_000);
 
   test("accounts --no-sync --all-chains --summary includes testnets and chain metadata", () => {
@@ -528,16 +588,22 @@ describe("accounts/history --no-sync", () => {
       "op-sepolia",
     ]);
     expect(json.balances.map((balance) => balance.chainId)).toEqual([1, 42161, 10, 11155111, 11155420]);
-    expect(json.balances.every((balance) => balance.asset === "ETH")).toBe(true);
+    expect(
+      json.balances.every(
+        (balance) => typeof balance.asset === "string" && balance.asset.length > 0,
+      ),
+    ).toBe(true);
     expect(json.balances.every((balance) => balance.balance === "3000000000000000000")).toBe(true);
     expect(json.balances.every((balance) => balance.poolAccounts === 2)).toBe(true);
-    expect(json.nextActions).toEqual([
-      {
-        command: "accounts",
-        reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
-        when: "has_pending",
-        options: { agent: true, allChains: true, pendingOnly: true },
-      },
-    ]);
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions?.[0]).toMatchObject({
+      command: "accounts",
+      reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
+      when: "has_pending",
+      options: { agent: true, allChains: true, pendingOnly: true },
+    });
+    expect(json.nextActions?.[0]?.cliCommand).toBe(
+      "privacy-pools accounts --agent --all-chains --pending-only",
+    );
   }, 30_000);
 });

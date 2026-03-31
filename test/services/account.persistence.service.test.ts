@@ -164,6 +164,31 @@ describe("account persistence", () => {
     });
   });
 
+  test("loadAccount ignores interrupted temp siblings and returns the last committed state", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const accountsDir = join(home, "accounts");
+
+    saveAccount(11155111, {
+      chainId: 11155111,
+      poolAccounts: new Map([["scope1", { amount: 1n }]]),
+    });
+
+    writeFileSync(
+      join(accountsDir, "11155111.json.interrupted.tmp"),
+      "{not valid json",
+      "utf-8",
+    );
+
+    const loaded = loadAccount(11155111);
+    expect(loaded).toMatchObject({
+      chainId: 11155111,
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+    });
+    expect(loaded.poolAccounts).toBeInstanceOf(Map);
+    expect(loaded.poolAccounts.get("scope1")).toEqual({ amount: 1n });
+  });
+
   /* ---------------------------------------------------------------- */
   /*  serialize / deserialize                                          */
   /* ---------------------------------------------------------------- */

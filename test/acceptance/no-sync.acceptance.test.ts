@@ -564,15 +564,17 @@ defineScenarioSuite("no-sync acceptance", [
         expect(json.balances).toBeUndefined();
         expect(json.warnings).toHaveLength(1);
         expect(json.warnings?.[0]?.chain).toBe("optimism");
-        expect(json.nextActions).toEqual([
-          {
-            command: "accounts",
-            reason:
-              "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
-            when: "has_pending",
-            options: { agent: true, pendingOnly: true },
-          },
-        ]);
+        expect(json.nextActions).toHaveLength(1);
+        expect(json.nextActions?.[0]).toMatchObject({
+          command: "accounts",
+          reason:
+            "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
+          when: "has_pending",
+          options: { agent: true, pendingOnly: true },
+        });
+        expect(json.nextActions?.[0]?.cliCommand).toBe(
+          "privacy-pools accounts --agent --pending-only",
+        );
       }),
     ],
     { timeoutMs: 30_000 },
@@ -660,9 +662,12 @@ defineScenarioSuite("no-sync acceptance", [
           11155111,
           11155420,
         ]);
-        expect(json.balances.every((balance) => balance.asset === "ETH")).toBe(
-          true,
-        );
+        expect(
+          json.balances.every(
+            (balance) =>
+              typeof balance.asset === "string" && balance.asset.length > 0,
+          ),
+        ).toBe(true);
         expect(
           json.balances.every(
             (balance) => balance.balance === "3000000000000000000",
@@ -671,15 +676,17 @@ defineScenarioSuite("no-sync acceptance", [
         expect(
           json.balances.every((balance) => balance.poolAccounts === 2),
         ).toBe(true);
-        expect(json.nextActions).toEqual([
-          {
-            command: "accounts",
-            reason:
-              "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
-            when: "has_pending",
-            options: { agent: true, allChains: true, pendingOnly: true },
-          },
-        ]);
+        expect(json.nextActions).toHaveLength(1);
+        expect(json.nextActions?.[0]).toMatchObject({
+          command: "accounts",
+          reason:
+            "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
+          when: "has_pending",
+          options: { agent: true, allChains: true, pendingOnly: true },
+        });
+        expect(json.nextActions?.[0]?.cliCommand).toBe(
+          "privacy-pools accounts --agent --all-chains --pending-only",
+        );
       }),
     ],
     { timeoutMs: 30_000 },

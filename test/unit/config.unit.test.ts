@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   configExists,
@@ -18,6 +18,7 @@ import {
   loadSignerKey,
   saveMnemonicToFile,
   saveSignerKey,
+  writePrivateFileAtomic,
 } from "../../src/services/config.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
@@ -187,6 +188,24 @@ describe("config service", () => {
     );
     expect(loadSignerKey()).toBe("0xabc123");
     expect(readFileSync(victimPath, "utf-8")).toBe("do not overwrite");
+  });
+
+  test("atomic account-style writes preserve the original file when rename fails", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const targetPath = join(home, "accounts", "11155111.json");
+    ensureConfigDir();
+    mkdirSync(targetPath, { recursive: true });
+    writeFileSync(join(targetPath, "marker.txt"), "original-account-state", "utf-8");
+
+    expect(() =>
+      writePrivateFileAtomic(targetPath, "updated-account-state"),
+    ).toThrow();
+    expect(statSync(targetPath).isDirectory()).toBe(true);
+    expect(readFileSync(join(targetPath, "marker.txt"), "utf-8")).toBe("original-account-state");
+    expect(
+      readdirSync(join(home, "accounts")).filter((name) => name.endsWith(".tmp")),
+    ).toHaveLength(0);
   });
 
   test("configExists and mnemonicExists track persisted config state", () => {
