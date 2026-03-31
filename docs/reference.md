@@ -67,7 +67,7 @@ privacy-pools upgrade --agent --yes
 
 ### `flow`
 
-Manage the easy-path deposit-to-withdraw workflow
+Guided deposit-to-private-withdrawal workflow
 
 Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands. `privacyDelayConfigured = false` in flow JSON means a legacy saved workflow was normalized to `off` without an explicitly saved privacy-delay policy. Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.
 
@@ -121,7 +121,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 
 ### `flow watch`
 
-Resume a saved flow through funding, approval, delay, and withdrawal
+Resume a saved flow through funding, approval, privacy delay, and withdrawal
 
 **Usage:** `privacy-pools flow watch [workflowId|latest] [options]`
 
@@ -281,7 +281,7 @@ privacy-pools describe stats global --agent
 
 ### `deposit`
 
-Deposit into a pool
+Deposit funds into a Privacy Pool
 
 **Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
@@ -299,9 +299,9 @@ privacy-pools deposit 0.1 --asset ETH --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `-a, --asset <symbol\|address>` | Asset to deposit (symbol like ETH, USDC, or contract address) |
-| `--unsigned [format]` | Build unsigned payload; format: envelope (default) or tx |
+| `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
 | `--dry-run` | Validate and preview the transaction without submitting |
-| `--ignore-unique-amount` | Bypass the non-round amount privacy check |
+| `--ignore-unique-amount` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
 
 **Safety:** Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.
 **Safety:** A vetting fee is deducted from the deposit amount by the pool's ASP.
@@ -332,7 +332,7 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet
 | `-t, --to <address>` | Recipient address (required for relayed) |
 | `-p, --from-pa <PA-#\|#>` | Withdraw from a specific Pool Account (e.g. PA-2) |
 | `--direct` | NOT recommended. Withdraw directly onchain, publicly linking deposit and withdrawal addresses. Use relayed mode (default) for privacy. |
-| `--unsigned [format]` | Build unsigned payload; format: envelope (default) or tx |
+| `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
 | `--dry-run` | Generate and verify withdrawal artifacts without submitting |
 | `-a, --asset <symbol\|address>` | Asset to withdraw |
 | `--all` | Withdraw entire Pool Account balance |
@@ -501,7 +501,7 @@ privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet
 |------|-------------|
 | `-a, --asset <symbol\|address>` | Asset pool to exit from |
 | `-p, --from-pa <PA-#\|#>` | Ragequit a specific Pool Account (e.g. PA-2) |
-| `--unsigned [format]` | Build unsigned payload; format: envelope (default) or tx |
+| `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
 | `--dry-run` | Generate proof and validate without submitting |
 
 **Safety:** Ragequit is public and irreversible and reveals the original deposit address onchain.

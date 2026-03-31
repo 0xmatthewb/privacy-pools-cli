@@ -627,7 +627,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   }
   if (data.snapshot.walletAddress) {
     info(
-      `${humanWalletModeLabel(data.snapshot.walletMode)}: ${data.snapshot.walletAddress}`,
+      `Wallet address: ${data.snapshot.walletAddress}`,
       silent,
     );
   }

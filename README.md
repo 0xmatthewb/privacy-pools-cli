@@ -21,14 +21,14 @@ privacy-pools pools
 ```
 
 ```
-┌───────┬────────────────┬─────────────────┬────────────┬─────────────┬─────────────┐
-│ Asset │ Total Deposits │ Pool Balance    │ USD Value  │ Min Deposit │ Vetting Fee │
-├───────┼────────────────┼─────────────────┼────────────┼─────────────┼─────────────┤
-│ ETH   │ 2,875          │ 823.92 ETH      │ $1,667,647 │ 0.01 ETH    │ 0.50%       │
-│ USDC  │ 351            │ 310,722 USDC    │ $310,693   │ 25 USDC     │ 0.50%       │
-│ USDT  │ 78             │ 105,544 USDT    │ $105,540   │ 25 USDT     │ 0.00%       │
-│ ...   │                │                 │            │             │             │
-└───────┴────────────────┴─────────────────┴────────────┴─────────────┴─────────────┘
+┌───────┬────────────────┬─────────────────┬────────────┬──────────────┬─────────────┬─────────────┐
+│ Asset │ Total Deposits │ Pool Balance    │ USD Value  │ Pending      │ Min Deposit │ Vetting Fee │
+├───────┼────────────────┼─────────────────┼────────────┼──────────────┼─────────────┼─────────────┤
+│ ETH   │ 2,875          │ 823.92 ETH      │ $1,667,647 │ 1.20 ETH     │ 0.01 ETH    │ 0.50%       │
+│ USDC  │ 351            │ 310,722 USDC    │ $310,693   │ 500 USDC     │ 25 USDC     │ 0.50%       │
+│ USDT  │ 78             │ 105,544 USDT    │ $105,540   │ 0 USDT       │ 25 USDT     │ 0.00%       │
+│ ...   │                │                 │            │              │             │             │
+└───────┴────────────────┴─────────────────┴────────────┴──────────────┴─────────────┴─────────────┘
 ```
 
 ```bash
@@ -123,8 +123,8 @@ npm run start -- --help
 | `guide` | Print the full usage guide | |
 | `upgrade` | Check npm for updates or upgrade this CLI | |
 | `init` | Set up wallet and config (run once) | |
-| `flow` | Easy-path deposit now, withdraw later workflow | Yes |
-| `deposit` | Deposit into a pool | Yes |
+| `flow` | Guided deposit-to-private-withdrawal workflow | Yes |
+| `deposit` | Deposit funds into a Privacy Pool | Yes |
 | `withdraw` | Withdraw from a pool (relayed or direct) | Yes |
 | `ragequit` | Emergency exit without ASP approval (alias: `exit`) | Yes |
 | `accounts` | List Pool Accounts with balances and approval status | Yes |

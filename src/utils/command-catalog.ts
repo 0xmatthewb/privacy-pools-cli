@@ -136,7 +136,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `upgrade`",
   },
   flow: {
-    description: "Manage the easy-path deposit-to-withdraw workflow",
+    description: "Guided deposit-to-private-withdrawal workflow",
     help: {
       overview: [
         "Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands.",
@@ -217,7 +217,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "flow watch": {
     description:
-      "Resume a saved flow through funding, approval, delay, and withdrawal",
+      "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
     help: {
       overview: [
         "Re-checks a saved workflow using the same protocol realities as the frontend. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation.",
@@ -523,7 +523,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     safeReadOnly: true,
   },
   deposit: {
-    description: "Deposit into a pool",
+    description: "Deposit funds into a Privacy Pool",
     help: {
       overview: [
         "Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local commitment precomputation path, so there is no runtime download step when proofs are needed.",

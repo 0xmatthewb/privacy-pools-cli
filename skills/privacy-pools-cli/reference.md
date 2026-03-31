@@ -397,7 +397,7 @@ Representative payload (abridged):
   "commands": [
     {
       "name": "deposit",
-      "description": "Deposit into a pool",
+      "description": "Deposit funds into a Privacy Pool",
       "flags": ["--asset <symbol|address>", "--unsigned [envelope|tx]", "--dry-run"],
       "agentFlags": "--agent",
       "requiresInit": true

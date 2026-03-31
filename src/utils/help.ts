@@ -95,7 +95,7 @@ export function guideText(): string {
     "",
     chalk.bold("Two-Key Model"),
     `  Privacy Pools uses two keys:`,
-    `  ${notice("Recovery phrase")}  keeps your deposits private (generated during init)`,
+    `  ${notice("Recovery phrase")}  keeps your deposits private (generated during init; sometimes called a seed phrase)`,
     `  ${notice("Signer key")}       pays gas and sends transactions (can be set later)`,
     `  These are independent. You can set the signer key later via env var.`,
     `  Note: ${notice("PRIVACY_POOLS_PRIVATE_KEY")} env var takes precedence over a saved key file.`,

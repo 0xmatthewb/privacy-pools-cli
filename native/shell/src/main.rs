@@ -3358,7 +3358,7 @@ fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         .collect::<Vec<_>>();
     print_table(headers, rows);
     write_stderr_text(
-        "\nVetting fees are deducted on deposit.\nPool Balance: current total value in the pool (accepted + pending deposits).\nPending: deposits not yet accepted (pending ASP review or declined deposits).\n",
+        "\nVetting fees are deducted on deposit.\nPool Balance: current total value in the pool (accepted + pending deposits).\nPending: deposits still under ASP review.\n",
     );
 }
 

@@ -365,7 +365,7 @@ export function classifyError(error: unknown): CLIError {
     return new CLIError(
       "Insufficient funds for transaction.",
       "CONTRACT",
-      "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your balance with 'privacy-pools status'.",
+      "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your signer wallet balance in a block explorer or wallet app, then fund it before retrying.",
       "CONTRACT_INSUFFICIENT_FUNDS"
     );
   }
@@ -387,7 +387,7 @@ export function classifyError(error: unknown): CLIError {
   return new CLIError(
     message,
     "UNKNOWN",
-    "If this persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues."
+    "Try 'privacy-pools sync' to reconcile local state, then retry. If the problem persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues."
   );
 }
 

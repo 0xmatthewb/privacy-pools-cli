@@ -16,7 +16,7 @@ export function createDepositCommand(): Command {
     .addOption(
       new Option(
         "--unsigned [format]",
-        "Build unsigned payload; format: envelope (default) or tx",
+        "Build unsigned transaction without submitting; format: envelope (default) or tx",
       ).choices(["envelope", "tx"]),
     )
     .addOption(
@@ -31,7 +31,7 @@ export function createDepositCommand(): Command {
     )
     .option(
       "--ignore-unique-amount",
-      "Bypass the non-round amount privacy check",
+      "Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint)",
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(

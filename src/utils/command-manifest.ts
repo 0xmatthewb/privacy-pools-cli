@@ -54,7 +54,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "flow",
     "aliases": [],
-    "description": "Manage the easy-path deposit-to-withdraw workflow"
+    "description": "Guided deposit-to-private-withdrawal workflow"
   },
   {
     "name": "pools",
@@ -94,7 +94,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "deposit",
     "aliases": [],
-    "description": "Deposit into a pool"
+    "description": "Deposit funds into a Privacy Pool"
   },
   {
     "name": "withdraw",
@@ -359,7 +359,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "flow",
-      "description": "Manage the easy-path deposit-to-withdraw workflow",
+      "description": "Guided deposit-to-private-withdrawal workflow",
       "usage": "flow",
       "flags": [
         "start <amount> <asset> --to <address>",
@@ -388,7 +388,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "flow watch",
-      "description": "Resume a saved flow through funding, approval, delay, and withdrawal",
+      "description": "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
       "usage": "flow watch [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
@@ -491,7 +491,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "deposit",
-      "description": "Deposit into a pool",
+      "description": "Deposit funds into a Privacy Pool",
       "usage": "deposit <amount> [asset]",
       "flags": [
         "--asset <symbol|address>",
@@ -783,7 +783,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "flow": {
       "command": "flow",
-      "description": "Manage the easy-path deposit-to-withdraw workflow",
+      "description": "Guided deposit-to-private-withdrawal workflow",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -907,7 +907,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "flow watch": {
       "command": "flow watch",
-      "description": "Resume a saved flow through funding, approval, delay, and withdrawal",
+      "description": "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1514,7 +1514,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "deposit": {
       "command": "deposit",
-      "description": "Deposit into a pool",
+      "description": "Deposit funds into a Privacy Pool",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",

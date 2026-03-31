@@ -23,7 +23,7 @@ export function createRagequitCommand(): Command {
     .addOption(
       new Option(
         "--unsigned [format]",
-        "Build unsigned payload; format: envelope (default) or tx",
+        "Build unsigned transaction without submitting; format: envelope (default) or tx",
       ).choices(["envelope", "tx"]),
     )
     .addOption(

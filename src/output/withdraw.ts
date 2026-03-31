@@ -363,8 +363,8 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   info("Withdrawal quote:", silent);
   info(`Asset: ${data.asset}`, silent);
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`, silent);
-  info(`Base relayer fee: ${formatBPS(baseFeeBPS)}`, silent);
-  info(`Relayer fee: ${formatBPS(data.quoteFeeBPS)} (${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)})`, silent);
+  info(`Base relayer fee: ${formatBPS(baseFeeBPS)} (pool minimum)`, silent);
+  info(`Quoted relayer fee: ${formatBPS(data.quoteFeeBPS)} (${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)})`, silent);
   info(`Estimated relay tx cost: ${relayTxCostFormatted}`, silent);
   if (extraGasFundFormatted) {
     info(`Extra gas funding: ${extraGasFundFormatted}`, silent);
