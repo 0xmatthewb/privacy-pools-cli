@@ -12,14 +12,14 @@ describe("deployment hints", () => {
         11155111,
         "0x1C7D4B196CB0C7B01D743FBC6116A902379C7238",
       ),
-    ).toBe(8587064n);
+    ).toBe(8587019n);
 
     expect(
       lookupPoolDeploymentBlock(
         11155111,
         "0x0B062FE33C4F1592D8EA63F9A0177FCA44374C0F",
       ),
-    ).toBe(8587064n);
+    ).toBe(8587019n);
   });
 
   test("falls back to the chain start block when no hint exists", () => {
@@ -36,7 +36,7 @@ describe("deployment hints", () => {
     const payload = poolToJson({
       asset: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
       pool: "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f",
-      deploymentBlock: 8587064n,
+      deploymentBlock: 8587019n,
       scope: 12345n,
       symbol: "USDC",
       decimals: 6,

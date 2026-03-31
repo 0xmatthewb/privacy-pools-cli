@@ -163,10 +163,12 @@ describe("validation matrix", () => {
       const sepolia = resolveChain("sepolia");
       expect(sepolia.aspHost).toBe("https://asp-sepolia.test");
       expect(sepolia.relayerHost).toBe("https://relayer-sepolia.test");
+      expect(sepolia.relayerHosts).toEqual(["https://relayer-sepolia.test"]);
 
       const ethereum = resolveChain("ethereum");
       expect(ethereum.aspHost).toBe("https://asp-global.test");
       expect(ethereum.relayerHost).toBe("https://relayer-global.test");
+      expect(ethereum.relayerHosts).toEqual(["https://relayer-global.test"]);
     } finally {
       if (prevGlobalAsp === undefined) delete process.env.PRIVACY_POOLS_ASP_HOST;
       else process.env.PRIVACY_POOLS_ASP_HOST = prevGlobalAsp;

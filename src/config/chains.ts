@@ -48,6 +48,9 @@ export function resolveChainOverrides(config: ChainConfig): ChainConfig {
     startBlock: sharedAnvilOverride?.startBlock ?? config.startBlock,
     aspHost: aspHostOverride ?? config.aspHost,
     relayerHost: relayerHostOverride ?? config.relayerHost,
+    relayerHosts: relayerHostOverride
+      ? [relayerHostOverride]
+      : config.relayerHosts,
   };
 }
 
@@ -93,6 +96,10 @@ export const CHAINS: Record<string, ChainConfig> = {
     startBlock: 8587019n,
     aspHost: "https://dw.0xbow.io",
     relayerHost: "https://testnet-relayer.privacypools.com",
+    relayerHosts: [
+      "https://testnet-relayer.privacypools.com",
+      "https://fastrelay.xyz",
+    ],
     isTestnet: true,
     avgBlockTimeSec: 12,
   },

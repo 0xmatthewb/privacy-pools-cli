@@ -20,7 +20,7 @@ const chainConfig = CHAINS.sepolia;
 const assetAddress = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as const;
 const poolAddress = "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f" as const;
 const scope = 12345n;
-const deploymentBlock = 8587064n;
+const deploymentBlock = 8587019n;
 
 let aspServer: DeploymentHintAspServer;
 let rpcServer: SyncGateRpcServer;

@@ -36,7 +36,7 @@ const EVM_POOL_DEPLOYMENT_HINTS: Record<number, readonly PoolDeploymentHint[]> =
   11155111: [
     { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x644d5a2554d36e27509254f32ccfebe8cd58861f", deploymentBlock: 8587019n },
     { asset: "0xaa8e23fb1079ea71e0a56f48a2aa51851d8433d0", pool: "0x6709277e170dee3e54101cdb73a450e392adff54", deploymentBlock: 8587019n },
-    { asset: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238", pool: "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f", deploymentBlock: 8587064n },
+    { asset: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238", pool: "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f", deploymentBlock: 8587019n },
   ],
   11155420: [
     { asset: NATIVE_ASSET_ADDRESS as Address, pool: "0x9fa2c482313b75e5bc2297cc0d666ddec19d641e", deploymentBlock: 32854678n },

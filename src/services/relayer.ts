@@ -73,6 +73,33 @@ function isRetryableRelayerError(error: unknown): boolean {
   return error instanceof RetryableRelayerHttpError || isTransientNetworkError(error);
 }
 
+function getRelayerHosts(chainConfig: ChainConfig): string[] {
+  const hosts =
+    chainConfig.relayerHosts && chainConfig.relayerHosts.length > 0
+      ? chainConfig.relayerHosts
+      : [chainConfig.relayerHost];
+
+  return [...new Set(hosts.map((host) => host.trim()).filter((host) => host.length > 0))];
+}
+
+function shouldFailoverToNextRelayer(error: unknown): boolean {
+  if (isRetryableRelayerError(error)) {
+    return true;
+  }
+
+  if (!(error instanceof CLIError) || error.category !== "RELAYER") {
+    return false;
+  }
+
+  const text = `${error.message} ${error.hint ?? ""}`.toLowerCase();
+  return (
+    text.includes("service at capacity") ||
+    text.includes("temporarily down") ||
+    text.includes("network connection") ||
+    text.includes("relayer request failed")
+  );
+}
+
 function relayerUnavailableError(message: string): CLIError {
   const detail = sanitizeDiagnosticText(message);
   return new CLIError(
@@ -228,12 +255,12 @@ async function runRelayerRequestWithRetry<T>(
 }
 
 async function relayerFetch(
-  chainConfig: ChainConfig,
+  relayerHost: string,
   path: string,
   options?: RequestInit,
   allowRetryableGatewayStatuses: boolean = false
 ): Promise<Response> {
-  const url = `${chainConfig.relayerHost}${path}`;
+  const url = `${relayerHost}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -274,20 +301,45 @@ async function relayerFetch(
 }
 
 async function relayerFetchWithRetry(
-  chainConfig: ChainConfig,
+  relayerHost: string,
   path: string,
   options?: RequestInit
 ): Promise<Response> {
   return runRelayerRequestWithRetry(() =>
-    relayerFetch(chainConfig, path, options, true)
+    relayerFetch(relayerHost, path, options, true)
   );
+}
+
+async function fetchRelayerResponseWithFailover(
+  chainConfig: ChainConfig,
+  path: string,
+  options?: RequestInit
+): Promise<{ response: Response; relayerUrl: string }> {
+  const relayerHosts = getRelayerHosts(chainConfig);
+  let lastError: unknown;
+
+  for (const relayerUrl of relayerHosts) {
+    try {
+      return {
+        response: await relayerFetchWithRetry(relayerUrl, path, options),
+        relayerUrl,
+      };
+    } catch (error) {
+      lastError = error;
+      if (!shouldFailoverToNextRelayer(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError ?? relayerUnavailableError("Relayer request failed.");
 }
 
 export async function getRelayerDetails(
   chainConfig: ChainConfig,
   assetAddress: Address
 ): Promise<RelayerDetailsResponse> {
-  const res = await relayerFetchWithRetry(
+  const { response: res } = await fetchRelayerResponseWithFailover(
     chainConfig,
     `/relayer/details?chainId=${chainConfig.id}&assetAddress=${assetAddress}`
   );
@@ -303,16 +355,20 @@ export async function requestQuote(
     recipient?: Address;
   }
 ): Promise<RelayerQuoteResponse> {
-  const res = await relayerFetchWithRetry(chainConfig, "/relayer/quote", {
-    method: "POST",
-    body: JSON.stringify({
-      chainId: chainConfig.id,
-      amount: params.amount.toString(),
-      asset: params.asset,
-      extraGas: params.extraGas,
-      ...(params.recipient ? { recipient: params.recipient } : {}),
-    }),
-  });
+  const { response: res, relayerUrl } = await fetchRelayerResponseWithFailover(
+    chainConfig,
+    "/relayer/quote",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        chainId: chainConfig.id,
+        amount: params.amount.toString(),
+        asset: params.asset,
+        extraGas: params.extraGas,
+        ...(params.recipient ? { recipient: params.recipient } : {}),
+      }),
+    },
+  );
   const body = await res.json();
 
   const relayTxCost = body?.detail?.relayTxCost;
@@ -383,7 +439,10 @@ export async function requestQuote(
     }
   }
 
-  return body as RelayerQuoteResponse;
+  return {
+    ...(body as RelayerQuoteResponse),
+    relayerUrl,
+  };
 }
 
 export async function submitRelayRequest(
@@ -394,11 +453,13 @@ export async function submitRelayRequest(
     proof: any;
     publicSignals: string[];
     feeCommitment: RelayerQuoteResponse["feeCommitment"];
+    relayerUrl?: string;
   }
 ): Promise<RelayerRequestResponse> {
   let res: Response;
   try {
-    res = await relayerFetch(chainConfig, "/relayer/request", {
+    const relayerUrl = params.relayerUrl ?? getRelayerHosts(chainConfig)[0];
+    res = await relayerFetch(relayerUrl, "/relayer/request", {
       method: "POST",
       body: JSON.stringify({
         chainId: chainConfig.id,

@@ -9,6 +9,7 @@ export interface ChainConfig {
   startBlock: bigint;
   aspHost: string;
   relayerHost: string;
+  relayerHosts?: string[];
   isTestnet: boolean;
   /** Average seconds per block for approximate time-ago display. */
   avgBlockTimeSec: number;
@@ -304,6 +305,7 @@ export interface RelayerQuoteResponse {
   baseFeeBPS: string;
   feeBPS: string;
   gasPrice: string;
+  relayerUrl?: string;
   detail: {
     relayTxCost: { gas: string; eth: string };
     extraGasFundAmount?: { gas: string; eth: string };

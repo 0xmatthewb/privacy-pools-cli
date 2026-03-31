@@ -42,6 +42,10 @@ describe("chain config anchors", () => {
         startBlock: "8587019",
         aspHost: "https://dw.0xbow.io",
         relayerHost: "https://testnet-relayer.privacypools.com",
+        relayerHosts: [
+          "https://testnet-relayer.privacypools.com",
+          "https://fastrelay.xyz",
+        ],
       },
       "op-sepolia": {
         id: 11155420,
@@ -60,6 +64,9 @@ describe("chain config anchors", () => {
       expect(chain.startBlock.toString()).toBe(exp.startBlock);
       expect(chain.aspHost).toBe(exp.aspHost);
       expect(chain.relayerHost).toBe(exp.relayerHost);
+      if ("relayerHosts" in exp) {
+        expect(chain.relayerHosts).toEqual(exp.relayerHosts);
+      }
     }
   });
 });
