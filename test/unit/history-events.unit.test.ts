@@ -178,6 +178,32 @@ describe("history event extraction", () => {
     expect(withdrawals[0].value).toBe(0n);
   });
 
+  test("synthesized migration bookkeeping child is not rendered as withdrawal", () => {
+    const depositTxHash =
+      "0x4444444444444444444444444444444444444444444444444444444444444444";
+    const deposit = makeDeposit({
+      value: 100n,
+      blockNumber: 20n,
+      txHash: depositTxHash,
+    });
+    const migrationChild = makeDeposit({
+      hash: 22n,
+      value: 100n,
+      blockNumber: 20n,
+      txHash: depositTxHash,
+    });
+
+    const account = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(deposit, [migrationChild]),
+    ]);
+
+    const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
+
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("deposit");
+    expect(events.some((event) => event.type === "withdrawal")).toBe(false);
+  });
+
   test("migration children do not surface as user withdrawal history events", () => {
     const deposit = makeDeposit({ value: 100n, blockNumber: 10n });
     const migrationChild = makeDeposit({

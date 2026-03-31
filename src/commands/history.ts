@@ -41,6 +41,21 @@ interface PoolLike {
   scope: bigint;
 }
 
+function isMigrationBookkeepingChild(
+  deposit: PoolAccount["deposit"],
+  child: PoolAccount["children"][number],
+): boolean {
+  if (child.isMigration === true) {
+    return true;
+  }
+
+  return (
+    child.blockNumber === deposit.blockNumber &&
+    child.txHash === deposit.txHash &&
+    child.value === deposit.value
+  );
+}
+
 export { createHistoryCommand } from "../command-shells/history.js";
 
 export function buildHistoryEventsFromAccount(
@@ -78,7 +93,7 @@ export function buildHistoryEventsFromAccount(
       if (pa.children && pa.children.length > 0 && pa.deposit) {
         let prevValue = pa.deposit.value;
         for (const child of pa.children) {
-          if (child.isMigration === true) {
+          if (isMigrationBookkeepingChild(pa.deposit, child)) {
             prevValue = child.value;
             continue;
           }
