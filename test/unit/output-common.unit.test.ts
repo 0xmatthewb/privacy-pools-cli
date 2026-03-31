@@ -78,10 +78,13 @@ describe("appendNextActions", () => {
 
     const result = appendNextActions(payload, [...nextActions]);
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       operation: "deposit",
       nextActions,
     });
+    expect(result.nextActions?.[0]?.cliCommand).toBe(
+      "privacy-pools accounts --agent",
+    );
     expect(result).not.toBe(payload);
     expect(payload).toEqual({ operation: "deposit" });
   });

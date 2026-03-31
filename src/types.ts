@@ -54,6 +54,11 @@ export type NextActionWhen =
 
 export interface NextAction {
   command: string;
+  /**
+   * Fully rendered CLI invocation using kebab-case flags.
+   * Includes `--agent` when the structured options request agent mode.
+   */
+  cliCommand?: string;
   reason: string;
   when: NextActionWhen | (string & {});
   args?: string[];

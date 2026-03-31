@@ -597,6 +597,7 @@ export async function handleRagequitCommand(
           asset: pool.symbol,
           amount: commitment.value,
           decimals: pool.decimals,
+          destinationAddress: depositorAddress,
           poolAccountNumber: selectedPoolAccount.paNumber,
           poolAccountId: selectedPoolAccount.paId,
           selectedCommitmentLabel: commitment.label,
@@ -732,6 +733,7 @@ export async function handleRagequitCommand(
         scope: pool.scope,
         blockNumber: receipt.blockNumber,
         explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+        destinationAddress: depositorAddress,
       });
     } finally {
       releaseLock();

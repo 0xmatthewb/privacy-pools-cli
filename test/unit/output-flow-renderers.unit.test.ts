@@ -10,6 +10,15 @@ const realFormat = await import("../../src/utils/format.ts");
 let createOutputContext: typeof import("../../src/output/common.ts").createOutputContext;
 let renderFlowResult: typeof import("../../src/output/flow.ts").renderFlowResult;
 
+function expectNextAction(
+  action: Record<string, unknown> | undefined,
+  expected: Record<string, unknown>,
+  cliCommand: string,
+): void {
+  expect(action).toMatchObject(expected);
+  expect(action?.cliCommand).toBe(cliCommand);
+}
+
 beforeAll(async () => {
   mock.module("../../src/utils/format.ts", () => realFormat);
   ({ createOutputContext } = await import("../../src/output/common.ts?output-flow-renderers"));
@@ -62,7 +71,9 @@ describe("renderFlowResult", () => {
     expect(json.privacyDelayProfile).toBe("off");
     expect(json.privacyDelayConfigured).toBe(false);
     expect(json.backupConfirmed).toBeUndefined();
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "flow watch",
         reason:
@@ -71,7 +82,8 @@ describe("renderFlowResult", () => {
         args: ["wf-123"],
         options: { agent: true },
       },
-    ]);
+      "privacy-pools flow watch wf-123 --agent",
+    );
     expect(stderr).toBe("");
   });
 
@@ -114,7 +126,9 @@ describe("renderFlowResult", () => {
     );
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "flow ragequit",
         reason:
@@ -125,7 +139,8 @@ describe("renderFlowResult", () => {
           agent: true,
         },
       },
-    ]);
+      "privacy-pools flow ragequit wf-123 --agent",
+    );
   });
 
   test("JSON mode keeps flow watch nextActions for depositing and withdrawing phases", () => {
@@ -142,7 +157,9 @@ describe("renderFlowResult", () => {
       );
 
       const json = parseCapturedJson(stdout);
-      expect(json.nextActions).toEqual([
+      expect(json.nextActions).toBeArrayOfSize(1);
+      expectNextAction(
+        json.nextActions[0],
         {
           command: "flow watch",
           reason:
@@ -151,7 +168,8 @@ describe("renderFlowResult", () => {
           args: ["wf-123"],
           options: { agent: true },
         },
-      ]);
+        "privacy-pools flow watch wf-123 --agent",
+      );
     }
   });
 
@@ -176,7 +194,9 @@ describe("renderFlowResult", () => {
     );
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "flow ragequit",
         reason:
@@ -185,7 +205,8 @@ describe("renderFlowResult", () => {
         args: ["wf-123"],
         options: { agent: true },
       },
-    ]);
+      "privacy-pools flow ragequit wf-123 --agent",
+    );
   });
 
   test("human mode prints PoA guidance and the saved watcher step", () => {
@@ -221,7 +242,9 @@ describe("renderFlowResult", () => {
     );
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(2);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "flow watch",
         reason:
@@ -231,6 +254,10 @@ describe("renderFlowResult", () => {
         options: { agent: true },
         runnable: false,
       },
+      "privacy-pools flow watch wf-123 --agent",
+    );
+    expectNextAction(
+      json.nextActions[1],
       {
         command: "flow ragequit",
         reason:
@@ -239,7 +266,8 @@ describe("renderFlowResult", () => {
         args: ["wf-123"],
         options: { agent: true },
       },
-    ]);
+      "privacy-pools flow ragequit wf-123 --agent",
+    );
   });
 
   test("human mode omits next steps for completed workflows", () => {
@@ -617,7 +645,9 @@ describe("renderFlowResult", () => {
     expect(json.requiredNativeFunding).toBe("123000000000000000");
     expect(json.requiredTokenFunding).toBe("456000000");
     expect(json.backupConfirmed).toBe(true);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "flow watch",
         reason:
@@ -626,7 +656,8 @@ describe("renderFlowResult", () => {
         args: ["wf-123"],
         options: { agent: true },
       },
-    ]);
+      "privacy-pools flow watch wf-123 --agent",
+    );
   });
 
   test("JSON mode adds signer caveats to configured-wallet public recovery guidance", () => {
@@ -643,7 +674,9 @@ describe("renderFlowResult", () => {
     );
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "flow ragequit",
         reason:
@@ -652,7 +685,8 @@ describe("renderFlowResult", () => {
         args: ["wf-123"],
         options: { agent: true },
       },
-    ]);
+      "privacy-pools flow ragequit wf-123 --agent",
+    );
   });
 
   test("JSON mode surfaces a manual accounts follow-up for externally stopped workflows", () => {
@@ -668,7 +702,9 @@ describe("renderFlowResult", () => {
     );
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "accounts",
         reason:
@@ -676,7 +712,8 @@ describe("renderFlowResult", () => {
         when: "flow_manual_followup",
         options: { agent: true, chain: "sepolia" },
       },
-    ]);
+      "privacy-pools accounts --agent --chain sepolia",
+    );
   });
 
   test("JSON mode suppresses privacy warnings for terminal and ragequit outputs", () => {

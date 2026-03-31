@@ -721,6 +721,21 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     info(`Deposit: ${data.snapshot.depositExplorerUrl}`, silent);
   }
 
+  if (
+    data.action === "status" &&
+    !usesPublicRecoveryPath &&
+    !isPreDeposit &&
+    phase !== "withdrawing" &&
+    phase !== "paused_declined" &&
+    phase !== "paused_poi_required" &&
+    !requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot)
+  ) {
+    info(
+      `Optional public recovery: privacy-pools flow ragequit ${data.snapshot.workflowId}.${configuredSignerRecoverySuffix(data.snapshot)}`,
+      silent,
+    );
+  }
+
   // ── Phase-specific guidance ──
   if (phase === "paused_poi_required") {
     info(

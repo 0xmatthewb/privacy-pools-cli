@@ -165,7 +165,7 @@ defineScenarioSuite("output-mode acceptance", [
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
       expect(json.command).toBe("withdraw quote");
-      expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
+      expect(json.usage).toBe("withdraw quote <amount> [asset]");
     }),
   ]),
   defineScenario("agent status emits JSON on stdout and nothing on stderr", [

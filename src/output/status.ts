@@ -18,6 +18,7 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
+import { displayDecimals, formatAmount } from "../utils/format.js";
 import { highlight, accentBold } from "../utils/theme.js";
 import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import type {
@@ -44,6 +45,9 @@ export interface StatusCheckResult {
   aspLive?: boolean;
   rpcLive?: boolean;
   rpcBlockNumber?: bigint;
+  signerBalance?: bigint;
+  signerBalanceDecimals?: number;
+  signerBalanceSymbol?: string;
   /** Whether each health check was enabled. */
   healthChecksEnabled?: { rpc: boolean; asp: boolean };
   /**
@@ -427,6 +431,15 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
+    if (result.signerBalance !== undefined) {
+      status.signerBalance = result.signerBalance.toString();
+    }
+    if (result.signerBalanceDecimals !== undefined) {
+      status.signerBalanceDecimals = result.signerBalanceDecimals;
+    }
+    if (result.signerBalanceSymbol !== undefined) {
+      status.signerBalanceSymbol = result.signerBalanceSymbol;
+    }
     // Capability flags: indicate the wallet is *configured* for these operations,
     // NOT that withdrawable funds exist. Agents must check `accounts` to verify
     // fund availability before attempting withdrawals.
@@ -461,6 +474,16 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   // Signer
   if (result.signerAddress && result.signerKeyValid) {
     success(`Signer key: ${result.signerAddress}`, silent);
+    if (
+      result.signerBalance !== undefined &&
+      result.signerBalanceDecimals !== undefined &&
+      result.signerBalanceSymbol
+    ) {
+      info(
+        `Signer balance: ${formatAmount(result.signerBalance, result.signerBalanceDecimals, result.signerBalanceSymbol, displayDecimals(result.signerBalanceDecimals))}`,
+        silent,
+      );
+    }
   } else if (result.signerKeySet && !result.signerKeyValid) {
     warn("Signer key is set but invalid. Re-run 'privacy-pools init' to reconfigure.", silent);
   } else {

@@ -34,6 +34,15 @@ import {
   captureOutput,
 } from "../helpers/output.ts";
 
+function expectNextAction(
+  action: Record<string, unknown> | undefined,
+  expected: Record<string, unknown>,
+  cliCommand: string,
+): void {
+  expect(action).toMatchObject(expected);
+  expect(action?.cliCommand).toBe(cliCommand);
+}
+
 // ── renderGuide parity ──────────────────────────────────────────────────────
 
 describe("renderGuide parity", () => {
@@ -361,14 +370,17 @@ describe("renderStatus parity", () => {
     );
     expect(json.recommendedMode).toBe("ready");
     expect(json.warnings).toBeUndefined();
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "accounts",
         reason: "Check on your existing deposits.",
         when: "status_ready_has_accounts",
         options: { agent: true, chain: "sepolia" },
       },
-    ]);
+      "privacy-pools accounts --agent --chain sepolia",
+    );
     expect(stderr).toBe("");
   });
 
@@ -387,7 +399,9 @@ describe("renderStatus parity", () => {
         affects: ["deposit", "withdraw", "unsigned", "discovery"],
       },
     ]);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "pools",
         reason:
@@ -395,7 +409,8 @@ describe("renderStatus parity", () => {
         when: "status_degraded_health",
         options: { agent: true, chain: "sepolia" },
       },
-    ]);
+      "privacy-pools pools --agent --chain sepolia",
+    );
   });
 
   test("JSON mode: emits init remediation in nextActions when setup is incomplete", () => {
@@ -426,14 +441,17 @@ describe("renderStatus parity", () => {
         affects: ["deposit", "withdraw", "unsigned"],
       },
     ]);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "init",
         reason: "Complete CLI setup before transacting.",
         when: "status_not_ready",
         options: { agent: true, showMnemonic: true, defaultChain: "sepolia" },
       },
-    ]);
+      "privacy-pools init --agent --show-mnemonic --default-chain sepolia",
+    );
   });
 
   test("JSON mode: keeps unsigned-only follow-ups read-only when no signer is configured", () => {
@@ -465,7 +483,9 @@ describe("renderStatus parity", () => {
         affects: ["discovery"],
       },
     ]);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(2);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "migrate status",
         reason:
@@ -473,6 +493,10 @@ describe("renderStatus parity", () => {
         when: "status_restore_discovery",
         options: { agent: true, allChains: true },
       },
+      "privacy-pools migrate status --agent --all-chains",
+    );
+    expectNextAction(
+      json.nextActions[1],
       {
         command: "pools",
         reason:
@@ -480,7 +504,24 @@ describe("renderStatus parity", () => {
         when: "status_unsigned_no_accounts",
         options: { agent: true, chain: "sepolia" },
       },
-    ]);
+      "privacy-pools pools --agent --chain sepolia",
+    );
+  });
+
+  test("JSON mode: includes signer balance fields when available", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { json } = captureJsonOutput(() =>
+      renderStatus(ctx, {
+        ...STUB_STATUS,
+        signerBalance: 123000000000000000n,
+        signerBalanceDecimals: 18,
+        signerBalanceSymbol: "ETH",
+      }),
+    );
+
+    expect(json.signerBalance).toBe("123000000000000000");
+    expect(json.signerBalanceDecimals).toBe(18);
+    expect(json.signerBalanceSymbol).toBe("ETH");
   });
 
   test("JSON mode: includes native acceleration advisory warnings when present", () => {
@@ -521,6 +562,21 @@ describe("renderStatus parity", () => {
     expect(stderr).toContain("Signer key:");
     expect(stderr).toContain("Default chain: sepolia");
     expect(stderr).toContain("Deposits on:");
+  });
+
+  test("human mode: shows signer balance when available", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderStatus(ctx, {
+        ...STUB_STATUS,
+        signerBalance: 123000000000000000n,
+        signerBalanceDecimals: 18,
+        signerBalanceSymbol: "ETH",
+      }),
+    );
+
+    expect(stderr).toContain("Signer balance:");
+    expect(stderr).toContain("0.12 ETH");
   });
 
   test("human mode: shows health check skipped message when no checks", () => {

@@ -185,17 +185,18 @@ defineScenarioSuite("transaction inputs acceptance", [
       ],
       { timeoutMs: 10_000 },
     ),
-    assertExit(2),
+    assertExit(3),
     assertStderrEmpty(),
     assertJson<{
       success: boolean;
-      error: { category: string; message: string };
+      errorCode: string;
+      error: { category: string; code: string; message: string };
     }>((json) => {
       expect(json.success).toBe(false);
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain(
-        `No pool found for asset ${assetAddress}`,
-      );
+      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.category).toBe("RPC");
+      expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.message).toContain(`Failed to resolve pool for ${assetAddress}`);
     }),
     runCliStep(
       [
@@ -212,17 +213,18 @@ defineScenarioSuite("transaction inputs acceptance", [
       ],
       { timeoutMs: 10_000 },
     ),
-    assertExit(2),
+    assertExit(3),
     assertStderrEmpty(),
     assertJson<{
       success: boolean;
-      error: { category: string; message: string };
+      errorCode: string;
+      error: { category: string; code: string; message: string };
     }>((json) => {
       expect(json.success).toBe(false);
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain(
-        `No pool found for asset ${assetAddress}`,
-      );
+      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.category).toBe("RPC");
+      expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.message).toContain(`Failed to resolve pool for ${assetAddress}`);
     }),
     runCliStep(
       [
@@ -237,17 +239,18 @@ defineScenarioSuite("transaction inputs acceptance", [
       ],
       { timeoutMs: 10_000 },
     ),
-    assertExit(2),
+    assertExit(3),
     assertStderrEmpty(),
     assertJson<{
       success: boolean;
-      error: { category: string; message: string };
+      errorCode: string;
+      error: { category: string; code: string; message: string };
     }>((json) => {
       expect(json.success).toBe(false);
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain(
-        `No pool found for asset ${assetAddress}`,
-      );
+      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.category).toBe("RPC");
+      expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.message).toContain(`Failed to resolve pool for ${assetAddress}`);
     }),
     runCliStep(
       ["--json", "deposit", "ETH", "0.1", "--asset", "ETH", "--yes"],

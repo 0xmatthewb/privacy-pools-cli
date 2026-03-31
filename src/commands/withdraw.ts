@@ -1381,17 +1381,17 @@ export async function handleWithdrawCommand(
                 `  Gas received:    ${extraGasFunding}\n`,
               );
             }
+            if (effectiveExtraGas) {
+              process.stderr.write(
+                "  Gas token drop:  enabled (receive ETH for gas)\n",
+              );
+            }
             process.stderr.write(
               `  You receive:     ~${formatAmount(netAmount, pool.decimals, pool.symbol, dd)}${usd(netAmount)}\n`,
             );
             process.stderr.write(
               `  Remaining:       ${remainingBalance === 0n ? `${selectedPoolAccount.paId} fully withdrawn` : `${formatAmount(remainingBalance, pool.decimals, pool.symbol, dd)}${usd(remainingBalance)}`}\n`,
             );
-            if (effectiveExtraGas) {
-              process.stderr.write(
-                "  Gas token drop:  enabled (receive ETH for gas)\n",
-              );
-            }
             process.stderr.write(`  Quote expires:   in ${secondsLeft}s\n`);
             process.stderr.write(
               "  ────────────────────────────────────────────────\n",

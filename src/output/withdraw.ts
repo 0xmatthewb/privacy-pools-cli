@@ -54,6 +54,30 @@ export interface WithdrawDryRunData {
 export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunData): void {
   guardCsvUnsupported(ctx, "withdraw --dry-run");
 
+  const actionOptions: Record<string, string | boolean> = {
+    agent: true,
+    chain: data.chain,
+    to: data.recipient,
+    fromPa: data.poolAccountId,
+  };
+  if (data.withdrawMode === "direct") {
+    actionOptions.direct = true;
+  } else if (data.extraGas !== undefined) {
+    actionOptions.extraGas = data.extraGas;
+  }
+
+  const agentNextActions = [
+    createNextAction(
+      "withdraw",
+      "Submit the withdrawal for real when you are ready to broadcast it.",
+      "after_dry_run",
+      {
+        args: [formatUnits(data.amount, data.decimals), data.asset],
+        options: actionOptions,
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
       operation: "withdraw",
@@ -75,7 +99,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     }
     if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
-    printJsonSuccess(payload, false);
+    printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
   }
 

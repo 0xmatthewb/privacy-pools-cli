@@ -20,6 +20,7 @@ import {
 } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 import { isTestnetChain, POA_PORTAL_URL } from "../config/chains.js";
+import { formatUnits } from "viem";
 
 export interface DepositDryRunData {
   chain: string;
@@ -58,9 +59,21 @@ export interface DepositSuccessData {
 export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData): void {
   guardCsvUnsupported(ctx, "deposit --dry-run");
 
+  const agentNextActions = [
+    createNextAction(
+      "deposit",
+      "Submit the deposit for real when you are ready to broadcast it.",
+      "after_dry_run",
+      {
+        args: [formatUnits(data.amount, data.decimals), data.asset],
+        options: { agent: true, chain: data.chain },
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      {
+      appendNextActions({
         dryRun: true,
         operation: "deposit",
         chain: data.chain,
@@ -70,7 +83,7 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
         poolAccountId: data.poolAccountId,
         precommitment: data.precommitment.toString(),
         balanceSufficient: data.balanceSufficient,
-      },
+      }, agentNextActions),
       false,
     );
     return;

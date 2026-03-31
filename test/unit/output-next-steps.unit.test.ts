@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createOutputContext, createNextAction, formatNextActionCommand, renderNextSteps } from "../../src/output/common.ts";
+import { createOutputContext, createNextAction, formatExecutableNextActionCommand, formatNextActionCommand, renderNextSteps } from "../../src/output/common.ts";
 import { renderInitResult, type InitRenderResult } from "../../src/output/init.ts";
 import { renderDepositSuccess, type DepositSuccessData } from "../../src/output/deposit.ts";
 import { renderWithdrawSuccess, type WithdrawSuccessData } from "../../src/output/withdraw.ts";
@@ -106,6 +106,17 @@ describe("formatNextActionCommand", () => {
       options: { agent: true, chain: "sepolia", to: "0xabc" },
     });
     expect(result).toBe("privacy-pools withdraw 0.05 WETH --chain sepolia --to 0xabc");
+  });
+
+  test("formatExecutableNextActionCommand includes --agent for runnable machine actions", () => {
+    const result = formatExecutableNextActionCommand({
+      command: "withdraw",
+      reason: "Submit.",
+      when: "after_quote",
+      args: ["0.05", "WETH"],
+      options: { agent: true, chain: "sepolia", to: "0xabc" },
+    });
+    expect(result).toBe("privacy-pools withdraw 0.05 WETH --agent --chain sepolia --to 0xabc");
   });
 });
 
@@ -276,6 +287,7 @@ const STUB_INIT: InitRenderResult = {
     scope: 1n,
     blockNumber: 300n,
     explorerUrl: null,
+    destinationAddress: "0x" + "33".repeat(20),
   };
 
   const STUB_STATUS: StatusCheckResult = {
@@ -481,6 +493,33 @@ describe("emitted nextActions are fully runnable", () => {
     expect(actions[0].runnable).toBeUndefined();
     expect(actions[1].command).toBe("ragequit");
     expect(actions[1].runnable).toBeUndefined();
+  });
+
+  test("all emitted nextActions include executable cliCommand strings", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawQuote(ctx, {
+        chain: "sepolia",
+        asset: "ETH",
+        amount: 50000000000000000n,
+        decimals: 18,
+        recipient: "0x" + "44".repeat(20),
+        minWithdrawAmount: "10000000000000000",
+        baseFeeBPS: "45",
+        quoteFeeBPS: "50",
+        feeCommitmentPresent: true,
+        quoteExpiresAt: "2026-03-24T12:30:00.000Z",
+        tokenPrice: null,
+      }),
+    );
+    const actions = getNextActions(stdout);
+
+    expect(actions.length).toBeGreaterThan(0);
+    for (const action of actions) {
+      expect(typeof action.cliCommand).toBe("string");
+      expect(action.cliCommand.startsWith("privacy-pools ")).toBe(true);
+      expect(action.cliCommand).toContain("--agent");
+    }
   });
 });
 

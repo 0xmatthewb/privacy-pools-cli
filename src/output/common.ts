@@ -117,7 +117,7 @@ export function createNextAction(
     action.runnable = false;
   }
 
-  return action;
+  return withCliCommand(action);
 }
 
 export function appendNextActions<T extends Record<string, unknown>>(
@@ -125,7 +125,7 @@ export function appendNextActions<T extends Record<string, unknown>>(
   nextActions: NextAction[] | undefined,
 ): T & { nextActions?: NextAction[] } {
   return nextActions && nextActions.length > 0
-    ? { ...payload, nextActions }
+    ? { ...payload, nextActions: nextActions.map(withCliCommand) }
     : { ...payload };
 }
 
@@ -143,7 +143,10 @@ function camelToKebab(key: string): string {
   return key.replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`);
 }
 
-export function formatNextActionCommand(action: NextAction): string {
+function buildNextActionCommand(
+  action: NextAction,
+  options: { includeAgent: boolean },
+): string {
   const parts = ["privacy-pools", action.command];
 
   if (action.args) {
@@ -152,8 +155,12 @@ export function formatNextActionCommand(action: NextAction): string {
 
   if (action.options) {
     for (const [key, value] of Object.entries(action.options)) {
-      // Skip machine-only flags that would confuse humans
-      if (key === "agent") continue;
+      if (key === "agent") {
+        if (options.includeAgent && value === true) {
+          parts.push("--agent");
+        }
+        continue;
+      }
       if (value === null || value === undefined) continue;
       const flag = camelToKebab(key);
       if (typeof value === "boolean") {
@@ -165,6 +172,20 @@ export function formatNextActionCommand(action: NextAction): string {
   }
 
   return parts.join(" ");
+}
+
+export function formatNextActionCommand(action: NextAction): string {
+  return buildNextActionCommand(action, { includeAgent: false });
+}
+
+export function formatExecutableNextActionCommand(action: NextAction): string {
+  return buildNextActionCommand(action, { includeAgent: true });
+}
+
+function withCliCommand(action: NextAction): NextAction {
+  return action.cliCommand
+    ? action
+    : { ...action, cliCommand: formatExecutableNextActionCommand(action) };
 }
 
 /**

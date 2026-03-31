@@ -1577,7 +1577,7 @@ describe("withdraw command handler", () => {
       ),
     );
 
-    expect(stderr).toContain("Extra gas fund:");
+    expect(stderr).toContain("Gas received:");
     expect(stderr).toContain("Gas token drop:  enabled");
     expect(stderr).toContain("Withdrawal cancelled.");
   });

@@ -576,6 +576,7 @@ describe("account read-only command handlers", () => {
                     },
                   ],
                   ragequit: {
+                    value: 500000000000000000n,
                     blockNumber: 200n,
                     transactionHash: "0x" + "33".repeat(32),
                   },

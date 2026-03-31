@@ -127,7 +127,7 @@ describe("JSON contract coverage", () => {
     expect(json.commands.map((command) => command.name)).toContain("withdraw quote");
     expect(json.commands.map((command) => command.name)).toContain("capabilities");
     expect(json.commandDetails["withdraw quote"]?.command).toBe("withdraw quote");
-    expect(json.commandDetails["withdraw quote"]?.usage).toBe("withdraw quote <amount|asset> [amount]");
+    expect(json.commandDetails["withdraw quote"]?.usage).toBe("withdraw quote <amount> [asset]");
     expect(json.commandDetails["withdraw"]?.sideEffectClass).toBe("fund_movement");
     expect(json.commandDetails["withdraw"]?.touchesFunds).toBe(true);
     expect(json.commandDetails["withdraw"]?.requiresHumanReview).toBe(true);

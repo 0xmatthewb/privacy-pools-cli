@@ -62,7 +62,7 @@ defineScenarioSuite("agent improvements acceptance", [
         expectedLatencyClass: string;
       }>((json) => {
         expect(json.command).toBe("withdraw quote");
-        expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
+        expect(json.usage).toBe("withdraw quote <amount> [asset]");
         expect(json.flags).toContain("--to <address>");
         expect(json.globalFlags).toContain("--agent");
         expect(json.requiresInit).toBe(true);

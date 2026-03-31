@@ -37,6 +37,7 @@
       "command": "string (CLI command name)",
       "reason": "string (why the follow-up is relevant)",
       "when": "string (machine-readable timing label)",
+      "cliCommand": "string (fully executable CLI invocation with kebab-case flags)",
       "args": "string[]? (positional arguments to pass)",
       "options": "Record<string, string|number|boolean|null>? (named options without leading dashes)",
       "runnable": "boolean? (false means the action is a template and needs additional user input before execution)"
@@ -142,6 +143,9 @@
         "signerKeySet": "boolean",
         "signerKeyValid": "boolean",
         "signerAddress": "0x-prefixed-address|null",
+        "signerBalance": "decimal-string-wei|undefined (present when rpc check succeeds and signer balance lookup succeeds)",
+        "signerBalanceDecimals": "number|undefined (present with signerBalance)",
+        "signerBalanceSymbol": "string|undefined (present with signerBalance)",
         "entrypoint": "0x-prefixed-address|null",
         "aspHost": "string|null",
         "accountFiles": "[{ chain: string, chainId: number }]",
@@ -190,6 +194,33 @@
         "growth24h": "number|null",
         "pendingGrowth24h": "number|null",
         "chain": "string? (present in multi-chain mode)"
+      },
+      "detailVariant": {
+        "chain": "string",
+        "asset": "string",
+        "tokenAddress": "0x-prefixed-address",
+        "pool": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "decimals": "number",
+        "minimumDeposit": "decimal-string-wei",
+        "vettingFeeBPS": "decimal-string",
+        "maxRelayFeeBPS": "decimal-string",
+        "totalInPoolValue": "decimal-string-wei|null",
+        "totalInPoolValueUsd": "string|null",
+        "totalDepositsValue": "decimal-string-wei|null",
+        "totalDepositsValueUsd": "string|null",
+        "acceptedDepositsValue": "decimal-string-wei|null",
+        "acceptedDepositsValueUsd": "string|null",
+        "pendingDepositsValue": "decimal-string-wei|null",
+        "pendingDepositsValueUsd": "string|null",
+        "totalDepositsCount": "number|null",
+        "acceptedDepositsCount": "number|null",
+        "pendingDepositsCount": "number|null",
+        "growth24h": "number|null",
+        "pendingGrowth24h": "number|null",
+        "myFunds": "{ balance: decimal-string-wei, usdValue: string|null, poolAccounts: number, pendingCount: number, poiRequiredCount: number, declinedCount: number, accounts: [{ id, status, aspStatus, value }] }|null",
+        "myFundsWarning": "string? (present when wallet state could not be loaded fully)",
+        "recentActivity": "[{ type: string, amount: string|null, timeLabel: string, status: string|null }]|null"
       }
     },
     "deposit": {
@@ -219,7 +250,8 @@
           "poolAccountNumber": "number",
           "poolAccountId": "string (PA-#)",
           "precommitment": "decimal-string",
-          "balanceSufficient": "boolean|\"unknown\""
+          "balanceSufficient": "boolean|\"unknown\"",
+          "nextActions": "NextAction[]? (suggests the executable deposit command)"
         },
         "unsigned": {
           "mode": "unsigned",
@@ -272,7 +304,9 @@
           "proofPublicSignals": "number",
           "feeBPS": "string? (relayed only)",
           "quoteExpiresAt": "iso8601-string? (relayed only)",
-          "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)"
+          "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
+          "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
+          "nextActions": "NextAction[]? (suggests the executable withdraw command)"
         },
         "unsignedDirect": {
           "mode": "unsigned",
@@ -318,12 +352,16 @@
           "recipient": "0x-prefixed-address|null",
           "minWithdrawAmount": "decimal-string-wei",
           "minWithdrawAmountFormatted": "string (human-readable e.g. 0.01 ETH)",
+          "baseFeeBPS": "string",
           "quoteFeeBPS": "string",
           "feeAmount": "decimal-string-wei",
           "netAmount": "decimal-string-wei",
           "feeCommitmentPresent": "boolean",
           "quoteExpiresAt": "iso8601-string|null",
+          "relayTxCost": "{ gas: string, eth: string }|undefined",
           "extraGas": "boolean? (ERC20 withdrawals only)",
+          "extraGasFundAmount": "{ gas?: string, eth: string }|undefined",
+          "extraGasTxCost": "{ gas: string, eth: string }|undefined",
           "nextActions": "NextAction[]? (structured follow-up commands for agents; check runnable for template actions)"
         }
       }
@@ -344,6 +382,7 @@
         "scope": "decimal-string",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
+        "destinationAddress": "0x-prefixed-address|null",
         "nextActions": "NextAction[]? (suggests accounts to verify status after ragequit)"
       },
       "variants": {
@@ -353,6 +392,7 @@
           "chain": "string",
           "asset": "string",
           "amount": "decimal-string-wei",
+          "destinationAddress": "0x-prefixed-address|null",
           "poolAccountNumber": "number",
           "poolAccountId": "string (PA-#)",
           "selectedCommitmentLabel": "decimal-string",
@@ -431,6 +471,45 @@
         "poolAccounts": "number (account count included in the balance total)",
         "chain": "string? (present in multi-chain mode)",
         "chainId": "number? (present in multi-chain mode)"
+      }
+    },
+    "migrate status": {
+      "successFields": {
+        "mode": "\"migration-status\"",
+        "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
+        "allChains": "boolean? (true when --all-chains is used)",
+        "chains": "string[]? (queried chains in multi-chain mode)",
+        "warnings": "MigrationWarning[]? ({ chain, category, message } for per-chain partial failures)",
+        "status": "\"requires_migration\"|\"fully_migrated\"|\"website_recovery_required\"|\"unknown\"",
+        "requiresMigration": "boolean",
+        "requiresWebsiteRecovery": "boolean",
+        "isFullyMigrated": "boolean",
+        "readinessResolved": "boolean",
+        "submissionSupported": "false",
+        "requiredChainIds": "number[]",
+        "migratedChainIds": "number[]",
+        "missingChainIds": "number[]",
+        "websiteRecoveryChainIds": "number[]",
+        "unresolvedChainIds": "number[]",
+        "chainReadiness": "MigrationChainReadiness[]"
+      },
+      "chainReadinessFields": {
+        "chain": "string",
+        "chainId": "number",
+        "status": "\"requires_migration\"|\"fully_migrated\"|\"website_recovery_required\"|\"unknown\"",
+        "candidateLegacyCommitments": "number",
+        "expectedLegacyCommitments": "number",
+        "migratedCommitments": "number",
+        "legacyMasterSeedNullifiedCount": "number",
+        "hasPostMigrationCommitments": "boolean",
+        "isMigrated": "boolean",
+        "legacySpendableCommitments": "number",
+        "upgradedSpendableCommitments": "number",
+        "declinedLegacyCommitments": "number",
+        "reviewStatusComplete": "boolean",
+        "requiresMigration": "boolean",
+        "requiresWebsiteRecovery": "boolean",
+        "scopes": "decimal-string[]"
       }
     },
     "history": {

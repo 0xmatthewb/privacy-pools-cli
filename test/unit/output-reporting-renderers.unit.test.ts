@@ -11,6 +11,15 @@ import { CLIError } from "../../src/utils/errors.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
+function expectNextAction(
+  action: Record<string, unknown> | undefined,
+  expected: Record<string, unknown>,
+  cliCommand: string,
+): void {
+  expect(action).toMatchObject(expected);
+  expect(action?.cliCommand).toBe(cliCommand);
+}
+
 // ── Stub data ────────────────────────────────────────────────────────────────
 
 const STUB_POOL = {
@@ -384,14 +393,17 @@ describe("renderAccounts parity", () => {
         poolAccounts: 1,
       },
     ]);
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "accounts",
         reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
         when: "has_pending",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
-    ]);
+      "privacy-pools accounts --agent --chain sepolia --pending-only",
+    );
   });
 
   test("JSON mode with --pending-only: filters accounts and omits balances", () => {
@@ -411,14 +423,17 @@ describe("renderAccounts parity", () => {
     expect(json.accounts).toHaveLength(1);
     expect(json.accounts[0].aspStatus).toBe("pending");
     expect(json.balances).toBeUndefined();
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "accounts",
         reason: "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
         when: "has_pending",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
-    ]);
+      "privacy-pools accounts --agent --chain sepolia --pending-only",
+    );
   });
 
   test("human mode: surfaces PoA-needed account status and remediation guidance", () => {

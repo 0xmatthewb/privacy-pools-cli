@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import type { Address } from "viem";
 import {
   configExists,
   loadConfig,
@@ -122,12 +123,30 @@ export async function handleStatusCommand(
                 globalOpts?.rpcUrl,
               );
               const blockNumber = await client.getBlockNumber();
-              return { live: true, blockNumber };
+              let signerBalance: bigint | undefined;
+              if (signerAddress) {
+                try {
+                  signerBalance = await client.getBalance({
+                    address: signerAddress as Address,
+                  });
+                } catch {
+                  signerBalance = undefined;
+                }
+              }
+              return { live: true, blockNumber, signerBalance };
             } catch {
-              return { live: false, blockNumber: undefined };
+              return {
+                live: false,
+                blockNumber: undefined,
+                signerBalance: undefined,
+              };
             }
           })()
-        : Promise.resolve<null | { live: boolean; blockNumber?: bigint }>(null);
+        : Promise.resolve<null | {
+            live: boolean;
+            blockNumber?: bigint;
+            signerBalance?: bigint;
+          }>(null);
 
       const [aspLive, rpcStatus] = await Promise.all([aspCheck, rpcCheck]);
 
@@ -138,6 +157,13 @@ export async function handleStatusCommand(
       if (rpcStatus !== null) {
         result.rpcLive = rpcStatus.live;
         result.rpcBlockNumber = rpcStatus.blockNumber;
+        if (rpcStatus.signerBalance !== undefined) {
+          result.signerBalance = rpcStatus.signerBalance;
+          result.signerBalanceDecimals =
+            selectedChainConfig.chain.nativeCurrency.decimals;
+          result.signerBalanceSymbol =
+            selectedChainConfig.chain.nativeCurrency.symbol;
+        }
       }
     }
 

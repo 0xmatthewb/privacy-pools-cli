@@ -12,6 +12,15 @@ import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
+function expectNextAction(
+  action: Record<string, unknown> | undefined,
+  expected: Record<string, unknown>,
+  cliCommand: string,
+): void {
+  expect(action).toMatchObject(expected);
+  expect(action?.cliCommand).toBe(cliCommand);
+}
+
 // ── renderInitResult parity ─────────────────────────────────────────────────
 
 describe("renderInitResult parity", () => {
@@ -34,14 +43,17 @@ describe("renderInitResult parity", () => {
     expect(json.signerKeySet).toBe(true);
     expect(json.recoveryPhraseRedacted).toBe(true);
     expect(json.recoveryPhrase).toBeUndefined();
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "status",
         reason: "Verify wallet readiness and chain health before transacting.",
         when: "after_init",
         options: { agent: true, chain: "sepolia" },
       },
-    ]);
+      "privacy-pools status --agent --chain sepolia",
+    );
     expect(stderr).toBe("");
   });
 
@@ -148,6 +160,17 @@ describe("renderDepositDryRun parity", () => {
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.precommitment).toBe("12345678901234567890");
     expect(json.balanceSufficient).toBe(true);
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
+      {
+        command: "deposit",
+        when: "after_dry_run",
+        args: ["0.1", "ETH"],
+        options: { agent: true, chain: "sepolia" },
+      },
+      "privacy-pools deposit 0.1 ETH --agent --chain sepolia",
+    );
     expect(stderr).toBe("");
   });
 
@@ -217,13 +240,19 @@ describe("renderDepositSuccess parity", () => {
     expect(json.label).toBe("789");
     expect(json.blockNumber).toBe("12345");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(2);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "accounts",
         reason: "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain sepolia to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.",
         when: "after_deposit",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
+      "privacy-pools accounts --agent --chain sepolia --pending-only",
+    );
+    expectNextAction(
+      json.nextActions[1],
       {
         command: "ragequit",
         reason: "If you decide not to wait for ASP review, ragequit remains available as a public recovery path for PA-1.",
@@ -231,7 +260,8 @@ describe("renderDepositSuccess parity", () => {
         args: ["ETH"],
         options: { agent: true, chain: "sepolia", fromPa: "PA-1" },
       },
-    ]);
+      "privacy-pools ragequit ETH --agent --chain sepolia --from-pa PA-1",
+    );
     expect(stderr).toBe("");
   });
 
@@ -292,6 +322,7 @@ const STUB_RAGEQUIT_DRY_RUN: RagequitDryRunData = {
   asset: "ETH",
   amount: 500000000000000000n,
   decimals: 18,
+  destinationAddress: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
   poolAccountNumber: 2,
   poolAccountId: "PA-2",
   selectedCommitmentLabel: 456n,
@@ -314,6 +345,7 @@ describe("renderRagequitDryRun parity", () => {
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
     expect(json.amount).toBe("500000000000000000");
+    expect(json.destinationAddress).toBe("0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC");
     expect(json.poolAccountNumber).toBe(2);
     expect(json.poolAccountId).toBe("PA-2");
     expect(json.selectedCommitmentLabel).toBe("456");
@@ -333,6 +365,7 @@ describe("renderRagequitDryRun parity", () => {
     expect(stderr).toContain("Chain: sepolia");
     expect(stderr).toContain("Asset: ETH");
     expect(stderr).toContain("Pool Account: PA-2");
+    expect(stderr).toContain("Destination:");
   });
 });
 
@@ -350,6 +383,7 @@ const STUB_RAGEQUIT_SUCCESS: RagequitSuccessData = {
   scope: 42n,
   blockNumber: 67890n,
   explorerUrl: "https://sepolia.etherscan.io/tx/0x1122",
+  destinationAddress: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
 };
 
 describe("renderRagequitSuccess parity", () => {
@@ -373,9 +407,17 @@ describe("renderRagequitSuccess parity", () => {
     expect(json.scope).toBe("42");
     expect(json.blockNumber).toBe("67890");
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0x1122");
+    expect(json.destinationAddress).toBe("0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC");
     expect(json.nextActions).toBeArrayOfSize(1);
-    expect(json.nextActions[0].command).toBe("accounts");
-    expect(json.nextActions[0].when).toBe("after_ragequit");
+    expectNextAction(
+      json.nextActions[0],
+      {
+        command: "accounts",
+        when: "after_ragequit",
+        options: { agent: true, chain: "sepolia" },
+      },
+      "privacy-pools accounts --agent --chain sepolia",
+    );
     expect(stderr).toBe("");
   });
 
@@ -389,6 +431,7 @@ describe("renderRagequitSuccess parity", () => {
     expect(stderr).toContain("Ragequit PA-2");
     expect(stderr).toContain("withdrew");
     expect(stderr).toContain("ETH");
+    expect(stderr).toContain("Destination:");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("Next steps:");
@@ -468,6 +511,23 @@ describe("renderWithdrawDryRun parity", () => {
     expect(json.proofPublicSignals).toBe(7);
     expect(json.feeBPS).toBeUndefined();
     expect(json.quoteExpiresAt).toBeUndefined();
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
+      {
+        command: "withdraw",
+        when: "after_dry_run",
+        args: ["0.5", "ETH"],
+        options: {
+          agent: true,
+          chain: "sepolia",
+          to: "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
+          fromPa: "PA-1",
+          direct: true,
+        },
+      },
+      "privacy-pools withdraw 0.5 ETH --agent --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --from-pa PA-1 --direct",
+    );
     expect(stderr).toBe("");
   });
 
@@ -482,6 +542,22 @@ describe("renderWithdrawDryRun parity", () => {
     expect(json.dryRun).toBe(true);
     expect(json.feeBPS).toBe("50");
     expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
+      {
+        command: "withdraw",
+        when: "after_dry_run",
+        args: ["0.5", "ETH"],
+        options: {
+          agent: true,
+          chain: "sepolia",
+          to: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+          fromPa: "PA-2",
+        },
+      },
+      "privacy-pools withdraw 0.5 ETH --agent --chain sepolia --to 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB --from-pa PA-2",
+    );
     expect(stderr).toBe("");
   });
 
@@ -584,8 +660,15 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.explorerUrl).toBe("https://sepolia.etherscan.io/tx/0xaabb");
     expect(json.remainingBalance).toBe("500000000000000000");
     expect(json.nextActions).toBeArrayOfSize(1);
-    expect(json.nextActions[0].command).toBe("accounts");
-    expect(json.nextActions[0].when).toBe("after_withdraw");
+    expectNextAction(
+      json.nextActions[0],
+      {
+        command: "accounts",
+        when: "after_withdraw",
+        options: { agent: true, chain: "sepolia" },
+      },
+      "privacy-pools accounts --agent --chain sepolia",
+    );
     expect(stderr).toBe("");
   });
 
@@ -601,7 +684,15 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
     expect(json.nextActions).toBeArrayOfSize(1);
-    expect(json.nextActions[0].command).toBe("accounts");
+    expectNextAction(
+      json.nextActions[0],
+      {
+        command: "accounts",
+        when: "after_withdraw",
+        options: { agent: true, chain: "sepolia" },
+      },
+      "privacy-pools accounts --agent --chain sepolia",
+    );
     expect(stderr).toBe("");
   });
 
@@ -786,7 +877,9 @@ describe("renderWithdrawQuote parity", () => {
     expect(json.netAmount).toBe("497500000000000000");
     expect(json.feeCommitmentPresent).toBe(true);
     expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
-    expect(json.nextActions).toEqual([
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
       {
         command: "withdraw",
         reason: "Submit the withdrawal promptly if the quoted fee is acceptable.",
@@ -799,7 +892,8 @@ describe("renderWithdrawQuote parity", () => {
           extraGas: null,
         },
       },
-    ]);
+      "privacy-pools withdraw 0.5 ETH --agent --chain sepolia --to 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+    );
     expect(stderr).toBe("");
   });
 

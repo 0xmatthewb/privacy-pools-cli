@@ -90,8 +90,10 @@ function expectFlowStatusAgentContract(
     return;
   }
 
-  expect(json.nextActions).toEqual(
-    expectedNextActions.map((expectedNextAction) => ({
+  expect(json.nextActions).toHaveLength(expectedNextActions.length);
+  for (const [index, expectedNextAction] of expectedNextActions.entries()) {
+    const actual = json.nextActions?.[index];
+    expect(actual).toMatchObject({
       command: expectedNextAction.command,
       reason: expect.stringContaining(expectedNextAction.reasonContains),
       when: expectedNextAction.when,
@@ -102,8 +104,10 @@ function expectFlowStatusAgentContract(
           : {}),
       options: expectedNextAction.options ?? { agent: true },
       ...(expectedNextAction.runnable === false ? { runnable: false } : {}),
-    })),
-  );
+    });
+    expect(actual?.cliCommand).toContain(`privacy-pools ${expectedNextAction.command}`);
+    expect(actual?.cliCommand).toContain("--agent");
+  }
 }
 
 describe("flow command", () => {
@@ -501,17 +505,19 @@ describe("flow command", () => {
     expect(json.action).toBe("status");
     expect(json.workflowId).toBe("wf-123");
     expect(json.phase).toBe("paused_declined");
-    expect(json.nextActions).toEqual([
-      {
-        command: "flow ragequit",
-        reason: expect.stringContaining(
-          "canonical saved-workflow public recovery path",
-        ),
-        when: "flow_declined",
-        args: ["wf-123"],
-        options: { agent: true },
-      },
-    ]);
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions?.[0]).toMatchObject({
+      command: "flow ragequit",
+      reason: expect.stringContaining(
+        "canonical saved-workflow public recovery path",
+      ),
+      when: "flow_declined",
+      args: ["wf-123"],
+      options: { agent: true },
+    });
+    expect(json.nextActions?.[0]?.cliCommand).toBe(
+      "privacy-pools flow ragequit wf-123 --agent",
+    );
   });
 
   test("flow status surfaces saved privacy delay metadata and warnings", () => {
@@ -659,17 +665,19 @@ describe("flow command", () => {
     expect(json.success).toBe(true);
     expect(json.workflowId).toBe("wf-latest");
     expect(json.phase).toBe("paused_declined");
-    expect(json.nextActions).toEqual([
-      {
-        command: "flow ragequit",
-        reason: expect.stringContaining(
-          "canonical saved-workflow public recovery path",
-        ),
-        when: "flow_declined",
-        args: ["wf-latest"],
-        options: { agent: true },
-      },
-    ]);
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions?.[0]).toMatchObject({
+      command: "flow ragequit",
+      reason: expect.stringContaining(
+        "canonical saved-workflow public recovery path",
+      ),
+      when: "flow_declined",
+      args: ["wf-latest"],
+      options: { agent: true },
+    });
+    expect(json.nextActions?.[0]?.cliCommand).toBe(
+      "privacy-pools flow ragequit wf-latest --agent",
+    );
   });
 
   test("flow status latest fails closed when an unreadable newer workflow exists", () => {

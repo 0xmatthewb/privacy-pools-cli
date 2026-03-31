@@ -17,13 +17,14 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
-import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
+import { formatAddress, formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 
 export interface RagequitDryRunData {
   chain: string;
   asset: string;
   amount: bigint;
   decimals: number;
+  destinationAddress: string | null;
   poolAccountNumber: number;
   poolAccountId: string;
   selectedCommitmentLabel: bigint;
@@ -43,6 +44,7 @@ export interface RagequitSuccessData {
   scope: bigint;
   blockNumber: bigint;
   explorerUrl: string | null;
+  destinationAddress: string | null;
 }
 
 /**
@@ -61,6 +63,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         chain: data.chain,
         asset: data.asset,
         amount: data.amount.toString(),
+        destinationAddress: data.destinationAddress,
         poolAccountNumber: data.poolAccountNumber,
         poolAccountId: data.poolAccountId,
         selectedCommitmentLabel: data.selectedCommitmentLabel.toString(),
@@ -79,6 +82,9 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
   info(`Asset: ${data.asset}`, silent);
   info(`Pool Account: ${data.poolAccountId}`, silent);
   info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}`, silent);
+  if (data.destinationAddress) {
+    info(`Destination: ${formatAddress(data.destinationAddress)}`, silent);
+  }
   info("Privacy note: ragequit is a public, non-private withdrawal that returns funds to your deposit address.", silent);
 }
 
@@ -119,6 +125,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         scope: data.scope.toString(),
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
+        destinationAddress: data.destinationAddress,
       }, agentNextActions),
       false,
     );
@@ -127,13 +134,19 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
+  const destinationLabel = data.destinationAddress
+    ? formatAddress(data.destinationAddress)
+    : "deposit address";
   success(
-    `Ragequit ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to deposit address.`,
+    `Ragequit ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to ${destinationLabel}.`,
     silent,
   );
   info(`Tx: ${formatTxHash(data.txHash)}`, silent);
   if (data.explorerUrl) {
     info(`Explorer: ${data.explorerUrl}`, silent);
+  }
+  if (data.destinationAddress) {
+    info(`Destination: ${formatAddress(data.destinationAddress)}`, silent);
   }
   renderNextSteps(ctx, humanNextActions);
 }

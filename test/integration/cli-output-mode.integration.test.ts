@@ -168,7 +168,7 @@ describe("--agent mode output contracts", () => {
     expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(json.success).toBe(true);
     expect(json.command).toBe("withdraw quote");
-    expect(json.usage).toBe("withdraw quote <amount|asset> [amount]");
+    expect(json.usage).toBe("withdraw quote <amount> [asset]");
   });
 
   test("--agent status emits JSON on stdout and nothing on stderr", () => {

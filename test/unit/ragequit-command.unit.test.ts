@@ -68,7 +68,7 @@ describe("ragequit command helpers", () => {
 
     expect(advisory).not.toBeNull();
     expect(advisory?.level).toBe("warn");
-    expect(advisory?.message).toContain("approved for private withdrawal");
+    expect(advisory?.message).toContain("private withdrawal instead");
   });
 
   test("pending advisory explains ragequit is an alternative to waiting", () => {
