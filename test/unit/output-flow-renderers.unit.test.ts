@@ -477,10 +477,9 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain("Approved and waiting for privacy delay");
+    expect(stderr).toContain("Privacy delay: Balanced (randomized 15 to 90 minutes)");
     expect(stderr).toContain("Privacy delay until:");
     expect(stderr).toContain("local time");
-    // Privacy delay profile label removed from human output (shown in JSON only)
-    expect(stderr).not.toContain("Balanced (randomized");
     expect(stderr).toContain("manual round partial withdrawals");
   });
 
@@ -526,7 +525,7 @@ describe("renderFlowResult", () => {
     expect(json.nextActions[0].reason).toContain("before requesting the private withdrawal");
   });
 
-  test("human mode does not show privacy delay profile or backup state for configured wallets", () => {
+  test("human mode labels legacy off-delay snapshots and hides backup state for configured wallets", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
       renderFlowResult(ctx, {
@@ -538,8 +537,10 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    // Privacy delay profile removed from default human output (shown in JSON only)
-    expect(stderr).not.toContain("Privacy delay:");
+    // Privacy delay profile shown during awaiting_asp phase
+    expect(stderr).toContain(
+      "Off (legacy workflow without a saved privacy-delay policy; behaves like no added hold)",
+    );
     expect(stderr).not.toContain("Backup confirmed:");
   });
 

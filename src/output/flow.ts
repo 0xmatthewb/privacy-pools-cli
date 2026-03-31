@@ -1,6 +1,7 @@
 import { POA_PORTAL_URL } from "../config/chains.js";
 import {
   buildFlowWarnings,
+  flowPrivacyDelayProfileSummary,
   type FlowPhase,
   type FlowSnapshot,
 } from "../services/workflow.js";
@@ -628,9 +629,13 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     info(`Pool Account: ${data.snapshot.poolAccountId}`, silent);
   }
 
+  // ── Wallet address: shown for new-wallet flows in any phase ──
+  if (data.snapshot.walletMode === "new_wallet" && data.snapshot.walletAddress) {
+    info(`Wallet: ${data.snapshot.walletAddress}`, silent);
+  }
+
   // ── Funding phase: show what's needed to proceed ──
-  if (isFunding && data.snapshot.walletAddress) {
-    info(`Fund this wallet: ${data.snapshot.walletAddress}`, silent);
+  if (isFunding) {
     const requiredTokenFunding = formatFlowAssetAmount(
       data.snapshot.requiredTokenFunding,
       data.snapshot,
@@ -668,10 +673,31 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     }
   }
 
-  // ── Privacy delay: only when actively waiting ──
+  // ── Privacy delay: show profile when relevant, deadline when actively waiting ──
+  if (isWaitingDelay || phase === "awaiting_asp" || phase === "approved_ready_to_withdraw") {
+    info(
+      `Privacy delay: ${flowPrivacyDelayProfileSummary(
+        data.snapshot.privacyDelayProfile ?? "off",
+        data.snapshot.privacyDelayConfigured ?? false,
+      )}`,
+      silent,
+    );
+  }
   if (isWaitingDelay && data.snapshot.privacyDelayUntil) {
     info(
       `Privacy delay until: ${describeFlowPrivacyDelayDeadline(data.snapshot.privacyDelayUntil) ?? data.snapshot.privacyDelayUntil}`,
+      silent,
+    );
+  }
+
+  // ── Full-balance note: important context for active flows ──
+  if (
+    !isTerminal &&
+    !isPreDeposit &&
+    data.action !== "ragequit"
+  ) {
+    info(
+      "This flow withdraws the full Pool Account balance. You receive the net amount after fees.",
       silent,
     );
   }
