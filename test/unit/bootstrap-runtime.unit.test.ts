@@ -13,9 +13,6 @@ import {
   captureModuleExports,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
-import {
-  CURRENT_RUNTIME_DESCRIPTOR,
-} from "../../src/runtime/runtime-contract.js";
 
 const realProgram = captureModuleExports(await import("../../src/program.ts"));
 const realBanner = captureModuleExports(
@@ -39,6 +36,10 @@ const realUpdateCheck = captureModuleExports(
   await import("../../src/utils/update-check.ts"),
 );
 const realJson = captureModuleExports(await import("../../src/utils/json.ts"));
+const LAUNCHER_MODULE_PATHS = [
+  "../../src/launcher.ts",
+  "../../src/launcher.js",
+] as const;
 
 const BOOTSTRAP_RUNTIME_MODULE_RESTORES = [
   ["../../src/program.ts", realProgram],
@@ -49,7 +50,7 @@ const BOOTSTRAP_RUNTIME_MODULE_RESTORES = [
   ["dotenv", realDotenv],
   ["../../src/static-discovery.ts", realStaticDiscovery],
   ["../../src/cli-main.ts", realCliMain],
-  ["../../src/launcher.ts", realLauncher],
+  ...LAUNCHER_MODULE_PATHS.map((path) => [path, realLauncher] as const),
   ["../../src/utils/console-guard.ts", realConsoleGuard],
   ["../../src/utils/update-check.ts", realUpdateCheck],
   ["../../src/utils/json.ts", realJson],
@@ -124,25 +125,6 @@ async function runImportedIndex(
       });
     }
   }
-}
-
-function expectInlineWorkerRequestArgv(
-  runWorkerRequestMock: ReturnType<typeof mock>,
-  expectedArgv: string[],
-): void {
-  const [request, _pkg, options] = runWorkerRequestMock.mock.calls[0] as [
-    { protocolVersion: string; argv: string[] },
-    { version: string },
-    { installConsoleGuard?: boolean },
-  ];
-
-  expect(request).toEqual({
-    protocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
-    argv: expectedArgv,
-  });
-  expect(options).toEqual({
-    installConsoleGuard: true,
-  });
 }
 
 function makeProgram(
@@ -1243,17 +1225,18 @@ describe("bootstrap runtime coverage", () => {
 
   test("index falls back to the worker boundary when the completion fast path declines the argv", async () => {
     forceJsLauncherFallback();
-    const runWorkerRequestMock = mock(async () => undefined);
+    const runLauncherMock = mock(async () => undefined);
 
     mock.module("../../src/static-discovery.ts", () => ({
       runStaticRootHelp: async () => undefined,
       runStaticCompletionQuery: async () => false,
       runStaticDiscoveryCommand: async () => false,
     }));
-    mock.module("../../src/runtime/v1/worker.ts", () => ({
-      runWorkerRequest: runWorkerRequestMock,
-      runWorkerFromEnv: async () => undefined,
-    }));
+    for (const launcherModulePath of LAUNCHER_MODULE_PATHS) {
+      mock.module(launcherModulePath, () => ({
+        runLauncher: runLauncherMock,
+      }));
+    }
 
     setIndexArgv(["completion", "--query", "--words", "privacy-pools st"]);
 
@@ -1261,13 +1244,11 @@ describe("bootstrap runtime coverage", () => {
       await runImportedIndex("completion-fallthrough");
     });
 
-    expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
-    expectInlineWorkerRequestArgv(runWorkerRequestMock, [
-      "completion",
-      "--query",
-      "--words",
-      "privacy-pools st",
-    ]);
+    expect(runLauncherMock).toHaveBeenCalledTimes(1);
+    expect(runLauncherMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      ["completion", "--query", "--words", "privacy-pools st"],
+    );
   });
 
   test("index routes guide through the static discovery command fast path", async () => {
@@ -1306,17 +1287,18 @@ describe("bootstrap runtime coverage", () => {
 
   test("index falls back to the worker boundary when the static discovery fast path declines", async () => {
     forceJsLauncherFallback();
-    const runWorkerRequestMock = mock(async () => undefined);
+    const runLauncherMock = mock(async () => undefined);
 
     mock.module("../../src/static-discovery.ts", () => ({
       runStaticRootHelp: async () => undefined,
       runStaticCompletionQuery: async () => false,
       runStaticDiscoveryCommand: async () => false,
     }));
-    mock.module("../../src/runtime/v1/worker.ts", () => ({
-      runWorkerRequest: runWorkerRequestMock,
-      runWorkerFromEnv: async () => undefined,
-    }));
+    for (const launcherModulePath of LAUNCHER_MODULE_PATHS) {
+      mock.module(launcherModulePath, () => ({
+        runLauncher: runLauncherMock,
+      }));
+    }
 
     setIndexArgv(["guide", "--json"]);
 
@@ -1324,8 +1306,11 @@ describe("bootstrap runtime coverage", () => {
       await runImportedIndex("discovery-fallthrough");
     });
 
-    expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
-    expectInlineWorkerRequestArgv(runWorkerRequestMock, ["guide", "--json"]);
+    expect(runLauncherMock).toHaveBeenCalledTimes(1);
+    expect(runLauncherMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      ["guide", "--json"],
+    );
   });
 
   test("index serves the root version fast path in human and structured modes", async () => {
@@ -1420,15 +1405,16 @@ describe("bootstrap runtime coverage", () => {
 
   test("index sets NO_COLOR before delegating to the full cli path", async () => {
     forceJsLauncherFallback();
-    const runWorkerRequestMock = mock(async () => {
+    const runLauncherMock = mock(async () => {
       expect(process.env.NO_COLOR).toBe("1");
       return undefined;
     });
 
-    mock.module("../../src/runtime/v1/worker.ts", () => ({
-      runWorkerRequest: runWorkerRequestMock,
-      runWorkerFromEnv: async () => undefined,
-    }));
+    for (const launcherModulePath of LAUNCHER_MODULE_PATHS) {
+      mock.module(launcherModulePath, () => ({
+        runLauncher: runLauncherMock,
+      }));
+    }
 
     setIndexArgv(["--no-color", "status"]);
 
@@ -1436,18 +1422,22 @@ describe("bootstrap runtime coverage", () => {
       await runImportedIndex("no-color-delegation");
     });
 
-    expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
-    expectInlineWorkerRequestArgv(runWorkerRequestMock, ["--no-color", "status"]);
+    expect(runLauncherMock).toHaveBeenCalledTimes(1);
+    expect(runLauncherMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      ["--no-color", "status"],
+    );
   });
 
   test("index delegates non-fast invocations to the worker boundary", async () => {
     forceJsLauncherFallback();
-    const runWorkerRequestMock = mock(async () => undefined);
+    const runLauncherMock = mock(async () => undefined);
 
-    mock.module("../../src/runtime/v1/worker.ts", () => ({
-      runWorkerRequest: runWorkerRequestMock,
-      runWorkerFromEnv: async () => undefined,
-    }));
+    for (const launcherModulePath of LAUNCHER_MODULE_PATHS) {
+      mock.module(launcherModulePath, () => ({
+        runLauncher: runLauncherMock,
+      }));
+    }
 
     setIndexArgv(["status", "--json"]);
 
@@ -1455,8 +1445,11 @@ describe("bootstrap runtime coverage", () => {
       await runImportedIndex("full-cli-path");
     });
 
-    expect(runWorkerRequestMock).toHaveBeenCalledTimes(1);
-    expectInlineWorkerRequestArgv(runWorkerRequestMock, ["status", "--json"]);
+    expect(runLauncherMock).toHaveBeenCalledTimes(1);
+    expect(runLauncherMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      ["status", "--json"],
+    );
   });
 
   test("index stays inert when imported outside the direct CLI entry path", async () => {

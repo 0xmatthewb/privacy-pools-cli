@@ -4,7 +4,7 @@ import type { ChainConfig, PoolStats } from "../types.js";
 import { NATIVE_ASSET_ADDRESS, KNOWN_POOLS } from "../config/chains.js";
 import { resolvePoolDeploymentBlock } from "../config/deployment-hints.js";
 import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
-import { getHealthyRpcUrl, getPublicClient, isLocalRpcUrl } from "./sdk.js";
+import { getPublicClient } from "./sdk.js";
 import { CLIError, sanitizeEndpointForDisplay } from "../utils/errors.js";
 
 // Entrypoint ABI fragment for read-only calls
@@ -243,14 +243,9 @@ async function getScopeReadOnly(
 
 async function resolveRuntimeDeploymentBlock(
   chainConfig: ChainConfig,
-  rpcOverride: string | undefined,
+  _rpcOverride: string | undefined,
   ...addresses: Array<string | null | undefined>
 ): Promise<bigint> {
-  const effectiveRpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
-  if (isLocalRpcUrl(effectiveRpcUrl)) {
-    return chainConfig.startBlock;
-  }
-
   return resolvePoolDeploymentBlock(
     chainConfig.id,
     chainConfig.startBlock,

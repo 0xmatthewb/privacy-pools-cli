@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { existsSync, mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
@@ -6,17 +6,35 @@ import { basename, join } from "node:path";
 import { CLI_PROTOCOL_PROFILE } from "../../src/config/protocol-profile.js";
 import { launcherTestInternals, runLauncher } from "../../src/launcher.ts";
 import {
+  CURRENT_NATIVE_JS_BRIDGE_ENV,
+  CURRENT_RUNTIME_REQUEST_ENV,
   CURRENT_RUNTIME_DESCRIPTOR,
 } from "../../src/runtime/runtime-contract.js";
 import { parseRootArgv } from "../../src/utils/root-argv.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import {
   captureAsyncOutputAllowExit,
-  captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
 } from "../helpers/output.ts";
 
 const PKG = { version: "1.7.0" };
+const ORIGINAL_BINARY_OVERRIDE = process.env.PRIVACY_POOLS_CLI_BINARY;
+const ORIGINAL_WORKER_OVERRIDE = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+const ORIGINAL_EXIT_CODE = process.exitCode ?? 0;
+
+type SpawnMockChild = EventEmitter & {
+  exitCode: number | null;
+  signalCode: NodeJS.Signals | null;
+  kill: (signal?: NodeJS.Signals) => boolean;
+};
+
+function createSpawnMockChild(): SpawnMockChild {
+  const child = new EventEmitter() as SpawnMockChild;
+  child.exitCode = null;
+  child.signalCode = null;
+  child.kill = () => true;
+  return child;
+}
 
 function writeNativePackageJson(
   packageJsonPath: string,
@@ -48,6 +66,21 @@ function createNativeVerificationHome(tempDir: string): string {
 }
 
 describe("launcher runtime coverage", () => {
+  afterEach(() => {
+    launcherTestInternals.resetSpawnImplementationForTests();
+    process.exitCode = ORIGINAL_EXIT_CODE;
+    if (ORIGINAL_BINARY_OVERRIDE === undefined) {
+      delete process.env.PRIVACY_POOLS_CLI_BINARY;
+    } else {
+      process.env.PRIVACY_POOLS_CLI_BINARY = ORIGINAL_BINARY_OVERRIDE;
+    }
+    if (ORIGINAL_WORKER_OVERRIDE === undefined) {
+      delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    } else {
+      process.env.PRIVACY_POOLS_CLI_JS_WORKER = ORIGINAL_WORKER_OVERRIDE;
+    }
+  });
+
   test("native distribution helpers map supported and unsupported targets", () => {
     expect(launcherTestInternals.nativeTriplet("darwin", "arm64")).toBe("darwin-arm64");
     expect(launcherTestInternals.nativePackageName("win32", "x64")).toContain("windows-x64-msvc");
@@ -157,6 +190,59 @@ describe("launcher runtime coverage", () => {
     expect(basename(resolved)).toMatch(/^node(?:\.exe)?$/i);
   });
 
+  test("resolveLaunchTarget honors disable-native by forcing the js worker route", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      PKG,
+      ["stats"],
+      {
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+      },
+      {
+        parsed: parseRootArgv(["stats"]),
+      },
+    );
+
+    expect(target.kind).toBe("js-worker");
+    expect(typeof target.env[CURRENT_RUNTIME_REQUEST_ENV]).toBe("string");
+  });
+
+  test("resolveLaunchTarget forwards native bridge metadata without leaking signer secrets", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      PKG,
+      ["stats"],
+      {
+        PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+        PRIVACY_POOLS_PRIVATE_KEY: `0x${"11".repeat(32)}`,
+      },
+      {
+        parsed: parseRootArgv(["stats"]),
+      },
+    );
+
+    expect(target.kind).toBe("native-binary");
+    expect(target.command).toBe("/tmp/privacy-pools-native");
+    expect(target.env.PRIVACY_POOLS_PRIVATE_KEY).toBeUndefined();
+    expect(typeof target.env.PRIVACY_POOLS_CLI_JS_WORKER).toBe("string");
+    expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER?.endsWith(".js")).toBe(true);
+    expect(typeof target.env[CURRENT_NATIVE_JS_BRIDGE_ENV]).toBe("string");
+  });
+
+  test("resolveLaunchTarget prefers a verified installed native binary when one is available", () => {
+    const target = launcherTestInternals.resolveLaunchTarget(
+      PKG,
+      ["stats"],
+      {},
+      {
+        parsed: parseRootArgv(["stats"]),
+        resolveInstalledNativeBinary: () => "/tmp/verified-native",
+      },
+    );
+
+    expect(target.kind).toBe("native-binary");
+    expect(target.command).toBe("/tmp/verified-native");
+    expect(typeof target.env[CURRENT_NATIVE_JS_BRIDGE_ENV]).toBe("string");
+  });
+
   test("tryRunLocalFastPath skips local handling when an explicit native binary is configured", async () => {
     const result = await launcherTestInternals.tryRunLocalFastPath(
       PKG,
@@ -164,6 +250,19 @@ describe("launcher runtime coverage", () => {
       parseRootArgv(["--help"]),
       {
         PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
+      },
+    );
+
+    expect(result).toBe(false);
+  });
+
+  test("tryRunLocalFastPath skips local handling when an explicit js worker override is configured", async () => {
+    const result = await launcherTestInternals.tryRunLocalFastPath(
+      PKG,
+      ["--help"],
+      parseRootArgv(["--help"]),
+      {
+        PRIVACY_POOLS_CLI_JS_WORKER: "/tmp/privacy-pools-worker.js",
       },
     );
 
@@ -189,6 +288,7 @@ describe("launcher runtime coverage", () => {
         PKG,
         ["--version"],
         parseRootArgv(["--version"]),
+        {},
       ),
     );
     expect(versionResult.exitCode).toBe(0);
@@ -200,6 +300,7 @@ describe("launcher runtime coverage", () => {
         PKG,
         ["--help"],
         parseRootArgv(["--help"]),
+        {},
       ),
     );
     expect(helpResult.exitCode).toBe(0);
@@ -226,6 +327,25 @@ describe("launcher runtime coverage", () => {
     expect(guide.json.errorCode).toBe("INPUT_ERROR");
   });
 
+  test("exitSuccessfulFastPath preserves an existing non-zero exit code", () => {
+    const originalExit = process.exit;
+    let forcedExitCode: number | null = null;
+    process.exitCode = 7;
+    process.exit = ((code?: number) => {
+      forcedExitCode = code ?? 0;
+      throw new Error(`unexpected exit(${forcedExitCode})`);
+    }) as never;
+
+    try {
+      launcherTestInternals.exitSuccessfulFastPath();
+      expect(forcedExitCode).toBeNull();
+      expect(process.exitCode).toBe(7);
+    } finally {
+      process.exit = originalExit;
+      process.exitCode = ORIGINAL_EXIT_CODE;
+    }
+  });
+
   test("tryRunLocalFastPath serves real completion and static discovery commands", async () => {
     const completionArgv = [
       "--json",
@@ -244,6 +364,7 @@ describe("launcher runtime coverage", () => {
         PKG,
         completionArgv,
         parseRootArgv(completionArgv),
+        {},
       ),
     );
     expect(completionResult.exitCode).toBe(0);
@@ -259,6 +380,7 @@ describe("launcher runtime coverage", () => {
         PKG,
         ["guide"],
         parseRootArgv(["guide"]),
+        {},
       ),
     );
     expect(guideResult.exitCode).toBe(0);
@@ -276,14 +398,78 @@ describe("launcher runtime coverage", () => {
   });
 
   test("runLauncher resolves js-owned routes inline when no worker override is set", async () => {
-    const { json, stderr } = await captureAsyncJsonOutput(() =>
-      runLauncher(PKG, ["--agent", "status", "--no-check"]),
-    );
+    const tempDir = createTrackedTempDir("pp-launcher-inline-status-");
+    const originalHome = process.env.PRIVACY_POOLS_HOME;
+    const originalConfigDir = process.env.PRIVACY_POOLS_CONFIG_DIR;
+    const originalDisableNative = process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE;
+    const originalDisableFastPath = process.env.PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH;
+    const originalWorkerOverride = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    const originalBinaryOverride = process.env.PRIVACY_POOLS_CLI_BINARY;
+    let spawnCalled = false;
 
-    expect(json.success).toBe(true);
-    expect(json.recoveryPhraseSet).toBeDefined();
-    expect(json.readyForDeposit).toBeDefined();
-    expect(stderr).toBe("");
+    launcherTestInternals.setSpawnImplementationForTests((() => {
+      spawnCalled = true;
+      throw new Error("spawn should not be used for inline js-owned launcher routes");
+    }) as typeof import("node:child_process").spawn);
+
+    process.env.PRIVACY_POOLS_HOME = join(tempDir, ".privacy-pools");
+    delete process.env.PRIVACY_POOLS_CONFIG_DIR;
+    delete process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE;
+    delete process.env.PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH;
+    delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    delete process.env.PRIVACY_POOLS_CLI_BINARY;
+
+    try {
+      const argv = ["--agent", "status", "--no-check"];
+      const parsed = parseRootArgv(argv);
+      const target = launcherTestInternals.resolveLaunchTarget(PKG, argv, process.env, {
+        parsed,
+      });
+
+      expect(target.kind).toBe("js-worker");
+      expect(launcherTestInternals.hasExplicitJsWorkerOverride(process.env)).toBe(false);
+
+      const { json, stderr } = await captureAsyncJsonOutputAllowExit(() =>
+        runLauncher(PKG, argv),
+      );
+
+      expect(spawnCalled).toBe(false);
+      expect(json.schemaVersion).toBe("1.7.0");
+      expect(typeof json.success).toBe("boolean");
+      expect(stderr).toBe("");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+      if (originalHome === undefined) {
+        delete process.env.PRIVACY_POOLS_HOME;
+      } else {
+        process.env.PRIVACY_POOLS_HOME = originalHome;
+      }
+      if (originalConfigDir === undefined) {
+        delete process.env.PRIVACY_POOLS_CONFIG_DIR;
+      } else {
+        process.env.PRIVACY_POOLS_CONFIG_DIR = originalConfigDir;
+      }
+      if (originalDisableNative === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_DISABLE_NATIVE = originalDisableNative;
+      }
+      if (originalDisableFastPath === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH = originalDisableFastPath;
+      }
+      if (originalWorkerOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
+      }
+      if (originalBinaryOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_BINARY;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_BINARY = originalBinaryOverride;
+      }
+    }
   });
 
   test("runLauncher prints structured worker-path failures for js-owned routes", async () => {
@@ -344,6 +530,101 @@ describe("launcher runtime coverage", () => {
     }
   });
 
+  test("runLauncher spawns the configured js worker override for non-secret invocations", async () => {
+    const tempDir = createTrackedTempDir("pp-worker-override-spawn-");
+    const workerPath = join(tempDir, "worker.js");
+    const originalWorkerOverride = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    const argv = ["--agent", "status", "--no-check"];
+    let spawnCall:
+      | {
+          command: string;
+          args: string[];
+          env: NodeJS.ProcessEnv;
+          stdio: "inherit";
+        }
+      | null = null;
+
+    writeFileSync(workerPath, "// mocked worker path\n", "utf8");
+    process.env.PRIVACY_POOLS_CLI_JS_WORKER = workerPath;
+    launcherTestInternals.setSpawnImplementationForTests(
+      ((command, args, options) => {
+        spawnCall = {
+          command,
+          args,
+          env: options.env,
+          stdio: options.stdio,
+        };
+        const child = createSpawnMockChild();
+        queueMicrotask(() => {
+          child.emit("exit", 0, null);
+        });
+        return child;
+      }) as unknown as typeof import("node:child_process").spawn,
+    );
+
+    try {
+      const parsed = parseRootArgv(argv);
+      const target = launcherTestInternals.resolveLaunchTarget(PKG, argv, process.env, {
+        parsed,
+      });
+      const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+        runLauncher(PKG, argv),
+      );
+
+      expect(target.kind).toBe("js-worker");
+      expect(exitCode).toBeNull();
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+      expect(spawnCall).not.toBeNull();
+      expect(spawnCall?.command).toBe(target.command);
+      expect(spawnCall?.args).toEqual(target.args);
+      expect(spawnCall?.stdio).toBe("inherit");
+      expect(spawnCall?.env[CURRENT_RUNTIME_REQUEST_ENV]).toBeDefined();
+    } finally {
+      if (originalWorkerOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
+      }
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("runLauncher forwards explicit js worker exit codes", async () => {
+    const tempDir = createTrackedTempDir("pp-worker-override-exit-");
+    const workerPath = join(tempDir, "worker.js");
+    const originalWorkerOverride = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+
+    writeFileSync(workerPath, "// mocked worker path\n", "utf8");
+    process.env.PRIVACY_POOLS_CLI_JS_WORKER = workerPath;
+    launcherTestInternals.setSpawnImplementationForTests(
+      ((_, __, ___) => {
+        const child = createSpawnMockChild();
+        queueMicrotask(() => {
+          child.emit("exit", 7, null);
+        });
+        return child;
+      }) as unknown as typeof import("node:child_process").spawn,
+    );
+
+    try {
+      const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+        runLauncher(PKG, ["--agent", "status", "--no-check"]),
+      );
+
+      expect(exitCode).toBe(7);
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+    } finally {
+      if (originalWorkerOverride === undefined) {
+        delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+      } else {
+        process.env.PRIVACY_POOLS_CLI_JS_WORKER = originalWorkerOverride;
+      }
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("runLauncher sanitizes native spawn failures through the shared cli error path", async () => {
     const originalBinaryOverride = process.env.PRIVACY_POOLS_CLI_BINARY;
     const spawnMock = (
@@ -354,18 +635,15 @@ describe("launcher runtime coverage", () => {
         stdio: "inherit";
       },
     ) => {
-      const child = new EventEmitter() as EventEmitter & {
+      const child = createSpawnMockChild();
+      queueMicrotask(() => {
+        child.emit("error", new Error("spawn /tmp/private/native-worker ENOENT"));
+      });
+      return child as EventEmitter & {
         exitCode: number | null;
         signalCode: NodeJS.Signals | null;
         kill: (signal?: NodeJS.Signals) => boolean;
       };
-      child.exitCode = null;
-      child.signalCode = null;
-      child.kill = () => true;
-      queueMicrotask(() => {
-        child.emit("error", new Error("spawn /tmp/private/native-worker ENOENT"));
-      });
-      return child;
     };
 
     launcherTestInternals.setSpawnImplementationForTests(

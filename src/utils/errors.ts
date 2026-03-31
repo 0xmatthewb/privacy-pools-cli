@@ -425,5 +425,6 @@ export function printError(error: unknown, json: boolean = false): void {
     }
   }
 
-  process.exit(EXIT_CODES[classified.category]);
+  // Preserve stdout/stderr flushing, especially for JSON/agent mode in piped output.
+  process.exitCode = EXIT_CODES[classified.category];
 }

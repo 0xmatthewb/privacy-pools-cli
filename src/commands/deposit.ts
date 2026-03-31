@@ -299,7 +299,9 @@ export async function handleDepositCommand(
       );
       const nextPAId = poolAccountId(nextPANumber);
 
-      // Generate deposit secrets (SDK returns precommitment directly)
+      // The SDK derives deposit secrets from (mnemonic, scope, next index)
+      // without mutating account state, so dry-run/unsigned paths can safely
+      // preview the same precommitment without persisting anything first.
       const secrets = withSuppressedSdkStdoutSync(() =>
         accountService.createDepositSecrets(pool.scope as unknown as SDKHash),
       );

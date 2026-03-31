@@ -160,7 +160,9 @@ export async function captureAsyncOutputAllowExit(
   fn: () => Promise<void>,
 ): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
   const originalExit = process.exit;
+  const originalExitCode = process.exitCode;
   let exitCode: number | null = null;
+  process.exitCode = 0;
 
   process.exit = ((code?: number) => {
     exitCode = code ?? 0;
@@ -180,10 +182,11 @@ export async function captureAsyncOutputAllowExit(
 
     return {
       ...captured,
-      exitCode,
+      exitCode: exitCode ?? (process.exitCode && process.exitCode !== 0 ? process.exitCode : null),
     };
   } finally {
     process.exit = originalExit;
+    process.exitCode = originalExitCode;
   }
 }
 

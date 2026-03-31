@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -24,9 +24,20 @@ import {
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
 import { parseRootArgv } from "../../src/utils/root-argv.ts";
 
 const PKG = { version: "1.7.0" };
+const realStaticDiscovery = captureModuleExports(
+  await import("../../src/static-discovery.ts"),
+);
+const ORIGINAL_NO_COLOR = process.env.NO_COLOR;
+const ORIGINAL_BINARY_OVERRIDE = process.env.PRIVACY_POOLS_CLI_BINARY;
+const ORIGINAL_WORKER_OVERRIDE = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+const ORIGINAL_EXIT_CODE = process.exitCode;
 
 function writeNativePackageJson(
   packageJsonPath: string,
@@ -52,6 +63,29 @@ function writeNativePackageJson(
 }
 
 describe("launcher routing", () => {
+  afterEach(() => {
+    restoreModuleImplementations([
+      ["../../src/static-discovery.ts", realStaticDiscovery],
+    ]);
+    launcherTestInternals.resetSpawnImplementationForTests();
+    process.exitCode = ORIGINAL_EXIT_CODE;
+    if (ORIGINAL_NO_COLOR === undefined) {
+      delete process.env.NO_COLOR;
+    } else {
+      process.env.NO_COLOR = ORIGINAL_NO_COLOR;
+    }
+    if (ORIGINAL_BINARY_OVERRIDE === undefined) {
+      delete process.env.PRIVACY_POOLS_CLI_BINARY;
+    } else {
+      process.env.PRIVACY_POOLS_CLI_BINARY = ORIGINAL_BINARY_OVERRIDE;
+    }
+    if (ORIGINAL_WORKER_OVERRIDE === undefined) {
+      delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;
+    } else {
+      process.env.PRIVACY_POOLS_CLI_JS_WORKER = ORIGINAL_WORKER_OVERRIDE;
+    }
+  });
+
   test("falls back to the js worker boundary when no native package is available and encodes argv", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,
@@ -261,6 +295,21 @@ describe("launcher routing", () => {
     expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
     expect(Array.isArray(json.commands)).toBe(true);
+    expect(stderr).toBe("");
+    expect(pkgResolver).not.toHaveBeenCalled();
+  });
+
+  test("runLauncher preserves non-zero exits from static discovery errors", async () => {
+    const pkgResolver = mock(() => PKG);
+
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      runLauncher(pkgResolver, ["--json", "describe", "not-a-command"]),
+    );
+
+    expect(exitCode).toBe(2);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(String(json.errorMessage)).toContain("Unknown command path");
     expect(stderr).toBe("");
     expect(pkgResolver).not.toHaveBeenCalled();
   });

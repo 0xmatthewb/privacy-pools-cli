@@ -69,7 +69,7 @@ defineScenarioSuite("activity acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(1),
+    assertExit(3),
     assertStderrEmpty(),
     assertJson<{
       schemaVersion: string;
@@ -110,7 +110,7 @@ defineScenarioSuite("activity acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(1),
+    assertExit(3),
     assertStdoutEmpty(),
     assertStderr((stderr) => {
       expect(stderr).toContain("Error");
@@ -119,7 +119,7 @@ defineScenarioSuite("activity acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(1),
+    assertExit(3),
     assertJson<{
       success: boolean;
       error: { category: string };
@@ -133,7 +133,7 @@ defineScenarioSuite("activity acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(1),
+    assertExit(3),
     assertStderrEmpty(),
     assertJson<{
       schemaVersion: string;
@@ -158,7 +158,7 @@ defineScenarioSuite("activity acceptance", [
         env: OFFLINE_ASP_ENV,
       },
     ),
-    assertExit(1),
+    assertExit(3),
     assertStderrEmpty(),
     assertJson<{
       schemaVersion: string;
@@ -171,7 +171,7 @@ defineScenarioSuite("activity acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(1),
+    assertExit(3),
     assertStdoutEmpty(),
   ]),
   defineScenario("activity error envelopes stay complete", [
@@ -196,7 +196,7 @@ defineScenarioSuite("activity acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(1),
+    assertExit(3),
     assertJson<{
       schemaVersion: string;
       success: boolean;

@@ -2,7 +2,7 @@ const ANOMALOUS_BUN_EXIT_CODES = new Set([2, 3]);
 
 function hasCleanPassingSummary(output) {
   return (
-    /\n\s*\d+\s+pass\b/.test(output) &&
+    /\n\s*[1-9]\d*\s+pass\b/.test(output) &&
     /\n\s*0\s+fail\b/.test(output) &&
     /Ran \d+ tests? across \d+ files?\./.test(output) &&
     !/\(fail\)/.test(output)

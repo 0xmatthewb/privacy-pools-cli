@@ -167,7 +167,7 @@ describe("resolvePool", () => {
     expect(pool.asset).toBe(ASSET);
   });
 
-  test("uses the chain start block for known pools on local rpc", async () => {
+  test("keeps deployment hints for known pools on local rpc", async () => {
     const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
     const poolAddress = "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f" as Address;
     const server = await startMockServer(11155111, {
@@ -208,7 +208,7 @@ describe("resolvePool", () => {
     expect(pool.pool.toLowerCase()).toBe(poolAddress.toLowerCase());
     expect(pool.symbol).toBe("USDC");
     expect(deploymentHint).toBeDefined();
-    expect(pool.deploymentBlock).toBe(cfg.startBlock);
+    expect(pool.deploymentBlock).toBe(deploymentHint);
   });
 
   test("throws INPUT CLIError with available assets when symbol not found", async () => {

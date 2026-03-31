@@ -607,6 +607,17 @@ function validateJsWorkerPath(
   );
 }
 
+function exitSuccessfulFastPath(): void {
+  // Static fast paths may already have emitted a structured error envelope and
+  // set process.exitCode. Preserve that non-zero exit instead of overwriting it
+  // with a synchronous success exit.
+  if ((process.exitCode ?? 0) !== 0) {
+    return;
+  }
+
+  process.exit(0);
+}
+
 async function tryRunLocalFastPath(
   pkg: CliPackageInfoSource,
   argv: string[],
@@ -615,6 +626,7 @@ async function tryRunLocalFastPath(
 ): Promise<boolean> {
   if (
     hasExplicitBinaryOverride(env) ||
+    hasExplicitJsWorkerOverride(env) ||
     isFlagEnabled(env[ENV_CLI_DISABLE_LOCAL_FAST_PATH])
   ) {
     return false;
@@ -633,14 +645,14 @@ async function tryRunLocalFastPath(
 
   if (parsed.isVersionLike && parsed.firstCommandToken === undefined) {
     await writeVersionOutput(resolveCliPackageInfo(pkg), parsed.isStructuredOutputMode);
-    process.exit(0);
+    exitSuccessfulFastPath();
     return true;
   }
 
   if (parsed.isRootHelpInvocation) {
     const { runStaticRootHelp } = await import("./static-discovery.js");
     await runStaticRootHelp(parsed.isStructuredOutputMode);
-    process.exit(0);
+    exitSuccessfulFastPath();
     return true;
   }
 
@@ -651,7 +663,7 @@ async function tryRunLocalFastPath(
   ) {
     const { runStaticCompletionQuery } = await import("./static-discovery.js");
     if (await runStaticCompletionQuery(argv)) {
-      process.exit(0);
+      exitSuccessfulFastPath();
       return true;
     }
   }
@@ -663,7 +675,7 @@ async function tryRunLocalFastPath(
   ) {
     const { runStaticDiscoveryCommand } = await import("./static-discovery.js");
     if (await runStaticDiscoveryCommand(argv, parsed)) {
-      process.exit(0);
+      exitSuccessfulFastPath();
       return true;
     }
   }
@@ -824,5 +836,6 @@ export const launcherTestInternals = {
     spawnImplementation = nextSpawn;
   },
   validateJsWorkerPath,
+  exitSuccessfulFastPath,
   writeVersionOutput,
 };

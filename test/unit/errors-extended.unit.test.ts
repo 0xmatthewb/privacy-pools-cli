@@ -360,10 +360,9 @@ describe("website recovery errors", () => {
 
 describe("printError", () => {
   test("JSON mode emits structured error to stdout", () => {
-    const origExit = process.exit;
-    let exitCode: number | undefined;
-
-    process.exit = ((code: number) => { exitCode = code; }) as never;
+    const originalExitCode = process.exitCode;
+    process.exitCode = undefined;
+    let assignedExitCode: number | undefined;
 
     try {
       const output = captureStdout(() => {
@@ -374,41 +373,42 @@ describe("printError", () => {
       expect(parsed.errorCode).toBe("INPUT_ERROR");
       expect(parsed.errorMessage).toBe("test error");
       expect(parsed.error.hint).toBe("try again");
+      assignedExitCode = process.exitCode;
     } finally {
-      process.exit = origExit;
+      process.exitCode = originalExitCode;
     }
-    expect(exitCode).toBe(2); // INPUT exit code
+    expect(assignedExitCode).toBe(2); // INPUT exit code
   });
 
   test("human mode writes to stderr via process.stderr.write", () => {
     const stderrOutput: string[] = [];
     const origWrite = process.stderr.write;
-    const origExit = process.exit;
-    let exitCode: number | undefined;
+    const originalExitCode = process.exitCode;
+    let assignedExitCode: number | undefined;
 
     process.stderr.write = ((chunk: string | Uint8Array) => {
       stderrOutput.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString());
       return true;
     }) as typeof process.stderr.write;
-    process.exit = ((code: number) => { exitCode = code; }) as never;
+    process.exitCode = undefined;
 
     try {
       printError(new CLIError("test error", "ASP", "check ASP"), false);
+      assignedExitCode = process.exitCode;
     } finally {
       process.stderr.write = origWrite;
-      process.exit = origExit;
+      process.exitCode = originalExitCode;
     }
 
     const combined = stderrOutput.join("");
     expect(combined).toContain("test error");
     expect(combined).toContain("check ASP");
-    expect(exitCode).toBe(4); // ASP exit code
+    expect(assignedExitCode).toBe(4); // ASP exit code
   });
 
   test("classifies unknown errors before printing", () => {
-    const origExit = process.exit;
-
-    process.exit = (() => {}) as never;
+    const originalExitCode = process.exitCode;
+    process.exitCode = undefined;
 
     try {
       const output = captureStdout(() => {
@@ -418,7 +418,40 @@ describe("printError", () => {
       expect(parsed.error.category).toBe("RPC");
       expect(parsed.errorCode).toBe("RPC_NETWORK_ERROR");
     } finally {
-      process.exit = origExit;
+      process.exitCode = originalExitCode;
     }
   });
+
+  const categoryCases = [
+    { category: "INPUT", errorCode: "INPUT_ERROR", exitCode: 2 },
+    { category: "RPC", errorCode: "RPC_ERROR", exitCode: 3 },
+    { category: "ASP", errorCode: "ASP_ERROR", exitCode: 4 },
+    { category: "RELAYER", errorCode: "RELAYER_ERROR", exitCode: 5 },
+    { category: "PROOF", errorCode: "PROOF_ERROR", exitCode: 6 },
+    { category: "CONTRACT", errorCode: "CONTRACT_ERROR", exitCode: 7 },
+    { category: "UNKNOWN", errorCode: "UNKNOWN_ERROR", exitCode: 1 },
+  ] as const;
+
+  for (const { category, errorCode, exitCode } of categoryCases) {
+    test(`agent-mode JSON stays valid for ${category} errors`, () => {
+      const originalExitCode = process.exitCode;
+      process.exitCode = undefined;
+      let assignedExitCode: number | undefined;
+
+      try {
+        const output = captureStdout(() => {
+          printError(new CLIError(`${category} failure`, category), true);
+        });
+        const parsed = JSON.parse(output.trim());
+        expect(parsed.success).toBe(false);
+        expect(parsed.errorCode).toBe(errorCode);
+        expect(parsed.error.category).toBe(category);
+        assignedExitCode = process.exitCode;
+      } finally {
+        process.exitCode = originalExitCode;
+      }
+
+      expect(assignedExitCode).toBe(exitCode);
+    });
+  }
 });

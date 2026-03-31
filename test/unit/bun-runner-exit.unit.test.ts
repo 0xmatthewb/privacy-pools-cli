@@ -34,4 +34,15 @@ describe("bun runner exit normalization", () => {
       }),
     ).toBe(false);
   });
+
+  test("rejects zero-pass summaries even when they report zero failures", () => {
+    expect(
+      shouldTreatBunExitAsSuccess({
+        status: 3,
+        stdout: "bun test v1.3.11\n",
+        stderr:
+          "\n 0 pass\n 0 fail\n 0 expect() calls\nRan 0 tests across 0 files. [1.00ms]\n",
+      }),
+    ).toBe(false);
+  });
 });

@@ -132,7 +132,7 @@ defineScenarioSuite("read-only success acceptance", [
       });
     }),
   ]),
-  defineScenario("pools succeeds with an empty list when ASP is reachable but RPC reads fail", [
+  defineScenario("pools reports an RPC resolution error when ASP is reachable but RPC reads fail", [
     (ctx) =>
       runCliStep(["--json", "--chain", "sepolia", "pools"], {
         timeoutMs: 15_000,
@@ -141,12 +141,17 @@ defineScenarioSuite("read-only success acceptance", [
           PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
         },
       })(ctx),
-    assertExit(0),
+    assertExit(3),
     assertStderrEmpty(),
-    assertJson<{ success: boolean; chain?: string; pools: unknown[] }>((json) => {
-      expect(json.success).toBe(true);
-      expect(json.chain).toBe("sepolia");
-      expect(json.pools).toEqual([]);
+    assertJson<{
+      success: boolean;
+      errorCode: string;
+      error: { category: string; code: string };
+    }>((json) => {
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.category).toBe("RPC");
+      expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
     }),
   ]),
   defineScenario("pools detail keeps wallet-state warnings concise when RPC log methods are unavailable", [

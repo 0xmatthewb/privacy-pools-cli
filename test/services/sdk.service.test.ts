@@ -243,7 +243,7 @@ describe("sdk service", () => {
       expect((ds as any).logFetchConfigs).toBeUndefined();
     });
 
-    test("reuses remote DataService instances for the same chain and RPC", async () => {
+    test("reuses remote DataService instances for the same chain, pool, and RPC", async () => {
       const ds1 = await getDataService(
         CHAINS.mainnet,
         poolAddress,
@@ -251,14 +251,44 @@ describe("sdk service", () => {
       );
       const ds2 = await getDataService(
         CHAINS.mainnet,
-        "0x0000000000000000000000000000000000000002" as Address,
+        poolAddress,
         "https://rpc.example.com"
       );
 
       expect(ds1).toBe(ds2);
     });
 
-    test("reuses local compatibility data service instances for the same chain and RPC", async () => {
+    test("does not reuse remote DataService instances across pool addresses", async () => {
+      const ds1 = await getDataService(
+        CHAINS.mainnet,
+        poolAddress,
+        "https://rpc.example.com"
+      );
+      const ds2 = await getDataService(
+        CHAINS.mainnet,
+        "0x0000000000000000000000000000000000000002" as Address,
+        "https://rpc.example.com"
+      );
+
+      expect(ds1).not.toBe(ds2);
+    });
+
+    test("reuses local compatibility data service instances for the same chain, pool, and RPC", async () => {
+      const ds1 = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "http://127.0.0.1:8545"
+      );
+      const ds2 = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "http://127.0.0.1:8545"
+      );
+
+      expect(ds1).toBe(ds2);
+    });
+
+    test("does not reuse local compatibility data service instances across pool addresses", async () => {
       const ds1 = await getDataService(
         CHAINS.sepolia,
         poolAddress,
@@ -270,7 +300,7 @@ describe("sdk service", () => {
         "http://127.0.0.1:8545"
       );
 
-      expect(ds1).toBe(ds2);
+      expect(ds1).not.toBe(ds2);
     });
 
     test("applies website-aligned log fetch config for mainnet", async () => {

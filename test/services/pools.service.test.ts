@@ -216,7 +216,7 @@ describe("pools service", () => {
     expect(pools[0].asset).toBe("0x00000000000000000000000000000000000000b1");
   });
 
-  test("listPools uses the chain start block for local known pools", async () => {
+  test("listPools keeps deployment hints for known pools on local rpc", async () => {
     const chainId = CHAINS.sepolia.id;
     const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
     const pool = "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f" as Address;
@@ -246,7 +246,7 @@ describe("pools service", () => {
     expect(pools).toHaveLength(1);
     expect(pools[0].symbol).toBe("USDC");
     expect(deploymentHint).toBeDefined();
-    expect(pools[0].deploymentBlock).toBe(CHAINS.sepolia.startBlock);
+    expect(pools[0].deploymentBlock).toBe(deploymentHint);
   });
 
   test("listPools supports scope-keyed object payload shape", async () => {
