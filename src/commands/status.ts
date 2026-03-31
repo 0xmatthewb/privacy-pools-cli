@@ -16,6 +16,10 @@ import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderStatus } from "../output/status.js";
 import type { StatusCheckResult } from "../output/status.js";
+import { createCliPackageInfoResolver } from "../package-info.js";
+import { detectNativeRuntimeAdvisory } from "../native-runtime-advisory.js";
+
+const resolveCliPackageInfo = createCliPackageInfoResolver(import.meta.url);
 
 interface StatusCommandOptions {
   check?: boolean;
@@ -87,6 +91,7 @@ export async function handleStatusCommand(
         ? sanitizeEndpointForDisplay(selectedChainConfig.aspHost)
         : null,
       accountFiles: [],
+      nativeRuntimeAdvisory: detectNativeRuntimeAdvisory(resolveCliPackageInfo()),
     };
 
     // Health checks — run by default when a chain is selected.

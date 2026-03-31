@@ -552,6 +552,49 @@ describe("launcher runtime coverage", () => {
     }
   });
 
+  test("resolveInstalledNativeBinary can skip verification cache writes for read-only inspection", () => {
+    const tempDir = createTrackedTempDir("pp-native-runtime-cache-readonly-");
+    const home = createNativeVerificationHome(tempDir);
+    const packageJsonPath = join(tempDir, "package.json");
+    const binDir = join(tempDir, "bin");
+    const binPath = join(binDir, "privacy-pools-cli-native-shell");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(binPath, "#!/usr/bin/env node\n", "utf8");
+    const sha256 = createHash("sha256")
+      .update("#!/usr/bin/env node\n", "utf8")
+      .digest("hex");
+
+    try {
+      writeNativePackageJson(packageJsonPath, sha256);
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+
+      expect(
+        launcherTestInternals.resolveInstalledNativeBinary(PKG, {
+          platform: "darwin",
+          arch: "arm64",
+          env: {
+            PRIVACY_POOLS_HOME: home,
+          },
+          requireResolve: () => packageJsonPath,
+          recordVerificationCache: false,
+        }),
+      ).toBe(binPath);
+
+      expect(
+        launcherTestInternals.readInstalledNativeVerificationCache({
+          PRIVACY_POOLS_HOME: home,
+        }),
+      ).toBeNull();
+    } finally {
+      launcherTestInternals.clearInstalledNativeVerificationCache({
+        PRIVACY_POOLS_HOME: home,
+      });
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("resolveInstalledNativeBinary ignores a corrupted persistent verification cache and recomputes", () => {
     const tempDir = createTrackedTempDir("pp-native-runtime-cache-corrupt-");
     const home = createNativeVerificationHome(tempDir);

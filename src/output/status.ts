@@ -52,6 +52,7 @@ export interface StatusCheckResult {
    * "has pool accounts" without loading full account state).
    */
   accountFiles: [string, number][];
+  nativeRuntimeAdvisory?: StatusIssue | null;
 }
 
 interface StatusPreflightGuidance {
@@ -151,6 +152,10 @@ export function deriveStatusPreflightGuidance(
         ["discovery"],
       ),
     );
+  }
+
+  if (result.nativeRuntimeAdvisory) {
+    warnings.push(result.nativeRuntimeAdvisory);
   }
 
   let recommendedMode: StatusRecommendedMode = "read-only";

@@ -483,6 +483,31 @@ describe("renderStatus parity", () => {
     ]);
   });
 
+  test("JSON mode: includes native acceleration advisory warnings when present", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const result = {
+      ...STUB_STATUS,
+      accountFiles: [["mainnet", 1]] as [string, number][],
+      nativeRuntimeAdvisory: {
+        code: "native_acceleration_unavailable",
+        message:
+          "The optional native runtime for this supported host is unavailable or invalid, so the CLI is using the safe JS path. All commands remain available, but read-only discovery commands may be slower. Reinstall without --omit=optional and ensure optional dependencies are enabled.",
+        affects: ["discovery"],
+      },
+    };
+
+    const { json } = captureJsonOutput(() => renderStatus(ctx, result));
+    expect(json.recommendedMode).toBe("ready");
+    expect(json.warnings).toEqual([
+      {
+        code: "native_acceleration_unavailable",
+        message:
+          "The optional native runtime for this supported host is unavailable or invalid, so the CLI is using the safe JS path. All commands remain available, but read-only discovery commands may be slower. Reinstall without --omit=optional and ensure optional dependencies are enabled.",
+        affects: ["discovery"],
+      },
+    ]);
+  });
+
   test("human mode: emits status text to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>

@@ -355,6 +355,7 @@ export function resolveInstalledNativeBinary(
     env?: NodeJS.ProcessEnv;
     requireResolve?: (id: string) => string;
     hasValidChecksum?: typeof hasValidNativeChecksum;
+    recordVerificationCache?: boolean;
   } = {},
 ): string | null {
   const packageName = nativePackageName(
@@ -397,7 +398,9 @@ export function resolveInstalledNativeBinary(
     if (!hasValidChecksum(packageJson, binaryPath)) {
       return null;
     }
-    recordInstalledNativeVerificationCacheEntry(cacheEntry, options.env);
+    if (options.recordVerificationCache !== false) {
+      recordInstalledNativeVerificationCacheEntry(cacheEntry, options.env);
+    }
 
     return binaryPath;
   } catch {
