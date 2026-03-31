@@ -315,10 +315,12 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain("Deposit amount: 100 USDC");
-    expect(stderr).toContain("Required token funding: 100 USDC");
-    expect(stderr).toContain("Required native funding: 0.1 ETH");
-    expect(stderr).toContain("Committed value: 99.5 USDC");
-    expect(stderr).toContain("Wallet mode: Dedicated workflow wallet");
+    expect(stderr).toContain("Required token amount: 100 USDC");
+    expect(stderr).toContain("Required native gas: 0.1 ETH");
+    // Committed value is phase-gated: not shown during awaiting_funding
+    expect(stderr).not.toContain("Committed value:");
+    // Wallet mode removed from human output (shown in JSON only)
+    expect(stderr).not.toContain("Wallet mode:");
   });
 
   test("human mode falls back to raw stored amounts when snapshot values are corrupt", () => {
@@ -347,9 +349,10 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain("Deposit amount: not-a-bigint");
-    expect(stderr).toContain("Required token funding: still-not-a-bigint");
-    expect(stderr).toContain("Required native funding: bad-native-value");
-    expect(stderr).toContain("Committed value: also-bad");
+    expect(stderr).toContain("Required token amount: still-not-a-bigint");
+    expect(stderr).toContain("Required native gas: bad-native-value");
+    // Committed value is phase-gated: not shown during awaiting_funding
+    expect(stderr).not.toContain("Committed value:");
   });
 
   test("human mode does not print the happy-path start message for declined starts", () => {
@@ -476,7 +479,8 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("Approved and waiting for privacy delay");
     expect(stderr).toContain("Privacy delay until:");
     expect(stderr).toContain("local time");
-    expect(stderr).toContain("Balanced (randomized 15 to 90 minutes)");
+    // Privacy delay profile label removed from human output (shown in JSON only)
+    expect(stderr).not.toContain("Balanced (randomized");
     expect(stderr).toContain("manual round partial withdrawals");
   });
 
@@ -522,7 +526,7 @@ describe("renderFlowResult", () => {
     expect(json.nextActions[0].reason).toContain("before requesting the private withdrawal");
   });
 
-  test("human mode labels legacy off-delay snapshots without showing backup state for configured wallets", () => {
+  test("human mode does not show privacy delay profile or backup state for configured wallets", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
       renderFlowResult(ctx, {
@@ -534,13 +538,12 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toContain(
-      "Off (legacy workflow without a saved privacy-delay policy; behaves like no added hold)",
-    );
+    // Privacy delay profile removed from default human output (shown in JSON only)
+    expect(stderr).not.toContain("Privacy delay:");
     expect(stderr).not.toContain("Backup confirmed:");
   });
 
-  test("human status mode explains that flow status is snapshot-only and notes optional public recovery", () => {
+  test("human status mode explains that flow status is snapshot-only", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
       renderFlowResult(ctx, {
@@ -554,9 +557,6 @@ describe("renderFlowResult", () => {
 
     expect(stderr).toContain(
       "This is the saved local workflow snapshot. Run flow watch for a live re-check and to advance it.",
-    );
-    expect(stderr).toContain(
-      "Optional public recovery: flow ragequit remains available while this workflow stays non-terminal, but flow watch is the normal private path.",
     );
   });
 

@@ -476,7 +476,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   // Chain details
   if (result.selectedChain) {
-    info(`Contract: ${result.entrypoint}`, silent);
+    if (ctx.isVerbose) {
+      info(`Contract: ${result.entrypoint}`, silent);
+    }
     info(`RPC: ${result.rpcUrl}${result.rpcIsCustom ? "" : chalk.dim(" (default)")}`, silent);
 
     const checks = result.healthChecksEnabled;
@@ -512,12 +514,12 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   if (!silent) {
     process.stderr.write("\n");
     if (result.accountFiles.length > 0) {
-      info("Account files:", silent);
-      for (const [name, chainId] of result.accountFiles) {
-        process.stderr.write(`  ${highlight("●")} ${name} (chain ${chainId})\n`);
+      info("Deposits on:", silent);
+      for (const [name] of result.accountFiles) {
+        process.stderr.write(`  ${highlight("●")} ${name}\n`);
       }
     } else {
-      info("No account files found.", silent);
+      info("No deposits yet.", silent);
     }
     // Readiness summary — describes configuration, not fund availability.
     if (readyForDeposit) {

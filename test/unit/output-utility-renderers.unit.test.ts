@@ -520,7 +520,7 @@ describe("renderStatus parity", () => {
     expect(stderr).toContain("Recovery phrase: set");
     expect(stderr).toContain("Signer key:");
     expect(stderr).toContain("Default chain: sepolia");
-    expect(stderr).toContain("Account files:");
+    expect(stderr).toContain("Deposits on:");
   });
 
   test("human mode: shows health check skipped message when no checks", () => {

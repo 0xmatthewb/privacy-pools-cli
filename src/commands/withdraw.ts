@@ -1374,17 +1374,11 @@ export async function handleWithdrawCommand(
               `  Amount:          ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol, dd)}${usd(withdrawalAmount)}\n`,
             );
             process.stderr.write(
-              `  Base fee:        ${formatBPS(quote.baseFeeBPS)}\n`,
-            );
-            process.stderr.write(
-              `  Relayer fee:     ${formatBPS(quoteFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)})\n`,
-            );
-            process.stderr.write(
-              `  Relay tx cost:   ${relayTxCost}\n`,
+              `  Fee:             ${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)} (${formatBPS(quoteFeeBPS)})\n`,
             );
             if (extraGasFunding) {
               process.stderr.write(
-                `  Extra gas fund:  ${extraGasFunding}\n`,
+                `  Gas received:    ${extraGasFunding}\n`,
               );
             }
             process.stderr.write(
