@@ -18,6 +18,61 @@ const VALID_WITHDRAWAL_DATA = encodeRelayerWithdrawalData({
   relayFeeBPS: 12n,
 });
 
+function buildRelayerDetailsResponse(params: {
+  chainId?: number;
+  feeBPS?: string;
+  minWithdrawAmount?: string;
+  feeReceiverAddress?: string;
+  assetAddress?: string;
+  maxGasPrice?: string;
+} = {}) {
+  return {
+    chainId: params.chainId ?? 1,
+    feeBPS: params.feeBPS ?? "12",
+    minWithdrawAmount: params.minWithdrawAmount ?? "1000",
+    feeReceiverAddress:
+      params.feeReceiverAddress ?? "0x0000000000000000000000000000000000000001",
+    assetAddress:
+      params.assetAddress ?? "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+    maxGasPrice: params.maxGasPrice ?? "100",
+  };
+}
+
+function buildRelayerQuoteResponse(params: {
+  baseFeeBPS?: string;
+  feeBPS?: string;
+  gasPrice?: string;
+  relayerUrl?: string;
+  withdrawalData?: `0x${string}`;
+  asset?: string;
+  amount?: string;
+  extraGas?: boolean;
+  signedRelayerCommitment?: `0x${string}`;
+  relayTxCost?: { gas: string; eth: string };
+  extraGasFundAmount?: { gas: string; eth: string };
+  extraGasTxCost?: { gas: string; eth: string };
+} = {}) {
+  return {
+    baseFeeBPS: params.baseFeeBPS ?? "10",
+    feeBPS: params.feeBPS ?? "12",
+    gasPrice: params.gasPrice ?? "100",
+    relayerUrl: params.relayerUrl,
+    detail: {
+      relayTxCost: params.relayTxCost ?? { gas: "1", eth: "1" },
+      ...(params.extraGasFundAmount ? { extraGasFundAmount: params.extraGasFundAmount } : {}),
+      ...(params.extraGasTxCost ? { extraGasTxCost: params.extraGasTxCost } : {}),
+    },
+    feeCommitment: {
+      expiration: Date.now() + 60_000,
+      withdrawalData: params.withdrawalData ?? VALID_WITHDRAWAL_DATA,
+      asset: params.asset ?? "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      amount: params.amount ?? "1000",
+      extraGas: params.extraGas ?? false,
+      signedRelayerCommitment: params.signedRelayerCommitment ?? "0x5678",
+    },
+  };
+}
+
 describe("relayer service", () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
@@ -78,29 +133,34 @@ describe("relayer service", () => {
       const url = String(input);
       seenUrls.push(url);
 
-      if (url.startsWith("https://primary-relayer.test")) {
+      if (url.startsWith("https://primary-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "10" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://backup-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://primary-relayer.test/relayer/quote")) {
         return Promise.resolve(
           new Response(JSON.stringify({ message: "busy" }), { status: 503 }),
         );
       }
 
-      if (url.startsWith("https://backup-relayer.test")) {
+      if (url.startsWith("https://backup-relayer.test/relayer/quote")) {
         return Promise.resolve(
           new Response(
-            JSON.stringify({
-              baseFeeBPS: "10",
-              feeBPS: "12",
-              gasPrice: "100",
-              detail: { relayTxCost: { gas: "1", eth: "1" } },
-              feeCommitment: {
-                expiration: Date.now() + 60_000,
-                withdrawalData: VALID_WITHDRAWAL_DATA,
-                asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-                amount: "1000",
-                extraGas: false,
-                signedRelayerCommitment: "0x5678",
-              },
-            }),
+            JSON.stringify(buildRelayerQuoteResponse({ relayerUrl: "https://backup-relayer.test" })),
             { status: 200 },
           ),
         );
@@ -117,7 +177,7 @@ describe("relayer service", () => {
 
     expect(quote.feeBPS).toBe("12");
     expect(quote.relayerUrl).toBe("https://backup-relayer.test");
-    expect(seenUrls[0]).toContain("primary-relayer.test");
+    expect(seenUrls[0]).toContain("primary-relayer.test/relayer/details");
     expect(seenUrls.some((url) => url.startsWith("https://backup-relayer.test"))).toBe(true);
   });
 
@@ -134,24 +194,16 @@ describe("relayer service", () => {
     globalThis.fetch = mock((input: RequestInfo | URL) => {
       const url = String(input);
 
-      if (url.startsWith("https://primary-relayer.test")) {
+      if (url.startsWith("https://primary-relayer.test/relayer/details")) {
         return Promise.resolve(
           new Response(JSON.stringify({ message: "busy" }), { status: 503 }),
         );
       }
 
-      if (url.startsWith("https://backup-relayer.test")) {
+      if (url.startsWith("https://backup-relayer.test/relayer/details")) {
         return Promise.resolve(
           new Response(
-            JSON.stringify({
-              feeBPS: "12",
-              minWithdrawAmount: "1000",
-              feeReceiverAddress:
-                "0x0000000000000000000000000000000000000001",
-              assetAddress:
-                "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-              maxGasPrice: "100",
-            }),
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
             { status: 200 },
           ),
         );
@@ -167,6 +219,76 @@ describe("relayer service", () => {
 
     expect(details.feeBPS).toBe("12");
     expect(details.minWithdrawAmount).toBe("1000");
+    expect(details.relayerUrl).toBe("https://backup-relayer.test");
+  });
+
+  test("requestQuote prefers the cheapest selectable relayer when multiple relayers are healthy", async () => {
+    const preferredChain = {
+      ...chain,
+      relayerHost: "https://primary-relayer.test",
+      relayerHosts: [
+        "https://primary-relayer.test",
+        "https://backup-relayer.test",
+      ],
+    };
+    const seenUrls: string[] = [];
+
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      const url = String(input);
+      seenUrls.push(url);
+
+      if (url.startsWith("https://primary-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "30" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://backup-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://backup-relayer.test/relayer/quote")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerQuoteResponse({ relayerUrl: "https://backup-relayer.test" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://primary-relayer.test/relayer/quote")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerQuoteResponse({ relayerUrl: "https://primary-relayer.test" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      throw new Error(`unexpected relayer URL ${url}`);
+    }) as typeof fetch;
+
+    const quote = await requestQuote(preferredChain as typeof chain, {
+      amount: 1000n,
+      asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      extraGas: false,
+      recipient: "0x0000000000000000000000000000000000000001",
+    });
+
+    expect(quote.feeBPS).toBe("12");
+    expect(quote.relayerUrl).toBe("https://backup-relayer.test");
+    expect(seenUrls[0]).toContain("primary-relayer.test/relayer/details");
+    expect(seenUrls[1]).toContain("backup-relayer.test/relayer/details");
+    expect(seenUrls).toContain("https://backup-relayer.test/relayer/quote");
+    expect(seenUrls).not.toContain("https://primary-relayer.test/relayer/quote");
   });
 
   test("decodeValidatedRelayerWithdrawalData rejects zero-address recipients", () => {
@@ -238,7 +360,25 @@ describe("relayer service", () => {
     globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
 
-      if (url.startsWith("https://primary-relayer.test")) {
+      if (url.startsWith("https://primary-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "10" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://backup-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://primary-relayer.test/relayer/quote")) {
         return Promise.resolve(
           new Response(JSON.stringify({ message: "busy" }), { status: 503 }),
         );
@@ -334,7 +474,27 @@ describe("relayer service", () => {
       const url = String(input);
       requestedUrls.push(url);
 
-      if (url.startsWith("https://testnet-relayer.privacypools.com")) {
+      if (url.startsWith("https://testnet-relayer.privacypools.com/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "10", chainId: sepolia.id })),
+            {
+              status: 200,
+            },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://fastrelay.xyz/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12", chainId: sepolia.id })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://testnet-relayer.privacypools.com/relayer/quote")) {
         return Promise.resolve(
           new Response(JSON.stringify({ message: "busy" }), {
             status: 503,
@@ -343,23 +503,10 @@ describe("relayer service", () => {
         );
       }
 
-      if (url.startsWith("https://fastrelay.xyz")) {
+      if (url.startsWith("https://fastrelay.xyz/relayer/quote")) {
         return Promise.resolve(
           new Response(
-            JSON.stringify({
-              baseFeeBPS: "10",
-              feeBPS: "12",
-              gasPrice: "100",
-              detail: { relayTxCost: { gas: "1", eth: "1" } },
-              feeCommitment: {
-                expiration: Date.now() + 60_000,
-                withdrawalData: VALID_WITHDRAWAL_DATA,
-                asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-                amount: "1000",
-                extraGas: false,
-                signedRelayerCommitment: "0x5678",
-              },
-            }),
+            JSON.stringify(buildRelayerQuoteResponse({ relayerUrl: "https://fastrelay.xyz" })),
             { status: 200 },
           ),
         );
@@ -377,7 +524,7 @@ describe("relayer service", () => {
 
     expect(quote.feeBPS).toBe("12");
     expect(quote.relayerUrl).toBe("https://fastrelay.xyz");
-    expect(requestedUrls[0]).toContain("testnet-relayer.privacypools.com/relayer/quote");
+    expect(requestedUrls[0]).toContain("testnet-relayer.privacypools.com/relayer/details");
     expect(requestedUrls.some((url) => url.includes("fastrelay.xyz/relayer/quote"))).toBe(true);
   });
 

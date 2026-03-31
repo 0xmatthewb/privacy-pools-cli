@@ -299,6 +299,7 @@ export interface RelayerDetailsResponse {
   feeReceiverAddress: Address;
   assetAddress: Address;
   maxGasPrice: string;
+  relayerUrl?: string;
 }
 
 export interface RelayerQuoteResponse {
