@@ -606,6 +606,21 @@ privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --dry-run
 privacy-pools ragequit --asset ETH --from-pa PA-1 --dry-run
 ```
 
+## Installation Notes
+
+For agents and automation, prefer `npm i -g privacy-pools-cli` on a supported
+host. A normal npm install includes the host optional native package
+automatically when one is available.
+
+Avoid `--omit=optional` and configs that disable optional dependencies unless
+you intentionally want the pure JS runtime path. Unsupported hosts such as
+Linux musl/Alpine still fall back safely to JS by design.
+
+If a supported published install falls back to JS because the optional native
+package is missing or invalid, `status --agent` includes the warning code
+`native_acceleration_unavailable`. The CLI remains fully functional, but
+read-only discovery commands may be slower until the install is repaired.
+
 ## Configuration
 
 Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVACY_POOLS_HOME` or `PRIVACY_POOLS_CONFIG_DIR`.

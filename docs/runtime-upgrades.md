@@ -71,6 +71,18 @@ Also run a manual JS fallback drill:
 - force JS with `PRIVACY_POOLS_CLI_DISABLE_NATIVE=1`
 - run the packaged CLI and verify critical JS-owned commands still behave identically
 
+## Published Install Troubleshooting
+
+When a supported published npm install unexpectedly stays on the JS runtime,
+check the install path before changing launcher logic:
+
+- a normal `npm install` includes optional dependencies by default
+- avoid `--omit=optional` and configs such as `npm_config_omit=optional`
+- unsupported hosts, including Linux musl/Alpine, intentionally stay on JS
+- `status --agent` now surfaces `native_acceleration_unavailable` when a
+  supported published install is missing or cannot validate its optional native
+  package
+
 ## Release Checklist
 
 - release tag must match `package.json` exactly (`vX.Y.Z`)

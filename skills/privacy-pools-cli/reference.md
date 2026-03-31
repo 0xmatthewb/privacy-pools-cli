@@ -2,6 +2,8 @@
 
 Detailed payload spec, JSON output shapes, and unsigned transaction format for agent integration.
 
+Install with `npm i -g privacy-pools-cli` on a supported host and keep optional dependencies enabled so the host native shell can install automatically. Avoid `--omit=optional` and configs like `npm_config_omit=optional` unless you intentionally want the pure JS path. If a supported published install falls back to JS because the optional native package is missing or invalid, `status --agent` includes the warning code `native_acceleration_unavailable`.
+
 ## Easy-path workflow
 
 The CLI ships a persisted happy-path workflow under `flow`:

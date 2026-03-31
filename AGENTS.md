@@ -9,8 +9,10 @@ For flags, configuration, and environment variables, see [`docs/reference.md`](d
 ## Quick Start
 
 ```bash
-# Install
+# Install (recommended for agents)
 npm i -g privacy-pools-cli
+# Keep optional dependencies enabled so supported hosts can use the native shell.
+# Avoid --omit=optional and configs such as npm_config_omit=optional.
 
 # Unreleased/source builds
 npm i -g github:0xmatthewb/privacy-pools-cli
@@ -57,6 +59,14 @@ those are the official Node platform ids. `darwin` means macOS.
 Linux native packaging currently targets x64 glibc hosts. Alpine and other
 musl-based environments fall back to the JS launcher automatically instead of
 loading an incompatible native package.
+
+For agent onboarding, prefer the plain npm install above on a supported host.
+Normal npm installs include the host optional native package automatically.
+If a supported published install falls back to JS because the optional native
+package is missing or invalid, `status --agent` includes the warning code
+`native_acceleration_unavailable`. The CLI remains fully functional, but
+read-only discovery commands will be slower until the package is reinstalled
+without omitting optional dependencies.
 
 ## Core Concepts
 
