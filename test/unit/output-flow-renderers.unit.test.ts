@@ -278,7 +278,7 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain(
-      "Workflow wf-123 returned funds publicly from PA-1 to the original deposit address.",
+      "Workflow wf-123 recovered funds publicly from PA-1 to the original deposit address.",
     );
     expect(stderr).toContain("Privacy was not preserved.");
     expect(stderr).toContain(

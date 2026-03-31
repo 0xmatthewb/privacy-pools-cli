@@ -105,11 +105,11 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   if (result.mnemonicImported && !silent) {
-    info("Reminder: your signer key pays gas; your recovery phrase controls private account state.", silent);
+    info("Reminder: your signer key pays gas; your recovery phrase is the only way to access your deposits.", silent);
     process.stderr.write("\n");
   }
   if (!result.mnemonicImported && ctx.mode.skipPrompts) {
-    warn("You skipped backup confirmation (--yes mode). Ensure your recovery phrase is securely stored.", silent);
+    warn("You skipped the backup confirmation step. Make sure your recovery phrase is securely stored — without it, deposited funds cannot be recovered.", silent);
   }
   success("Setup complete!", silent);
   renderNextSteps(ctx, humanNextActions);

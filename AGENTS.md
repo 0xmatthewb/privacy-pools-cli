@@ -374,7 +374,7 @@ Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof gen
 
 #### `ragequit` (alias: `exit`)
 
-Emergency exit without ASP approval. Reveals the deposit address onchain; no privacy is gained. Asset resolution still works when public pool discovery is offline or incomplete because the CLI falls back to a built-in pool registry verified on-chain.
+Public recovery to the original deposit address. Does not preserve privacy. Use for declined deposits, PoA-blocked accounts, or when the user chooses not to wait for approval. Asset resolution still works when public pool discovery is offline because the CLI falls back to a built-in pool registry.
 
 ```bash
 privacy-pools exit ETH --from-pa PA-1 --agent

@@ -175,7 +175,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
   },
   UnknownStateRoot: {
     message: "Pool state root is outdated or unknown.",
-    hint: "Run 'privacy-pools sync' and retry to generate a fresh proof against the latest state root.",
+    hint: "Run 'privacy-pools sync --chain <chain>' and retry to generate a fresh proof against the latest state root.",
     code: "CONTRACT_UNKNOWN_STATE_ROOT",
     retryable: true,
   },
@@ -186,12 +186,12 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
   },
   InvalidProcessooor: {
     message: "Withdrawal type mismatch.",
-    hint: "This usually means the wrong withdrawal mode was used. Try switching between --direct and relayed (default).",
+    hint: "This usually means the wrong withdrawal mode was used. If you used --direct, retry without it (relayed is the default). Otherwise, run 'privacy-pools sync --chain <chain>' and retry.",
     code: "CONTRACT_INVALID_PROCESSOOOR",
   },
   InvalidProof: {
     message: "ZK proof verification failed onchain.",
-    hint: "Your local proof inputs may be stale. Run 'privacy-pools sync' and retry.",
+    hint: "Your local proof inputs may be stale. Run 'privacy-pools sync --chain <chain>' and retry.",
     code: "CONTRACT_INVALID_PROOF",
   },
   PrecommitmentAlreadyUsed: {
@@ -211,7 +211,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
   },
   NotYetRagequitteable: {
     message: "This Pool Account cannot be exited yet.",
-    hint: "Wait for the deposit to become ragequitteable onchain, then retry the public recovery path.",
+    hint: "The deposit must be on-chain for a minimum period before public recovery is available. Wait and retry later.",
     code: "CONTRACT_NOT_YET_RAGEQUITTEABLE",
     retryable: true,
   },
@@ -301,7 +301,7 @@ export function classifyError(error: unknown): CLIError {
       return new CLIError(
         "Pool Account commitment not found in the Merkle tree.",
         "PROOF",
-        "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync' and retry.",
+        "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync --chain <chain>' and retry.",
         "PROOF_MERKLE_ERROR",
         true
       );

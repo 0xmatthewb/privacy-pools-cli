@@ -125,8 +125,8 @@ npm run start -- --help
 | `init` | Set up wallet and config (run once) | |
 | `flow` | Guided deposit-to-private-withdrawal workflow | Yes |
 | `deposit` | Deposit funds into a Privacy Pool | Yes |
-| `withdraw` | Withdraw from a pool (relayed or direct) | Yes |
-| `ragequit` | Emergency exit without ASP approval (alias: `exit`) | Yes |
+| `withdraw` | Privately withdraw funds via relayer | Yes |
+| `ragequit` | Public recovery to your deposit address (alias: `exit`) | Yes |
 | `accounts` | List Pool Accounts with balances and approval status | Yes |
 | `migrate` | Read-only legacy migration or recovery readiness on supported chains | Yes |
 | `history` | Chronological event log | Yes |

@@ -204,7 +204,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   if (data.withdrawMode === "relayed" && data.feeBPS) {
     const feeBpsNum = Number(data.feeBPS);
     const netAmount = data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n;
-    info(`Relayer fee: ${formatBPS(data.feeBPS)}. Net received: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`, silent);
+    info(`Relayer fee: ${formatBPS(data.feeBPS)}. You receive: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`, silent);
   }
   if (data.withdrawMode === "relayed" && data.extraGas) {
     info("Gas token drop: enabled (ETH included with withdrawal)", silent);
@@ -362,8 +362,8 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   if (!silent) process.stderr.write("\n");
   info("Withdrawal quote:", silent);
   info(`Asset: ${data.asset}`, silent);
-  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`, silent);
-  info(`Fee: ${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`, silent);
+  info(`Withdraw amount: ${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`, silent);
+  info(`Relayer fee: ${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`, silent);
   if (extraGasFundFormatted) {
     info(`Gas token received: ${extraGasFundFormatted}`, silent);
   }

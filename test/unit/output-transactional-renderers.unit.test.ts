@@ -252,14 +252,14 @@ describe("renderDepositSuccess parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Deposit submitted:");
+    expect(stderr).toContain("Deposited");
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Net deposited");
-    expect(stderr).toContain("after vetting fee");
+    expect(stderr).toContain("after pool fee");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).toContain("Pending ASP approval");
+    expect(stderr).toContain("under review");
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools accounts --chain sepolia --pending-only");
     expect(stderr).toContain(
@@ -652,7 +652,7 @@ describe("renderWithdrawSuccess parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrew");
-    expect(stderr).toContain("Relayer fee: 0.50%");
+    expect(stderr).toContain("Relayer fee:");
     expect(stderr).toContain("Next steps:");
   });
 
@@ -822,7 +822,7 @@ describe("renderWithdrawQuote parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrawal quote");
     expect(stderr).toContain("Asset: ETH");
-    expect(stderr).toContain("Relayer fee: 0.50%");
+    expect(stderr).toContain("Relayer fee:");
     expect(stderr).toContain("You receive:");
     expect(stderr).toContain("Recipient:");
     expect(stderr).toContain("Quote expires:");

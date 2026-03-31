@@ -99,7 +99,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "withdraw",
     "aliases": [],
-    "description": "Withdraw from a pool"
+    "description": "Privately withdraw funds via relayer"
   },
   {
     "name": "ragequit",
@@ -505,7 +505,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "withdraw",
-      "description": "Withdraw from a pool",
+      "description": "Privately withdraw funds via relayer",
       "usage": "withdraw [amount] [asset] --to <address>",
       "flags": [
         "--asset <symbol|address>",
@@ -813,7 +813,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
-      "safeReadOnly": true,
+      "safeReadOnly": false,
       "sideEffectClass": "read_only",
       "touchesFunds": false,
       "requiresHumanReview": false,
@@ -1583,7 +1583,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "withdraw": {
       "command": "withdraw",
-      "description": "Withdraw from a pool",
+      "description": "Privately withdraw funds via relayer",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2457,7 +2457,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "nativeBridgeVersion": "1"
   },
   "safeReadOnlyCommands": [
-    "flow",
     "flow status",
     "pools",
     "activity",

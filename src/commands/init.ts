@@ -349,7 +349,7 @@ export async function handleInitCommand(
     if (hasExisting && !forceOverwrite && !skipPrompts) {
       const overwrite = await confirm({
         message:
-          "Existing configuration found. Reinitializing will generate a new recovery phrase and overwrite settings. Continue?",
+          `Existing configuration found. Reinitializing will ${mnemonicSource ? "import a new recovery phrase" : "generate a new recovery phrase"} and overwrite settings. Continue?`,
         default: false,
       });
       if (!overwrite) {
@@ -595,7 +595,7 @@ export async function handleInitCommand(
     }
 
     persistInitFilesAtomically(writes);
-    if (!isJson) success("Recovery phrase saved.", silent);
+    if (!isJson) success(importedMnemonic ? "Recovery phrase imported." : "Recovery phrase saved.", silent);
 
     if (normalizedSignerKey) {
       if (!isJson) success("Signer key saved.", silent);

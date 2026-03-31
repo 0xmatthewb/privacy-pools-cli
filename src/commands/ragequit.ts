@@ -113,7 +113,7 @@ export function getRagequitAdvisory(
     case "approved":
       return {
         level: "warn",
-        message: `${poolAccount.paId} is approved for private withdrawal. Continue with ragequit only if you intentionally want a public exit to the original deposit address.`,
+        message: `${poolAccount.paId} is approved — you can use 'privacy-pools withdraw' for a private withdrawal instead. Only continue with ragequit if you intentionally want a public, non-private exit.`,
       };
     case "pending":
       return {
@@ -542,7 +542,7 @@ export async function handleRagequitCommand(
 
       if (!skipPrompts) {
         const ok = await confirm({
-          message: `Ragequit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)}${recoverUsd} from ${pool.symbol} pool? This is irreversible.`,
+          message: `Exit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)}${recoverUsd} publicly to your deposit address? Privacy is lost and this cannot be undone.`,
           default: false,
         });
         if (!ok) {

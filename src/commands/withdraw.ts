@@ -1374,7 +1374,7 @@ export async function handleWithdrawCommand(
               `  Amount:          ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol, dd)}${usd(withdrawalAmount)}\n`,
             );
             process.stderr.write(
-              `  Fee:             ${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)} (${formatBPS(quoteFeeBPS)})\n`,
+              `  Relayer fee:     ${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)} (${formatBPS(quoteFeeBPS)})\n`,
             );
             if (extraGasFunding) {
               process.stderr.write(

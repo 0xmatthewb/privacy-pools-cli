@@ -537,7 +537,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
 
   if (data.action === "ragequit") {
     success(
-      `Workflow ${data.snapshot.workflowId} returned funds publicly from ${data.snapshot.poolAccountId} to the original deposit address. Privacy was not preserved.`,
+      `Workflow ${data.snapshot.workflowId} recovered funds publicly from ${data.snapshot.poolAccountId} to the original deposit address. Privacy was not preserved.`,
       silent,
     );
   } else if (data.snapshot.phase === "completed") {
@@ -578,7 +578,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     );
   } else if (data.snapshot.phase === "stopped_external") {
     warn(
-      `${data.snapshot.poolAccountId ?? "This workflow"} changed outside this saved workflow, so the easy path stopped without taking further action.`,
+      `${data.snapshot.poolAccountId ?? "This workflow"} changed outside this saved workflow, so the automated flow stopped without taking further action.`,
       silent,
     );
   } else if (requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot)) {
@@ -591,7 +591,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       );
     } else {
       success(
-        `Flow started for ${data.snapshot.poolAccountId}. The deposit is public now, and this saved workflow is ready for flow watch to continue toward the private withdrawal after ASP approval and any configured privacy delay.`,
+        `Flow started for ${data.snapshot.poolAccountId}. Your deposit is on-chain and under review. Run flow watch to continue toward the private withdrawal once approved.`,
         silent,
       );
     }
@@ -662,14 +662,14 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     }
   }
 
-  // ── Post-deposit: show committed value ──
+  // ── Post-deposit: show deposited amount (net after pool fee) ──
   if (!isPreDeposit) {
     const committedValue = formatFlowAssetAmount(
       data.snapshot.committedValue,
       data.snapshot,
     );
     if (committedValue) {
-      info(`Committed value: ${committedValue}`, silent);
+      info(`Deposited: ${committedValue} (net after pool fee)`, silent);
     }
   }
 

@@ -168,19 +168,15 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   const dd = displayDecimals(data.decimals);
-  success(`Deposit submitted: ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
-  warn(
-    "Pending ASP approval: most deposits are approved within ~1 hour, but some may take up to 7 days before private withdrawal.",
-    silent,
-  );
+  success(`Deposited ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
   info(
-    "Public recovery remains available while you wait. If you later choose not to wait for ASP approval, use ragequit to recover publicly to the original deposit address.",
+    "Your deposit is now under review. Most deposits are approved within ~1 hour; some may take longer.",
     silent,
   );
   info(`Pool Account: ${data.poolAccountId}`, silent);
   if (data.committedValue !== undefined) {
     info(
-      `Net deposited: ${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after vetting fee collected by the pool's ASP)`,
+      `Net deposited: ${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after pool fee)`,
       silent,
     );
   }

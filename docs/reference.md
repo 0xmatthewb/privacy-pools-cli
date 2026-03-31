@@ -311,7 +311,7 @@ privacy-pools deposit 0.1 --asset ETH --chain mainnet
 
 ### `withdraw`
 
-Withdraw from a pool
+Privately withdraw funds via relayer
 
 **Usage:** `privacy-pools withdraw [amount] [asset] [options]`
 
@@ -488,7 +488,7 @@ Publicly withdraw funds to your deposit address
 
 **Usage:** `privacy-pools ragequit [asset] [options]`
 
-Emergency public recovery path for declined or otherwise unrecoverable Pool Accounts. This exits to the original deposit address and does not preserve privacy. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.
+Public recovery path that returns funds to the original deposit address. Does not preserve privacy. Use this for declined, PoA-blocked, or otherwise unrecoverable Pool Accounts, or when you choose not to wait for approval. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.
 
 ```bash
 privacy-pools ragequit ETH --from-pa PA-1

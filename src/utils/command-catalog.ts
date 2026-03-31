@@ -161,7 +161,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
-    safeReadOnly: true,
+    safeReadOnly: false,
   },
   "flow start": {
     description: "Deposit now and save a later private withdrawal workflow",
@@ -574,7 +574,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `deposit`",
   },
   withdraw: {
-    description: "Withdraw from a pool",
+    description: "Privately withdraw funds via relayer",
     help: {
       overview: [
         "Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off.",
@@ -661,7 +661,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     aliases: ["exit"],
     help: {
       overview: [
-        "Emergency public recovery path for declined or otherwise unrecoverable Pool Accounts. This exits to the original deposit address and does not preserve privacy.",
+        "Public recovery path that returns funds to the original deposit address. Does not preserve privacy. Use this for declined, PoA-blocked, or otherwise unrecoverable Pool Accounts, or when you choose not to wait for approval.",
         "Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.",
       ],
       examples: [

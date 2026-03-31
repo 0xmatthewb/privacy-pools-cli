@@ -51,7 +51,7 @@ const ROOT_HELP_BASE_LINES = [
   "                       with balances",
   "  migrate              Inspect legacy migration readiness on CLI-supported",
   "                       chains",
-  "  withdraw             Withdraw from a pool",
+  "  withdraw             Privately withdraw funds via relayer",
   "  ragequit|exit        Publicly withdraw funds to your deposit address",
   "  history              Show chronological event history (deposits, withdrawals,",
   "                       ragequits)",
