@@ -84,10 +84,12 @@ function buildWorkflowRelayerQuote(params: {
   amount?: string;
   extraGas?: boolean;
   signedRelayerCommitment?: Hex;
+  relayerUrl?: string;
 } = {}) {
   const feeBPS = params.feeBPS ?? "250";
   return {
     feeBPS,
+    relayerUrl: params.relayerUrl ?? "https://fastrelay.xyz",
     feeCommitment: {
       expiration: params.expiration ?? 4_102_444_800_000,
       asset: params.asset ?? ETH_POOL.asset,
@@ -171,6 +173,7 @@ interface MockState {
   };
   relayerQuote: {
     feeBPS: string;
+    relayerUrl?: string;
     feeCommitment: {
       expiration: number;
       asset: Address;
@@ -950,6 +953,12 @@ describe("workflow internal helpers", () => {
     expect(saveAccountMock).toHaveBeenCalledTimes(1);
     expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
     expect(submitRelayRequestMock).toHaveBeenCalledTimes(1);
+    expect(submitRelayRequestMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        relayerUrl: state.relayerQuote.relayerUrl,
+      }),
+    );
     expect(getRelayedWithdrawalRemainderAdvisoryMock).toHaveBeenCalledTimes(1);
   });
 

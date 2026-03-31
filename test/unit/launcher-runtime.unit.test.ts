@@ -13,6 +13,7 @@ import {
 import { parseRootArgv } from "../../src/utils/root-argv.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import {
+  captureAsyncOutput,
   captureAsyncOutputAllowExit,
   captureAsyncJsonOutputAllowExit,
 } from "../helpers/output.ts";
@@ -308,6 +309,39 @@ describe("launcher runtime coverage", () => {
     expect(helpResult.stderr).toBe("");
   });
 
+  test("tryRunLocalFastPath does not force process exit for root fast paths", async () => {
+    const originalExit = process.exit;
+    process.exit = ((code?: number) => {
+      throw new Error(`unexpected exit(${code ?? 0})`);
+    }) as never;
+
+    try {
+      const versionResult = await captureAsyncOutput(() =>
+        launcherTestInternals.tryRunLocalFastPath(
+          PKG,
+          ["--version"],
+          parseRootArgv(["--version"]),
+          {},
+        ),
+      );
+      expect(versionResult.stdout).toBe("1.7.0\n");
+      expect(versionResult.stderr).toBe("");
+
+      const helpResult = await captureAsyncOutput(() =>
+        launcherTestInternals.tryRunLocalFastPath(
+          PKG,
+          ["--help"],
+          parseRootArgv(["--help"]),
+          {},
+        ),
+      );
+      expect(helpResult.stdout).toContain("Usage:");
+      expect(helpResult.stderr).toBe("");
+    } finally {
+      process.exit = originalExit;
+    }
+  });
+
   test("tryRunLocalFastPath rejects invalid output formats before serving fast paths", async () => {
     const version = await captureAsyncJsonOutputAllowExit(() =>
       runLauncher(PKG, ["--json", "--format", "yaml", "--version"]),
@@ -572,7 +606,7 @@ describe("launcher runtime coverage", () => {
       );
 
       expect(target.kind).toBe("js-worker");
-      expect(exitCode).toBeNull();
+      expect(exitCode).toBe(0);
       expect(stdout).toBe("");
       expect(stderr).toBe("");
       expect(spawnCall).not.toBeNull();

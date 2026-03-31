@@ -1588,6 +1588,7 @@ export async function handleWithdrawCommand(
           proof: proof.proof,
           publicSignals: proof.publicSignals,
           feeCommitment: quote.feeCommitment,
+          relayerUrl: quote.relayerUrl,
         });
 
         // Wait for on-chain confirmation before updating state

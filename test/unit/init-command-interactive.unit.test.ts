@@ -104,7 +104,7 @@ describe("init command handler interactive coverage", () => {
     );
 
     expect(stdout).toBe("");
-    expect(exitCode).toBeNull();
+    expect(exitCode).toBe(0);
     expect(stderr).toContain("Init cancelled.");
     expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
       VALID_MNEMONIC,

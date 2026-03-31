@@ -156,12 +156,14 @@ function buildRelayerQuote(params: {
   amount?: string;
   extraGas?: boolean;
   signedRelayerCommitment?: `0x${string}`;
+  relayerUrl?: string;
 } = {}) {
   const feeBPS = params.feeBPS ?? "250";
   return {
     baseFeeBPS: "200",
     feeBPS,
     gasPrice: "1",
+    relayerUrl: params.relayerUrl ?? "https://fastrelay.xyz",
     detail: { relayTxCost: { gas: "0", eth: "0" } },
     feeCommitment: {
       expiration: params.expiration ?? 4_102_444_800_000,
@@ -702,7 +704,7 @@ describe("withdraw command handler", () => {
       ),
     );
 
-    expect(exitCode).toBeNull();
+    expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
     expect(json.mode).toBe("relayed");
@@ -2024,6 +2026,7 @@ describe("withdraw command handler", () => {
       buildRelayerQuote({
         recipient: params?.recipient,
         feeRecipient: signedFeeReceiver,
+        relayerUrl: "https://backup-relayer.test",
       }),
     );
 
@@ -2042,6 +2045,7 @@ describe("withdraw command handler", () => {
     expect(submitRelayRequestMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
+        relayerUrl: "https://backup-relayer.test",
         withdrawal: expect.objectContaining({
           data: encodeRelayerWithdrawalData({
             recipient: DEFAULT_RELAYER_RECIPIENT,

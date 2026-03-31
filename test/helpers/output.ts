@@ -182,7 +182,7 @@ export async function captureAsyncOutputAllowExit(
 
     return {
       ...captured,
-      exitCode: exitCode ?? (process.exitCode && process.exitCode !== 0 ? process.exitCode : null),
+      exitCode: exitCode ?? (process.exitCode ?? 0),
     };
   } finally {
     process.exit = originalExit;

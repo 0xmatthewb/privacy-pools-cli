@@ -873,7 +873,7 @@ describe("static discovery runtime", () => {
       ]);
       expect(handled).toBe(false);
     });
-    expect(mismatch.exitCode).toBeNull();
+    expect(mismatch.exitCode).toBe(0);
     expect(mismatch.stdout).toBe("");
     expect(mismatch.stderr).toBe("");
 

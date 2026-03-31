@@ -608,14 +608,14 @@ function validateJsWorkerPath(
 }
 
 function exitSuccessfulFastPath(): void {
-  // Static fast paths may already have emitted a structured error envelope and
-  // set process.exitCode. Preserve that non-zero exit instead of overwriting it
-  // with a synchronous success exit.
+  // Static fast paths may already have emitted output. Preserve any existing
+  // non-zero exit, but never force a synchronous success exit here so stdout
+  // can finish flushing naturally.
   if ((process.exitCode ?? 0) !== 0) {
     return;
   }
 
-  process.exit(0);
+  process.exitCode = 0;
 }
 
 async function tryRunLocalFastPath(

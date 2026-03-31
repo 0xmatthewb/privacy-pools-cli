@@ -3013,6 +3013,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
       proof: proof.proof,
       publicSignals: proof.publicSignals,
       feeCommitment: quote.feeCommitment,
+      relayerUrl: quote.relayerUrl,
     });
   } catch (error) {
     try {
