@@ -78,6 +78,7 @@ interface MockState {
   currentSignerPrivateKey: Hex | null;
   onchainDepositor: Address;
   loadPrivateKeyCalls: number;
+  relayerUrl: string;
   pool: {
     pool: Address;
     scope: bigint;
@@ -126,7 +127,13 @@ interface MockState {
   pendingReceiptMode: "success" | "pending" | "reverted";
   pendingReceiptAvailableAfter: number;
   getTransactionReceiptCalls: number;
-  requestQuoteCalls: Array<{ amount: bigint; asset: Address; extraGas: boolean; recipient: Address }>;
+  requestQuoteCalls: Array<{
+    amount: bigint;
+    asset: Address;
+    extraGas: boolean;
+    recipient: Address;
+    relayerUrl?: string;
+  }>;
   depositEthCalls: number;
   depositErc20Calls: number;
   approveErc20Calls: number;
@@ -298,6 +305,7 @@ function resetState(): void {
   state.ragequitPendingReceiptMode = "success";
   state.ragequitPendingReceiptAvailableAfter = 0;
   state.feeReceiverAddress = "0x6666666666666666666666666666666666666666";
+  state.relayerUrl = "https://fastrelay.xyz";
   state.minWithdrawAmount = 1n;
   state.pendingReceiptMode = "success";
   state.pendingReceiptAvailableAfter = 0;
@@ -380,15 +388,23 @@ const resolvePoolMock = mock(async () => state.pool);
 const getRelayerDetailsMock = mock(async () => ({
   feeReceiverAddress: state.feeReceiverAddress,
   minWithdrawAmount: state.minWithdrawAmount.toString(),
+  relayerUrl: state.relayerUrl,
 }));
 
 function buildMockRelayerQuote(
-  args: { amount: bigint; asset: Address; extraGas: boolean; recipient: Address },
+  args: {
+    amount: bigint;
+    asset: Address;
+    extraGas: boolean;
+    recipient: Address;
+    relayerUrl?: string;
+  },
   overrides: {
     feeBPS?: string;
     expirationMs?: number;
     feeRecipient?: Address;
     signedRelayerCommitment?: Hex;
+    relayerUrl?: string;
   } = {},
 ) {
   const feeBPS = overrides.feeBPS ?? "50";
@@ -416,15 +432,22 @@ function buildMockRelayerQuote(
       signedRelayerCommitment: overrides.signedRelayerCommitment ?? "0xfeed",
     },
     expiresAt: new Date(expirationMs).toISOString(),
+    relayerUrl: overrides.relayerUrl ?? args.relayerUrl ?? state.relayerUrl,
   };
 }
 
 const requestQuoteMock = mock(async (
   _chain: unknown,
-  args: { amount: bigint; asset: Address; extraGas: boolean; recipient: Address },
+  args: {
+    amount: bigint;
+    asset: Address;
+    extraGas: boolean;
+    recipient: Address;
+    relayerUrl?: string;
+  },
 ) => {
   state.requestQuoteCalls.push(args);
-  return buildMockRelayerQuote(args);
+  return buildMockRelayerQuote(args, { relayerUrl: args.relayerUrl });
 });
 const submitRelayRequestMock = mock(async () => ({
   txHash: state.relayTxHash,
@@ -938,11 +961,12 @@ describe("workflow service mocked coverage", () => {
     getRelayerDetailsMock.mockImplementation(async () => ({
       feeReceiverAddress: state.feeReceiverAddress,
       minWithdrawAmount: state.minWithdrawAmount.toString(),
+      relayerUrl: state.relayerUrl,
     }));
     requestQuoteMock.mockClear();
     requestQuoteMock.mockImplementation(async (_chain, args) => {
       state.requestQuoteCalls.push(args);
-      return buildMockRelayerQuote(args);
+      return buildMockRelayerQuote(args, { relayerUrl: args.relayerUrl });
     });
     submitRelayRequestMock.mockClear();
     submitRelayRequestMock.mockImplementation(async () => ({
@@ -1490,6 +1514,7 @@ describe("workflow service mocked coverage", () => {
       expect(state.approveErc20Calls).toBe(1);
       expect(state.depositErc20Calls).toBe(1);
       expect(state.requestQuoteCalls.at(-1)?.extraGas).toBe(true);
+      expect(state.requestQuoteCalls.at(-1)?.relayerUrl).toBe(state.relayerUrl);
       expect(readFileSync(backupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
       expect(statSync(backupPath).mode & 0o777).toBe(0o600);
       expect(

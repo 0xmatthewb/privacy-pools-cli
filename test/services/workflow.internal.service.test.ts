@@ -170,6 +170,7 @@ interface MockState {
   relayerDetails: {
     minWithdrawAmount: string;
     feeReceiverAddress: Address;
+    relayerUrl?: string;
   };
   relayerQuote: {
     feeBPS: string;
@@ -331,11 +332,21 @@ const collectActiveLabelsMock = mock(() =>
 const getNextPoolAccountNumberMock = mock(() => 8);
 const poolAccountIdMock = mock((poolAccountNumber: number) => `PA-${poolAccountNumber}`);
 const getRelayerDetailsMock = mock(async () => state.relayerDetails);
-const requestQuoteMock = mock(async () => ({
+const requestQuoteMock = mock(async (_chain: unknown, args?: {
+  amount: bigint;
+  asset: Address;
+  extraGas: boolean;
+  recipient?: Address;
+  relayerUrl?: string;
+}) => ({
   baseFeeBPS: "200",
   gasPrice: "1",
   detail: { relayTxCost: { gas: "0", eth: "0" } },
-  ...state.relayerQuote,
+  ...buildWorkflowRelayerQuote({
+    ...args,
+    amount: args?.amount?.toString(),
+    relayerUrl: args?.relayerUrl,
+  }),
 }));
 const submitRelayRequestMock = mock(async () => ({
   txHash: state.relayTxHash,
@@ -632,8 +643,11 @@ beforeEach(() => {
   state.relayerDetails = {
     minWithdrawAmount: "100",
     feeReceiverAddress: DEFAULT_WORKFLOW_FEE_RECEIVER,
+    relayerUrl: "https://fastrelay.xyz",
   };
-  state.relayerQuote = buildWorkflowRelayerQuote();
+  state.relayerQuote = buildWorkflowRelayerQuote({
+    relayerUrl: state.relayerDetails.relayerUrl,
+  });
   state.remainderAdvisory = null;
   state.relayTxHash = ("0x" + "dd".repeat(32)) as Hex;
   getDataServiceMock.mockClear();
@@ -952,6 +966,12 @@ describe("workflow internal helpers", () => {
     expect(addWithdrawalCommitmentMock).toHaveBeenCalledTimes(1);
     expect(saveAccountMock).toHaveBeenCalledTimes(1);
     expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
+    expect(requestQuoteMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        relayerUrl: state.relayerDetails.relayerUrl,
+      }),
+    );
     expect(submitRelayRequestMock).toHaveBeenCalledTimes(1);
     expect(submitRelayRequestMock).toHaveBeenCalledWith(
       expect.anything(),

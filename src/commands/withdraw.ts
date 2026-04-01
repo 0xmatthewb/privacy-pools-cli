@@ -1211,6 +1211,7 @@ export async function handleWithdrawCommand(
         stageHeader(3, withdrawSteps, "Requesting relayer quote", silent);
         spin.text = "Requesting relayer quote...";
         const details = await getRelayerDetails(chainConfig, pool.asset);
+        const relayerUrl = details.relayerUrl;
         verbose(
           `Relayer details: minWithdraw=${details.minWithdrawAmount} feeReceiver=${details.feeReceiverAddress}`,
           isVerbose,
@@ -1247,6 +1248,7 @@ export async function handleWithdrawCommand(
             asset: pool.asset,
             extraGas: effectiveExtraGas,
             recipient: resolvedRecipientAddress,
+            relayerUrl,
           },
         );
         let quote = initialQuoteResult.quote;
@@ -1285,6 +1287,7 @@ export async function handleWithdrawCommand(
                   asset: pool.asset,
                   extraGas: effectiveExtraGas,
                   recipient: resolvedRecipientAddress,
+                  relayerUrl,
                 },
               );
               if (quoteResult.downgradedExtraGas) {
@@ -1758,11 +1761,13 @@ export async function handleWithdrawQuoteCommand(
     const spin = spinner("Requesting relayer quote...", silent);
     spin.start();
     const details = await getRelayerDetails(chainConfig, pool.asset);
+    const relayerUrl = details.relayerUrl;
     const quoteResult = await requestQuoteWithExtraGasFallback(chainConfig, {
       amount,
       asset: pool.asset,
       extraGas: quoteExtraGas,
       ...(recipient ? { recipient } : {}),
+      relayerUrl,
     });
     const resolvedQuoteExtraGas = quoteResult.extraGas;
     if (quoteResult.downgradedExtraGas) {

@@ -240,6 +240,7 @@ const buildLoadedAspDepositReviewStateMock = mock(() => ({
 const getRelayerDetailsMock = mock(async () => ({
   minWithdrawAmount: "10000000000000000",
   feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+  relayerUrl: "https://fastrelay.xyz",
 }));
 const requestQuoteMock = mock(
   async (
@@ -249,6 +250,7 @@ const requestQuoteMock = mock(
       asset?: Address;
       amount?: bigint;
       extraGas?: boolean;
+      relayerUrl?: string;
     },
   ) =>
     buildRelayerQuote({
@@ -256,6 +258,7 @@ const requestQuoteMock = mock(
       asset: params?.asset,
       amount: params?.amount?.toString(),
       extraGas: params?.extraGas,
+      relayerUrl: params?.relayerUrl,
     }),
 );
 const submitRelayRequestMock = mock(async () => ({
@@ -542,6 +545,7 @@ beforeEach(() => {
   getRelayerDetailsMock.mockImplementation(async () => ({
     minWithdrawAmount: "10000000000000000",
     feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+    relayerUrl: "https://fastrelay.xyz",
   }));
   requestQuoteMock.mockImplementation(
     async (
@@ -551,6 +555,7 @@ beforeEach(() => {
         asset?: Address;
         amount?: bigint;
         extraGas?: boolean;
+        relayerUrl?: string;
       },
     ) =>
       buildRelayerQuote({
@@ -558,6 +563,7 @@ beforeEach(() => {
         asset: params?.asset,
         amount: params?.amount?.toString(),
         extraGas: params?.extraGas,
+        relayerUrl: params?.relayerUrl,
       }),
   );
   proveWithdrawalMock.mockImplementation(async () => ({
@@ -1745,6 +1751,12 @@ describe("withdraw command handler", () => {
     expect(json.success).toBe(true);
     expect(json.feeCommitmentPresent).toBe(false);
     expect(json.quoteExpiresAt).toBeNull();
+    expect(requestQuoteMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        relayerUrl: "https://fastrelay.xyz",
+      }),
+    );
   });
 
   test("quote downgrades unsupported extra gas requests and keeps the result machine-readable", async () => {
@@ -2021,12 +2033,13 @@ describe("withdraw command handler", () => {
       minWithdrawAmount: "10000000000000000",
       feeReceiverAddress:
         "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" as Address,
+      relayerUrl: "https://details-relayer.test",
     }));
     requestQuoteMock.mockImplementationOnce(async (_chainConfig, params) =>
       buildRelayerQuote({
         recipient: params?.recipient,
         feeRecipient: signedFeeReceiver,
-        relayerUrl: "https://backup-relayer.test",
+        relayerUrl: params?.relayerUrl,
       }),
     );
 
@@ -2042,10 +2055,16 @@ describe("withdraw command handler", () => {
     );
 
     expect(json.success).toBe(true);
+    expect(requestQuoteMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        relayerUrl: "https://details-relayer.test",
+      }),
+    );
     expect(submitRelayRequestMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        relayerUrl: "https://backup-relayer.test",
+        relayerUrl: "https://details-relayer.test",
         withdrawal: expect.objectContaining({
           data: encodeRelayerWithdrawalData({
             recipient: DEFAULT_RELAYER_RECIPIENT,

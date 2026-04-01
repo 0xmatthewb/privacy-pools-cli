@@ -2811,6 +2811,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
 
   const details =
     relayerDetails ?? (await getRelayerDetails(chainConfig, pool.asset));
+  const relayerUrl = details.relayerUrl;
   if (withdrawalAmount < BigInt(details.minWithdrawAmount)) {
     throw new CLIError(
       `Workflow amount is below the relayer minimum of ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`,
@@ -2838,6 +2839,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
       asset: pool.asset,
       extraGas,
       recipient: snapshot.recipient as Address,
+      relayerUrl,
     },
   );
   let quote = initialQuoteResult.quote;
@@ -2861,10 +2863,11 @@ export async function executeRelayedWithdrawalForFlow(params: {
         const quoteResult = await requestQuoteWithExtraGasFallback(
           chainConfig,
           {
-          amount: withdrawalAmount,
-          asset: pool.asset,
-          extraGas,
-          recipient: snapshot.recipient as Address,
+            amount: withdrawalAmount,
+            asset: pool.asset,
+            extraGas,
+            recipient: snapshot.recipient as Address,
+            relayerUrl,
           },
         );
         if (quoteResult.downgradedExtraGas) {

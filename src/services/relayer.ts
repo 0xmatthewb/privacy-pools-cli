@@ -292,6 +292,7 @@ export async function requestQuoteWithExtraGasFallback(
     asset: Address;
     extraGas: boolean;
     recipient?: Address;
+    relayerUrl?: string;
   }
 ): Promise<{
   quote: RelayerQuoteResponse;
@@ -318,6 +319,125 @@ export async function requestQuoteWithExtraGasFallback(
       downgradedExtraGas: true,
     };
   }
+}
+
+function validateRelayerQuoteResponse(params: {
+  body: unknown;
+  request: {
+    amount: bigint;
+    asset: Address;
+    extraGas: boolean;
+  };
+}): void {
+  const { body, request } = params;
+  const relayTxCost = (body as { detail?: { relayTxCost?: unknown } } | null)?.detail
+    ?.relayTxCost;
+  const extraGasFundAmount = (body as {
+    detail?: { extraGasFundAmount?: unknown };
+  } | null)?.detail?.extraGasFundAmount;
+  const extraGasTxCost = (body as {
+    detail?: { extraGasTxCost?: unknown };
+  } | null)?.detail?.extraGasTxCost;
+
+  if (
+    !isDecimalString((body as { baseFeeBPS?: unknown } | null)?.baseFeeBPS) ||
+    !isDecimalString((body as { feeBPS?: unknown } | null)?.feeBPS) ||
+    !isDecimalString((body as { gasPrice?: unknown } | null)?.gasPrice) ||
+    !isValidTransactionCostDetail(relayTxCost) ||
+    (extraGasFundAmount !== undefined &&
+      !isValidTransactionCostDetail(extraGasFundAmount)) ||
+    (extraGasTxCost !== undefined &&
+      !isValidTransactionCostDetail(extraGasTxCost))
+  ) {
+    throw new CLIError(
+      "Relayer returned an unexpected quote response.",
+      "RELAYER",
+      "Try again. If it persists, the relayer may be running an incompatible version."
+    );
+  }
+
+  if ((body as { feeCommitment?: unknown } | null)?.feeCommitment !== undefined) {
+    const fc = (body as {
+      feeCommitment?: {
+        expiration?: unknown;
+        withdrawalData?: unknown;
+        asset?: unknown;
+        amount?: unknown;
+        extraGas?: unknown;
+        signedRelayerCommitment?: unknown;
+      };
+    } | null)?.feeCommitment;
+    const valid =
+      typeof fc?.expiration === "number" &&
+      Number.isFinite(fc.expiration) &&
+      isHexString(fc.withdrawalData) &&
+      typeof fc.asset === "string" &&
+      /^0x[0-9a-fA-F]{40}$/.test(fc.asset) &&
+      typeof fc.amount === "string" &&
+      /^\d+$/.test(fc.amount) &&
+      typeof fc.extraGas === "boolean" &&
+      isHexString(fc.signedRelayerCommitment);
+
+    if (!valid) {
+      throw new CLIError(
+        "Relayer returned an invalid fee commitment.",
+        "RELAYER",
+        "Run the withdraw command again to request a fresh quote."
+      );
+    }
+
+    if (fc.asset!.toLowerCase() !== request.asset.toLowerCase()) {
+      throw new CLIError(
+        "Relayer returned a fee commitment for a different asset.",
+        "RELAYER",
+        "Run the withdraw command again to request a fresh quote."
+      );
+    }
+
+    if (BigInt(fc.amount!) !== request.amount) {
+      throw new CLIError(
+        "Relayer returned a fee commitment for a different withdrawal amount.",
+        "RELAYER",
+        "Run the withdraw command again to request a fresh quote."
+      );
+    }
+
+    if (fc.extraGas !== request.extraGas) {
+      throw new CLIError(
+        "Relayer returned a fee commitment with mismatched extra-gas setting.",
+        "RELAYER",
+        "Run the withdraw command again to request a fresh quote."
+      );
+    }
+  }
+}
+
+async function fetchQuoteFromRelayer(
+  relayerUrl: string,
+  chainConfig: ChainConfig,
+  params: {
+    amount: bigint;
+    asset: Address;
+    extraGas: boolean;
+    recipient?: Address;
+  },
+): Promise<RelayerQuoteResponse> {
+  const res = await relayerFetchWithRetry(relayerUrl, "/relayer/quote", {
+    method: "POST",
+    body: JSON.stringify({
+      chainId: chainConfig.id,
+      amount: params.amount.toString(),
+      asset: params.asset,
+      extraGas: params.extraGas,
+      ...(params.recipient ? { recipient: params.recipient } : {}),
+    }),
+  });
+  const body = await res.json();
+  validateRelayerQuoteResponse({ body, request: params });
+  return {
+    ...(body as RelayerQuoteResponse),
+    relayerUrl,
+  };
 }
 
 async function runRelayerRequestWithRetry<T>(
@@ -456,95 +576,17 @@ export async function requestQuote(
     asset: Address;
     extraGas: boolean;
     recipient?: Address;
+    relayerUrl?: string;
   }
 ): Promise<RelayerQuoteResponse> {
+  if (params.relayerUrl) {
+    return await fetchQuoteFromRelayer(params.relayerUrl, chainConfig, params);
+  }
+
   const relayerHosts = getRelayerHosts(chainConfig);
   if (relayerHosts.length <= 1) {
     const relayerUrl = relayerHosts[0];
-    const res = await relayerFetchWithRetry(relayerUrl, "/relayer/quote", {
-      method: "POST",
-      body: JSON.stringify({
-        chainId: chainConfig.id,
-        amount: params.amount.toString(),
-        asset: params.asset,
-        extraGas: params.extraGas,
-        ...(params.recipient ? { recipient: params.recipient } : {}),
-      }),
-    });
-    const body = await res.json();
-
-    const relayTxCost = body?.detail?.relayTxCost;
-    const extraGasFundAmount = body?.detail?.extraGasFundAmount;
-    const extraGasTxCost = body?.detail?.extraGasTxCost;
-
-    if (
-      !isDecimalString(body?.baseFeeBPS) ||
-      !isDecimalString(body?.feeBPS) ||
-      !isDecimalString(body?.gasPrice) ||
-      !isValidTransactionCostDetail(relayTxCost) ||
-      (extraGasFundAmount !== undefined &&
-        !isValidTransactionCostDetail(extraGasFundAmount)) ||
-      (extraGasTxCost !== undefined &&
-        !isValidTransactionCostDetail(extraGasTxCost))
-    ) {
-      throw new CLIError(
-        "Relayer returned an unexpected quote response.",
-        "RELAYER",
-        "Try again. If it persists, the relayer may be running an incompatible version."
-      );
-    }
-
-    if (body?.feeCommitment !== undefined) {
-      const fc = body.feeCommitment;
-      const valid =
-        typeof fc?.expiration === "number" &&
-        Number.isFinite(fc.expiration) &&
-        isHexString(fc.withdrawalData) &&
-        typeof fc.asset === "string" &&
-        /^0x[0-9a-fA-F]{40}$/.test(fc.asset) &&
-        typeof fc.amount === "string" &&
-        /^\d+$/.test(fc.amount) &&
-        typeof fc.extraGas === "boolean" &&
-        isHexString(fc.signedRelayerCommitment);
-
-      if (!valid) {
-        throw new CLIError(
-          "Relayer returned an invalid fee commitment.",
-          "RELAYER",
-          "Run the withdraw command again to request a fresh quote."
-        );
-      }
-
-      // Quote bindings should match what we requested.
-      if (fc.asset.toLowerCase() !== params.asset.toLowerCase()) {
-        throw new CLIError(
-          "Relayer returned a fee commitment for a different asset.",
-          "RELAYER",
-          "Run the withdraw command again to request a fresh quote."
-        );
-      }
-
-      if (BigInt(fc.amount) !== params.amount) {
-        throw new CLIError(
-          "Relayer returned a fee commitment for a different withdrawal amount.",
-          "RELAYER",
-          "Run the withdraw command again to request a fresh quote."
-        );
-      }
-
-      if (fc.extraGas !== params.extraGas) {
-        throw new CLIError(
-          "Relayer returned a fee commitment with mismatched extra-gas setting.",
-          "RELAYER",
-          "Run the withdraw command again to request a fresh quote."
-        );
-      }
-    }
-
-    return {
-      ...(body as RelayerQuoteResponse),
-      relayerUrl,
-    };
+    return await fetchQuoteFromRelayer(relayerUrl, chainConfig, params);
   }
 
   const candidates = await fetchSelectableRelayerDetailsCandidates(
@@ -555,90 +597,7 @@ export async function requestQuote(
 
   for (const { relayerUrl } of candidates) {
     try {
-      const res = await relayerFetchWithRetry(relayerUrl, "/relayer/quote", {
-        method: "POST",
-        body: JSON.stringify({
-          chainId: chainConfig.id,
-          amount: params.amount.toString(),
-          asset: params.asset,
-          extraGas: params.extraGas,
-          ...(params.recipient ? { recipient: params.recipient } : {}),
-        }),
-      });
-      const body = await res.json();
-
-      const relayTxCost = body?.detail?.relayTxCost;
-      const extraGasFundAmount = body?.detail?.extraGasFundAmount;
-      const extraGasTxCost = body?.detail?.extraGasTxCost;
-
-      if (
-        !isDecimalString(body?.baseFeeBPS) ||
-        !isDecimalString(body?.feeBPS) ||
-        !isDecimalString(body?.gasPrice) ||
-        !isValidTransactionCostDetail(relayTxCost) ||
-        (extraGasFundAmount !== undefined &&
-          !isValidTransactionCostDetail(extraGasFundAmount)) ||
-        (extraGasTxCost !== undefined &&
-          !isValidTransactionCostDetail(extraGasTxCost))
-      ) {
-        throw new CLIError(
-          "Relayer returned an unexpected quote response.",
-          "RELAYER",
-          "Try again. If it persists, the relayer may be running an incompatible version."
-        );
-      }
-
-      if (body?.feeCommitment !== undefined) {
-        const fc = body.feeCommitment;
-        const valid =
-          typeof fc?.expiration === "number" &&
-          Number.isFinite(fc.expiration) &&
-          isHexString(fc.withdrawalData) &&
-          typeof fc.asset === "string" &&
-          /^0x[0-9a-fA-F]{40}$/.test(fc.asset) &&
-          typeof fc.amount === "string" &&
-          /^\d+$/.test(fc.amount) &&
-          typeof fc.extraGas === "boolean" &&
-          isHexString(fc.signedRelayerCommitment);
-
-        if (!valid) {
-          throw new CLIError(
-            "Relayer returned an invalid fee commitment.",
-            "RELAYER",
-            "Run the withdraw command again to request a fresh quote."
-          );
-        }
-
-        // Quote bindings should match what we requested.
-        if (fc.asset.toLowerCase() !== params.asset.toLowerCase()) {
-          throw new CLIError(
-            "Relayer returned a fee commitment for a different asset.",
-            "RELAYER",
-            "Run the withdraw command again to request a fresh quote."
-          );
-        }
-
-        if (BigInt(fc.amount) !== params.amount) {
-          throw new CLIError(
-            "Relayer returned a fee commitment for a different withdrawal amount.",
-            "RELAYER",
-            "Run the withdraw command again to request a fresh quote."
-          );
-        }
-
-        if (fc.extraGas !== params.extraGas) {
-          throw new CLIError(
-            "Relayer returned a fee commitment with mismatched extra-gas setting.",
-            "RELAYER",
-            "Run the withdraw command again to request a fresh quote."
-          );
-        }
-      }
-
-      return {
-        ...(body as RelayerQuoteResponse),
-        relayerUrl,
-      };
+      return await fetchQuoteFromRelayer(relayerUrl, chainConfig, params);
     } catch (error) {
       lastError = error;
       if (!shouldFailoverToNextRelayer(error)) {
