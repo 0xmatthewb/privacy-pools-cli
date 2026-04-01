@@ -2,7 +2,6 @@
 #
 # WHEN does this run?
 #   - Every pull request (non-blocking visibility on PRs)
-#   - Every push to "main" or "rust-refactor"
 #   - Automatically every day at 3:47 AM UTC
 #   - Manually via the "Run workflow" button on GitHub
 #
@@ -20,10 +19,6 @@ name: Frontend Parity
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
-      - rust-refactor
   schedule:
     - cron: "47 3 * * *"
   workflow_dispatch:

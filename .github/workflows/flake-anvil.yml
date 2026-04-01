@@ -2,7 +2,6 @@
 #
 # WHEN does this run?
 #   - Every pull request (changed-path selected)
-#   - Every push to "main" or "rust-refactor"
 #   - Daily on schedule
 #   - Manually via the "Run workflow" button
 #
@@ -22,10 +21,6 @@ name: Anvil Flake Detection
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
-      - rust-refactor
   schedule:
     - cron: "43 4 * * *"
   workflow_dispatch:

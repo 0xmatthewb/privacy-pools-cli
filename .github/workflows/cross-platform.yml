@@ -2,7 +2,7 @@
 #
 # WHEN does this run?
 #   - Every pull request (any branch)
-#   - Every push to "main" or "rust-refactor"
+#   - Every push to "main"
 #   - Manually via the "Run workflow" button on GitHub
 #
 # WHAT does it do?
@@ -27,7 +27,6 @@ on:
   push:
     branches:
       - main
-      - rust-refactor
   workflow_dispatch:
 
 permissions:

@@ -1,8 +1,8 @@
 # CI — the main quality gate.
 #
 # WHEN does this run?
-#   - Every pull request targeting "main" or "rust-refactor"
-#   - Every push to "main" or "rust-refactor"
+#   - Every pull request targeting "main"
+#   - Every push (merge) to "main"
 #
 # WHAT does it do?
 #   Eleven independent jobs run in parallel:
@@ -32,11 +32,9 @@ on:
   pull_request:
     branches:
       - main
-      - rust-refactor
   push:
     branches:
       - main
-      - rust-refactor
 
 # Only allow reading the repo — no write access needed here.
 permissions:
