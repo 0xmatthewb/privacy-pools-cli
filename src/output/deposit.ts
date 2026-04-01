@@ -189,7 +189,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   info(`Pool Account: ${data.poolAccountId}`, silent);
   if (data.committedValue !== undefined) {
     info(
-      `Net deposited: ${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after pool fee)`,
+      `Net deposited: ${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after vetting fee)`,
       silent,
     );
   }

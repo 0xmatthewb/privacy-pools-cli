@@ -662,14 +662,14 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     }
   }
 
-  // ── Post-deposit: show deposited amount (net after pool fee) ──
+  // ── Post-deposit: show deposited amount (net after vetting fee) ──
   if (!isPreDeposit) {
     const committedValue = formatFlowAssetAmount(
       data.snapshot.committedValue,
       data.snapshot,
     );
     if (committedValue) {
-      info(`Deposited: ${committedValue} (net after pool fee)`, silent);
+      info(`Deposited: ${committedValue} (net after vetting fee)`, silent);
     }
   }
 
