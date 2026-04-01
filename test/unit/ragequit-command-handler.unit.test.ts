@@ -6,7 +6,9 @@ import {
   mock,
   test,
 } from "bun:test";
+import { AccountService } from "@0xbow/privacy-pools-core-sdk";
 import type { Command } from "commander";
+import { CLIError } from "../../src/utils/errors.ts";
 import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
@@ -40,6 +42,9 @@ const realPools = captureModuleExports(
   await import("../../src/services/pools.ts"),
 );
 const realAsp = captureModuleExports(await import("../../src/services/asp.ts"));
+const realMigration = captureModuleExports(
+  await import("../../src/services/migration.ts"),
+);
 const realProofs = captureModuleExports(
   await import("../../src/services/proofs.ts"),
 );
@@ -54,6 +59,7 @@ const realCriticalSection = captureModuleExports(
 const realUnsigned = captureModuleExports(
   await import("../../src/utils/unsigned.ts"),
 );
+const ORIGINAL_INIT_WITH_EVENTS = AccountService.initializeWithEvents;
 
 const RAGEQUIT_HANDLER_MODULE_RESTORES = [
   ["@inquirer/prompts", realInquirerPrompts],
@@ -61,6 +67,7 @@ const RAGEQUIT_HANDLER_MODULE_RESTORES = [
   ["../../src/services/sdk.ts", realSdk],
   ["../../src/services/pools.ts", realPools],
   ["../../src/services/asp.ts", realAsp],
+  ["../../src/services/migration.ts", realMigration],
   ["../../src/services/proofs.ts", realProofs],
   ["../../src/services/contracts.ts", realContracts],
   ["../../src/utils/pool-accounts.ts", realPoolAccounts],
@@ -162,6 +169,8 @@ const toRagequitSolidityProofMock = mock(() => ({
 const printRawTransactionsMock = mock(() => undefined);
 const confirmPromptMock = mock(async () => true);
 const selectPromptMock = mock(async () => 1);
+const collectLegacyMigrationCandidatesMock = mock(() => []);
+const loadDeclinedLegacyLabelsMock = mock(async () => new Set<string>());
 
 let handleRagequitCommand: typeof import("../../src/commands/ragequit.ts").handleRagequitCommand;
 let world: TestWorld;
@@ -219,6 +228,11 @@ async function loadRagequitCommandHandler(): Promise<void> {
     normalizeDepositReviewStatuses: (statuses: ReadonlyMap<string, string>) =>
       statuses,
   }));
+  mock.module("../../src/services/migration.ts", () => ({
+    ...realMigration,
+    collectLegacyMigrationCandidates: collectLegacyMigrationCandidatesMock,
+    loadDeclinedLegacyLabels: loadDeclinedLegacyLabelsMock,
+  }));
   mock.module("../../src/services/proofs.ts", () => ({
     ...realProofs,
     proveCommitment: proveCommitmentMock,
@@ -258,12 +272,14 @@ async function loadRagequitCommandHandler(): Promise<void> {
 }
 
 afterEach(() => {
+  AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
   restoreModuleImplementations(RAGEQUIT_HANDLER_MODULE_RESTORES);
 });
 
 beforeEach(() => {
   world = createTestWorld({ prefix: "pp-ragequit-handler-" });
   mock.restore();
+  AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
   initializeAccountServiceMock.mockClear();
   getDataServiceMock.mockClear();
   getPublicClientMock.mockClear();
@@ -284,6 +300,8 @@ beforeEach(() => {
   selectPromptMock.mockClear();
   buildAllPoolAccountRefsMock.mockClear();
   buildPoolAccountRefsMock.mockClear();
+  collectLegacyMigrationCandidatesMock.mockClear();
+  loadDeclinedLegacyLabelsMock.mockClear();
   describeUnavailablePoolAccountMock.mockClear();
   getUnknownPoolAccountErrorMock.mockClear();
   parsePoolAccountSelectorMock.mockClear();
@@ -331,6 +349,8 @@ beforeEach(() => {
   listPoolsMock.mockImplementation(async () => [ETH_POOL]);
   buildAllPoolAccountRefsMock.mockImplementation(() => [APPROVED_POOL_ACCOUNT]);
   buildPoolAccountRefsMock.mockImplementation(() => [APPROVED_POOL_ACCOUNT]);
+  collectLegacyMigrationCandidatesMock.mockImplementation(() => []);
+  loadDeclinedLegacyLabelsMock.mockImplementation(async () => new Set<string>());
   describeUnavailablePoolAccountMock.mockImplementation(() => null);
   getUnknownPoolAccountErrorMock.mockImplementation(() => ({
     message: "Unknown Pool Account.",
@@ -397,6 +417,64 @@ describe("ragequit command handler", () => {
     expect(json.dryRun).toBe(true);
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.proofPublicSignals).toBe(4);
+  });
+
+  test("allows dry-run ragequit for declined legacy accounts when init reports website recovery", async () => {
+    useIsolatedHome();
+
+    initializeAccountServiceMock.mockImplementationOnce(async () => {
+      throw new CLIError(
+        "website recovery required",
+        "INPUT",
+        "use website recovery",
+        "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
+      );
+    });
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => []);
+    buildPoolAccountRefsMock.mockImplementationOnce(() => []);
+    collectLegacyMigrationCandidatesMock.mockImplementationOnce(() => [
+      { scope: 1n, label: "601", isMigrated: false, remainingValue: 1n },
+    ]);
+    loadDeclinedLegacyLabelsMock.mockImplementationOnce(async () => new Set(["601"]));
+
+    const legacyAccountService = new AccountService({} as any, {
+      account: {
+        masterKeys: [1n, 2n],
+        poolAccounts: new Map([
+          [1n, [{
+            label: APPROVED_POOL_ACCOUNT.label as any,
+            deposit: APPROVED_POOL_ACCOUNT.commitment,
+            children: [],
+          }]],
+        ]),
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+      } as any,
+    });
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: { poolAccounts: new Map() },
+        getSpendableCommitments: () => new Map(),
+      },
+      legacyAccount: legacyAccountService,
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          dryRun: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("ragequit");
+    expect(json.poolAccountId).toBe("PA-1");
+    expect(json.amount).toBe("1000000000000000000");
   });
 
   test("builds an unsigned ragequit transaction in JSON mode", async () => {

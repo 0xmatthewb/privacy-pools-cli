@@ -47,6 +47,7 @@ Flow JSON payloads share this shape:
       "command": "flow watch",
       "reason": "Fund the dedicated workflow wallet first, then re-run flow watch to continue.",
       "when": "flow_resume",
+      "cliCommand": "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000 --agent",
       "args": ["123e4567-e89b-12d3-a456-426614174000"],
       "options": { "agent": true }
     }
@@ -170,7 +171,7 @@ The envelope format includes additional context fields depending on the operatio
 
 All responses include `{ "schemaVersion": "1.7.0", "success": true, ... }` envelope.
 
-Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `false`, the action is a template that needs additional user input before execution.
+Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field, and prefer `cliCommand` when you want the directly executable CLI string. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
 ### `pools`
 
@@ -352,6 +353,9 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
   "signerKeySet": true,
   "signerKeyValid": true,
   "signerAddress": "0x...",
+  "signerBalance": "42000000000000000",
+  "signerBalanceDecimals": 18,
+  "signerBalanceSymbol": "ETH",
   "entrypoint": "0x6818809eefce719e480a7526d76bd3e561526b46",
   "aspHost": "https://api.0xbow.io",
   "aspLive": true,
@@ -367,6 +371,7 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
       "command": "accounts",
       "reason": "Check on your existing deposits.",
       "when": "status_ready_has_accounts",
+      "cliCommand": "privacy-pools accounts --agent",
       "options": { "agent": true }
     }
   ]
@@ -580,6 +585,7 @@ Inline `--mnemonic` and `--private-key` remain available as a last resort, but t
       "command": "status",
       "reason": "Verify wallet readiness and chain health before transacting.",
       "when": "after_init",
+      "cliCommand": "privacy-pools status --agent --chain mainnet",
       "options": { "agent": true, "chain": "mainnet" }
     }
   ]
@@ -635,6 +641,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
       "command": "accounts",
       "reason": "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain mainnet to confirm whether it was approved, declined, or needs Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit.",
       "when": "after_deposit",
+      "cliCommand": "privacy-pools accounts --agent --chain mainnet --pending-only",
       "options": { "agent": true, "chain": "mainnet", "pendingOnly": true }
     }
   ]
@@ -703,7 +710,7 @@ For relayed withdrawals, the CLI also warns if the chosen amount would leave a p
     "total": 128,
     "percentage": 32.81
   },
-  "nextActions": [{ "command": "accounts", "reason": "...", "when": "after_withdraw", "options": { "agent": true, "chain": "mainnet" } }]
+  "nextActions": [{ "command": "accounts", "reason": "...", "when": "after_withdraw", "cliCommand": "privacy-pools accounts --agent --chain mainnet", "options": { "agent": true, "chain": "mainnet" } }]
 }
 ```
 
@@ -767,6 +774,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
       "command": "withdraw",
       "reason": "Submit the withdrawal promptly if the quoted fee is acceptable.",
       "when": "after_quote",
+      "cliCommand": "privacy-pools withdraw 0.1 ETH --agent --chain mainnet --to 0x... --extra-gas",
       "args": ["0.1", "ETH"],
       "options": {
         "agent": true,
@@ -803,7 +811,8 @@ privacy-pools exit ETH --from-pa PA-1 --agent
   "scope": "123...",
   "blockNumber": "22154000",
   "explorerUrl": "https://etherscan.io/tx/0x...",
-  "nextActions": [{ "command": "accounts", "reason": "...", "when": "after_ragequit", "options": { "agent": true, "chain": "mainnet" } }]
+  "destinationAddress": "0x...",
+  "nextActions": [{ "command": "accounts", "reason": "...", "when": "after_ragequit", "cliCommand": "privacy-pools accounts --agent --chain mainnet", "options": { "agent": true, "chain": "mainnet" } }]
 }
 ```
 
@@ -816,11 +825,13 @@ privacy-pools exit ETH --from-pa PA-1 --agent
   "chain": "mainnet",
   "asset": "ETH",
   "amount": "100000000000000000",
+  "destinationAddress": "0x...",
   "poolAccountNumber": 1,
   "poolAccountId": "PA-1",
   "selectedCommitmentLabel": "456...",
   "selectedCommitmentValue": "100000000000000000",
-  "proofPublicSignals": 4
+  "proofPublicSignals": 4,
+  "nextActions": [{ "command": "ragequit", "reason": "...", "when": "after_dry_run", "cliCommand": "privacy-pools ragequit ETH --agent --chain mainnet --from-pa PA-1", "args": ["ETH"], "options": { "agent": true, "chain": "mainnet", "fromPa": "PA-1" } }]
 }
 ```
 

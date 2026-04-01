@@ -681,7 +681,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
-        "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals }",
+        "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,

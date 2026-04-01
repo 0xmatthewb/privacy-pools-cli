@@ -156,6 +156,40 @@ describe("pool account mapping", () => {
     expect(refs.map((row) => row.aspStatus)).toEqual(["approved", "declined", "poi_required", "pending"]);
   });
 
+  test("migrated legacy accounts are hidden from refs and numbering", () => {
+    const scope = 6006n;
+    const migrated = commitment(
+      10n,
+      101n,
+      100n,
+      10n,
+      "0x1010101010101010101010101010101010101010101010101010101010101010",
+    );
+    const active = commitment(
+      20n,
+      202n,
+      200n,
+      20n,
+      "0x2020202020202020202020202020202020202020202020202020202020202020",
+    );
+
+    const account: PrivacyPoolAccount = {
+      masterKeys: [5n as any, 6n as any],
+      poolAccounts: new Map([
+        [scope as any, [
+          { label: migrated.label as any, deposit: migrated, children: [], isMigrated: true },
+          { label: active.label as any, deposit: active, children: [] },
+        ]],
+      ]) as any,
+    };
+
+    const refs = buildAllPoolAccountRefs(account, scope, [active]);
+    expect(refs).toHaveLength(1);
+    expect(refs[0].paId).toBe("PA-1");
+    expect(refs[0].label).toBe(active.label);
+    expect(getNextPoolAccountNumber(account, scope)).toBe(2);
+  });
+
   test("approved review statuses fail closed when ASP leaves are unavailable", () => {
     const scope = 4004n;
     const approved = commitment(
@@ -243,7 +277,7 @@ describe("pool account mapping", () => {
     ).toContain("already fully withdrawn");
     expect(
       describeUnavailablePoolAccount({ paId: "PA-3", status: "exited" }, "ragequit"),
-    ).toContain("already exited publicly");
+    ).toContain("already recovered publicly with ragequit");
     expect(
       describeUnavailablePoolAccount({ paId: "PA-1", status: "approved" }, "withdraw"),
     ).toBeNull();

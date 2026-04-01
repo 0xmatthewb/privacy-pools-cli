@@ -56,6 +56,44 @@ function isMigrationBookkeepingChild(
   );
 }
 
+function isSyntheticMigratedDeposit(poolAccount: PoolAccount): boolean {
+  const firstChild = poolAccount.children[0];
+  if (!firstChild) {
+    return false;
+  }
+
+  if (firstChild.isMigration === true) {
+    return false;
+  }
+
+  return (
+    firstChild.blockNumber === poolAccount.deposit.blockNumber &&
+    firstChild.txHash === poolAccount.deposit.txHash &&
+    firstChild.value === poolAccount.deposit.value
+  );
+}
+
+function buildSyntheticMigratedWithdrawalEvent(
+  pool: PoolLike,
+  paNumber: number,
+  poolAccount: PoolAccount,
+): HistoryEvent | null {
+  if (!isSyntheticMigratedDeposit(poolAccount)) {
+    return null;
+  }
+
+  return {
+    type: "withdrawal",
+    asset: pool.symbol,
+    poolAddress: pool.pool,
+    paNumber,
+    paId: `PA-${paNumber}`,
+    value: poolAccount.deposit.value,
+    blockNumber: poolAccount.deposit.blockNumber,
+    txHash: poolAccount.deposit.txHash,
+  };
+}
+
 export { createHistoryCommand } from "../command-shells/history.js";
 
 export function buildHistoryEventsFromAccount(
@@ -76,8 +114,15 @@ export function buildHistoryEventsFromAccount(
     let paNumber = 1;
     for (const pa of poolAccountsList as PoolAccount[]) {
       const paId = `PA-${paNumber}`;
+      const syntheticMigrationWithdrawal = buildSyntheticMigratedWithdrawalEvent(
+        pool,
+        paNumber,
+        pa,
+      );
 
-      if (pa.deposit) {
+      if (syntheticMigrationWithdrawal) {
+        events.push(syntheticMigrationWithdrawal);
+      } else if (pa.deposit) {
         events.push({
           type: "deposit",
           asset: pool.symbol,

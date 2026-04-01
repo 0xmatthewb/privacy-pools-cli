@@ -297,10 +297,11 @@ async function rebuildAccountScopesFromEvents(
   }>,
 ): Promise<{
   account: AccountState;
+  legacyAccount?: AccountService;
   errors: Array<{ scope: bigint; reason: string }>;
 }> {
   if (pools.length === 0) {
-    return { account: currentAccount, errors: [] };
+    return { account: currentAccount, legacyAccount: undefined, errors: [] };
   }
 
   const result = await withSuppressedSdkStdout(async () =>
@@ -317,6 +318,7 @@ async function rebuildAccountScopesFromEvents(
       result.account.account,
       pools.map((pool) => pool.scope as AccountScope),
     ),
+    legacyAccount: result.legacyAccount,
     errors: result.errors ?? [],
   };
 }
@@ -420,12 +422,13 @@ export async function initializeAccountServiceWithState(
     );
 
     if (forceSyncSavedAccount && pools.length > 0) {
-      const { account, errors } = await rebuildAccountScopesFromEvents(
+      const { account, legacyAccount, errors } = await rebuildAccountScopesFromEvents(
         dataService,
         mnemonic,
         service.account,
         pools,
       );
+      await assertNoLegacyMigrationRequired(legacyAccount, chainId);
 
       if (errors.length > 0) {
         const details = summarizeInitErrors(errors);
@@ -670,12 +673,13 @@ export async function syncAccountEvents(
     }
 
     const persistedAccount = loadAccount(chainId);
-    const { account, errors } = await rebuildAccountScopesFromEvents(
+    const { account, legacyAccount, errors } = await rebuildAccountScopesFromEvents(
       opts.dataService,
       opts.mnemonic,
       persistedAccount ?? accountService.account,
       poolInfos,
     );
+    await assertNoLegacyMigrationRequired(legacyAccount, chainId);
 
     if (errors.length > 0) {
       for (const error of errors) {

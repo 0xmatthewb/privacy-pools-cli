@@ -10,7 +10,7 @@ import {
   type PoolAccountStatus,
 } from "./statuses.js";
 
-interface PoolAccountLike extends Pick<PoolAccount, "deposit" | "children" | "ragequit"> {}
+interface PoolAccountLike extends Pick<PoolAccount, "deposit" | "children" | "ragequit" | "isMigrated"> {}
 
 export type { PoolAccountStatus, AspApprovalStatus } from "./statuses.js";
 
@@ -56,6 +56,10 @@ function getCurrentCommitment(poolAccount: PoolAccountLike): AccountCommitment {
   return poolAccount.children.length > 0
     ? poolAccount.children[poolAccount.children.length - 1]
     : poolAccount.deposit;
+}
+
+function isHiddenMigratedPoolAccount(poolAccount: PoolAccountLike): boolean {
+  return "isMigrated" in poolAccount && poolAccount.isMigrated === true;
 }
 
 function isRagequitEvent(value: unknown): value is RagequitEvent {
@@ -150,6 +154,10 @@ export function buildAllPoolAccountRefs(
   let nextPoolAccountNumber = 1;
   const poolAccounts = getPoolAccountsForScope(account, scope);
   for (const poolAccount of poolAccounts) {
+    if (isHiddenMigratedPoolAccount(poolAccount)) {
+      continue;
+    }
+
     const currentCommitment = getCurrentCommitment(poolAccount);
     const key = commitmentKey(currentCommitment);
     const spendable = spendableByKey.get(key);
@@ -248,5 +256,9 @@ export function getNextPoolAccountNumber(
   account: PrivacyPoolAccount | null | undefined,
   scope: bigint
 ): number {
-  return getPoolAccountsForScope(account, scope).length + 1;
+  return (
+    getPoolAccountsForScope(account, scope).filter(
+      (poolAccount) => !isHiddenMigratedPoolAccount(poolAccount),
+    ).length + 1
+  );
 }

@@ -2,11 +2,13 @@ import type { Command } from "commander";
 import { confirm, select } from "@inquirer/prompts";
 import type { Address, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import type {
-  AccountCommitment,
-  Hash as SDKHash,
-  PrivacyPoolAccount,
-  RagequitEvent,
+import {
+  AccountService,
+  type AccountCommitment,
+  type Hash as SDKHash,
+  type PoolAccount,
+  type PrivacyPoolAccount,
+  type RagequitEvent,
 } from "@0xbow/privacy-pools-core-sdk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
@@ -18,6 +20,7 @@ import {
   initializeAccountService,
   saveAccount,
   saveSyncMeta,
+  withSuppressedSdkStdout,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
@@ -26,6 +29,10 @@ import {
   loadAspDepositReviewState,
   normalizeDepositReviewStatuses,
 } from "../services/asp.js";
+import {
+  collectLegacyMigrationCandidates,
+  loadDeclinedLegacyLabels,
+} from "../services/migration.js";
 import { explorerTxUrl, POA_PORTAL_URL } from "../config/chains.js";
 import {
   spinner,
@@ -96,6 +103,12 @@ interface RagequitCommandOptions {
   dryRun?: boolean;
 }
 
+interface RagequitAccountLoadResult {
+  accountService: AccountService;
+  legacyAccountService: AccountService | null;
+  legacyDeclinedLabels: ReadonlySet<string> | null;
+}
+
 export { createRagequitCommand } from "../command-shells/ragequit.js";
 
 export function formatRagequitPoolAccountChoice(
@@ -132,6 +145,137 @@ export function getRagequitAdvisory(
       };
     default:
       return null;
+  }
+}
+
+function getLatestCommitment(poolAccount: Pick<PoolAccount, "deposit" | "children">): AccountCommitment {
+  return poolAccount.children.length > 0
+    ? poolAccount.children[poolAccount.children.length - 1]
+    : poolAccount.deposit;
+}
+
+function isWebsiteRecoveryRequiredError(error: unknown): error is CLIError {
+  return error instanceof CLIError && error.code === "ACCOUNT_WEBSITE_RECOVERY_REQUIRED";
+}
+
+function buildDeclinedLegacyPoolAccountRefs(
+  legacyAccount: PrivacyPoolAccount | null | undefined,
+  scope: bigint,
+  declinedLabels: ReadonlySet<string>,
+  startNumber: number,
+): PoolAccountRef[] {
+  const poolAccounts = legacyAccount?.poolAccounts;
+  if (!(poolAccounts instanceof Map)) {
+    return [];
+  }
+
+  const scopedAccounts = poolAccounts.get(scope as unknown as SDKHash);
+  if (!Array.isArray(scopedAccounts) || declinedLabels.size === 0) {
+    return [];
+  }
+
+  const refs: PoolAccountRef[] = [];
+  let nextNumber = startNumber;
+  for (const poolAccount of scopedAccounts as PoolAccount[]) {
+    if (poolAccount.isMigrated === true) {
+      continue;
+    }
+
+    const label = poolAccount.deposit?.label ?? poolAccount.label;
+    if (typeof label !== "bigint" || !declinedLabels.has(label.toString())) {
+      continue;
+    }
+
+    const commitment = getLatestCommitment(poolAccount);
+    const ragequit =
+      poolAccount.ragequit &&
+      typeof poolAccount.ragequit === "object" &&
+      typeof poolAccount.ragequit.blockNumber === "bigint"
+        ? (poolAccount.ragequit as RagequitEvent)
+        : null;
+    const status = ragequit
+      ? "exited"
+      : commitment.value === 0n
+        ? "spent"
+        : "declined";
+
+    refs.push({
+      paNumber: nextNumber,
+      paId: poolAccountId(nextNumber),
+      status,
+      aspStatus: status === "declined" ? "declined" : "unknown",
+      commitment,
+      label: commitment.label,
+      value: ragequit ? 0n : commitment.value,
+      blockNumber: ragequit ? ragequit.blockNumber : commitment.blockNumber,
+      txHash: ragequit ? ragequit.transactionHash : commitment.txHash,
+    });
+    nextNumber++;
+  }
+
+  return refs;
+}
+
+async function loadRagequitAccountServices(
+  dataService: Awaited<ReturnType<typeof getDataService>>,
+  mnemonic: string,
+  poolInfo: {
+    chainId: number;
+    address: Address;
+    scope: SDKHash;
+    deploymentBlock: bigint;
+  },
+  chainId: number,
+  suppressWarnings: boolean,
+): Promise<RagequitAccountLoadResult> {
+  try {
+    return {
+      accountService: await initializeAccountService(
+        dataService,
+        mnemonic,
+        [poolInfo],
+        chainId,
+        true,
+        suppressWarnings,
+        true,
+      ),
+      legacyAccountService: null,
+      legacyDeclinedLabels: null,
+    };
+  } catch (error) {
+    if (!isWebsiteRecoveryRequiredError(error)) {
+      throw error;
+    }
+
+    const result = await withSuppressedSdkStdout(async () =>
+      AccountService.initializeWithEvents(dataService, { mnemonic }, [poolInfo]),
+    );
+    if ((result.errors?.length ?? 0) > 0) {
+      throw new CLIError(
+        `Failed to load legacy website-recovery state: ${result.errors
+          ?.slice(0, 3)
+          .map((item) => item.reason)
+          .join("; ")}`,
+        "RPC",
+        "Restore RPC access and retry ragequit once the account can be rebuilt cleanly.",
+        undefined,
+        true,
+      );
+    }
+
+    const declinedLabels = await loadDeclinedLegacyLabels(
+      chainId,
+      collectLegacyMigrationCandidates(result.legacyAccount),
+    );
+    if (!result.legacyAccount || declinedLabels === null || declinedLabels.size === 0) {
+      throw error;
+    }
+
+    return {
+      accountService: result.account,
+      legacyAccountService: result.legacyAccount,
+      legacyDeclinedLabels: declinedLabels,
+    };
   }
 }
 
@@ -285,21 +429,21 @@ export async function handleRagequitCommand(
       const spin = spinner("Loading account...", silent);
       spin.start();
 
-      const accountService = await initializeAccountService(
+    const {
+        accountService,
+        legacyAccountService,
+        legacyDeclinedLabels,
+      } = await loadRagequitAccountServices(
         dataService,
         mnemonic,
-        [
-          {
-            chainId: chainConfig.id,
-            address: pool.pool,
-            scope: pool.scope,
-            deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
-          },
-        ],
+        {
+          chainId: chainConfig.id,
+          address: pool.pool,
+          scope: pool.scope as unknown as SDKHash,
+          deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
+        },
         chainConfig.id,
-        true, // sync to pick up latest on-chain state
         silent,
-        true,
       );
 
       // Get spendable commitments for this pool
@@ -307,11 +451,27 @@ export async function handleRagequitCommand(
         accountService.getSpendableCommitments(),
       );
       const poolCommitments = spendable.get(pool.scope) ?? [];
-      const allKnownPoolAccounts = buildAllPoolAccountRefs(
+      const allKnownSafePoolAccounts = buildAllPoolAccountRefs(
         accountService.account,
         pool.scope,
         poolCommitments,
       );
+      const knownLabels = new Set(
+        allKnownSafePoolAccounts.map((poolAccount) => poolAccount.label.toString()),
+      );
+      const declinedLegacyPoolAccounts = buildDeclinedLegacyPoolAccountRefs(
+        legacyAccountService?.account,
+        pool.scope,
+        legacyDeclinedLabels ?? new Set<string>(),
+        allKnownSafePoolAccounts.length + 1,
+      ).filter((poolAccount) => !knownLabels.has(poolAccount.label.toString()));
+      const declinedLegacyLabels = new Set(
+        declinedLegacyPoolAccounts.map((poolAccount) => poolAccount.label.toString()),
+      );
+      const allKnownPoolAccounts = [
+        ...allKnownSafePoolAccounts,
+        ...declinedLegacyPoolAccounts,
+      ];
       verbose(
         `Spendable commitments for scope: ${poolCommitments.length}`,
         isVerbose,
@@ -369,15 +529,29 @@ export async function handleRagequitCommand(
         aspReviewState.approvedLabels,
         aspReviewState.reviewStatuses,
       );
-      const poolAccounts = buildRagequitPoolAccountRefs(
-        accountService.account,
-        pool.scope,
-        poolCommitments,
-        aspReviewState.approvedLabels,
-        aspReviewState.rawReviewStatuses,
-      );
+      const poolAccounts = [
+        ...buildRagequitPoolAccountRefs(
+          accountService.account,
+          pool.scope,
+          poolCommitments,
+          aspReviewState.approvedLabels,
+          aspReviewState.rawReviewStatuses,
+        ),
+        ...declinedLegacyPoolAccounts.filter(
+          (poolAccount) =>
+            poolAccount.value > 0n &&
+            describeUnavailablePoolAccount(poolAccount, "ragequit") === null,
+        ),
+      ];
 
-      if (poolCommitments.length === 0) {
+      if (declinedLegacyPoolAccounts.length > 0 && !silent) {
+        info(
+          "Declined legacy Pool Accounts are available here for public ragequit recovery.",
+          false,
+        );
+      }
+
+      if (poolAccounts.length === 0) {
         spin.stop();
         throw new CLIError(
           "No available Pool Accounts found for ragequit.",
@@ -385,6 +559,9 @@ export async function handleRagequitCommand(
           `You may not have deposits in ${pool.symbol}. Try 'privacy-pools deposit ...' first.`,
         );
       }
+
+      const selectedUsesLegacyRecovery = (poolAccount: PoolAccountRef): boolean =>
+        declinedLegacyLabels.has(poolAccount.label.toString());
 
       spin.stop();
 
@@ -402,7 +579,7 @@ export async function handleRagequitCommand(
           (pa) => pa.paNumber === fromPaNumber,
         );
         if (!requestedPoolAccount) {
-          const historicalPoolAccount = allPoolAccounts.find(
+          const historicalPoolAccount = allKnownPoolAccounts.find(
             (pa) => pa.paNumber === fromPaNumber,
           );
           const unavailableReason = historicalPoolAccount
@@ -419,7 +596,7 @@ export async function handleRagequitCommand(
             paNumber: fromPaNumber,
             symbol: pool.symbol,
             chainName: chainConfig.name,
-            knownPoolAccountsCount: allPoolAccounts.length,
+            knownPoolAccountsCount: allKnownPoolAccounts.length,
           });
           throw new CLIError(
             unknownPoolAccount.message,
@@ -488,6 +665,8 @@ export async function handleRagequitCommand(
       }
 
       const commitment = selectedPoolAccount.commitment;
+      const selectedPoolAccountUsesLegacyRecovery =
+        selectedUsesLegacyRecovery(selectedPoolAccount);
       verbose(
         `Selected ${selectedPoolAccount.paId}: label=${commitment.label.toString()} value=${commitment.value.toString()}`,
         isVerbose,
@@ -680,20 +859,22 @@ export async function handleRagequitCommand(
       try {
         // Mark the account as ragequit so it's excluded from getSpendableCommitments()
         try {
-          const ragequitEvent: RagequitEvent = {
-            ragequitter: signerAddress!,
-            commitment: commitment.hash,
-            label: commitment.label,
-            value: commitment.value,
-            blockNumber: receipt.blockNumber,
-            transactionHash: tx.hash as Hex,
-          };
-          withSuppressedSdkStdoutSync(() =>
-            accountService.addRagequitToAccount(
-              commitment.label as unknown as SDKHash,
-              ragequitEvent,
-            ),
-          );
+          if (!selectedPoolAccountUsesLegacyRecovery) {
+            const ragequitEvent: RagequitEvent = {
+              ragequitter: signerAddress!,
+              commitment: commitment.hash,
+              label: commitment.label,
+              value: commitment.value,
+              blockNumber: receipt.blockNumber,
+              transactionHash: tx.hash as Hex,
+            };
+            withSuppressedSdkStdoutSync(() =>
+              accountService.addRagequitToAccount(
+                commitment.label as unknown as SDKHash,
+                ragequitEvent,
+              ),
+            );
+          }
         } catch (err) {
           // Non-fatal: next sync will discover the ragequit event on-chain
           warn(
@@ -705,6 +886,12 @@ export async function handleRagequitCommand(
         try {
           saveAccount(chainConfig.id, accountService.account);
           saveSyncMeta(chainConfig.id);
+          if (selectedPoolAccountUsesLegacyRecovery) {
+            warn(
+              "Ragequit confirmed onchain. Legacy recovery state will refresh from chain events the next time the CLI syncs this account.",
+              silent,
+            );
+          }
         } catch (err) {
           warn(
               `Ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}`,
