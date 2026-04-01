@@ -108,10 +108,10 @@ describe("sdk dependency conformance", () => {
     );
 
     expect(sdkCompatSource).toContain(
-      'event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _merkleRoot)'
+      'event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)'
     );
-    expect(sdkCompatSource).toContain("_merkleRoot?: bigint");
-    expect(sdkCompatSource).toContain("precommitment: args._merkleRoot");
+    expect(sdkCompatSource).toContain("_precommitmentHash?: bigint");
+    expect(sdkCompatSource).toContain("precommitment: args._precommitmentHash");
   });
 
   test("cli source tree does not reimplement mnemonic master-key derivation or import local SDK copies", () => {

@@ -372,7 +372,7 @@ describe("sdk service", () => {
                   _commitment: 11n,
                   _label: 22n,
                   _value: 33n,
-                  _merkleRoot: 44n,
+                  _precommitmentHash: 44n,
                 },
                 blockNumber: 55n,
                 transactionHash:
@@ -476,7 +476,7 @@ describe("sdk service", () => {
                   _depositor: "0x1111111111111111111111111111111111111111",
                   _label: 22n,
                   _value: 33n,
-                  _merkleRoot: 44n,
+                  _precommitmentHash: 44n,
                 },
                 blockNumber: 55n,
                 transactionHash:
