@@ -386,7 +386,7 @@ function validateRelayerQuoteResponse(params: {
       );
     }
 
-    if (fc.asset!.toLowerCase() !== request.asset.toLowerCase()) {
+    if ((fc.asset as string).toLowerCase() !== request.asset.toLowerCase()) {
       throw new CLIError(
         "Relayer returned a fee commitment for a different asset.",
         "RELAYER",
@@ -394,7 +394,7 @@ function validateRelayerQuoteResponse(params: {
       );
     }
 
-    if (BigInt(fc.amount!) !== request.amount) {
+    if (BigInt(fc.amount as string) !== request.amount) {
       throw new CLIError(
         "Relayer returned a fee commitment for a different withdrawal amount.",
         "RELAYER",
