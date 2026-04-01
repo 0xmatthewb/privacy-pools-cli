@@ -2,7 +2,7 @@
 #
 # WHEN does this run?
 #   - Every pull request (changed-path selected)
-#   - Every push to "main"
+#   - Every push to "main" or "rust-refactor"
 #   - Daily on schedule
 #   - Manually via the "Run workflow" button
 #
@@ -23,6 +23,7 @@ on:
   push:
     branches:
       - main
+      - rust-refactor
   schedule:
     - cron: "31 4 * * *"
   workflow_dispatch:
