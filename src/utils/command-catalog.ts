@@ -547,7 +547,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }",
       ],
       safetyNotes: [
-        "Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.",
+        "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
         `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
       ],

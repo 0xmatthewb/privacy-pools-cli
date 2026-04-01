@@ -430,7 +430,7 @@ Representative payload (abridged):
     "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at the Privacy Pools portal first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits approve within 1 hour; some may take up to 7 days. Follow nextActions from the deposit response for the canonical polling command.",
+    "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at the Privacy Pools portal first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
     "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
@@ -509,7 +509,7 @@ privacy-pools describe stats global --agent
   "requiresHumanReview": false,
   "prerequisites": ["init"],
   "examples": ["privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."],
-  "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions? }",
+  "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
   "jsonVariants": [],
   "safetyNotes": [],
   "supportsUnsigned": false,
@@ -875,11 +875,11 @@ Without `--chain`, `accounts` aggregates all CLI-supported mainnet chains by def
 
 `balances` contains per-pool totals for Pool Accounts with remaining balance. `balance` is the total amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
 
-`--summary` returns `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions? }` and omits `accounts`.
+`--summary` returns `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }` and omits `accounts`.
 
-`--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions? }`, filters to `aspStatus: "pending"`, and omits `balances`.
+`--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
-After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Reviewed entries disappear from `--pending-only` results instead of changing in place; once gone, re-run `accounts --agent --chain <chain>` to confirm whether the final status is `approved`, `declined`, or `poi_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits approve within 1 hour; some may take up to 7 days. `nextActions` on `accounts` appear when pending approvals still exist.
+After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Reviewed entries disappear from `--pending-only` results instead of changing in place; once gone, re-run `accounts --agent --chain <chain>` to confirm whether the final status is `approved`, `declined`, or `poi_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). `nextActions` on `accounts` appear when pending approvals still exist.
 
 ### `migrate status`
 

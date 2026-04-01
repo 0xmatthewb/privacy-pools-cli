@@ -672,7 +672,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (!silent && hasPendingApprovals) {
     info(
-      "Under review: most deposits are approved within ~1 hour, but some may take longer. You can always exit publicly via ragequit if you prefer not to wait.",
+      "Under review: most deposits are approved within 1 hour, but some may take longer (up to 7 days). You can always exit publicly via ragequit if you prefer not to wait.",
       silent,
     );
     process.stderr.write("\n");

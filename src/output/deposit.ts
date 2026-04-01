@@ -183,7 +183,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const dd = displayDecimals(data.decimals);
   success(`Deposited ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
   info(
-    "Your deposit is now under review. Most deposits are approved within ~1 hour; some may take longer.",
+    "Your deposit is now under review. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
     silent,
   );
   info(`Pool Account: ${data.poolAccountId}`, silent);

@@ -246,7 +246,7 @@ export async function handleDepositCommand(
         silent,
       );
       info(
-        `You will receive: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd} committed value`,
+        `Net deposited: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd} (after vetting fee)`,
         silent,
       );
       if (isErc20) {

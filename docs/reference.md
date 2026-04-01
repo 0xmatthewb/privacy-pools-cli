@@ -303,7 +303,7 @@ privacy-pools deposit 0.1 --asset ETH --chain mainnet
 | `--dry-run` | Validate and preview the transaction without submitting |
 | `--ignore-unique-amount` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
 
-**Safety:** Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days.
+**Safety:** Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
 **Safety:** A vetting fee is deducted from the deposit amount by the pool's ASP.
 **Safety:** Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.
 

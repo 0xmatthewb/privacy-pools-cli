@@ -41,7 +41,7 @@ privacy-pools flow ragequit latest          # optional public recovery once the 
 # 4. Manual path: deposit into a pool
 privacy-pools deposit 0.1 ETH
 
-# 5. Wait for ASP approval (most < 1 hour, up to 7 days)
+# 5. Wait for ASP approval (most deposits are approved within 1 hour, but some may take longer: up to 7 days)
 privacy-pools accounts --chain mainnet --pending-only   # poll while the deposit remains pending
 privacy-pools accounts --chain mainnet                  # confirm approved vs declined vs PoA-needed before next step
 
@@ -51,7 +51,7 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 
 ### How it works
 
-`flow start` deposits into a pool and saves a local workflow. Once 0xbow's Association Set Provider (ASP) approves it, `flow watch` waits through the default balanced privacy delay (a randomized 15 to 90 minute hold) before requesting the relayed private withdrawal. The saved workflow spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding. Most approvals happen within an hour; some take up to 7 days.
+`flow start` deposits into a pool and saves a local workflow. Once 0xbow's Association Set Provider (ASP) approves it, `flow watch` waits through the default balanced privacy delay (a randomized 15 to 90 minute hold) before requesting the relayed private withdrawal. The saved workflow spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
 
 With `--new-wallet`, the CLI generates a dedicated wallet for the workflow, asks you to back it up, then waits for you to fund it before continuing. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in that same wallet. Useful for one-off flows where you don't want to use your main signer.
 

@@ -330,7 +330,7 @@ All numeric values are strings (wei). `committedValue` and `label` may be `null`
 
 `nextActions` provides the canonical structured guidance: poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then re-run `accounts --agent --chain <chain>` to confirm whether it was approved, declined, or `poi_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` scope for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without `--chain`.
 
-Deposits are reviewed by the ASP before approval. Most approve within 1 hour; some may take up to 7 days. A vetting fee is deducted from the deposit amount by the ASP. Only approved deposits can use `withdraw` (relayed or direct). Declined deposits must `ragequit` publicly to the deposit address.
+Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). A vetting fee is deducted from the deposit amount by the ASP. Only approved deposits can use `withdraw` (relayed or direct). Declined deposits must `ragequit` publicly to the deposit address.
 
 **Privacy guard**: In machine modes (`--json`, `--agent`, `--yes`, `--dry-run`, `--unsigned`), non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts. Pass `--ignore-unique-amount` only when you intentionally want to bypass that protection.
 
@@ -472,8 +472,7 @@ After depositing, poll `accounts --agent --chain <chain> --pending-only` while t
 
 - **Initial interval**: 60 seconds
 - **Backoff**: exponential, max 5 minutes between polls
-- **Most deposits approve within 1 hour**
-- **Maximum wait**: 7 days (rare edge cases)
+- **Most deposits are approved within 1 hour, but some may take longer (up to 7 days)**
 - Once the Pool Account disappears from pending-only results, re-run `accounts --agent --chain <chain>` to confirm whether it is approved, declined, or `poi_required` before choosing `withdraw` or `ragequit`
 - Always preserve `--chain`; bare `accounts` only covers the mainnet chains, so testnet deposits are invisible without it
 
