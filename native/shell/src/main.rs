@@ -35,10 +35,16 @@ const POOL_RESOLUTION_BATCH_SIZE: usize = 4;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
 
 #[derive(Clone, Copy)]
+// Keep the full CLI error taxonomy mirrored here even though the current
+// native shell only constructs a subset of these categories today.
+#[allow(dead_code)]
 enum ErrorCategory {
     Input,
     Rpc,
     Asp,
+    Relayer,
+    Proof,
+    Contract,
     Unknown,
 }
 
@@ -48,6 +54,9 @@ impl ErrorCategory {
             ErrorCategory::Input => "INPUT",
             ErrorCategory::Rpc => "RPC",
             ErrorCategory::Asp => "ASP",
+            ErrorCategory::Relayer => "RELAYER",
+            ErrorCategory::Proof => "PROOF",
+            ErrorCategory::Contract => "CONTRACT",
             ErrorCategory::Unknown => "UNKNOWN",
         }
     }
@@ -58,6 +67,9 @@ impl ErrorCategory {
             ErrorCategory::Input => 2,
             ErrorCategory::Rpc => 3,
             ErrorCategory::Asp => 4,
+            ErrorCategory::Relayer => 5,
+            ErrorCategory::Proof => 6,
+            ErrorCategory::Contract => 7,
         }
     }
 
@@ -66,6 +78,9 @@ impl ErrorCategory {
             ErrorCategory::Input => "INPUT_ERROR",
             ErrorCategory::Rpc => "RPC_ERROR",
             ErrorCategory::Asp => "ASP_ERROR",
+            ErrorCategory::Relayer => "RELAYER_ERROR",
+            ErrorCategory::Proof => "PROOF_ERROR",
+            ErrorCategory::Contract => "CONTRACT_ERROR",
             ErrorCategory::Unknown => "UNKNOWN_ERROR",
         }
     }
@@ -3460,7 +3475,7 @@ fn format_asp_approval_status_label(status: &str) -> String {
     match status.trim().to_lowercase().as_str() {
         "approved" => "Approved".to_string(),
         "pending" => "Pending".to_string(),
-        "poi_required" => "PoA Needed".to_string(),
+        "poi_required" => "POA Needed".to_string(),
         "declined" => "Declined".to_string(),
         _ => "Unknown".to_string(),
     }
