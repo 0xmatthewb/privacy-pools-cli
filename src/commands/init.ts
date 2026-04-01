@@ -411,7 +411,7 @@ export async function handleInitCommand(
       process.stderr.write("\n");
       process.stderr.write(
         chalk.bold(
-          notice("⚠  IMPORTANT: Save your recovery phrase securely!"),
+          notice("IMPORTANT: Save your recovery phrase securely!"),
         ) + "\n",
       );
       process.stderr.write(
@@ -476,14 +476,14 @@ export async function handleInitCommand(
       if (opts.showMnemonic) {
         process.stderr.write(
           chalk.bold(
-            notice("⚠  Save your recovery phrase from the JSON output below."),
+            notice("Save your recovery phrase from the JSON output below."),
           ) + "\n",
         );
       } else {
         process.stderr.write(
           chalk.bold(
             notice(
-              "⚠  Recovery phrase is redacted from JSON by default. Re-run with --show-mnemonic to print it once.",
+              "Recovery phrase is redacted from JSON by default. Re-run with --show-mnemonic to print it once.",
             ),
           ) + "\n",
         );

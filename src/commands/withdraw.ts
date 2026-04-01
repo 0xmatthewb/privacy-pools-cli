@@ -1172,14 +1172,11 @@ export async function handleWithdrawCommand(
             saveAccount(chainConfig.id, accountService.account);
             saveSyncMeta(chainConfig.id);
           } catch (saveErr) {
-            if (!silent) {
-              process.stderr.write(
-                `\nWarning: withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}\n`,
-              );
-              process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to update your local account state.\n",
-              );
-            }
+            warn(
+              `Withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
+              silent,
+            );
+            warn("Run 'privacy-pools sync' to update your local account state.", silent);
           }
         } finally {
           releaseCriticalSection();
@@ -1634,14 +1631,11 @@ export async function handleWithdrawCommand(
             saveAccount(chainConfig.id, accountService.account);
             saveSyncMeta(chainConfig.id);
           } catch (saveErr) {
-            if (!silent) {
-              process.stderr.write(
-                `\nWarning: relayed withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}\n`,
-              );
-              process.stderr.write(
-                "⚠ Run 'privacy-pools sync' to update your local account state.\n",
-              );
-            }
+            warn(
+              `Relayed withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
+              silent,
+            );
+            warn("Run 'privacy-pools sync' to update your local account state.", silent);
           }
         } finally {
           releaseCriticalSection();
