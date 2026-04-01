@@ -546,7 +546,7 @@ describe("ragequit command handler", () => {
     );
 
     expect(stderr).toContain(
-      "No available Pool Accounts found for exit",
+      "No available Pool Accounts found for ragequit",
     );
     expect(exitCode).toBe(2);
   });
@@ -628,7 +628,7 @@ describe("ragequit command handler", () => {
     expect(stdout).toBe("");
     expect(selectPromptMock).toHaveBeenCalledTimes(1);
     expect(confirmPromptMock).toHaveBeenCalledTimes(1);
-    expect(stderr).toContain("withdrawing funds publicly");
+    expect(stderr).toContain("Ragequit withdraws funds publicly");
     expect(stderr).toContain("Ragequit cancelled.");
     expect(ragequitMock).not.toHaveBeenCalled();
   });
@@ -752,7 +752,7 @@ describe("ragequit command handler", () => {
 
     expect(selectPromptMock).toHaveBeenCalledTimes(2);
     expect(ragequitMock).toHaveBeenCalledTimes(1);
-    expect(stderr).toContain("Exit confirmed");
+    expect(stderr).toContain("Ragequit confirmed");
   });
 
   test("fails cleanly for humans when no pools are available to choose from", async () => {
@@ -913,7 +913,7 @@ describe("ragequit command handler", () => {
     );
 
     expect(stderr).toContain("Failed to record ragequit locally");
-    expect(stderr).toContain("Exit confirmed");
+    expect(stderr).toContain("Ragequit confirmed");
   });
 
   test("continues when saving local ragequit state fails after confirmation", async () => {
@@ -932,7 +932,7 @@ describe("ragequit command handler", () => {
 
     expect(stderr).toContain("failed to save local state");
     expect(stderr).toContain("Run 'privacy-pools sync'");
-    expect(stderr).toContain("Exit confirmed");
+    expect(stderr).toContain("Ragequit confirmed");
   });
 
   test("fails closed when onchain depositor preverification is unavailable in human mode", async () => {

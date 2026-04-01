@@ -1585,8 +1585,8 @@ describe("withdraw command handler", () => {
       ),
     );
 
-    expect(stderr).toContain("Gas received:");
-    expect(stderr).toContain("Gas token drop:  enabled");
+    expect(stderr).toContain("Gas token received:");
+    expect(stderr).not.toContain("Gas token drop");
     expect(stderr).toContain("Withdrawal cancelled.");
   });
 
@@ -2169,7 +2169,7 @@ describe("withdraw command handler", () => {
       ),
     );
 
-    expect(stderr).toContain("relayed withdrawal confirmed onchain but failed to save locally");
+    expect(stderr).toContain("Relayed withdrawal confirmed onchain but failed to save locally");
     expect(stderr).toContain("privacy-pools sync");
   });
 
@@ -2247,7 +2247,7 @@ describe("withdraw command handler", () => {
       ),
     );
 
-    expect(stderr).toContain("withdrawal confirmed onchain but failed to save locally");
+    expect(stderr).toContain("Withdrawal confirmed onchain but failed to save locally");
     expect(stderr).toContain("privacy-pools sync");
   });
 

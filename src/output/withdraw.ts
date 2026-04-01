@@ -114,7 +114,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
     if (data.quoteExpiresAt) info(`Quote expires: ${data.quoteExpiresAt}`, silent);
   }
   if (data.withdrawMode === "relayed" && data.extraGas) {
-    info("Gas token drop: enabled (receive ETH for gas)", silent);
+    info("Gas token received: enabled (receive ETH for gas)", silent);
   }
   info(
     `Pool Account balance: ${formatAmount(data.selectedCommitmentValue, data.decimals, data.asset, displayDecimals(data.decimals))}`,
@@ -231,7 +231,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     info(`Relayer fee: ${formatBPS(data.feeBPS)}. You receive: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`, silent);
   }
   if (data.withdrawMode === "relayed" && data.extraGas) {
-    info("Gas token drop: enabled (ETH included with withdrawal)", silent);
+    info("Gas token received: ETH included with withdrawal", silent);
   }
   if (data.remainingBalance === 0n) {
     info(`${data.poolAccountId} fully withdrawn`, silent);
@@ -403,8 +403,8 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       : "expired";
     info(`Quote expires: ${data.quoteExpiresAt} (${expiresLabel})`, silent);
   }
-  if (data.extraGas) {
-    info("Gas token drop: enabled (receive ETH for gas)", silent);
+  if (data.extraGas && !extraGasFundFormatted) {
+    info("Gas token received: enabled (receive ETH for gas)", silent);
   }
   renderNextSteps(ctx, humanNextActions);
 }

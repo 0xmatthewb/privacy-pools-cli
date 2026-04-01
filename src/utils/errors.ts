@@ -205,12 +205,12 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     code: "CONTRACT_INVALID_COMMITMENT",
   },
   OnlyOriginalDepositor: {
-    message: "Only the original depositor can exit this Pool Account.",
+    message: "Only the original depositor can ragequit this Pool Account.",
     hint: "Use the same signer address that made the deposit.",
     code: "CONTRACT_ONLY_ORIGINAL_DEPOSITOR",
   },
   NotYetRagequitteable: {
-    message: "This Pool Account cannot be exited yet.",
+    message: "This Pool Account cannot be ragequit yet.",
     hint: "The deposit must be on-chain for a minimum period before public recovery is available. Wait and retry later.",
     code: "CONTRACT_NOT_YET_RAGEQUITTEABLE",
     retryable: true,

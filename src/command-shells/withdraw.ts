@@ -19,7 +19,7 @@ export function createWithdrawCommand(): Command {
       new Option(
         "--direct",
         "NOT recommended. Withdraw directly onchain, publicly linking deposit and withdrawal addresses. Use relayed mode (default) for privacy.",
-      ).hideHelp(),
+      ),
     )
     .addOption(
       new Option(

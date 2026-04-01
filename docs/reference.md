@@ -305,7 +305,7 @@ privacy-pools deposit 0.1 --asset ETH --chain mainnet
 
 **Safety:** Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
 **Safety:** A vetting fee is deducted from the deposit amount by the pool's ASP.
-**Safety:** Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.
+**Safety:** Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.
 
 **JSON output:** `{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
@@ -499,7 +499,7 @@ privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `-a, --asset <symbol\|address>` | Asset pool to exit from |
+| `-a, --asset <symbol\|address>` | Asset pool to ragequit from |
 | `-p, --from-pa <PA-#\|#>` | Ragequit a specific Pool Account (e.g. PA-2) |
 | `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
 | `--dry-run` | Generate proof and validate without submitting |

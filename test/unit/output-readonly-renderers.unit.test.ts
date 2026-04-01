@@ -165,6 +165,7 @@ describe("read-only output renderers", () => {
     );
     expect(humanOutput.stderr).toContain("review data incomplete");
     expect(humanOutput.stderr).toContain("No pending Pool Accounts found");
+    expect(humanOutput.stderr).toContain("without --pending-only to confirm approved, declined, or POA Needed results");
   });
 
   test("renderHistory and renderHistoryNoPools preserve JSON and human contracts", () => {

@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
 import { accent, accentBold, dangerTone, highlight, notice, subtle, successTone } from "./theme.js";
 export { styleCommanderHelp } from "./root-help.js";
 
@@ -79,16 +80,16 @@ export function guideText(): string {
     `  ${accent("privacy-pools pools")}                                          ${chalk.dim("(browse available pools)")}`,
     `  ${accent("privacy-pools deposit 0.1 ETH")}`,
     `  ${accent("privacy-pools accounts --chain mainnet --pending-only")}        ${chalk.dim("(poll ASP review; keep the same --chain until it disappears)")}`,
-    `  ${accent("privacy-pools accounts --chain mainnet")}                       ${chalk.dim("(then confirm approved vs declined vs PoA-needed)")}`,
+    `  ${accent("privacy-pools accounts --chain mainnet")}                       ${chalk.dim("(then confirm approved vs declined vs POA Needed)")}`,
     `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-1")}`,
     chalk.dim("  Transaction commands use your default chain (set during init)."),
     chalk.dim("  Public dashboards like pools/activity/stats default to all CLI-supported mainnet chains unless you pass --chain."),
     chalk.dim("  Accounts is wallet-dependent: use --chain to keep approval checks on the same network as the deposit."),
     "",
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
-    chalk.dim("  Most deposits are approved within 1 hour, but some may take longer (up to 7 days)."),
+    chalk.dim(`  ${DEPOSIT_APPROVAL_TIMELINE_COPY}`),
     chalk.dim("  ASP approval is required for withdraw, including --direct. If a deposit is"),
-    chalk.dim("  declined, use ragequit to exit publicly to the original deposit address."),
+    chalk.dim("  declined, use ragequit for public recovery to the original deposit address."),
     chalk.dim("  Declined saved easy-path workflows use 'flow ragequit' as their canonical"),
     chalk.dim("  public recovery path, and operators can also choose it manually after the"),
     chalk.dim("  public deposit exists."),
@@ -175,7 +176,7 @@ export function guideText(): string {
     "                   approved within 1 hour, but some may take longer",
     "                   (up to 7 days). Some may require Proof of Association",
     "                   or be declined. Declined deposits must use ragequit",
-    "                   to exit publicly.",
+    "                   for public recovery.",
     "  Custom RPC?       Pass --rpc-url on any command, or save per-chain overrides in",
     `                   ~/.privacy-pools/config.json under ${chalk.dim('"rpcOverrides": { "<chainId>": "https://..." }')}.`,
     "",
@@ -200,7 +201,7 @@ export function guideText(): string {
     chalk.bold("Terminology"),
     `  ${notice("Recovery phrase")}          24-word mnemonic by default in the CLI; imports may be 12/24 words.`,
     `  ${notice("Signer key")}               Private key that pays gas and sends transactions.`,
-    `  ${notice("Pool Account (PA)")}        Individual deposit lineage tracked for withdrawal/exit.`,
+    `  ${notice("Pool Account (PA)")}        Individual deposit lineage tracked for withdrawal/ragequit.`,
     `  ${notice("ASP status")}               ${successTone("approved")} (withdraw ready), ${notice("pending")} (waiting),`,
     `                                   ${notice("poi_required")} (complete Proof of Association),`,
     `                                   ${dangerTone("declined")} (ragequit only), ${subtle("unknown")} (unresolved).`,

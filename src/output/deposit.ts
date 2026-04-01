@@ -20,6 +20,7 @@ import {
 } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
 import { isTestnetChain, POA_PORTAL_URL } from "../config/chains.js";
+import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import { formatUnits } from "viem";
 
 export interface DepositDryRunData {
@@ -119,7 +120,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const agentNextActions = [
     createNextAction(
       "accounts",
-      `Poll pending review for ${data.poolAccountId}. When it disappears from pending results, ${confirmHint} to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.`,
+      `Poll pending review for ${data.poolAccountId}. When it disappears, ${confirmHint} to confirm whether it was approved, declined, or needs Proof of Association.`,
       "after_deposit",
       { options: { agent: true, chain: data.chain, pendingOnly: true } },
     ),
@@ -136,7 +137,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const humanNextActions = [
     createNextAction(
       "accounts",
-      `Poll pending review for ${data.poolAccountId}. When it disappears from pending results, re-run ${humanConfirmCommand} to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.`,
+      `Poll pending review for ${data.poolAccountId}. When it disappears, re-run ${humanConfirmCommand} to confirm whether it was approved, declined, or needs Proof of Association.`,
       "after_deposit",
       {
         options: { chain: data.chain, pendingOnly: true },
@@ -144,7 +145,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     ),
     createNextAction(
       "ragequit",
-      `If ${humanConfirmCommand} later shows ${data.poolAccountId} as declined, or if you decide not to wait for approval, ragequit remains available for public recovery. Complete Proof of Association at ${POA_PORTAL_URL} first if it is required instead.`,
+      `If ${humanConfirmCommand} later shows ${data.poolAccountId} as declined, or if you do not want to wait for approval, ragequit remains available for public recovery. Complete Proof of Association at ${POA_PORTAL_URL} first if needed for a private withdrawal instead.`,
       "after_deposit",
       {
         args: [data.asset],
@@ -183,7 +184,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const dd = displayDecimals(data.decimals);
   success(`Deposited ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
   info(
-    "Your deposit is now under review. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
+    `Your deposit is now under review. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
     silent,
   );
   info(`Pool Account: ${data.poolAccountId}`, silent);

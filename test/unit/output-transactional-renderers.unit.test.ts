@@ -245,7 +245,7 @@ describe("renderDepositSuccess parity", () => {
       json.nextActions[0],
       {
         command: "accounts",
-        reason: "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain sepolia to confirm whether it was approved, declined, or needs Proof of Association before choosing withdraw or ragequit.",
+        reason: "Poll pending review for PA-1. When it disappears, re-run accounts --chain sepolia to confirm whether it was approved, declined, or needs Proof of Association.",
         when: "after_deposit",
         options: { agent: true, chain: "sepolia", pendingOnly: true },
       },
@@ -293,7 +293,7 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools accounts --chain sepolia --pending-only");
     expect(stderr).toContain(
-      "When it disappears from pending results, re-run privacy-pools accounts --chain sepolia",
+      "When it disappears, re-run privacy-pools accounts --chain sepolia",
     );
     expect(stderr).toContain("privacy-pools ragequit ETH --chain sepolia --from-pa PA-1");
   });
@@ -351,6 +351,17 @@ describe("renderRagequitDryRun parity", () => {
     expect(json.selectedCommitmentLabel).toBe("456");
     expect(json.selectedCommitmentValue).toBe("500000000000000000");
     expect(json.proofPublicSignals).toBe(7);
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
+      {
+        command: "ragequit",
+        when: "after_dry_run",
+        args: ["ETH"],
+        options: { agent: true, chain: "sepolia", fromPa: "PA-2" },
+      },
+      "privacy-pools ragequit ETH --agent --chain sepolia --from-pa PA-2",
+    );
     expect(stderr).toBe("");
   });
 
@@ -366,6 +377,7 @@ describe("renderRagequitDryRun parity", () => {
     expect(stderr).toContain("Asset: ETH");
     expect(stderr).toContain("Pool Account: PA-2");
     expect(stderr).toContain("Destination:");
+    expect(stderr).toContain("Next steps:");
   });
 });
 
@@ -776,21 +788,21 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).not.toContain("Remaining in PA-1:");
   });
 
-  test("human mode (relayed): shows gas token drop when extraGas is true", () => {
+  test("human mode (relayed): shows gas token received when extraGas is true", () => {
     const ctx = createOutputContext(makeMode());
     const data = { ...STUB_WITHDRAW_SUCCESS_RELAYED, extraGas: true };
     const { stderr } = captureOutput(() => renderWithdrawSuccess(ctx, data));
 
-    expect(stderr).toContain("Gas token drop: enabled");
+    expect(stderr).toContain("Gas token received:");
   });
 
-  test("human mode (relayed): omits gas token drop when extraGas is falsy", () => {
+  test("human mode (relayed): omits gas token received when extraGas is falsy", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
       renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_RELAYED),
     );
 
-    expect(stderr).not.toContain("Gas token drop");
+    expect(stderr).not.toContain("Gas token received");
   });
 
   test("human mode: shows USD values when tokenPrice is provided", () => {

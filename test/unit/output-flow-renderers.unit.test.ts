@@ -526,7 +526,7 @@ describe("renderFlowResult", () => {
 
     expect(stderr).toContain("changed outside this saved workflow");
     expect(stderr).toContain(
-      "Inspect accounts on sepolia, then choose the manual follow-up from the current account state.",
+      "Inspect the latest account state, then choose the right manual next step from there.",
     );
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
   });

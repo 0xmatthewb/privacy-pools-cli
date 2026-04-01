@@ -39,7 +39,7 @@
       "when": "string (machine-readable timing label)",
       "cliCommand": "string (fully executable CLI invocation with kebab-case flags)",
       "args": "string[]? (positional arguments to pass)",
-      "options": "Record<string, string|number|boolean|null>? (named options without leading dashes)",
+      "options": "Record<string, string|number|boolean|null>? (named options in source-object form; prefer cliCommand for direct execution)",
       "runnable": "boolean? (false means the action is a template and needs additional user input before execution)"
     },
     "rawUnsignedTransaction": {

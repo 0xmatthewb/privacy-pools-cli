@@ -349,7 +349,7 @@ export async function handleInitCommand(
     if (hasExisting && !forceOverwrite && !skipPrompts) {
       const overwrite = await confirm({
         message:
-          `Existing configuration found. Reinitializing will ${mnemonicSource ? "import a new recovery phrase" : "generate a new recovery phrase"} and overwrite settings. Continue?`,
+          `Existing configuration found. Reinitializing will ${mnemonicSource ? "replace your current recovery phrase with the one you provided" : "replace your current recovery phrase"} and overwrite settings. Continue?`,
         default: false,
       });
       if (!overwrite) {

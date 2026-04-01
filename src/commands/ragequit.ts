@@ -113,7 +113,7 @@ export function getRagequitAdvisory(
     case "approved":
       return {
         level: "warn",
-        message: `${poolAccount.paId} is approved — you can use 'privacy-pools withdraw' for a private withdrawal instead. Only continue with ragequit if you intentionally want a public, non-private exit.`,
+        message: `${poolAccount.paId} is approved. Use 'privacy-pools withdraw --from-pa ${poolAccount.paId} ...' for a private withdrawal instead. Only continue with ragequit if you intentionally want public recovery.`,
       };
     case "pending":
       return {
@@ -123,7 +123,7 @@ export function getRagequitAdvisory(
     case "poi_required":
       return {
         level: "info",
-        message: `${poolAccount.paId} needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL} for a private withdrawal, or continue with ragequit for a public exit.`,
+        message: `${poolAccount.paId} needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL} for a private withdrawal, or continue with ragequit for public recovery.`,
       };
     case "declined":
       return {
@@ -242,7 +242,7 @@ export async function handleRagequitCommand(
         );
       }
       const selected = await select({
-        message: "Select asset pool to exit:",
+        message: "Select asset pool to ragequit:",
         choices: pools.map((p) => ({
           name: `${p.symbol} (${formatAddress(p.asset)})`,
           value: p.symbol,
@@ -380,7 +380,7 @@ export async function handleRagequitCommand(
       if (poolCommitments.length === 0) {
         spin.stop();
         throw new CLIError(
-          "No available Pool Accounts found for exit.",
+          "No available Pool Accounts found for ragequit.",
           "INPUT",
           `You may not have deposits in ${pool.symbol}. Try 'privacy-pools deposit ...' first.`,
         );
@@ -466,7 +466,7 @@ export async function handleRagequitCommand(
         }
       } else if (!skipPrompts) {
         const selected = await select({
-          message: "Select Pool Account to exit:",
+          message: "Select Pool Account to ragequit:",
           choices: poolAccounts.map((pa) => ({
             name: formatRagequitPoolAccountChoice(
               pa,
@@ -483,7 +483,7 @@ export async function handleRagequitCommand(
         throw new CLIError(
           "Must specify --from-pa in non-interactive mode.",
           "INPUT",
-          "Use --from-pa <PA-#> to select which Pool Account to exit.",
+          "Use --from-pa <PA-#> to select which Pool Account to ragequit.",
         );
       }
 
@@ -517,13 +517,13 @@ export async function handleRagequitCommand(
 
       const depositorAddress = await resolveDepositorAddress();
 
-      // Always show the public-exit warning in human mode, even when --yes
+      // Always show the public recovery warning in human mode, even when --yes
       // skips the confirmation prompt.
       if (!silent) {
         process.stderr.write("\n");
 
         warn(
-          "By exiting, you are withdrawing funds publicly to your deposit address and will not gain any privacy. If your deposit is approved, use 'withdraw' instead for a private withdrawal.",
+          "Ragequit withdraws funds publicly to your deposit address and does not preserve privacy. If your deposit is approved, use 'withdraw' instead for a private withdrawal.",
           silent,
         );
         const advisory = getRagequitAdvisory(selectedPoolAccount);
@@ -568,7 +568,7 @@ export async function handleRagequitCommand(
           throw new CLIError(
             `Signer ${signerAddress} is not the original depositor (${depositorAddress}).`,
             "INPUT",
-            "Only the original depositor can exit this Pool Account. Check your signer key.",
+            "Only the original depositor can ragequit this Pool Account. Check your signer key.",
           );
         }
       }
@@ -644,9 +644,9 @@ export async function handleRagequitCommand(
       }
 
       // Submit ragequit
-      stageHeader(3, 3, "Submitting exit", silent);
+      stageHeader(3, 3, "Submitting ragequit", silent);
       const solidityProof = toRagequitSolidityProof(proof);
-      spin.text = "Submitting exit transaction...";
+      spin.text = "Submitting ragequit transaction...";
       const tx = await submitRagequit(
         chainConfig,
         pool.pool,
@@ -718,7 +718,7 @@ export async function handleRagequitCommand(
       } finally {
         releaseCriticalSection();
       }
-      spin.succeed("Exit confirmed!");
+      spin.succeed("Ragequit confirmed!");
 
       const ctx = createOutputContext(mode);
       renderRagequitSuccess(ctx, {

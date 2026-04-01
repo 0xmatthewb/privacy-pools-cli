@@ -525,7 +525,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "withdraw quote",
       "description": "Request relayer quote and limits without generating a proof",
-      "usage": "withdraw quote <amount> [asset]",
+      "usage": "withdraw quote <amount> --asset <symbol|address>",
       "flags": [
         "--asset <symbol|address>",
         "--to <address>"
@@ -1572,7 +1572,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately."
+        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -1668,7 +1668,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "help"
         ]
       },
-      "usage": "withdraw quote <amount> [asset]",
+      "usage": "withdraw quote <amount> --asset <symbol|address>",
       "flags": [
         "--asset <symbol|address>",
         "--to <address>"

@@ -19,6 +19,7 @@ import {
   type CommandMetadata,
   type CommandPath,
 } from "./command-catalog.js";
+import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
 
 export type { CommandCapabilityMetadata, CommandMetadata, CommandPath } from "./command-catalog.js";
 export { COMMAND_PATHS } from "./command-catalog.js";
@@ -152,7 +153,7 @@ const AGENT_WORKFLOW = [
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    `After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.`,
+    `After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if poi_required. Always preserve the same --chain scope for both polling and confirmation. ${DEPOSIT_APPROVAL_TIMELINE_COPY} Follow nextActions from the deposit response for the canonical polling command.`,
   withdrawQuote:
     "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
   firstRun:

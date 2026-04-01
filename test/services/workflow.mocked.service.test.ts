@@ -4621,7 +4621,7 @@ describe("workflow service mocked coverage", () => {
         expect(BigInt(snapshot.requiredNativeFunding ?? "0")).toBeGreaterThan(0n);
       });
 
-      expect(stderr).toContain("Expected committed value:");
+      expect(stderr).toContain("Expected net deposited:");
       expect(stderr).toContain("Auto-withdrawal:");
       expect(stderr).toContain(
         "The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",

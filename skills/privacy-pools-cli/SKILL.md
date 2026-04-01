@@ -61,7 +61,7 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Withdraw (unsigned) | `privacy-pools withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
 | Withdrawal quote | `privacy-pools withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
 | Pool detail | `privacy-pools pools ETH --agent` | Combined stats + my funds |
-| Ragequit (exit alias) | `privacy-pools ragequit ETH --from-pa PA-1 --agent` | Emergency public exit |
+| Ragequit (exit alias) | `privacy-pools ragequit ETH --from-pa PA-1 --agent` | Emergency public recovery |
 | Dry-run | `privacy-pools deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
 | Event history | `privacy-pools history --agent` | Requires init |
 | Force sync | `privacy-pools sync --agent` | Rarely needed (auto-sync with 2min TTL) |
@@ -108,7 +108,7 @@ Errors:
 
 Parse `success` first. On failure, use `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
 
-Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `false`, the action is a template that needs additional user input before execution.
+Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field, and prefer `cliCommand` when you want the directly executable CLI string. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
 ---
 

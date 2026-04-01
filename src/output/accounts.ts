@@ -29,6 +29,7 @@ import {
 import { accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import { explorerTxUrl, isMultiChainScope, POA_PORTAL_URL } from "../config/chains.js";
+import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import {
   isActivePoolAccountStatus,
   renderAspApprovalStatus,
@@ -279,8 +280,8 @@ function renderSummaryCsv(
   includeChainFields: boolean,
 ): void {
   const headers = includeChainFields
-    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "PoA Needed", "Declined", "Unknown", "Spent", "Exited"]
-    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "PoA Needed", "Declined", "Unknown", "Spent", "Exited"];
+    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "POA Needed", "Declined", "Unknown", "Spent", "Exited"]
+    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "POA Needed", "Declined", "Unknown", "Spent", "Exited"];
   const sourceRows =
     summary.balances.length > 0
       ? summary.balances
@@ -536,6 +537,14 @@ export function renderAccountsNoPools(
         : `No pending Pool Accounts found on ${data.chain}.`,
       silent,
     );
+    if (!silent) {
+      info(
+        includeChainFields
+          ? `Re-run ${data.allChains ? "accounts --all-chains" : "accounts"} without --pending-only to confirm approved, declined, or POA Needed results.`
+          : `Re-run accounts --chain ${data.chain} without --pending-only to confirm approved, declined, or POA Needed results.`,
+        silent,
+      );
+    }
     return;
   }
 
@@ -672,7 +681,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (!silent && hasPendingApprovals) {
     info(
-      "Under review: most deposits are approved within 1 hour, but some may take longer (up to 7 days). You can always exit publicly via ragequit if you prefer not to wait.",
+      `Under review. ${DEPOSIT_APPROVAL_TIMELINE_COPY} You can always recover publicly with ragequit if you prefer not to wait.`,
       silent,
     );
     process.stderr.write("\n");
@@ -680,7 +689,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (!silent && hasDeclinedApprovals) {
     info(
-      "Declined Pool Accounts cannot use withdraw, including --direct. Use ragequit to exit publicly to the original deposit address.",
+      "Declined Pool Accounts cannot use withdraw, including --direct. Use ragequit for public recovery to the original deposit address.",
       silent,
     );
     process.stderr.write("\n");
@@ -688,7 +697,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (!silent && hasPoiRequiredApprovals) {
     info(
-      `PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at ${POA_PORTAL_URL}, then re-check accounts. Ragequit remains available if you prefer a public exit to the original deposit address.`,
+      `POA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at ${POA_PORTAL_URL}, then re-check accounts. Ragequit remains available if you prefer public recovery to the original deposit address.`,
       silent,
     );
     process.stderr.write("\n");
@@ -750,6 +759,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
   if (!renderedAny) {
     if (showPendingOnly) {
       info("No pending Pool Accounts found.", silent);
+      info(
+        "Re-run without --pending-only to confirm whether any recently reviewed Pool Accounts are now approved, declined, or POA Needed.",
+        silent,
+      );
     } else {
       info(
         includeChainFields

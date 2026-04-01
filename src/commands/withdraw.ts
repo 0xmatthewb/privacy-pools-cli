@@ -38,6 +38,7 @@ import {
   requestQuoteWithExtraGasFallback,
   submitRelayRequest,
 } from "../services/relayer.js";
+import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import {
   spinner,
   stageHeader,
@@ -166,13 +167,13 @@ export function formatApprovalResolutionHint(params: {
 
   switch (status) {
     case "pending":
-      return `ASP approval is required for both relayed and direct withdrawals. Run 'privacy-pools accounts --chain ${chainName}' to check aspStatus. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).`;
+      return `ASP approval is required for both relayed and direct withdrawals. Run 'privacy-pools accounts --chain ${chainName}' to check aspStatus. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`;
     case "poi_required":
       return `This Pool Account needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL}, then re-run 'privacy-pools accounts --chain ${chainName}' to confirm aspStatus. If you prefer a public recovery path instead, use '${ragequitCmd}'.`;
     case "declined":
-      return `This Pool Account was declined by the ASP. Private withdraw, including --direct, is unavailable. Use '${ragequitCmd}' to exit publicly to the original deposit address.`;
+      return `This Pool Account was declined by the ASP. Private withdraw, including --direct, is unavailable. Use '${ragequitCmd}' to recover publicly to the original deposit address.`;
     default:
-      return `Run 'privacy-pools accounts --chain ${chainName}' to inspect aspStatus. Pending deposits need more time, PoA-needed deposits need Proof of Association at ${POA_PORTAL_URL}, and declined deposits must use '${ragequitCmd}' to exit publicly to the original deposit address.`;
+      return `Run 'privacy-pools accounts --chain ${chainName}' to inspect aspStatus. Pending deposits need more time, POA-needed deposits need Proof of Association at ${POA_PORTAL_URL}, and declined deposits must use '${ragequitCmd}' to recover publicly to the original deposit address.`;
   }
 }
 
@@ -1319,12 +1320,71 @@ export async function handleWithdrawCommand(
         );
 
         // Keep human flow quote-aware before proving, matching frontend review semantics.
+        const dd = displayDecimals(pool.decimals);
+        const usd = (amount: bigint): string => {
+          const val = formatUsdValue(amount, pool.decimals, tokenPrice);
+          return val === "-" ? "" : ` (${val})`;
+        };
+        const renderWithdrawalReview = (): void => {
+          const secondsLeft = Math.max(
+            0,
+            Math.floor((expirationMs - Date.now()) / 1000),
+          );
+          const feeAmount = (withdrawalAmount * quoteFeeBPS) / 10000n;
+          const netAmount = withdrawalAmount - feeAmount;
+          const remainingBalance = selectedPoolAccount.value - withdrawalAmount;
+          const extraGasFunding = quote.detail.extraGasFundAmount
+            ? formatAmount(
+                BigInt(quote.detail.extraGasFundAmount.eth),
+                18,
+                "ETH",
+                displayDecimals(18),
+              )
+            : null;
+
+          process.stderr.write("\n");
+          process.stderr.write(
+            "  ── Withdrawal Review ──────────────────────────\n",
+          );
+          process.stderr.write(
+            `  From:            ${selectedPoolAccount.paId} (balance: ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol, dd)})\n`,
+          );
+          process.stderr.write(
+            `  To:              ${formatAddress(resolvedRecipientAddress)}\n`,
+          );
+          process.stderr.write(`  Chain:           ${chainConfig.name}\n`);
+          process.stderr.write(
+            `  Amount:          ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol, dd)}${usd(withdrawalAmount)}\n`,
+          );
+          process.stderr.write(
+            `  Relayer fee:     ${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)} (${formatBPS(quoteFeeBPS)})\n`,
+          );
+          if (extraGasFunding) {
+            process.stderr.write(
+              `  Gas token received: ${extraGasFunding}\n`,
+            );
+          } else if (effectiveExtraGas) {
+            process.stderr.write(
+              "  Gas token received: requested (ETH for gas)\n",
+            );
+          }
+          process.stderr.write(
+            `  You receive:     ~${formatAmount(netAmount, pool.decimals, pool.symbol, dd)}${usd(netAmount)}\n`,
+          );
+          process.stderr.write(
+            `  Remaining:       ${remainingBalance === 0n ? `${selectedPoolAccount.paId} fully withdrawn` : `${formatAmount(remainingBalance, pool.decimals, pool.symbol, dd)}${usd(remainingBalance)}`}\n`,
+          );
+          process.stderr.write(`  Quote expires:   in ${secondsLeft}s\n`);
+          process.stderr.write(
+            "  ────────────────────────────────────────────────\n",
+          );
+          if (remainingBelowMinAdvisory) {
+            warn(remainingBelowMinAdvisory, silent);
+            process.stderr.write("\n");
+          }
+        };
+
         if (!skipPrompts) {
-          const dd = displayDecimals(pool.decimals);
-          const usd = (amount: bigint): string => {
-            const val = formatUsdValue(amount, pool.decimals, tokenPrice);
-            return val === "-" ? "" : ` (${val})`;
-          };
           while (true) {
             const secondsLeft = Math.max(
               0,
@@ -1338,68 +1398,7 @@ export async function handleWithdrawCommand(
             }
 
             spin.stop();
-
-            // Compute fee, net, and remaining for the review block
-            const feeAmount = (withdrawalAmount * quoteFeeBPS) / 10000n;
-            const netAmount = withdrawalAmount - feeAmount;
-            const remainingBalance =
-              selectedPoolAccount.value - withdrawalAmount;
-            const relayTxCost = formatAmount(
-              BigInt(quote.detail.relayTxCost.eth),
-              18,
-              "ETH",
-              displayDecimals(18),
-            );
-            const extraGasFunding = quote.detail.extraGasFundAmount
-              ? formatAmount(
-                  BigInt(quote.detail.extraGasFundAmount.eth),
-                  18,
-                  "ETH",
-                  displayDecimals(18),
-                )
-              : null;
-
-            process.stderr.write("\n");
-            process.stderr.write(
-              "  ── Withdrawal Review ──────────────────────────\n",
-            );
-            process.stderr.write(
-              `  From:            ${selectedPoolAccount.paId} (balance: ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol, dd)})\n`,
-            );
-            process.stderr.write(
-              `  To:              ${formatAddress(resolvedRecipientAddress)}\n`,
-            );
-            process.stderr.write(`  Chain:           ${chainConfig.name}\n`);
-            process.stderr.write(
-              `  Amount:          ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol, dd)}${usd(withdrawalAmount)}\n`,
-            );
-            process.stderr.write(
-              `  Relayer fee:     ${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)} (${formatBPS(quoteFeeBPS)})\n`,
-            );
-            if (extraGasFunding) {
-              process.stderr.write(
-                `  Gas received:    ${extraGasFunding}\n`,
-              );
-            }
-            if (effectiveExtraGas) {
-              process.stderr.write(
-                "  Gas token drop:  enabled (receive ETH for gas)\n",
-              );
-            }
-            process.stderr.write(
-              `  You receive:     ~${formatAmount(netAmount, pool.decimals, pool.symbol, dd)}${usd(netAmount)}\n`,
-            );
-            process.stderr.write(
-              `  Remaining:       ${remainingBalance === 0n ? `${selectedPoolAccount.paId} fully withdrawn` : `${formatAmount(remainingBalance, pool.decimals, pool.symbol, dd)}${usd(remainingBalance)}`}\n`,
-            );
-            process.stderr.write(`  Quote expires:   in ${secondsLeft}s\n`);
-            process.stderr.write(
-              "  ────────────────────────────────────────────────\n",
-            );
-            if (remainingBelowMinAdvisory) {
-              warn(remainingBelowMinAdvisory, silent);
-              process.stderr.write("\n");
-            }
+            renderWithdrawalReview();
 
             const ok = await confirm({
               message: "Confirm withdrawal?",
@@ -1422,8 +1421,15 @@ export async function handleWithdrawCommand(
             );
             await fetchFreshQuote("Refreshing relayer quote...");
           }
-        } else if (Date.now() > expirationMs) {
-          await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
+        } else {
+          if (Date.now() > expirationMs) {
+            await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
+          }
+          if (!silent) {
+            spin.stop();
+            renderWithdrawalReview();
+            spin.start();
+          }
         }
 
         const validatedWithdrawalData = decodeValidatedRelayerWithdrawalData({

@@ -781,7 +781,7 @@ describe("workflow helper coverage", () => {
     ]);
   });
 
-  test("buildFlowWarnings labels estimated committed values before funding", () => {
+  test("buildFlowWarnings labels estimated net deposited amounts before funding", () => {
     const warnings = buildFlowWarnings(
       normalizeWorkflowSnapshot(
         sampleWorkflow("wf-estimate", {
@@ -797,7 +797,7 @@ describe("workflow helper coverage", () => {
     );
 
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]?.message).toContain("Estimated committed value");
+    expect(warnings[0]?.message).toContain("Estimated net deposited amount");
   });
 
   test("buildFlowWarnings ignores malformed committed values safely", () => {

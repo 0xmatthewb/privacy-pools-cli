@@ -212,11 +212,11 @@ export function describeUnavailablePoolAccount(
     case "spent":
       return action === "withdraw"
         ? `${poolAccount.paId} was already fully withdrawn and no longer has a balance to use.`
-        : `${poolAccount.paId} was already fully withdrawn and no longer has a balance to exit.`;
+        : `${poolAccount.paId} was already fully withdrawn and no longer has a balance to ragequit.`;
     case "exited":
       return action === "withdraw"
-        ? `${poolAccount.paId} was already exited publicly and cannot be withdrawn again.`
-        : `${poolAccount.paId} was already exited publicly and cannot be exited again.`;
+        ? `${poolAccount.paId} was already recovered publicly with ragequit and cannot be withdrawn again.`
+        : `${poolAccount.paId} was already recovered publicly with ragequit and cannot be ragequit again.`;
     default:
       return null;
   }

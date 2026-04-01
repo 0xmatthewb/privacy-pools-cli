@@ -114,7 +114,7 @@ describe("renderWithdrawDryRun extra-gas", () => {
     const data = { ...BASE_DRY_RUN, extraGas: true };
     const { stderr } = captureOutput(() => renderWithdrawDryRun(ctx, data));
 
-    expect(stderr).toContain("Gas token drop: enabled");
+    expect(stderr).toContain("Gas token received: enabled");
   });
 
   test("human mode: no extra gas line when extraGas=false", () => {
@@ -122,7 +122,7 @@ describe("renderWithdrawDryRun extra-gas", () => {
     const data = { ...BASE_DRY_RUN, extraGas: false };
     const { stderr } = captureOutput(() => renderWithdrawDryRun(ctx, data));
 
-    expect(stderr).not.toContain("Gas token drop");
+    expect(stderr).not.toContain("Gas token received");
   });
 });
 
@@ -203,19 +203,19 @@ describe("renderWithdrawQuote extra-gas", () => {
     expect(json.netAmount).toBe("99500000");
   });
 
-  test("human mode: shows gas token drop when extraGas=true", () => {
+  test("human mode: shows gas token received when extraGas=true", () => {
     const ctx = createOutputContext(makeMode());
     const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: true };
     const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
 
-    expect(stderr).toContain("Gas token drop: enabled");
+    expect(stderr).toContain("Gas token received: enabled");
   });
 
-  test("human mode: no gas token drop when extraGas is falsy", () => {
+  test("human mode: no gas token received when extraGas is falsy", () => {
     const ctx = createOutputContext(makeMode());
     const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: false };
     const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
 
-    expect(stderr).not.toContain("Gas token drop");
+    expect(stderr).not.toContain("Gas token received");
   });
 });

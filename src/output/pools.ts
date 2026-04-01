@@ -383,7 +383,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     if (active.some((pa) => pa.status === "declined")) {
       process.stderr.write(
         chalk.dim(
-          "\n  Declined Pool Accounts cannot use withdraw, including --direct. Use ragequit to exit publicly to the deposit address.\n",
+          "\n  Declined Pool Accounts cannot use withdraw, including --direct. Use ragequit for public recovery to the deposit address.\n",
         ),
       );
     }
@@ -391,7 +391,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     if (active.some((pa) => pa.status === "poi_required")) {
       process.stderr.write(
         chalk.dim(
-          `\n  PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at ${POA_PORTAL_URL}, then re-check accounts. Ragequit remains available if you prefer a public exit.\n`,
+          `\n  POA Needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at ${POA_PORTAL_URL}, then re-check accounts. Ragequit remains available if you prefer public recovery.\n`,
         ),
       );
     }

@@ -4,6 +4,7 @@ import type {
   CommandExecutionDescriptor,
   CommandLatencyClass,
 } from "../types.js";
+import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
 import type { CommandHelpConfig } from "./help.js";
 
 export type CommandPath =
@@ -547,9 +548,9 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }",
       ],
       safetyNotes: [
-        "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
+        `Deposits are reviewed by the ASP before approval. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit/exit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
+        `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -648,7 +649,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
     },
     capabilities: {
-      usage: "withdraw quote <amount> [asset]",
+      usage: "withdraw quote <amount> --asset <symbol|address>",
       flags: ["--asset <symbol|address>", "--to <address>"],
       agentFlags: "--agent",
       requiresInit: true,

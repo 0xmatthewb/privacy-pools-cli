@@ -661,7 +661,7 @@ describe("workflow service", () => {
       "timing_delay_disabled",
       "amount_pattern_linkability",
     ]);
-    expect(warnings[1]?.message).toContain("Estimated committed value");
+    expect(warnings[1]?.message).toContain("Estimated net deposited amount");
 
     expect(
       buildFlowWarnings(

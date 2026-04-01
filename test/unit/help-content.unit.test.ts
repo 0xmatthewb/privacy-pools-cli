@@ -45,7 +45,7 @@ describe("help content", () => {
     const guide = guideText();
     expect(guide).toContain("privacy-pools accounts --chain mainnet --pending-only");
     expect(guide).toContain("poll ASP review");
-    expect(guide).toContain("then confirm approved vs declined vs PoA-needed");
+    expect(guide).toContain("then confirm approved vs declined vs POA Needed");
     expect(guide).toContain("Accounts is wallet-dependent");
     expect(guide).not.toContain("pools/activity/stats/accounts default");
   });

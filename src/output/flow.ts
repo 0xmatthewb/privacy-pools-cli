@@ -578,7 +578,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     );
   } else if (data.snapshot.phase === "stopped_external") {
     warn(
-      `${data.snapshot.poolAccountId ?? "This workflow"} changed outside this saved workflow, so the automated flow stopped without taking further action.`,
+      `${data.snapshot.poolAccountId ?? "This workflow"} changed outside this saved workflow. Inspect the latest account state, then choose the right manual next step from there.`,
       silent,
     );
   } else if (requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot)) {

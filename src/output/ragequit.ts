@@ -55,9 +55,32 @@ export interface RagequitSuccessData {
 export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunData): void {
   guardCsvUnsupported(ctx, "ragequit --dry-run");
 
+  const agentNextActions = [
+    createNextAction(
+      "ragequit",
+      "Submit the ragequit for real when you are ready to broadcast it.",
+      "after_dry_run",
+      {
+        args: [data.asset],
+        options: { agent: true, chain: data.chain, fromPa: data.poolAccountId },
+      },
+    ),
+  ];
+  const humanNextActions = [
+    createNextAction(
+      "ragequit",
+      "Submit the ragequit for real when you are ready to broadcast it.",
+      "after_dry_run",
+      {
+        args: [data.asset],
+        options: { chain: data.chain, fromPa: data.poolAccountId },
+      },
+    ),
+  ];
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      {
+      appendNextActions({
         dryRun: true,
         operation: "ragequit",
         chain: data.chain,
@@ -69,7 +92,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         selectedCommitmentLabel: data.selectedCommitmentLabel.toString(),
         selectedCommitmentValue: data.selectedCommitmentValue.toString(),
         proofPublicSignals: data.proofPublicSignals,
-      },
+      }, agentNextActions),
       false,
     );
     return;
@@ -86,6 +109,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
     info(`Destination: ${formatAddress(data.destinationAddress)}`, silent);
   }
   info("Privacy note: ragequit is a public, non-private withdrawal that returns funds to your deposit address.", silent);
+  renderNextSteps(ctx, humanNextActions);
 }
 
 /**

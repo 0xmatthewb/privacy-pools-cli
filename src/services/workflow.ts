@@ -1129,7 +1129,7 @@ function buildAmountPatternLinkabilityWarning(
     ? ` Consider manual round partial withdrawals such as ${suggestions} if you want better amount privacy.`
     : " Consider manual round partial withdrawals if you want better amount privacy.";
   const amountIntro = estimated
-    ? `Estimated committed value is about ${humanAmount} ${asset}, and this saved flow will auto-withdraw that full balance.`
+    ? `Estimated net deposited amount is about ${humanAmount} ${asset}, and this saved flow will auto-withdraw that full balance.`
     : `This saved flow will auto-withdraw the full ${humanAmount} ${asset}.`;
 
   return {
@@ -1226,7 +1226,7 @@ async function confirmHumanFlowStartReview(params: {
     silent,
   );
   info(
-    `Expected committed value: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd}`,
+    `Expected net deposited: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd}`,
     silent,
   );
   info(
@@ -2429,7 +2429,7 @@ export async function reconcilePendingRagequitReceipt(params: {
     throw new CLIError(
       `Previously submitted workflow ragequit reverted: ${snapshot.ragequitTxHash}`,
       "CONTRACT",
-      "Inspect the exit transaction on a block explorer before retrying 'privacy-pools flow ragequit'.",
+      "Inspect the ragequit transaction on a block explorer before retrying 'privacy-pools flow ragequit'.",
     );
   }
 
@@ -3353,8 +3353,8 @@ async function executeRagequitForFlow(params: {
       ),
   );
 
-  stageHeader(2, 2, "Submitting exit", silent);
-  ragequitSpin.text = "Submitting exit transaction...";
+  stageHeader(2, 2, "Submitting ragequit", silent);
+  ragequitSpin.text = "Submitting ragequit transaction...";
   const submissionPendingSnapshot = await saveWorkflowSnapshotIfChangedWithLock(
     snapshot,
     markPendingSubmission(snapshot, "ragequit"),
@@ -3453,7 +3453,7 @@ async function executeRagequitForFlow(params: {
     releaseCriticalSection();
   }
 
-  ragequitSpin.succeed("Exit confirmed.");
+  ragequitSpin.succeed("Ragequit confirmed.");
 
   return {
     aspStatus:

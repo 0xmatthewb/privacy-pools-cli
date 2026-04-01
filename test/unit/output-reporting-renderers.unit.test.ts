@@ -436,7 +436,7 @@ describe("renderAccounts parity", () => {
     );
   });
 
-  test("human mode: surfaces PoA-needed account status and remediation guidance", () => {
+  test("human mode: surfaces POA Needed account status and remediation guidance", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
       renderAccounts(ctx, {
@@ -448,7 +448,7 @@ describe("renderAccounts parity", () => {
       }),
     );
 
-    expect(stderr).toContain("PoA Needed");
+    expect(stderr).toContain("POA Needed");
     expect(stderr).toContain(POA_PORTAL_URL);
   });
 

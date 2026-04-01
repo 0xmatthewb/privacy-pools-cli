@@ -9,7 +9,7 @@ export function createRagequitCommand(): Command {
     .alias("exit")
     .description(metadata.description)
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
-    .option("-a, --asset <symbol|address>", "Asset pool to exit from")
+    .option("-a, --asset <symbol|address>", "Asset pool to ragequit from")
     .option(
       "-p, --from-pa <PA-#|#>",
       "Ragequit a specific Pool Account (e.g. PA-2)",
