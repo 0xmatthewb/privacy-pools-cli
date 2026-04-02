@@ -92,10 +92,7 @@ export function withSuppressedSdkStdoutSync<T>(fn: () => T): T {
 
 export function needsLegacyAccountRebuild(chainId: number): boolean {
   const savedAccount = loadAccount(chainId);
-  return (
-    savedAccount !== null &&
-    savedAccount?.__privacyPoolsCliAccountVersion !== ACCOUNT_FILE_VERSION
-  );
+  return savedAccountNeedsLegacyRefresh(savedAccount);
 }
 
 export interface InitializeAccountServiceStateOptions {
@@ -120,8 +117,23 @@ type AccountScope = Parameters<AccountState["poolAccounts"]["delete"]>[0];
 const LEGACY_POOL_ACCOUNTS_FIELD = "__legacyPoolAccounts" as const;
 type StoredLegacyPoolAccounts = Map<AccountScope, PoolAccount[]>;
 type StoredAccountState = AccountState & {
+  __privacyPoolsCliAccountVersion?: number;
   [LEGACY_POOL_ACCOUNTS_FIELD]?: StoredLegacyPoolAccounts;
 };
+
+function savedAccountNeedsLegacyRefresh(
+  savedAccount: AccountState | null | undefined,
+): boolean {
+  const storedAccount = savedAccount as StoredAccountState | null | undefined;
+  return (
+    storedAccount !== null &&
+    storedAccount !== undefined &&
+    (
+      storedAccount.__privacyPoolsCliAccountVersion !== ACCOUNT_FILE_VERSION ||
+      getStoredLegacyPoolAccounts(storedAccount) === undefined
+    )
+  );
+}
 
 function clonePoolAccountsMap(
   poolAccounts: Map<AccountScope, PoolAccount[]> | null | undefined,
@@ -397,10 +409,8 @@ export async function initializeAccountServiceWithState(
   } = options;
   // Try to load existing account state
   const savedAccount = loadAccount(chainId);
-  const hasCurrentAccountVersion =
-    savedAccount?.__privacyPoolsCliAccountVersion === ACCOUNT_FILE_VERSION;
   const needsSavedAccountRefresh =
-    savedAccount !== null && pools.length > 0 && !hasCurrentAccountVersion;
+    pools.length > 0 && savedAccountNeedsLegacyRefresh(savedAccount);
 
   if (needsSavedAccountRefresh) {
     if (!allowLegacyAccountRebuild) {

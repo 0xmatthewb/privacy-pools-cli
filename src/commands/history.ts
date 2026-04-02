@@ -93,27 +93,6 @@ function isSyntheticMigratedDeposit(poolAccount: PoolAccount): boolean {
   );
 }
 
-function buildSyntheticMigratedWithdrawalEvent(
-  pool: PoolLike,
-  paNumber: number,
-  poolAccount: PoolAccount,
-): HistoryEvent | null {
-  if (!isSyntheticMigratedDeposit(poolAccount)) {
-    return null;
-  }
-
-  return {
-    type: "withdrawal",
-    asset: pool.symbol,
-    poolAddress: pool.pool,
-    paNumber,
-    paId: `PA-${paNumber}`,
-    value: poolAccount.deposit.value,
-    blockNumber: poolAccount.deposit.blockNumber,
-    txHash: poolAccount.deposit.txHash,
-  };
-}
-
 export { createHistoryCommand } from "../command-shells/history.js";
 
 export function buildHistoryEventsFromAccount(
@@ -138,17 +117,14 @@ export function buildHistoryEventsFromAccount(
       const label = resolvePoolAccountLabel(pa);
       const isHandledLegacyPoolAccount =
         label !== null && handledLegacyLabels.has(poolAccountLabelKey(scopeKey, label));
-      const syntheticMigrationWithdrawal = isHandledLegacyPoolAccount
-        ? null
-        : buildSyntheticMigratedWithdrawalEvent(
-            pool,
-            paNumber,
-            pa,
-          );
+      const shouldSuppressSyntheticMigratedBookkeeping =
+        !isHandledLegacyPoolAccount && isSyntheticMigratedDeposit(pa);
 
-      if (syntheticMigrationWithdrawal) {
-        events.push(syntheticMigrationWithdrawal);
-      } else if (pa.deposit && !isHandledLegacyPoolAccount) {
+      if (
+        pa.deposit &&
+        !isHandledLegacyPoolAccount &&
+        !shouldSuppressSyntheticMigratedBookkeeping
+      ) {
         events.push({
           type: "deposit",
           asset: pool.symbol,
@@ -409,13 +385,10 @@ export async function handleHistoryCommand(
         },
       );
 
-    const missingStoredLegacyHistory =
-      getStoredLegacyPoolAccounts(accountService.account) === undefined;
-
     await withSpinnerProgress(spin, "Syncing", () =>
       syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
         skip: opts.sync === false || skipImmediateSync,
-        force: missingStoredLegacyHistory,
+        force: false,
         silent,
         isJson: mode.isJson,
         isVerbose,
