@@ -24,6 +24,7 @@ import {
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
+import { restoreProcessExitCode } from "../helpers/process.ts";
 import {
   captureModuleExports,
   restoreModuleImplementations,
@@ -68,7 +69,7 @@ describe("launcher routing", () => {
       ["../../src/static-discovery.ts", realStaticDiscovery],
     ]);
     launcherTestInternals.resetSpawnImplementationForTests();
-    process.exitCode = ORIGINAL_EXIT_CODE;
+    restoreProcessExitCode(ORIGINAL_EXIT_CODE);
     if (ORIGINAL_NO_COLOR === undefined) {
       delete process.env.NO_COLOR;
     } else {

@@ -8,11 +8,13 @@
 
 import { expect } from "bun:test";
 import type { ResolvedGlobalMode } from "../../src/output/common.ts";
+import { restoreProcessExitCode } from "./process.ts";
 
 const textDecoder = new TextDecoder();
 let activeOutputCapture:
   | {
       depth: number;
+      origExitCode: number | undefined;
       origStdout: typeof process.stdout.write;
       origStderr: typeof process.stderr.write;
       stdoutChunks: string[];
@@ -73,6 +75,7 @@ function beginOutputCapture(): {
   if (!activeOutputCapture) {
     const captureState = {
       depth: 0,
+      origExitCode: process.exitCode,
       origStdout: process.stdout.write,
       origStderr: process.stderr.write,
       stdoutChunks: [] as string[],
@@ -111,6 +114,7 @@ function beginOutputCapture(): {
       if (activeOutputCapture.depth === 0) {
         process.stdout.write = activeOutputCapture.origStdout;
         process.stderr.write = activeOutputCapture.origStderr;
+        restoreProcessExitCode(activeOutputCapture.origExitCode);
         activeOutputCapture = null;
       }
     },
@@ -169,24 +173,24 @@ export async function captureAsyncOutputAllowExit(
     throw new CommandExit(exitCode);
   }) as never;
 
+  const capture = beginOutputCapture();
   try {
-    const captured = await captureAsyncOutput(async () => {
-      try {
-        await fn();
-      } catch (error) {
-        if (!(error instanceof CommandExit)) {
-          throw error;
-        }
+    try {
+      await fn();
+    } catch (error) {
+      if (!(error instanceof CommandExit)) {
+        throw error;
       }
-    });
+    }
 
     return {
-      ...captured,
+      ...capture.read(),
       exitCode: exitCode ?? (process.exitCode ?? 0),
     };
   } finally {
+    capture.restore();
     process.exit = originalExit;
-    process.exitCode = originalExitCode;
+    restoreProcessExitCode(originalExitCode);
   }
 }
 

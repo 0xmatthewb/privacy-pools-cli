@@ -9,6 +9,7 @@ import {
   sanitizeDiagnosticText,
   sanitizeEndpointForDisplay,
 } from "../../src/utils/errors.ts";
+import { clearProcessExitCode, restoreProcessExitCode } from "../helpers/process.ts";
 
 function captureStdout(run: () => void): string {
   let output = "";
@@ -361,7 +362,7 @@ describe("website recovery errors", () => {
 describe("printError", () => {
   test("JSON mode emits structured error to stdout", () => {
     const originalExitCode = process.exitCode;
-    process.exitCode = undefined;
+    clearProcessExitCode();
     let assignedExitCode: number | undefined;
 
     try {
@@ -375,7 +376,7 @@ describe("printError", () => {
       expect(parsed.error.hint).toBe("try again");
       assignedExitCode = process.exitCode;
     } finally {
-      process.exitCode = originalExitCode;
+      restoreProcessExitCode(originalExitCode);
     }
     expect(assignedExitCode).toBe(2); // INPUT exit code
   });
@@ -390,14 +391,14 @@ describe("printError", () => {
       stderrOutput.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString());
       return true;
     }) as typeof process.stderr.write;
-    process.exitCode = undefined;
+    clearProcessExitCode();
 
     try {
       printError(new CLIError("test error", "ASP", "check ASP"), false);
       assignedExitCode = process.exitCode;
     } finally {
       process.stderr.write = origWrite;
-      process.exitCode = originalExitCode;
+      restoreProcessExitCode(originalExitCode);
     }
 
     const combined = stderrOutput.join("");
@@ -408,7 +409,7 @@ describe("printError", () => {
 
   test("classifies unknown errors before printing", () => {
     const originalExitCode = process.exitCode;
-    process.exitCode = undefined;
+    clearProcessExitCode();
 
     try {
       const output = captureStdout(() => {
@@ -418,7 +419,7 @@ describe("printError", () => {
       expect(parsed.error.category).toBe("RPC");
       expect(parsed.errorCode).toBe("RPC_NETWORK_ERROR");
     } finally {
-      process.exitCode = originalExitCode;
+      restoreProcessExitCode(originalExitCode);
     }
   });
 
@@ -435,7 +436,7 @@ describe("printError", () => {
   for (const { category, errorCode, exitCode } of categoryCases) {
     test(`agent-mode JSON stays valid for ${category} errors`, () => {
       const originalExitCode = process.exitCode;
-      process.exitCode = undefined;
+      clearProcessExitCode();
       let assignedExitCode: number | undefined;
 
       try {
@@ -448,7 +449,7 @@ describe("printError", () => {
         expect(parsed.error.category).toBe(category);
         assignedExitCode = process.exitCode;
       } finally {
-        process.exitCode = originalExitCode;
+        restoreProcessExitCode(originalExitCode);
       }
 
       expect(assignedExitCode).toBe(exitCode);

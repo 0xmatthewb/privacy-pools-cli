@@ -9,6 +9,7 @@ import {
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
+import { restoreProcessExitCode } from "../helpers/process.ts";
 import {
   captureModuleExports,
   restoreModuleImplementations,
@@ -205,7 +206,7 @@ afterEach(() => {
   } else {
     process.env.CODESPACES = ORIGINAL_CODESPACES;
   }
-  process.exitCode = ORIGINAL_EXIT_CODE;
+  restoreProcessExitCode(ORIGINAL_EXIT_CODE);
   if (ORIGINAL_BUN_VERSION === undefined) {
     delete process.versions.bun;
   } else {
@@ -1484,7 +1485,7 @@ describe("bootstrap runtime coverage", () => {
       value: "1.3.11",
     });
 
-    const { json, stderr } = await captureAsyncJsonOutput(async () => {
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(async () => {
       await import(`../../src/index.ts?bun-runtime-guard=${Date.now()}`);
     });
 
@@ -1492,7 +1493,7 @@ describe("bootstrap runtime coverage", () => {
     expect(json.errorCode).toBe("UNSUPPORTED_RUNTIME");
     expect(json.error.message).toContain("Node.js only");
     expect(stderr).toBe("");
-    expect(process.exitCode).toBe(2);
+    expect(exitCode).toBe(2);
     expect(runLauncherMock).not.toHaveBeenCalled();
   });
 
@@ -1509,7 +1510,7 @@ describe("bootstrap runtime coverage", () => {
       value: "1.3.11",
     });
 
-    const { json, stderr } = await captureAsyncJsonOutput(async () => {
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(async () => {
       const module = await import(`../../src/index.ts?bun-import-call=${Date.now()}`);
       await module.runCliEntrypoint(["--json", "status"]);
     });
@@ -1518,7 +1519,7 @@ describe("bootstrap runtime coverage", () => {
     expect(json.errorCode).toBe("UNSUPPORTED_RUNTIME");
     expect(json.error.message).toContain("Node.js only");
     expect(stderr).toBe("");
-    expect(process.exitCode).toBe(2);
+    expect(exitCode).toBe(2);
     expect(runLauncherMock).not.toHaveBeenCalled();
   });
 });

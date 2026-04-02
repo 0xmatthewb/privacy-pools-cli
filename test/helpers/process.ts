@@ -166,3 +166,18 @@ export async function waitForChildProcessResult(
     proc.stderr?.off("data", onStderr);
   }
 }
+
+export function restoreProcessExitCode(exitCode: number | undefined): void {
+  if (exitCode === undefined) {
+    // Bun preserves a previous nonzero exit code when assigned `undefined`,
+    // so normalize back to a clean success code instead.
+    process.exitCode = 0;
+    return;
+  }
+
+  process.exitCode = exitCode;
+}
+
+export function clearProcessExitCode(): void {
+  restoreProcessExitCode(undefined);
+}
