@@ -48,6 +48,20 @@ function seedCachedAccount(home: string): void {
     serialize({
       __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
       poolAccounts: new Map(),
+      __legacyPoolAccounts: new Map(),
+    }),
+    "utf8",
+  );
+}
+
+function seedCurrentVersionCacheMissingLegacySnapshot(home: string): void {
+  const accountsDir = join(home, ".privacy-pools", "accounts");
+  mkdirSync(accountsDir, { recursive: true });
+  writeFileSync(
+    join(accountsDir, `${sepoliaChainConfig.id}.json`),
+    serialize({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+      poolAccounts: new Map(),
     }),
     "utf8",
   );
@@ -160,6 +174,7 @@ function seedDetailedCachedAccount(
           ],
         ],
       ]),
+      __legacyPoolAccounts: new Map(),
     }),
     "utf8",
   );
@@ -388,6 +403,44 @@ defineScenarioSuite("no-sync acceptance", [
         expect(json.success).toBe(true);
         expect(json.chain).toBe("sepolia");
         expect(json.events).toEqual([]);
+      }),
+    ],
+    { timeoutMs: 30_000 },
+  ),
+  defineScenario(
+    "accounts and history reject current caches missing legacy snapshots with --no-sync",
+    [
+      seedHome("sepolia"),
+      (ctx) => {
+        seedCurrentVersionCacheMissingLegacySnapshot(ctx.home);
+      },
+      (ctx) =>
+        runCliStep(["--json", "--chain", "sepolia", "accounts", "--no-sync"], {
+          timeoutMs: 20_000,
+          env: testEnv(),
+        })(ctx),
+      assertExit(2),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        error: { category: string };
+      }>((json) => {
+        expect(json.success).toBe(false);
+        expect(json.error.category).toBe("INPUT");
+      }),
+      (ctx) =>
+        runCliStep(["--json", "--chain", "sepolia", "history", "--no-sync"], {
+          timeoutMs: 20_000,
+          env: testEnv(),
+        })(ctx),
+      assertExit(2),
+      assertStderrEmpty(),
+      assertJson<{
+        success: boolean;
+        error: { category: string };
+      }>((json) => {
+        expect(json.success).toBe(false);
+        expect(json.error.category).toBe("INPUT");
       }),
     ],
     { timeoutMs: 30_000 },

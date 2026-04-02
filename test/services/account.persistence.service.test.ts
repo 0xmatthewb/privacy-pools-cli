@@ -230,8 +230,28 @@ describe("account persistence", () => {
 
     expect(needsLegacyAccountRebuild(11155111)).toBe(true);
 
-    saveAccount(11155111, { poolAccounts: new Map() });
+    saveAccount(11155111, {
+      poolAccounts: new Map(),
+      __legacyPoolAccounts: new Map(),
+    });
     expect(needsLegacyAccountRebuild(11155111)).toBe(false);
+  });
+
+  test("needsLegacyAccountRebuild detects current-version snapshots missing legacy history", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({
+        __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+        poolAccounts: new Map(),
+      }),
+      "utf-8",
+    );
+
+    expect(needsLegacyAccountRebuild(11155111)).toBe(true);
   });
 
   /* ---------------------------------------------------------------- */
@@ -243,7 +263,10 @@ describe("account persistence", () => {
     process.env.PRIVACY_POOLS_HOME = home;
 
     // Write a saved account file so the saved-account path is triggered
-    const fakeAccount = { poolAccounts: new Map() };
+    const fakeAccount = {
+      poolAccounts: new Map(),
+      __legacyPoolAccounts: new Map(),
+    };
     saveAccount(11155111, fakeAccount);
 
     // DataService mock — methods on the service instance will throw
@@ -297,6 +320,7 @@ describe("account persistence", () => {
       poolAccounts: new Map(),
       creationTimestamp: 0n,
       lastUpdateTimestamp: 0n,
+      __legacyPoolAccounts: new Map(),
     };
     saveAccount(11155111, fakeAccount);
 
@@ -534,6 +558,64 @@ describe("account persistence", () => {
     expect(initializeCalls).toBe(1);
   });
 
+  test("current-version snapshots missing legacy history are rebuilt before the migration gate runs", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([{ label: "11", reviewStatus: "approved" }]),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      )) as typeof global.fetch;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({
+        __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+        poolAccounts: new Map(),
+      }),
+      "utf-8",
+    );
+
+    let initializeCalls = 0;
+    AccountService.initializeWithEvents = (async () => {
+      initializeCalls += 1;
+      return {
+        account: new AccountService({} as any, {
+          account: {
+            masterKeys: [1n, 2n],
+            poolAccounts: new Map(),
+            creationTimestamp: 0n,
+            lastUpdateTimestamp: 0n,
+          } as any,
+        }),
+        legacyAccount: makeLegacyAccount(),
+        errors: [],
+      };
+    }) as typeof AccountService.initializeWithEvents;
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          allowLegacyAccountRebuild: true,
+          suppressWarnings: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      code: "ACCOUNT_MIGRATION_REQUIRED",
+    });
+
+    expect(initializeCalls).toBe(1);
+  });
+
   test("stale saved snapshots are rejected when rebuild is disabled", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
@@ -543,6 +625,37 @@ describe("account persistence", () => {
       join(accountsDir, "11155111.json"),
       serialize({
         __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION - 1,
+        poolAccounts: new Map(),
+      }),
+      "utf-8",
+    );
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          allowLegacyAccountRebuild: false,
+          suppressWarnings: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      message: expect.stringContaining("outdated"),
+    });
+  });
+
+  test("current-version snapshots missing legacy history are rejected when rebuild is disabled", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({
+        __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
         poolAccounts: new Map(),
       }),
       "utf-8",
@@ -675,6 +788,7 @@ describe("account persistence", () => {
       poolAccounts: new Map(),
       creationTimestamp: 0n,
       lastUpdateTimestamp: 0n,
+      __legacyPoolAccounts: new Map(),
     });
 
     global.fetch = (async () =>
@@ -897,7 +1011,10 @@ describe("account persistence", () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
 
-    const fakeAccount = { poolAccounts: new Map() };
+    const fakeAccount = {
+      poolAccounts: new Map(),
+      __legacyPoolAccounts: new Map(),
+    };
     saveAccount(11155111, fakeAccount);
 
     const mockDataService = {} as any;

@@ -40,8 +40,22 @@ function seedCachedAccount(home: string): void {
     serialize({
       __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
       poolAccounts: new Map(),
+      __legacyPoolAccounts: new Map(),
     }),
     "utf8"
+  );
+}
+
+function seedCurrentVersionCacheMissingLegacySnapshot(home: string): void {
+  const accountsDir = join(home, ".privacy-pools", "accounts");
+  mkdirSync(accountsDir, { recursive: true });
+  writeFileSync(
+    join(accountsDir, `${sepoliaChainConfig.id}.json`),
+    serialize({
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+      poolAccounts: new Map(),
+    }),
+    "utf8",
   );
 }
 
@@ -141,6 +155,7 @@ function seedDetailedCachedAccount(home: string, chainId: number = sepoliaChainC
           },
         ]],
       ]),
+      __legacyPoolAccounts: new Map(),
     }),
     "utf8",
   );
@@ -340,6 +355,35 @@ describe("accounts/history --no-sync", () => {
     } finally {
       await killSyncGateRpcServer(rebuildRpc);
     }
+  }, 30_000);
+
+  test("accounts/history --no-sync reject current-version caches missing legacy history", () => {
+    const home = createSeededHome("sepolia");
+    seedCurrentVersionCacheMissingLegacySnapshot(home);
+
+    const accountsResult = runCli(
+      ["--json", "--chain", "sepolia", "accounts", "--no-sync"],
+      { home, timeoutMs: 20_000, env: testEnv() },
+    );
+    expect(accountsResult.status).toBe(2);
+    const accountsJson = parseJsonOutput<{
+      success: boolean;
+      error: { category: string };
+    }>(accountsResult.stdout);
+    expect(accountsJson.success).toBe(false);
+    expect(accountsJson.error.category).toBe("INPUT");
+
+    const historyResult = runCli(
+      ["--json", "--chain", "sepolia", "history", "--no-sync"],
+      { home, timeoutMs: 20_000, env: testEnv() },
+    );
+    expect(historyResult.status).toBe(2);
+    const historyJson = parseJsonOutput<{
+      success: boolean;
+      error: { category: string };
+    }>(historyResult.stdout);
+    expect(historyJson.success).toBe(false);
+    expect(historyJson.error.category).toBe("INPUT");
   }, 30_000);
 
   test("accounts --no-sync succeeds from cached state when log RPC is unavailable", () => {

@@ -183,7 +183,7 @@ describe("history event extraction", () => {
     expect(withdrawals[0].value).toBe(0n);
   });
 
-  test("safe-only fallback still surfaces synthetic migrated bookkeeping when legacy history is unavailable", () => {
+  test("safe-only fallback suppresses synthetic migrated bookkeeping when legacy history is unavailable", () => {
     const depositTxHash =
       "0x4444444444444444444444444444444444444444444444444444444444444444";
     const deposit = makeDeposit({
@@ -204,13 +204,7 @@ describe("history event extraction", () => {
 
     const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
 
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({
-      type: "withdrawal",
-      value: 100n,
-      blockNumber: 20n,
-      txHash: depositTxHash,
-    });
+    expect(events).toEqual([]);
   });
 
   test("merged history prefers legacy migration events and suppresses the safe-side duplicate", () => {

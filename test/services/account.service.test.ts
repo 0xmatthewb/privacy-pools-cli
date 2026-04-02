@@ -122,6 +122,7 @@ describe("account service strict sync behavior", () => {
       ]),
       creationTimestamp: 0n,
       lastUpdateTimestamp: 0n,
+      __legacyPoolAccounts: new Map(),
     });
 
     AccountService.initializeWithEvents = (async () => ({
@@ -166,6 +167,7 @@ describe("account service strict sync behavior", () => {
       ]),
       creationTimestamp: 0n,
       lastUpdateTimestamp: 0n,
+      __legacyPoolAccounts: new Map(),
     });
 
     AccountService.initializeWithEvents = (async () => ({
