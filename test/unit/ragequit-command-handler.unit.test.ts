@@ -638,6 +638,64 @@ describe("ragequit command handler", () => {
     expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
   });
 
+  test("signed legacy recovery ragequit skips persisting a partial local snapshot", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    initializeAccountServiceMock.mockImplementationOnce(async () => {
+      throw new CLIError(
+        "migration required",
+        "INPUT",
+        "review this account in the website first",
+        "ACCOUNT_MIGRATION_REQUIRED",
+      );
+    });
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => []);
+    buildPoolAccountRefsMock.mockImplementationOnce(() => []);
+    collectLegacyMigrationCandidatesMock.mockImplementationOnce(() => [
+      { scope: 1n, label: "601", isMigrated: false, remainingValue: 1n },
+      { scope: 1n, label: "777", isMigrated: false, remainingValue: 2n },
+    ]);
+    loadDeclinedLegacyLabelsMock.mockImplementationOnce(async () => new Set(["601"]));
+
+    const legacyAccountService = new AccountService({} as any, {
+      account: {
+        masterKeys: [1n, 2n],
+        poolAccounts: new Map([
+          [1n, [{
+            label: APPROVED_POOL_ACCOUNT.label as any,
+            deposit: APPROVED_POOL_ACCOUNT.commitment,
+            children: [],
+          }]],
+        ]),
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+      } as any,
+    });
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: { poolAccounts: new Map() },
+        getSpendableCommitments: () => new Map(),
+      },
+      legacyAccount: legacyAccountService,
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("ragequit");
+    expect(saveAccountMock).not.toHaveBeenCalled();
+    expect(saveSyncMetaMock).not.toHaveBeenCalled();
+  });
+
   test("fails closed when --from-pa and --commitment are combined", async () => {
     useIsolatedHome();
 

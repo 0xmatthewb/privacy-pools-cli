@@ -893,13 +893,14 @@ export async function handleRagequitCommand(
         }
 
         try {
-          saveAccount(chainConfig.id, accountService.account);
-          saveSyncMeta(chainConfig.id);
           if (selectedPoolAccountUsesLegacyRecovery) {
             warn(
               "Ragequit confirmed onchain. Legacy recovery state will refresh from chain events the next time the CLI syncs this account.",
               silent,
             );
+          } else {
+            saveAccount(chainConfig.id, accountService.account);
+            saveSyncMeta(chainConfig.id);
           }
         } catch (err) {
           warn(
