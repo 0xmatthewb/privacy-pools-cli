@@ -459,6 +459,79 @@ describe("sdk service", () => {
       expect(called).toBe(false);
     });
 
+    test("local compatibility data service accepts zero-valued uint256 event fields", async () => {
+      const ds = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "http://127.0.0.1:8545"
+      );
+
+      (ds as any).client = {
+        getBlockNumber: async () => 1_000n,
+        getLogs: async ({ event }: { event: { name: string } }) => {
+          switch (event.name) {
+            case "Deposited":
+              return [{
+                args: {
+                  _depositor: "0xAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaa",
+                  _commitment: 0n,
+                  _label: 0n,
+                  _value: 33n,
+                  _precommitmentHash: 44n,
+                },
+                blockNumber: 55n,
+                transactionHash:
+                  "0x7777777777777777777777777777777777777777777777777777777777777777",
+              }];
+            case "Withdrawn":
+              return [{
+                args: {
+                  _value: 12n,
+                  _spentNullifier: 0n,
+                  _newCommitment: 0n,
+                },
+                blockNumber: 88n,
+                transactionHash:
+                  "0x8888888888888888888888888888888888888888888888888888888888888888",
+              }];
+            case "Ragequit":
+              return [{
+                args: {
+                  _ragequitter: "0xBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBB",
+                  _commitment: 0n,
+                  _label: 0n,
+                  _value: 0n,
+                },
+                blockNumber: 122n,
+                transactionHash:
+                  "0x9999999999999999999999999999999999999999999999999999999999999999",
+              }];
+            default:
+              return [];
+          }
+        },
+      };
+
+      await expect((ds as any).getDeposits(poolInfo)).resolves.toEqual([
+        expect.objectContaining({
+          commitment: 0n,
+          label: 0n,
+        }),
+      ]);
+      await expect((ds as any).getWithdrawals(poolInfo)).resolves.toEqual([
+        expect.objectContaining({
+          spentNullifier: 0n,
+          newCommitment: 0n,
+        }),
+      ]);
+      await expect((ds as any).getRagequits(poolInfo)).resolves.toEqual([
+        expect.objectContaining({
+          commitment: 0n,
+          label: 0n,
+        }),
+      ]);
+    });
+
     test("local compatibility data service rejects malformed logs", async () => {
       const ds = await getDataService(
         CHAINS.sepolia,

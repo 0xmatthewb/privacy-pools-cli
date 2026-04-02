@@ -249,8 +249,10 @@ class LocalCompatDataService {
 
       if (
         !args?._depositor ||
-        !args._commitment ||
-        !args._label ||
+        args._commitment === undefined ||
+        args._commitment === null ||
+        args._label === undefined ||
+        args._label === null ||
         !log.blockNumber ||
         !log.transactionHash ||
         args._precommitmentHash === undefined ||
@@ -292,8 +294,10 @@ class LocalCompatDataService {
       if (
         args?._value === undefined ||
         args?._value === null ||
-        !args._spentNullifier ||
-        !args._newCommitment ||
+        args._spentNullifier === undefined ||
+        args._spentNullifier === null ||
+        args._newCommitment === undefined ||
+        args._newCommitment === null ||
         !log.blockNumber ||
         !log.transactionHash
       ) {
@@ -331,8 +335,10 @@ class LocalCompatDataService {
 
       if (
         !args?._ragequitter ||
-        !args._commitment ||
-        !args._label ||
+        args._commitment === undefined ||
+        args._commitment === null ||
+        args._label === undefined ||
+        args._label === null ||
         !log.blockNumber ||
         !log.transactionHash
       ) {
