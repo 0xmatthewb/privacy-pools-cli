@@ -5,6 +5,8 @@ import { describe, expect, test } from "bun:test";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 const require = createRequire(import.meta.url);
+const TEST_MNEMONIC =
+  "test test test test test test test test test test test junk";
 
 function collectTsFiles(dir: string): string[] {
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -84,6 +86,40 @@ describe("sdk dependency conformance", () => {
     const fnBody = bundle.slice(fnStart, fnStart + 500);
     expect(fnBody).toContain("bytesToBigInt");
     expect(fnBody).not.toContain("bytesToNumber");
+  });
+
+  test("installed SDK keeps the legacy migration derivation path distinct", async () => {
+    const sdkPackageJsonPath = require.resolve(
+      "@0xbow/privacy-pools-core-sdk/package.json"
+    );
+    const sdkRoot = dirname(sdkPackageJsonPath);
+    const nodeDistDir = join(sdkRoot, "dist", "node");
+    const bundleFile = readdirSync(nodeDistDir).find(
+      (name) => name.startsWith("index-") && name.endsWith(".js")
+    );
+
+    expect(bundleFile).toBeDefined();
+
+    const bundle = readFileSync(join(nodeDistDir, bundleFile!), "utf8");
+    const fnStart = bundle.indexOf("static _initializeLegacyAccount(mnemonic)");
+
+    expect(fnStart).toBeGreaterThanOrEqual(0);
+
+    const fnBody = bundle.slice(fnStart, fnStart + 500);
+    expect(fnBody).toContain("bytesToNumber");
+
+    const { AccountService, generateMasterKeys } = await import(
+      "@0xbow/privacy-pools-core-sdk"
+    );
+    const legacyAccount = (
+      AccountService as unknown as {
+        _initializeLegacyAccount(mnemonic: string): { masterKeys: [bigint, bigint] };
+      }
+    )._initializeLegacyAccount(TEST_MNEMONIC);
+    const safeMasterKeys = generateMasterKeys(TEST_MNEMONIC);
+
+    expect(legacyAccount.masterKeys[0]).not.toBe(safeMasterKeys.masterNullifier);
+    expect(legacyAccount.masterKeys[1]).not.toBe(safeMasterKeys.masterSecret);
   });
 
   test("cli wallet derivation delegates to the SDK instead of reimplementing it", () => {
