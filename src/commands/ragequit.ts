@@ -154,8 +154,14 @@ function getLatestCommitment(poolAccount: Pick<PoolAccount, "deposit" | "childre
     : poolAccount.deposit;
 }
 
-function isWebsiteRecoveryRequiredError(error: unknown): error is CLIError {
-  return error instanceof CLIError && error.code === "ACCOUNT_WEBSITE_RECOVERY_REQUIRED";
+function isLegacyRecoveryFallbackError(error: unknown): error is CLIError {
+  return (
+    error instanceof CLIError &&
+    (
+      error.code === "ACCOUNT_WEBSITE_RECOVERY_REQUIRED" ||
+      error.code === "ACCOUNT_MIGRATION_REQUIRED"
+    )
+  );
 }
 
 function buildDeclinedLegacyPoolAccountRefs(
@@ -243,7 +249,10 @@ async function loadRagequitAccountServices(
       legacyDeclinedLabels: null,
     };
   } catch (error) {
-    if (!isWebsiteRecoveryRequiredError(error)) {
+    // Mixed legacy wallets can require migration and website recovery at the
+    // same time. Ragequit still needs access to declined legacy deposits in
+    // that case, so treat both blocking restore codes as eligible fallback.
+    if (!isLegacyRecoveryFallbackError(error)) {
       throw error;
     }
 
