@@ -6,7 +6,6 @@ import {
   AccountService,
   type AccountCommitment,
   type Hash as SDKHash,
-  type PoolAccount,
   type PrivacyPoolAccount,
   type RagequitEvent,
 } from "@0xbow/privacy-pools-core-sdk";
@@ -66,6 +65,7 @@ import {
 import { acquireProcessLock } from "../utils/lock.js";
 import {
   buildAllPoolAccountRefs,
+  buildDeclinedLegacyPoolAccountRefs,
   buildPoolAccountRefs,
   collectActiveLabels,
   describeUnavailablePoolAccount,
@@ -148,12 +148,6 @@ export function getRagequitAdvisory(
   }
 }
 
-function getLatestCommitment(poolAccount: Pick<PoolAccount, "deposit" | "children">): AccountCommitment {
-  return poolAccount.children.length > 0
-    ? poolAccount.children[poolAccount.children.length - 1]
-    : poolAccount.deposit;
-}
-
 function isLegacyRecoveryFallbackError(error: unknown): error is CLIError {
   return (
     error instanceof CLIError &&
@@ -162,64 +156,6 @@ function isLegacyRecoveryFallbackError(error: unknown): error is CLIError {
       error.code === "ACCOUNT_MIGRATION_REQUIRED"
     )
   );
-}
-
-function buildDeclinedLegacyPoolAccountRefs(
-  legacyAccount: PrivacyPoolAccount | null | undefined,
-  scope: bigint,
-  declinedLabels: ReadonlySet<string>,
-  startNumber: number,
-): PoolAccountRef[] {
-  const poolAccounts = legacyAccount?.poolAccounts;
-  if (!(poolAccounts instanceof Map)) {
-    return [];
-  }
-
-  const scopedAccounts = poolAccounts.get(scope as unknown as SDKHash);
-  if (!Array.isArray(scopedAccounts) || declinedLabels.size === 0) {
-    return [];
-  }
-
-  const refs: PoolAccountRef[] = [];
-  let nextNumber = startNumber;
-  for (const poolAccount of scopedAccounts as PoolAccount[]) {
-    if (poolAccount.isMigrated === true) {
-      continue;
-    }
-
-    const label = poolAccount.deposit?.label ?? poolAccount.label;
-    if (typeof label !== "bigint" || !declinedLabels.has(label.toString())) {
-      continue;
-    }
-
-    const commitment = getLatestCommitment(poolAccount);
-    const ragequit =
-      poolAccount.ragequit &&
-      typeof poolAccount.ragequit === "object" &&
-      typeof poolAccount.ragequit.blockNumber === "bigint"
-        ? (poolAccount.ragequit as RagequitEvent)
-        : null;
-    const status = ragequit
-      ? "exited"
-      : commitment.value === 0n
-        ? "spent"
-        : "declined";
-
-    refs.push({
-      paNumber: nextNumber,
-      paId: poolAccountId(nextNumber),
-      status,
-      aspStatus: status === "declined" ? "declined" : "unknown",
-      commitment,
-      label: commitment.label,
-      value: ragequit ? 0n : commitment.value,
-      blockNumber: ragequit ? ragequit.blockNumber : commitment.blockNumber,
-      txHash: ragequit ? ragequit.transactionHash : commitment.txHash,
-    });
-    nextNumber++;
-  }
-
-  return refs;
 }
 
 async function loadRagequitAccountServices(

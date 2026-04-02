@@ -14,6 +14,7 @@ import {
   deserialize,
   initializeAccountService,
   initializeAccountServiceWithState,
+  getStoredLegacyReadinessStatus,
   syncAccountEvents,
 } from "../../src/services/account.ts";
 import { CLIError } from "../../src/utils/errors.ts";
@@ -779,6 +780,52 @@ describe("account persistence", () => {
     expect(loadSyncMeta(11155111)).toBeNull();
   });
 
+  test("fresh mnemonic restore can persist website recovery visibility for read-only commands", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          { label: "11", reviewStatus: "declined" },
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      )) as typeof global.fetch;
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: makeLegacyAccount(),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const result = await initializeAccountServiceWithState(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      {
+        allowLegacyRecoveryVisibility: true,
+        suppressWarnings: true,
+      },
+    );
+
+    expect(result.legacyDeclinedLabels).toEqual(new Set(["11"]));
+    expect(getStoredLegacyReadinessStatus(loadAccount(11155111) as any)).toBe(
+      "website_recovery_required",
+    );
+    expect(loadSyncMeta(11155111)).not.toBeNull();
+  });
+
   test("saved-account sync surfaces website recovery guidance instead of dropping legacy state", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
@@ -836,6 +883,35 @@ describe("account persistence", () => {
       ACCOUNT_FILE_VERSION,
     );
     expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("saved blocked snapshots still fail closed for non-read-only commands", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    saveAccount(11155111, {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map(),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+      __legacyPoolAccounts: makeLegacyAccount().account.poolAccounts,
+      __legacyMigrationReadinessStatus: "website_recovery_required",
+    } as any);
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          suppressWarnings: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      code: "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
+    });
   });
 
   test("fresh mnemonic restore succeeds when legacy commitments are already migrated", async () => {

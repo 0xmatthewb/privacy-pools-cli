@@ -67,6 +67,20 @@ const OPTIMISM_POOL = {
   decimals: 6,
 };
 
+const DECLINED_LEGACY_POOL_ACCOUNT = {
+  label: 303n,
+  deposit: {
+    hash: 303n,
+    label: 303n,
+    value: 700000000000000000n,
+    blockNumber: 130n,
+    txHash: "0x" + "cc".repeat(32),
+  },
+  children: [],
+  ragequit: undefined,
+  isMigrated: false,
+};
+
 const initializeAccountServiceWithStateMock = mock(async () => ({
   accountService: {
     account: { poolAccounts: new Map() },
@@ -473,6 +487,47 @@ describe("account read-only command handlers", () => {
     expect(json.pendingCount).toBe(0);
   });
 
+  test("accounts includes declined legacy Pool Accounts when website recovery visibility is available", async () => {
+    useIsolatedHome("mainnet");
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => []);
+    collectActiveLabelsMock.mockImplementationOnce(() => []);
+    loadAspDepositReviewStateMock.mockImplementationOnce(async () => ({
+      approvedLabels: new Set<string>(),
+      reviewStatuses: new Map<string, string>(),
+      rawReviewStatuses: new Map<string, string>(),
+      hasIncompleteReviewData: false,
+    }));
+    initializeAccountServiceWithStateMock.mockImplementationOnce(async () => ({
+      accountService: {
+        account: {
+          poolAccounts: new Map(),
+          __legacyPoolAccounts: new Map([[1n, [DECLINED_LEGACY_POOL_ACCOUNT]]]),
+        },
+        getSpendableCommitments: () => new Map(),
+      },
+      skipImmediateSync: false,
+      rebuiltLegacyAccount: false,
+      legacyDeclinedLabels: new Set(["303"]),
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleAccountsCommand({}, fakeCommand({ json: true, chain: "mainnet" })),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.accounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "declined",
+          aspStatus: "declined",
+          poolAccountId: "PA-1",
+          label: "303",
+          value: "700000000000000000",
+        }),
+      ]),
+    );
+  });
+
   test("accounts fails closed when every queried chain errors", async () => {
     useIsolatedHome("mainnet");
     initializeAccountServiceWithStateMock.mockImplementation(async () => {
@@ -608,6 +663,38 @@ describe("account read-only command handlers", () => {
         type: "withdrawal",
         poolAccountId: "PA-1",
       }),
+    );
+  });
+
+  test("history includes declined legacy deposits when website recovery visibility is available", async () => {
+    useIsolatedHome("mainnet");
+
+    initializeAccountServiceWithStateMock.mockImplementationOnce(async () => ({
+      accountService: {
+        account: {
+          poolAccounts: new Map(),
+          __legacyPoolAccounts: new Map([[1n, [DECLINED_LEGACY_POOL_ACCOUNT]]]),
+        },
+      },
+      skipImmediateSync: false,
+      rebuiltLegacyAccount: false,
+      legacyDeclinedLabels: new Set(["303"]),
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleHistoryCommand({ limit: "5" }, fakeCommand({ json: true, chain: "mainnet" })),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "deposit",
+          poolAccountId: "PA-1",
+          value: "700000000000000000",
+          txHash: "0x" + "cc".repeat(32),
+        }),
+      ]),
     );
   });
 

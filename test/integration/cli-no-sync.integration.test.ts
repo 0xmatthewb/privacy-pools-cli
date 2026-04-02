@@ -386,7 +386,7 @@ describe("accounts/history --no-sync", () => {
     expect(historyJson.error.category).toBe("INPUT");
   }, 30_000);
 
-  test("accounts --no-sync succeeds from cached state when log RPC is unavailable", () => {
+  test("accounts succeeds from cached state when log RPC is unavailable", () => {
     const home = createSeededHome("sepolia");
     seedCachedAccount(home);
 
@@ -394,13 +394,17 @@ describe("accounts/history --no-sync", () => {
       ["--json", "--chain", "sepolia", "accounts"],
       { home, timeoutMs: 20_000, env: testEnv() }
     );
-    expect(withoutFlag.status).toBe(3);
+    expect(withoutFlag.status).toBe(0);
     const withoutFlagJson = parseJsonOutput<{
       success: boolean;
-      error: { category: string };
+      chain: string;
+      accounts: unknown[];
+      balances: unknown[];
     }>(withoutFlag.stdout);
-    expect(withoutFlagJson.success).toBe(false);
-    expect(withoutFlagJson.error.category).toBe("RPC");
+    expect(withoutFlagJson.success).toBe(true);
+    expect(withoutFlagJson.chain).toBe("sepolia");
+    expect(withoutFlagJson.accounts).toEqual([]);
+    expect(Array.isArray(withoutFlagJson.balances)).toBe(true);
 
     const withFlag = runCli(
       ["--json", "--chain", "sepolia", "accounts", "--no-sync"],
@@ -419,7 +423,7 @@ describe("accounts/history --no-sync", () => {
     expect(Array.isArray(withFlagJson.balances)).toBe(true);
   }, 30_000);
 
-  test("history --no-sync succeeds from cached state when log RPC is unavailable", () => {
+  test("history succeeds from cached state when log RPC is unavailable", () => {
     const home = createSeededHome("sepolia");
     seedCachedAccount(home);
 
@@ -427,13 +431,15 @@ describe("accounts/history --no-sync", () => {
       ["--json", "--chain", "sepolia", "history"],
       { home, timeoutMs: 20_000, env: testEnv() }
     );
-    expect(withoutFlag.status).toBe(3);
+    expect(withoutFlag.status).toBe(0);
     const withoutFlagJson = parseJsonOutput<{
       success: boolean;
-      error: { category: string };
+      chain: string;
+      events: unknown[];
     }>(withoutFlag.stdout);
-    expect(withoutFlagJson.success).toBe(false);
-    expect(withoutFlagJson.error.category).toBe("RPC");
+    expect(withoutFlagJson.success).toBe(true);
+    expect(withoutFlagJson.chain).toBe("sepolia");
+    expect(withoutFlagJson.events).toEqual([]);
 
     const withFlag = runCli(
       ["--json", "--chain", "sepolia", "history", "--no-sync"],

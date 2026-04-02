@@ -11,6 +11,9 @@ import {
 } from "./statuses.js";
 
 interface PoolAccountLike extends Pick<PoolAccount, "deposit" | "children" | "ragequit" | "isMigrated"> {}
+interface PoolAccountSource {
+  poolAccounts?: Map<bigint, PoolAccount[]>;
+}
 
 export type { PoolAccountStatus, AspApprovalStatus } from "./statuses.js";
 
@@ -75,7 +78,7 @@ function isRagequitEvent(value: unknown): value is RagequitEvent {
 }
 
 function getPoolAccountsForScope(
-  account: PrivacyPoolAccount | null | undefined,
+  account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
   scope: bigint
 ): PoolAccountLike[] {
   const map = account?.poolAccounts;
@@ -107,7 +110,7 @@ export function parsePoolAccountSelector(value: string): number | null {
 }
 
 export function buildPoolAccountRefs(
-  account: PrivacyPoolAccount | null | undefined,
+  account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
   scope: bigint,
   spendableCommitments: readonly AccountCommitment[],
   approvedLabels?: Set<string> | null,
@@ -118,7 +121,7 @@ export function buildPoolAccountRefs(
 }
 
 export function buildAllPoolAccountRefs(
-  account: PrivacyPoolAccount | null | undefined,
+  account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
   scope: bigint,
   spendableCommitments: readonly AccountCommitment[],
   approvedLabels?: Set<string> | null,
@@ -253,7 +256,7 @@ export function getUnknownPoolAccountError(
 }
 
 export function getNextPoolAccountNumber(
-  account: PrivacyPoolAccount | null | undefined,
+  account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
   scope: bigint
 ): number {
   return (
@@ -261,4 +264,58 @@ export function getNextPoolAccountNumber(
       (poolAccount) => !isHiddenMigratedPoolAccount(poolAccount),
     ).length + 1
   );
+}
+
+export function buildDeclinedLegacyPoolAccountRefs(
+  account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
+  scope: bigint,
+  declinedLabels: ReadonlySet<string>,
+  startNumber: number,
+): PoolAccountRef[] {
+  const scopedAccounts = getPoolAccountsForScope(account, scope);
+  if (scopedAccounts.length === 0 || declinedLabels.size === 0) {
+    return [];
+  }
+
+  const refs: PoolAccountRef[] = [];
+  let nextNumber = startNumber;
+
+  for (const poolAccount of scopedAccounts) {
+    if (poolAccount.isMigrated === true) {
+      continue;
+    }
+
+    const label =
+      typeof poolAccount.deposit?.label === "bigint"
+        ? poolAccount.deposit.label
+        : null;
+    if (label === null || !declinedLabels.has(label.toString())) {
+      continue;
+    }
+
+    const commitment = getCurrentCommitment(poolAccount);
+    const ragequit = isRagequitEvent(poolAccount.ragequit)
+      ? poolAccount.ragequit
+      : null;
+    const status: PoolAccountStatus = ragequit
+      ? "exited"
+      : commitment.value === 0n
+        ? "spent"
+        : "declined";
+
+    refs.push({
+      paNumber: nextNumber,
+      paId: poolAccountId(nextNumber),
+      status,
+      aspStatus: status === "declined" ? "declined" : "unknown",
+      commitment,
+      label,
+      value: ragequit ? 0n : commitment.value,
+      blockNumber: ragequit ? ragequit.blockNumber : commitment.blockNumber,
+      txHash: ragequit ? ragequit.transactionHash : commitment.txHash,
+    });
+    nextNumber += 1;
+  }
+
+  return refs;
 }

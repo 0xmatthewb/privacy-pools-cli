@@ -336,7 +336,7 @@ defineScenarioSuite("no-sync acceptance", [
     { timeoutMs: 30_000 },
   ),
   defineScenario(
-    "accounts and history use cached state with --no-sync when log RPC is unavailable",
+    "accounts and history use cached state when log RPC is unavailable",
     [
       seedHome("sepolia"),
       (ctx) => {
@@ -347,14 +347,18 @@ defineScenarioSuite("no-sync acceptance", [
           timeoutMs: 20_000,
           env: testEnv(),
         })(ctx),
-      assertExit(3),
+      assertExit(0),
       assertStderrEmpty(),
       assertJson<{
         success: boolean;
-        error: { category: string };
+        chain: string;
+        accounts: unknown[];
+        balances: unknown[];
       }>((json) => {
-        expect(json.success).toBe(false);
-        expect(json.error.category).toBe("RPC");
+        expect(json.success).toBe(true);
+        expect(json.chain).toBe("sepolia");
+        expect(json.accounts).toEqual([]);
+        expect(Array.isArray(json.balances)).toBe(true);
       }),
       (ctx) =>
         runCliStep(["--json", "--chain", "sepolia", "accounts", "--no-sync"], {
@@ -379,14 +383,16 @@ defineScenarioSuite("no-sync acceptance", [
           timeoutMs: 20_000,
           env: testEnv(),
         })(ctx),
-      assertExit(3),
+      assertExit(0),
       assertStderrEmpty(),
       assertJson<{
         success: boolean;
-        error: { category: string };
+        chain: string;
+        events: unknown[];
       }>((json) => {
-        expect(json.success).toBe(false);
-        expect(json.error.category).toBe("RPC");
+        expect(json.success).toBe(true);
+        expect(json.chain).toBe("sepolia");
+        expect(json.events).toEqual([]);
       }),
       (ctx) =>
         runCliStep(["--json", "--chain", "sepolia", "history", "--no-sync"], {

@@ -20,7 +20,12 @@ import {
   sanitizeDiagnosticText,
 } from "../utils/errors.js";
 import {
+  buildMigrationChainReadiness,
   buildMigrationChainReadinessFromLegacyAccount,
+  collectLegacyMigrationCandidates,
+  loadDeclinedLegacyLabels,
+  type MigrationChainReadiness,
+  type MigrationChainStatus,
 } from "./migration.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
@@ -100,6 +105,7 @@ export interface InitializeAccountServiceStateOptions {
   forceSyncSavedAccount?: boolean;
   suppressWarnings?: boolean;
   strictSync?: boolean;
+  allowLegacyRecoveryVisibility?: boolean;
 }
 
 export interface InitializeAccountServiceState {
@@ -110,16 +116,29 @@ export interface InitializeAccountServiceState {
    */
   skipImmediateSync: boolean;
   rebuiltLegacyAccount: boolean;
+  legacyDeclinedLabels?: ReadonlySet<string> | null;
 }
 
 type AccountState = AccountService["account"];
 type AccountScope = Parameters<AccountState["poolAccounts"]["delete"]>[0];
 const LEGACY_POOL_ACCOUNTS_FIELD = "__legacyPoolAccounts" as const;
+const LEGACY_READINESS_STATUS_FIELD =
+  "__legacyMigrationReadinessStatus" as const;
 type StoredLegacyPoolAccounts = Map<AccountScope, PoolAccount[]>;
 type StoredAccountState = AccountState & {
   __privacyPoolsCliAccountVersion?: number;
   [LEGACY_POOL_ACCOUNTS_FIELD]?: StoredLegacyPoolAccounts;
+  [LEGACY_READINESS_STATUS_FIELD]?: MigrationChainStatus;
 };
+
+interface LegacyAccountSource {
+  account?: { poolAccounts?: Map<unknown, unknown[]> };
+}
+
+interface LegacyReadinessResolution {
+  readiness: MigrationChainReadiness;
+  declinedLabels: ReadonlySet<string> | null;
+}
 
 function savedAccountNeedsLegacyRefresh(
   savedAccount: AccountState | null | undefined,
@@ -166,9 +185,18 @@ export function getStoredLegacyPoolAccounts(
   return clonePoolAccountsMap(stored);
 }
 
+export function getStoredLegacyReadinessStatus(
+  account: AccountState | null | undefined,
+): MigrationChainStatus | undefined {
+  const stored = (account as StoredAccountState | null | undefined)?.[
+    LEGACY_READINESS_STATUS_FIELD
+  ];
+  return typeof stored === "string" ? stored : undefined;
+}
+
 function withStoredLegacyPoolAccounts(
   account: AccountState,
-  legacyAccount?: AccountService,
+  legacyAccount?: LegacyAccountSource,
 ): StoredAccountState {
   const storedLegacyPoolAccounts =
     clonePoolAccountsMap(
@@ -180,6 +208,25 @@ function withStoredLegacyPoolAccounts(
     ...(account as StoredAccountState),
     [LEGACY_POOL_ACCOUNTS_FIELD]: storedLegacyPoolAccounts,
   };
+}
+
+function withStoredLegacyState(
+  account: AccountState,
+  legacyAccount?: LegacyAccountSource,
+  readinessStatus?: MigrationChainStatus,
+): StoredAccountState {
+  const nextAccount = withStoredLegacyPoolAccounts(account, legacyAccount);
+  if (
+    readinessStatus === undefined
+    || readinessStatus === "no_legacy"
+    || readinessStatus === "fully_migrated"
+  ) {
+    delete nextAccount[LEGACY_READINESS_STATUS_FIELD];
+    return nextAccount;
+  }
+
+  nextAccount[LEGACY_READINESS_STATUS_FIELD] = readinessStatus;
+  return nextAccount;
 }
 
 function staleAccountRefreshRequiredError(): CLIError {
@@ -200,32 +247,78 @@ function staleAccountRefreshFailedError(error: unknown): CLIError {
   );
 }
 
-async function assertNoLegacyMigrationRequired(
-  legacyAccount: AccountService | undefined,
-  chainId: number,
-): Promise<void> {
-  const readiness = await buildMigrationChainReadinessFromLegacyAccount(
-    legacyAccount,
-    chainId,
-  );
-
-  if (readiness.status === "no_legacy" || readiness.status === "fully_migrated") {
-    return;
+function legacyReadinessError(status: MigrationChainStatus): CLIError | null {
+  if (status === "no_legacy" || status === "fully_migrated") {
+    return null;
   }
 
-  if (readiness.status === "website_recovery_required") {
-    throw accountWebsiteRecoveryRequiredError(
+  if (status === "website_recovery_required") {
+    return accountWebsiteRecoveryRequiredError(
       "Review this account in the Privacy Pools website first. Legacy declined deposits cannot be restored safely in the CLI and may require website-based public recovery instead of migration.",
     );
   }
 
-  if (readiness.status === "review_incomplete") {
-    throw accountMigrationReviewIncompleteError(
+  if (status === "review_incomplete") {
+    return accountMigrationReviewIncompleteError(
       "Legacy ASP review data is temporarily unavailable. Retry this command or run 'privacy-pools migrate status' after ASP connectivity recovers before acting on this account.",
     );
   }
 
-  throw accountMigrationRequiredError();
+  return accountMigrationRequiredError();
+}
+
+async function resolveLegacyReadiness(
+  legacyAccount: AccountService | LegacyAccountSource | undefined,
+  chainId: number,
+): Promise<LegacyReadinessResolution> {
+  const candidates = collectLegacyMigrationCandidates(legacyAccount);
+  if (candidates.length === 0) {
+    return {
+      readiness: await buildMigrationChainReadinessFromLegacyAccount(
+        legacyAccount,
+        chainId,
+      ),
+      declinedLabels: new Set<string>(),
+    };
+  }
+
+  const declinedLabels = await loadDeclinedLegacyLabels(chainId, candidates);
+  if (declinedLabels === null) {
+    return {
+      readiness: await buildMigrationChainReadinessFromLegacyAccount(
+        legacyAccount,
+        chainId,
+      ),
+      declinedLabels: null,
+    };
+  }
+
+  return {
+    readiness: buildMigrationChainReadiness(candidates, declinedLabels),
+    declinedLabels,
+  };
+}
+
+async function resolveLegacyInitializationPolicy(
+  legacyAccount: AccountService | LegacyAccountSource | undefined,
+  chainId: number,
+  allowLegacyRecoveryVisibility: boolean,
+): Promise<LegacyReadinessResolution> {
+  const resolved = await resolveLegacyReadiness(legacyAccount, chainId);
+  const blockingError = legacyReadinessError(resolved.readiness.status);
+
+  if (!blockingError) {
+    return resolved;
+  }
+
+  if (
+    allowLegacyRecoveryVisibility
+    && resolved.readiness.status !== "review_incomplete"
+  ) {
+    return resolved;
+  }
+
+  throw blockingError;
 }
 
 function summarizeInitErrors(
@@ -255,6 +348,7 @@ function buildPartialInitializationState(
     accountService,
     skipImmediateSync: false,
     rebuiltLegacyAccount,
+    legacyDeclinedLabels: null,
   };
 }
 
@@ -406,6 +500,7 @@ export async function initializeAccountServiceWithState(
     forceSyncSavedAccount = false,
     suppressWarnings = false,
     strictSync = false,
+    allowLegacyRecoveryVisibility = false,
   } = options;
   // Try to load existing account state
   const savedAccount = loadAccount(chainId);
@@ -428,10 +523,18 @@ export async function initializeAccountServiceWithState(
             poolInfos,
           ),
         );
-        await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
-        result.account.account = withStoredLegacyPoolAccounts(
+        const {
+          readiness,
+          declinedLabels,
+        } = await resolveLegacyInitializationPolicy(
+          result.legacyAccount,
+          chainId,
+          allowLegacyRecoveryVisibility,
+        );
+        result.account.account = withStoredLegacyState(
           result.account.account,
           result.legacyAccount,
+          readiness.status,
         );
 
         const initErrors = result.errors ?? [];
@@ -460,6 +563,7 @@ export async function initializeAccountServiceWithState(
           accountService: result.account,
           skipImmediateSync: true,
           rebuiltLegacyAccount: true,
+          legacyDeclinedLabels: declinedLabels,
         };
       } finally {
         releaseLock();
@@ -488,6 +592,35 @@ export async function initializeAccountServiceWithState(
     const service = await withSuppressedSdkStdout(
       async () => new AccountService(dataService, { account: savedAccount }),
     );
+    const storedLegacyReadinessStatus =
+      getStoredLegacyReadinessStatus(savedAccount);
+    const storedLegacyPoolAccounts = getStoredLegacyPoolAccounts(savedAccount);
+    let legacyDeclinedLabels: ReadonlySet<string> | null = null;
+
+    if (storedLegacyReadinessStatus && !forceSyncSavedAccount) {
+      const blockingError = legacyReadinessError(storedLegacyReadinessStatus);
+      if (blockingError && !allowLegacyRecoveryVisibility) {
+        throw blockingError;
+      }
+
+      if (allowLegacyRecoveryVisibility) {
+        const resolved = await resolveLegacyInitializationPolicy(
+          storedLegacyPoolAccounts
+            ? { account: { poolAccounts: storedLegacyPoolAccounts } }
+            : undefined,
+          chainId,
+          true,
+        );
+        legacyDeclinedLabels = resolved.declinedLabels;
+        service.account = withStoredLegacyState(
+          service.account,
+          storedLegacyPoolAccounts
+            ? { account: { poolAccounts: storedLegacyPoolAccounts } }
+            : undefined,
+          storedLegacyReadinessStatus,
+        );
+      }
+    }
 
     if (forceSyncSavedAccount && pools.length > 0) {
       const { account, legacyAccount, errors } = await rebuildAccountScopesFromEvents(
@@ -496,7 +629,12 @@ export async function initializeAccountServiceWithState(
         service.account,
         pools,
       );
-      await assertNoLegacyMigrationRequired(legacyAccount, chainId);
+      const resolved = await resolveLegacyInitializationPolicy(
+        legacyAccount,
+        chainId,
+        allowLegacyRecoveryVisibility,
+      );
+      legacyDeclinedLabels = resolved.declinedLabels;
 
       if (errors.length > 0) {
         const details = summarizeInitErrors(errors);
@@ -534,7 +672,11 @@ export async function initializeAccountServiceWithState(
         );
         const releaseLock = acquireProcessLock();
         try {
-          service.account = reconciledAccountWithLegacy;
+          service.account = withStoredLegacyState(
+            reconciledAccountWithLegacy,
+            legacyAccount,
+            resolved.readiness.status,
+          );
           guardCriticalSection();
           try {
             saveAccount(chainId, service.account);
@@ -552,6 +694,7 @@ export async function initializeAccountServiceWithState(
       accountService: service,
       skipImmediateSync: false,
       rebuiltLegacyAccount: false,
+      legacyDeclinedLabels,
     };
   }
 
@@ -573,10 +716,18 @@ export async function initializeAccountServiceWithState(
             poolInfos,
           ),
         );
-        await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
-        result.account.account = withStoredLegacyPoolAccounts(
+        const {
+          readiness,
+          declinedLabels,
+        } = await resolveLegacyInitializationPolicy(
+          result.legacyAccount,
+          chainId,
+          allowLegacyRecoveryVisibility,
+        );
+        result.account.account = withStoredLegacyState(
           result.account.account,
           result.legacyAccount,
+          readiness.status,
         );
 
         const initErrors = result.errors ?? [];
@@ -605,6 +756,7 @@ export async function initializeAccountServiceWithState(
           accountService: result.account,
           skipImmediateSync: true,
           rebuiltLegacyAccount: false,
+          legacyDeclinedLabels: declinedLabels,
         };
       } finally {
         releaseLock();
@@ -632,6 +784,7 @@ export async function initializeAccountServiceWithState(
     accountService,
     skipImmediateSync: false,
     rebuiltLegacyAccount: false,
+    legacyDeclinedLabels: null,
   };
 }
 
@@ -721,6 +874,7 @@ export interface SyncEventsOptions {
   errorLabel: string;
   dataService: DataService;
   mnemonic: string;
+  allowLegacyRecoveryVisibility?: boolean;
 }
 
 /**
@@ -755,7 +909,11 @@ export async function syncAccountEvents(
       persistedAccount ?? accountService.account,
       poolInfos,
     );
-    await assertNoLegacyMigrationRequired(legacyAccount, chainId);
+    const resolved = await resolveLegacyInitializationPolicy(
+      legacyAccount,
+      chainId,
+      opts.allowLegacyRecoveryVisibility ?? false,
+    );
 
     if (errors.length > 0) {
       for (const error of errors) {
@@ -801,6 +959,11 @@ export async function syncAccountEvents(
     accountService.account = withStoredLegacyPoolAccounts(
       reconciledAccount,
       legacyAccount,
+    );
+    accountService.account = withStoredLegacyState(
+      accountService.account,
+      legacyAccount,
+      resolved.readiness.status,
     );
     guardCriticalSection();
     try {

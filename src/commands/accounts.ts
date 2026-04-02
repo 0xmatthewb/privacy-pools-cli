@@ -11,6 +11,7 @@ import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
+  getStoredLegacyPoolAccounts,
   initializeAccountServiceWithState,
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
@@ -29,6 +30,7 @@ import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
   buildAllPoolAccountRefs,
+  buildDeclinedLegacyPoolAccountRefs,
   collectActiveLabels,
 } from "../utils/pool-accounts.js";
 import { createOutputContext, isSilent } from "../output/common.js";
@@ -171,7 +173,11 @@ async function loadAccountsForChain(
     spin.text = `Initializing account state on ${chainConfig.name}...`;
   }
   const dataService = await getDataService(chainConfig, pools[0].pool, rpcUrl);
-  const { accountService, skipImmediateSync } =
+  const {
+    accountService,
+    skipImmediateSync,
+    legacyDeclinedLabels,
+  } =
     await initializeAccountServiceWithState(
       dataService,
       mnemonic,
@@ -179,6 +185,7 @@ async function loadAccountsForChain(
       chainConfig.id,
       {
         allowLegacyAccountRebuild: opts.sync !== false,
+        allowLegacyRecoveryVisibility: true,
         suppressWarnings: silent,
         strictSync: true,
       },
@@ -194,6 +201,7 @@ async function loadAccountsForChain(
       errorLabel: "Account",
       dataService,
       mnemonic,
+      allowLegacyRecoveryVisibility: true,
     });
   if (spin && showPerChainProgress) {
     await withSpinnerProgress(
@@ -208,13 +216,32 @@ async function loadAccountsForChain(
   const spendable = withSuppressedSdkStdoutSync(() =>
     accountService.getSpendableCommitments(),
   );
+  const legacyPoolAccounts = getStoredLegacyPoolAccounts(accountService.account);
   // Always include historical scopes so spent/exited-only users still see
   // their pool accounts instead of a confusing empty state.
-  const sortedScopeStrings = collectAccountScopeStrings(
-    spendable,
-    accountService.account,
-    true,
+  const scopeSet = new Set(
+    collectAccountScopeStrings(
+      spendable,
+      accountService.account,
+      true,
+    ),
   );
+  if (
+    legacyPoolAccounts instanceof Map
+    && legacyDeclinedLabels
+    && legacyDeclinedLabels.size > 0
+  ) {
+    for (const scope of legacyPoolAccounts.keys()) {
+      scopeSet.add(scope.toString());
+    }
+  }
+  const sortedScopeStrings = [...scopeSet].sort((a, b) => {
+    const aa = BigInt(a);
+    const bb = BigInt(b);
+    if (aa < bb) return -1;
+    if (aa > bb) return 1;
+    return 0;
+  });
 
   if (spin && showPerChainProgress) {
     spin.text = `Checking ASP approval status on ${chainConfig.name}...`;
@@ -256,16 +283,29 @@ async function loadAccountsForChain(
 
     const approvedLabels = approvedLabelsByScope.get(scopeStr);
     const reviewStatuses = reviewStatusesByScope.get(scopeStr);
-    // Always show all pool accounts (pending, approved, spent, exited).
-    // Users commonly check accounts to see if a pending deposit has been
-    // approved — hiding any state behind --all creates a confusing empty view.
-    const poolAccounts = buildAllPoolAccountRefs(
+    const allKnownSafePoolAccounts = buildAllPoolAccountRefs(
       accountService.account,
       pool.scope,
       commitments,
       approvedLabels,
       reviewStatuses,
     );
+    const knownLabels = new Set(
+      allKnownSafePoolAccounts.map((poolAccount) => poolAccount.label.toString()),
+    );
+    const declinedLegacyPoolAccounts = buildDeclinedLegacyPoolAccountRefs(
+      legacyPoolAccounts ? { poolAccounts: legacyPoolAccounts } : null,
+      pool.scope,
+      legacyDeclinedLabels ?? new Set<string>(),
+      allKnownSafePoolAccounts.length + 1,
+    ).filter((poolAccount) => !knownLabels.has(poolAccount.label.toString()));
+    // Always show all pool accounts (pending, approved, spent, exited).
+    // Users commonly check accounts to see if a pending deposit has been
+    // approved — hiding any state behind --all creates a confusing empty view.
+    const poolAccounts = [
+      ...allKnownSafePoolAccounts,
+      ...declinedLegacyPoolAccounts,
+    ];
     poolAccounts.sort((a, b) => a.paNumber - b.paNumber);
 
     groups.push({

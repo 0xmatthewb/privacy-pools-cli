@@ -3,6 +3,10 @@ import { CHAINS, resolveChainOverrides } from "../config/chains.js";
 import { normalizeAspApprovalStatus } from "../utils/statuses.js";
 import { fetchDepositReviewStatuses } from "./asp.js";
 
+interface LegacyAccountSource {
+  account?: { poolAccounts?: Map<unknown, unknown[]> };
+}
+
 interface LegacyCommitmentLike {
   label?: bigint | null;
   value?: bigint | null;
@@ -69,7 +73,7 @@ function resolveLegacyDepositLabel(account: LegacyPoolAccountLike): string | nul
 }
 
 export function collectLegacyMigrationCandidates(
-  legacyAccount: AccountService | undefined,
+  legacyAccount: AccountService | LegacyAccountSource | undefined,
 ): LegacyMigrationCandidate[] {
   const poolAccounts = (
     legacyAccount as unknown as {
@@ -225,7 +229,7 @@ export function buildMigrationChainReadiness(
 }
 
 export async function buildMigrationChainReadinessFromLegacyAccount(
-  legacyAccount: AccountService | undefined,
+  legacyAccount: AccountService | LegacyAccountSource | undefined,
   chainId: number,
 ): Promise<MigrationChainReadiness> {
   const candidates = collectLegacyMigrationCandidates(legacyAccount);

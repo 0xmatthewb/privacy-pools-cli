@@ -165,6 +165,7 @@ export function buildHistoryEventsFromAccount(
 
       const ragequit = pa.ragequit as RagequitEvent | null | undefined;
       if (
+        !isHandledLegacyPoolAccount &&
         ragequit &&
         typeof ragequit === "object" &&
         typeof ragequit.blockNumber === "bigint"
@@ -298,18 +299,64 @@ function buildLegacyHistoryEventsFromAccount(
   return { events, handledLegacyLabels };
 }
 
+function buildDeclinedLegacyHistoryAccount(
+  legacyAccount: AccountLike | null | undefined,
+  declinedLegacyLabels: ReadonlySet<string>,
+): AccountLike | null {
+  const poolAccountsMap = legacyAccount?.poolAccounts;
+  if (!(poolAccountsMap instanceof Map) || declinedLegacyLabels.size === 0) {
+    return null;
+  }
+
+  const filteredPoolAccounts = new Map<bigint, PoolAccount[]>();
+
+  for (const [scopeKey, poolAccountsList] of poolAccountsMap.entries()) {
+    if (!Array.isArray(poolAccountsList)) continue;
+
+    const filtered = (poolAccountsList as PoolAccount[]).filter((poolAccount) => {
+      if (poolAccount.isMigrated === true) {
+        return false;
+      }
+
+      const label = resolvePoolAccountLabel(poolAccount);
+      return (
+        label !== null
+        && declinedLegacyLabels.has(label.toString())
+      );
+    });
+
+    if (filtered.length > 0) {
+      filteredPoolAccounts.set(scopeKey, filtered);
+    }
+  }
+
+  return filteredPoolAccounts.size > 0
+    ? { poolAccounts: filteredPoolAccounts }
+    : null;
+}
+
 export function buildHistoryEventsFromAccounts(
   account: AccountLike | null | undefined,
   legacyAccount: AccountLike | null | undefined,
   pools: readonly PoolLike[],
+  declinedLegacyLabels: ReadonlySet<string> = new Set<string>(),
 ): HistoryEvent[] {
   const {
     events: legacyEvents,
     handledLegacyLabels,
   } = buildLegacyHistoryEventsFromAccount(legacyAccount, pools);
+  const declinedLegacyAccount = buildDeclinedLegacyHistoryAccount(
+    legacyAccount,
+    declinedLegacyLabels,
+  );
 
   return [
     ...legacyEvents,
+    ...buildHistoryEventsFromAccount(
+      declinedLegacyAccount,
+      pools,
+      handledLegacyLabels,
+    ),
     ...buildHistoryEventsFromAccount(account, pools, handledLegacyLabels),
   ];
 }
@@ -372,7 +419,11 @@ export async function handleHistoryCommand(
       pools[0].pool,
       globalOpts?.rpcUrl,
     );
-    const { accountService, skipImmediateSync } =
+    const {
+      accountService,
+      skipImmediateSync,
+      legacyDeclinedLabels,
+    } =
       await initializeAccountServiceWithState(
         dataService,
         mnemonic,
@@ -380,6 +431,7 @@ export async function handleHistoryCommand(
         chainConfig.id,
         {
           allowLegacyAccountRebuild: opts.sync !== false,
+          allowLegacyRecoveryVisibility: true,
           suppressWarnings: silent,
           strictSync: true,
         },
@@ -395,6 +447,7 @@ export async function handleHistoryCommand(
         errorLabel: "History",
         dataService,
         mnemonic,
+        allowLegacyRecoveryVisibility: true,
       }),
     );
 
@@ -404,6 +457,7 @@ export async function handleHistoryCommand(
       accountService.account,
       legacyPoolAccounts ? { poolAccounts: legacyPoolAccounts } : null,
       pools,
+      legacyDeclinedLabels ?? new Set<string>(),
     );
 
     // Sort chronologically (newest first)
