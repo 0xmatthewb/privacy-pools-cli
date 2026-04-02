@@ -234,6 +234,7 @@ describe("account persistence", () => {
     saveAccount(11155111, {
       poolAccounts: new Map(),
       __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
     });
     expect(needsLegacyAccountRebuild(11155111)).toBe(false);
   });
@@ -255,6 +256,24 @@ describe("account persistence", () => {
     expect(needsLegacyAccountRebuild(11155111)).toBe(true);
   });
 
+  test("needsLegacyAccountRebuild detects current-version snapshots missing legacy readiness", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const accountsDir = join(home, "accounts");
+    writeFileSync(
+      join(accountsDir, "11155111.json"),
+      serialize({
+        __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+        poolAccounts: new Map(),
+        __legacyPoolAccounts: new Map(),
+      }),
+      "utf-8",
+    );
+
+    expect(needsLegacyAccountRebuild(11155111)).toBe(true);
+  });
+
   /* ---------------------------------------------------------------- */
   /*  initializeAccountService — saved-account paths                   */
   /* ---------------------------------------------------------------- */
@@ -267,6 +286,7 @@ describe("account persistence", () => {
     const fakeAccount = {
       poolAccounts: new Map(),
       __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
     };
     saveAccount(11155111, fakeAccount);
 
@@ -322,6 +342,7 @@ describe("account persistence", () => {
       creationTimestamp: 0n,
       lastUpdateTimestamp: 0n,
       __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
     };
     saveAccount(11155111, fakeAccount);
 
@@ -836,6 +857,7 @@ describe("account persistence", () => {
       creationTimestamp: 0n,
       lastUpdateTimestamp: 0n,
       __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
     });
 
     global.fetch = (async () =>
@@ -1090,6 +1112,7 @@ describe("account persistence", () => {
     const fakeAccount = {
       poolAccounts: new Map(),
       __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
     };
     saveAccount(11155111, fakeAccount);
 

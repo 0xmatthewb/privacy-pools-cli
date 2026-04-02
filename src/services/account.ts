@@ -144,12 +144,16 @@ function savedAccountNeedsLegacyRefresh(
   savedAccount: AccountState | null | undefined,
 ): boolean {
   const storedAccount = savedAccount as StoredAccountState | null | undefined;
+  const storedLegacyPoolAccounts = getStoredLegacyPoolAccounts(storedAccount);
+  const storedLegacyReadinessStatus =
+    getStoredLegacyReadinessStatus(storedAccount);
   return (
     storedAccount !== null &&
     storedAccount !== undefined &&
     (
       storedAccount.__privacyPoolsCliAccountVersion !== ACCOUNT_FILE_VERSION ||
-      getStoredLegacyPoolAccounts(storedAccount) === undefined
+      storedLegacyPoolAccounts === undefined ||
+      storedLegacyReadinessStatus === undefined
     )
   );
 }
@@ -216,11 +220,7 @@ function withStoredLegacyState(
   readinessStatus?: MigrationChainStatus,
 ): StoredAccountState {
   const nextAccount = withStoredLegacyPoolAccounts(account, legacyAccount);
-  if (
-    readinessStatus === undefined
-    || readinessStatus === "no_legacy"
-    || readinessStatus === "fully_migrated"
-  ) {
+  if (readinessStatus === undefined) {
     delete nextAccount[LEGACY_READINESS_STATUS_FIELD];
     return nextAccount;
   }
