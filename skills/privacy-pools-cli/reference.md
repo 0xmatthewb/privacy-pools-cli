@@ -977,7 +977,7 @@ privacy-pools history --agent [--limit <n>]
 }
 ```
 
-`type` values: `"deposit"`, `"withdrawal"`, `"ragequit"`.
+`type` values: `"deposit"`, `"migration"`, `"withdrawal"`, `"ragequit"`.
 
 ### `sync`
 

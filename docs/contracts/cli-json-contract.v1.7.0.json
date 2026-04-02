@@ -518,7 +518,7 @@
         "events": "HistoryEvent[]"
       },
       "eventFields": {
-        "type": "\"deposit\"|\"withdrawal\"|\"ragequit\"",
+        "type": "\"deposit\"|\"migration\"|\"withdrawal\"|\"ragequit\"",
         "asset": "string",
         "poolAddress": "0x-prefixed-address",
         "poolAccountNumber": "number",

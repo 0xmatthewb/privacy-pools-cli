@@ -425,7 +425,7 @@ privacy-pools migrate status --all-chains --agent
 
 ### `history`
 
-Show chronological event history (deposits, withdrawals, ragequits)
+Show chronological event history (deposits, migrations, withdrawals, ragequits)
 
 ```bash
 privacy-pools history

@@ -801,7 +801,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `migrate status`",
   },
   history: {
-    description: "Show chronological event history (deposits, withdrawals, ragequits)",
+    description: "Show chronological event history (deposits, migrations, withdrawals, ragequits)",
     help: {
       examples: [
         "privacy-pools history",

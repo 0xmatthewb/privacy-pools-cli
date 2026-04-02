@@ -121,7 +121,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "history",
     "aliases": [],
-    "description": "Show chronological event history (deposits, withdrawals, ragequits)"
+    "description": "Show chronological event history (deposits, migrations, withdrawals, ragequits)"
   },
   {
     "name": "sync",
@@ -573,7 +573,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "history",
-      "description": "Show chronological event history (deposits, withdrawals, ragequits)",
+      "description": "Show chronological event history (deposits, migrations, withdrawals, ragequits)",
       "usage": "history",
       "flags": [
         "--no-sync",
@@ -1938,7 +1938,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "history": {
       "command": "history",
-      "description": "Show chronological event history (deposits, withdrawals, ragequits)",
+      "description": "Show chronological event history (deposits, migrations, withdrawals, ragequits)",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",

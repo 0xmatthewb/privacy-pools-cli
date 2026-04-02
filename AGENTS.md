@@ -437,7 +437,7 @@ privacy-pools history --agent --limit 50
 
 JSON payload: `{ chain, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }`
 
-`type` is `"deposit"`, `"withdrawal"`, or `"ragequit"`.
+`type` is `"deposit"`, `"migration"`, `"withdrawal"`, or `"ragequit"`.
 
 #### `sync`
 
