@@ -3,6 +3,7 @@ import { join } from "path";
 import {
   AccountService,
   DataService,
+  type PoolAccount,
   type PoolInfo,
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Address } from "viem";
@@ -116,6 +117,58 @@ export interface InitializeAccountServiceState {
 
 type AccountState = AccountService["account"];
 type AccountScope = Parameters<AccountState["poolAccounts"]["delete"]>[0];
+const LEGACY_POOL_ACCOUNTS_FIELD = "__legacyPoolAccounts" as const;
+type StoredLegacyPoolAccounts = Map<AccountScope, PoolAccount[]>;
+type StoredAccountState = AccountState & {
+  [LEGACY_POOL_ACCOUNTS_FIELD]?: StoredLegacyPoolAccounts;
+};
+
+function clonePoolAccountsMap(
+  poolAccounts: Map<AccountScope, PoolAccount[]> | null | undefined,
+): StoredLegacyPoolAccounts | undefined {
+  if (!(poolAccounts instanceof Map)) {
+    return undefined;
+  }
+
+  return new Map(
+    Array.from(poolAccounts.entries(), ([scope, accounts]) => [
+      scope,
+      Array.isArray(accounts)
+        ? accounts.map((account) => ({
+            ...account,
+            deposit: { ...account.deposit },
+            children: account.children.map((child) => ({ ...child })),
+            ragequit: account.ragequit ? { ...account.ragequit } : account.ragequit,
+          }))
+        : [],
+    ]),
+  );
+}
+
+export function getStoredLegacyPoolAccounts(
+  account: AccountState | null | undefined,
+): StoredLegacyPoolAccounts | undefined {
+  const stored = (account as StoredAccountState | null | undefined)?.[
+    LEGACY_POOL_ACCOUNTS_FIELD
+  ];
+  return clonePoolAccountsMap(stored);
+}
+
+function withStoredLegacyPoolAccounts(
+  account: AccountState,
+  legacyAccount?: AccountService,
+): StoredAccountState {
+  const storedLegacyPoolAccounts =
+    clonePoolAccountsMap(
+      (legacyAccount?.account?.poolAccounts as Map<AccountScope, PoolAccount[]> | undefined)
+        ?? getStoredLegacyPoolAccounts(account),
+    ) ?? new Map<AccountScope, PoolAccount[]>();
+
+  return {
+    ...(account as StoredAccountState),
+    [LEGACY_POOL_ACCOUNTS_FIELD]: storedLegacyPoolAccounts,
+  };
+}
 
 function staleAccountRefreshRequiredError(): CLIError {
   return new CLIError(
@@ -185,6 +238,7 @@ function buildPartialInitializationState(
   accountService: AccountService,
   rebuiltLegacyAccount: boolean,
 ): InitializeAccountServiceState {
+  accountService.account = withStoredLegacyPoolAccounts(accountService.account);
   return {
     accountService,
     skipImmediateSync: false,
@@ -365,6 +419,10 @@ export async function initializeAccountServiceWithState(
           ),
         );
         await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
+        result.account.account = withStoredLegacyPoolAccounts(
+          result.account.account,
+          result.legacyAccount,
+        );
 
         const initErrors = result.errors ?? [];
         if (initErrors.length > 0) {
@@ -460,9 +518,13 @@ export async function initializeAccountServiceWithState(
             `account sync returned fewer Pool Accounts than the saved state for ${preservedScopes.length} pool(s); keeping the saved account entries for ${details}`,
           );
         }
+        const reconciledAccountWithLegacy = withStoredLegacyPoolAccounts(
+          reconciledAccount,
+          legacyAccount,
+        );
         const releaseLock = acquireProcessLock();
         try {
-          service.account = reconciledAccount;
+          service.account = reconciledAccountWithLegacy;
           guardCriticalSection();
           try {
             saveAccount(chainId, service.account);
@@ -502,6 +564,10 @@ export async function initializeAccountServiceWithState(
           ),
         );
         await assertNoLegacyMigrationRequired(result.legacyAccount, chainId);
+        result.account.account = withStoredLegacyPoolAccounts(
+          result.account.account,
+          result.legacyAccount,
+        );
 
         const initErrors = result.errors ?? [];
         if (initErrors.length > 0) {
@@ -722,7 +788,10 @@ export async function syncAccountEvents(
       );
     }
 
-    accountService.account = reconciledAccount;
+    accountService.account = withStoredLegacyPoolAccounts(
+      reconciledAccount,
+      legacyAccount,
+    );
     guardCriticalSection();
     try {
       saveAccount(chainId, accountService.account);

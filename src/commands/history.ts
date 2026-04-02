@@ -6,6 +6,7 @@ import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
+  getStoredLegacyPoolAccounts,
   initializeAccountServiceWithState,
   syncAccountEvents,
 } from "../services/account.js";
@@ -21,7 +22,7 @@ import { createOutputContext, isSilent } from "../output/common.js";
 import { renderHistoryNoPools, renderHistory } from "../output/history.js";
 
 export interface HistoryEvent {
-  type: "deposit" | "withdrawal" | "ragequit";
+  type: "deposit" | "migration" | "withdrawal" | "ragequit";
   asset: string;
   poolAddress: string;
   paNumber: number;
@@ -39,6 +40,25 @@ interface PoolLike {
   symbol: string;
   pool: string;
   scope: bigint;
+}
+
+interface HistoryBuildResult {
+  events: HistoryEvent[];
+  handledLegacyLabels: Set<string>;
+}
+
+function poolAccountLabelKey(scope: bigint, label: bigint): string {
+  return `${scope.toString()}:${label.toString()}`;
+}
+
+function resolvePoolAccountLabel(
+  poolAccount: PoolAccount,
+): bigint | null {
+  if (typeof poolAccount.deposit?.label === "bigint") {
+    return poolAccount.deposit.label;
+  }
+
+  return typeof poolAccount.label === "bigint" ? poolAccount.label : null;
 }
 
 function isMigrationBookkeepingChild(
@@ -99,6 +119,7 @@ export { createHistoryCommand } from "../command-shells/history.js";
 export function buildHistoryEventsFromAccount(
   account: AccountLike | null | undefined,
   pools: readonly PoolLike[],
+  handledLegacyLabels: ReadonlySet<string> = new Set<string>(),
 ): HistoryEvent[] {
   const events: HistoryEvent[] = [];
   const poolAccountsMap = account?.poolAccounts;
@@ -114,15 +135,20 @@ export function buildHistoryEventsFromAccount(
     let paNumber = 1;
     for (const pa of poolAccountsList as PoolAccount[]) {
       const paId = `PA-${paNumber}`;
-      const syntheticMigrationWithdrawal = buildSyntheticMigratedWithdrawalEvent(
-        pool,
-        paNumber,
-        pa,
-      );
+      const label = resolvePoolAccountLabel(pa);
+      const isHandledLegacyPoolAccount =
+        label !== null && handledLegacyLabels.has(poolAccountLabelKey(scopeKey, label));
+      const syntheticMigrationWithdrawal = isHandledLegacyPoolAccount
+        ? null
+        : buildSyntheticMigratedWithdrawalEvent(
+            pool,
+            paNumber,
+            pa,
+          );
 
       if (syntheticMigrationWithdrawal) {
         events.push(syntheticMigrationWithdrawal);
-      } else if (pa.deposit) {
+      } else if (pa.deposit && !isHandledLegacyPoolAccount) {
         events.push({
           type: "deposit",
           asset: pool.symbol,
@@ -138,6 +164,10 @@ export function buildHistoryEventsFromAccount(
       if (pa.children && pa.children.length > 0 && pa.deposit) {
         let prevValue = pa.deposit.value;
         for (const child of pa.children) {
+          if (isHandledLegacyPoolAccount && child.hash === pa.deposit.hash) {
+            prevValue = child.value;
+            continue;
+          }
           if (isMigrationBookkeepingChild(pa.deposit, child)) {
             prevValue = child.value;
             continue;
@@ -180,6 +210,132 @@ export function buildHistoryEventsFromAccount(
   }
 
   return events;
+}
+
+function buildLegacyHistoryEventsFromAccount(
+  legacyAccount: AccountLike | null | undefined,
+  pools: readonly PoolLike[],
+): HistoryBuildResult {
+  const events: HistoryEvent[] = [];
+  const handledLegacyLabels = new Set<string>();
+  const poolAccountsMap = legacyAccount?.poolAccounts;
+
+  if (!(poolAccountsMap instanceof Map)) {
+    return { events, handledLegacyLabels };
+  }
+
+  for (const [scopeKey, poolAccountsList] of poolAccountsMap.entries()) {
+    if (!Array.isArray(poolAccountsList)) continue;
+    const scopeStr = scopeKey.toString();
+    const pool = pools.find((candidate) => candidate.scope.toString() === scopeStr);
+    if (!pool) continue;
+
+    let paNumber = 1;
+    for (const pa of poolAccountsList as PoolAccount[]) {
+      if (!pa.deposit) {
+        paNumber++;
+        continue;
+      }
+
+      const label = resolvePoolAccountLabel(pa);
+      if (label === null) {
+        paNumber++;
+        continue;
+      }
+
+      const paId = `PA-${paNumber}`;
+      const ragequit = pa.ragequit as RagequitEvent | null | undefined;
+
+      if (pa.isMigrated === true) {
+        handledLegacyLabels.add(poolAccountLabelKey(scopeKey, label));
+        events.push({
+          type: "deposit",
+          asset: pool.symbol,
+          poolAddress: pool.pool,
+          paNumber,
+          paId,
+          value: pa.deposit.value,
+          blockNumber: pa.deposit.blockNumber,
+          txHash: pa.deposit.txHash,
+        });
+
+        let prevValue = pa.deposit.value;
+        for (const child of pa.children ?? []) {
+          if (child.isMigration === true) {
+            events.push({
+              type: "migration",
+              asset: pool.symbol,
+              poolAddress: pool.pool,
+              paNumber,
+              paId,
+              value: child.value,
+              blockNumber: child.blockNumber,
+              txHash: child.txHash,
+            });
+          } else {
+            const withdrawnAmount = prevValue - child.value;
+            events.push({
+              type: "withdrawal",
+              asset: pool.symbol,
+              poolAddress: pool.pool,
+              paNumber,
+              paId,
+              value: withdrawnAmount < 0n ? child.value : withdrawnAmount,
+              blockNumber: child.blockNumber,
+              txHash: child.txHash,
+            });
+          }
+          prevValue = child.value;
+        }
+      } else if (
+        ragequit
+        && typeof ragequit === "object"
+        && typeof ragequit.blockNumber === "bigint"
+      ) {
+        handledLegacyLabels.add(poolAccountLabelKey(scopeKey, label));
+        events.push({
+          type: "deposit",
+          asset: pool.symbol,
+          poolAddress: pool.pool,
+          paNumber,
+          paId,
+          value: pa.deposit.value,
+          blockNumber: pa.deposit.blockNumber,
+          txHash: pa.deposit.txHash,
+        });
+        events.push({
+          type: "ragequit",
+          asset: pool.symbol,
+          poolAddress: pool.pool,
+          paNumber,
+          paId,
+          value: ragequit.value,
+          blockNumber: ragequit.blockNumber,
+          txHash: ragequit.transactionHash,
+        });
+      }
+
+      paNumber++;
+    }
+  }
+
+  return { events, handledLegacyLabels };
+}
+
+export function buildHistoryEventsFromAccounts(
+  account: AccountLike | null | undefined,
+  legacyAccount: AccountLike | null | undefined,
+  pools: readonly PoolLike[],
+): HistoryEvent[] {
+  const {
+    events: legacyEvents,
+    handledLegacyLabels,
+  } = buildLegacyHistoryEventsFromAccount(legacyAccount, pools);
+
+  return [
+    ...legacyEvents,
+    ...buildHistoryEventsFromAccount(account, pools, handledLegacyLabels),
+  ];
 }
 
 export async function handleHistoryCommand(
@@ -253,10 +409,13 @@ export async function handleHistoryCommand(
         },
       );
 
+    const missingStoredLegacyHistory =
+      getStoredLegacyPoolAccounts(accountService.account) === undefined;
+
     await withSpinnerProgress(spin, "Syncing", () =>
       syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
         skip: opts.sync === false || skipImmediateSync,
-        force: false,
+        force: missingStoredLegacyHistory,
         silent,
         isJson: mode.isJson,
         isVerbose,
@@ -266,8 +425,13 @@ export async function handleHistoryCommand(
       }),
     );
 
-    // Extract chronological events from local account state.
-    const events = buildHistoryEventsFromAccount(accountService.account, pools);
+    // Extract chronological events from merged safe + legacy account state.
+    const legacyPoolAccounts = getStoredLegacyPoolAccounts(accountService.account);
+    const events = buildHistoryEventsFromAccounts(
+      accountService.account,
+      legacyPoolAccounts ? { poolAccounts: legacyPoolAccounts } : null,
+      pools,
+    );
 
     // Sort chronologically (newest first)
     events.sort((a, b) => {

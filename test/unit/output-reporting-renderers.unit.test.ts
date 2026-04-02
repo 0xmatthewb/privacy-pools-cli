@@ -708,6 +708,27 @@ describe("renderHistory parity", () => {
     expect(stderr).toMatch(/│\s-\s+│/);
   });
 
+  test("human mode: labels migration events distinctly", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderHistory(ctx, {
+        chain: "sepolia",
+        chainId: 11155111,
+        events: [
+          {
+            ...STUB_EVENTS[0]!,
+            type: "migration",
+          },
+        ],
+        poolByAddress: STUB_POOL_MAP,
+        explorerTxUrl: mockExplorerUrl,
+        currentBlock: 300n,
+      }),
+    );
+
+    expect(stderr).toContain("Migration");
+  });
+
   test("human mode: shows empty-state for no events", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>

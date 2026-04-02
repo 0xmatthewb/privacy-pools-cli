@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildHistoryEventsFromAccount } from "../../src/commands/history.ts";
+import {
+  buildHistoryEventsFromAccount,
+  buildHistoryEventsFromAccounts,
+} from "../../src/commands/history.ts";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -19,13 +22,15 @@ function makeDeposit(overrides: Record<string, unknown> = {}) {
 function makePoolAccount(
   deposit: ReturnType<typeof makeDeposit>,
   children: ReturnType<typeof makeDeposit>[] = [],
-  ragequit?: Record<string, unknown>
+  ragequit?: Record<string, unknown> | null,
+  overrides: Record<string, unknown> = {},
 ) {
   return {
     label: deposit.label,
     deposit,
     children,
     ragequit: ragequit ?? null,
+    ...overrides,
   };
 }
 
@@ -178,7 +183,7 @@ describe("history event extraction", () => {
     expect(withdrawals[0].value).toBe(0n);
   });
 
-  test("synthetic migrated safe-side bookkeeping is rendered as a withdrawal event", () => {
+  test("safe-only fallback still surfaces synthetic migrated bookkeeping when legacy history is unavailable", () => {
     const depositTxHash =
       "0x4444444444444444444444444444444444444444444444444444444444444444";
     const deposit = makeDeposit({
@@ -187,7 +192,7 @@ describe("history event extraction", () => {
       txHash: depositTxHash,
     });
     const migrationChild = makeDeposit({
-      hash: 22n,
+      hash: deposit.hash,
       value: 100n,
       blockNumber: 20n,
       txHash: depositTxHash,
@@ -206,6 +211,72 @@ describe("history event extraction", () => {
       blockNumber: 20n,
       txHash: depositTxHash,
     });
+  });
+
+  test("merged history prefers legacy migration events and suppresses the safe-side duplicate", () => {
+    const depositTxHash =
+      "0x4444444444444444444444444444444444444444444444444444444444444444";
+    const migrationTxHash =
+      "0x5555555555555555555555555555555555555555555555555555555555555555";
+    const legacyDeposit = makeDeposit({
+      label: 42n,
+      hash: 111n,
+      value: 100n,
+      blockNumber: 10n,
+      txHash: depositTxHash,
+    });
+    const legacyMigrationChild = makeDeposit({
+      label: 42n,
+      hash: 222n,
+      value: 100n,
+      blockNumber: 20n,
+      txHash: migrationTxHash,
+      isMigration: true,
+    });
+    const safeSyntheticDeposit = makeDeposit({
+      label: 42n,
+      hash: 333n,
+      value: 100n,
+      blockNumber: 20n,
+      txHash: migrationTxHash,
+    });
+    const safeSyntheticChild = makeDeposit({
+      label: 42n,
+      hash: 333n,
+      value: 100n,
+      blockNumber: 20n,
+      txHash: migrationTxHash,
+    });
+
+    const legacyAccount = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(legacyDeposit, [legacyMigrationChild], null, {
+        isMigrated: true,
+      }),
+    ]);
+    const safeAccount = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(safeSyntheticDeposit, [safeSyntheticChild]),
+    ]);
+
+    const events = buildHistoryEventsFromAccounts(
+      safeAccount as any,
+      legacyAccount as any,
+      [POOL_USDC] as any,
+    );
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "deposit",
+        value: 100n,
+        blockNumber: 10n,
+        txHash: depositTxHash,
+      }),
+      expect.objectContaining({
+        type: "migration",
+        value: 100n,
+        blockNumber: 20n,
+        txHash: migrationTxHash,
+      }),
+    ]);
   });
 
   test("migration children do not surface as user withdrawal history events", () => {
@@ -272,6 +343,47 @@ describe("history event extraction", () => {
     const ragequit = events.find((e) => e.type === "ragequit");
 
     expect(ragequit?.value).toBe(250n);
+  });
+
+  test("merged history includes legacy ragequit events that are absent from the safe account view", () => {
+    const legacyDeposit = makeDeposit({
+      label: 77n,
+      hash: 701n,
+      value: 250n,
+      blockNumber: 10n,
+      txHash: "0x7777777777777777777777777777777777777777777777777777777777777777",
+    });
+    const legacyRagequitTxHash =
+      "0x8888888888888888888888888888888888888888888888888888888888888888";
+    const legacyAccount = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(legacyDeposit, [], {
+        ragequitter: "0x0000000000000000000000000000000000000001",
+        commitment: legacyDeposit.hash,
+        label: legacyDeposit.label,
+        value: legacyDeposit.value,
+        blockNumber: 50n,
+        transactionHash: legacyRagequitTxHash,
+      }),
+    ]);
+
+    const events = buildHistoryEventsFromAccounts(
+      { poolAccounts: new Map() } as any,
+      legacyAccount as any,
+      [POOL_USDC] as any,
+    );
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "deposit",
+        value: 250n,
+        txHash: legacyDeposit.txHash,
+      }),
+      expect.objectContaining({
+        type: "ragequit",
+        value: 250n,
+        txHash: legacyRagequitTxHash,
+      }),
+    ]);
   });
 
   test("events include correct pool address and txHash", () => {

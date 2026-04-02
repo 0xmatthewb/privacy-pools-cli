@@ -79,6 +79,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
         const pool = poolByAddress.get(e.poolAddress);
         const typeLabel =
           e.type === "deposit" ? "Deposit" :
+          e.type === "migration" ? "Migration" :
           e.type === "withdrawal" ? "Withdraw" :
           "Ragequit";
         return [
@@ -110,6 +111,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
       const pool = poolByAddress.get(e.poolAddress);
       const typeLabel =
         e.type === "deposit" ? "Deposit" :
+        e.type === "migration" ? "Migration" :
         e.type === "withdrawal" ? "Withdraw" :
         "Ragequit";
       return [

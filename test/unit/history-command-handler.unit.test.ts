@@ -197,6 +197,94 @@ describe("history command handler", () => {
     expect(syncAccountEventsMock).toHaveBeenCalledTimes(1);
   });
 
+  test("merges stored legacy migration history and suppresses safe-side duplicates", async () => {
+    initializeAccountServiceWithStateMock.mockImplementationOnce(async () => ({
+      accountService: {
+        account: {
+          poolAccounts: new Map([
+            [
+              1n,
+              [
+                {
+                  label: 7n,
+                  deposit: {
+                    label: 7n,
+                    hash: 700n,
+                    value: 900000000000000000n,
+                    blockNumber: 150n,
+                    txHash: "0x" + "44".repeat(32),
+                  },
+                  children: [
+                    {
+                      label: 7n,
+                      hash: 700n,
+                      value: 900000000000000000n,
+                      blockNumber: 150n,
+                      txHash: "0x" + "44".repeat(32),
+                    },
+                  ],
+                  ragequit: null,
+                },
+              ],
+            ],
+          ]),
+          __legacyPoolAccounts: new Map([
+            [
+              1n,
+              [
+                {
+                  label: 7n,
+                  deposit: {
+                    label: 7n,
+                    hash: 600n,
+                    value: 900000000000000000n,
+                    blockNumber: 100n,
+                    txHash: "0x" + "55".repeat(32),
+                  },
+                  children: [
+                    {
+                      label: 7n,
+                      hash: 601n,
+                      value: 900000000000000000n,
+                      blockNumber: 150n,
+                      txHash: "0x" + "44".repeat(32),
+                      isMigration: true,
+                    },
+                  ],
+                  ragequit: null,
+                  isMigrated: true,
+                },
+              ],
+            ],
+          ]),
+        },
+      },
+      skipImmediateSync: false,
+      rebuiltLegacyAccount: false,
+    }));
+
+    await captureAsyncOutput(() =>
+      handleHistoryCommand({ limit: "3" }, fakeCommand({ json: true })),
+    );
+
+    expect(renderHistoryMock).toHaveBeenCalledTimes(1);
+    expect(renderHistoryMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        events: [
+          expect.objectContaining({
+            type: "migration",
+            paId: "PA-1",
+          }),
+          expect.objectContaining({
+            type: "deposit",
+            paId: "PA-1",
+          }),
+        ],
+      }),
+    );
+  });
+
   test("renders the no-pools state without loading wallet history", async () => {
     listPoolsMock.mockImplementationOnce(async () => []);
 
