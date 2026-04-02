@@ -480,7 +480,7 @@
         "allChains": "boolean? (true when --all-chains is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "MigrationWarning[]? ({ chain, category, message } for per-chain partial failures)",
-        "status": "\"requires_migration\"|\"fully_migrated\"|\"website_recovery_required\"|\"unknown\"",
+        "status": "\"no_legacy\"|\"migration_required\"|\"fully_migrated\"|\"website_recovery_required\"|\"review_incomplete\"",
         "requiresMigration": "boolean",
         "requiresWebsiteRecovery": "boolean",
         "isFullyMigrated": "boolean",
@@ -496,7 +496,7 @@
       "chainReadinessFields": {
         "chain": "string",
         "chainId": "number",
-        "status": "\"requires_migration\"|\"fully_migrated\"|\"website_recovery_required\"|\"unknown\"",
+        "status": "\"no_legacy\"|\"migration_required\"|\"partially_migrated\"|\"fully_migrated\"|\"website_recovery_required\"|\"review_incomplete\"",
         "candidateLegacyCommitments": "number",
         "expectedLegacyCommitments": "number",
         "migratedCommitments": "number",
