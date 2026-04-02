@@ -313,7 +313,7 @@ async function resolveLegacyInitializationPolicy(
 
   if (
     allowLegacyRecoveryVisibility
-    && resolved.readiness.status !== "review_incomplete"
+    && resolved.readiness.status === "website_recovery_required"
   ) {
     return resolved;
   }

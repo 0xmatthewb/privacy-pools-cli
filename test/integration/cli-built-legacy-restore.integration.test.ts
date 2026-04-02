@@ -180,4 +180,77 @@ describe("built CLI legacy restore safety", () => {
       ),
     ).toBe(false);
   }, 60_000);
+
+  test("history fails closed for a real legacy-derived deposit and leaves no trusted state behind", () => {
+    const home = createTempHome();
+    const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(home);
+
+    const initResult = runBuiltCli(
+      [
+        "--json",
+        "init",
+        "--mnemonic-file",
+        mnemonicPath,
+        "--private-key-file",
+        privateKeyPath,
+        "--default-chain",
+        "sepolia",
+        "--yes",
+      ],
+      {
+        home,
+        cwd: builtWorkspaceRoot,
+        timeoutMs: 60_000,
+        env: {
+          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+        },
+      },
+    );
+    expect(initResult.status).toBe(0);
+
+    const result = runBuiltCli(
+      ["--json", "--chain", "sepolia", "history"],
+      {
+        home,
+        cwd: builtWorkspaceRoot,
+        timeoutMs: 30_000,
+        env: {
+          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+          PRIVACY_POOLS_ASP_HOST: fixture.url,
+          PRIVACY_POOLS_RPC_URL_SEPOLIA: rpcServer.url,
+        },
+      },
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim()).toBe("");
+
+    const json = parseJsonOutput<{
+      success: boolean;
+      errorCode: string;
+      errorMessage: string;
+      error: {
+        category: string;
+        retryable: boolean;
+        hint?: string;
+      };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("ACCOUNT_MIGRATION_REQUIRED");
+    expect(json.errorMessage).toContain("Legacy pre-upgrade Pool Accounts");
+    expect(json.error.category).toBe("INPUT");
+    expect(json.error.retryable).toBe(false);
+    expect(json.error.hint).toContain("Privacy Pools website");
+
+    expect(
+      existsSync(
+        join(home, ".privacy-pools", "accounts", `${sepoliaChainConfig.id}.json`),
+      ),
+    ).toBe(false);
+    expect(
+      existsSync(
+        join(home, ".privacy-pools", "accounts", `${sepoliaChainConfig.id}.sync.json`),
+      ),
+    ).toBe(false);
+  }, 60_000);
 });

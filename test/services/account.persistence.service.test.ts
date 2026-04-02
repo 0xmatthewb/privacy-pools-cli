@@ -847,6 +847,49 @@ describe("account persistence", () => {
     expect(loadSyncMeta(11155111)).not.toBeNull();
   });
 
+  test("read-only visibility still fails closed when legacy migration is required", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    global.fetch = (async () =>
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })) as typeof global.fetch;
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: makeLegacyAccount(),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    await expect(
+      initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          allowLegacyRecoveryVisibility: true,
+          suppressWarnings: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      category: "INPUT",
+      code: "ACCOUNT_MIGRATION_REQUIRED",
+    });
+
+    expect(loadAccount(11155111)).toBeNull();
+    expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
   test("saved-account sync surfaces website recovery guidance instead of dropping legacy state", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
