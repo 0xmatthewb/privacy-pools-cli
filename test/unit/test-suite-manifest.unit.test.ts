@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  COVERAGE_SIGNAL_TESTS,
   DEFAULT_MAIN_BATCHES,
   DEFAULT_MAIN_EXCLUDED_TESTS,
   DEFAULT_MAIN_TEST_TARGETS,
@@ -14,10 +15,25 @@ describe("test suite manifest", () => {
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_PACKAGE_SMOKE_TEST);
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_SHELL_SMOKE_TEST);
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
-      "./test/integration/cli-status-init.integration.test.ts",
+      "./test/acceptance/status-init.acceptance.test.ts",
     );
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
-      "./test/integration/cli-output-mode.integration.test.ts",
+  });
+
+  test("coverage signal tests mix contract and real cli behavior coverage", () => {
+    expect(COVERAGE_SIGNAL_TESTS).toContain(
+      "./test/conformance/command-metadata.conformance.test.ts",
+    );
+    expect(COVERAGE_SIGNAL_TESTS).toContain(
+      "./test/acceptance/status-init.acceptance.test.ts",
+    );
+    expect(COVERAGE_SIGNAL_TESTS).toContain(
+      "./test/acceptance/no-sync.acceptance.test.ts",
+    );
+    expect(COVERAGE_SIGNAL_TESTS).toContain(
+      "./test/acceptance/withdraw-quote.acceptance.test.ts",
+    );
+    expect(COVERAGE_SIGNAL_TESTS).toContain(
+      "./test/integration/cli-built-legacy-restore.integration.test.ts",
     );
   });
 

@@ -6,7 +6,7 @@ import {
 } from "../../scripts/ci/lib.mjs";
 
 describe("ci test shards", () => {
-  test("linux-core shard discovery keeps canonical acceptance coverage and drops deleted duplicates", () => {
+  test("linux-core shard discovery keeps canonical acceptance coverage and excludes dedicated smoke lanes", () => {
     const files = collectLinuxCoreTestFiles();
 
     expect(files).toContain("./test/acceptance/status-init.acceptance.test.ts");
@@ -17,18 +17,11 @@ describe("ci test shards", () => {
     expect(files).toContain("./test/acceptance/no-sync.acceptance.test.ts");
     expect(files).toContain("./test/services/contracts.service.test.ts");
     expect(files).toContain("./test/integration/cli-flow.integration.test.ts");
-    expect(files).not.toContain("./test/integration/cli-status-init.integration.test.ts");
-    expect(files).not.toContain("./test/integration/cli-output-mode.integration.test.ts");
+    expect(files).not.toContain("./test/integration/cli.packaged-smoke.integration.test.ts");
     expect(files).not.toContain(
-      "./test/integration/cli-agent-improvements.integration.test.ts",
+      "./test/integration/cli-native-package-smoke.integration.test.ts",
     );
-    expect(files).not.toContain("./test/integration/cli-completion.integration.test.ts");
-    expect(files).not.toContain("./test/integration/cli-stats.integration.test.ts");
-    expect(files).not.toContain("./test/integration/cli-activity.integration.test.ts");
-    expect(files).not.toContain(
-      "./test/integration/cli-transaction-inputs.integration.test.ts",
-    );
-    expect(files).not.toContain("./test/integration/cli-no-sync.integration.test.ts");
+    expect(files).not.toContain("./test/integration/cli-native-shell.integration.test.ts");
   });
 
   test("shard builder covers every file exactly once", () => {

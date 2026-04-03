@@ -13,7 +13,7 @@ import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  COMMAND_SURFACE_TESTS,
+  COVERAGE_SIGNAL_TESTS,
   COVERAGE_ISOLATED_SUITES,
   COVERAGE_MAIN_EXCLUDED_TESTS,
   COVERAGE_MAIN_TEST_TARGETS,
@@ -42,7 +42,8 @@ function stripLcovSourceSearchAndHash(source) {
 }
 
 const EXCLUDED_SOURCES = new Set([
-  normalizePath(resolve(ROOT, "src/utils/command-discovery-static.ts")),
+  // Generated artifact/data modules are verified via generation and contract tests
+  // rather than raw line-coverage thresholds.
   normalizePath(resolve(ROOT, "src/utils/command-manifest.ts")),
   normalizePath(resolve(ROOT, "src/services/circuit-checksums.js")),
   normalizePath(resolve(ROOT, "src/types.ts")),
@@ -332,7 +333,7 @@ try {
   const mainSuites = buildCoverageMainSuites({
     rootDir: ROOT,
     testTargets: COVERAGE_MAIN_TEST_TARGETS,
-    commandSurfaceTests: COMMAND_SURFACE_TESTS,
+    commandSurfaceTests: COVERAGE_SIGNAL_TESTS,
     excludedTests: COVERAGE_MAIN_EXCLUDED_TESTS,
   });
   const coverageArtifacts = [];

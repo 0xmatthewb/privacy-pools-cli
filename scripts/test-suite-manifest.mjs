@@ -82,6 +82,19 @@ export const COMMAND_SURFACE_TESTS = [
   "./test/conformance/root-help-static.conformance.test.ts",
 ];
 
+export const COVERAGE_BEHAVIOR_TESTS = [
+  "./test/acceptance/status-init.acceptance.test.ts",
+  "./test/acceptance/transaction-inputs.acceptance.test.ts",
+  "./test/acceptance/withdraw-quote.acceptance.test.ts",
+  "./test/acceptance/no-sync.acceptance.test.ts",
+  "./test/integration/cli-built-legacy-restore.integration.test.ts",
+];
+
+export const COVERAGE_SIGNAL_TESTS = [
+  ...COMMAND_SURFACE_TESTS,
+  ...COVERAGE_BEHAVIOR_TESTS,
+];
+
 export const ANVIL_E2E_TESTS = [
   WORKFLOW_ANVIL_SERVICE_TEST,
   CLI_ANVIL_E2E_TEST,
