@@ -1,15 +1,29 @@
 import { spawnSync } from "node:child_process";
 import { cpSync, symlinkSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { buildChildProcessEnv } from "./child-env.ts";
 import { CLI_ROOT } from "./paths.ts";
 import { cleanupTrackedTempDir, createTrackedTempDir } from "./temp.ts";
 import { npmBin } from "./npm-bin.ts";
 
+const SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV =
+  "PP_TEST_BUILT_WORKSPACE_SNAPSHOT";
+
 interface WorkspaceSnapshotOptions {
   build?: boolean;
   includeDist?: boolean;
   nodeModulesMode?: "symlink" | "copy";
+}
+
+function shouldReuseSharedBuiltWorkspaceSnapshot(
+  options: Omit<WorkspaceSnapshotOptions, "build"> = {},
+): boolean {
+  const sharedSnapshotRoot =
+    process.env[SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV]?.trim();
+  const nodeModulesMode = options.nodeModulesMode ?? "symlink";
+  const includeDist = options.includeDist ?? false;
+
+  return Boolean(sharedSnapshotRoot) && nodeModulesMode === "symlink" && !includeDist;
 }
 
 export function buildWorkspaceSnapshot(snapshotRoot: string): void {
@@ -78,6 +92,13 @@ export function createWorkspaceSnapshot(
 export function createBuiltWorkspaceSnapshot(
   options: Omit<WorkspaceSnapshotOptions, "build"> = {},
 ): string {
+  const sharedSnapshotRoot =
+    process.env[SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV]?.trim();
+
+  if (shouldReuseSharedBuiltWorkspaceSnapshot(options) && sharedSnapshotRoot) {
+    return resolve(sharedSnapshotRoot);
+  }
+
   return createWorkspaceSnapshot({ ...options, build: true });
 }
 
@@ -85,5 +106,14 @@ export function cleanupWorkspaceSnapshot(
   snapshotRoot: string | null | undefined,
 ): void {
   if (!snapshotRoot) return;
+  const sharedSnapshotRoot =
+    process.env[SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV]?.trim();
+  if (sharedSnapshotRoot && resolve(snapshotRoot) === resolve(sharedSnapshotRoot)) {
+    return;
+  }
   cleanupTrackedTempDir(snapshotRoot);
 }
+
+export const workspaceSnapshotInternals = {
+  shouldReuseSharedBuiltWorkspaceSnapshot,
+};

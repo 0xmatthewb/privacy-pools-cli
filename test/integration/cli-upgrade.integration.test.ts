@@ -29,6 +29,7 @@ let registryUrl: string;
 let registryProcess: ChildProcessWithoutNullStreams;
 let cleanupRegistryProcessExit: (() => void) | null = null;
 const trackedUpgradeTempRoots = new Set<string>();
+const REGISTRY_STARTUP_TIMEOUT_MS = 10_000;
 
 function nodeBin(): string {
   return process.platform === "win32" ? "node.exe" : "node";
@@ -187,6 +188,17 @@ server.listen(0, "127.0.0.1", () => {
     cleanupRegistryProcessExit = registerProcessExitCleanup(registryProcess);
 
     let stderr = "";
+    let startupTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      cleanupStartupListeners();
+      void terminateChildProcess(registryProcess);
+      reject(
+        new Error(
+          `fake npm registry process did not become ready within ${REGISTRY_STARTUP_TIMEOUT_MS}ms`,
+        ),
+      );
+    }, REGISTRY_STARTUP_TIMEOUT_MS);
+    startupTimeout.unref?.();
+
     const handleStderr = (chunk: Buffer | string) => {
       stderr += chunk.toString();
     };
@@ -202,20 +214,26 @@ server.listen(0, "127.0.0.1", () => {
         ),
       );
     };
+    const handleStdout = (chunk: Buffer | string) => {
+      cleanupStartupListeners();
+      const port = chunk.toString().trim();
+      resolve(`http://127.0.0.1:${port}/latest`);
+    };
     const cleanupStartupListeners = () => {
+      if (startupTimeout) {
+        clearTimeout(startupTimeout);
+        startupTimeout = null;
+      }
       registryProcess.stderr.off("data", handleStderr);
       registryProcess.off("error", handleError);
       registryProcess.off("exit", handleExit);
+      registryProcess.stdout.off("data", handleStdout);
     };
 
     registryProcess.stderr.on("data", handleStderr);
     registryProcess.once("error", handleError);
     registryProcess.once("exit", handleExit);
-    registryProcess.stdout.once("data", (chunk: Buffer | string) => {
-      cleanupStartupListeners();
-      const port = chunk.toString().trim();
-      resolve(`http://127.0.0.1:${port}/latest`);
-    });
+    registryProcess.stdout.once("data", handleStdout);
   });
 }, 240_000);
 
