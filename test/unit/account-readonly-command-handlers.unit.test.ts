@@ -528,6 +528,30 @@ describe("account read-only command handlers", () => {
     );
   });
 
+  test("accounts surfaces partial ASP review warnings for successful single-chain loads", async () => {
+    useIsolatedHome("mainnet");
+    loadAspDepositReviewStateMock.mockImplementationOnce(async () => ({
+      approvedLabels: new Set<string>(["101"]),
+      reviewStatuses: new Map<string, string>([["101", "approved"]]),
+      rawReviewStatuses: new Map<string, string>([["101", "approved"]]),
+      hasIncompleteReviewData: true,
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleAccountsCommand({}, fakeCommand({ json: true, chain: "mainnet" })),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          chain: "mainnet",
+          category: "ASP",
+        }),
+      ]),
+    );
+  });
+
   test("accounts fails closed when every queried chain errors", async () => {
     useIsolatedHome("mainnet");
     initializeAccountServiceWithStateMock.mockImplementation(async () => {
@@ -541,6 +565,21 @@ describe("account read-only command handlers", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("UNKNOWN_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain("rpc unavailable");
+    expect(exitCode).toBe(1);
+  });
+
+  test("accounts explicit single-chain failures route through the sequential error path", async () => {
+    useIsolatedHome("mainnet");
+    initializeAccountServiceWithStateMock.mockImplementationOnce(async () => {
+      throw new Error("mainnet rpc unavailable");
+    });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleAccountsCommand({}, fakeCommand({ json: true, chain: "mainnet" })),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.error.message ?? json.errorMessage).toContain("mainnet rpc unavailable");
     expect(exitCode).toBe(1);
   });
 

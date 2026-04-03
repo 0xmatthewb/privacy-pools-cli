@@ -299,6 +299,39 @@ describe("history command handler", () => {
     expect(initializeAccountServiceWithStateMock).not.toHaveBeenCalled();
   });
 
+  test("passes --no-sync through to account event syncing", async () => {
+    await captureAsyncOutput(() =>
+      handleHistoryCommand({ sync: false, limit: "2" }, fakeCommand({ json: true })),
+    );
+
+    expect(syncAccountEventsMock).toHaveBeenCalledTimes(1);
+    expect(syncAccountEventsMock.mock.calls[0]?.[4]).toMatchObject({
+      skip: true,
+      errorLabel: "History",
+      allowLegacyRecoveryVisibility: true,
+    });
+  });
+
+  test("renders history even when the current block lookup fails", async () => {
+    getPublicClientMock.mockImplementationOnce(() => ({
+      getBlockNumber: async () => {
+        throw new Error("rpc unavailable");
+      },
+    }));
+
+    await captureAsyncOutput(() =>
+      handleHistoryCommand({ limit: "2" }, fakeCommand({ json: true })),
+    );
+
+    expect(renderHistoryMock).toHaveBeenCalledTimes(1);
+    expect(renderHistoryMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        currentBlock: null,
+      }),
+    );
+  });
+
   test("rejects invalid limits before touching account state", async () => {
     await captureAsyncOutput(() =>
       handleHistoryCommand({ limit: "0" }, fakeCommand({ json: true })),

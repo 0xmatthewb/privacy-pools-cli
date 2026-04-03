@@ -380,6 +380,113 @@ describe("history event extraction", () => {
     ]);
   });
 
+  test("merged history includes declined legacy deposits that are marked recoverable", () => {
+    const declinedLegacyDeposit = makeDeposit({
+      label: 91n,
+      hash: 901n,
+      value: 175n,
+      blockNumber: 12n,
+      txHash: "0x9191919191919191919191919191919191919191919191919191919191919191",
+    });
+    const legacyAccount = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(declinedLegacyDeposit, [], null, {
+        isMigrated: false,
+      }),
+    ]);
+
+    const events = buildHistoryEventsFromAccounts(
+      { poolAccounts: new Map() } as any,
+      legacyAccount as any,
+      [POOL_USDC] as any,
+      new Set(["91"]),
+    );
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "deposit",
+        value: 175n,
+        txHash: declinedLegacyDeposit.txHash,
+      }),
+    ]);
+  });
+
+  test("merged history preserves legacy withdrawals after migration bookkeeping", () => {
+    const legacyDeposit = makeDeposit({
+      label: 52n,
+      hash: 520n,
+      value: 100n,
+      blockNumber: 10n,
+      txHash: "0x5252525252525252525252525252525252525252525252525252525252525252",
+    });
+    const migrationChild = makeDeposit({
+      label: 52n,
+      hash: 521n,
+      value: 100n,
+      blockNumber: 20n,
+      txHash: "0x5353535353535353535353535353535353535353535353535353535353535353",
+      isMigration: true,
+    });
+    const withdrawnChild = makeDeposit({
+      label: 52n,
+      hash: 522n,
+      value: 40n,
+      blockNumber: 30n,
+      txHash: "0x5454545454545454545454545454545454545454545454545454545454545454",
+    });
+    const legacyAccount = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(legacyDeposit, [migrationChild, withdrawnChild], null, {
+        isMigrated: true,
+      }),
+    ]);
+
+    const events = buildHistoryEventsFromAccounts(
+      { poolAccounts: new Map() } as any,
+      legacyAccount as any,
+      [POOL_USDC] as any,
+    );
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "deposit",
+        value: 100n,
+        txHash: legacyDeposit.txHash,
+      }),
+      expect.objectContaining({
+        type: "migration",
+        value: 100n,
+        txHash: migrationChild.txHash,
+      }),
+      expect.objectContaining({
+        type: "withdrawal",
+        value: 60n,
+        txHash: withdrawnChild.txHash,
+      }),
+    ]);
+  });
+
+  test("falls back to the top-level pool account label when deposit label is missing", () => {
+    const deposit = makeDeposit({
+      label: undefined,
+      value: 250n,
+      blockNumber: 15n,
+    });
+    const account = makeAccount(POOL_USDC.scope, [
+      makePoolAccount(deposit, [], null, {
+        label: 250n,
+      }),
+    ]);
+
+    const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "deposit",
+        value: 250n,
+        paId: "PA-1",
+      }),
+    ]);
+  });
+
   test("events include correct pool address and txHash", () => {
     const deposit = makeDeposit({
       txHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
