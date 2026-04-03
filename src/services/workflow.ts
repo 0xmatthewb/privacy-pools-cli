@@ -3271,6 +3271,7 @@ async function executeRagequitForFlow(params: {
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
+  context?: WorkflowPoolAccountContext;
 }): Promise<
   {
     aspStatus?: AspApprovalStatus;
@@ -3281,12 +3282,14 @@ async function executeRagequitForFlow(params: {
 > {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   const silent = mode.isQuiet || mode.isJson;
-  const context = await loadWorkflowPoolAccountContext(
-    snapshot,
-    globalOpts,
-    silent,
-    false,
-  );
+  const context =
+    params.context ??
+    await loadWorkflowPoolAccountContext(
+      snapshot,
+      globalOpts,
+      silent,
+      false,
+    );
   const { chainConfig, pool, accountService, publicClient, selectedPoolAccount } = context;
   const mutationPhase = classifyFlowMutation(snapshot, selectedPoolAccount);
   if (mutationPhase) {
@@ -4333,6 +4336,7 @@ export async function ragequitWorkflow(
         globalOpts: params.globalOpts,
         mode: params.mode,
         isVerbose: params.isVerbose,
+        context: mutationContext,
       });
       const completed = clearLastError(
         attachRagequitResultToSnapshot(snapshot, {

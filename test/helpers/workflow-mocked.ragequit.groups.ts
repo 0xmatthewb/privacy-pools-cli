@@ -12,10 +12,12 @@ import {
   MISMATCH_SIGNER_PRIVATE_KEY,
   NEW_WALLET_ADDRESS,
   failWorkflowSnapshotWriteOnCall,
+  getDataServiceMock,
   getWorkflowStatus,
   publicClient,
   ragequitWorkflow,
   realConfig,
+  resolvePoolMock,
   saveAccountMock,
   state,
   submitRelayRequestMock,
@@ -83,6 +85,8 @@ export function registerWorkflowMockedRagequitTests(): void {
       expect(state.loadPrivateKeyCalls).toBe(1);
       expect(state.submitRagequitCalls).toBe(1);
       expect(state.addRagequitCalls).toBe(1);
+      expect(resolvePoolMock).toHaveBeenCalledTimes(1);
+      expect(getDataServiceMock).toHaveBeenCalledTimes(1);
     });
     test("configured flow ragequit reconciles workflows already recovered manually", async () => {
       state.poolAccountStatus = "exited";
