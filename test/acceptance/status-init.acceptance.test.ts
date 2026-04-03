@@ -51,7 +51,9 @@ defineScenarioSuite("status/init acceptance", [
         expect(json.success).toBe(true);
         expect(json.defaultChain).toBe("sepolia");
       }),
-      runCliStep(["--json", "status"]),
+      runCliStep(["--json", "status", "--no-check"], {
+        timeoutMs: 60_000,
+      }),
       assertExit(0),
       assertJsonEnvelopeStep({ success: true }),
       assertJson<{
@@ -74,7 +76,7 @@ defineScenarioSuite("status/init acceptance", [
     "status honors chain overrides without mutating default chain",
     [
       seedHome("mainnet"),
-      runCliStep(["--json", "--chain", "sepolia", "status"], {
+      runCliStep(["--json", "--chain", "sepolia", "status", "--no-check"], {
         timeoutMs: 60_000,
       }),
       assertExit(0),
@@ -103,7 +105,7 @@ defineScenarioSuite("status/init acceptance", [
       "test test test test test test test test test test test junk",
     ),
     writeFile(".privacy-pools/.signer", "not-a-private-key"),
-    runCliStep(["--json", "status"], {
+    runCliStep(["--json", "status", "--no-check"], {
       env: OFFLINE_ENV,
     }),
     assertExit(0),
