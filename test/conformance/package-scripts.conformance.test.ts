@@ -63,7 +63,7 @@ describe("package scripts conformance", () => {
 
   test("native smoke scripts publish both packaged and launcher-parity lanes", () => {
     expect(packageJson.scripts?.["test:smoke"]).toBe(
-      "node scripts/run-bun-tests.mjs ./test/integration/cli.packaged-smoke.integration.test.ts --timeout 180000 --process-timeout-ms 600000",
+      "node scripts/run-bun-tests.mjs ./test/integration/cli-packaged-smoke.integration.test.ts --timeout 180000 --process-timeout-ms 600000",
     );
     expect(packageJson.scripts?.["test:smoke:native"]).toBe(
       "npm run test:smoke:native:package",

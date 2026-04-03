@@ -49,7 +49,7 @@
     "test:stress": "node scripts/run-stress.mjs",
     "test:coverage": "node scripts/check-coverage.mjs",
     "test:coverage:native": "node scripts/check-native-coverage.mjs",
-    "test:smoke": "node scripts/run-bun-tests.mjs ./test/integration/cli.packaged-smoke.integration.test.ts --timeout 180000 --process-timeout-ms 600000",
+    "test:smoke": "node scripts/run-bun-tests.mjs ./test/integration/cli-packaged-smoke.integration.test.ts --timeout 180000 --process-timeout-ms 600000",
     "test:smoke:native": "npm run test:smoke:native:package",
     "test:smoke:native:shell": "node scripts/run-bun-tests.mjs ./test/integration/cli-native-shell.integration.test.ts --timeout 300000 --process-timeout-ms 900000",
     "test:smoke:native:package": "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000 --process-timeout-ms 900000",

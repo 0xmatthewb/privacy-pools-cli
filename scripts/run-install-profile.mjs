@@ -93,7 +93,7 @@ try {
 
   run("node", [
     "scripts/run-bun-tests.mjs",
-    "./test/integration/cli.packaged-smoke.integration.test.ts",
+    "./test/integration/cli-packaged-smoke.integration.test.ts",
     "--timeout",
     "180000",
     "--process-timeout-ms",

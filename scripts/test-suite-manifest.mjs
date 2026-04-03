@@ -22,15 +22,11 @@ export const COVERAGE_MAIN_TEST_TARGETS = [
 ];
 
 export const PACKAGED_SMOKE_TEST =
-  "./test/integration/cli.packaged-smoke.integration.test.ts";
+  "./test/integration/cli-packaged-smoke.integration.test.ts";
 export const NATIVE_PACKAGE_SMOKE_TEST =
   "./test/integration/cli-native-package-smoke.integration.test.ts";
 export const NATIVE_SHELL_SMOKE_TEST =
   "./test/integration/cli-native-shell.integration.test.ts";
-export const BUILT_ENTRYPOINT_TEST =
-  "./test/integration/cli-built-entrypoint.integration.test.ts";
-export const FLOW_INTEGRATION_TEST =
-  "./test/integration/cli-flow.integration.test.ts";
 export const WORKFLOW_ANVIL_SERVICE_TEST =
   "./test/services/workflow.anvil.service.test.ts";
 export const CLI_ANVIL_E2E_TEST =
@@ -51,8 +47,6 @@ export const WORKFLOW_BACKUP_PATHS_TEST =
   "./test/services/workflow.backup-paths.service.test.ts";
 export const WORKFLOW_BACKUP_WRITE_TEST =
   "./test/services/workflow.backup-write.service.test.ts";
-export const ACCOUNT_SYNC_META_TEST =
-  "./test/services/account-sync-meta.service.test.ts";
 export const FLOW_HANDLERS_TEST = "./test/unit/flow-handlers.unit.test.ts";
 export const ACCOUNT_HANDLER_ERRORS_TEST =
   "./test/unit/account-handler-errors.unit.test.ts";

@@ -328,11 +328,11 @@ describe("ci job selection", () => {
     const suiteDecision = evaluateJobSelection({
       job: "packaged-smoke",
       eventName: "pull_request",
-      changedFiles: ["test/integration/cli.packaged-smoke.integration.test.ts"],
+      changedFiles: ["test/integration/cli-packaged-smoke.integration.test.ts"],
     });
     expect(suiteDecision.shouldRun).toBe(true);
     expect(suiteDecision.reason).toContain(
-      "test/integration/cli.packaged-smoke.integration.test.ts",
+      "test/integration/cli-packaged-smoke.integration.test.ts",
     );
 
     const runnerDecision = evaluateJobSelection({

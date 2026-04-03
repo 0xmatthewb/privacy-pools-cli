@@ -51,7 +51,7 @@ const JOB_RULES = {
     "docs/reference.md",
     "docs/runtime-upgrades.md",
     "skills/",
-    "test/integration/cli.packaged-smoke.integration.test.ts",
+    "test/integration/cli-packaged-smoke.integration.test.ts",
     "test/helpers/",
     ".github/workflows/ci.yml",
     ".github/workflows/cross-platform.yml",

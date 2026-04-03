@@ -17,7 +17,9 @@ describe("ci test shards", () => {
     expect(files).toContain("./test/acceptance/no-sync.acceptance.test.ts");
     expect(files).toContain("./test/services/contracts.service.test.ts");
     expect(files).toContain("./test/integration/cli-flow.integration.test.ts");
-    expect(files).not.toContain("./test/integration/cli.packaged-smoke.integration.test.ts");
+    expect(files).not.toContain(
+      "./test/integration/cli-packaged-smoke.integration.test.ts",
+    );
     expect(files).not.toContain(
       "./test/integration/cli-native-package-smoke.integration.test.ts",
     );
