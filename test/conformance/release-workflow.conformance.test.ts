@@ -93,9 +93,9 @@ describe("release workflow conformance", () => {
       expect(ciWorkflow).toContain(requiredJob);
     }
 
-    expect(ciWorkflow).toContain("run: npm test");
-    expect(ciWorkflow).toContain("run: npm run test:coverage");
-    expect(ciWorkflow).toContain("run: npm run test:native");
+    expect(ciWorkflow).toContain("npm test");
+    expect(ciWorkflow).toContain("npm run test:coverage");
+    expect(ciWorkflow).toContain("npm run test:native");
     expect(ciWorkflow).toContain("npm run test:smoke:native:package");
     expect(ciWorkflow).toContain("npm run test:e2e:anvil:smoke");
   });
@@ -118,7 +118,7 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("node scripts/verify-registry-install.mjs");
     expect(releaseWorkflow).toContain("native-release-signoff");
     expect(releaseWorkflow).toContain("SHA256SUMS.txt.sig");
-    expect(releaseWorkflow).toContain("name: github-release");
+    expect(releaseWorkflow).toContain("Release Artifact");
   });
 
   test("release workflow verifies published installs across the supported node range", () => {

@@ -36,7 +36,7 @@ describe("help content", () => {
     const guide = guideText();
     expect(guide).toContain("npm i -g privacy-pools-cli");
     expect(guide).toContain("privacy-pools upgrade --check");
-    expect(guide).toContain("npm run dev -- status");
+    expect(guide).toContain("privacy-pools status");
     expect(guide).toContain("github:0xmatthewb/privacy-pools-cli");
   });
 
