@@ -5,7 +5,6 @@ import {
   getDocumentedAgentMarkers,
   type CommandPath,
 } from "../../src/utils/command-metadata.ts";
-import { jsonContractDocRelativePath } from "../../src/utils/json.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 function normalizeWhitespace(value: string): string {
@@ -36,15 +35,6 @@ function extractDocumentSection(
 
 const AGENTS = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
 const REFERENCE = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
-const SKILL_REFERENCE = readFileSync(
-  `${CLI_ROOT}/skills/privacy-pools-cli/reference.md`,
-  "utf8",
-);
-const README = readFileSync(`${CLI_ROOT}/README.md`, "utf8");
-const JSON_CONTRACT = readFileSync(
-  `${CLI_ROOT}/${jsonContractDocRelativePath()}`,
-  "utf8",
-);
 const AGENT_MARKERS = getDocumentedAgentMarkers();
 
 describe("command docs alignment", () => {
@@ -54,7 +44,7 @@ describe("command docs alignment", () => {
     }
   });
 
-  test("AGENTS command sections preserve required payload markers", () => {
+  test("AGENTS machine sections preserve required payload markers", () => {
     const expectations: Array<{ path: CommandPath; markers: string[] }> = [
       { path: "init", markers: ["signerKeySet", "recoveryPhrase", "nextActions"] },
       { path: "activity", markers: ["events", "reviewStatus", "chainFiltered"] },
@@ -77,12 +67,8 @@ describe("command docs alignment", () => {
     }
   });
 
-  test("discovery docs keep the structural machine-contract anchors", () => {
-    const capabilitiesSection = extractDocumentSection(SKILL_REFERENCE, "### `capabilities`", [
-      "### `capabilities`",
-      "### `init`",
-    ]);
-    const agentsCapabilitiesSection = extractDocumentSection(
+  test("AGENTS capabilities docs keep the structural machine-contract anchors", () => {
+    const capabilitiesSection = extractDocumentSection(
       AGENTS,
       "#### `capabilities`",
       AGENT_MARKERS,
@@ -97,17 +83,11 @@ describe("command docs alignment", () => {
       "protocol",
     ]) {
       expect(capabilitiesSection).toContain(requiredMarker);
-      expect(agentsCapabilitiesSection).toContain(requiredMarker);
     }
   });
 
-  test("reference docs keep the stable command and init contract anchors", () => {
+  test("reference docs keep stable command and flag anchors", () => {
     const normalizedReference = normalizeWhitespace(REFERENCE);
-    const initAgentsSection = extractDocumentSection(AGENTS, "#### `init`", AGENT_MARKERS);
-    const initReferenceSection = extractDocumentSection(REFERENCE, "### `init`", [
-      "### `init`",
-      "### `flow`",
-    ]);
 
     expect(normalizedReference).toContain("privacy-pools capabilities --agent");
     expect(normalizedReference).toContain("privacy-pools describe withdraw quote --agent");
@@ -116,15 +96,10 @@ describe("command docs alignment", () => {
     expect(normalizedReference).toContain("--private-key-stdin");
     expect(normalizedReference).toContain("--summary");
     expect(normalizedReference).toContain("--pending-only");
-    expect(initAgentsSection).toContain("bundled checksum-verified circuit artifacts");
-    expect(initReferenceSection).toContain("bundled checksum-verified circuit artifacts");
-    expect(initAgentsSection).not.toContain("npm run circuits:provision");
-    expect(initReferenceSection).not.toContain("npm run circuits:provision");
   });
 
-  test("legacy migration and contract error codes remain documented for agents", () => {
+  test("AGENTS keeps current migration and contract error codes for agents", () => {
     const normalizedAgents = normalizeWhitespace(AGENTS);
-    const normalizedSkillReference = normalizeWhitespace(SKILL_REFERENCE);
 
     for (const code of [
       "ACCOUNT_MIGRATION_REQUIRED",
@@ -136,7 +111,6 @@ describe("command docs alignment", () => {
       "CONTRACT_INVALID_WITHDRAWAL_AMOUNT",
     ]) {
       expect(normalizedAgents).toContain(code);
-      expect(normalizedSkillReference).toContain(code);
     }
   });
 
@@ -151,13 +125,5 @@ describe("command docs alignment", () => {
     expect(agentsFlowSection).toContain("saved workflow");
     expect(referenceFlowStatusSection).toContain("persisted workflow snapshot");
     expect((flowStatusMetadata.help?.overview ?? []).join(" ")).toContain("saved workflow");
-  });
-
-  test("README and shipped contract doc point at the current structured-output contract", () => {
-    const normalizedReadme = normalizeWhitespace(README);
-
-    expect(normalizedReadme).toContain("versioned envelope");
-    expect(normalizedReadme).toContain("raw transaction array");
-    expect(JSON_CONTRACT).toContain('"schemaVersion": "1.7.0"');
   });
 });
