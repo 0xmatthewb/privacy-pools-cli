@@ -22,6 +22,8 @@ export interface PoolAccountRef {
   paId: string;
   status: PoolAccountStatus;
   aspStatus: AspApprovalStatus;
+  isActionable?: boolean;
+  isHistoricalOnly?: boolean;
   commitment: AccountCommitment;
   label: bigint;
   value: bigint;
@@ -117,7 +119,11 @@ export function buildPoolAccountRefs(
   reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
 ): PoolAccountRef[] {
   return buildAllPoolAccountRefs(account, scope, spendableCommitments, approvedLabels, reviewStatuses)
-    .filter((pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status));
+    .filter((pa) =>
+      pa.isActionable !== false &&
+      pa.value > 0n &&
+      isActivePoolAccountStatus(pa.status)
+    );
 }
 
 export function buildAllPoolAccountRefs(
@@ -166,10 +172,16 @@ export function buildAllPoolAccountRefs(
     const spendable = spendableByKey.get(key);
     const commitment = spendable ?? currentCommitment;
     const ragequit = isRagequitEvent(poolAccount.ragequit) ? poolAccount.ragequit : null;
-    const aspStatus = resolveAspStatus(commitment.label, !ragequit && commitment.value > 0n);
+    const isHistoricalOnly =
+      !ragequit &&
+      spendable === undefined &&
+      currentCommitment.value > 0n;
+    const aspStatus = isHistoricalOnly
+      ? "unknown"
+      : resolveAspStatus(commitment.label, !ragequit && commitment.value > 0n);
     const status: PoolAccountStatus = ragequit
       ? "exited"
-      : commitment.value === 0n
+      : isHistoricalOnly || commitment.value === 0n
         ? "spent"
         : aspStatus;
 
@@ -178,6 +190,8 @@ export function buildAllPoolAccountRefs(
       paId: poolAccountId(nextPoolAccountNumber),
       status,
       aspStatus,
+      isActionable: !isHistoricalOnly && !ragequit && commitment.value > 0n,
+      isHistoricalOnly,
       commitment,
       label: commitment.label,
       value: ragequit ? 0n : commitment.value,
@@ -201,6 +215,8 @@ export function buildAllPoolAccountRefs(
       paId: poolAccountId(nextPoolAccountNumber),
       status: commitment.value === 0n ? "spent" : aspStatus,
       aspStatus,
+      isActionable: commitment.value > 0n,
+      isHistoricalOnly: false,
       commitment,
       label: commitment.label,
       value: commitment.value,
@@ -216,9 +232,15 @@ export function buildAllPoolAccountRefs(
 }
 
 export function describeUnavailablePoolAccount(
-  poolAccount: Pick<PoolAccountRef, "paId" | "status">,
+  poolAccount: Pick<PoolAccountRef, "paId" | "status" | "isHistoricalOnly">,
   action: PoolAccountAction,
 ): string | null {
+  if (poolAccount.isHistoricalOnly) {
+    return action === "withdraw"
+      ? `${poolAccount.paId} only exists in saved historical state and is not currently actionable for withdrawal. Run 'privacy-pools sync' to refresh local state before withdrawing from it.`
+      : `${poolAccount.paId} only exists in saved historical state and is not currently actionable for ragequit. Run 'privacy-pools sync' to refresh local state before recovering it publicly.`;
+  }
+
   switch (poolAccount.status) {
     case "spent":
       return action === "withdraw"
@@ -308,6 +330,8 @@ export function buildDeclinedLegacyPoolAccountRefs(
       paId: poolAccountId(nextNumber),
       status,
       aspStatus: status === "declined" ? "declined" : "unknown",
+      isActionable: status === "declined",
+      isHistoricalOnly: false,
       commitment,
       label,
       value: ragequit ? 0n : commitment.value,

@@ -190,6 +190,94 @@ describe("pool account mapping", () => {
     expect(getNextPoolAccountNumber(account, scope)).toBe(2);
   });
 
+  test("historical-only positive accounts stay visible but are not actionable", () => {
+    const scope = 7007n;
+    const stale = commitment(
+      10n,
+      101n,
+      100n,
+      10n,
+      "0x1010101010101010101010101010101010101010101010101010101010101010",
+    );
+
+    const account: PrivacyPoolAccount = {
+      masterKeys: [5n as any, 6n as any],
+      poolAccounts: new Map([
+        [scope as any, [
+          { label: stale.label as any, deposit: stale, children: [] },
+        ]],
+      ]) as any,
+    };
+
+    const all = buildAllPoolAccountRefs(account, scope, []);
+    expect(all).toHaveLength(1);
+    expect(all[0]).toMatchObject({
+      paId: "PA-1",
+      status: "spent",
+      aspStatus: "unknown",
+      isActionable: false,
+      isHistoricalOnly: true,
+      value: 100n,
+    });
+
+    expect(buildPoolAccountRefs(account, scope, [])).toEqual([]);
+    expect(
+      describeUnavailablePoolAccount(all[0]!, "withdraw"),
+    ).toContain("saved historical state");
+    expect(
+      describeUnavailablePoolAccount(all[0]!, "withdraw"),
+    ).toContain("privacy-pools sync");
+  });
+
+  test("stale saved Pool Accounts do not stay actionable when a different live commitment remains", () => {
+    const scope = 8008n;
+    const stale = commitment(
+      10n,
+      101n,
+      100n,
+      10n,
+      "0x1010101010101010101010101010101010101010101010101010101010101010",
+    );
+    const live = commitment(
+      11n,
+      111n,
+      250n,
+      11n,
+      "0x1111111111111111111111111111111111111111111111111111111111111111",
+    );
+
+    const account: PrivacyPoolAccount = {
+      masterKeys: [7n as any, 8n as any],
+      poolAccounts: new Map([
+        [scope as any, [
+          { label: stale.label as any, deposit: stale, children: [] },
+        ]],
+      ]) as any,
+    };
+
+    const all = buildAllPoolAccountRefs(account, scope, [live]);
+    expect(all).toHaveLength(2);
+    expect(all[0]).toMatchObject({
+      paId: "PA-1",
+      status: "spent",
+      isActionable: false,
+      isHistoricalOnly: true,
+      value: 100n,
+    });
+    expect(all[1]).toMatchObject({
+      paId: "PA-2",
+      status: "unknown",
+      isActionable: true,
+      isHistoricalOnly: false,
+      value: 250n,
+      label: 11n,
+    });
+
+    expect(buildPoolAccountRefs(account, scope, [live]).map((row) => row.paId)).toEqual([
+      "PA-2",
+    ]);
+  });
+
   test("approved review statuses fail closed when ASP leaves are unavailable", () => {
     const scope = 4004n;
     const approved = commitment(
