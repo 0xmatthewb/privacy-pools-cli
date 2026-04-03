@@ -13,7 +13,7 @@ function chunkList(items, size) {
   return chunks;
 }
 
-export const DEFAULT_MAIN_BATCH_SIZE = 30;
+export const DEFAULT_MAIN_BATCH_SIZE = 20;
 
 export function buildDefaultMainSuites({
   rootDir,
@@ -30,7 +30,12 @@ export function buildDefaultMainSuites({
     excludedTests.map((target) => normalizePath(resolve(rootDir, target))),
   );
 
-  return testBatches.flatMap(({ label, targets }) => {
+  return testBatches.flatMap(({ label, targets, batchSize: targetBatchSize }) => {
+    const effectiveBatchSize = targetBatchSize ?? batchSize;
+    if (!Number.isInteger(effectiveBatchSize) || effectiveBatchSize <= 0) {
+      throw new Error("main batch size must be a positive integer");
+    }
+
     const seen = new Set();
     const files = targets
       .flatMap((target) => collectTestFilesFn(target, rootDir))
@@ -44,7 +49,7 @@ export function buildDefaultMainSuites({
       })
       .sort((left, right) => left.localeCompare(right));
 
-    return chunkList(files, batchSize).map((tests, index, chunks) => ({
+    return chunkList(files, effectiveBatchSize).map((tests, index, chunks) => ({
       label:
         chunks.length === 1
           ? `main:${label}`

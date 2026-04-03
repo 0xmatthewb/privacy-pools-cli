@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
-import { handleInitCommand } from "../../src/commands/init.ts";
 import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
@@ -13,7 +12,35 @@ import {
   createTrackedTempDir,
 } from "../helpers/temp.ts";
 
+const realInquirerPrompts = await import("@inquirer/prompts");
+const confirmPromptMock = mock(async () => {
+  throw new Error("unexpected confirm prompt in non-interactive init tests");
+});
+const inputPromptMock = mock(async () => {
+  throw new Error("unexpected input prompt in non-interactive init tests");
+});
+const passwordPromptMock = mock(async () => {
+  throw new Error("unexpected password prompt in non-interactive init tests");
+});
+const selectPromptMock = mock(async () => {
+  throw new Error("unexpected select prompt in non-interactive init tests");
+});
+
+let handleInitCommand: typeof import("../../src/commands/init.ts").handleInitCommand;
+
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+
+async function loadInitCommandHandler(): Promise<void> {
+  mock.module("@inquirer/prompts", () => ({
+    ...realInquirerPrompts,
+    confirm: confirmPromptMock,
+    input: inputPromptMock,
+    password: passwordPromptMock,
+    select: selectPromptMock,
+  }));
+
+  ({ handleInitCommand } = await import("../../src/commands/init.ts"));
+}
 
 function fakeCommand(
   globalOpts: Record<string, unknown> = {},
@@ -31,7 +58,33 @@ function useIsolatedHome(): string {
   return home;
 }
 
+beforeEach(() => {
+  mock.restore();
+  confirmPromptMock.mockClear();
+  inputPromptMock.mockClear();
+  passwordPromptMock.mockClear();
+  selectPromptMock.mockClear();
+
+  confirmPromptMock.mockImplementation(async () => {
+    throw new Error("unexpected confirm prompt in non-interactive init tests");
+  });
+  inputPromptMock.mockImplementation(async () => {
+    throw new Error("unexpected input prompt in non-interactive init tests");
+  });
+  passwordPromptMock.mockImplementation(async () => {
+    throw new Error("unexpected password prompt in non-interactive init tests");
+  });
+  selectPromptMock.mockImplementation(async () => {
+    throw new Error("unexpected select prompt in non-interactive init tests");
+  });
+});
+
+beforeEach(async () => {
+  await loadInitCommandHandler();
+});
+
 afterEach(() => {
+  mock.restore();
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {

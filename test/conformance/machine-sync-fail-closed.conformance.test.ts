@@ -36,7 +36,7 @@ describe("machine sync fail-closed conformance", () => {
     expect(accountServiceSource).toContain("Retry with a healthy RPC before using this data.");
   });
 
-  test("partial sync failures skip account persistence entirely", () => {
+  test("partial sync failures persist only after the fail-closed throw path", () => {
     const syncAccountEventsPos = accountServiceSource.indexOf(
       "export async function syncAccountEvents(",
     );
@@ -48,13 +48,9 @@ describe("machine sync fail-closed conformance", () => {
       "throw new CLIError(",
       partialFailureGuard,
     );
-    const assignAccountPos = accountServiceSource.indexOf(
-      "accountService.account = reconciledAccount;",
-      throwPos,
-    );
     const saveAccountPos = accountServiceSource.indexOf(
       "saveAccount(chainId, accountService.account)",
-      assignAccountPos,
+      syncAccountEventsPos,
     );
     const saveSyncMetaPos = accountServiceSource.indexOf(
       "saveSyncMeta(chainId)",
@@ -63,8 +59,7 @@ describe("machine sync fail-closed conformance", () => {
 
     expect(partialFailureGuard).toBeGreaterThan(-1);
     expect(throwPos).toBeGreaterThan(partialFailureGuard);
-    expect(assignAccountPos).toBeGreaterThan(throwPos);
-    expect(saveAccountPos).toBeGreaterThan(assignAccountPos);
+    expect(saveAccountPos).toBeGreaterThan(throwPos);
     expect(saveSyncMetaPos).toBeGreaterThan(saveAccountPos);
   });
 

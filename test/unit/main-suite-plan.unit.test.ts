@@ -83,6 +83,39 @@ describe("main suite planning", () => {
     ]);
   });
 
+  test("per-target batch sizes override the shared default", () => {
+    const suites = buildDefaultMainSuites({
+      rootDir: process.cwd(),
+      testBatches: [
+        { label: "unit", targets: ["./test/unit"], batchSize: 1 },
+      ],
+      excludedTests: [],
+      batchSize: 3,
+      collectTestFilesFn() {
+        return [
+          "./test/unit/c.unit.test.ts",
+          "./test/unit/a.unit.test.ts",
+          "./test/unit/b.unit.test.ts",
+        ];
+      },
+    });
+
+    expect(suites).toEqual([
+      {
+        label: "main:unit-01",
+        tests: ["./test/unit/a.unit.test.ts"],
+      },
+      {
+        label: "main:unit-02",
+        tests: ["./test/unit/b.unit.test.ts"],
+      },
+      {
+        label: "main:unit-03",
+        tests: ["./test/unit/c.unit.test.ts"],
+      },
+    ]);
+  });
+
   test("buildDefaultMainSuites rejects non-positive batch sizes", () => {
     expect(() =>
       buildDefaultMainSuites({
@@ -97,7 +130,20 @@ describe("main suite planning", () => {
     ).toThrow("main batch size must be a positive integer");
   });
 
-  test("default main batch size stays well below the previous timeout cliff", () => {
-    expect(DEFAULT_MAIN_BATCH_SIZE).toBe(30);
+  test("buildDefaultMainSuites rejects non-positive per-target batch sizes", () => {
+    expect(() =>
+      buildDefaultMainSuites({
+        rootDir: process.cwd(),
+        testBatches: [{ label: "unit", targets: ["./test/unit"], batchSize: 0 }],
+        excludedTests: [],
+        collectTestFilesFn() {
+          return ["./test/unit/example.unit.test.ts"];
+        },
+      }),
+    ).toThrow("main batch size must be a positive integer");
+  });
+
+  test("default main batch size avoids the previous unit-shard hang", () => {
+    expect(DEFAULT_MAIN_BATCH_SIZE).toBe(20);
   });
 });

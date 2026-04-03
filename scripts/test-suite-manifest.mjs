@@ -10,7 +10,7 @@ export const DEFAULT_MAIN_TEST_TARGETS = SHARED_TEST_TARGETS;
 
 export const DEFAULT_MAIN_BATCHES = [
   { label: "acceptance", targets: ["./test/acceptance"] },
-  { label: "unit", targets: ["./test/unit"] },
+  { label: "unit", targets: ["./test/unit"], batchSize: 10 },
   { label: "integration", targets: ["./test/integration"] },
   { label: "fuzz", targets: ["./test/fuzz"] },
   { label: "services", targets: ["./test/services"] },
