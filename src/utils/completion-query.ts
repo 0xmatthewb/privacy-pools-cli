@@ -178,6 +178,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-t, --to <address>"),
           completionOption("-p, --from-pa <PA-#|#>"),
+          completionOption("--direct"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
           completionOption("-a, --asset <symbol|address>"),
