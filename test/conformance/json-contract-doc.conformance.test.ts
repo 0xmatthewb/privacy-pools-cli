@@ -8,6 +8,7 @@ import { EXIT_CODES } from "../../src/utils/errors.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 const CONTRACT_DOC_PATH = `${CLI_ROOT}/${jsonContractDocRelativePath()}`;
+const CURRENT_CONTRACT_DOC_PATH = `${CLI_ROOT}/docs/contracts/cli-json-contract.current.json`;
 
 interface ContractDoc {
   version: string;
@@ -25,6 +26,15 @@ describe("external JSON contract doc conformance", () => {
     const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
     expect(doc.version).toBe(JSON_SCHEMA_VERSION);
     expect(doc.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+  });
+
+  test("stable current contract path matches the runtime versioned snapshot", () => {
+    const versionedDoc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const currentDoc = JSON.parse(readFileSync(CURRENT_CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+
+    expect(currentDoc).toEqual(versionedDoc);
+    expect(currentDoc.version).toBe(JSON_SCHEMA_VERSION);
+    expect(currentDoc.schemaVersion).toBe(JSON_SCHEMA_VERSION);
   });
 
   test("doc includes the full exit code map used by runtime", () => {

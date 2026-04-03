@@ -1,0 +1,677 @@
+{
+  "name": "privacy-pools-cli-json-contract",
+  "version": "1.7.0",
+  "schemaVersion": "1.7.0",
+  "description": "Stable machine-readable output contract for privacy-pools CLI.",
+  "envelope": {
+    "successBase": {
+      "schemaVersion": "semver-string",
+      "success": true
+    },
+    "errorBase": {
+      "schemaVersion": "semver-string",
+      "success": false,
+      "errorCode": "string",
+      "errorMessage": "string",
+      "error": {
+        "code": "string",
+        "category": "INPUT|RPC|ASP|RELAYER|PROOF|CONTRACT|UNKNOWN",
+        "message": "string",
+        "hint": "string?",
+        "retryable": "boolean?"
+      }
+    }
+  },
+  "exitCodes": {
+    "0": "SUCCESS",
+    "1": "UNKNOWN_ERROR",
+    "2": "INPUT_ERROR",
+    "3": "RPC_ERROR",
+    "4": "ASP_ERROR",
+    "5": "RELAYER_ERROR",
+    "6": "PROOF_ERROR",
+    "7": "CONTRACT_ERROR"
+  },
+  "shared": {
+    "nextAction": {
+      "command": "string (CLI command name)",
+      "reason": "string (why the follow-up is relevant)",
+      "when": "string (machine-readable timing label)",
+      "cliCommand": "string (fully executable CLI invocation with kebab-case flags)",
+      "args": "string[]? (positional arguments to pass)",
+      "options": "Record<string, string|number|boolean|null>? (named options in source-object form; prefer cliCommand for direct execution)",
+      "runnable": "boolean? (false means the action is a template and needs additional user input before execution)"
+    },
+    "rawUnsignedTransaction": {
+      "to": "0x-prefixed-address",
+      "data": "0x-prefixed-hex-calldata",
+      "value": "decimal-string-wei",
+      "valueHex": "0x-prefixed-hex-quantity-wei",
+      "chainId": "number",
+      "description": "string"
+    },
+    "unsignedTransaction": {
+      "chainId": "number",
+      "from": "0x-prefixed-address|null",
+      "to": "0x-prefixed-address",
+      "value": "decimal-string-wei",
+      "data": "0x-prefixed-hex-calldata",
+      "description": "string"
+    },
+    "flowWarning": {
+      "code": "\"timing_delay_disabled\"|\"amount_pattern_linkability\"",
+      "category": "\"privacy\"",
+      "message": "string"
+    },
+    "flowLastError": {
+      "step": "string",
+      "errorCode": "string",
+      "errorMessage": "string",
+      "retryable": "boolean",
+      "at": "iso8601-string"
+    }
+  },
+  "commands": {
+    "init": {
+      "successFields": {
+        "defaultChain": "string",
+        "signerKeySet": "boolean",
+        "recoveryPhraseRedacted": "boolean? (true when a new recovery phrase was generated but not printed)",
+        "recoveryPhrase": "string? (present only when newly generated and --show-mnemonic is provided)",
+        "warning": "string? (security guidance for agents)",
+        "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
+      }
+    },
+    "upgrade": {
+      "successFields": {
+        "mode": "\"upgrade\"",
+        "status": "\"up_to_date\"|\"ready\"|\"manual\"|\"cancelled\"|\"upgraded\"",
+        "currentVersion": "string",
+        "latestVersion": "string",
+        "updateAvailable": "boolean",
+        "performed": "boolean",
+        "command": "string|null",
+        "installContext": "{ kind: \"global_npm\"|\"bun_global\"|\"source_checkout\"|\"local_project\"|\"npx\"|\"ci\"|\"unknown\", supportedAutoRun: boolean, reason: string }",
+        "installedVersion": "string|null"
+      }
+    },
+    "flow": {
+      "successFields": {
+        "mode": "\"flow\"",
+        "action": "\"start\"|\"watch\"|\"status\"|\"ragequit\"",
+        "workflowId": "uuid-string",
+        "phase": "\"awaiting_funding\"|\"depositing_publicly\"|\"awaiting_asp\"|\"approved_waiting_privacy_delay\"|\"approved_ready_to_withdraw\"|\"withdrawing\"|\"completed\"|\"completed_public_recovery\"|\"paused_declined\"|\"paused_poi_required\"|\"stopped_external\"",
+        "walletMode": "\"configured\"|\"new_wallet\"",
+        "walletAddress": "0x-prefixed-address|null",
+        "requiredNativeFunding": "decimal-string-wei|null",
+        "requiredTokenFunding": "decimal-string-wei|null",
+        "backupConfirmed": "boolean|undefined (new-wallet flows only)",
+        "chain": "string",
+        "asset": "string",
+        "depositAmount": "decimal-string-wei",
+        "recipient": "0x-prefixed-address",
+        "poolAccountId": "string (PA-#)|null",
+        "poolAccountNumber": "number|null",
+        "depositTxHash": "0x-prefixed-hash|null",
+        "depositBlockNumber": "decimal-string|null",
+        "depositExplorerUrl": "string|null",
+        "committedValue": "decimal-string-wei|null",
+        "aspStatus": "\"pending\"|\"approved\"|\"poi_required\"|\"declined\"|\"unknown\"|undefined",
+        "privacyDelayProfile": "\"off\"|\"balanced\"|\"aggressive\"",
+        "privacyDelayConfigured": "boolean (true when the workflow explicitly saved a delay policy; false for legacy snapshots normalized to off)",
+        "privacyDelayUntil": "iso8601-string|null",
+        "warnings": "FlowWarning[]? (see shared.flowWarning)",
+        "withdrawTxHash": "0x-prefixed-hash|null",
+        "withdrawBlockNumber": "decimal-string|null",
+        "withdrawExplorerUrl": "string|null",
+        "ragequitTxHash": "0x-prefixed-hash|null",
+        "ragequitBlockNumber": "decimal-string|null",
+        "ragequitExplorerUrl": "string|null",
+        "lastError": "FlowLastError|undefined (see shared.flowLastError)",
+        "nextActions": "NextAction[]? (present when a canonical saved-workflow follow-up is available)"
+      }
+    },
+    "status": {
+      "successFields": {
+        "configExists": "boolean",
+        "configDir": "string|null",
+        "defaultChain": "string|null",
+        "selectedChain": "string|null",
+        "rpcUrl": "string|null",
+        "rpcIsCustom": "boolean",
+        "recoveryPhraseSet": "boolean",
+        "signerKeySet": "boolean",
+        "signerKeyValid": "boolean",
+        "signerAddress": "0x-prefixed-address|null",
+        "signerBalance": "decimal-string-wei|undefined (present when rpc check succeeds and signer balance lookup succeeds)",
+        "signerBalanceDecimals": "number|undefined (present with signerBalance)",
+        "signerBalanceSymbol": "string|undefined (present with signerBalance)",
+        "entrypoint": "0x-prefixed-address|null",
+        "aspHost": "string|null",
+        "accountFiles": "[{ chain: string, chainId: number }]",
+        "aspLive": "boolean|undefined (present when health checks run)",
+        "rpcLive": "boolean|undefined (present when health checks run)",
+        "rpcBlockNumber": "string|undefined (present when rpc check succeeds)",
+        "readyForDeposit": "boolean (configuration capability flag: configExists && recoveryPhraseSet && signerKeyValid)",
+        "readyForWithdraw": "boolean (configuration capability flag: configExists && recoveryPhraseSet && signerKeyValid)",
+        "readyForUnsigned": "boolean (configuration capability flag: configExists && recoveryPhraseSet)",
+        "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)",
+        "recommendedMode": "\"setup-required\"|\"read-only\"|\"unsigned-only\"|\"ready\"",
+        "blockingIssues": "StatusIssue[]? ({ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] })",
+        "warnings": "StatusIssue[]? ({ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] })"
+      }
+    },
+    "pools": {
+      "successFields": {
+        "chain": "string (single-chain mode)",
+        "allChains": "boolean? (true when no --chain specified)",
+        "search": "string|null",
+        "sort": "string",
+        "chains": "ChainSummary[]? (multi-chain mode: { chain, pools, error })",
+        "pools": "Pool[]",
+        "warnings": "PoolWarning[]? (multi-chain mode)"
+      },
+      "poolFields": {
+        "asset": "string",
+        "tokenAddress": "0x-prefixed-address",
+        "pool": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "decimals": "number",
+        "minimumDeposit": "decimal-string-wei",
+        "vettingFeeBPS": "decimal-string",
+        "maxRelayFeeBPS": "decimal-string",
+        "totalInPoolValue": "decimal-string-wei|null",
+        "totalInPoolValueUsd": "string|null",
+        "totalDepositsValue": "decimal-string-wei|null",
+        "totalDepositsValueUsd": "string|null",
+        "acceptedDepositsValue": "decimal-string-wei|null",
+        "acceptedDepositsValueUsd": "string|null",
+        "pendingDepositsValue": "decimal-string-wei|null",
+        "pendingDepositsValueUsd": "string|null",
+        "totalDepositsCount": "number|null",
+        "acceptedDepositsCount": "number|null",
+        "pendingDepositsCount": "number|null",
+        "growth24h": "number|null",
+        "pendingGrowth24h": "number|null",
+        "chain": "string? (present in multi-chain mode)"
+      },
+      "detailVariant": {
+        "chain": "string",
+        "asset": "string",
+        "tokenAddress": "0x-prefixed-address",
+        "pool": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "decimals": "number",
+        "minimumDeposit": "decimal-string-wei",
+        "vettingFeeBPS": "decimal-string",
+        "maxRelayFeeBPS": "decimal-string",
+        "totalInPoolValue": "decimal-string-wei|null",
+        "totalInPoolValueUsd": "string|null",
+        "totalDepositsValue": "decimal-string-wei|null",
+        "totalDepositsValueUsd": "string|null",
+        "acceptedDepositsValue": "decimal-string-wei|null",
+        "acceptedDepositsValueUsd": "string|null",
+        "pendingDepositsValue": "decimal-string-wei|null",
+        "pendingDepositsValueUsd": "string|null",
+        "totalDepositsCount": "number|null",
+        "acceptedDepositsCount": "number|null",
+        "pendingDepositsCount": "number|null",
+        "growth24h": "number|null",
+        "pendingGrowth24h": "number|null",
+        "myFunds": "{ balance: decimal-string-wei, usdValue: string|null, poolAccounts: number, pendingCount: number, poiRequiredCount: number, declinedCount: number, accounts: [{ id, status, aspStatus, value }] }|null",
+        "myFundsWarning": "string? (present when wallet state could not be loaded fully)",
+        "recentActivity": "[{ type: string, amount: string|null, timeLabel: string, status: string|null }]|null"
+      }
+    },
+    "deposit": {
+      "successFields": {
+        "operation": "\"deposit\"",
+        "txHash": "0x-prefixed-hash",
+        "amount": "decimal-string-wei",
+        "committedValue": "decimal-string-wei|null",
+        "asset": "string",
+        "chain": "string",
+        "poolAccountNumber": "number",
+        "poolAccountId": "string (PA-#)",
+        "poolAddress": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "label": "decimal-string|null",
+        "blockNumber": "decimal-string",
+        "explorerUrl": "string|null",
+        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poi_required before choosing withdraw or ragequit)"
+      },
+      "variants": {
+        "dryRun": {
+          "dryRun": true,
+          "operation": "\"deposit\"",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "precommitment": "decimal-string",
+          "balanceSufficient": "boolean|\"unknown\"",
+          "nextActions": "NextAction[]? (suggests the executable deposit command)"
+        },
+        "unsigned": {
+          "mode": "unsigned",
+          "operation": "deposit",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "precommitment": "decimal-string",
+          "transactions": "UnsignedTransaction[]"
+        },
+        "unsignedTx": {
+          "--unsigned tx": "RawUnsignedTransaction[]"
+        }
+      }
+    },
+    "withdraw": {
+      "successFields": {
+        "operation": "\"withdraw\"",
+        "mode": "\"direct\"|\"relayed\"",
+        "txHash": "0x-prefixed-hash",
+        "blockNumber": "decimal-string",
+        "amount": "decimal-string-wei",
+        "recipient": "0x-prefixed-address",
+        "explorerUrl": "string|null",
+        "poolAddress": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "asset": "string",
+        "chain": "string",
+        "poolAccountNumber": "number",
+        "poolAccountId": "string (PA-#)",
+        "feeBPS": "null (direct mode) | string (relayed mode)",
+        "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
+        "remainingBalance": "decimal-string-wei",
+        "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
+        "nextActions": "NextAction[]? (suggests accounts to verify updated balance)"
+      },
+      "variants": {
+        "dryRun": {
+          "operation": "\"withdraw\"",
+          "mode": "\"direct\"|\"relayed\"",
+          "dryRun": true,
+          "amount": "decimal-string-wei",
+          "asset": "string",
+          "chain": "string",
+          "recipient": "0x-prefixed-address",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "proofPublicSignals": "number",
+          "feeBPS": "string? (relayed only)",
+          "quoteExpiresAt": "iso8601-string? (relayed only)",
+          "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
+          "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
+          "nextActions": "NextAction[]? (suggests the executable withdraw command)"
+        },
+        "unsignedDirect": {
+          "mode": "unsigned",
+          "operation": "withdraw",
+          "withdrawMode": "direct",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "recipient": "0x-prefixed-address",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "transactions": "UnsignedTransaction[]"
+        },
+        "unsignedRelayed": {
+          "mode": "unsigned",
+          "operation": "withdraw",
+          "withdrawMode": "relayed",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "recipient": "0x-prefixed-address",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "feeBPS": "string",
+          "quoteExpiresAt": "iso8601-string",
+          "transactions": "UnsignedTransaction[]",
+          "relayerRequest": "object"
+        },
+        "unsignedTx": {
+          "--unsigned tx": "RawUnsignedTransaction[]"
+        }
+      },
+      "subcommands": {
+        "quote": {
+          "mode": "relayed-quote",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "recipient": "0x-prefixed-address|null",
+          "minWithdrawAmount": "decimal-string-wei",
+          "minWithdrawAmountFormatted": "string (human-readable e.g. 0.01 ETH)",
+          "baseFeeBPS": "string",
+          "quoteFeeBPS": "string",
+          "feeAmount": "decimal-string-wei",
+          "netAmount": "decimal-string-wei",
+          "feeCommitmentPresent": "boolean",
+          "quoteExpiresAt": "iso8601-string|null",
+          "relayTxCost": "{ gas: string, eth: string }|undefined",
+          "extraGas": "boolean? (ERC20 withdrawals only)",
+          "extraGasFundAmount": "{ gas?: string, eth: string }|undefined",
+          "extraGasTxCost": "{ gas: string, eth: string }|undefined",
+          "nextActions": "NextAction[]? (structured follow-up commands for agents; check runnable for template actions)"
+        }
+      }
+    },
+    "ragequit": {
+      "aliases": [
+        "exit"
+      ],
+      "successFields": {
+        "operation": "\"ragequit\"",
+        "txHash": "0x-prefixed-hash",
+        "amount": "decimal-string-wei",
+        "asset": "string",
+        "chain": "string",
+        "poolAccountNumber": "number",
+        "poolAccountId": "string (PA-#)",
+        "poolAddress": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "blockNumber": "decimal-string",
+        "explorerUrl": "string|null",
+        "destinationAddress": "0x-prefixed-address|null",
+        "nextActions": "NextAction[]? (suggests accounts to verify status after ragequit)"
+      },
+      "variants": {
+        "dryRun": {
+          "dryRun": true,
+          "operation": "\"ragequit\"",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "destinationAddress": "0x-prefixed-address|null",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "proofPublicSignals": "number"
+        },
+        "unsigned": {
+          "mode": "unsigned",
+          "operation": "ragequit",
+          "chain": "string",
+          "asset": "string",
+          "amount": "decimal-string-wei",
+          "poolAccountNumber": "number",
+          "poolAccountId": "string (PA-#)",
+          "selectedCommitmentLabel": "decimal-string",
+          "selectedCommitmentValue": "decimal-string-wei",
+          "transactions": "UnsignedTransaction[]"
+        },
+        "unsignedTx": {
+          "--unsigned tx": "RawUnsignedTransaction[]"
+        }
+      }
+    },
+    "accounts": {
+      "successFields": {
+        "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
+        "allChains": "boolean? (true when --all-chains is used)",
+        "chains": "string[]? (queried chains in multi-chain mode)",
+        "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
+        "accounts": "Account[]",
+        "balances": "Balance[]",
+        "pendingCount": "number",
+        "nextActions": "NextAction[]? (poll-oriented only; emitted when pending approvals exist)"
+      },
+      "summaryVariant": {
+        "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
+        "allChains": "boolean? (true when --all-chains is used)",
+        "chains": "string[]? (queried chains in multi-chain mode)",
+        "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
+        "pendingCount": "number",
+        "approvedCount": "number",
+        "poiRequiredCount": "number",
+        "declinedCount": "number",
+        "unknownCount": "number",
+        "spentCount": "number",
+        "exitedCount": "number",
+        "balances": "Balance[]",
+        "nextActions": "NextAction[]? (poll-oriented only; emitted when pending approvals exist)"
+      },
+      "pendingOnlyVariant": {
+        "chain": "string",
+        "accounts": "Account[] (filtered to aspStatus = \"pending\")",
+        "pendingCount": "number",
+        "nextActions": "NextAction[]? (poll-oriented only; no withdraw suggestions)"
+      },
+      "accountFields": {
+        "poolAccountNumber": "number",
+        "poolAccountId": "string (PA-#)",
+        "status": "\"approved\"|\"pending\"|\"poi_required\"|\"declined\"|\"unknown\"|\"spent\"|\"exited\"",
+        "aspStatus": "\"pending\"|\"approved\"|\"poi_required\"|\"declined\"|\"unknown\"",
+        "asset": "string",
+        "scope": "decimal-string",
+        "value": "decimal-string-wei",
+        "hash": "decimal-string",
+        "label": "decimal-string",
+        "blockNumber": "decimal-string",
+        "txHash": "0x-prefixed-hash",
+        "explorerUrl": "string|null",
+        "chain": "string? (present in multi-chain mode)",
+        "chainId": "number? (present in multi-chain mode)"
+      },
+      "balanceFields": {
+        "asset": "string",
+        "balance": "decimal-string-wei (total across Pool Accounts with remaining balance)",
+        "usdValue": "string|null (formatted USD e.g. $1,000.00)",
+        "poolAccounts": "number (account count included in the balance total)",
+        "chain": "string? (present in multi-chain mode)",
+        "chainId": "number? (present in multi-chain mode)"
+      }
+    },
+    "migrate status": {
+      "successFields": {
+        "mode": "\"migration-status\"",
+        "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
+        "allChains": "boolean? (true when --all-chains is used)",
+        "chains": "string[]? (queried chains in multi-chain mode)",
+        "warnings": "MigrationWarning[]? ({ chain, category, message } for per-chain partial failures)",
+        "status": "\"no_legacy\"|\"migration_required\"|\"fully_migrated\"|\"website_recovery_required\"|\"review_incomplete\"",
+        "requiresMigration": "boolean",
+        "requiresWebsiteRecovery": "boolean",
+        "isFullyMigrated": "boolean",
+        "readinessResolved": "boolean",
+        "submissionSupported": "false",
+        "requiredChainIds": "number[]",
+        "migratedChainIds": "number[]",
+        "missingChainIds": "number[]",
+        "websiteRecoveryChainIds": "number[]",
+        "unresolvedChainIds": "number[]",
+        "chainReadiness": "MigrationChainReadiness[]"
+      },
+      "chainReadinessFields": {
+        "chain": "string",
+        "chainId": "number",
+        "status": "\"no_legacy\"|\"migration_required\"|\"partially_migrated\"|\"fully_migrated\"|\"website_recovery_required\"|\"review_incomplete\"",
+        "candidateLegacyCommitments": "number",
+        "expectedLegacyCommitments": "number",
+        "migratedCommitments": "number",
+        "legacyMasterSeedNullifiedCount": "number",
+        "hasPostMigrationCommitments": "boolean",
+        "isMigrated": "boolean",
+        "legacySpendableCommitments": "number",
+        "upgradedSpendableCommitments": "number",
+        "declinedLegacyCommitments": "number",
+        "reviewStatusComplete": "boolean",
+        "requiresMigration": "boolean",
+        "requiresWebsiteRecovery": "boolean",
+        "scopes": "decimal-string[]"
+      }
+    },
+    "history": {
+      "successFields": {
+        "chain": "string",
+        "events": "HistoryEvent[]"
+      },
+      "eventFields": {
+        "type": "\"deposit\"|\"migration\"|\"withdrawal\"|\"ragequit\"",
+        "asset": "string",
+        "poolAddress": "0x-prefixed-address",
+        "poolAccountNumber": "number",
+        "poolAccountId": "string (PA-#)",
+        "value": "decimal-string-wei",
+        "blockNumber": "decimal-string",
+        "txHash": "0x-prefixed-hash",
+        "explorerUrl": "string|null"
+      }
+    },
+    "activity": {
+      "successFields": {
+        "mode": "\"pool-activity\"|\"global-activity\"",
+        "chain": "string (\"all-mainnets\" for cross-chain global activity, selected chain name otherwise)",
+        "chains": "string[]? (global-activity with multiple chains)",
+        "page": "number",
+        "perPage": "number",
+        "total": "number|null",
+        "totalPages": "number|null",
+        "chainFiltered": "boolean? (true when chain filtering happens client-side)",
+        "note": "string? (explains pagination limitations when chainFiltered is true)",
+        "events": "ActivityEvent[]"
+      },
+      "poolActivityExtraFields": {
+        "asset": "string",
+        "pool": "0x-prefixed-address",
+        "scope": "decimal-string"
+      },
+      "eventFields": {
+        "type": "string",
+        "txHash": "0x-prefixed-hash|null",
+        "explorerUrl": "string|null",
+        "reviewStatus": "string|null",
+        "amountRaw": "decimal-string-wei|null",
+        "amountFormatted": "string|null",
+        "poolSymbol": "string|null",
+        "poolAddress": "0x-prefixed-address|null",
+        "chainId": "number|null",
+        "timestamp": "iso8601-string|null"
+      }
+    },
+    "stats": {
+      "globalStats": {
+        "mode": "\"global-stats\"",
+        "chain": "string",
+        "chains": "string[]? (multi-chain mode)",
+        "cacheTimestamp": "iso8601-string|null",
+        "allTime": "TimeBasedStatistics|null",
+        "last24h": "TimeBasedStatistics|null",
+        "perChain": "ChainStatsEntry[]? (multi-chain mode)"
+      },
+      "poolStats": {
+        "mode": "\"pool-stats\"",
+        "chain": "string",
+        "asset": "string",
+        "pool": "0x-prefixed-address",
+        "scope": "decimal-string",
+        "cacheTimestamp": "iso8601-string|null",
+        "allTime": "TimeBasedStatistics|null",
+        "last24h": "TimeBasedStatistics|null"
+      },
+      "timeBasedStatisticsFields": {
+        "tvlUsd": "string|null",
+        "avgDepositSizeUsd": "string|null",
+        "totalDepositsCount": "number|null",
+        "totalDepositsValue": "decimal-string-wei|null",
+        "totalDepositsValueUsd": "string|null",
+        "totalWithdrawalsCount": "number|null",
+        "totalWithdrawalsValue": "decimal-string-wei|null",
+        "totalWithdrawalsValueUsd": "string|null"
+      },
+      "chainStatsEntryFields": {
+        "chain": "string",
+        "cacheTimestamp": "iso8601-string|null",
+        "allTime": "TimeBasedStatistics|null",
+        "last24h": "TimeBasedStatistics|null"
+      }
+    },
+    "capabilities": {
+      "successFields": {
+        "commands": "Command[]",
+        "commandDetails": "Record<string, DetailedCommandDescriptor>",
+        "executionRoutes": "Record<string, { owner, nativeModes }>",
+        "globalFlags": "Flag[]",
+        "agentWorkflow": "string[]",
+        "protocol": "ProtocolProfile",
+        "runtime": "RuntimeCompatibilityDescriptor",
+        "jsonOutputContract": "string (descriptive contract summary)",
+        "agentNotes": "Record<string, string>",
+        "schemas": "object (includes nextActions metadata)",
+        "supportedChains": "Chain[]",
+        "safeReadOnlyCommands": "string[]"
+      }
+    },
+    "describe": {
+      "successFields": {
+        "command": "string (canonical command path)",
+        "description": "string",
+        "aliases": "string[]",
+        "execution": "{ owner: \"js-runtime\"|\"native-shell\"|\"hybrid\", nativeModes: string[] }",
+        "usage": "string",
+        "flags": "string[]",
+        "globalFlags": "string[]",
+        "requiresInit": "boolean",
+        "expectedLatencyClass": "\"fast\"|\"medium\"|\"slow\"",
+        "safeReadOnly": "boolean",
+        "prerequisites": "string[]",
+        "examples": "string[]",
+        "jsonFields": "string|null",
+        "jsonVariants": "string[]",
+        "safetyNotes": "string[]",
+        "supportsUnsigned": "boolean",
+        "supportsDryRun": "boolean",
+        "agentWorkflowNotes": "string[]",
+        "sideEffectClass": "\"read_only\"|\"local_state_write\"|\"network_write\"|\"fund_movement\"",
+        "touchesFunds": "boolean",
+        "requiresHumanReview": "boolean",
+        "preferredSafeVariant": "{ command: string, reason: string }|undefined"
+      }
+    },
+    "sync": {
+      "successFields": {
+        "chain": "string",
+        "syncedPools": "number",
+        "syncedSymbols": "string[]? (present on successful sync)",
+        "availablePoolAccounts": "number",
+        "previousAvailablePoolAccounts": "number? (count before sync)"
+      }
+    },
+    "guide": {
+      "note": "Outputs formatted help text to stderr in interactive mode. In JSON mode, returns the guide as a string.",
+      "successFields": {
+        "mode": "\"help\"",
+        "help": "string (formatted guide text)"
+      }
+    },
+    "meta": {
+      "helpEnvelope": {
+        "mode": "help",
+        "help": "string"
+      },
+      "versionEnvelope": {
+        "mode": "version",
+        "version": "semver-string"
+      }
+    }
+  },
+  "unsignedCalldataABIs": {
+    "depositNative": "function deposit(uint256 _precommitment) payable",
+    "depositErc20": "function deposit(address _asset, uint256 _value, uint256 _precommitment)",
+    "approveErc20": "function approve(address spender, uint256 amount)",
+    "withdrawDirect": "function withdraw((address processooor, bytes data) _withdrawal, (uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[8] pubSignals) _proof)",
+    "withdrawRelayed": "function relay((address processooor, bytes data) _withdrawal, (uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[8] pubSignals) _proof, uint256 _scope)",
+    "ragequit": "function ragequit((uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[4] pubSignals) _proof)"
+  }
+}

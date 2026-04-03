@@ -12,7 +12,9 @@
     "scripts/start-built-cli.mjs",
     "AGENTS.md",
     "CHANGELOG.md",
-    "docs/contracts",
+    "docs/contracts/README.md",
+    "docs/contracts/cli-json-contract.current.json",
+    "docs/contracts/cli-json-contract.v1.7.0.json",
     "docs/reference.md",
     "docs/runtime-upgrades.md",
     "skills"

@@ -85,6 +85,8 @@ Parse `success` first. On failure, read `errorCode` for programmatic handling an
 
 Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
+For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
+
 ## Preflight Check
 
 Before running wallet-dependent commands, verify setup:
@@ -232,7 +234,7 @@ privacy-pools capabilities --agent
 
 JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }`
 
-`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package.
+`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package. For a stable package path, use `docs/contracts/cli-json-contract.current.json`; `documentation.jsonContract` may still expose the exact versioned snapshot path for the active schema.
 
 #### `describe`
 

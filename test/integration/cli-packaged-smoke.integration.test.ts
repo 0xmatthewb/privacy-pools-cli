@@ -336,7 +336,10 @@ describe("packaged CLI smoke", () => {
   test("npm pack includes bundled docs and runtime-owned shipped assets", () => {
     expect(packed.filePaths.has("AGENTS.md")).toBe(true);
     expect(packed.filePaths.has("CHANGELOG.md")).toBe(true);
+    expect(packed.filePaths.has("docs/contracts/README.md")).toBe(true);
+    expect(packed.filePaths.has("docs/contracts/cli-json-contract.current.json")).toBe(true);
     expect(packed.filePaths.has(jsonContractDocRelativePath())).toBe(true);
+    expect(packed.filePaths.has("docs/contracts/cli-json-contract.v1.6.0.json")).toBe(false);
     expect(packed.filePaths.has("docs/reference.md")).toBe(true);
     expect(packed.filePaths.has("docs/runtime-upgrades.md")).toBe(true);
     expect(packed.filePaths.has("skills/privacy-pools-cli/SKILL.md")).toBe(true);
