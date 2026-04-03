@@ -41,7 +41,9 @@ const packageJson = JSON.parse(
 function extractTriplets(workflow: string): string[] {
   return Array.from(
     new Set(
-      [...workflow.matchAll(/triplet:\s*([a-z0-9-]+)/g)].map((match) => match[1]!),
+      [...workflow.matchAll(/triplet:\s*([a-z0-9-]+)/g)]
+        .map((match) => match[1]!)
+        .filter((triplet) => triplet !== "-"),
     ),
   ).sort();
 }
@@ -49,6 +51,19 @@ function extractTriplets(workflow: string): string[] {
 function extractLabels(workflow: string): string[] {
   return [...workflow.matchAll(/label:\s*([a-z0-9-]+)/g)]
     .map((match) => match[1]!)
+    .sort();
+}
+
+function extractRegistryInstallNodeVersions(workflow: string): string[] {
+  const match = workflow.match(
+    /verify-registry-install:[\s\S]*?node-version:\s*((?:\n\s*-\s*"[^"]+")+)/,
+  );
+  if (!match) {
+    return [];
+  }
+
+  return [...match[1]!.matchAll(/-\s*"([^"]+)"/g)]
+    .map((entry) => entry[1]!)
     .sort();
 }
 
@@ -104,6 +119,14 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("native-release-signoff");
     expect(releaseWorkflow).toContain("SHA256SUMS.txt.sig");
     expect(releaseWorkflow).toContain("name: github-release");
+  });
+
+  test("release workflow verifies published installs across the supported node range", () => {
+    expect(extractRegistryInstallNodeVersions(releaseWorkflow)).toEqual([
+      "22.x",
+      "24.x",
+      "25.x",
+    ]);
   });
 
   test("native triplets stay aligned across release, smoke workflows, and package metadata", () => {

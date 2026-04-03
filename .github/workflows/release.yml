@@ -443,7 +443,7 @@ jobs:
   # This only runs after the root package and native packages are live.
   # -----------------------------------------------------------
   verify-registry-install:
-    name: registry-install-${{ matrix.triplet }}
+    name: registry-install-${{ matrix.triplet }}-node-${{ matrix.node-version }}
     needs:
       - publish-native
       - publish-root
@@ -452,6 +452,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        triplet:
+          - darwin-arm64
+          - darwin-x64
+          - linux-x64-gnu
+          - win32-x64-msvc
+          - win32-arm64-msvc
+        node-version:
+          - "22.x"
+          - "24.x"
+          - "25.x"
         include:
           - triplet: darwin-arm64
             runner: macos-latest
@@ -474,7 +484,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25.x"
+          node-version: ${{ matrix.node-version }}
           registry-url: "https://registry.npmjs.org"
           scope: "@0xmatthewb"
 
