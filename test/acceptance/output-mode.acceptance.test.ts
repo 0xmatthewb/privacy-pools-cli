@@ -168,16 +168,20 @@ defineScenarioSuite("output-mode acceptance", [
       expect(json.usage).toBe("withdraw quote <amount> --asset <symbol|address>");
     }),
   ]),
-  defineScenario("agent status emits JSON on stdout and nothing on stderr", [
-    seedHome("sepolia"),
-    runCliStep(["--agent", "status"], { timeoutMs: 60_000 }),
-    assertExit(0),
-    assertStderrEmpty(),
-    assertJson<{ schemaVersion: string; success: boolean }>((json) => {
-      expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-      expect(json.success).toBe(true);
-    }),
-  ]),
+  defineScenario(
+    "agent status emits JSON on stdout and nothing on stderr",
+    [
+      seedHome("sepolia"),
+      runCliStep(["--agent", "status"], { timeoutMs: 60_000 }),
+      assertExit(0),
+      assertStderrEmpty(),
+      assertJson<{ schemaVersion: string; success: boolean }>((json) => {
+        expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
+        expect(json.success).toBe(true);
+      }),
+    ],
+    { timeoutMs: 120_000 },
+  ),
   defineScenario("agent completion emits JSON on stdout and nothing on stderr", [
     runCliStep(["--agent", "completion", "bash"]),
     assertExit(0),

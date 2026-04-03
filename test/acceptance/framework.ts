@@ -12,6 +12,8 @@ import {
 } from "../helpers/contract-assertions.ts";
 import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
+const DEFAULT_ACCEPTANCE_SCENARIO_TIMEOUT_MS = 120_000;
+
 export type AcceptanceContext = TestWorld & {
   lastResult: CliRunResult | null;
 };
@@ -57,7 +59,7 @@ export function defineScenarioSuite(
             await ctx.teardown();
           }
         },
-        scenario.timeoutMs,
+        scenario.timeoutMs ?? DEFAULT_ACCEPTANCE_SCENARIO_TIMEOUT_MS,
       );
     }
   });

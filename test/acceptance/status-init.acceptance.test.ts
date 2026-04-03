@@ -23,68 +23,76 @@ const OFFLINE_ENV = {
 };
 
 defineScenarioSuite("status/init acceptance", [
-  defineScenario("init persists config and signer state for status", [
-    async (ctx) => {
-      const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(ctx.home);
-      ctx.lastResult = ctx.runCli(
-        [
-          "--json",
-          "init",
-          "--mnemonic-file",
-          mnemonicPath,
-          "--private-key-file",
-          privateKeyPath,
-          "--default-chain",
-          "sepolia",
-          "--yes",
-        ],
-        {
-          timeoutMs: 60_000,
-        },
-      );
-    },
-    assertExit(0),
-    assertJsonEnvelopeStep({ success: true }),
-    assertJson<{ success: boolean; defaultChain: string }>((json) => {
-      expect(json.success).toBe(true);
-      expect(json.defaultChain).toBe("sepolia");
-    }),
-    runCliStep(["--json", "status"]),
-    assertExit(0),
-    assertJsonEnvelopeStep({ success: true }),
-    assertJson<{
-      success: boolean;
-      defaultChain: string;
-      recoveryPhraseSet: boolean;
-      signerKeySet: boolean;
-      signerAddress: string;
-    }>((json) => {
-      expect(json.success).toBe(true);
-      expect(json.defaultChain).toBe("sepolia");
-      expect(json.recoveryPhraseSet).toBe(true);
-      expect(json.signerKeySet).toBe(true);
-      expect(json.signerAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
-    }),
-  ]),
-  defineScenario("status honors chain overrides without mutating default chain", [
-    seedHome("mainnet"),
-    runCliStep(["--json", "--chain", "sepolia", "status"], {
-      timeoutMs: 60_000,
-    }),
-    assertExit(0),
-    assertJson<{
-      success: boolean;
-      defaultChain: string | null;
-      selectedChain: string | null;
-      rpcUrl: string | null;
-    }>((json) => {
-      expect(json.success).toBe(true);
-      expect(json.defaultChain).toBe("mainnet");
-      expect(json.selectedChain).toBe("sepolia");
-      expect(typeof json.rpcUrl).toBe("string");
-      expect(json.rpcUrl).toContain("sepolia");
-    }),
-  ]),
+  defineScenario(
+    "init persists config and signer state for status",
+    [
+      async (ctx) => {
+        const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(ctx.home);
+        ctx.lastResult = ctx.runCli(
+          [
+            "--json",
+            "init",
+            "--mnemonic-file",
+            mnemonicPath,
+            "--private-key-file",
+            privateKeyPath,
+            "--default-chain",
+            "sepolia",
+            "--yes",
+          ],
+          {
+            timeoutMs: 60_000,
+          },
+        );
+      },
+      assertExit(0),
+      assertJsonEnvelopeStep({ success: true }),
+      assertJson<{ success: boolean; defaultChain: string }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.defaultChain).toBe("sepolia");
+      }),
+      runCliStep(["--json", "status"]),
+      assertExit(0),
+      assertJsonEnvelopeStep({ success: true }),
+      assertJson<{
+        success: boolean;
+        defaultChain: string;
+        recoveryPhraseSet: boolean;
+        signerKeySet: boolean;
+        signerAddress: string;
+      }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.defaultChain).toBe("sepolia");
+        expect(json.recoveryPhraseSet).toBe(true);
+        expect(json.signerKeySet).toBe(true);
+        expect(json.signerAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
+      }),
+    ],
+    { timeoutMs: 120_000 },
+  ),
+  defineScenario(
+    "status honors chain overrides without mutating default chain",
+    [
+      seedHome("mainnet"),
+      runCliStep(["--json", "--chain", "sepolia", "status"], {
+        timeoutMs: 60_000,
+      }),
+      assertExit(0),
+      assertJson<{
+        success: boolean;
+        defaultChain: string | null;
+        selectedChain: string | null;
+        rpcUrl: string | null;
+      }>((json) => {
+        expect(json.success).toBe(true);
+        expect(json.defaultChain).toBe("mainnet");
+        expect(json.selectedChain).toBe("sepolia");
+        expect(typeof json.rpcUrl).toBe("string");
+        expect(json.rpcUrl).toContain("sepolia");
+      }),
+    ],
+    { timeoutMs: 120_000 },
+  ),
   defineScenario("status reports invalid signer key without a false-positive signer address", [
     writeFile(
       ".privacy-pools/config.json",

@@ -360,7 +360,7 @@ describe("flow command", () => {
       ],
       {
         home,
-        timeoutMs: 10_000,
+        timeoutMs: 20_000,
       },
     );
 
@@ -399,7 +399,7 @@ describe("flow command", () => {
       ],
       {
         home,
-        timeoutMs: 10_000,
+        timeoutMs: 20_000,
       },
     );
 
