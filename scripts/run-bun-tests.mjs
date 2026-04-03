@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
@@ -12,6 +12,7 @@ import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
 const runId = `${process.pid}-${Date.now()}`;
 const TEMP_PREFIX = "pp-";
+const OUTPUT_TAIL_LIMIT_BYTES = 512 * 1024;
 let cleanedUp = false;
 
 function cleanupRunTempDirs() {
@@ -73,6 +74,74 @@ function collectTestFiles(pathArg) {
   return files.sort();
 }
 
+function appendTail(buffer, chunk) {
+  const next = `${buffer}${chunk}`;
+  if (Buffer.byteLength(next, "utf8") <= OUTPUT_TAIL_LIMIT_BYTES) {
+    return next;
+  }
+
+  return Buffer.from(next, "utf8")
+    .subarray(-OUTPUT_TAIL_LIMIT_BYTES)
+    .toString("utf8");
+}
+
+async function runBunProcess(args, timeoutMs) {
+  let timedOut = false;
+  let stdoutTail = "";
+  let stderrTail = "";
+
+  const child = spawn("bun", ["test", ...args], {
+    stdio: ["inherit", "pipe", "pipe"],
+    env: buildTestRunnerEnv({
+      PP_TEST_RUN_ID: runId,
+    }),
+  });
+
+  child.stdout?.setEncoding("utf8");
+  child.stderr?.setEncoding("utf8");
+  child.stdout?.on("data", (chunk) => {
+    process.stdout.write(chunk);
+    stdoutTail = appendTail(stdoutTail, chunk);
+  });
+  child.stderr?.on("data", (chunk) => {
+    process.stderr.write(chunk);
+    stderrTail = appendTail(stderrTail, chunk);
+  });
+
+  let killTimer;
+  const timeoutHandle = setTimeout(() => {
+    timedOut = true;
+    child.kill("SIGTERM");
+    killTimer = setTimeout(() => {
+      child.kill("SIGKILL");
+    }, 1000);
+    killTimer.unref?.();
+  }, timeoutMs);
+  timeoutHandle.unref?.();
+
+  const result = await new Promise((resolve, reject) => {
+    child.once("error", (error) => {
+      clearTimeout(timeoutHandle);
+      if (killTimer) clearTimeout(killTimer);
+      reject(error);
+    });
+
+    child.once("close", (status, signal) => {
+      clearTimeout(timeoutHandle);
+      if (killTimer) clearTimeout(killTimer);
+      resolve({
+        status,
+        signal,
+        stdout: stdoutTail,
+        stderr: stderrTail,
+        timedOut,
+      });
+    });
+  });
+
+  return result;
+}
+
 const forwardedArgs = [];
 const excludedPaths = new Set();
 let processTimeoutMs = 900_000;
@@ -130,39 +199,17 @@ if (!hasExplicitTestTarget(bunArgs, process.cwd())) {
 
 let result;
 try {
-  result = spawnSync("bun", ["test", ...bunArgs], {
-    stdio: ["inherit", "pipe", "pipe"],
-    encoding: "utf8",
-    timeout: processTimeoutMs,
-    maxBuffer: 50 * 1024 * 1024,
-    env: buildTestRunnerEnv({
-      PP_TEST_RUN_ID: runId,
-    }),
-  });
+  result = await runBunProcess(bunArgs, processTimeoutMs);
 } finally {
   cleanupRunTempDirs();
 }
 
-if (typeof result.stdout === "string" && result.stdout.length > 0) {
-  process.stdout.write(result.stdout);
-}
-
-if (typeof result.stderr === "string" && result.stderr.length > 0) {
-  process.stderr.write(result.stderr);
-}
-
-if (result.error) {
-  const timedOut =
-    typeof result.error.message === "string"
-    && result.error.message.includes("ETIMEDOUT");
-  if (timedOut) {
-    const targets = bunArgs.join(" ");
-    process.stderr.write(
-      `bun test exceeded the outer process timeout (${processTimeoutMs}ms): ${targets}\n`,
-    );
-    process.exit(1);
-  }
-  throw result.error;
+if (result.timedOut) {
+  const targets = bunArgs.join(" ");
+  process.stderr.write(
+    `bun test exceeded the outer process timeout (${processTimeoutMs}ms): ${targets}\n`,
+  );
+  process.exit(1);
 }
 
 if (typeof result.status === "number") {
