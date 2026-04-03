@@ -313,7 +313,10 @@ async function resolveLegacyInitializationPolicy(
 
   if (
     allowLegacyRecoveryVisibility
-    && resolved.readiness.status === "website_recovery_required"
+    // Mixed legacy wallets can need website recovery for declined deposits while
+    // still requiring website migration for other commitments. Read-only account
+    // views should keep those declined legacy deposits visible either way.
+    && resolved.readiness.requiresWebsiteRecovery
   ) {
     return resolved;
   }

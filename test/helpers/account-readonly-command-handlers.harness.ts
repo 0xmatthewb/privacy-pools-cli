@@ -30,6 +30,8 @@ const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
 const realSdkPackage = captureModuleExports(
   await import("@0xbow/privacy-pools-core-sdk"),
 );
+const ORIGINAL_SDK_INIT_WITH_EVENTS =
+  realSdkPackage.AccountService.initializeWithEvents;
 const realAsp = captureModuleExports(await import("../../src/services/asp.ts"));
 const realMigration = captureModuleExports(
   await import("../../src/services/migration.ts"),
@@ -42,7 +44,6 @@ const READONLY_HANDLER_MODULE_RESTORES = [
   ["../../src/services/asp.ts", realAsp],
   ["../../src/utils/pool-accounts.ts", realPoolAccounts],
   ["../../src/services/migration.ts", realMigration],
-  ["@0xbow/privacy-pools-core-sdk", realSdkPackage],
 ] as const;
 
 const MAINNET_POOL = {
@@ -197,6 +198,9 @@ function useIsolatedHome(defaultChain: string = "mainnet"): string {
 }
 
 async function loadReadonlyHandlers(): Promise<void> {
+  realSdkPackage.AccountService.initializeWithEvents =
+    initializeWithEventsMock as typeof realSdkPackage.AccountService.initializeWithEvents;
+
   installModuleMocks([
     ["../../src/services/account.ts", () => ({
       ...realAccount,
@@ -231,12 +235,6 @@ async function loadReadonlyHandlers(): Promise<void> {
       buildMigrationChainReadinessFromLegacyAccount:
         buildMigrationChainReadinessFromLegacyAccountMock,
     })],
-    ["@0xbow/privacy-pools-core-sdk", () => ({
-      ...realSdkPackage,
-      AccountService: {
-        initializeWithEvents: initializeWithEventsMock,
-      },
-    })],
   ]);
 
   ({ handleAccountsCommand } = await import(
@@ -255,6 +253,8 @@ async function loadReadonlyHandlers(): Promise<void> {
 
 afterEach(() => {
   restoreModuleImplementations(READONLY_HANDLER_MODULE_RESTORES);
+  realSdkPackage.AccountService.initializeWithEvents =
+    ORIGINAL_SDK_INIT_WITH_EVENTS;
 });
 
 export function registerAccountReadonlyCommandHandlerHarness(): void {
@@ -532,6 +532,69 @@ export function registerReadonlyAccountsTests(): void {
     );
   });
 
+  test("accounts keeps declined legacy Pool Accounts visible in mixed migration-required wallets", async () => {
+    useIsolatedHome("mainnet");
+
+    initializeAccountServiceWithStateMock.mockImplementationOnce(async () => ({
+      accountService: {
+        account: {
+          poolAccounts: new Map(),
+          __legacyPoolAccounts: new Map([[1n, [DECLINED_LEGACY_POOL_ACCOUNT]]]),
+        },
+        getSpendableCommitments: () =>
+          new Map([
+            [
+              1n,
+              [
+                {
+                  hash: 201n,
+                  label: 101n,
+                  value: 900000000000000000n,
+                  blockNumber: 123n,
+                  txHash: "0x" + "aa".repeat(32),
+                },
+                {
+                  hash: 202n,
+                  label: 102n,
+                  value: 400000000000000000n,
+                  blockNumber: 124n,
+                  txHash: "0x" + "bb".repeat(32),
+                },
+              ],
+            ],
+          ]),
+      },
+      skipImmediateSync: false,
+      rebuiltLegacyAccount: false,
+      legacyDeclinedLabels: new Set(["303"]),
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleAccountsCommand({}, fakeCommand({ json: true, chain: "mainnet" })),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.accounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "approved",
+          poolAccountId: "PA-1",
+        }),
+        expect.objectContaining({
+          status: "pending",
+          poolAccountId: "PA-2",
+        }),
+        expect.objectContaining({
+          status: "declined",
+          aspStatus: "declined",
+          poolAccountId: "PA-3",
+          label: "303",
+          value: "700000000000000000",
+        }),
+      ]),
+    );
+  });
+
   test("accounts surfaces partial ASP review warnings for successful single-chain loads", async () => {
     useIsolatedHome("mainnet");
     loadAspDepositReviewStateMock.mockImplementationOnce(async () => ({
@@ -734,6 +797,60 @@ export function registerReadonlyHistoryTests(): void {
     expect(json.success).toBe(true);
     expect(json.events).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          type: "deposit",
+          poolAccountId: "PA-1",
+          value: "700000000000000000",
+          txHash: "0x" + "cc".repeat(32),
+        }),
+      ]),
+    );
+  });
+
+  test("history keeps declined legacy deposits visible in mixed migration-required wallets", async () => {
+    useIsolatedHome("mainnet");
+
+    initializeAccountServiceWithStateMock.mockImplementationOnce(async () => ({
+      accountService: {
+        account: {
+          poolAccounts: new Map([
+            [
+              1n,
+              [
+                {
+                  deposit: {
+                    value: 900000000000000000n,
+                    blockNumber: 150n,
+                    txHash: "0x" + "aa".repeat(32),
+                  },
+                  children: [],
+                },
+              ],
+            ],
+          ]),
+          __legacyPoolAccounts: new Map([[1n, [DECLINED_LEGACY_POOL_ACCOUNT]]]),
+        },
+      },
+      skipImmediateSync: false,
+      rebuiltLegacyAccount: false,
+      legacyDeclinedLabels: new Set(["303"]),
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleHistoryCommand(
+        { limit: "10" },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "deposit",
+          poolAccountId: "PA-1",
+          txHash: "0x" + "aa".repeat(32),
+        }),
         expect.objectContaining({
           type: "deposit",
           poolAccountId: "PA-1",

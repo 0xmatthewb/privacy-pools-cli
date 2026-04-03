@@ -83,6 +83,50 @@ function makeLegacyAccount(overrides: Partial<{
   });
 }
 
+function makeMixedLegacyAccount() {
+  return new AccountService({} as any, {
+    account: {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map([
+        [1n, [
+          {
+            label: 11n,
+            deposit: {
+              hash: 12n,
+              value: 1n,
+              label: 11n,
+              nullifier: 13n,
+              secret: 14n,
+              blockNumber: 1n,
+              txHash: "0x" + "11".repeat(32),
+            },
+            children: [],
+            isMigrated: false,
+            ragequit: undefined,
+          },
+          {
+            label: 22n,
+            deposit: {
+              hash: 23n,
+              value: 2n,
+              label: 22n,
+              nullifier: 24n,
+              secret: 25n,
+              blockNumber: 2n,
+              txHash: "0x" + "22".repeat(32),
+            },
+            children: [],
+            isMigrated: false,
+            ragequit: undefined,
+          },
+        ]],
+      ]),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+    } as any,
+  });
+}
+
 describe("account persistence", () => {
   afterEach(() => {
     AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
@@ -847,6 +891,53 @@ describe("account persistence", () => {
     expect(loadSyncMeta(11155111)).not.toBeNull();
   });
 
+  test("fresh mnemonic restore keeps declined legacy visibility for mixed migration-required wallets", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          { label: "11", reviewStatus: "declined" },
+          { label: "22", reviewStatus: "approved" },
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      )) as typeof global.fetch;
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: makeMixedLegacyAccount(),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const result = await initializeAccountServiceWithState(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      {
+        allowLegacyRecoveryVisibility: true,
+        suppressWarnings: true,
+      },
+    );
+
+    expect(result.legacyDeclinedLabels).toEqual(new Set(["11"]));
+    expect(getStoredLegacyReadinessStatus(loadAccount(11155111) as any)).toBe(
+      "migration_required",
+    );
+    expect(loadSyncMeta(11155111)).not.toBeNull();
+  });
+
   test("read-only visibility still fails closed when legacy migration is required", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
@@ -888,6 +979,48 @@ describe("account persistence", () => {
 
     expect(loadAccount(11155111)).toBeNull();
     expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("saved mixed migration-required snapshots keep declined legacy visibility for read-only commands", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    saveAccount(11155111, {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map(),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+      __legacyPoolAccounts: makeMixedLegacyAccount().account.poolAccounts,
+      __legacyMigrationReadinessStatus: "migration_required",
+    } as any);
+
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          { label: "11", reviewStatus: "declined" },
+          { label: "22", reviewStatus: "approved" },
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      )) as typeof global.fetch;
+
+    const result = await initializeAccountServiceWithState(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      {
+        allowLegacyRecoveryVisibility: true,
+        suppressWarnings: true,
+      },
+    );
+
+    expect(result.legacyDeclinedLabels).toEqual(new Set(["11"]));
+    expect(getStoredLegacyReadinessStatus(result.accountService.account as any)).toBe(
+      "migration_required",
+    );
   });
 
   test("saved-account sync surfaces website recovery guidance instead of dropping legacy state", async () => {
@@ -948,6 +1081,64 @@ describe("account persistence", () => {
       ACCOUNT_FILE_VERSION,
     );
     expect(loadSyncMeta(11155111)).toBeNull();
+  });
+
+  test("saved-account sync keeps declined legacy visibility for mixed migration-required wallets", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    saveAccount(11155111, {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map(),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+      __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
+    });
+
+    global.fetch = (async () =>
+      new Response(
+        JSON.stringify([
+          { label: "11", reviewStatus: "declined" },
+          { label: "22", reviewStatus: "approved" },
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      )) as typeof global.fetch;
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: makeMixedLegacyAccount(),
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const result = await initializeAccountServiceWithState(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      {
+        forceSyncSavedAccount: true,
+        allowLegacyRecoveryVisibility: true,
+        suppressWarnings: true,
+        strictSync: true,
+      },
+    );
+
+    expect(result.legacyDeclinedLabels).toEqual(new Set(["11"]));
+    expect(getStoredLegacyReadinessStatus(loadAccount(11155111) as any)).toBe(
+      "migration_required",
+    );
+    expect(loadSyncMeta(11155111)).not.toBeNull();
   });
 
   test("saved blocked snapshots still fail closed for non-read-only commands", async () => {
