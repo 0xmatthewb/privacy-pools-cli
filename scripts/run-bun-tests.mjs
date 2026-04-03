@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import { shouldTreatBunExitAsSuccess } from "./bun-runner-exit.mjs";
 import {
   expandPathArgsWithExcludes,
   hasExplicitTestTarget,
@@ -213,7 +212,7 @@ if (result.timedOut) {
 }
 
 if (typeof result.status === "number") {
-  if (result.status === 0 || shouldTreatBunExitAsSuccess(result)) {
+  if (result.status === 0) {
     process.exit(0);
   }
   process.exit(result.status);

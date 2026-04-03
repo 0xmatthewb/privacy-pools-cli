@@ -285,19 +285,9 @@ function runCoverageSuiteWithFallback(label, tests, attempt = 1) {
   }
   if (result.error) throw result.error;
   const lcovPath = join(coverageDir, "lcov.info");
-  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
   const wroteLcov = existsSync(lcovPath);
-  const zeroFailuresReported =
-    /\b0 fail\b/.test(output) || /\b0 failed\b/.test(output);
-
-  if (result.status !== 0 && !(wroteLcov && zeroFailuresReported)) {
+  if (result.status !== 0) {
     process.exit(result.status ?? 1);
-  }
-
-  if (result.status !== 0 && wroteLcov && zeroFailuresReported) {
-    process.stdout.write(
-      `[coverage] ${label} exited ${result.status} after writing lcov with zero reported test failures; continuing\n`,
-    );
   }
   if (wroteLcov) {
     return [lcovPath];

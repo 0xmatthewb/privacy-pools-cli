@@ -44,6 +44,29 @@ describe("run-bun-tests outer watchdog", () => {
     expect(`${result.stdout}\n${result.stderr}`).toContain("0 fail");
   });
 
+  test("propagates real failing Bun exits without summary-based normalization", () => {
+    const result = spawnSync(
+      "node",
+      [
+        "scripts/run-bun-tests.mjs",
+        "./test/fixtures/bun-failing.fixture.ts",
+        "--timeout",
+        "60000",
+        "--process-timeout-ms",
+        "10000",
+      ],
+      {
+        cwd: CLI_ROOT,
+        encoding: "utf8",
+        timeout: 15_000,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain("1 fail");
+  });
+
   test("streams Bun output before the runner exits", async () => {
     const child = spawn(
       "node",
