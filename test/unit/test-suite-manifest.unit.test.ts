@@ -46,6 +46,9 @@ describe("test suite manifest", () => {
     expect(COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests)).toContain(
       "./test/unit/accounts-command-readonly.unit.test.ts",
     );
+    expect(COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests)).toContain(
+      "./test/unit/history-command-readonly.unit.test.ts",
+    );
   });
 
   test("default main batches cover each shared target exactly once", () => {
@@ -60,9 +63,18 @@ describe("test suite manifest", () => {
     ]);
   });
 
-  test("default main exclusions leave the split readonly and ragequit suites in the main lane unless isolation is required", () => {
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
+  test("default main exclusions isolate the readonly harness but keep split ragequit slices in the main lane", () => {
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(
       "./test/unit/accounts-command-readonly.unit.test.ts",
+    );
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(
+      "./test/unit/history-command-readonly.unit.test.ts",
+    );
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(
+      "./test/unit/sync-command-readonly.unit.test.ts",
+    );
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(
+      "./test/unit/migrate-status-command-readonly.unit.test.ts",
     );
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
       "./test/unit/ragequit-command-handler.entry-submit.unit.test.ts",

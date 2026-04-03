@@ -197,12 +197,11 @@ describe("test runner arg helpers", () => {
     }
     for (const coverageOnlyLabel of [
       "workflow-service",
-      "accounts-readonly-coverage",
-      "sync-readonly-coverage",
-      "migrate-status-readonly-coverage",
       "launcher-runtime",
     ]) {
       expect(coverageLabels).toContain(coverageOnlyLabel);
     }
+    expect(defaultLabels).toContain("account-readonly");
+    expect(coverageLabels).toContain("account-readonly");
   });
 });

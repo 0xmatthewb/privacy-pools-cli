@@ -199,31 +199,13 @@ export const ISOLATED_SUITES = [
       "self-cleaning restore snapshots now return output/common and account modules to their real exports between tests",
   },
   {
-    label: "accounts-readonly-coverage",
-    tests: [ACCOUNTS_READONLY_TEST],
+    label: "account-readonly",
+    tests: ACCOUNT_READONLY_TESTS,
     timeoutMs: 120_000,
-    isolateInDefaultTest: false,
+    isolateInDefaultTest: true,
     isolateInCoverage: true,
     reason:
-      "the accounts read-only slice stays deterministic when coverage runs in its own Bun process",
-  },
-  {
-    label: "sync-readonly-coverage",
-    tests: [SYNC_READONLY_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: false,
-    isolateInCoverage: true,
-    reason:
-      "the sync read-only slice stays deterministic when coverage runs in its own Bun process",
-  },
-  {
-    label: "migrate-status-readonly-coverage",
-    tests: [MIGRATE_STATUS_READONLY_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: false,
-    isolateInCoverage: true,
-    reason:
-      "the migrate-status read-only slice stays deterministic when coverage runs in its own Bun process",
+      "the readonly command harness rewires account, sdk, asp, and pool-account modules and must stay in its own Bun process to avoid cross-suite cache pollution",
   },
   {
     label: "init-interactive-cancel-invalid",
