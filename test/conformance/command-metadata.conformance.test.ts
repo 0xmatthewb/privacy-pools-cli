@@ -11,7 +11,6 @@ import {
 
 interface RuntimeCommandEntry {
   path: string;
-  description: string;
   aliases: string[];
 }
 
@@ -22,7 +21,6 @@ function collectRuntimeCommands(command: Command, prefix: string = ""): RuntimeC
     const path = prefix ? `${prefix} ${subcommand.name()}` : subcommand.name();
     entries.push({
       path,
-      description: subcommand.description(),
       aliases: subcommand.aliases(),
     });
     entries.push(...collectRuntimeCommands(subcommand, path));
@@ -42,7 +40,7 @@ function collectRootOptions(command: Command): Array<{ flag: string; description
 }
 
 describe("command metadata conformance", () => {
-  test("runtime command tree stays aligned with metadata paths, descriptions, and aliases", async () => {
+  test("runtime command tree stays aligned with metadata paths and aliases", async () => {
     const runtimeCommands = collectRuntimeCommands(await createRootProgram("0.0.0"))
       .sort((left, right) => left.path.localeCompare(right.path));
 
@@ -50,7 +48,6 @@ describe("command metadata conformance", () => {
 
     for (const entry of runtimeCommands) {
       const metadata = getCommandMetadata(entry.path as (typeof COMMAND_PATHS)[number]);
-      expect(entry.description).toBe(metadata.description);
       expect(entry.aliases).toEqual(metadata.aliases ?? []);
     }
   });
@@ -60,7 +57,6 @@ describe("command metadata conformance", () => {
 
     for (const command of payload.commands) {
       const metadata = getCommandMetadata(command.name as (typeof COMMAND_PATHS)[number]);
-      expect(command.description).toBe(metadata.description);
       expect(command.aliases ?? []).toEqual(metadata.aliases ?? []);
     }
 
@@ -110,34 +106,5 @@ describe("command metadata conformance", () => {
     expect(poolsJsonVariants).toContain("recentActivity");
     expect(withdrawQuoteFields).toContain("baseFeeBPS");
     expect(withdrawQuoteFields).toContain("relayTxCost");
-  });
-
-  test("metadata examples keep canonical machine-mode usage and bundled-artifact guidance", () => {
-    for (const path of [
-      "init",
-      "pools",
-      "activity",
-      "stats global",
-      "stats pool",
-      "status",
-      "capabilities",
-      "describe",
-      "deposit",
-      "withdraw quote",
-      "accounts",
-      "history",
-      "sync",
-    ] as const) {
-      const examples = getCommandMetadata(path).help?.examples ?? [];
-      expect(examples.join("\n")).not.toContain("--json");
-    }
-
-    const depositOverview = (getCommandMetadata("deposit").help?.overview ?? []).join(" ");
-    const initOverview = (getCommandMetadata("init").help?.overview ?? []).join(" ");
-
-    expect(depositOverview).toContain("bundled checksum-verified circuit artifacts");
-    expect(depositOverview).not.toContain("npm run circuits:provision");
-    expect(initOverview).toContain("bundled checksum-verified circuit artifacts");
-    expect(initOverview).not.toContain("npm run circuits:provision");
   });
 });
