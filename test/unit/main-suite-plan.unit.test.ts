@@ -4,6 +4,7 @@ import {
   DEFAULT_MAIN_CONCURRENCY_CAP,
   DEFAULT_MAIN_BATCH_SIZE,
   resolveMainBatchConcurrency,
+  suiteUsesSharedBuiltWorkspaceSnapshot,
 } from "../../scripts/main-suite-plan.mjs";
 
 describe("main suite planning", () => {
@@ -176,5 +177,32 @@ describe("main suite planning", () => {
         availableParallelismFn: () => 1,
       }),
     ).toBe(1);
+  });
+
+  test("shared built workspace snapshots are reserved for built-cli suites", () => {
+    expect(
+      suiteUsesSharedBuiltWorkspaceSnapshot([
+        "./test/unit/example.unit.test.ts",
+        "./test/services/account.service.test.ts",
+      ]),
+    ).toBe(false);
+
+    expect(
+      suiteUsesSharedBuiltWorkspaceSnapshot([
+        "./test/acceptance/status-init.acceptance.test.ts",
+      ]),
+    ).toBe(true);
+
+    expect(
+      suiteUsesSharedBuiltWorkspaceSnapshot([
+        "./test/integration/cli-flow.integration.test.ts",
+      ]),
+    ).toBe(true);
+
+    expect(
+      suiteUsesSharedBuiltWorkspaceSnapshot([
+        "./test/conformance/native-manifest.conformance.test.ts",
+      ]),
+    ).toBe(true);
   });
 });

@@ -8,6 +8,14 @@ import {
 export const DEFAULT_MAIN_BATCH_SIZE = 20;
 export const DEFAULT_MAIN_CONCURRENCY_CAP = 3;
 
+const SHARED_BUILT_WORKSPACE_SNAPSHOT_TEST_PATTERNS = [
+  /^\.\/test\/acceptance\//,
+  /^\.\/test\/integration\//,
+  /^\.\/test\/services\/workflow\.anvil\.service\.test\.ts$/,
+  /^\.\/test\/unit\/cli-built-helper\.unit\.test\.ts$/,
+  /^\.\/test\/conformance\/native-manifest\.conformance\.test\.ts$/,
+];
+
 export function buildDefaultMainSuites({
   rootDir,
   testBatches,
@@ -40,6 +48,14 @@ export function buildDefaultMainSuites({
       tests,
     }));
   });
+}
+
+export function suiteUsesSharedBuiltWorkspaceSnapshot(tests) {
+  return tests.some((testPath) =>
+    SHARED_BUILT_WORKSPACE_SNAPSHOT_TEST_PATTERNS.some((pattern) =>
+      pattern.test(testPath)
+    )
+  );
 }
 
 function parsePositiveInteger(value) {

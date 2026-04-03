@@ -19,6 +19,7 @@ import { collectTestFiles } from "./test-file-collector.mjs";
 import {
   buildDefaultMainSuites,
   resolveMainBatchConcurrency,
+  suiteUsesSharedBuiltWorkspaceSnapshot,
 } from "./main-suite-plan.mjs";
 import {
   cleanupSharedBuiltWorkspaceSnapshot,
@@ -31,6 +32,7 @@ const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
 const DEFAULT_BUN_PROCESS_TIMEOUT_MS = 900_000;
 const forwardedArgs = process.argv.slice(2);
 let sharedBuiltWorkspaceSnapshotRoot = null;
+let sharedBuiltWorkspaceSnapshotPromise = null;
 const activeSuiteChildren = new Set();
 
 class SuiteRunnerExitError extends Error {
@@ -53,10 +55,29 @@ function buildRunnerArgs(args) {
     : [...args, "--process-timeout-ms", String(DEFAULT_BUN_PROCESS_TIMEOUT_MS)];
 }
 
-function buildSuiteEnv(overrides = {}) {
+async function ensureSharedBuiltWorkspaceSnapshotRoot() {
+  if (sharedBuiltWorkspaceSnapshotRoot) {
+    return sharedBuiltWorkspaceSnapshotRoot;
+  }
+
+  if (!sharedBuiltWorkspaceSnapshotPromise) {
+    sharedBuiltWorkspaceSnapshotPromise = Promise.resolve().then(() => {
+      const snapshotRoot = createSharedBuiltWorkspaceSnapshot(ROOT);
+      sharedBuiltWorkspaceSnapshotRoot = snapshotRoot;
+      return snapshotRoot;
+    });
+  }
+
+  return sharedBuiltWorkspaceSnapshotPromise;
+}
+
+async function buildSuiteEnv(tests, overrides = {}) {
   const sharedBuiltWorkspaceSnapshot =
-    sharedBuiltWorkspaceSnapshotRoot
-      ? { PP_TEST_BUILT_WORKSPACE_SNAPSHOT: sharedBuiltWorkspaceSnapshotRoot }
+    suiteUsesSharedBuiltWorkspaceSnapshot(tests)
+      ? {
+          PP_TEST_BUILT_WORKSPACE_SNAPSHOT:
+            await ensureSharedBuiltWorkspaceSnapshotRoot(),
+        }
       : {};
 
   return buildTestRunnerEnv({
@@ -80,13 +101,13 @@ function prefixWrite(stream, prefix, chunk) {
   }
 }
 
-async function runSuite(label, args, envOverrides = {}) {
+async function runSuite(label, tests, args, envOverrides = {}) {
   process.stdout.write(`\n[test] ${label}\n`);
 
   const child = spawn("node", [RUNNER, ...buildRunnerArgs(args)], {
     cwd: ROOT,
     stdio: ["ignore", "pipe", "pipe"],
-    env: buildSuiteEnv(envOverrides),
+    env: await buildSuiteEnv(tests, envOverrides),
   });
   activeSuiteChildren.add(child);
 
@@ -173,7 +194,11 @@ async function runSuitesWithConcurrency(suites, forwardedSuiteArgs, concurrency)
       const suite = queue.shift();
       if (!suite) return;
       try {
-        await runSuite(suite.label, [...suite.tests, ...forwardedSuiteArgs]);
+        await runSuite(
+          suite.label,
+          suite.tests,
+          [...suite.tests, ...forwardedSuiteArgs],
+        );
       } catch (error) {
         suiteError ??= error;
         await requestStop();
@@ -202,7 +227,7 @@ async function main() {
     );
 
     if (mainTargets.length > 0) {
-      await runSuite("custom", [...mainTargets, ...sharedArgs]);
+      await runSuite("custom", mainTargets, [...mainTargets, ...sharedArgs]);
     }
 
     for (const suite of isolatedGroups) {
@@ -211,7 +236,7 @@ async function main() {
         suiteArgs.push("--timeout", String(suite.timeoutMs));
       }
       suiteArgs.push(...sharedArgs);
-      await runSuite(`custom:${suite.label}`, suiteArgs);
+      await runSuite(`custom:${suite.label}`, suite.tests, suiteArgs);
     }
     return;
   }
@@ -221,10 +246,6 @@ async function main() {
     testBatches: DEFAULT_MAIN_BATCHES,
     excludedTests: DEFAULT_MAIN_EXCLUDED_TESTS,
   });
-
-  if (mainSuites.length > 0) {
-    sharedBuiltWorkspaceSnapshotRoot = createSharedBuiltWorkspaceSnapshot(ROOT);
-  }
 
   try {
     await runSuitesWithConcurrency(
@@ -239,7 +260,7 @@ async function main() {
         suiteArgs.push("--timeout", String(suite.timeoutMs));
       }
       suiteArgs.push(...forwardedArgs);
-      await runSuite(suite.label, [
+      await runSuite(suite.label, suite.tests, [
         ...suiteArgs,
       ]);
     }
