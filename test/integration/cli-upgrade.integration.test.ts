@@ -14,7 +14,10 @@ import {
   runCli,
 } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
-import { terminateChildProcess } from "../helpers/process.ts";
+import {
+  registerProcessExitCleanup,
+  terminateChildProcess,
+} from "../helpers/process.ts";
 import { cleanupTrackedTempDir, createTrackedTempDir } from "../helpers/temp.ts";
 import {
   cleanupWorkspaceSnapshot,
@@ -24,6 +27,7 @@ import {
 let builtSnapshotRoot: string;
 let registryUrl: string;
 let registryProcess: ChildProcessWithoutNullStreams;
+let cleanupRegistryProcessExit: (() => void) | null = null;
 const trackedUpgradeTempRoots = new Set<string>();
 
 function nodeBin(): string {
@@ -180,6 +184,7 @@ server.listen(0, "127.0.0.1", () => {
         stdio: ["ignore", "pipe", "pipe"],
       },
     );
+    cleanupRegistryProcessExit = registerProcessExitCleanup(registryProcess);
 
     let stderr = "";
     const handleStderr = (chunk: Buffer | string) => {
@@ -215,6 +220,8 @@ server.listen(0, "127.0.0.1", () => {
 }, 240_000);
 
 afterAll(async () => {
+  cleanupRegistryProcessExit?.();
+  cleanupRegistryProcessExit = null;
   if (registryProcess.exitCode === null && registryProcess.signalCode === null) {
     await terminateChildProcess(registryProcess);
   }

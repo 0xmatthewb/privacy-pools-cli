@@ -22,6 +22,7 @@ import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 import { npmBin } from "../helpers/npm-bin.ts";
 import {
+  cleanupWorkspaceSnapshot,
   createBuiltWorkspaceSnapshot,
   createWorkspaceSnapshot,
 } from "../helpers/workspace-snapshot.ts";
@@ -132,6 +133,7 @@ describe("native package smoke", () => {
     if (fixture) {
       await killFixtureServer(fixture);
     }
+    cleanupWorkspaceSnapshot(snapshotRoot);
   });
 
   nativePackageSmokeTest("launcher prefers the packaged native binary by default and keeps JS forwarding intact", () => {

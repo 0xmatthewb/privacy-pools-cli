@@ -31,6 +31,21 @@ const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
 const DEFAULT_BUN_PROCESS_TIMEOUT_MS = 900_000;
 const forwardedArgs = process.argv.slice(2);
 let sharedBuiltWorkspaceSnapshotRoot = null;
+const activeSuiteChildren = new Set();
+
+class SuiteRunnerExitError extends Error {
+  constructor(label, { status = null, signal = null } = {}) {
+    super(
+      signal
+        ? `suite ${label} exited via signal ${signal}`
+        : `suite ${label} exited with status ${status ?? "null"}`,
+    );
+    this.name = "SuiteRunnerExitError";
+    this.label = label;
+    this.status = status;
+    this.signal = signal;
+  }
+}
 
 function buildRunnerArgs(args) {
   return hasExplicitProcessTimeoutArg(args)
@@ -73,6 +88,11 @@ async function runSuite(label, args, envOverrides = {}) {
     stdio: ["ignore", "pipe", "pipe"],
     env: buildSuiteEnv(envOverrides),
   });
+  activeSuiteChildren.add(child);
+
+  const cleanupChild = () => {
+    activeSuiteChildren.delete(child);
+  };
 
   child.stdout?.on("data", (chunk) => {
     prefixWrite(process.stdout, `[${label}] `, chunk);
@@ -82,92 +102,162 @@ async function runSuite(label, args, envOverrides = {}) {
   });
 
   const result = await new Promise((resolve, reject) => {
-    child.once("error", reject);
+    child.once("error", (error) => {
+      cleanupChild();
+      reject(error);
+    });
     child.once("close", (status, signal) => {
+      cleanupChild();
       resolve({ status, signal });
     });
   });
 
   if (result.signal) {
-    process.kill(process.pid, result.signal);
+    throw new SuiteRunnerExitError(label, { signal: result.signal });
   }
 
   if (typeof result.status === "number" && result.status !== 0) {
-    process.exit(result.status);
+    throw new SuiteRunnerExitError(label, { status: result.status });
   }
+}
+
+async function terminateSuiteChild(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+
+  let killTimer;
+  await new Promise((resolve) => {
+    const finish = () => {
+      if (killTimer) clearTimeout(killTimer);
+      resolve();
+    };
+
+    child.once("close", finish);
+    child.kill("SIGTERM");
+
+    killTimer = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+      }
+    }, 1_000);
+    killTimer.unref?.();
+  });
+}
+
+async function terminateActiveSuiteChildren() {
+  const children = [...activeSuiteChildren];
+  await Promise.allSettled(children.map((child) => terminateSuiteChild(child)));
 }
 
 async function runSuitesWithConcurrency(suites, forwardedSuiteArgs, concurrency) {
   if (suites.length === 0) return;
 
   const queue = [...suites];
+  let suiteError = null;
+  let terminating = null;
+
+  async function requestStop() {
+    if (!terminating) {
+      queue.length = 0;
+      terminating = terminateActiveSuiteChildren();
+    }
+    await terminating;
+  }
+
   const workers = Array.from({
     length: Math.max(1, Math.min(concurrency, suites.length)),
   }, async () => {
     while (queue.length > 0) {
+      if (suiteError) return;
       const suite = queue.shift();
       if (!suite) return;
-      await runSuite(suite.label, [...suite.tests, ...forwardedSuiteArgs]);
+      try {
+        await runSuite(suite.label, [...suite.tests, ...forwardedSuiteArgs]);
+      } catch (error) {
+        suiteError ??= error;
+        await requestStop();
+        return;
+      }
     }
   });
 
-  await Promise.all(workers);
+  await Promise.allSettled(workers);
+  if (suiteError) {
+    throw suiteError;
+  }
 }
 
-if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs, ROOT)) {
-  const { sharedArgs, targetFiles } = splitExplicitTargets(
-    forwardedArgs,
-    (pathArg) => collectTestFiles(pathArg, ROOT),
-    ROOT,
-  );
-  const { mainTargets, isolatedGroups } = groupTargetsByIsolation(
-    targetFiles,
-    DEFAULT_TEST_ISOLATED_SUITES,
-    ROOT,
-  );
+async function main() {
+  if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs, ROOT)) {
+    const { sharedArgs, targetFiles } = splitExplicitTargets(
+      forwardedArgs,
+      (pathArg) => collectTestFiles(pathArg, ROOT),
+      ROOT,
+    );
+    const { mainTargets, isolatedGroups } = groupTargetsByIsolation(
+      targetFiles,
+      DEFAULT_TEST_ISOLATED_SUITES,
+      ROOT,
+    );
 
-  if (mainTargets.length > 0) {
-    await runSuite("custom", [...mainTargets, ...sharedArgs]);
-  }
-
-  for (const suite of isolatedGroups) {
-    const suiteArgs = [...suite.tests];
-    if (!hasExplicitTimeoutArg(sharedArgs)) {
-      suiteArgs.push("--timeout", String(suite.timeoutMs));
+    if (mainTargets.length > 0) {
+      await runSuite("custom", [...mainTargets, ...sharedArgs]);
     }
-    suiteArgs.push(...sharedArgs);
-    await runSuite(`custom:${suite.label}`, suiteArgs);
+
+    for (const suite of isolatedGroups) {
+      const suiteArgs = [...suite.tests];
+      if (!hasExplicitTimeoutArg(sharedArgs)) {
+        suiteArgs.push("--timeout", String(suite.timeoutMs));
+      }
+      suiteArgs.push(...sharedArgs);
+      await runSuite(`custom:${suite.label}`, suiteArgs);
+    }
+    return;
   }
-  process.exit(0);
-}
 
-const mainSuites = buildDefaultMainSuites({
-  rootDir: ROOT,
-  testBatches: DEFAULT_MAIN_BATCHES,
-  excludedTests: DEFAULT_MAIN_EXCLUDED_TESTS,
-});
+  const mainSuites = buildDefaultMainSuites({
+    rootDir: ROOT,
+    testBatches: DEFAULT_MAIN_BATCHES,
+    excludedTests: DEFAULT_MAIN_EXCLUDED_TESTS,
+  });
 
-if (mainSuites.length > 0) {
-  sharedBuiltWorkspaceSnapshotRoot = createSharedBuiltWorkspaceSnapshot(ROOT);
+  if (mainSuites.length > 0) {
+    sharedBuiltWorkspaceSnapshotRoot = createSharedBuiltWorkspaceSnapshot(ROOT);
+  }
+
+  try {
+    await runSuitesWithConcurrency(
+      mainSuites,
+      forwardedArgs,
+      resolveMainBatchConcurrency({ suiteCount: mainSuites.length }),
+    );
+
+    for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
+      const suiteArgs = [...suite.tests];
+      if (!hasExplicitTimeoutArg(forwardedArgs)) {
+        suiteArgs.push("--timeout", String(suite.timeoutMs));
+      }
+      suiteArgs.push(...forwardedArgs);
+      await runSuite(suite.label, [
+        ...suiteArgs,
+      ]);
+    }
+  } finally {
+    await terminateActiveSuiteChildren();
+    cleanupSharedBuiltWorkspaceSnapshot(sharedBuiltWorkspaceSnapshotRoot);
+  }
 }
 
 try {
-  await runSuitesWithConcurrency(
-    mainSuites,
-    forwardedArgs,
-    resolveMainBatchConcurrency({ suiteCount: mainSuites.length }),
-  );
-
-  for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
-    const suiteArgs = [...suite.tests];
-    if (!hasExplicitTimeoutArg(forwardedArgs)) {
-      suiteArgs.push("--timeout", String(suite.timeoutMs));
+  await main();
+} catch (error) {
+  if (error instanceof SuiteRunnerExitError) {
+    if (error.signal) {
+      process.kill(process.pid, error.signal);
     }
-    suiteArgs.push(...forwardedArgs);
-    await runSuite(suite.label, [
-      ...suiteArgs,
-    ]);
+    process.exit(error.status ?? 1);
   }
-} finally {
-  cleanupSharedBuiltWorkspaceSnapshot(sharedBuiltWorkspaceSnapshotRoot);
+
+  throw error;
 }
