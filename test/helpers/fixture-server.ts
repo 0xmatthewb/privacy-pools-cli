@@ -33,6 +33,9 @@ import {
   terminateChildProcess,
 } from "./process.ts";
 
+const FIXTURE_SERVER_START_TIMEOUT_MS = 20_000;
+const FIXTURE_SERVER_READY_TIMEOUT_MS = 5_000;
+
 // ── Canned response data ─────────────────────────────────────────────────────
 
 interface ChainPoolFixture {
@@ -570,8 +573,8 @@ export function launchFixtureServer(): Promise<FixtureServer> {
     const timeout = setTimeout(() => {
       cleanupProcessExit();
       proc.kill();
-      reject(new Error("Fixture server did not start within 10s"));
-    }, 10_000);
+      reject(new Error("Fixture server did not start within 20s"));
+    }, FIXTURE_SERVER_START_TIMEOUT_MS);
 
     proc.stdout!.on("data", (chunk: Buffer) => {
       output += chunk.toString();
@@ -583,7 +586,7 @@ export function launchFixtureServer(): Promise<FixtureServer> {
         proc.stdout?.destroy();
         proc.unref();
         const url = `http://127.0.0.1:${port}`;
-        void waitForFixtureReady(url, 2_000)
+        void waitForFixtureReady(url, FIXTURE_SERVER_READY_TIMEOUT_MS)
           .then(() => {
             resolve({
               proc,

@@ -14,6 +14,7 @@ import {
   runCli,
 } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
+import { terminateChildProcess } from "../helpers/process.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
 
@@ -194,8 +195,8 @@ server.listen(0, "127.0.0.1", () => {
 }, 240_000);
 
 afterAll(async () => {
-  if (!registryProcess.killed) {
-    registryProcess.kill("SIGTERM");
+  if (registryProcess.exitCode === null && registryProcess.signalCode === null) {
+    await terminateChildProcess(registryProcess);
   }
 });
 

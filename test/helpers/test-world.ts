@@ -10,6 +10,7 @@ import type { CliRunOptions, CliRunResult } from "./cli.ts";
 import {
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY,
+  cleanupTrackedTempHome,
   createTempHome,
   mustInitSeededHome,
   runBuiltCli,
@@ -176,6 +177,7 @@ export function createTestWorld(
         }
       }
       originalProcessEnv.clear();
+      cleanupTrackedTempHome(home);
     },
   };
 

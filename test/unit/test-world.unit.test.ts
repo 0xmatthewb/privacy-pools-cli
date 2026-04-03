@@ -58,5 +58,6 @@ describe("test world", () => {
     worlds.pop();
 
     expect(process.env.PRIVACY_POOLS_HOME).toBe(originalHome);
+    expect(existsSync(world.home)).toBe(false);
   });
 });

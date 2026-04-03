@@ -185,6 +185,21 @@ function cleanupTrackedTempHomes(includeRetained: boolean = false): void {
   }
 }
 
+export function cleanupTrackedTempHome(dir: string): void {
+  trackedTempHomes.delete(dir);
+  retainedTempHomes.delete(dir);
+  try {
+    rmSync(dir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 50,
+    });
+  } catch {
+    // Best effort cleanup.
+  }
+}
+
 async function registerSuiteCleanup(): Promise<void> {
   if (process.versions.bun) {
     const { afterAll } = await import("bun:test");
