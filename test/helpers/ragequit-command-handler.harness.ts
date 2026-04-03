@@ -1,7 +1,6 @@
 import {
   afterEach,
   beforeEach,
-  describe,
   expect,
   mock,
   test,
@@ -14,17 +13,17 @@ import {
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
-} from "../helpers/output.ts";
+} from "./output.ts";
 import {
   captureModuleExports,
   restoreModuleImplementations,
-} from "../helpers/module-mocks.ts";
+} from "./module-mocks.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import {
   expectPrintedRawTransactions,
   expectUnsignedTransactions,
-} from "../helpers/unsigned-assertions.ts";
-import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
+} from "./unsigned-assertions.ts";
+import { createTestWorld, type TestWorld } from "./test-world.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -271,113 +270,115 @@ async function loadRagequitCommandHandler(): Promise<void> {
   ));
 }
 
-afterEach(() => {
-  AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
-  restoreModuleImplementations(RAGEQUIT_HANDLER_MODULE_RESTORES);
-});
-
-beforeEach(() => {
-  world = createTestWorld({ prefix: "pp-ragequit-handler-" });
-  mock.restore();
-  AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
-  initializeAccountServiceMock.mockClear();
-  getDataServiceMock.mockClear();
-  getPublicClientMock.mockClear();
-  resolvePoolMock.mockClear();
-  listPoolsMock.mockClear();
-  saveAccountMock.mockClear();
-  saveSyncMetaMock.mockClear();
-  proveCommitmentMock.mockClear();
-  ragequitMock.mockClear();
-  collectActiveLabelsMock.mockClear();
-  checkHasGasMock.mockClear();
-  acquireProcessLockMock.mockClear();
-  guardCriticalSectionMock.mockClear();
-  releaseCriticalSectionMock.mockClear();
-  toRagequitSolidityProofMock.mockClear();
-  printRawTransactionsMock.mockClear();
-  confirmPromptMock.mockClear();
-  selectPromptMock.mockClear();
-  buildAllPoolAccountRefsMock.mockClear();
-  buildPoolAccountRefsMock.mockClear();
-  collectLegacyMigrationCandidatesMock.mockClear();
-  loadDeclinedLegacyLabelsMock.mockClear();
-  describeUnavailablePoolAccountMock.mockClear();
-  getUnknownPoolAccountErrorMock.mockClear();
-  parsePoolAccountSelectorMock.mockClear();
-  confirmPromptMock.mockImplementation(async () => true);
-  selectPromptMock.mockImplementation(async () => 1);
-  saveAccountMock.mockImplementation(() => undefined);
-  saveSyncMetaMock.mockImplementation(() => undefined);
-  getDataServiceMock.mockImplementation(async () => ({}));
-  proveCommitmentMock.mockImplementation(async () => ({
-    proof: {
-      pi_a: ["0", "0", "1"],
-      pi_b: [
-        ["0", "0"],
-        ["0", "0"],
-        ["1", "0"],
-      ],
-      pi_c: ["0", "0", "1"],
-    },
-    publicSignals: [1n, 2n, 3n, 4n],
-  }));
-  ragequitMock.mockImplementation(async () => ({
-    hash: "0x" + "12".repeat(32),
-  }));
-  collectActiveLabelsMock.mockImplementation(() => ["601"]);
-  checkHasGasMock.mockImplementation(async () => undefined);
-  acquireProcessLockMock.mockImplementation(() => () => undefined);
-  guardCriticalSectionMock.mockImplementation(() => undefined);
-  releaseCriticalSectionMock.mockImplementation(() => undefined);
-  toRagequitSolidityProofMock.mockImplementation(() => ({
-    pA: [0n, 0n],
-    pB: [
-      [0n, 0n],
-      [0n, 0n],
-    ],
-    pC: [0n, 0n],
-    pubSignals: [0n, 0n, 0n, 0n],
-  }));
-  initializeAccountServiceMock.mockImplementation(async () => ({
-    account: { poolAccounts: new Map() },
-    getSpendableCommitments: () =>
-      new Map([[1n, [APPROVED_POOL_ACCOUNT.commitment]]]),
-    addRagequitToAccount: mock(() => undefined),
-  }));
-  resolvePoolMock.mockImplementation(async () => ETH_POOL);
-  listPoolsMock.mockImplementation(async () => [ETH_POOL]);
-  buildAllPoolAccountRefsMock.mockImplementation(() => [APPROVED_POOL_ACCOUNT]);
-  buildPoolAccountRefsMock.mockImplementation(() => [APPROVED_POOL_ACCOUNT]);
-  collectLegacyMigrationCandidatesMock.mockImplementation(() => []);
-  loadDeclinedLegacyLabelsMock.mockImplementation(async () => new Set<string>());
-  describeUnavailablePoolAccountMock.mockImplementation(() => null);
-  getUnknownPoolAccountErrorMock.mockImplementation(() => ({
-    message: "Unknown Pool Account.",
-    hint: "Choose a valid Pool Account.",
-  }));
-  parsePoolAccountSelectorMock.mockImplementation((raw: string) => {
-    const match = raw.match(/\d+/);
-    return match ? Number(match[0]) : null;
+export function registerRagequitCommandHandlerHarness(): void {
+  afterEach(() => {
+    AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
+    restoreModuleImplementations(RAGEQUIT_HANDLER_MODULE_RESTORES);
   });
-  getPublicClientMock.mockImplementation(() => ({
-    readContract: async () => "0x19E7E376E7C213B7E7E7E46CC70A5DD086DAFF2A",
-    waitForTransactionReceipt: async () => ({
-      status: "success",
-      blockNumber: 987n,
-    }),
-  }));
-});
 
-afterEach(async () => {
-  await world?.teardown();
-});
+  beforeEach(() => {
+    world = createTestWorld({ prefix: "pp-ragequit-handler-" });
+    mock.restore();
+    AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
+    initializeAccountServiceMock.mockClear();
+    getDataServiceMock.mockClear();
+    getPublicClientMock.mockClear();
+    resolvePoolMock.mockClear();
+    listPoolsMock.mockClear();
+    saveAccountMock.mockClear();
+    saveSyncMetaMock.mockClear();
+    proveCommitmentMock.mockClear();
+    ragequitMock.mockClear();
+    collectActiveLabelsMock.mockClear();
+    checkHasGasMock.mockClear();
+    acquireProcessLockMock.mockClear();
+    guardCriticalSectionMock.mockClear();
+    releaseCriticalSectionMock.mockClear();
+    toRagequitSolidityProofMock.mockClear();
+    printRawTransactionsMock.mockClear();
+    confirmPromptMock.mockClear();
+    selectPromptMock.mockClear();
+    buildAllPoolAccountRefsMock.mockClear();
+    buildPoolAccountRefsMock.mockClear();
+    collectLegacyMigrationCandidatesMock.mockClear();
+    loadDeclinedLegacyLabelsMock.mockClear();
+    describeUnavailablePoolAccountMock.mockClear();
+    getUnknownPoolAccountErrorMock.mockClear();
+    parsePoolAccountSelectorMock.mockClear();
+    confirmPromptMock.mockImplementation(async () => true);
+    selectPromptMock.mockImplementation(async () => 1);
+    saveAccountMock.mockImplementation(() => undefined);
+    saveSyncMetaMock.mockImplementation(() => undefined);
+    getDataServiceMock.mockImplementation(async () => ({}));
+    proveCommitmentMock.mockImplementation(async () => ({
+      proof: {
+        pi_a: ["0", "0", "1"],
+        pi_b: [
+          ["0", "0"],
+          ["0", "0"],
+          ["1", "0"],
+        ],
+        pi_c: ["0", "0", "1"],
+      },
+      publicSignals: [1n, 2n, 3n, 4n],
+    }));
+    ragequitMock.mockImplementation(async () => ({
+      hash: "0x" + "12".repeat(32),
+    }));
+    collectActiveLabelsMock.mockImplementation(() => ["601"]);
+    checkHasGasMock.mockImplementation(async () => undefined);
+    acquireProcessLockMock.mockImplementation(() => () => undefined);
+    guardCriticalSectionMock.mockImplementation(() => undefined);
+    releaseCriticalSectionMock.mockImplementation(() => undefined);
+    toRagequitSolidityProofMock.mockImplementation(() => ({
+      pA: [0n, 0n],
+      pB: [
+        [0n, 0n],
+        [0n, 0n],
+      ],
+      pC: [0n, 0n],
+      pubSignals: [0n, 0n, 0n, 0n],
+    }));
+    initializeAccountServiceMock.mockImplementation(async () => ({
+      account: { poolAccounts: new Map() },
+      getSpendableCommitments: () =>
+        new Map([[1n, [APPROVED_POOL_ACCOUNT.commitment]]]),
+      addRagequitToAccount: mock(() => undefined),
+    }));
+    resolvePoolMock.mockImplementation(async () => ETH_POOL);
+    listPoolsMock.mockImplementation(async () => [ETH_POOL]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [APPROVED_POOL_ACCOUNT]);
+    buildPoolAccountRefsMock.mockImplementation(() => [APPROVED_POOL_ACCOUNT]);
+    collectLegacyMigrationCandidatesMock.mockImplementation(() => []);
+    loadDeclinedLegacyLabelsMock.mockImplementation(async () => new Set<string>());
+    describeUnavailablePoolAccountMock.mockImplementation(() => null);
+    getUnknownPoolAccountErrorMock.mockImplementation(() => ({
+      message: "Unknown Pool Account.",
+      hint: "Choose a valid Pool Account.",
+    }));
+    parsePoolAccountSelectorMock.mockImplementation((raw: string) => {
+      const match = raw.match(/\d+/);
+      return match ? Number(match[0]) : null;
+    });
+    getPublicClientMock.mockImplementation(() => ({
+      readContract: async () => "0x19E7E376E7C213B7E7E7E46CC70A5DD086DAFF2A",
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 987n,
+      }),
+    }));
+  });
 
-beforeEach(async () => {
-  await loadRagequitCommandHandler();
-});
+  afterEach(async () => {
+    await world?.teardown();
+  });
 
-describe("ragequit command handler", () => {
+  beforeEach(async () => {
+    await loadRagequitCommandHandler();
+  });
+}
+
+export function registerRagequitEntrySubmitTests(): void {
   test("rejects malformed --from-pa selectors before loading account state", async () => {
     useIsolatedHome();
 
@@ -536,6 +537,9 @@ describe("ragequit command handler", () => {
     expect(json.amount).toBe("1000000000000000000");
   });
 
+}
+
+export function registerRagequitUnsignedTests(): void {
   test("builds an unsigned ragequit transaction in JSON mode", async () => {
     useIsolatedHome();
 
@@ -591,6 +595,9 @@ describe("ragequit command handler", () => {
     ]);
   });
 
+}
+
+export function registerRagequitEntrySubmitCompletionTests(): void {
   test("supports the deprecated --commitment selector without requiring --from-pa", async () => {
     useIsolatedHome();
 
@@ -696,6 +703,9 @@ describe("ragequit command handler", () => {
     expect(saveSyncMetaMock).not.toHaveBeenCalled();
   });
 
+}
+
+export function registerRagequitOwnershipTests(): void {
   test("fails closed when --from-pa and --commitment are combined", async () => {
     useIsolatedHome();
 
@@ -808,6 +818,9 @@ describe("ragequit command handler", () => {
     expect(exitCode).toBe(3);
   });
 
+}
+
+export function registerRagequitHumanConfirmationTests(): void {
   test("lets humans select a Pool Account and cancel before public recovery", async () => {
     useIsolatedHome({ withSigner: true });
     confirmPromptMock.mockImplementationOnce(async () => false);
@@ -1156,4 +1169,4 @@ describe("ragequit command handler", () => {
     );
     expect(exitCode).toBe(3);
   });
-});
+}

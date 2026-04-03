@@ -1,7 +1,6 @@
 import {
   afterEach,
   beforeEach,
-  describe,
   expect,
   mock,
   test,
@@ -13,11 +12,11 @@ import { saveConfig, saveMnemonicToFile } from "../../src/services/config.ts";
 import {
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
-} from "../helpers/output.ts";
+} from "./output.ts";
 import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
-} from "../helpers/temp.ts";
+} from "./temp.ts";
 
 const realInquirerPrompts = await import("@inquirer/prompts");
 const confirmPromptMock = mock(async () => true);
@@ -60,39 +59,41 @@ async function loadInitCommandHandler(): Promise<void> {
   ));
 }
 
-beforeEach(() => {
-  mock.restore();
-  confirmPromptMock.mockClear();
-  inputPromptMock.mockClear();
-  passwordPromptMock.mockClear();
-  selectPromptMock.mockClear();
+export function registerInitCommandInteractiveHarness(): void {
+  beforeEach(() => {
+    mock.restore();
+    confirmPromptMock.mockClear();
+    inputPromptMock.mockClear();
+    passwordPromptMock.mockClear();
+    selectPromptMock.mockClear();
 
-  confirmPromptMock.mockImplementation(async () => true);
-  inputPromptMock.mockImplementation(async () => "");
-  passwordPromptMock.mockImplementation(async () => "");
-  selectPromptMock.mockImplementation(async () => "generate");
-});
+    confirmPromptMock.mockImplementation(async () => true);
+    inputPromptMock.mockImplementation(async () => "");
+    passwordPromptMock.mockImplementation(async () => "");
+    selectPromptMock.mockImplementation(async () => "generate");
+  });
 
-beforeEach(async () => {
-  await loadInitCommandHandler();
-});
+  beforeEach(async () => {
+    await loadInitCommandHandler();
+  });
 
-afterEach(() => {
-  mock.restore();
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
-  }
-  if (ORIGINAL_SIGNER === undefined) {
-    delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
-  } else {
-    process.env.PRIVACY_POOLS_PRIVATE_KEY = ORIGINAL_SIGNER;
-  }
-  cleanupTrackedTempDirs();
-});
+  afterEach(() => {
+    mock.restore();
+    if (ORIGINAL_HOME === undefined) {
+      delete process.env.PRIVACY_POOLS_HOME;
+    } else {
+      process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+    }
+    if (ORIGINAL_SIGNER === undefined) {
+      delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
+    } else {
+      process.env.PRIVACY_POOLS_PRIVATE_KEY = ORIGINAL_SIGNER;
+    }
+    cleanupTrackedTempDirs();
+  });
+}
 
-describe("init command handler interactive coverage", () => {
+export function registerInitCancelInvalidTests(): void {
   test("returns early when humans cancel reinitialization over existing state", async () => {
     const home = useIsolatedHome();
     saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
@@ -125,7 +126,9 @@ describe("init command handler interactive coverage", () => {
     expect(stderr).toContain("Invalid recovery phrase");
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
   });
+}
 
+export function registerInitGenerateBackupTests(): void {
   test("generates a wallet interactively, saves a backup file, and lets humans skip the signer", async () => {
     const home = useIsolatedHome();
     const backupPath = join(home, "workflow-recovery.txt");
@@ -152,53 +155,6 @@ describe("init command handler interactive coverage", () => {
     );
     expect(readFileSync(backupPath, "utf8")).toContain(generatedMnemonic);
     expect(existsSync(join(home, ".signer"))).toBe(false);
-  });
-
-  test("imports a valid recovery phrase interactively, saves an entered signer key, and picks a chain", async () => {
-    const home = useIsolatedHome();
-    selectPromptMock
-      .mockImplementationOnce(async () => "import")
-      .mockImplementationOnce(async () => "sepolia");
-    passwordPromptMock
-      .mockImplementationOnce(async () => VALID_MNEMONIC)
-      .mockImplementationOnce(async () => "0x" + "55".repeat(32));
-
-    const { stdout, stderr } = await captureAsyncOutput(() =>
-      handleInitCommand({}, fakeCommand({})),
-    );
-
-    expect(stdout).toBe("");
-    expect(stderr).toContain("Signer key saved.");
-    expect(stderr).not.toContain("IMPORTANT: Save your recovery phrase securely");
-    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
-      VALID_MNEMONIC,
-    );
-    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
-      "0x" + "55".repeat(32),
-    );
-    expect(readFileSync(join(home, "config.json"), "utf8")).toContain(
-      '"defaultChain": "sepolia"',
-    );
-  });
-
-  test("warns humans when secrets are supplied through visible command flags", async () => {
-    useIsolatedHome();
-
-    const { stdout, stderr } = await captureAsyncOutput(() =>
-      handleInitCommand(
-        {
-          mnemonic: VALID_MNEMONIC,
-          privateKey: "0x" + "44".repeat(32),
-          defaultChain: "mainnet",
-        },
-        fakeCommand({}),
-      ),
-    );
-
-    expect(stdout).toBe("");
-    expect(stderr).toContain("--mnemonic is visible in process list");
-    expect(stderr).toContain("--private-key is visible in process list");
-    expect(stderr).toContain("Signer key saved.");
   });
 
   test("requires humans to confirm that the recovery phrase is backed up", async () => {
@@ -255,4 +211,53 @@ describe("init command handler interactive coverage", () => {
     expect(readFileSync(backupPath, "utf8")).toBe("existing");
     expect(statSync(backupPath).mode & 0o777).toBe(0o644);
   });
-});
+}
+
+export function registerInitImportVisibleSecretTests(): void {
+  test("imports a valid recovery phrase interactively, saves an entered signer key, and picks a chain", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "import")
+      .mockImplementationOnce(async () => "sepolia");
+    passwordPromptMock
+      .mockImplementationOnce(async () => VALID_MNEMONIC)
+      .mockImplementationOnce(async () => "0x" + "55".repeat(32));
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Signer key saved.");
+    expect(stderr).not.toContain("IMPORTANT: Save your recovery phrase securely");
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      VALID_MNEMONIC,
+    );
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "55".repeat(32),
+    );
+    expect(readFileSync(join(home, "config.json"), "utf8")).toContain(
+      '"defaultChain": "sepolia"',
+    );
+  });
+
+  test("warns humans when secrets are supplied through visible command flags", async () => {
+    useIsolatedHome();
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand(
+        {
+          mnemonic: VALID_MNEMONIC,
+          privateKey: "0x" + "44".repeat(32),
+          defaultChain: "mainnet",
+        },
+        fakeCommand({}),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("--mnemonic is visible in process list");
+    expect(stderr).toContain("--private-key is visible in process list");
+    expect(stderr).toContain("Signer key saved.");
+  });
+}

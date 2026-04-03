@@ -346,10 +346,7 @@ try {
 
   for (const suite of COVERAGE_ISOLATED_SUITES) {
     coverageArtifacts.push(
-      ...runCoverageSuiteWithFallback(
-        suite.label,
-        suite.coverageArgs ?? suite.tests,
-      ),
+      ...runCoverageSuiteWithFallback(suite.label, suite.tests),
     );
   }
 

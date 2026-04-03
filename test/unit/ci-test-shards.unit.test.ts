@@ -35,8 +35,11 @@ describe("ci test shards", () => {
   });
 
   test("configured shard weights override raw file length for known heavy suites", () => {
-    expect(resolveFileWeight("./test/unit/withdraw-command-handler.unit.test.ts")).toBe(
-      180,
+    expect(
+      resolveFileWeight("./test/unit/withdraw-command-handler.relayed.unit.test.ts"),
+    ).toBe(85);
+    expect(resolveFileWeight("./test/unit/accounts-command-readonly.unit.test.ts")).toBe(
+      55,
     );
   });
 });

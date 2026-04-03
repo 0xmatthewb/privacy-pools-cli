@@ -1,7 +1,6 @@
 import {
   afterEach,
   beforeEach,
-  describe,
   expect,
   mock,
   test,
@@ -11,12 +10,12 @@ import {
   captureModuleExports,
   installModuleMocks,
   restoreModuleImplementations,
-} from "../helpers/module-mocks.ts";
+} from "./module-mocks.ts";
 import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
-} from "../helpers/output.ts";
-import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
+} from "./output.ts";
+import { createTestWorld, type TestWorld } from "./test-world.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -258,112 +257,117 @@ afterEach(() => {
   restoreModuleImplementations(READONLY_HANDLER_MODULE_RESTORES);
 });
 
-beforeEach(() => {
-  world = createTestWorld({ prefix: "pp-account-readonly-handler-" });
-  mock.restore();
-  initializeAccountServiceWithStateMock.mockImplementation(async () => ({
-    accountService: {
-      account: { poolAccounts: new Map() },
-      getSpendableCommitments: () =>
-        new Map([
-          [
-            1n,
+export function registerAccountReadonlyCommandHandlerHarness(): void {
+  beforeEach(() => {
+    world = createTestWorld({ prefix: "pp-account-readonly-handler-" });
+    mock.restore();
+    initializeAccountServiceWithStateMock.mockImplementation(async () => ({
+      accountService: {
+        account: { poolAccounts: new Map() },
+        getSpendableCommitments: () =>
+          new Map([
             [
-              {
-                hash: 201n,
-                label: 101n,
-                value: 900000000000000000n,
-                blockNumber: 123n,
-                txHash: "0x" + "aa".repeat(32),
-              },
-              {
-                hash: 202n,
-                label: 102n,
-                value: 400000000000000000n,
-                blockNumber: 124n,
-                txHash: "0x" + "bb".repeat(32),
-              },
+              1n,
+              [
+                {
+                  hash: 201n,
+                  label: 101n,
+                  value: 900000000000000000n,
+                  blockNumber: 123n,
+                  txHash: "0x" + "aa".repeat(32),
+                },
+                {
+                  hash: 202n,
+                  label: 102n,
+                  value: 400000000000000000n,
+                  blockNumber: 124n,
+                  txHash: "0x" + "bb".repeat(32),
+                },
+              ],
             ],
-          ],
-        ]),
-    },
-    skipImmediateSync: false,
-    rebuiltLegacyAccount: false,
-  }));
-  syncAccountEventsMock.mockImplementation(async () => false);
-  listPoolsMock.mockImplementation(async () => [MAINNET_POOL]);
-  resolvePoolMock.mockImplementation(async () => MAINNET_POOL);
-  listKnownPoolsFromRegistryMock.mockImplementation(async (chainConfig: { id: number }) =>
-    chainConfig.id === 10 ? [OPTIMISM_POOL] : [MAINNET_POOL],
-  );
-  loadAspDepositReviewStateMock.mockImplementation(async () => ({
-    approvedLabels: new Set<string>(["101"]),
-    reviewStatuses: new Map<string, string>([
-      ["101", "approved"],
-      ["102", "pending"],
-    ]),
-    rawReviewStatuses: new Map<string, string>([
-      ["101", "approved"],
-      ["102", "pending"],
-    ]),
-    hasIncompleteReviewData: false,
-  }));
-  buildAllPoolAccountRefsMock.mockImplementation(() => [
-    {
-      paNumber: 1,
-      paId: "PA-1",
-      status: "approved",
-      aspStatus: "approved",
-      commitment: { hash: 201n, label: 101n, value: 900000000000000000n },
-      label: 101n,
-      value: 900000000000000000n,
-      blockNumber: 123n,
-      txHash: "0x" + "aa".repeat(32),
-    },
-    {
-      paNumber: 2,
-      paId: "PA-2",
-      status: "pending",
-      aspStatus: "pending",
-      commitment: { hash: 202n, label: 102n, value: 400000000000000000n },
-      label: 102n,
-      value: 400000000000000000n,
-      blockNumber: 124n,
-      txHash: "0x" + "bb".repeat(32),
-    },
-  ]);
-  collectActiveLabelsMock.mockImplementation(() => ["101", "102"]);
-  buildMigrationChainReadinessFromLegacyAccountMock.mockImplementation(async () => ({
-    status: "migration_required",
-    candidateLegacyCommitments: 2,
-    expectedLegacyCommitments: 1,
-    migratedCommitments: 0,
-    legacyMasterSeedNullifiedCount: 0,
-    hasPostMigrationCommitments: false,
-    isMigrated: false,
-    legacySpendableCommitments: 1,
-    upgradedSpendableCommitments: 0,
-    declinedLegacyCommitments: 0,
-    reviewStatusComplete: true,
-    requiresMigration: true,
-    requiresWebsiteRecovery: false,
-    scopes: ["1"],
-  }));
-  initializeWithEventsMock.mockImplementation(async () => ({
-    legacyAccount: { poolAccounts: new Map() },
-    errors: [],
-  }));
-});
+          ]),
+      },
+      skipImmediateSync: false,
+      rebuiltLegacyAccount: false,
+    }));
+    syncAccountEventsMock.mockImplementation(async () => false);
+    listPoolsMock.mockImplementation(async () => [MAINNET_POOL]);
+    resolvePoolMock.mockImplementation(async () => MAINNET_POOL);
+    listKnownPoolsFromRegistryMock.mockImplementation(
+      async (chainConfig: { id: number }) =>
+        chainConfig.id === 10 ? [OPTIMISM_POOL] : [MAINNET_POOL],
+    );
+    loadAspDepositReviewStateMock.mockImplementation(async () => ({
+      approvedLabels: new Set<string>(["101"]),
+      reviewStatuses: new Map<string, string>([
+        ["101", "approved"],
+        ["102", "pending"],
+      ]),
+      rawReviewStatuses: new Map<string, string>([
+        ["101", "approved"],
+        ["102", "pending"],
+      ]),
+      hasIncompleteReviewData: false,
+    }));
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      {
+        paNumber: 1,
+        paId: "PA-1",
+        status: "approved",
+        aspStatus: "approved",
+        commitment: { hash: 201n, label: 101n, value: 900000000000000000n },
+        label: 101n,
+        value: 900000000000000000n,
+        blockNumber: 123n,
+        txHash: "0x" + "aa".repeat(32),
+      },
+      {
+        paNumber: 2,
+        paId: "PA-2",
+        status: "pending",
+        aspStatus: "pending",
+        commitment: { hash: 202n, label: 102n, value: 400000000000000000n },
+        label: 102n,
+        value: 400000000000000000n,
+        blockNumber: 124n,
+        txHash: "0x" + "bb".repeat(32),
+      },
+    ]);
+    collectActiveLabelsMock.mockImplementation(() => ["101", "102"]);
+    buildMigrationChainReadinessFromLegacyAccountMock.mockImplementation(
+      async () => ({
+        status: "migration_required",
+        candidateLegacyCommitments: 2,
+        expectedLegacyCommitments: 1,
+        migratedCommitments: 0,
+        legacyMasterSeedNullifiedCount: 0,
+        hasPostMigrationCommitments: false,
+        isMigrated: false,
+        legacySpendableCommitments: 1,
+        upgradedSpendableCommitments: 0,
+        declinedLegacyCommitments: 0,
+        reviewStatusComplete: true,
+        requiresMigration: true,
+        requiresWebsiteRecovery: false,
+        scopes: ["1"],
+      }),
+    );
+    initializeWithEventsMock.mockImplementation(async () => ({
+      legacyAccount: { poolAccounts: new Map() },
+      errors: [],
+    }));
+  });
 
-beforeEach(async () => {
-  await loadReadonlyHandlers();
-});
+  beforeEach(async () => {
+    await loadReadonlyHandlers();
+  });
 
-afterEach(async () => {
-  await world?.teardown();
-});
+  afterEach(async () => {
+    await world?.teardown();
+  });
+}
 
-describe("account read-only command handlers", () => {
+export function registerReadonlyAccountsTests(): void {
   test("accounts rejects incompatible compact mode flags", async () => {
     useIsolatedHome("mainnet");
 
@@ -646,6 +650,9 @@ describe("account read-only command handlers", () => {
     expect(json.accounts.length).toBeGreaterThan(0);
   });
 
+}
+
+export function registerReadonlyHistoryTests(): void {
   test("history returns newest events first and honors the limit", async () => {
     useIsolatedHome("mainnet");
 
@@ -737,6 +744,9 @@ describe("account read-only command handlers", () => {
     );
   });
 
+}
+
+export function registerReadonlySyncTests(): void {
   test("sync reports available Pool Account deltas in JSON mode", async () => {
     useIsolatedHome("mainnet");
 
@@ -774,6 +784,9 @@ describe("account read-only command handlers", () => {
     expect(json.previousAvailablePoolAccounts).toBe(1);
   });
 
+}
+
+export function registerReadonlyMigrateStatusTests(): void {
   test("migrate status reports migration-required readiness on a single chain", async () => {
     useIsolatedHome("mainnet");
 
@@ -1001,4 +1014,4 @@ describe("account read-only command handlers", () => {
     );
     expect(exitCode).toBe(3);
   });
-});
+}

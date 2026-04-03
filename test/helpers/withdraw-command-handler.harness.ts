@@ -1,7 +1,6 @@
 import {
   afterEach,
   beforeEach,
-  describe,
   expect,
   mock,
   test,
@@ -15,17 +14,17 @@ import {
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
-} from "../helpers/output.ts";
+} from "./output.ts";
 import {
   captureModuleExports,
   restoreModuleImplementations,
-} from "../helpers/module-mocks.ts";
+} from "./module-mocks.ts";
 import {
   expectPrintedRawTransactions,
   expectUnsignedTransactions,
-} from "../helpers/unsigned-assertions.ts";
-import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
-import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
+} from "./unsigned-assertions.ts";
+import { encodeRelayerWithdrawalData } from "./relayer-withdrawal-data.ts";
+import { createTestWorld, type TestWorld } from "./test-world.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -439,201 +438,203 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
   ));
 }
 
-afterEach(() => {
-  restoreModuleImplementations(WITHDRAW_HANDLER_MODULE_RESTORES);
-});
-
-beforeEach(() => {
-  world = createTestWorld({ prefix: "pp-withdraw-handler-" });
-  mock.restore();
-  initializeAccountServiceMock.mockClear();
-  getDataServiceMock.mockClear();
-  getPublicClientMock.mockClear();
-  resolvePoolMock.mockClear();
-  listPoolsMock.mockClear();
-  fetchMerkleRootsMock.mockClear();
-  fetchMerkleLeavesMock.mockClear();
-  fetchDepositsLargerThanMock.mockClear();
-  fetchDepositReviewStatusesMock.mockClear();
-  buildLoadedAspDepositReviewStateMock.mockClear();
-  getRelayerDetailsMock.mockClear();
-  requestQuoteMock.mockClear();
-  proveWithdrawalMock.mockClear();
-  withdrawDirectMock.mockClear();
-  submitRelayRequestMock.mockClear();
-  saveAccountMock.mockClear();
-  saveSyncMetaMock.mockClear();
-  buildPoolAccountRefsMock.mockClear();
-  buildAllPoolAccountRefsMock.mockClear();
-  collectActiveLabelsMock.mockClear();
-  describeUnavailablePoolAccountMock.mockClear();
-  getUnknownPoolAccountErrorMock.mockClear();
-  parsePoolAccountSelectorMock.mockClear();
-  checkHasGasMock.mockClear();
-  acquireProcessLockMock.mockClear();
-  guardCriticalSectionMock.mockClear();
-  releaseCriticalSectionMock.mockClear();
-  generateMerkleProofMock.mockClear();
-  calculateContextMock.mockClear();
-  toWithdrawSolidityProofMock.mockClear();
-  stringifyBigIntsMock.mockClear();
-  printRawTransactionsMock.mockClear();
-  confirmPromptMock.mockClear();
-  inputPromptMock.mockClear();
-  selectPromptMock.mockClear();
-  confirmPromptMock.mockImplementation(async () => true);
-  inputPromptMock.mockImplementation(async () =>
-    "0x4444444444444444444444444444444444444444"
-  );
-  selectPromptMock.mockImplementation(async () => 1);
-  saveAccountMock.mockImplementation(() => undefined);
-  saveSyncMetaMock.mockImplementation(() => undefined);
-  getDataServiceMock.mockImplementation(async () => ({}));
-  initializeAccountServiceMock.mockImplementation(async () => ({
-    account: { poolAccounts: new Map() },
-    getSpendableCommitments: () =>
-      new Map([
-        [
-          1n,
-          [
-            APPROVED_POOL_ACCOUNT.commitment,
-            PENDING_POOL_ACCOUNT.commitment,
-          ],
-        ],
-      ]),
-    createWithdrawalSecrets: () => ({
-      nullifier: 901n,
-      secret: 902n,
-    }),
-    addWithdrawalCommitment: mock(() => undefined),
-  }));
-  resolvePoolMock.mockImplementation(async () => ETH_POOL);
-  listPoolsMock.mockImplementation(async () => [ETH_POOL]);
-  getPublicClientMock.mockImplementation(() => ({
-    readContract: async () => 1n,
-    waitForTransactionReceipt: async () => ({
-      status: "success",
-      blockNumber: 456n,
-    }),
-  }));
-  fetchMerkleRootsMock.mockImplementation(async () => ({
-    mtRoot: "1",
-    onchainMtRoot: "1",
-  }));
-  fetchMerkleLeavesMock.mockImplementation(async () => ({
-    aspLeaves: ["601"],
-    stateTreeLeaves: ["501"],
-  }));
-  fetchDepositsLargerThanMock.mockImplementation(async () => ({
-    eligibleDeposits: 8,
-    totalDeposits: 12,
-    percentage: 66.7,
-  }));
-  fetchDepositReviewStatusesMock.mockImplementation(async () =>
-    new Map<string, string>([
-      ["601", "approved"],
-      ["602", "pending"],
-    ]),
-  );
-  buildLoadedAspDepositReviewStateMock.mockImplementation(() => ({
-    approvedLabels: new Set<string>(["601"]),
-    reviewStatuses: new Map<string, string>([
-      ["601", "approved"],
-      ["602", "pending"],
-    ]),
-  }));
-  getRelayerDetailsMock.mockImplementation(async () => ({
-    minWithdrawAmount: "10000000000000000",
-    feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
-    relayerUrl: "https://fastrelay.xyz",
-  }));
-  requestQuoteMock.mockImplementation(
-    async (
-      _chainConfig: unknown,
-      params?: {
-        recipient?: Address;
-        asset?: Address;
-        amount?: bigint;
-        extraGas?: boolean;
-        relayerUrl?: string;
-      },
-    ) =>
-      buildRelayerQuote({
-        recipient: params?.recipient,
-        asset: params?.asset,
-        amount: params?.amount?.toString(),
-        extraGas: params?.extraGas,
-        relayerUrl: params?.relayerUrl,
-      }),
-  );
-  proveWithdrawalMock.mockImplementation(async () => ({
-    proof: {
-      pi_a: ["0", "0", "1"],
-      pi_b: [
-        ["0", "0"],
-        ["0", "0"],
-        ["1", "0"],
-      ],
-      pi_c: ["0", "0", "1"],
-    },
-    publicSignals: [1n, 2n, 3n],
-  }));
-  withdrawDirectMock.mockImplementation(async () => ({
-    hash: "0x" + "56".repeat(32),
-  }));
-  submitRelayRequestMock.mockImplementation(async () => ({
-    txHash: "0x" + "34".repeat(32),
-  }));
-  buildPoolAccountRefsMock.mockImplementation(() => [
-    APPROVED_POOL_ACCOUNT,
-    PENDING_POOL_ACCOUNT,
-  ]);
-  buildAllPoolAccountRefsMock.mockImplementation(() => [
-    APPROVED_POOL_ACCOUNT,
-    PENDING_POOL_ACCOUNT,
-  ]);
-  collectActiveLabelsMock.mockImplementation(() => ["601", "602"]);
-  describeUnavailablePoolAccountMock.mockImplementation(() => null);
-  getUnknownPoolAccountErrorMock.mockImplementation(() => ({
-    message: "Unknown Pool Account.",
-    hint: "Choose a valid Pool Account.",
-  }));
-  parsePoolAccountSelectorMock.mockImplementation((raw: string) => {
-    const match = raw.match(/\d+/);
-    return match ? Number(match[0]) : null;
+export function registerWithdrawCommandHandlerHarness(): void {
+  afterEach(() => {
+    restoreModuleImplementations(WITHDRAW_HANDLER_MODULE_RESTORES);
   });
-  checkHasGasMock.mockImplementation(async () => undefined);
-  acquireProcessLockMock.mockImplementation(() => () => undefined);
-  guardCriticalSectionMock.mockImplementation(() => undefined);
-  releaseCriticalSectionMock.mockImplementation(() => undefined);
-  generateMerkleProofMock.mockImplementation((values: bigint[], target: bigint) => ({
-    root: values.includes(target) ? 1n : 0n,
-    siblings: [],
-    pathIndices: [],
-  }));
-  calculateContextMock.mockImplementation(() => 777n);
-  toWithdrawSolidityProofMock.mockImplementation(() => ({
-    pA: [0n, 0n],
-    pB: [
-      [0n, 0n],
-      [0n, 0n],
-    ],
-    pC: [0n, 0n],
-    pubSignals: [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n],
-  }));
-  stringifyBigIntsMock.mockImplementation((value: unknown) => value);
-  printRawTransactionsMock.mockImplementation(() => undefined);
-});
 
-afterEach(async () => {
-  await world?.teardown();
-});
+  beforeEach(() => {
+    world = createTestWorld({ prefix: "pp-withdraw-handler-" });
+    mock.restore();
+    initializeAccountServiceMock.mockClear();
+    getDataServiceMock.mockClear();
+    getPublicClientMock.mockClear();
+    resolvePoolMock.mockClear();
+    listPoolsMock.mockClear();
+    fetchMerkleRootsMock.mockClear();
+    fetchMerkleLeavesMock.mockClear();
+    fetchDepositsLargerThanMock.mockClear();
+    fetchDepositReviewStatusesMock.mockClear();
+    buildLoadedAspDepositReviewStateMock.mockClear();
+    getRelayerDetailsMock.mockClear();
+    requestQuoteMock.mockClear();
+    proveWithdrawalMock.mockClear();
+    withdrawDirectMock.mockClear();
+    submitRelayRequestMock.mockClear();
+    saveAccountMock.mockClear();
+    saveSyncMetaMock.mockClear();
+    buildPoolAccountRefsMock.mockClear();
+    buildAllPoolAccountRefsMock.mockClear();
+    collectActiveLabelsMock.mockClear();
+    describeUnavailablePoolAccountMock.mockClear();
+    getUnknownPoolAccountErrorMock.mockClear();
+    parsePoolAccountSelectorMock.mockClear();
+    checkHasGasMock.mockClear();
+    acquireProcessLockMock.mockClear();
+    guardCriticalSectionMock.mockClear();
+    releaseCriticalSectionMock.mockClear();
+    generateMerkleProofMock.mockClear();
+    calculateContextMock.mockClear();
+    toWithdrawSolidityProofMock.mockClear();
+    stringifyBigIntsMock.mockClear();
+    printRawTransactionsMock.mockClear();
+    confirmPromptMock.mockClear();
+    inputPromptMock.mockClear();
+    selectPromptMock.mockClear();
+    confirmPromptMock.mockImplementation(async () => true);
+    inputPromptMock.mockImplementation(async () =>
+      "0x4444444444444444444444444444444444444444"
+    );
+    selectPromptMock.mockImplementation(async () => 1);
+    saveAccountMock.mockImplementation(() => undefined);
+    saveSyncMetaMock.mockImplementation(() => undefined);
+    getDataServiceMock.mockImplementation(async () => ({}));
+    initializeAccountServiceMock.mockImplementation(async () => ({
+      account: { poolAccounts: new Map() },
+      getSpendableCommitments: () =>
+        new Map([
+          [
+            1n,
+            [
+              APPROVED_POOL_ACCOUNT.commitment,
+              PENDING_POOL_ACCOUNT.commitment,
+            ],
+          ],
+        ]),
+      createWithdrawalSecrets: () => ({
+        nullifier: 901n,
+        secret: 902n,
+      }),
+      addWithdrawalCommitment: mock(() => undefined),
+    }));
+    resolvePoolMock.mockImplementation(async () => ETH_POOL);
+    listPoolsMock.mockImplementation(async () => [ETH_POOL]);
+    getPublicClientMock.mockImplementation(() => ({
+      readContract: async () => 1n,
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 456n,
+      }),
+    }));
+    fetchMerkleRootsMock.mockImplementation(async () => ({
+      mtRoot: "1",
+      onchainMtRoot: "1",
+    }));
+    fetchMerkleLeavesMock.mockImplementation(async () => ({
+      aspLeaves: ["601"],
+      stateTreeLeaves: ["501"],
+    }));
+    fetchDepositsLargerThanMock.mockImplementation(async () => ({
+      eligibleDeposits: 8,
+      totalDeposits: 12,
+      percentage: 66.7,
+    }));
+    fetchDepositReviewStatusesMock.mockImplementation(async () =>
+      new Map<string, string>([
+        ["601", "approved"],
+        ["602", "pending"],
+      ]),
+    );
+    buildLoadedAspDepositReviewStateMock.mockImplementation(() => ({
+      approvedLabels: new Set<string>(["601"]),
+      reviewStatuses: new Map<string, string>([
+        ["601", "approved"],
+        ["602", "pending"],
+      ]),
+    }));
+    getRelayerDetailsMock.mockImplementation(async () => ({
+      minWithdrawAmount: "10000000000000000",
+      feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+      relayerUrl: "https://fastrelay.xyz",
+    }));
+    requestQuoteMock.mockImplementation(
+      async (
+        _chainConfig: unknown,
+        params?: {
+          recipient?: Address;
+          asset?: Address;
+          amount?: bigint;
+          extraGas?: boolean;
+          relayerUrl?: string;
+        },
+      ) =>
+        buildRelayerQuote({
+          recipient: params?.recipient,
+          asset: params?.asset,
+          amount: params?.amount?.toString(),
+          extraGas: params?.extraGas,
+          relayerUrl: params?.relayerUrl,
+        }),
+    );
+    proveWithdrawalMock.mockImplementation(async () => ({
+      proof: {
+        pi_a: ["0", "0", "1"],
+        pi_b: [
+          ["0", "0"],
+          ["0", "0"],
+          ["1", "0"],
+        ],
+        pi_c: ["0", "0", "1"],
+      },
+      publicSignals: [1n, 2n, 3n],
+    }));
+    withdrawDirectMock.mockImplementation(async () => ({
+      hash: "0x" + "56".repeat(32),
+    }));
+    submitRelayRequestMock.mockImplementation(async () => ({
+      txHash: "0x" + "34".repeat(32),
+    }));
+    buildPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      PENDING_POOL_ACCOUNT,
+    ]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      PENDING_POOL_ACCOUNT,
+    ]);
+    collectActiveLabelsMock.mockImplementation(() => ["601", "602"]);
+    describeUnavailablePoolAccountMock.mockImplementation(() => null);
+    getUnknownPoolAccountErrorMock.mockImplementation(() => ({
+      message: "Unknown Pool Account.",
+      hint: "Choose a valid Pool Account.",
+    }));
+    parsePoolAccountSelectorMock.mockImplementation((raw: string) => {
+      const match = raw.match(/\d+/);
+      return match ? Number(match[0]) : null;
+    });
+    checkHasGasMock.mockImplementation(async () => undefined);
+    acquireProcessLockMock.mockImplementation(() => () => undefined);
+    guardCriticalSectionMock.mockImplementation(() => undefined);
+    releaseCriticalSectionMock.mockImplementation(() => undefined);
+    generateMerkleProofMock.mockImplementation((values: bigint[], target: bigint) => ({
+      root: values.includes(target) ? 1n : 0n,
+      siblings: [],
+      pathIndices: [],
+    }));
+    calculateContextMock.mockImplementation(() => 777n);
+    toWithdrawSolidityProofMock.mockImplementation(() => ({
+      pA: [0n, 0n],
+      pB: [
+        [0n, 0n],
+        [0n, 0n],
+      ],
+      pC: [0n, 0n],
+      pubSignals: [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n],
+    }));
+    stringifyBigIntsMock.mockImplementation((value: unknown) => value);
+    printRawTransactionsMock.mockImplementation(() => undefined);
+  });
 
-beforeEach(async () => {
-  await loadWithdrawCommandHandlers();
-});
+  afterEach(async () => {
+    await world?.teardown();
+  });
 
-describe("withdraw command handler", () => {
+  beforeEach(async () => {
+    await loadWithdrawCommandHandlers();
+  });
+}
+
+export function registerWithdrawValidationPreludeTests(): void {
   test("rejects malformed --from-pa selectors before touching account state", async () => {
     useIsolatedHome({ withSigner: true });
 
@@ -695,6 +696,9 @@ describe("withdraw command handler", () => {
     expect(stderr).toContain("No pools found on mainnet");
   });
 
+}
+
+export function registerWithdrawRelayedPreludeTests(): void {
   test("renders a relayed JSON dry-run with quote and anonymity metadata", async () => {
     useIsolatedHome();
 
@@ -725,6 +729,9 @@ describe("withdraw command handler", () => {
     );
   });
 
+}
+
+export function registerWithdrawDirectPreludeTests(): void {
   test("builds an unsigned direct withdrawal without touching signer state", async () => {
     useIsolatedHome();
 
@@ -756,6 +763,9 @@ describe("withdraw command handler", () => {
     ]);
   });
 
+}
+
+export function registerWithdrawRelayedUnsignedAndSubmitTests(): void {
   test("builds an unsigned relayed withdrawal with the relayer request envelope", async () => {
     useIsolatedHome({ withSigner: true });
 
@@ -885,6 +895,9 @@ describe("withdraw command handler", () => {
     expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
   });
 
+}
+
+export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
   test("submits a direct withdrawal to the signer address when requested", async () => {
     useIsolatedHome({ withSigner: true });
     const addWithdrawalCommitmentMock = mock(() => undefined);
@@ -917,6 +930,9 @@ describe("withdraw command handler", () => {
     expect(addWithdrawalCommitmentMock).toHaveBeenCalledTimes(1);
   });
 
+}
+
+export function registerWithdrawValidationAccountSelectionTests(): void {
   test("resolves --all withdrawals to the full selected Pool Account balance", async () => {
     useIsolatedHome();
 
@@ -1300,6 +1316,9 @@ describe("withdraw command handler", () => {
     expect(exitCode).toBe(4);
   });
 
+}
+
+export function registerWithdrawInteractiveReviewTests(): void {
   test("prompts for the recipient in human relayed mode when --to is omitted", async () => {
     useIsolatedHome({ withSigner: true });
 
@@ -1590,6 +1609,9 @@ describe("withdraw command handler", () => {
     expect(stderr).toContain("Withdrawal cancelled.");
   });
 
+}
+
+export function registerWithdrawQuoteTests(): void {
   test("returns a structured relayer quote in JSON mode", async () => {
     useIsolatedHome();
 
@@ -1797,6 +1819,9 @@ describe("withdraw command handler", () => {
     expect(json.extraGas).toBe(false);
   });
 
+}
+
+export function registerWithdrawValidationPostQuoteTests(): void {
   test("fails closed when relayed withdrawals omit the recipient in machine mode", async () => {
     useIsolatedHome({ withSigner: true });
 
@@ -1906,6 +1931,9 @@ describe("withdraw command handler", () => {
     expect(exitCode).toBe(2);
   });
 
+}
+
+export function registerWithdrawInteractiveAssetSelectionTests(): void {
   test("prompts humans to choose an asset when it is omitted", async () => {
     useIsolatedHome({ withSigner: true });
     selectPromptMock.mockImplementationOnce(async () => "ETH");
@@ -1926,6 +1954,9 @@ describe("withdraw command handler", () => {
     expect(stderr).toContain("Selected PA-1");
   });
 
+}
+
+export function registerWithdrawDirectCompletionTests(): void {
   test("renders a direct JSON dry-run after proof generation", async () => {
     useIsolatedHome();
 
@@ -1996,6 +2027,9 @@ describe("withdraw command handler", () => {
     expect(exitCode).toBe(3);
   });
 
+}
+
+export function registerWithdrawRelayedMidCompletionTests(): void {
   test("fails closed when the relayer omits fee commitment details", async () => {
     useIsolatedHome({ withSigner: true });
     requestQuoteMock.mockImplementationOnce(async () => ({
@@ -2103,6 +2137,9 @@ describe("withdraw command handler", () => {
     expect(exitCode).toBe(5);
   });
 
+}
+
+export function registerWithdrawRelayedQuoteRefreshPreludeTests(): void {
   test("refreshes an expired machine-mode relayer quote before building the proof", async () => {
     useIsolatedHome({ withSigner: true });
     requestQuoteMock
@@ -2130,6 +2167,9 @@ describe("withdraw command handler", () => {
     expect(json.quoteExpiresAt).toContain("2100");
   });
 
+}
+
+export function registerWithdrawInteractiveCompletionTests(): void {
   test("warns human relayed withdrawals when the remainder falls below the relayer minimum", async () => {
     useIsolatedHome({ withSigner: true });
     getRelayerDetailsMock.mockImplementationOnce(async () => ({
@@ -2173,6 +2213,9 @@ describe("withdraw command handler", () => {
     expect(stderr).toContain("privacy-pools sync");
   });
 
+}
+
+export function registerWithdrawRelayedFailureAndTimeoutTests(): void {
   test("fails closed when the relayed withdrawal transaction reverts onchain", async () => {
     useIsolatedHome({ withSigner: true });
     getPublicClientMock.mockImplementationOnce(() => ({
@@ -2230,6 +2273,9 @@ describe("withdraw command handler", () => {
     expect(exitCode).toBe(3);
   });
 
+}
+
+export function registerWithdrawDirectPostSaveTests(): void {
   test("prints direct save warnings for human callers after onchain confirmation", async () => {
     useIsolatedHome({ withSigner: true });
     saveAccountMock.mockImplementationOnce(() => {
@@ -2251,6 +2297,9 @@ describe("withdraw command handler", () => {
     expect(stderr).toContain("privacy-pools sync");
   });
 
+}
+
+export function registerWithdrawRelayedQuoteRefreshTests(): void {
   test("auto-refreshes an expired relayer quote after proof generation when the fee is unchanged", async () => {
     useIsolatedHome({ withSigner: true });
     const originalNow = Date.now;
@@ -2396,4 +2445,4 @@ describe("withdraw command handler", () => {
       Date.now = originalNow;
     }
   });
-});
+}
