@@ -377,7 +377,8 @@ export async function runCli(
     ) {
       if (isWelcome) {
         if (isQuiet) {
-          process.exit(0);
+          process.exitCode = 0;
+          return;
         }
         if (!suppressBanner) {
           const { printBanner } = await import("./utils/banner.js");
@@ -393,7 +394,8 @@ export async function runCli(
         if (shouldCheckUpdates) {
           checkForUpdateInBackground();
         }
-        process.exit(0);
+        process.exitCode = 0;
+        return;
       }
 
       const commanderCode = (err as { code?: string }).code;
@@ -403,7 +405,8 @@ export async function runCli(
         machineOutput,
         version: pkg.version,
       });
-      process.exit(0);
+      process.exitCode = 0;
+      return;
     }
 
     const mapped = mapCommanderError(err);
@@ -412,7 +415,7 @@ export async function runCli(
         printError(mapped, true);
         return;
       }
-      process.exit(EXIT_CODES.INPUT);
+      process.exitCode = EXIT_CODES.INPUT;
       return;
     }
 

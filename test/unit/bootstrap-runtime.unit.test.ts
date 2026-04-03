@@ -306,6 +306,67 @@ describe("bootstrap runtime coverage", () => {
     expect(stderr).toBe("");
   });
 
+  test("runCli root signal paths do not force process exit", async () => {
+    const originalExit = process.exit;
+    process.exit = ((code?: number) => {
+      throw new Error(`unexpected exit(${code ?? 0})`);
+    }) as never;
+
+    try {
+      const welcomeProgram = makeProgram(() => async () => {
+        throw makeCommanderExit("commander.helpDisplayed");
+      });
+      const printBannerMock = mock(async () => undefined);
+      mock.module("../../src/program.ts", () => ({
+        createRootProgram: async () => welcomeProgram,
+      }));
+      mock.module("../../src/utils/banner.ts", () => ({
+        printBanner: printBannerMock,
+      }));
+
+      const { runCli: runWelcomeCli } = await import(
+        "../../src/cli-main.ts?no-force-welcome-runtime"
+      );
+      let welcomeExitCode: number | undefined;
+      const welcomeResult = await captureAsyncOutput(async () => {
+        await runWelcomeCli(
+          {
+            version: "1.2.3",
+            repository: "https://github.com/example/repo",
+          },
+          [],
+        );
+        welcomeExitCode = process.exitCode;
+      });
+      expect(welcomeExitCode).toBe(0);
+      expect(welcomeResult.stdout).toContain("Explore (no wallet needed)");
+      expect(welcomeResult.stderr).toBe("");
+
+      const versionProgram = makeProgram((configuredProgram) => async () => {
+        configuredProgram.configuredOutput.writeOut?.("9.9.9");
+        throw makeCommanderExit("commander.version");
+      });
+      mock.module("../../src/program.ts", () => ({
+        createRootProgram: async () => versionProgram,
+      }));
+
+      const { runCli: runVersionCli } = await import(
+        "../../src/cli-main.ts?no-force-version-runtime"
+      );
+      let versionExitCode: number | undefined;
+      const versionResult = await captureAsyncJsonOutput(async () => {
+        await runVersionCli({ version: "1.2.3" }, ["--json", "--version"]);
+        versionExitCode = process.exitCode;
+      });
+      expect(versionExitCode).toBe(0);
+      expect(versionResult.json.success).toBe(true);
+      expect(versionResult.json.mode).toBe("version");
+      expect(versionResult.stderr).toBe("");
+    } finally {
+      process.exit = originalExit;
+    }
+  });
+
   test("runCli maps commander input errors into structured machine errors", async () => {
     const program = makeProgram(() => async () => {
       throw {
@@ -348,6 +409,40 @@ describe("bootstrap runtime coverage", () => {
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
     expect(stderr).toBe("");
+  });
+
+  test("runCli human commander input errors set exitCode without forcing exit", async () => {
+    const program = makeProgram(() => async () => {
+      throw {
+        code: "commander.invalidArgument",
+        message: "error: invalid value for '--timeout'",
+      };
+    });
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+
+    const originalExit = process.exit;
+    process.exit = ((code?: number) => {
+      throw new Error(`unexpected exit(${code ?? 0})`);
+    }) as never;
+
+    try {
+      const { runCli } = await import(
+        "../../src/cli-main.ts?no-force-human-input-error-runtime"
+      );
+      let seenExitCode: number | undefined;
+      const { stdout, stderr } = await captureAsyncOutput(async () => {
+        await runCli({ version: "1.2.3" }, ["--timeout", "NaN"]);
+        seenExitCode = process.exitCode;
+      });
+
+      expect(seenExitCode).toBe(2);
+      expect(stdout).toBe("");
+      expect(stderr).toBe("");
+    } finally {
+      process.exit = originalExit;
+    }
   });
 
   test("runCli quiet welcome exits cleanly without banner or welcome output", async () => {
