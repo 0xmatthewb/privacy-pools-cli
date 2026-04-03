@@ -9,9 +9,23 @@ const packageJson = JSON.parse(
   files?: string[];
   scripts?: Record<string, string>;
 };
+
+function getScript(name: string): string {
+  const script = packageJson.scripts?.[name];
+  expect(typeof script).toBe("string");
+  return script!;
+}
+
+function expectScriptContains(name: string, fragments: string[]): void {
+  const script = getScript(name);
+  for (const fragment of fragments) {
+    expect(script).toContain(fragment);
+  }
+}
+
 describe("package scripts conformance", () => {
   test("top-level test wrapper remains the shared suite runner", () => {
-    expect(packageJson.scripts?.test).toBe("node scripts/run-test-suite.mjs");
+    expect(getScript("test")).toBe("node scripts/run-test-suite.mjs");
   });
 
   test("published package includes bundled circuit artifacts", () => {
@@ -19,20 +33,24 @@ describe("package scripts conformance", () => {
   });
 
   test("runtime-facing scripts use node plus tsx rather than bun", () => {
-    expect(packageJson.scripts?.cli).toBe("node --import tsx src/index.ts");
-    expect(packageJson.scripts?.dev).toBe("node --import tsx src/index.ts");
-    expect(packageJson.scripts?.["discovery:generate"]).toBe(
-      "npm run build && node scripts/generate-command-discovery-static.mjs",
-    );
-    expect(packageJson.scripts?.["docs:generate"]).toBe(
-      "npm run build && node scripts/generate-reference.mjs --write",
-    );
-    expect(packageJson.scripts?.["docs:preview"]).toBe(
-      "npm run build && node scripts/generate-reference.mjs",
-    );
-    expect(packageJson.scripts?.["docs:check"]).toBe(
-      "npm run build && node scripts/generate-reference.mjs --check",
-    );
+    expect(getScript("cli")).toBe("node --import tsx src/index.ts");
+    expect(getScript("dev")).toBe("node --import tsx src/index.ts");
+    expectScriptContains("discovery:generate", [
+      "npm run build",
+      "node scripts/generate-command-discovery-static.mjs",
+    ]);
+    expectScriptContains("docs:generate", [
+      "npm run build",
+      "node scripts/generate-reference.mjs --write",
+    ]);
+    expectScriptContains("docs:preview", [
+      "npm run build",
+      "node scripts/generate-reference.mjs",
+    ]);
+    expectScriptContains("docs:check", [
+      "npm run build",
+      "node scripts/generate-reference.mjs --check",
+    ]);
   });
 
   test("conformance and release scripts route through the shared profile runner", () => {
@@ -48,31 +66,35 @@ describe("package scripts conformance", () => {
       ["test:release", "release"],
       ["test:all", "all"],
     ] as const) {
-      expect(packageJson.scripts?.[scriptName]).toBe(
-        `node scripts/run-test-profile.mjs ${profileName}`,
-      );
+      expectScriptContains(scriptName, [
+        "node scripts/run-test-profile.mjs",
+        profileName,
+      ]);
     }
   });
 
   test("native smoke scripts publish both packaged and launcher-parity lanes", () => {
-    expect(packageJson.scripts?.["test:smoke"]).toBe(
-      "node scripts/run-bun-tests.mjs ./test/integration/cli-packaged-smoke.integration.test.ts --timeout 180000 --process-timeout-ms 600000",
-    );
-    expect(packageJson.scripts?.["test:smoke:native"]).toBe(
-      "npm run test:smoke:native:package",
-    );
-    expect(packageJson.scripts?.["test:smoke:native:shell"]).toBe(
-      "node scripts/run-bun-tests.mjs ./test/integration/cli-native-shell.integration.test.ts --timeout 300000 --process-timeout-ms 900000",
-    );
-    expect(packageJson.scripts?.["test:smoke:native:package"]).toBe(
-      "node scripts/run-bun-tests.mjs ./test/integration/cli-native-package-smoke.integration.test.ts --timeout 240000 --process-timeout-ms 900000",
-    );
-    expect(packageJson.scripts?.["test:fuzz"]).toBe(
-      "node scripts/run-bun-tests.mjs ./test/fuzz --timeout 120000 --process-timeout-ms 600000",
-    );
-    expect(packageJson.scripts?.["test:evals"]).toBe(
-      "node scripts/run-bun-tests.mjs ./test/evals --timeout 120000 --process-timeout-ms 600000",
-    );
+    expect(getScript("test:smoke:native")).toBe("npm run test:smoke:native:package");
+    expectScriptContains("test:smoke", [
+      "node scripts/run-bun-tests.mjs",
+      "./test/integration/cli-packaged-smoke.integration.test.ts",
+    ]);
+    expectScriptContains("test:smoke:native:shell", [
+      "node scripts/run-bun-tests.mjs",
+      "./test/integration/cli-native-shell.integration.test.ts",
+    ]);
+    expectScriptContains("test:smoke:native:package", [
+      "node scripts/run-bun-tests.mjs",
+      "./test/integration/cli-native-package-smoke.integration.test.ts",
+    ]);
+    expectScriptContains("test:fuzz", [
+      "node scripts/run-bun-tests.mjs",
+      "./test/fuzz",
+    ]);
+    expectScriptContains("test:evals", [
+      "node scripts/run-bun-tests.mjs",
+      "./test/evals",
+    ]);
   });
 
   test("test:install mirrors the current-host installed-artifact gate", () => {

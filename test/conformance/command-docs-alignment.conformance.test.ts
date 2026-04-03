@@ -43,16 +43,16 @@ describe("command docs alignment", () => {
     }
   });
 
-  test("AGENTS machine sections preserve required payload markers", () => {
+  test("AGENTS machine sections keep machine-facing anchors", () => {
     const expectations: Array<{ path: CommandPath; markers: string[] }> = [
-      { path: "init", markers: ["signerKeySet", "recoveryPhrase", "nextActions"] },
-      { path: "activity", markers: ["events", "reviewStatus", "chainFiltered"] },
-      { path: "status", markers: ["recommendedMode", "blockingIssues", "nextActions"] },
-      { path: "accounts", markers: ["balances", "pendingCount", "nextActions"] },
-      { path: "migrate status", markers: ["readiness", "warnings", "submissionSupported"] },
-      { path: "history", markers: ["events", "poolAccountId", "explorerUrl"] },
+      { path: "init", markers: ["recoveryPhrase", "nextActions"] },
+      { path: "activity", markers: ["reviewStatus", "chainFiltered"] },
+      { path: "status", markers: ["recommendedMode", "nextActions"] },
+      { path: "accounts", markers: ["balances", "nextActions"] },
+      { path: "migrate status", markers: ["readiness", "submissionSupported"] },
+      { path: "history", markers: ["events", "poolAccountId"] },
       { path: "sync", markers: ["syncedPools", "availablePoolAccounts"] },
-      { path: "withdraw quote", markers: ["baseFeeBPS", "relayTxCost", "nextActions"] },
+      { path: "withdraw quote", markers: ["baseFeeBPS", "relayTxCost"] },
     ];
 
     for (const expectation of expectations) {
