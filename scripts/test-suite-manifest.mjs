@@ -8,6 +8,14 @@ export const SHARED_TEST_TARGETS = [
 
 export const DEFAULT_MAIN_TEST_TARGETS = SHARED_TEST_TARGETS;
 
+export const DEFAULT_MAIN_BATCHES = [
+  { label: "acceptance", targets: ["./test/acceptance"] },
+  { label: "unit", targets: ["./test/unit"] },
+  { label: "integration", targets: ["./test/integration"] },
+  { label: "fuzz", targets: ["./test/fuzz"] },
+  { label: "services", targets: ["./test/services"] },
+];
+
 export const COVERAGE_MAIN_TEST_TARGETS = [
   "./test/unit",
   "./test/services",

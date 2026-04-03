@@ -10,12 +10,13 @@ import {
 } from "./test-runner-args.mjs";
 
 import {
+  DEFAULT_MAIN_BATCHES,
   DEFAULT_MAIN_EXCLUDED_TESTS,
-  DEFAULT_MAIN_TEST_TARGETS,
   DEFAULT_TEST_ISOLATED_SUITES,
 } from "./test-suite-manifest.mjs";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 import { collectTestFiles } from "./test-file-collector.mjs";
+import { buildDefaultMainSuites } from "./main-suite-plan.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -76,13 +77,15 @@ if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs, ROOT)) {
   process.exit(0);
 }
 
-const mainArgs = [...DEFAULT_MAIN_TEST_TARGETS];
-for (const excluded of DEFAULT_MAIN_EXCLUDED_TESTS) {
-  mainArgs.push("--exclude", excluded);
-}
-mainArgs.push(...forwardedArgs);
+const mainSuites = buildDefaultMainSuites({
+  rootDir: ROOT,
+  testBatches: DEFAULT_MAIN_BATCHES,
+  excludedTests: DEFAULT_MAIN_EXCLUDED_TESTS,
+});
 
-runSuite("main", mainArgs);
+for (const suite of mainSuites) {
+  runSuite(suite.label, [...suite.tests, ...forwardedArgs]);
+}
 
 for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
   const suiteArgs = [...suite.tests];
