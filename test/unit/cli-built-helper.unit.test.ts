@@ -7,6 +7,24 @@ import {
 } from "../helpers/cli.ts";
 
 describe("built cli helper isolation", () => {
+  test("shared snapshot env overrides the private per-process snapshot", () => {
+    const previous = process.env[cliTestInternals.SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV];
+    process.env[cliTestInternals.SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV] = "/tmp/shared-built-workspace";
+
+    try {
+      const resolved = cliTestInternals.resolveBuiltCliInvocation(CLI_CWD);
+
+      expect(resolved.cwd).toBe("/tmp/shared-built-workspace");
+      expect(resolved.binPath).toBe("dist/index.js");
+    } finally {
+      if (previous === undefined) {
+        delete process.env[cliTestInternals.SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV];
+      } else {
+        process.env[cliTestInternals.SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV] = previous;
+      }
+    }
+  });
+
   test("repo-root built runs use a private built workspace snapshot", () => {
     const resolved = cliTestInternals.resolveBuiltCliInvocation(CLI_CWD);
 

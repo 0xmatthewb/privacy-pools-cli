@@ -27,6 +27,8 @@ import { buildChildProcessEnv } from "./child-env.ts";
 export const CLI_CWD = CLI_ROOT;
 
 let defaultBuiltWorkspaceSnapshotRoot: string | null = null;
+const SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV =
+  "PP_TEST_BUILT_WORKSPACE_SNAPSHOT";
 
 export interface CliRunOptions {
   home?: string;
@@ -126,6 +128,11 @@ function createRetainedBuiltWorkspaceSnapshot(): string {
 }
 
 function getDefaultBuiltWorkspaceSnapshotRoot(): string {
+  const sharedSnapshotRoot = process.env[SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV]?.trim();
+  if (sharedSnapshotRoot) {
+    return resolve(sharedSnapshotRoot);
+  }
+
   // Integration suites often compare built launcher behavior while other
   // scripts rebuild the repo in parallel. Snapshotting the built workspace
   // once per Bun process keeps those tests off the shared mutable dist/.
@@ -151,6 +158,7 @@ function resolveBuiltCliInvocation(
 }
 
 export const cliTestInternals = {
+  SHARED_BUILT_WORKSPACE_SNAPSHOT_ENV,
   shouldUseIsolatedBuiltWorkspace,
   resolveBuiltCliInvocation,
 };

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildDefaultMainSuites,
+  DEFAULT_MAIN_CONCURRENCY_CAP,
   DEFAULT_MAIN_BATCH_SIZE,
+  resolveMainBatchConcurrency,
 } from "../../scripts/main-suite-plan.mjs";
 
 describe("main suite planning", () => {
@@ -145,5 +147,34 @@ describe("main suite planning", () => {
 
   test("default main batch size avoids the previous unit-shard hang", () => {
     expect(DEFAULT_MAIN_BATCH_SIZE).toBe(20);
+  });
+
+  test("main batch concurrency auto-detect stays bounded", () => {
+    expect(
+      resolveMainBatchConcurrency({
+        suiteCount: 5,
+        availableParallelismFn: () => 8,
+      }),
+    ).toBe(DEFAULT_MAIN_CONCURRENCY_CAP);
+  });
+
+  test("main batch concurrency honors explicit env overrides", () => {
+    expect(
+      resolveMainBatchConcurrency({
+        suiteCount: 5,
+        env: { PP_TEST_MAIN_CONCURRENCY: "2" },
+        availableParallelismFn: () => 8,
+      }),
+    ).toBe(2);
+  });
+
+  test("main batch concurrency ignores invalid env overrides", () => {
+    expect(
+      resolveMainBatchConcurrency({
+        suiteCount: 2,
+        env: { PP_TEST_MAIN_CONCURRENCY: "0" },
+        availableParallelismFn: () => 1,
+      }),
+    ).toBe(1);
   });
 });
