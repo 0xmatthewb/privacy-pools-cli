@@ -37,6 +37,9 @@ interface ForwardingParityCase {
   testTimeoutMs?: number;
 }
 
+const DEFAULT_PARITY_COMMAND_TIMEOUT_MS = 20_000;
+const PARITY_TEST_TIMEOUT_BUFFER_MS = 10_000;
+
 function runNativeBuiltCli(
   nativeBinary: string,
   args: string[],
@@ -109,6 +112,16 @@ function assertDidNotTimeout(label: string, result: CliRunResult): void {
       `error: ${result.errorMessage ?? "<none>"}`,
     );
   }
+}
+
+function resolveParityTestTimeout(
+  timeoutMs?: number,
+  testTimeoutMs?: number,
+): number {
+  const commandTimeoutMs = timeoutMs ?? DEFAULT_PARITY_COMMAND_TIMEOUT_MS;
+  const minimumParityTimeoutMs =
+    commandTimeoutMs * 2 + PARITY_TEST_TIMEOUT_BUFFER_MS;
+  return Math.max(testTimeoutMs ?? 0, minimumParityTimeoutMs);
 }
 
 function expectStreamParity(
@@ -792,7 +805,8 @@ describe("native shell parity", () => {
     },
     {
       label: "ragequit",
-      args: ["--agent", "ragequit", "ETH", "--from-pa", "PA-1"],
+      args: ["--agent", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-1"],
+      envFactory: fixtureEnv,
       testTimeoutMs: 20_000,
     },
     {
@@ -827,6 +841,6 @@ describe("native shell parity", () => {
         js: { home: jsHome, env, timeoutMs },
         native: { home: nativeHome, env, timeoutMs },
       });
-    }, testTimeoutMs);
+    }, resolveParityTestTimeout(timeoutMs, testTimeoutMs));
   }
 });
