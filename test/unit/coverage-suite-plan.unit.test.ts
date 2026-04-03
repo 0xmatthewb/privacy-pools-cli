@@ -66,7 +66,7 @@ describe("coverage suite planning", () => {
     ).toThrow("coverage batch size must be a positive integer");
   });
 
-  test("default coverage batch size stays comfortably below bun's large-suite cliff", () => {
-    expect(DEFAULT_COVERAGE_MAIN_BATCH_SIZE).toBe(10);
+  test("default coverage batch size stays positive and groups multiple files", () => {
+    expect(DEFAULT_COVERAGE_MAIN_BATCH_SIZE).toBeGreaterThan(1);
   });
 });

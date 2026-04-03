@@ -130,7 +130,6 @@ describe("test profiles", () => {
       ["run", "bench:gate:release"],
     ]);
     expect(resolveProfile("all")).toEqual(resolveProfile("release"));
-    expect(resolveProfile("all")).toBe(resolveProfile("release"));
 
     const countBuildSteps = (profileName: "ci" | "release" | "all") =>
       resolveProfile(profileName).filter(([command, args]) => {

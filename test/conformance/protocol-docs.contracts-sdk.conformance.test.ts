@@ -15,6 +15,14 @@ import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, test } from "bun:test";
 import {
+  AccountService,
+  DataService,
+  PrivacyPoolSDK,
+  calculateContext,
+  generateMasterKeys,
+  generateMerkleProof,
+} from "@0xbow/privacy-pools-core-sdk";
+import {
   CORE_REPO,
   FRONTEND_REPO,
   fetchGitHubFile,
@@ -80,6 +88,25 @@ const RAGEQUIT_EVENT_SIGNATURE =
   "event Ragequit(address indexed _ragequitter, uint256 _commitment, uint256 _label, uint256 _value)";
 
 let fetchFailed = false;
+
+function normalizeSignature(signature: string): string {
+  return signature
+    .replace(/\s+/g, " ")
+    .replace(/\s*\(\s*/g, "(")
+    .replace(/\s*\)\s*/g, ")")
+    .replace(/\s*,\s*/g, ", ")
+    .trim();
+}
+
+function extractEventSignature(source: string, eventName: string): string {
+  const match = source.match(
+    new RegExp(`event\\s+${eventName}\\s*\\(([^;]+)\\)\\s*;`, "m"),
+  );
+  if (!match) {
+    throw new Error(`Missing upstream event signature for ${eventName}`);
+  }
+  return normalizeSignature(`event ${eventName}(${match[1]})`);
+}
 
 describe("protocol conformance: CLI ↔ upstream", () => {
   test("conformance source helper stays pinned to public upstream inputs", () => {
@@ -167,13 +194,15 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // 1. SDK methods: CLI calls → installed SDK source
   // ---------------------------------------------------------------
 
-  for (const method of ["proveWithdrawal", "proveCommitment"]) {
-    run(`CLI proof helper "${method}" exists in installed SDK source`, () => {
-      const cliAll = cliWithdraw + cliRagequit + cliProofs;
-      expect(cliAll).toContain(method);
-      expect(installedSdkCore).toContain(method);
-    });
-  }
+  run("CLI proof helpers map to callable PrivacyPoolSDK methods", () => {
+    const cliAll = cliWithdraw + cliRagequit + cliProofs;
+    expect(cliAll).toContain("proveWithdrawal");
+    expect(cliAll).toContain("proveCommitment");
+    expect(installedSdkCore).toContain("proveWithdrawal");
+    expect(installedSdkCore).toContain("proveCommitment");
+    expect(typeof PrivacyPoolSDK.prototype.proveWithdrawal).toBe("function");
+    expect(typeof PrivacyPoolSDK.prototype.proveCommitment).toBe("function");
+  });
 
   // ---------------------------------------------------------------
   // 2. Contract read-only ABI: CLI pools.ts ↔ core Solidity
@@ -239,28 +268,31 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // 6. SDK class exports: installed SDK source → CLI imports
   // ---------------------------------------------------------------
 
-  for (const name of ["AccountService", "DataService"]) {
-    run(`SDK class "${name}" exported by installed SDK and imported by CLI`, () => {
-      const cliAll = cliSdk + cliAccount;
-      expect(cliAll).toContain(name);
-      expect(installedSdkCore + installedSdkAccountService).toContain(name);
-    });
-  }
+  run("SDK service classes are callable exports and referenced by the CLI", () => {
+    const cliAll = cliSdk + cliAccount;
+    expect(cliAll).toContain("AccountService");
+    expect(cliAll).toContain("DataService");
+    expect(installedSdkIndex).toContain('export { AccountService }');
+    expect(installedSdkIndex).toContain('export { DataService }');
+    expect(typeof AccountService).toBe("function");
+    expect(typeof DataService).toBe("function");
+  });
 
   // ---------------------------------------------------------------
   // 7. SDK crypto functions: installed SDK source → CLI imports
   // ---------------------------------------------------------------
 
-  for (const { fn, cli } of [
-    { fn: "generateMasterKeys", cli: cliWallet },
-    { fn: "calculateContext", cli: cliWithdraw },
-    { fn: "generateMerkleProof", cli: cliWithdraw },
-  ]) {
-    run(`SDK function "${fn}" exists in upstream crypto module and CLI`, () => {
-      expect(cli).toContain(fn);
-      expect(installedSdkCrypto).toContain(fn);
-    });
-  }
+  run("CLI crypto helpers map to callable installed SDK exports", () => {
+    expect(cliWallet).toContain("generateMasterKeys");
+    expect(cliWithdraw).toContain("calculateContext");
+    expect(cliWithdraw).toContain("generateMerkleProof");
+    expect(installedSdkCrypto).toContain("generateMasterKeys");
+    expect(installedSdkCrypto).toContain("calculateContext");
+    expect(installedSdkCrypto).toContain("generateMerkleProof");
+    expect(typeof generateMasterKeys).toBe("function");
+    expect(typeof calculateContext).toBe("function");
+    expect(typeof generateMerkleProof).toBe("function");
+  });
 
   // ---------------------------------------------------------------
   // 8. [Removed] Unsigned ABI signature checks — superseded by
@@ -271,13 +303,6 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // 9. IPrivacyPool.sol: events and structs ↔ CLI decoding
   // ---------------------------------------------------------------
 
-  run("CLI Deposited event parameter names match upstream IPrivacyPool.sol", () => {
-    for (const param of ["_depositor", "_commitment", "_label", "_value", "_precommitmentHash"]) {
-      expect(cliDeposit).toContain(param);
-      expect(upstreamIPrivacyPool).toContain(param);
-    }
-  });
-
   run("CLI Deposited event signature shape matches upstream IPrivacyPool.sol", () => {
     // The CLI hardcodes a parseAbi for the Deposited event in deposit.ts.
     // If the upstream changes parameter types or indexed modifiers, the
@@ -285,26 +310,15 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     // state.  This checks the full signature, not just parameter names.
     expect(cliDeposit).toContain(DEPOSIT_EVENT_SIGNATURE);
 
-    // Upstream must define the same event shape (whitespace may differ)
-    expect(upstreamIPrivacyPool).toContain("event Deposited(");
-    expect(upstreamIPrivacyPool).toContain("address indexed _depositor");
-    // Non-indexed params: verify types are uint256
-    for (const field of ["uint256 _commitment", "uint256 _label", "uint256 _value", "uint256 _precommitmentHash"]) {
-      expect(upstreamIPrivacyPool).toContain(field);
-    }
+    expect(extractEventSignature(upstreamIPrivacyPool, "Deposited")).toBe(
+      DEPOSIT_EVENT_SIGNATURE,
+    );
   });
 
   run("all deposit event parser copies used by sync and install remain aligned with upstream", () => {
-    expect(upstreamIPrivacyPool).toContain("event Deposited(");
-    expect(upstreamIPrivacyPool).toContain("address indexed _depositor");
-    for (const field of [
-      "uint256 _commitment",
-      "uint256 _label",
-      "uint256 _value",
-      "uint256 _precommitmentHash",
-    ]) {
-      expect(upstreamIPrivacyPool).toContain(field);
-    }
+    expect(extractEventSignature(upstreamIPrivacyPool, "Deposited")).toBe(
+      DEPOSIT_EVENT_SIGNATURE,
+    );
 
     for (const source of [
       cliDeposit,
@@ -323,8 +337,12 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   });
 
   run("sync reconstruction parser signatures stay aligned with upstream withdraw and ragequit events", () => {
-    expect(upstreamIPrivacyPool).toContain(WITHDRAWN_EVENT_SIGNATURE);
-    expect(upstreamIPrivacyPool).toContain(RAGEQUIT_EVENT_SIGNATURE);
+    expect(extractEventSignature(upstreamIPrivacyPool, "Withdrawn")).toBe(
+      WITHDRAWN_EVENT_SIGNATURE,
+    );
+    expect(extractEventSignature(upstreamIPrivacyPool, "Ragequit")).toBe(
+      RAGEQUIT_EVENT_SIGNATURE,
+    );
     expect(cliSdk).toContain(WITHDRAWN_EVENT_SIGNATURE);
     expect(cliSdk).toContain(RAGEQUIT_EVENT_SIGNATURE);
   });

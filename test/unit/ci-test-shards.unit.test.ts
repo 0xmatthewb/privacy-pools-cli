@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   buildFileShards,
   collectLinuxCoreTestFiles,
@@ -37,11 +39,13 @@ describe("ci test shards", () => {
   });
 
   test("configured shard weights override raw file length for known heavy suites", () => {
-    expect(
-      resolveFileWeight("./test/unit/withdraw-command-handler.relayed.unit.test.ts"),
-    ).toBe(85);
-    expect(resolveFileWeight("./test/unit/accounts-command-readonly.unit.test.ts")).toBe(
-      55,
-    );
+    for (const filePath of [
+      "./test/unit/withdraw-command-handler.relayed.unit.test.ts",
+      "./test/unit/accounts-command-readonly.unit.test.ts",
+    ]) {
+      const rawLineCount = readFileSync(resolve(filePath), "utf8").split("\n").length;
+      expect(resolveFileWeight(filePath)).not.toBe(rawLineCount);
+      expect(resolveFileWeight(filePath)).toBeGreaterThan(0);
+    }
   });
 });

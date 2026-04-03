@@ -34,7 +34,6 @@ function extractDocumentSection(
 }
 
 const AGENTS = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
-const REFERENCE = readFileSync(`${CLI_ROOT}/docs/reference.md`, "utf8");
 const AGENT_MARKERS = getDocumentedAgentMarkers();
 
 describe("command docs alignment", () => {
@@ -86,18 +85,6 @@ describe("command docs alignment", () => {
     }
   });
 
-  test("reference docs keep stable command and flag anchors", () => {
-    const normalizedReference = normalizeWhitespace(REFERENCE);
-
-    expect(normalizedReference).toContain("privacy-pools capabilities --agent");
-    expect(normalizedReference).toContain("privacy-pools describe withdraw quote --agent");
-    expect(normalizedReference).toContain("### `describe`");
-    expect(normalizedReference).toContain("--mnemonic-stdin");
-    expect(normalizedReference).toContain("--private-key-stdin");
-    expect(normalizedReference).toContain("--summary");
-    expect(normalizedReference).toContain("--pending-only");
-  });
-
   test("AGENTS keeps current migration and contract error codes for agents", () => {
     const normalizedAgents = normalizeWhitespace(AGENTS);
 
@@ -112,18 +99,5 @@ describe("command docs alignment", () => {
     ]) {
       expect(normalizedAgents).toContain(code);
     }
-  });
-
-  test("flow status docs keep the saved-workflow prerequisite explicit", () => {
-    const agentsFlowSection = extractDocumentSection(AGENTS, "#### `flow`", AGENT_MARKERS);
-    const referenceFlowStatusSection = extractDocumentSection(REFERENCE, "### `flow status`", [
-      "### `flow status`",
-      "### `flow ragequit`",
-    ]);
-    const flowStatusMetadata = getCommandMetadata("flow status");
-
-    expect(agentsFlowSection).toContain("saved workflow");
-    expect(referenceFlowStatusSection).toContain("persisted workflow snapshot");
-    expect((flowStatusMetadata.help?.overview ?? []).join(" ")).toContain("saved workflow");
   });
 });

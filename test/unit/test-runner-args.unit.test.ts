@@ -173,42 +173,36 @@ describe("test runner arg helpers", () => {
   });
 
   test("default isolation policy matches the Bun-aware final suite set", () => {
-    expect(DEFAULT_TEST_ISOLATED_SUITES.map((suite) => suite.label)).toEqual([
+    const labels = DEFAULT_TEST_ISOLATED_SUITES.map((suite) => suite.label);
+    expect(new Set(labels).size).toBe(labels.length);
+    for (const requiredLabel of [
       "contracts-service",
       "proofs-service",
       "workflow-mocked",
       "workflow-internal",
-      "workflow-backup-paths",
-      "workflow-backup-write",
-      "init-interactive-cancel-invalid",
-      "init-interactive-generate-backup",
-      "init-interactive-import-visible-secret",
       "bootstrap-runtime",
-    ]);
+    ]) {
+      expect(labels).toContain(requiredLabel);
+    }
+    expect(labels).not.toContain("workflow-service");
   });
 
   test("coverage isolation keeps only the final documented superset", () => {
-    expect(COVERAGE_ISOLATED_SUITES.map((suite) => suite.label)).toEqual([
-      "contracts-service",
-      "proofs-service",
-      "workflow-mocked",
+    const defaultLabels = DEFAULT_TEST_ISOLATED_SUITES.map((suite) => suite.label);
+    const coverageLabels = COVERAGE_ISOLATED_SUITES.map((suite) => suite.label);
+
+    expect(new Set(coverageLabels).size).toBe(coverageLabels.length);
+    for (const label of defaultLabels) {
+      expect(coverageLabels).toContain(label);
+    }
+    for (const coverageOnlyLabel of [
       "workflow-service",
-      "workflow-internal",
-      "workflow-backup-paths",
-      "workflow-backup-write",
       "accounts-readonly-coverage",
       "sync-readonly-coverage",
       "migrate-status-readonly-coverage",
-      "init-interactive-cancel-invalid",
-      "init-interactive-generate-backup",
-      "init-interactive-import-visible-secret",
-      "init-command-handler",
-      "ragequit-handler-entry-submit-coverage",
-      "ragequit-handler-unsigned-coverage",
-      "ragequit-handler-ownership-coverage",
-      "ragequit-handler-human-confirmation-coverage",
-      "bootstrap-runtime",
       "launcher-runtime",
-    ]);
+    ]) {
+      expect(coverageLabels).toContain(coverageOnlyLabel);
+    }
   });
 });

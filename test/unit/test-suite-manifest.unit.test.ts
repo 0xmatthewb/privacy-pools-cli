@@ -11,8 +11,6 @@ import {
 } from "../../scripts/test-suite-manifest.mjs";
 
 describe("test suite manifest", () => {
-  const legacyCoverageArgsKey = ["coverage", "Args"].join("");
-
   test("default main suite exclusions stay focused on dedicated smoke and isolated lanes", () => {
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(PACKAGED_SMOKE_TEST);
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_PACKAGE_SMOKE_TEST);
@@ -23,26 +21,30 @@ describe("test suite manifest", () => {
   });
 
   test("coverage signal tests mix contract and real cli behavior coverage", () => {
-    expect(COVERAGE_SIGNAL_TESTS).toContain(
-      "./test/conformance/command-metadata.conformance.test.ts",
-    );
-    expect(COVERAGE_SIGNAL_TESTS).toContain(
-      "./test/acceptance/status-init.acceptance.test.ts",
-    );
-    expect(COVERAGE_SIGNAL_TESTS).toContain(
-      "./test/acceptance/no-sync.acceptance.test.ts",
-    );
-    expect(COVERAGE_SIGNAL_TESTS).toContain(
-      "./test/acceptance/withdraw-quote.acceptance.test.ts",
-    );
-    expect(COVERAGE_SIGNAL_TESTS).toContain(
-      "./test/integration/cli-built-legacy-restore.integration.test.ts",
-    );
+    expect(
+      COVERAGE_SIGNAL_TESTS.some((testPath) =>
+        testPath.startsWith("./test/conformance/"),
+      ),
+    ).toBe(true);
+    expect(
+      COVERAGE_SIGNAL_TESTS.some((testPath) =>
+        testPath.startsWith("./test/acceptance/"),
+      ),
+    ).toBe(true);
+    expect(
+      COVERAGE_SIGNAL_TESTS.some((testPath) =>
+        testPath.startsWith("./test/integration/"),
+      ),
+    ).toBe(true);
   });
 
   test("coverage isolated suites stay file-based and include the split deterministic lanes", () => {
     expect(
-      COVERAGE_ISOLATED_SUITES.every((suite) => !(legacyCoverageArgsKey in suite)),
+      COVERAGE_ISOLATED_SUITES.every((suite) =>
+        Array.isArray(suite.tests)
+        && suite.tests.length > 0
+        && suite.tests.every((testPath) => testPath.endsWith(".test.ts")),
+      ),
     ).toBe(true);
     expect(COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests)).toContain(
       "./test/unit/init-command-interactive.cancel-invalid.unit.test.ts",

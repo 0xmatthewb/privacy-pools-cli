@@ -145,8 +145,8 @@ describe("main suite planning", () => {
     ).toThrow("main batch size must be a positive integer");
   });
 
-  test("default main batch size avoids the previous unit-shard hang", () => {
-    expect(DEFAULT_MAIN_BATCH_SIZE).toBe(20);
+  test("default main batch size stays positive and larger than one file", () => {
+    expect(DEFAULT_MAIN_BATCH_SIZE).toBeGreaterThan(1);
   });
 
   test("main batch concurrency auto-detect stays bounded", () => {

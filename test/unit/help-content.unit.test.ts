@@ -43,10 +43,11 @@ describe("help content", () => {
   test("guideText teaches the pending-only approval flow after deposits", () => {
     const guide = guideText();
     expect(guide).toContain("privacy-pools accounts --chain mainnet --pending-only");
+    expect(guide).toContain("privacy-pools accounts --chain mainnet");
     expect(guide).toContain("approved");
     expect(guide).toContain("declined");
-    expect(guide).toContain("POA Needed");
-    expect(guide).toContain("wallet-dependent");
+    expect(guide).toContain("Proof of Association");
+    expect(guide).toContain("use --chain");
   });
 
   test("guideText frames bundled docs as package-relative and points users at built-in help", () => {
