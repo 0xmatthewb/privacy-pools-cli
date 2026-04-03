@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
 import { handleStatusCommand } from "../../src/commands/status.ts";
 import {
@@ -15,9 +15,17 @@ import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
 
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_ASP_HOST_SEPOLIA = process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA;
+const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
+const STATUS_MODULE_RESTORES = [
+  ["../../src/services/sdk.ts", realSdk],
+] as const;
 
 function fakeCommand(
   globalOpts: Record<string, unknown> = {},
@@ -36,6 +44,7 @@ function useIsolatedHome(): string {
 }
 
 afterEach(() => {
+  restoreModuleImplementations(STATUS_MODULE_RESTORES);
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -158,5 +167,129 @@ describe("status command handler", () => {
     expect(json.blockingIssues.map((issue: { code: string }) => issue.code)).toContain(
       "recovery_phrase_missing",
     );
+  });
+
+  test("reports rpc health and signer balance when --check-rpc succeeds", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "sepolia" });
+    saveMnemonicToFile(
+      "test test test test test test test test test test test junk",
+    );
+    saveSignerKey("0x" + "44".repeat(32));
+
+    const getBlockNumberMock = mock(async () => 123456n);
+    const getBalanceMock = mock(async () => 987654321n);
+    mock.module("../../src/services/sdk.ts", () => ({
+      ...realSdk,
+      getPublicClient: () => ({
+        getBlockNumber: getBlockNumberMock,
+        getBalance: getBalanceMock,
+      }),
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleStatusCommand(
+        { checkRpc: true },
+        fakeCommand({ json: true, chain: "sepolia" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.rpcLive).toBe(true);
+    expect(json.rpcBlockNumber).toBe("123456");
+    expect(json.signerBalance).toBe("987654321");
+    expect(json.signerBalanceDecimals).toBe(18);
+    expect(json.signerBalanceSymbol).toBe("ETH");
+    expect(getBlockNumberMock).toHaveBeenCalledTimes(1);
+    expect(getBalanceMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("keeps rpc live when signer balance lookup fails", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "sepolia" });
+    saveMnemonicToFile(
+      "test test test test test test test test test test test junk",
+    );
+    saveSignerKey("0x" + "44".repeat(32));
+
+    const getBlockNumberMock = mock(async () => 777n);
+    const getBalanceMock = mock(async () => {
+      throw new Error("balance unavailable");
+    });
+    mock.module("../../src/services/sdk.ts", () => ({
+      ...realSdk,
+      getPublicClient: () => ({
+        getBlockNumber: getBlockNumberMock,
+        getBalance: getBalanceMock,
+      }),
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleStatusCommand(
+        { checkRpc: true },
+        fakeCommand({ json: true, chain: "sepolia" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.rpcLive).toBe(true);
+    expect(json.rpcBlockNumber).toBe("777");
+    expect(json.signerBalance).toBeUndefined();
+    expect(json.signerBalanceDecimals).toBeUndefined();
+    expect(json.signerBalanceSymbol).toBeUndefined();
+  });
+
+  test("marks rpc unhealthy when the block-number probe fails", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "sepolia" });
+    saveMnemonicToFile(
+      "test test test test test test test test test test test junk",
+    );
+    saveSignerKey("0x" + "44".repeat(32));
+
+    const getBalanceMock = mock(async () => 123n);
+    mock.module("../../src/services/sdk.ts", () => ({
+      ...realSdk,
+      getPublicClient: () => ({
+        getBlockNumber: async () => {
+          throw new Error("rpc offline");
+        },
+        getBalance: getBalanceMock,
+      }),
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleStatusCommand(
+        { checkRpc: true },
+        fakeCommand({ json: true, chain: "sepolia" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.rpcLive).toBe(false);
+    expect(json.rpcBlockNumber).toBeUndefined();
+    expect(json.signerBalance).toBeUndefined();
+    expect(getBalanceMock).not.toHaveBeenCalled();
+  });
+
+  test("treats malformed saved signer keys as present but invalid", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "sepolia" });
+    saveMnemonicToFile(
+      "test test test test test test test test test test test junk",
+    );
+    saveSignerKey("not-a-valid-private-key");
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleStatusCommand(
+        { check: false },
+        fakeCommand({ json: true, chain: "sepolia" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.signerKeySet).toBe(true);
+    expect(json.signerKeyValid).toBe(false);
+    expect(json.signerAddress).toBeNull();
   });
 });
