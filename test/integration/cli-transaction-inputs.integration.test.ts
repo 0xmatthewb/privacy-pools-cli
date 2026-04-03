@@ -121,7 +121,7 @@ describe("transaction input validation", () => {
 describe("transaction argument parsing", () => {
   const assetAddress = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
-  test("deposit positional alias parses asset-first form", () => {
+  test("deposit positional alias parses asset-first form and reaches rpc pool resolution", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "mainnet");
 
@@ -139,18 +139,20 @@ describe("transaction argument parsing", () => {
       ],
       { home, timeoutMs: 60_000 },
     );
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       success: boolean;
       error: { category: string; message: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain(`No pool found for asset ${assetAddress}`);
+    expect(json.error.category).toBe("RPC");
+    expect(json.error.message).toContain(
+      `Failed to resolve pool for ${assetAddress} on mainnet due to RPC error.`,
+    );
   });
 
-  test("withdraw positional alias parses asset-first form", () => {
+  test("withdraw positional alias parses asset-first form and reaches rpc pool resolution", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "mainnet");
 
@@ -169,18 +171,20 @@ describe("transaction argument parsing", () => {
       ],
       { home, timeoutMs: 60_000 },
     );
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       success: boolean;
       error: { category: string; message: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain(`No pool found for asset ${assetAddress}`);
+    expect(json.error.category).toBe("RPC");
+    expect(json.error.message).toContain(
+      `Failed to resolve pool for ${assetAddress} on mainnet due to RPC error.`,
+    );
   });
 
-  test("ragequit positional alias parses asset-only form", () => {
+  test("ragequit positional alias parses asset-only form and reaches rpc pool resolution", () => {
     const home = createTempHome();
     mustInitSeededHome(home, "mainnet");
 
@@ -197,15 +201,17 @@ describe("transaction argument parsing", () => {
       ],
       { home, timeoutMs: 60_000 },
     );
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       success: boolean;
       error: { category: string; message: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error.category).toBe("INPUT");
-    expect(json.error.message).toContain(`No pool found for asset ${assetAddress}`);
+    expect(json.error.category).toBe("RPC");
+    expect(json.error.message).toContain(
+      `Failed to resolve pool for ${assetAddress} on mainnet due to RPC error.`,
+    );
   });
 
   test("positional + --asset together is rejected as ambiguous", () => {

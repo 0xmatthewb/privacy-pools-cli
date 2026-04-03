@@ -115,7 +115,7 @@ defineScenarioSuite("json-contract acceptance", [
         "withdraw quote",
       );
       expect(json.commandDetails["withdraw quote"]?.usage).toBe(
-        "withdraw quote <amount> [asset]",
+        "withdraw quote <amount> --asset <symbol|address>",
       );
       expect(json.protocol).toEqual(CLI_PROTOCOL_PROFILE);
       expect(json.runtime).toMatchObject(

@@ -10,8 +10,10 @@
  *
  * Note: `stats` is a public read-only command that works without `init`.
  * It only needs a valid chain config (which has built-in defaults).
- * ASP connection failures are classified as UNKNOWN (exit 1), not ASP (exit 4),
- * because the fetch error from the public endpoints doesn't carry ASP metadata.
+ * Public ASP endpoint transport failures currently surface as retryable RPC
+ * transport errors (exit 3), because fetch transport failures are classified
+ * by the shared network-error logic before any ASP-specific HTTP status is
+ * available.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -58,8 +60,8 @@ describe("stats input validation", () => {
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
     // If it required init, it would exit 2 with INPUT. Instead it tries to
-    // fetch and fails with a connection error (exit 1).
-    expect(result.status).toBe(1);
+    // fetch and fails with a retryable transport error (exit 3).
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       schemaVersion: string;
@@ -98,7 +100,7 @@ describe("stats ASP-offline error envelopes", () => {
       ["--json", "stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       schemaVersion: string;
@@ -120,7 +122,7 @@ describe("stats ASP-offline error envelopes", () => {
       ["--json", "stats", "global"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       schemaVersion: string;
@@ -170,7 +172,7 @@ describe("stats human-mode output contracts", () => {
       ["stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
     expect(result.stderr).toContain("Error");
     expect(result.stdout.trim()).toBe("");
   });
@@ -196,7 +198,7 @@ describe("stats --agent mode", () => {
       ["--agent", "stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
     expect(result.stderr.trim()).toBe("");
 
     const json = parseJsonOutput<{
@@ -232,7 +234,7 @@ describe("stats --agent mode", () => {
       ["--agent", "stats", "global"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
     expect(result.stderr.trim()).toBe("");
 
     const json = parseJsonOutput<{
@@ -254,7 +256,7 @@ describe("stats --quiet suppression", () => {
       ["--quiet", "stats"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
     expect(result.stdout.trim()).toBe("");
   });
 });
@@ -269,7 +271,7 @@ describe("stats error envelope completeness", () => {
       ["--json", "stats", "global"],
       { home: createTempHome(), timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
     );
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(3);
 
     const json = parseJsonOutput<{
       schemaVersion: string;

@@ -50,7 +50,7 @@ describe("agent-focused improvements", () => {
       preferredSafeVariant?: { command: string; reason: string };
     }>(result.stdout);
     expect(json.command).toBe("withdraw quote");
-    expect(json.usage).toBe("withdraw quote <amount> [asset]");
+    expect(json.usage).toBe("withdraw quote <amount> --asset <symbol|address>");
     expect(json.flags).toContain("--to <address>");
     expect(json.globalFlags).toContain("--agent");
     expect(json.requiresInit).toBe(true);
