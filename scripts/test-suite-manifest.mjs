@@ -110,17 +110,12 @@ export const COMMAND_SURFACE_TESTS = [
   "./test/conformance/root-help-static.conformance.test.ts",
 ];
 
-export const COVERAGE_BEHAVIOR_TESTS = [
-  "./test/acceptance/status-init.acceptance.test.ts",
-  "./test/acceptance/transaction-inputs.acceptance.test.ts",
-  "./test/acceptance/withdraw-quote.acceptance.test.ts",
-  "./test/acceptance/no-sync.acceptance.test.ts",
-  "./test/integration/cli-built-legacy-restore.integration.test.ts",
-];
-
+// Keep source coverage focused on in-process tests that actually instrument
+// src/. Subprocess-heavy acceptance and integration suites still run in
+// test:ci, but they are behavioral contracts rather than authoritative
+// line-coverage signal.
 export const COVERAGE_SIGNAL_TESTS = [
   ...COMMAND_SURFACE_TESTS,
-  ...COVERAGE_BEHAVIOR_TESTS,
 ];
 
 export const ANVIL_E2E_TESTS = [

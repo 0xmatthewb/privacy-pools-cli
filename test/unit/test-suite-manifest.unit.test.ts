@@ -20,20 +20,11 @@ describe("test suite manifest", () => {
     );
   });
 
-  test("coverage signal tests mix contract and real cli behavior coverage", () => {
+  test("coverage signal tests stay focused on in-process contract coverage", () => {
+    expect(COVERAGE_SIGNAL_TESTS.length).toBeGreaterThan(0);
     expect(
-      COVERAGE_SIGNAL_TESTS.some((testPath) =>
+      COVERAGE_SIGNAL_TESTS.every((testPath) =>
         testPath.startsWith("./test/conformance/"),
-      ),
-    ).toBe(true);
-    expect(
-      COVERAGE_SIGNAL_TESTS.some((testPath) =>
-        testPath.startsWith("./test/acceptance/"),
-      ),
-    ).toBe(true);
-    expect(
-      COVERAGE_SIGNAL_TESTS.some((testPath) =>
-        testPath.startsWith("./test/integration/"),
       ),
     ).toBe(true);
   });

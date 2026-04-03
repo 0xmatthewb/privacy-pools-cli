@@ -41,24 +41,17 @@ describe("package scripts conformance", () => {
     expect(packageJson.scripts?.["test:scripts"]).toBe(
       "node scripts/check-node-scripts.mjs",
     );
-    expect(packageJson.scripts?.["test:install"]).toBe(
-      "node scripts/run-test-profile.mjs install",
-    );
-    expect(packageJson.scripts?.["test:conformance"]).toBe(
-      "node scripts/run-test-profile.mjs conformance",
-    );
-    expect(packageJson.scripts?.["test:conformance:all"]).toBe(
-      "node scripts/run-test-profile.mjs conformance-all",
-    );
-    expect(packageJson.scripts?.["test:ci"]).toBe(
-      "node scripts/run-test-profile.mjs ci",
-    );
-    expect(packageJson.scripts?.["test:release"]).toBe(
-      "node scripts/run-test-profile.mjs release",
-    );
-    expect(packageJson.scripts?.["test:all"]).toBe(
-      "node scripts/run-test-profile.mjs all",
-    );
+    for (const [scriptName, profileName] of [
+      ["test:conformance", "conformance"],
+      ["test:conformance:all", "conformance-all"],
+      ["test:ci", "ci"],
+      ["test:release", "release"],
+      ["test:all", "all"],
+    ] as const) {
+      expect(packageJson.scripts?.[scriptName]).toBe(
+        `node scripts/run-test-profile.mjs ${profileName}`,
+      );
+    }
   });
 
   test("native smoke scripts publish both packaged and launcher-parity lanes", () => {

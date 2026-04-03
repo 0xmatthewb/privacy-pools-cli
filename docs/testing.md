@@ -94,6 +94,7 @@ The authoritative coverage gate is [`scripts/check-coverage.mjs`](../scripts/che
 Why:
 
 - Bun coverage only measures files that are actually loaded.
+- Child-process CLI acceptance/integration suites are behavioral contracts, not authoritative source line coverage.
 - This repo also counts uninstrumented executable `src/**` files against the gate.
 
 Current policy:
@@ -117,7 +118,7 @@ package, and behavior-signal subprocess lanes. Treat these as order-of-magnitude
 budgets rather than strict SLAs:
 
 - `npm test`: low minutes and bounded, with no hangs
-- `npm run test:coverage`: a few minutes, dominated by behavior-signal acceptance/integration suites plus isolated coverage lanes
+- `npm run test:coverage`: a few minutes, dominated by in-process unit/service/conformance batches plus isolated coverage lanes
 - `npm run test:e2e:anvil:smoke`: about a minute or better
 - `npm run test:e2e:anvil`: a few minutes or better
 
