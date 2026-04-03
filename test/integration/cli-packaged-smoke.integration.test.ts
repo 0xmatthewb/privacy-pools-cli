@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -11,8 +11,11 @@ import {
 import { assertUnknownCommandAgentContract } from "../helpers/agent-contract.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { npmBin } from "../helpers/npm-bin.ts";
-import { createTrackedTempDir } from "../helpers/temp.ts";
-import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+import { cleanupTrackedTempDir, createTrackedTempDir } from "../helpers/temp.ts";
+import {
+  cleanupWorkspaceSnapshot,
+  createBuiltWorkspaceSnapshot,
+} from "../helpers/workspace-snapshot.ts";
 import {
   JSON_SCHEMA_VERSION,
   jsonContractDocRelativePath,
@@ -44,6 +47,7 @@ function sourceBaseNames(dir: string): string[] {
 }
 
 interface PackedArtifact {
+  extractRoot: string;
   packageRoot: string;
   binPath: string;
   filePaths: Set<string>;
@@ -63,29 +67,33 @@ function sourcePackageJson(): {
 
 function installPackagedProdDependencies(packageRoot: string): void {
   const npmCacheDir = createTrackedTempDir("pp-smoke-npm-cache-");
-  const install = spawnSync(
-    npmBin(),
-    [
-      "install",
-      "--ignore-scripts",
-      "--omit=dev",
-      "--omit=optional",
-      "--no-audit",
-      "--no-fund",
-      "--package-lock=false",
-      "--prefer-offline",
-    ],
-    {
-      cwd: packageRoot,
-      encoding: "utf8",
-      timeout: 240_000,
-      maxBuffer: 10 * 1024 * 1024,
-      env: buildChildProcessEnv({
-        npm_config_cache: npmCacheDir,
-      }),
-    },
-  );
-  expect(install.status).toBe(0);
+  try {
+    const install = spawnSync(
+      npmBin(),
+      [
+        "install",
+        "--ignore-scripts",
+        "--omit=dev",
+        "--omit=optional",
+        "--no-audit",
+        "--no-fund",
+        "--package-lock=false",
+        "--prefer-offline",
+      ],
+      {
+        cwd: packageRoot,
+        encoding: "utf8",
+        timeout: 240_000,
+        maxBuffer: 10 * 1024 * 1024,
+        env: buildChildProcessEnv({
+          npm_config_cache: npmCacheDir,
+        }),
+      },
+    );
+    expect(install.status).toBe(0);
+  } finally {
+    cleanupTrackedTempDir(npmCacheDir);
+  }
 }
 
 function packAndExtractCli(
@@ -95,14 +103,15 @@ function packAndExtractCli(
   const extractDir = createTrackedTempDir("pp-smoke-extract-");
   const preparedTarballPath = options.tarballPath?.trim();
   let tarballPath = preparedTarballPath ?? "";
+  let localPackRoot: string | null = null;
 
   if (!tarballPath) {
-    expect(packRoot).toBeTruthy();
+    localPackRoot = packRoot ?? createBuiltWorkspaceSnapshot();
     const pack = spawnSync(
       npmBin(),
       ["pack", "--ignore-scripts", "--silent"],
       {
-        cwd: packRoot!,
+        cwd: localPackRoot,
         encoding: "utf8",
         timeout: 120_000,
         maxBuffer: 10 * 1024 * 1024,
@@ -113,49 +122,56 @@ function packAndExtractCli(
 
     const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
     expect(tarballName).toBeTruthy();
-    tarballPath = join(packRoot!, tarballName!);
+    tarballPath = join(localPackRoot, tarballName!);
   }
 
-  const extract = spawnSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
-    encoding: "utf8",
-    timeout: 120_000,
-    maxBuffer: 10 * 1024 * 1024,
-    env: buildChildProcessEnv(),
-  });
-  expect(extract.status).toBe(0);
+  try {
+    const extract = spawnSync("tar", ["-xzf", tarballPath, "-C", extractDir], {
+      encoding: "utf8",
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: buildChildProcessEnv(),
+    });
+    expect(extract.status).toBe(0);
 
-  const packageRoot = join(extractDir, "package");
-  installPackagedProdDependencies(packageRoot);
+    const packageRoot = join(extractDir, "package");
+    installPackagedProdDependencies(packageRoot);
 
-  const listedFiles = spawnSync("tar", ["-tzf", tarballPath], {
-    encoding: "utf8",
-    timeout: 120_000,
-    maxBuffer: 10 * 1024 * 1024,
-    env: buildChildProcessEnv(),
-  });
-  expect(listedFiles.status).toBe(0);
+    const listedFiles = spawnSync("tar", ["-tzf", tarballPath], {
+      encoding: "utf8",
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: buildChildProcessEnv(),
+    });
+    expect(listedFiles.status).toBe(0);
 
-  const filePaths = new Set(
-    listedFiles.stdout
-      .trim()
-      .split(/\r?\n/g)
-      .filter((entry) => entry.length > 0)
-      .map((entry) => entry.replace(/^package\//, "")),
-  );
+    const filePaths = new Set(
+      listedFiles.stdout
+        .trim()
+        .split(/\r?\n/g)
+        .filter((entry) => entry.length > 0)
+        .map((entry) => entry.replace(/^package\//, "")),
+    );
 
-  const pkg = JSON.parse(
-    readFileSync(join(packageRoot, "package.json"), "utf8"),
-  ) as { bin?: string | Record<string, string> };
-  const binEntry =
-    typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.["privacy-pools"];
+    const pkg = JSON.parse(
+      readFileSync(join(packageRoot, "package.json"), "utf8"),
+    ) as { bin?: string | Record<string, string> };
+    const binEntry =
+      typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.["privacy-pools"];
 
-  expect(typeof binEntry).toBe("string");
+    expect(typeof binEntry).toBe("string");
 
-  return {
-    packageRoot,
-    binPath: join(packageRoot, binEntry!),
-    filePaths,
-  };
+    return {
+      extractRoot: extractDir,
+      packageRoot,
+      binPath: join(packageRoot, binEntry!),
+      filePaths,
+    };
+  } finally {
+    if (localPackRoot) {
+      cleanupWorkspaceSnapshot(localPackRoot);
+    }
+  }
 }
 
 function runPackagedCli(
@@ -206,9 +222,13 @@ describe("packaged CLI smoke", () => {
       ? packAndExtractCli(null, {
           tarballPath: resolve(PREPARED_CLI_TARBALL),
         })
-      : packAndExtractCli(createBuiltWorkspaceSnapshot());
+      : packAndExtractCli(null);
     home = createTempHome("pp-smoke-dist-");
   }, 240_000);
+
+  afterAll(() => {
+    cleanupTrackedTempDir(packed.extractRoot);
+  });
 
   const runSmokeCli = (args: string[], options: CliRunOptions = {}) =>
     runPackagedCli(packed, args, options);

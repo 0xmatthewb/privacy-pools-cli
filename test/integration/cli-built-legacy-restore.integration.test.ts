@@ -20,7 +20,10 @@ import {
   launchSyncGateRpcServer,
   type SyncGateRpcServer,
 } from "../helpers/sync-gate-rpc-server.ts";
-import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+import {
+  cleanupWorkspaceSnapshot,
+  createBuiltWorkspaceSnapshot,
+} from "../helpers/workspace-snapshot.ts";
 
 const sepoliaChainConfig = CHAINS.sepolia;
 const mockPoolAddress = "0x1234567890abcdef1234567890abcdef12345678" as const;
@@ -93,6 +96,7 @@ afterAll(async () => {
   if (fixture) {
     await killFixtureServer(fixture);
   }
+  cleanupWorkspaceSnapshot(builtWorkspaceRoot);
 });
 
 describe("built CLI legacy restore safety", () => {

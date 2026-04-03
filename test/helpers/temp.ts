@@ -25,6 +25,20 @@ export function cleanupTrackedTempDirs(): void {
 process.once("beforeExit", cleanupTrackedTempDirs);
 process.once("exit", cleanupTrackedTempDirs);
 
+export function cleanupTrackedTempDir(dir: string): void {
+  trackedTempDirs.delete(dir);
+  try {
+    rmSync(dir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 50,
+    });
+  } catch {
+    // Best effort cleanup.
+  }
+}
+
 export function createTrackedTempDir(prefix: string = "pp-test-"): string {
   const effectivePrefix = TEST_RUN_ID ? `${prefix}${TEST_RUN_ID}-` : prefix;
   const dir = mkdtempSync(join(tmpdir(), effectivePrefix));

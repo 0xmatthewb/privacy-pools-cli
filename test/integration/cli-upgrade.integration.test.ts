@@ -15,12 +15,16 @@ import {
 } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import { terminateChildProcess } from "../helpers/process.ts";
-import { createTrackedTempDir } from "../helpers/temp.ts";
-import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+import { cleanupTrackedTempDir, createTrackedTempDir } from "../helpers/temp.ts";
+import {
+  cleanupWorkspaceSnapshot,
+  createBuiltWorkspaceSnapshot,
+} from "../helpers/workspace-snapshot.ts";
 
 let builtSnapshotRoot: string;
 let registryUrl: string;
 let registryProcess: ChildProcessWithoutNullStreams;
+const trackedUpgradeTempRoots = new Set<string>();
 
 function nodeBin(): string {
   return process.platform === "win32" ? "node.exe" : "node";
@@ -31,6 +35,7 @@ function createFakeGlobalInstallRoot(): {
   globalRoot: string;
 } {
   const tempRoot = createTrackedTempDir("pp-upgrade-install-");
+  trackedUpgradeTempRoots.add(tempRoot);
   const globalRoot = join(tempRoot, "global", "node_modules");
   const installRoot = join(globalRoot, "privacy-pools-cli");
   mkdirSync(globalRoot, { recursive: true });
@@ -43,6 +48,7 @@ function createFakeBunGlobalInstallRoot(): {
   globalRoot: string;
 } {
   const tempRoot = createTrackedTempDir("pp-upgrade-bun-global-install-");
+  trackedUpgradeTempRoots.add(tempRoot);
   const globalRoot = join(tempRoot, "global", "node_modules");
   const installRoot = join(
     tempRoot,
@@ -69,6 +75,7 @@ function createFakeNpmShim(
   logPath: string;
 } {
   const shimDir = createTrackedTempDir("pp-fake-npm-");
+  trackedUpgradeTempRoots.add(shimDir);
   const logPath = join(shimDir, "npm-log.jsonl");
   const shimModulePath = join(shimDir, "npm-shim.mjs");
   const shimPath = join(shimDir, process.platform === "win32" ? "npm.cmd" : "npm");
@@ -198,6 +205,11 @@ afterAll(async () => {
   if (registryProcess.exitCode === null && registryProcess.signalCode === null) {
     await terminateChildProcess(registryProcess);
   }
+  cleanupWorkspaceSnapshot(builtSnapshotRoot);
+  for (const dir of trackedUpgradeTempRoots) {
+    cleanupTrackedTempDir(dir);
+  }
+  trackedUpgradeTempRoots.clear();
 });
 
 describe("cli upgrade", () => {

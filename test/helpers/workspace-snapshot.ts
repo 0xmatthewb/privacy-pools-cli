@@ -3,7 +3,7 @@ import { cpSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { buildChildProcessEnv } from "./child-env.ts";
 import { CLI_ROOT } from "./paths.ts";
-import { createTrackedTempDir } from "./temp.ts";
+import { cleanupTrackedTempDir, createTrackedTempDir } from "./temp.ts";
 import { npmBin } from "./npm-bin.ts";
 
 interface WorkspaceSnapshotOptions {
@@ -79,4 +79,11 @@ export function createBuiltWorkspaceSnapshot(
   options: Omit<WorkspaceSnapshotOptions, "build"> = {},
 ): string {
   return createWorkspaceSnapshot({ ...options, build: true });
+}
+
+export function cleanupWorkspaceSnapshot(
+  snapshotRoot: string | null | undefined,
+): void {
+  if (!snapshotRoot) return;
+  cleanupTrackedTempDir(snapshotRoot);
 }

@@ -1,16 +1,23 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   createTempHome,
   parseJsonOutput,
   runBuiltCli,
 } from "../helpers/cli.ts";
-import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+import {
+  cleanupWorkspaceSnapshot,
+  createBuiltWorkspaceSnapshot,
+} from "../helpers/workspace-snapshot.ts";
 
 let builtWorkspaceRoot: string;
 
 beforeAll(() => {
   builtWorkspaceRoot = createBuiltWorkspaceSnapshot();
 }, 240_000);
+
+afterAll(() => {
+  cleanupWorkspaceSnapshot(builtWorkspaceRoot);
+});
 
 describe("built CLI entrypoint", () => {
   const runBuiltSnapshotCli = (args: string[]) =>

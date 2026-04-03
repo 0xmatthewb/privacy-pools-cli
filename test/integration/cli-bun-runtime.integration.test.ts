@@ -1,9 +1,12 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { basename, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { CLI_CWD, createTempHome, parseJsonOutput } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
-import { createBuiltWorkspaceSnapshot } from "../helpers/workspace-snapshot.ts";
+import {
+  cleanupWorkspaceSnapshot,
+  createBuiltWorkspaceSnapshot,
+} from "../helpers/workspace-snapshot.ts";
 
 function runBunCli(args: string[]) {
   return spawnSync("bun", ["src/index.ts", ...args], {
@@ -22,6 +25,10 @@ let builtWorkspaceRoot: string;
 beforeAll(() => {
   builtWorkspaceRoot = createBuiltWorkspaceSnapshot();
 }, 240_000);
+
+afterAll(() => {
+  cleanupWorkspaceSnapshot(builtWorkspaceRoot);
+});
 
 function runBuiltBunCli(args: string[]) {
   return spawnSync("bun", ["dist/index.js", ...args], {
