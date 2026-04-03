@@ -112,12 +112,14 @@ Current policy:
 
 ## Performance Targets
 
-Local targets on the current machine:
+Local targets vary by hardware and by whether the run includes built-workspace,
+package, and behavior-signal subprocess lanes. Treat these as order-of-magnitude
+budgets rather than strict SLAs:
 
-- `npm test`: about 95 seconds or better
-- `npm run test:coverage`: about 20 seconds or better
-- `npm run test:e2e:anvil:smoke`: about 30 seconds or better
-- `npm run test:e2e:anvil`: about 150 seconds or better
+- `npm test`: low minutes and bounded, with no hangs
+- `npm run test:coverage`: a few minutes, dominated by behavior-signal acceptance/integration suites plus isolated coverage lanes
+- `npm run test:e2e:anvil:smoke`: about a minute or better
+- `npm run test:e2e:anvil`: a few minutes or better
 
 If a target is missed:
 
