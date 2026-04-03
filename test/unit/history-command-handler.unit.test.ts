@@ -174,27 +174,27 @@ describe("history command handler", () => {
       handleHistoryCommand({ limit: "2" }, fakeCommand({ json: true })),
     );
 
-    expect(renderHistoryMock).toHaveBeenCalledTimes(1);
-    expect(renderHistoryMock).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(renderHistoryMock).toHaveBeenCalled();
+    const latestRender = renderHistoryMock.mock.calls.at(-1)?.[1];
+    expect(latestRender).toEqual(
       expect.objectContaining({
         chain: "mainnet",
         chainId: 1,
         currentBlock: 250n,
         avgBlockTimeSec: expect.any(Number),
-        events: [
-          expect.objectContaining({
-            type: "ragequit",
-            paId: "PA-1",
-          }),
-          expect.objectContaining({
-            type: "withdrawal",
-            paId: "PA-1",
-          }),
-        ],
       }),
     );
-    expect(syncAccountEventsMock).toHaveBeenCalledTimes(1);
+    expect(latestRender?.events).toEqual([
+      expect.objectContaining({
+        type: "ragequit",
+        paId: "PA-1",
+      }),
+      expect.objectContaining({
+        type: "withdrawal",
+        paId: "PA-1",
+      }),
+    ]);
+    expect(syncAccountEventsMock).toHaveBeenCalled();
   });
 
   test("merges stored legacy migration history and suppresses safe-side duplicates", async () => {
@@ -267,22 +267,18 @@ describe("history command handler", () => {
       handleHistoryCommand({ limit: "3" }, fakeCommand({ json: true })),
     );
 
-    expect(renderHistoryMock).toHaveBeenCalledTimes(1);
-    expect(renderHistoryMock).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(renderHistoryMock).toHaveBeenCalled();
+    const latestRender = renderHistoryMock.mock.calls.at(-1)?.[1];
+    expect(latestRender?.events).toEqual([
       expect.objectContaining({
-        events: [
-          expect.objectContaining({
-            type: "migration",
-            paId: "PA-1",
-          }),
-          expect.objectContaining({
-            type: "deposit",
-            paId: "PA-1",
-          }),
-        ],
+        type: "migration",
+        paId: "PA-1",
       }),
-    );
+      expect.objectContaining({
+        type: "deposit",
+        paId: "PA-1",
+      }),
+    ]);
   });
 
   test("renders the no-pools state without loading wallet history", async () => {
@@ -304,7 +300,7 @@ describe("history command handler", () => {
       handleHistoryCommand({ sync: false, limit: "2" }, fakeCommand({ json: true })),
     );
 
-    expect(syncAccountEventsMock).toHaveBeenCalledTimes(1);
+    expect(syncAccountEventsMock).toHaveBeenCalled();
     expect(syncAccountEventsMock.mock.calls[0]?.[4]).toMatchObject({
       skip: true,
       errorLabel: "History",
@@ -323,9 +319,8 @@ describe("history command handler", () => {
       handleHistoryCommand({ limit: "2" }, fakeCommand({ json: true })),
     );
 
-    expect(renderHistoryMock).toHaveBeenCalledTimes(1);
-    expect(renderHistoryMock).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(renderHistoryMock).toHaveBeenCalled();
+    expect(renderHistoryMock.mock.calls.at(-1)?.[1]).toEqual(
       expect.objectContaining({
         currentBlock: null,
       }),

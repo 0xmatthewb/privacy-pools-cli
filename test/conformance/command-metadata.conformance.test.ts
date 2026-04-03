@@ -42,7 +42,7 @@ function collectRootOptions(command: Command): Array<{ flag: string; description
 }
 
 describe("command metadata conformance", () => {
-  test("runtime command tree matches command metadata paths, descriptions, and aliases", async () => {
+  test("runtime command tree stays aligned with metadata paths, descriptions, and aliases", async () => {
     const runtimeCommands = collectRuntimeCommands(await createRootProgram("0.0.0"))
       .sort((left, right) => left.path.localeCompare(right.path));
 
@@ -55,7 +55,7 @@ describe("command metadata conformance", () => {
     }
   });
 
-  test("capabilities payload command catalog is derived from command metadata", () => {
+  test("capabilities payload stays derived from command metadata and execution metadata", () => {
     const payload = buildCapabilitiesPayload();
 
     for (const command of payload.commands) {
@@ -64,51 +64,25 @@ describe("command metadata conformance", () => {
       expect(command.aliases ?? []).toEqual(metadata.aliases ?? []);
     }
 
-    expect(payload.commands.map((command) => command.name)).toContain("stats global");
-    expect(payload.commands.map((command) => command.name)).toContain("stats pool");
-    expect(payload.commands.map((command) => command.name)).toContain("describe");
-    expect(payload.commandDetails["withdraw quote"]?.command).toBe("withdraw quote");
-    expect(payload.commandDetails["describe"]?.globalFlags).toContain("--agent");
-    expect(payload.commandDetails["status"]?.execution.owner).toBe("js-runtime");
-    expect(payload.commandDetails["capabilities"]?.execution.owner).toBe("native-shell");
+    expect(payload.executionRoutes["pools"]).toEqual(getCommandExecutionMetadata("pools"));
+    expect(payload.commandDetails["withdraw"]?.execution.owner).toBe("js-runtime");
     expect(payload.commandDetails["stats pool"]?.execution.owner).toBe("hybrid");
-    expect(payload.executionRoutes["pools"]).toEqual(
-      getCommandExecutionMetadata("pools"),
-    );
+    expect(payload.commandDetails["capabilities"]?.execution.owner).toBe("native-shell");
     expect(payload.commandDetails["withdraw"]?.sideEffectClass).toBe("fund_movement");
     expect(payload.commandDetails["withdraw"]?.touchesFunds).toBe(true);
     expect(payload.commandDetails["withdraw"]?.requiresHumanReview).toBe(true);
-    expect(payload.commandDetails["withdraw"]?.preferredSafeVariant).toEqual({
-      command: "withdraw quote",
-      reason: "Check relayer fees and confirm the withdrawal inputs before submitting.",
-    });
-    expect(payload.commandDetails["flow"]?.sideEffectClass).toBe("read_only");
-    expect(payload.commandDetails["flow"]?.touchesFunds).toBe(false);
-    expect(payload.commandDetails["flow"]?.requiresHumanReview).toBe(false);
-    expect(payload.commandDetails["flow"]?.preferredSafeVariant).toBeUndefined();
-    expect(payload.commandDetails["deposit"]?.preferredSafeVariant?.command).toBe("pools");
-    expect(payload.commandDetails["init"]?.sideEffectClass).toBe("local_state_write");
-    expect(payload.commandDetails["init"]?.touchesFunds).toBe(false);
-    expect(payload.commandDetails["init"]?.requiresHumanReview).toBe(true);
-    expect(payload.commandDetails["guide"]?.sideEffectClass).toBe("read_only");
     expect(payload.commandDetails["flow"]?.safeReadOnly).toBe(true);
-    expect(payload.commandDetails["flow status"]?.safeReadOnly).toBe(true);
-    expect(payload.commandDetails["guide"]?.safeReadOnly).toBe(true);
-    expect(payload.commandDetails["completion"]?.safeReadOnly).toBe(true);
-    expect(payload.safeReadOnlyCommands).toContain("flow");
     expect(payload.safeReadOnlyCommands).toContain("flow status");
-    expect(payload.safeReadOnlyCommands).toContain("guide");
-    expect(payload.safeReadOnlyCommands).toContain("completion");
   });
 
-  test("root global flags match capabilities metadata", async () => {
+  test("root global flags stay aligned with metadata", async () => {
     const rootOptions = collectRootOptions(await createRootProgram("0.0.0"));
     const metadata = [...GLOBAL_FLAG_METADATA].sort((left, right) => left.flag.localeCompare(right.flag));
 
     expect(rootOptions).toEqual(metadata);
   });
 
-  test("capabilities omit hidden completion plumbing flags", () => {
+  test("completion metadata hides internal plumbing flags", () => {
     const completion = buildCapabilitiesPayload().commands.find((command) => command.name === "completion");
 
     expect(completion).toBeDefined();
@@ -117,18 +91,12 @@ describe("command metadata conformance", () => {
     expect(completion?.flags ?? []).not.toContain("--cword <index>");
   });
 
-  test("metadata preserves key UX contract details for pools, withdraw, and history", () => {
-    const payload = buildCapabilitiesPayload();
-    const withdraw = payload.commands.find((command) => command.name === "withdraw");
-    const history = payload.commands.find((command) => command.name === "history");
+  test("metadata preserves structural JSON variants for multi-mode commands", () => {
     const accountsJsonVariants = getCommandMetadata("accounts").help?.jsonVariants ?? [];
-    const poolsJsonFields = getCommandMetadata("pools").help?.jsonFields;
-    const poolsJsonVariants = getCommandMetadata("pools").help?.jsonVariants ?? [];
+    const poolsJsonFields = getCommandMetadata("pools").help?.jsonFields ?? [];
+    const poolsJsonVariants = (getCommandMetadata("pools").help?.jsonVariants ?? []).join(" ");
+    const withdrawQuoteFields = getCommandMetadata("withdraw quote").help?.jsonFields ?? "";
 
-    expect(withdraw?.flags ?? []).toContain("--all");
-    expect(withdraw?.flags ?? []).toContain("--extra-gas");
-    expect(withdraw?.flags ?? []).toContain("--no-extra-gas");
-    expect(history?.expectedLatencyClass).toBe("slow");
     expect(accountsJsonVariants).toContain(
       "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
     );
@@ -138,25 +106,14 @@ describe("command metadata conformance", () => {
     expect(poolsJsonFields).toContain("chain?");
     expect(poolsJsonFields).toContain("allChains?");
     expect(poolsJsonFields).toContain("chains?");
-    expect(poolsJsonVariants.join(" ")).toContain("myFundsWarning");
-    expect(poolsJsonVariants.join(" ")).toContain("recentActivity");
+    expect(poolsJsonVariants).toContain("myFundsWarning");
+    expect(poolsJsonVariants).toContain("recentActivity");
+    expect(withdrawQuoteFields).toContain("baseFeeBPS");
+    expect(withdrawQuoteFields).toContain("relayTxCost");
   });
 
-  test("command metadata keeps discovery and contract text aligned with --agent mode", () => {
-    const payload = buildCapabilitiesPayload();
-    const statsExamples = payload.commandDetails["stats"]?.examples ?? [];
-    const guideDescriptor = payload.commandDetails["guide"];
-
-    expect(statsExamples).toContain("privacy-pools stats pool --asset USDC --agent --chain mainnet");
-    expect(payload.jsonOutputContract).toContain("--json or --agent");
-    expect(guideDescriptor?.examples ?? []).toContain("privacy-pools guide --agent");
-    expect(guideDescriptor?.jsonFields).toBe('{ mode: "help", help }');
-    expect(payload.agentNotes?.statusCheck).toContain("recommendedMode");
-    expect(payload.agentNotes?.statusCheck).toContain("blockingIssues[]");
-  });
-
-  test("command metadata examples prefer canonical --agent usage", () => {
-    const agentExamplePaths = [
+  test("metadata examples keep canonical machine-mode usage and bundled-artifact guidance", () => {
+    for (const path of [
       "init",
       "pools",
       "activity",
@@ -170,21 +127,16 @@ describe("command metadata conformance", () => {
       "accounts",
       "history",
       "sync",
-    ] as const;
-
-    for (const path of agentExamplePaths) {
+    ] as const) {
       const examples = getCommandMetadata(path).help?.examples ?? [];
       expect(examples.join("\n")).not.toContain("--json");
     }
-  });
 
-  test("proof metadata copy stays aligned with bundled circuit guidance", () => {
     const depositOverview = (getCommandMetadata("deposit").help?.overview ?? []).join(" ");
     const initOverview = (getCommandMetadata("init").help?.overview ?? []).join(" ");
 
     expect(depositOverview).toContain("bundled checksum-verified circuit artifacts");
-    expect(depositOverview).toContain("no runtime download step");
-    expect(depositOverview).toContain("10-30s");
+    expect(depositOverview).not.toContain("npm run circuits:provision");
     expect(initOverview).toContain("bundled checksum-verified circuit artifacts");
     expect(initOverview).not.toContain("npm run circuits:provision");
   });

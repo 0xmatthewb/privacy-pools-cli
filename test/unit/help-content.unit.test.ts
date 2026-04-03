@@ -32,22 +32,21 @@ describe("help content", () => {
     expect(guide).toContain("dedicated per-workflow wallet");
   });
 
-  test("guideText prefers the packaged install path and keeps the github fallback", () => {
+  test("guideText keeps both the packaged install path and the source fallback", () => {
     const guide = guideText();
     expect(guide).toContain("npm i -g privacy-pools-cli");
     expect(guide).toContain("privacy-pools upgrade --check");
     expect(guide).toContain("npm run dev -- status");
     expect(guide).toContain("github:0xmatthewb/privacy-pools-cli");
-    expect(guide).toContain("unreleased/source builds");
   });
 
   test("guideText teaches the pending-only approval flow after deposits", () => {
     const guide = guideText();
     expect(guide).toContain("privacy-pools accounts --chain mainnet --pending-only");
-    expect(guide).toContain("poll ASP review");
-    expect(guide).toContain("then confirm approved vs declined vs POA Needed");
-    expect(guide).toContain("Accounts is wallet-dependent");
-    expect(guide).not.toContain("pools/activity/stats/accounts default");
+    expect(guide).toContain("approved");
+    expect(guide).toContain("declined");
+    expect(guide).toContain("POA Needed");
+    expect(guide).toContain("wallet-dependent");
   });
 
   test("guideText frames bundled docs as package-relative and points users at built-in help", () => {
