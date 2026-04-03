@@ -1,0 +1,584 @@
+import { expect, test } from "bun:test";
+import {
+  APPROVED_POOL_ACCOUNT,
+  DEFAULT_RELAYER_FEE_RECEIVER,
+  PENDING_POOL_ACCOUNT,
+  buildAllPoolAccountRefsMock,
+  buildLoadedAspDepositReviewStateMock,
+  buildPoolAccountRefsMock,
+  captureAsyncJsonOutput,
+  captureAsyncJsonOutputAllowExit,
+  captureAsyncOutputAllowExit,
+  describeUnavailablePoolAccountMock,
+  fakeCommand,
+  fetchMerkleLeavesMock,
+  fetchMerkleRootsMock,
+  getPublicClientMock,
+  getRelayerDetailsMock,
+  getUnknownPoolAccountErrorMock,
+  handleWithdrawCommand,
+  initializeAccountServiceMock,
+  listPoolsMock,
+  resolvePoolMock,
+  useIsolatedHome,
+} from "./withdraw-command-handler.shared.ts";
+
+export function registerWithdrawValidationPreludeTests(): void {
+  test("rejects malformed --from-pa selectors before touching account state", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          fromPa: "banana",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("Invalid --from-pa");
+    expect(exitCode).toBe(2);
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
+  test("fails closed in machine mode when no withdrawal amount is supplied", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        undefined,
+        undefined,
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("Missing amount");
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails cleanly for humans when no pools are available to choose from", async () => {
+    useIsolatedHome({ withSigner: true });
+    listPoolsMock.mockImplementationOnce(async () => []);
+
+    const { stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        undefined,
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("No pools found on mainnet");
+  });
+
+}
+export function registerWithdrawValidationAccountSelectionTests(): void {
+  test("resolves --all withdrawals to the full selected Pool Account balance", async () => {
+    useIsolatedHome();
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleWithdrawCommand(
+        "ETH",
+        undefined,
+        {
+          all: true,
+          dryRun: true,
+          fromPa: "PA-1",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.amount).toBe("1000000000000000000");
+    expect(json.poolAccountId).toBe("PA-1");
+  });
+
+  test("resolves percentage withdrawals against the selected Pool Account balance", async () => {
+    useIsolatedHome();
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleWithdrawCommand(
+        "50%",
+        "ETH",
+        {
+          dryRun: true,
+          fromPa: "PA-1",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.amount).toBe("500000000000000000");
+    expect(json.poolAccountId).toBe("PA-1");
+  });
+
+  test("fails closed when --all is combined with a positional amount", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "ETH",
+        "0.1",
+        {
+          all: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("Cannot specify an amount with --all");
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails closed in machine mode when no asset is supplied", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        undefined,
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "No asset specified",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("requires an explicit recipient for direct unsigned withdrawals", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("Direct withdrawal requires --to");
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects direct withdrawals whose recipient does not match the signer", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          to: "0x9999999999999999999999999999999999999999",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("must match your signer address");
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects Pool Accounts that cannot cover the requested amount", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "2",
+        "ETH",
+        {
+          fromPa: "PA-1",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "No Pool Account has enough balance",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("surfaces ACCOUNT_NOT_APPROVED when the selected Pool Account is still pending", async () => {
+    useIsolatedHome({ withSigner: true });
+    buildPoolAccountRefsMock.mockImplementationOnce(() => [PENDING_POOL_ACCOUNT]);
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => [PENDING_POOL_ACCOUNT]);
+    fetchMerkleLeavesMock.mockImplementationOnce(async () => ({
+      aspLeaves: [],
+      stateTreeLeaves: ["502"],
+    }));
+    buildLoadedAspDepositReviewStateMock.mockImplementationOnce(() => ({
+      approvedLabels: new Set<string>(),
+      reviewStatuses: new Map<string, string>([["602", "pending"]]),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          fromPa: "PA-2",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("ACCOUNT_NOT_APPROVED");
+    expect(json.error.hint).toContain("accounts --chain mainnet");
+    expect(exitCode).toBe(4);
+  });
+
+  test("surfaces unavailable historical Pool Accounts through --from-pa", async () => {
+    useIsolatedHome({ withSigner: true });
+    const spentPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 3,
+      paId: "PA-3",
+      status: "spent",
+      aspStatus: "approved",
+      value: 0n,
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 503n,
+        label: 603n,
+        value: 0n,
+      },
+      label: 603n,
+    };
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => [
+      APPROVED_POOL_ACCOUNT,
+      spentPoolAccount,
+    ]);
+    describeUnavailablePoolAccountMock.mockImplementationOnce(
+      () => "PA-3 has already been spent and has no remaining balance.",
+    );
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          fromPa: "PA-3",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("already been spent");
+    expect(json.error.hint).toContain("inspect PA-3");
+    expect(exitCode).toBe(2);
+  });
+
+  test("surfaces unknown Pool Accounts through --from-pa", async () => {
+    useIsolatedHome({ withSigner: true });
+    getUnknownPoolAccountErrorMock.mockImplementationOnce(() => ({
+      message: "PA-99 is not part of this pool.",
+      hint: "Choose an existing Pool Account from privacy-pools accounts.",
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          fromPa: "PA-99",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("PA-99 is not part of this pool");
+    expect(json.error.hint).toContain("privacy-pools accounts");
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects explicitly selected Pool Accounts that cannot cover the requested amount", async () => {
+    useIsolatedHome({ withSigner: true });
+    const largerApprovedPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 4,
+      paId: "PA-4",
+      value: 3000000000000000000n,
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 504n,
+        label: 604n,
+        value: 3000000000000000000n,
+      },
+      label: 604n,
+      txHash: "0x" + "cc".repeat(32),
+    };
+    buildPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      largerApprovedPoolAccount,
+    ]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      largerApprovedPoolAccount,
+    ]);
+    fetchMerkleLeavesMock.mockImplementationOnce(async () => ({
+      aspLeaves: ["601", "604"],
+      stateTreeLeaves: ["501", "504"],
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "2",
+        "ETH",
+        {
+          fromPa: "PA-1",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "PA-1 has insufficient balance",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails closed when the relayer minimum exceeds the requested amount", async () => {
+    useIsolatedHome({ withSigner: true });
+    getRelayerDetailsMock.mockImplementationOnce(async () => ({
+      minWithdrawAmount: "9000000000000000000",
+      feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("RELAYER_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("below relayer minimum");
+    expect(exitCode).toBe(5);
+  });
+
+  test("fails closed when ASP roots are still converging", async () => {
+    useIsolatedHome({ withSigner: true });
+    fetchMerkleRootsMock.mockImplementationOnce(async () => ({
+      mtRoot: "1",
+      onchainMtRoot: "2",
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("ASP_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("still updating");
+    expect(exitCode).toBe(4);
+  });
+
+  test("fails closed when ASP root parity drifts from the onchain latest root", async () => {
+    useIsolatedHome({ withSigner: true });
+    fetchMerkleRootsMock.mockImplementationOnce(async () => ({
+      mtRoot: "1",
+      onchainMtRoot: "1",
+    }));
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async ({ functionName }: { functionName: string }) =>
+        functionName === "latestRoot" ? 2n : 1n,
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 456n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("ASP_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "out of sync with the chain",
+    );
+    expect(exitCode).toBe(4);
+  });
+
+}
+export function registerWithdrawValidationPostQuoteTests(): void {
+  test("fails closed when relayed withdrawals omit the recipient in machine mode", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {},
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "require --to",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects the deprecated --unsigned-format flag with a targeted INPUT error", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+          unsignedFormat: "tx" as "tx",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "replaced by --unsigned [format]",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects unsupported unsigned output formats before loading account state", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+          unsigned: "raw" as "raw",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      'Unsupported unsigned format: "raw"',
+    );
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+    expect(exitCode).toBe(2);
+  });
+
+  test("requires an asset when --all is used", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        undefined,
+        undefined,
+        {
+          all: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("--all requires an asset");
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects invalid percentage withdrawals before loading pool state", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "150%",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("Invalid percentage");
+    expect(resolvePoolMock).not.toHaveBeenCalled();
+    expect(exitCode).toBe(2);
+  });
+
+}
