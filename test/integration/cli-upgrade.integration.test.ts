@@ -182,19 +182,32 @@ server.listen(0, "127.0.0.1", () => {
     );
 
     let stderr = "";
-    registryProcess.stderr.on("data", (chunk: Buffer | string) => {
+    const handleStderr = (chunk: Buffer | string) => {
       stderr += chunk.toString();
-    });
-
-    registryProcess.once("error", reject);
-    registryProcess.once("exit", (code) => {
+    };
+    const handleError = (error: Error) => {
+      cleanupStartupListeners();
+      reject(error);
+    };
+    const handleExit = (code: number | null) => {
+      cleanupStartupListeners();
       reject(
         new Error(
           `fake npm registry process exited before becoming ready (code ${code ?? "null"}): ${stderr}`,
         ),
       );
-    });
+    };
+    const cleanupStartupListeners = () => {
+      registryProcess.stderr.off("data", handleStderr);
+      registryProcess.off("error", handleError);
+      registryProcess.off("exit", handleExit);
+    };
+
+    registryProcess.stderr.on("data", handleStderr);
+    registryProcess.once("error", handleError);
+    registryProcess.once("exit", handleExit);
     registryProcess.stdout.once("data", (chunk: Buffer | string) => {
+      cleanupStartupListeners();
       const port = chunk.toString().trim();
       resolve(`http://127.0.0.1:${port}/latest`);
     });

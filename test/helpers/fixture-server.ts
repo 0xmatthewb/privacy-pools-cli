@@ -571,16 +571,37 @@ export function launchFixtureServer(): Promise<FixtureServer> {
 
     let output = "";
     const timeout = setTimeout(() => {
+      cleanupStartupListeners();
       cleanupProcessExit();
       proc.kill();
       reject(new Error("Fixture server did not start within 20s"));
     }, FIXTURE_SERVER_START_TIMEOUT_MS);
+
+    const handleError = (err: Error) => {
+      clearTimeout(timeout);
+      cleanupStartupListeners();
+      cleanupProcessExit();
+      reject(err);
+    };
+
+    const handleExit = (code: number | null) => {
+      clearTimeout(timeout);
+      cleanupStartupListeners();
+      cleanupProcessExit();
+      reject(new Error(`Fixture server exited early with code ${code}`));
+    };
+
+    const cleanupStartupListeners = () => {
+      proc.off("error", handleError);
+      proc.off("exit", handleExit);
+    };
 
     proc.stdout!.on("data", (chunk: Buffer) => {
       output += chunk.toString();
       const match = output.match(/FIXTURE_PORT=(\d+)/);
       if (match) {
         clearTimeout(timeout);
+        cleanupStartupListeners();
         const port = Number(match[1]);
         proc.stdout?.removeAllListeners("data");
         proc.stdout?.destroy();
@@ -603,17 +624,8 @@ export function launchFixtureServer(): Promise<FixtureServer> {
       }
     });
 
-    proc.on("error", (err) => {
-      clearTimeout(timeout);
-      cleanupProcessExit();
-      reject(err);
-    });
-
-    proc.on("exit", (code) => {
-      clearTimeout(timeout);
-      cleanupProcessExit();
-      reject(new Error(`Fixture server exited early with code ${code}`));
-    });
+    proc.on("error", handleError);
+    proc.on("exit", handleExit);
   });
 }
 

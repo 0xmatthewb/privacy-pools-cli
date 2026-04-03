@@ -356,16 +356,37 @@ export function launchAnvilRelayerServer(
 
     let output = "";
     const timeout = setTimeout(() => {
+      cleanupStartupListeners();
       cleanupProcessExit();
       proc.kill();
       reject(new Error("Anvil relayer server did not start within 10s"));
     }, 10_000);
+
+    const handleError = (error: Error) => {
+      clearTimeout(timeout);
+      cleanupStartupListeners();
+      cleanupProcessExit();
+      reject(error);
+    };
+
+    const handleExit = (code: number | null) => {
+      clearTimeout(timeout);
+      cleanupStartupListeners();
+      cleanupProcessExit();
+      reject(new Error(`Anvil relayer server exited early with code ${code}`));
+    };
+
+    const cleanupStartupListeners = () => {
+      proc.off("error", handleError);
+      proc.off("exit", handleExit);
+    };
 
     proc.stdout!.on("data", (chunk: Buffer) => {
       output += chunk.toString();
       const match = output.match(/ANVIL_RELAYER_PORT=(\d+)/);
       if (match) {
         clearTimeout(timeout);
+        cleanupStartupListeners();
         const port = Number(match[1]);
         proc.stdout?.removeAllListeners("data");
         proc.stdout?.destroy();
@@ -379,17 +400,8 @@ export function launchAnvilRelayerServer(
       }
     });
 
-    proc.on("error", (error) => {
-      clearTimeout(timeout);
-      cleanupProcessExit();
-      reject(error);
-    });
-
-    proc.on("exit", (code) => {
-      clearTimeout(timeout);
-      cleanupProcessExit();
-      reject(new Error(`Anvil relayer server exited early with code ${code}`));
-    });
+    proc.on("error", handleError);
+    proc.on("exit", handleExit);
   });
 }
 
