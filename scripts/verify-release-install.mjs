@@ -83,6 +83,7 @@ function globalBinPath(prefix) {
 }
 
 const cleanupDirs = new Set();
+const inspectedTarballCache = new Map();
 
 function rememberTempDir(dirPath) {
   cleanupDirs.add(dirPath);
@@ -141,14 +142,35 @@ function installTarballForInspection(packageName, tarballPath) {
   return packageInstallPath(inspectRoot, packageName);
 }
 
+function inspectTarballPackage(packageName, tarballPath) {
+  const cached = inspectedTarballCache.get(tarballPath);
+  if (cached) {
+    return cached;
+  }
+
+  const installedPackagePath = installTarballForInspection(
+    packageName,
+    tarballPath,
+  );
+  const manifest = JSON.parse(
+    readFileSync(join(installedPackagePath, "package.json"), "utf8"),
+  );
+  const inspected = {
+    installedPackagePath,
+    manifest,
+  };
+  inspectedTarballCache.set(tarballPath, inspected);
+  return inspected;
+}
+
 function prepareRegistryPackage(
   packageName,
   tarballPath,
   options = {},
 ) {
-  const installedPackagePath = installTarballForInspection(packageName, tarballPath);
-  const manifest = JSON.parse(
-    readFileSync(join(installedPackagePath, "package.json"), "utf8"),
+  const { installedPackagePath, manifest } = inspectTarballPackage(
+    packageName,
+    tarballPath,
   );
 
   if (!options.mutateManifest) {
