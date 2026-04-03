@@ -6,7 +6,7 @@ import {
 } from "../../scripts/ci/lib.mjs";
 
 describe("ci test shards", () => {
-  test("linux-core shard discovery excludes acceptance-replaced integration files and keeps isolated suites", () => {
+  test("linux-core shard discovery keeps canonical acceptance coverage and drops deleted duplicates", () => {
     const files = collectLinuxCoreTestFiles();
 
     expect(files).toContain("./test/acceptance/status-init.acceptance.test.ts");

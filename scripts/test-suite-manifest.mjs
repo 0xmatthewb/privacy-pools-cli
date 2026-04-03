@@ -29,38 +29,8 @@ export const NATIVE_SHELL_SMOKE_TEST =
   "./test/integration/cli-native-shell.integration.test.ts";
 export const BUILT_ENTRYPOINT_TEST =
   "./test/integration/cli-built-entrypoint.integration.test.ts";
-export const STATUS_INIT_INTEGRATION_TEST =
-  "./test/integration/cli-status-init.integration.test.ts";
-export const MIGRATE_STATUS_INTEGRATION_TEST =
-  "./test/integration/cli-migrate-status.integration.test.ts";
-export const CONFIG_ROUNDTRIP_INTEGRATION_TEST =
-  "./test/integration/cli-config-roundtrip.integration.test.ts";
-export const READ_ONLY_SUCCESS_INTEGRATION_TEST =
-  "./test/integration/cli-read-only-success.integration.test.ts";
-export const OUTPUT_MODE_INTEGRATION_TEST =
-  "./test/integration/cli-output-mode.integration.test.ts";
-export const MACHINE_MODE_INTEGRATION_TEST =
-  "./test/integration/cli-machine-mode.integration.test.ts";
-export const WITHDRAW_QUOTE_INTEGRATION_TEST =
-  "./test/integration/cli-withdraw-quote.integration.test.ts";
-export const MNEMONIC_FILE_INTEGRATION_TEST =
-  "./test/integration/cli-mnemonic-file.integration.test.ts";
 export const FLOW_INTEGRATION_TEST =
   "./test/integration/cli-flow.integration.test.ts";
-export const AGENT_IMPROVEMENTS_INTEGRATION_TEST =
-  "./test/integration/cli-agent-improvements.integration.test.ts";
-export const JSON_CONTRACT_INTEGRATION_TEST =
-  "./test/integration/cli-json-contract.integration.test.ts";
-export const COMPLETION_INTEGRATION_TEST =
-  "./test/integration/cli-completion.integration.test.ts";
-export const STATS_INTEGRATION_TEST =
-  "./test/integration/cli-stats.integration.test.ts";
-export const ACTIVITY_INTEGRATION_TEST =
-  "./test/integration/cli-activity.integration.test.ts";
-export const TRANSACTION_INPUTS_INTEGRATION_TEST =
-  "./test/integration/cli-transaction-inputs.integration.test.ts";
-export const NO_SYNC_INTEGRATION_TEST =
-  "./test/integration/cli-no-sync.integration.test.ts";
 export const WORKFLOW_ANVIL_SERVICE_TEST =
   "./test/services/workflow.anvil.service.test.ts";
 export const CLI_ANVIL_E2E_TEST =
@@ -117,24 +87,6 @@ export const ANVIL_E2E_TESTS = [
   CLI_ANVIL_E2E_TEST,
   CLI_ANVIL_FLOW_NEW_WALLET_ERC20_TEST,
   CLI_ANVIL_FLOW_NEW_WALLET_USDC_TEST,
-];
-
-export const ACCEPTANCE_REPLACED_TESTS = [
-  STATUS_INIT_INTEGRATION_TEST,
-  MIGRATE_STATUS_INTEGRATION_TEST,
-  CONFIG_ROUNDTRIP_INTEGRATION_TEST,
-  READ_ONLY_SUCCESS_INTEGRATION_TEST,
-  OUTPUT_MODE_INTEGRATION_TEST,
-  MACHINE_MODE_INTEGRATION_TEST,
-  WITHDRAW_QUOTE_INTEGRATION_TEST,
-  MNEMONIC_FILE_INTEGRATION_TEST,
-  AGENT_IMPROVEMENTS_INTEGRATION_TEST,
-  JSON_CONTRACT_INTEGRATION_TEST,
-  COMPLETION_INTEGRATION_TEST,
-  STATS_INTEGRATION_TEST,
-  ACTIVITY_INTEGRATION_TEST,
-  TRANSACTION_INPUTS_INTEGRATION_TEST,
-  NO_SYNC_INTEGRATION_TEST,
 ];
 
 export const ISOLATED_SUITES = [
@@ -434,7 +386,6 @@ export const DEFAULT_MAIN_EXCLUDED_TESTS = [
   PACKAGED_SMOKE_TEST,
   NATIVE_PACKAGE_SMOKE_TEST,
   NATIVE_SHELL_SMOKE_TEST,
-  ...ACCEPTANCE_REPLACED_TESTS,
   ...ANVIL_E2E_TESTS,
   ...DEFAULT_TEST_ISOLATED_SUITES.flatMap((suite) => suite.tests),
 ];

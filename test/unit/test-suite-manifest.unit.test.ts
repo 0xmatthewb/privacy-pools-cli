@@ -9,10 +9,16 @@ import {
 } from "../../scripts/test-suite-manifest.mjs";
 
 describe("test suite manifest", () => {
-  test("default main suite excludes packaged and native-shell smoke lanes", () => {
+  test("default main suite exclusions stay focused on dedicated smoke and isolated lanes", () => {
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(PACKAGED_SMOKE_TEST);
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_PACKAGE_SMOKE_TEST);
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_SHELL_SMOKE_TEST);
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
+      "./test/integration/cli-status-init.integration.test.ts",
+    );
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
+      "./test/integration/cli-output-mode.integration.test.ts",
+    );
   });
 
   test("default main batches cover each shared target exactly once", () => {
