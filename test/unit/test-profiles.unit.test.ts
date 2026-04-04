@@ -72,9 +72,7 @@ describe("test profiles", () => {
     expect(hasStep(ci, "npm", ["run", "test:smoke:native:shell"])).toBe(true);
     expect(hasStep(ci, "npm", ["run", "test:e2e:anvil:smoke"])).toBe(true);
     expect(hasStep(ci, "npm", ["run", "test:evals"])).toBe(true);
-    expect(
-      hasStep(ci, "node", ["scripts/generate-reference.mjs", "--check"]),
-    ).toBe(true);
+    expect(hasStep(ci, "npm", ["run", "docs:check"])).toBe(true);
 
     expect(hasStep(release, "npm", ["run", "test:e2e:anvil"])).toBe(true);
     expect(

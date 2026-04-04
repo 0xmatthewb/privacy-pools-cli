@@ -11,7 +11,7 @@ export const DEFAULT_PROFILE_STEP_TIMEOUT_MS = 1_800_000;
 export const TEST_PROFILE_FRAGMENTS = {
   install: [["node", ["scripts/run-install-profile.mjs"]]],
   build: [["npm", ["run", "build"]]],
-  "docs-reference-check": [["node", ["scripts/generate-reference.mjs", "--check"]]],
+  "docs-reference-check": [["npm", ["run", "docs:check"]]],
   "repo-conformance-core": [
     ["npm", ["run", "test:scripts"]],
     ["node", ["scripts/run-conformance-suite.mjs", "core"]],
