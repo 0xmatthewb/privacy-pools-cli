@@ -2373,6 +2373,7 @@ export async function reconcilePendingRagequitReceipt(params: {
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
+  publicClient?: ReturnType<typeof getPublicClient>;
 }): Promise<FlowSnapshot | null> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   if (!snapshot.ragequitTxHash || snapshot.ragequitBlockNumber) {
@@ -2381,8 +2382,8 @@ export async function reconcilePendingRagequitReceipt(params: {
 
   const silent = mode.isQuiet || mode.isJson;
   const chainConfig = assertWorkflowChain(snapshot);
-  const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
-  const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+  const publicClient =
+    params.publicClient ?? getPublicClient(chainConfig, globalOpts?.rpcUrl);
 
   let receipt: Awaited<
     ReturnType<ReturnType<typeof getPublicClient>["getTransactionReceipt"]>
@@ -2433,6 +2434,7 @@ export async function reconcilePendingRagequitReceipt(params: {
     );
   }
 
+  const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
   await refreshWorkflowAccountStateFromChain({
     snapshot,
     chainConfig,
@@ -2459,11 +2461,6 @@ async function awaitPendingRagequitReceipt(params: {
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
 }): Promise<FlowSnapshot> {
-  const immediate = await reconcilePendingRagequitReceipt(params);
-  if (immediate) {
-    return immediate;
-  }
-
   const { snapshot, globalOpts, mode, isVerbose } = params;
   if (!snapshot.ragequitTxHash) {
     throw new CLIError(
@@ -2475,8 +2472,15 @@ async function awaitPendingRagequitReceipt(params: {
 
   const silent = mode.isQuiet || mode.isJson;
   const chainConfig = assertWorkflowChain(snapshot);
-  const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
   const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+  const immediate = await reconcilePendingRagequitReceipt({
+    ...params,
+    publicClient,
+  });
+  if (immediate) {
+    return immediate;
+  }
+  const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
 
   const receipt = await publicClient.waitForTransactionReceipt({
     hash: snapshot.ragequitTxHash as `0x${string}`,

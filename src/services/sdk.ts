@@ -81,11 +81,10 @@ function healthyRpcCacheKey(chainId: number, rpcOverride?: string): string {
 
 function dataServiceCacheKey(
   chainId: number,
-  poolAddress: Address,
   rpcUrl: string,
   isLocalCompat: boolean
 ): string {
-  return `${chainId}:${poolAddress.toLowerCase()}:${rpcUrl}:${isLocalCompat ? "local" : "remote"}`;
+  return `${chainId}:${rpcUrl}:${isLocalCompat ? "local" : "remote"}`;
 }
 
 export function resetSdkServiceCachesForTests(): void {
@@ -366,7 +365,6 @@ export async function getDataService(
   const useLocalCompat = isLocalRpcUrl(rpcUrl);
   const cacheKey = dataServiceCacheKey(
     chainConfig.id,
-    poolAddress,
     rpcUrl,
     useLocalCompat,
   );

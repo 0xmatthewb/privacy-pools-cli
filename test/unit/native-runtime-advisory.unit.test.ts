@@ -64,6 +64,22 @@ describe("detectNativeRuntimeAdvisory", () => {
     expect(advisory).toBeNull();
   });
 
+  test("allows advisory checks to warm the native verification cache", () => {
+    let recordVerificationCache: boolean | undefined;
+
+    const advisory = detectNativeRuntimeAdvisory(PKG, {
+      nativePackageName: () => "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
+      resolveInstalledNativeBinary: (_pkg, options) => {
+        recordVerificationCache = options?.recordVerificationCache;
+        return "/tmp/privacy-pools-native";
+      },
+      isSourceCheckout: () => false,
+    });
+
+    expect(advisory).toBeNull();
+    expect(recordVerificationCache).toBeUndefined();
+  });
+
   test("returns a discovery warning when a supported published install is missing native acceleration", () => {
     const advisory = detectNativeRuntimeAdvisory(PKG, {
       nativePackageName: () => "@0xmatthewb/privacy-pools-cli-native-macos-arm64",

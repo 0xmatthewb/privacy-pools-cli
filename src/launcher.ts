@@ -230,8 +230,9 @@ function createInstalledNativeVerificationCacheEntry(
 function hasInstalledNativeVerificationCacheHit(
   entry: InstalledNativeVerificationCacheEntry,
   env: NodeJS.ProcessEnv = process.env,
+  cache: InstalledNativeVerificationCache | null = readInstalledNativeVerificationCache(env),
 ): boolean {
-  const cached = readInstalledNativeVerificationCache(env)?.entries[entry.binaryPath];
+  const cached = cache?.entries[entry.binaryPath];
   if (!cached) {
     return false;
   }
@@ -251,13 +252,14 @@ function hasInstalledNativeVerificationCacheHit(
 function recordInstalledNativeVerificationCacheEntry(
   entry: InstalledNativeVerificationCacheEntry,
   env: NodeJS.ProcessEnv = process.env,
+  cache: InstalledNativeVerificationCache | null = readInstalledNativeVerificationCache(env),
 ): void {
-  const cache = readInstalledNativeVerificationCache(env) ?? {
+  const nextCache = cache ?? {
     version: INSTALLED_NATIVE_VERIFICATION_CACHE_VERSION,
     entries: {},
   };
-  cache.entries[entry.binaryPath] = entry;
-  writeInstalledNativeVerificationCache(cache, env);
+  nextCache.entries[entry.binaryPath] = entry;
+  writeInstalledNativeVerificationCache(nextCache, env);
 }
 
 function defaultJsWorkerPath(): string {
@@ -390,7 +392,16 @@ export function resolveInstalledNativeBinary(
     if (!cacheEntry) {
       return null;
     }
-    if (hasInstalledNativeVerificationCacheHit(cacheEntry, options.env)) {
+    const installedVerificationCache = readInstalledNativeVerificationCache(
+      options.env,
+    );
+    if (
+      hasInstalledNativeVerificationCacheHit(
+        cacheEntry,
+        options.env,
+        installedVerificationCache,
+      )
+    ) {
       return binaryPath;
     }
     const hasValidChecksum =
@@ -399,7 +410,11 @@ export function resolveInstalledNativeBinary(
       return null;
     }
     if (options.recordVerificationCache !== false) {
-      recordInstalledNativeVerificationCacheEntry(cacheEntry, options.env);
+      recordInstalledNativeVerificationCacheEntry(
+        cacheEntry,
+        options.env,
+        installedVerificationCache,
+      );
     }
 
     return binaryPath;

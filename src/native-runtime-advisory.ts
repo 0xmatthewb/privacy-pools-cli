@@ -73,7 +73,6 @@ export function detectNativeRuntimeAdvisory(
     platform: deps.platform,
     arch: deps.arch,
     env,
-    recordVerificationCache: false,
   });
   if (installedBinary) {
     return null;
