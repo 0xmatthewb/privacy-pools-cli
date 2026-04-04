@@ -159,7 +159,7 @@ export async function launchAnvil(
     await Promise.race([waitForRpc(url), spawnFailure]);
   } catch (error) {
     cleanupProcessExit();
-    proc.kill();
+    await terminateChildProcess(proc).catch(() => undefined);
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       throw new Error(
         `Failed to launch Anvil from '${binary}': command not found. `

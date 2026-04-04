@@ -34,6 +34,7 @@ const coverageRootDir = mkdtempSync(join(tmpdir(), "pp-coverage-"));
 const keepCoverageRoot = process.env.PP_KEEP_COVERAGE_ROOT === "1";
 const MAX_COVERAGE_LCOV_RETRIES = 3;
 let sharedBuiltWorkspaceSnapshotRoot = null;
+let cleanedUp = false;
 
 class CoverageSuiteExitError extends Error {
   constructor(label, status) {
@@ -253,6 +254,31 @@ function ensureSharedBuiltWorkspaceSnapshotRoot() {
   return sharedBuiltWorkspaceSnapshotRoot;
 }
 
+function cleanupCoverageResources() {
+  if (cleanedUp) return;
+  cleanedUp = true;
+
+  cleanupSharedBuiltWorkspaceSnapshot(sharedBuiltWorkspaceSnapshotRoot);
+  if (!keepCoverageRoot) {
+    rmSync(coverageRootDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 50,
+    });
+  }
+}
+
+function exitWithCleanup(code) {
+  cleanupCoverageResources();
+  process.exit(code);
+}
+
+process.once("beforeExit", cleanupCoverageResources);
+process.once("exit", cleanupCoverageResources);
+process.once("SIGINT", () => exitWithCleanup(130));
+process.once("SIGTERM", () => exitWithCleanup(143));
+
 function buildCoverageSuiteEnv(tests, envOverrides = {}) {
   const sharedBuiltWorkspaceSnapshot =
     suiteUsesSharedBuiltWorkspaceSnapshot(tests)
@@ -450,13 +476,5 @@ try {
     throw error;
   }
 } finally {
-  cleanupSharedBuiltWorkspaceSnapshot(sharedBuiltWorkspaceSnapshotRoot);
-  if (!keepCoverageRoot) {
-    rmSync(coverageRootDir, {
-      recursive: true,
-      force: true,
-      maxRetries: 3,
-      retryDelay: 50,
-    });
-  }
+  cleanupCoverageResources();
 }

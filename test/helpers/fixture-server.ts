@@ -570,11 +570,15 @@ export function launchFixtureServer(): Promise<FixtureServer> {
     const cleanupProcessExit = registerProcessExitCleanup(proc);
 
     let output = "";
+    const rejectAfterTermination = (error: Error) => {
+      void terminateChildProcess(proc)
+        .catch(() => undefined)
+        .finally(() => reject(error));
+    };
     const timeout = setTimeout(() => {
       cleanupStartupListeners();
       cleanupProcessExit();
-      proc.kill();
-      reject(new Error("Fixture server did not start within 20s"));
+      rejectAfterTermination(new Error("Fixture server did not start within 20s"));
     }, FIXTURE_SERVER_START_TIMEOUT_MS);
 
     const handleError = (err: Error) => {
@@ -618,8 +622,9 @@ export function launchFixtureServer(): Promise<FixtureServer> {
           })
           .catch((error) => {
             cleanupProcessExit();
-            proc.kill();
-            reject(error);
+            rejectAfterTermination(
+              error instanceof Error ? error : new Error(String(error)),
+            );
           });
       }
     });

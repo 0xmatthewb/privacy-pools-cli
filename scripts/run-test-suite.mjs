@@ -34,6 +34,8 @@ const forwardedArgs = process.argv.slice(2);
 let sharedBuiltWorkspaceSnapshotRoot = null;
 let sharedBuiltWorkspaceSnapshotPromise = null;
 const activeSuiteChildren = new Set();
+let cleanupStarted = false;
+let cleanupPromise = null;
 
 class SuiteRunnerExitError extends Error {
   constructor(label, { status = null, signal = null } = {}) {
@@ -171,6 +173,26 @@ async function terminateActiveSuiteChildren() {
   await Promise.allSettled(children.map((child) => terminateSuiteChild(child)));
 }
 
+async function cleanupSuiteResources() {
+  if (cleanupStarted) {
+    return cleanupPromise;
+  }
+
+  cleanupStarted = true;
+  cleanupPromise = (async () => {
+    await terminateActiveSuiteChildren();
+    cleanupSharedBuiltWorkspaceSnapshot(sharedBuiltWorkspaceSnapshotRoot);
+  })();
+
+  return cleanupPromise;
+}
+
+function exitWithCleanup(code) {
+  void cleanupSuiteResources().finally(() => {
+    process.exit(code);
+  });
+}
+
 async function runSuitesWithConcurrency(suites, forwardedSuiteArgs, concurrency) {
   if (suites.length === 0) return;
 
@@ -265,10 +287,12 @@ async function main() {
       ]);
     }
   } finally {
-    await terminateActiveSuiteChildren();
-    cleanupSharedBuiltWorkspaceSnapshot(sharedBuiltWorkspaceSnapshotRoot);
+    await cleanupSuiteResources();
   }
 }
+
+process.once("SIGINT", () => exitWithCleanup(130));
+process.once("SIGTERM", () => exitWithCleanup(143));
 
 try {
   await main();
