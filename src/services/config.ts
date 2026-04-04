@@ -325,6 +325,22 @@ export function getRpcUrl(chainId: number, overrideFromFlag?: string): string {
   return getRpcUrls(chainId, overrideFromFlag)[0];
 }
 
+export function hasCustomRpcOverride(
+  chainId: number,
+  overrideFromFlag?: string,
+): boolean {
+  if (overrideFromFlag?.trim()) {
+    return true;
+  }
+
+  if (resolveRpcEnvVar(chainId)) {
+    return true;
+  }
+
+  const config = loadConfig();
+  return Boolean(config.rpcOverrides[chainId]);
+}
+
 /**
  * Returns an ordered list of RPC URLs for the given chain.
  * First entry is the primary; remaining are fallbacks.

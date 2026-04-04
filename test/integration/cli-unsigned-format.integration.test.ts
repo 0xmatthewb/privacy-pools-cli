@@ -74,20 +74,24 @@ describe("--unsigned-format migration error", () => {
 });
 
 describe("--unsigned tx format", () => {
-  test("deposit --unsigned tx fails at pool resolution (not at flag parsing)", () => {
+  test("deposit --unsigned tx fails closed at pool resolution (not at flag parsing)", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "tx", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    // With KNOWN_POOLS fallback, CLI tries ASP → KNOWN_POOLS → RPC (both offline)
-    expect(result.status).toBe(3);
+    expect(result.status).toBe(2);
     const json = parseJsonOutput<{
       success: boolean;
-      error?: { category: string };
+      errorCode?: string;
+      errorMessage?: string;
+      error?: { category: string; hint?: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("RPC");
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.error?.hint).toContain("ASP may be offline");
   });
 });
 

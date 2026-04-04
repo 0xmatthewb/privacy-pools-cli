@@ -5,6 +5,7 @@ import { NATIVE_ASSET_ADDRESS, KNOWN_POOLS } from "../config/chains.js";
 import { resolvePoolDeploymentBlock } from "../config/deployment-hints.js";
 import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
 import { getPublicClient } from "./sdk.js";
+import { hasCustomRpcOverride } from "./config.js";
 import { CLIError, sanitizeEndpointForDisplay } from "../utils/errors.js";
 
 // Entrypoint ABI fragment for read-only calls
@@ -466,6 +467,7 @@ export async function resolvePool(
   rpcOverride?: string
 ): Promise<PoolStats> {
   const publicClient = getPublicClient(chainConfig, rpcOverride);
+  const hasCustomRpc = hasCustomRpcOverride(chainConfig.id, rpcOverride);
 
   // If it looks like an address, validate on-chain directly
   if (/^0x[0-9a-fA-F]{40}$/.test(assetInput)) {
@@ -522,6 +524,19 @@ export async function resolvePool(
 
   // Try to resolve by symbol name via ASP first.
   const normalized = assetInput.toUpperCase();
+  if (!hasCustomRpc) {
+    const knownPool = await resolveKnownPool(
+      publicClient,
+      chainConfig,
+      normalized,
+      assetInput,
+      rpcOverride,
+    );
+    if (knownPool) {
+      return knownPool;
+    }
+  }
+
   let availableAssetsHint: string | null = null;
   let aspLookupFailed = false;
 
@@ -540,20 +555,22 @@ export async function resolvePool(
     aspLookupFailed = true;
   }
 
+  if (!hasCustomRpc) {
+    const knownPool = await resolveKnownPool(
+      publicClient,
+      chainConfig,
+      normalized,
+      assetInput,
+      rpcOverride,
+    );
+    if (knownPool) {
+      return knownPool;
+    }
+  }
+
   // Fallback: resolve symbol via hardcoded known-pool registry and
   // verify on-chain. This keeps asset-specific commands working when
   // public pool discovery is incomplete or temporarily unavailable.
-  const knownPool = await resolveKnownPool(
-    publicClient,
-    chainConfig,
-    normalized,
-    assetInput,
-    rpcOverride,
-  );
-  if (knownPool) {
-    return knownPool;
-  }
-
   if (!aspLookupFailed) {
     throw new CLIError(
       `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,

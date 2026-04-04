@@ -30,8 +30,9 @@ const OFFLINE_ENV = {
   PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
 };
 
-// Helper: assert the command accepted the provided flags and failed at the
-// shared pool-resolution boundary (ASP + RPC both unreachable).
+// Helper: assert the command accepted the provided flags and failed closed at
+// the symbol-resolution boundary when both ASP discovery and the user-defined
+// RPC are unavailable.
 function expectPoolResolutionFailure(
   result: { status: number | null; stderr: string },
   json: {
@@ -43,14 +44,12 @@ function expectPoolResolutionFailure(
 ): void {
   expect(json.success).toBe(false);
   expect(json.error).toBeDefined();
-  // With KNOWN_POOLS fallback (F-02), the CLI tries ASP → KNOWN_POOLS → RPC.
-  // Both ASP and RPC are blocked, so pool resolution fails with RPC error.
-  expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-  expect(json.errorMessage).toContain('Built-in pool fallback also failed for "ETH" on sepolia.');
-  expect(json.error!.category).toBe("RPC");
-  expect(json.error!.hint).toContain("Check your RPC URL");
-  expect(json.error!.retryable).toBe(true);
-  expect(result.status).toBe(3);  // RPC = exit 3
+  expect(json.errorCode).toBe("INPUT_ERROR");
+  expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
+  expect(json.error!.category).toBe("INPUT");
+  expect(json.error!.hint).toContain("ASP may be offline");
+  expect(json.error!.retryable).toBe(false);
+  expect(result.status).toBe(2);
   expect(result.stderr.trim()).toBe("");
 }
 

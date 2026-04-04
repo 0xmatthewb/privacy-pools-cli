@@ -2,10 +2,10 @@ import type { Command } from "commander";
 import type { Address } from "viem";
 import {
   configExists,
+  hasCustomRpcOverride,
   loadConfig,
   mnemonicExists,
   getRpcUrl,
-  resolveRpcEnvVar,
   getConfigDir,
   loadSignerKey,
 } from "../services/config.js";
@@ -66,10 +66,9 @@ export async function handleStatusCommand(
       }
     }
 
-    const rpcIsCustom = !!(
-      globalOpts?.rpcUrl ||
-      (selectedChainConfig && resolveRpcEnvVar(selectedChainConfig.id)) ||
-      (selectedChainConfig && config?.rpcOverrides?.[selectedChainConfig.id])
+    const rpcIsCustom = Boolean(
+      selectedChainConfig
+      && hasCustomRpcOverride(selectedChainConfig.id, globalOpts?.rpcUrl),
     );
 
     const result: StatusCheckResult = {

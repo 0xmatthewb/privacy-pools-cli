@@ -1661,6 +1661,17 @@ fn resolve_rpc_env_var(chain_id: u64, runtime_config: &RuntimeConfig) -> Option<
     }
 }
 
+fn has_custom_rpc_override(
+    chain_id: u64,
+    override_from_flag: Option<&str>,
+    config: &CliConfig,
+    runtime_config: &RuntimeConfig,
+) -> bool {
+    override_from_flag.is_some_and(|value| !value.trim().is_empty())
+        || resolve_rpc_env_var(chain_id, runtime_config).is_some()
+        || config.rpc_overrides.contains_key(&chain_id)
+}
+
 fn get_rpc_urls(
     chain_id: u64,
     override_from_flag: Option<String>,
@@ -4228,6 +4239,12 @@ fn resolve_pool_native(
     manifest: &Manifest,
     timeout_ms: u64,
 ) -> Result<NativePoolResolution, CliError> {
+    let has_custom_rpc = has_custom_rpc_override(
+        chain.id,
+        rpc_override.as_deref(),
+        config,
+        &manifest.runtime_config,
+    );
     let rpc_urls = get_rpc_urls(
         chain.id,
         rpc_override.clone(),
@@ -4261,6 +4278,26 @@ fn resolve_pool_native(
     let mut available_assets_hint: Option<String> = None;
     let mut asp_lookup_failed = false;
 
+    if !has_custom_rpc {
+        if let Some(known_asset_address) = manifest
+            .runtime_config
+            .known_pools
+            .get(&chain.id)
+            .and_then(|pools| pools.get(&normalized))
+            .cloned()
+        {
+            if let Ok(resolution) = resolve_pool_from_asset_address_native(
+                chain,
+                &known_asset_address,
+                &rpc_urls,
+                &manifest.runtime_config.native_asset_address,
+                timeout_ms,
+            ) {
+                return Ok(resolution);
+            }
+        }
+    }
+
     match list_pools_native(
         chain,
         rpc_override.clone(),
@@ -4290,6 +4327,20 @@ fn resolve_pool_native(
             }
             asp_lookup_failed = true;
         }
+    }
+
+    if has_custom_rpc {
+        return Err(CliError::input(
+            format!("No pool found for asset \"{asset}\" on {}.", chain.name),
+            Some(if asp_lookup_failed {
+                "The ASP may be offline. Try using --asset with a token contract address (0x...)."
+                    .to_string()
+            } else if let Some(hint) = available_assets_hint {
+                format!("Available assets: {hint}")
+            } else {
+                "No pools found. Try using --asset with a contract address.".to_string()
+            }),
+        ));
     }
 
     let Some(known_asset_address) = manifest

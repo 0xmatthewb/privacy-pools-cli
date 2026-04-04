@@ -21,23 +21,27 @@ describe("--dry-run flag acceptance", () => {
     expect(result.stderr).toContain("No asset specified");
   });
 
-  test("deposit --dry-run is accepted and fails at pool resolution (ASP+RPC offline)", () => {
+  test("deposit --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    // With KNOWN_POOLS fallback, CLI tries ASP → KNOWN_POOLS → RPC (both offline)
-    expect(result.status).toBe(3);
+    expect(result.status).toBe(2);
     const json = parseJsonOutput<{
       success: boolean;
-      error?: { category: string };
+      errorCode?: string;
+      errorMessage?: string;
+      error?: { category: string; hint?: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("RPC");
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.error?.hint).toContain("ASP may be offline");
   });
 
-  test("withdraw --dry-run is accepted and fails at pool resolution (ASP+RPC offline)", () => {
+  test("withdraw --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
       [
@@ -55,28 +59,38 @@ describe("--dry-run flag acceptance", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(3);
+    expect(result.status).toBe(2);
     const json = parseJsonOutput<{
       success: boolean;
-      error?: { category: string };
+      errorCode?: string;
+      errorMessage?: string;
+      error?: { category: string; hint?: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("RPC");
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.error?.hint).toContain("ASP may be offline");
   });
 
-  test("ragequit --dry-run is accepted and fails at pool resolution (ASP+RPC offline)", () => {
+  test("ragequit --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
       ["--json", "ragequit", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(3);
+    expect(result.status).toBe(2);
     const json = parseJsonOutput<{
       success: boolean;
-      error?: { category: string };
+      errorCode?: string;
+      errorMessage?: string;
+      error?: { category: string; hint?: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error?.category).toBe("RPC");
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.error?.hint).toContain("ASP may be offline");
   });
 
   test("deposit --dry-run --json produces valid JSON error envelope", () => {
@@ -85,14 +99,17 @@ describe("--dry-run flag acceptance", () => {
       ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(3);
+    expect(result.status).toBe(2);
     const parsed = parseJsonOutput<{
       success: boolean;
       schemaVersion: string;
-      error?: { category: string };
+      errorCode?: string;
+      error?: { category: string; hint?: string };
     }>(result.stdout);
     expect(parsed.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.success).toBe(false);
-    expect(parsed.error?.category).toBe("RPC");
+    expect(parsed.errorCode).toBe("INPUT_ERROR");
+    expect(parsed.error?.category).toBe("INPUT");
+    expect(parsed.error?.hint).toContain("ASP may be offline");
   });
 });

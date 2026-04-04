@@ -9,6 +9,8 @@ import {
 } from "../../src/config/chains.ts";
 import { lookupPoolDeploymentBlock } from "../../src/config/deployment-hints.ts";
 import { overrideAspRetryWaitForTests } from "../../src/services/asp.ts";
+import { DEFAULT_RPC_URLS } from "../../src/services/config.ts";
+import { resetSdkServiceCachesForTests } from "../../src/services/sdk.ts";
 import {
   listKnownPoolsFromRegistry,
   listPools,
@@ -120,13 +122,21 @@ async function startMockServerWithConfig(
 
 describe("pools service", () => {
   const toClose: MockServer[] = [];
+  const originalSepoliaRpc = process.env.PRIVACY_POOLS_RPC_URL_SEPOLIA;
 
   beforeEach(() => {
     overrideAspRetryWaitForTests(async () => {});
+    resetSdkServiceCachesForTests();
   });
 
   afterEach(async () => {
     overrideAspRetryWaitForTests();
+    resetSdkServiceCachesForTests();
+    if (originalSepoliaRpc === undefined) {
+      delete process.env.PRIVACY_POOLS_RPC_URL_SEPOLIA;
+    } else {
+      process.env.PRIVACY_POOLS_RPC_URL_SEPOLIA = originalSepoliaRpc;
+    }
     while (toClose.length > 0) {
       await toClose.pop()!.close();
     }
@@ -484,19 +494,136 @@ describe("pools service", () => {
     }
   });
 
-  test("resolvePool falls back to a known pool when ASP is reachable but omits that asset", async () => {
-    const chainId = 11155111;
+  test("resolvePool skips ASP listing for canonical known symbols on built-in default RPCs", async () => {
+    const chainId = CHAINS.sepolia.id;
     const ethPool = "0x00000000000000000000000000000000000000a1" as Address;
     const scope = 123456789n;
-    const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    let statsRequests = 0;
+    const originalDefaultRpcUrls = DEFAULT_RPC_URLS[chainId];
+
+    const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = req.url ?? "";
 
       if (req.method === "GET" && url === `/${chainId}/public/pools-stats`) {
+        statsRequests += 1;
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ pools: [] }));
+        return;
+      }
+
+      if (req.method === "POST") {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += String(chunk);
+        });
+        req.on("end", () => {
+          const json = JSON.parse(body);
+          const call = json?.params?.[0] ?? {};
+          const to = String(call.to ?? "").toLowerCase();
+          const data = String(call.data ?? "").toLowerCase();
+
+          let result = "0x";
+          if (
+            to === CHAINS.sepolia.entrypoint.toLowerCase() &&
+            data.startsWith("0xd6dbaf58")
+          ) {
+            result = encodeAbiParameters(
+              [
+                { type: "address" },
+                { type: "uint256" },
+                { type: "uint256" },
+                { type: "uint256" },
+              ],
+              [ethPool, 1000000000000000n, 50n, 250n],
+            );
+          } else if (to === ethPool.toLowerCase()) {
+            result = encodeAbiParameters([{ type: "uint256" }], [scope]);
+          }
+
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: json.id,
+              result,
+            }),
+          );
+        });
+        return;
+      }
+
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", () => resolve()),
+    );
+    const addr = server.address();
+    if (!addr || typeof addr === "string") throw new Error("bind failed");
+    const url = `http://127.0.0.1:${addr.port}`;
+    toClose.push({
+      url,
+      close: () =>
+        new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        ),
+    });
+
+    const chainConfig = {
+      ...CHAINS.sepolia,
+      aspHost: url,
+    };
+
+    DEFAULT_RPC_URLS[chainId] = [url];
+    try {
+      const pool = await resolvePool(chainConfig, "ETH");
+      const deploymentHint = lookupPoolDeploymentBlock(
+        chainConfig.id,
+        NATIVE_ASSET_ADDRESS,
+        ethPool,
+      );
+      expect(pool.symbol).toBe("ETH");
+      expect(pool.asset.toLowerCase()).toBe(
+        NATIVE_ASSET_ADDRESS.toLowerCase(),
+      );
+      expect(pool.pool.toLowerCase()).toBe(ethPool.toLowerCase());
+      expect(pool.scope).toBe(scope);
+      expect(deploymentHint).toBeDefined();
+      expect(pool.deploymentBlock).toBe(chainConfig.startBlock);
+      expect(statsRequests).toBe(0);
+    } finally {
+      DEFAULT_RPC_URLS[chainId] = originalDefaultRpcUrls;
+    }
+  });
+
+  test("resolvePool still consults ASP listings for canonical symbols on env-backed custom RPCs", async () => {
+    const chainId = CHAINS.sepolia.id;
+    const asset = "0x00000000000000000000000000000000000000b1" as Address;
+    const pool = "0x00000000000000000000000000000000000000a1" as Address;
+    const scope = 987654321n;
+    let statsRequests = 0;
+
+    const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+      const url = req.url ?? "";
+
+      if (req.method === "GET" && url === `/${chainId}/public/pools-stats`) {
+        statsRequests += 1;
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify({
           pools: [
             {
-              tokenAddress: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+              tokenAddress: asset,
+              tokenSymbol: "USDC",
+              totalInPoolValue: "0",
+              totalDepositsValue: "0",
+              acceptedDepositsValue: "0",
+              pendingDepositsValue: "0",
+              totalDepositsCount: 0,
+              acceptedDepositsCount: 0,
+              pendingDepositsCount: 0,
+              growth24h: 0,
+              pendingGrowth24h: 0,
             },
           ],
         }));
@@ -526,10 +653,14 @@ describe("pools service", () => {
                 { type: "uint256" },
                 { type: "uint256" },
               ],
-              [ethPool, 1000000000000000n, 50n, 250n]
+              [pool, 1000000n, 50n, 250n],
             );
-          } else if (to === ethPool.toLowerCase()) {
+          } else if (to === pool.toLowerCase()) {
             result = encodeAbiParameters([{ type: "uint256" }], [scope]);
+          } else if (to === asset.toLowerCase() && data.startsWith("0x95d89b41")) {
+            result = encodeAbiParameters([{ type: "string" }], ["USDC"]);
+          } else if (to === asset.toLowerCase() && data.startsWith("0x313ce567")) {
+            result = encodeAbiParameters([{ type: "uint8" }], [6]);
           }
 
           res.writeHead(200, { "content-type": "application/json" });
@@ -538,7 +669,7 @@ describe("pools service", () => {
               jsonrpc: "2.0",
               id: json.id,
               result,
-            })
+            }),
           );
         });
         return;
@@ -548,13 +679,18 @@ describe("pools service", () => {
       res.end(JSON.stringify({ error: "not found" }));
     });
 
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", () => resolve()),
+    );
     const addr = server.address();
     if (!addr || typeof addr === "string") throw new Error("bind failed");
     const url = `http://127.0.0.1:${addr.port}`;
     toClose.push({
       url,
-      close: () => new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve())),
+      close: () =>
+        new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        ),
     });
 
     const chainConfig = {
@@ -562,18 +698,15 @@ describe("pools service", () => {
       aspHost: url,
     };
 
-    const pool = await resolvePool(chainConfig, "ETH", url);
-    const deploymentHint = lookupPoolDeploymentBlock(
-      chainConfig.id,
-      NATIVE_ASSET_ADDRESS,
-      ethPool,
-    );
-    expect(pool.symbol).toBe("ETH");
-    expect(pool.asset.toLowerCase()).toBe("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-    expect(pool.pool.toLowerCase()).toBe(ethPool.toLowerCase());
-    expect(pool.scope).toBe(scope);
-    expect(deploymentHint).toBeDefined();
-    expect(pool.deploymentBlock).toBe(chainConfig.startBlock);
+    process.env.PRIVACY_POOLS_RPC_URL_SEPOLIA = url;
+    resetSdkServiceCachesForTests();
+
+    const resolved = await resolvePool(chainConfig, "USDC");
+    expect(statsRequests).toBe(1);
+    expect(resolved.symbol).toBe("USDC");
+    expect(resolved.asset.toLowerCase()).toBe(asset.toLowerCase());
+    expect(resolved.pool.toLowerCase()).toBe(pool.toLowerCase());
+    expect(resolved.scope).toBe(scope);
   });
 
   test("resolvePool surfaces the offline ASP hint when fallback registry has no match", async () => {
@@ -615,6 +748,7 @@ describe("pools service", () => {
     const chainId = 31347;
     const asset = "0x00000000000000000000000000000000000000c1" as Address;
     const previousKnownPools = KNOWN_POOLS[chainId];
+    const originalDefaultRpcUrls = DEFAULT_RPC_URLS[chainId];
     KNOWN_POOLS[chainId] = {
       TEST: asset,
     };
@@ -671,13 +805,19 @@ describe("pools service", () => {
     };
 
     try {
-      await expect(resolvePool(chainConfig, "TEST", url)).rejects.toMatchObject({
+      DEFAULT_RPC_URLS[chainId] = [url];
+      await expect(resolvePool(chainConfig, "TEST")).rejects.toMatchObject({
         category: "RPC",
         code: "RPC_POOL_RESOLUTION_FAILED",
         retryable: true,
         message: `Built-in pool fallback also failed for "TEST" on ${chainConfig.name}.`,
       });
     } finally {
+      if (originalDefaultRpcUrls) {
+        DEFAULT_RPC_URLS[chainId] = originalDefaultRpcUrls;
+      } else {
+        delete DEFAULT_RPC_URLS[chainId];
+      }
       if (previousKnownPools) {
         KNOWN_POOLS[chainId] = previousKnownPools;
       } else {

@@ -6,6 +6,7 @@ import {
   ensureConfigDir,
   getAccountsDir,
   getConfigDir,
+  hasCustomRpcOverride,
   getRpcUrl,
   getRpcUrls,
   getWorkflowSecretsDir,
@@ -450,6 +451,20 @@ describe("getRpcUrls multi-URL fallback", () => {
     } finally {
       if (prev === undefined) delete process.env.PP_RPC_URL;
       else process.env.PP_RPC_URL = prev;
+    }
+  });
+
+  test("detects built-in RPCs as non-custom and env overrides as custom", () => {
+    const prev = process.env.PP_RPC_URL_SEPOLIA;
+    try {
+      delete process.env.PP_RPC_URL_SEPOLIA;
+      expect(hasCustomRpcOverride(11155111)).toBe(false);
+
+      process.env.PP_RPC_URL_SEPOLIA = "https://env-single.invalid/rpc";
+      expect(hasCustomRpcOverride(11155111)).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.PP_RPC_URL_SEPOLIA;
+      else process.env.PP_RPC_URL_SEPOLIA = prev;
     }
   });
 });

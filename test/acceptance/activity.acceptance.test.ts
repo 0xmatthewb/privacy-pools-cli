@@ -93,16 +93,21 @@ defineScenarioSuite("activity acceptance", [
         PRIVACY_POOLS_RPC_URL_ETHEREUM: "http://127.0.0.1:9",
       },
     }),
-    assertExit(3),
+    assertExit(2),
     assertStderrEmpty(),
     assertJson<{
       schemaVersion: string;
       success: boolean;
-      error: { category: string };
+      errorCode?: string;
+      errorMessage?: string;
+      error: { category: string; hint?: string };
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(false);
-      expect(json.error.category).toBe("RPC");
+      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.errorMessage).toContain('No pool found for asset "ETH" on mainnet.');
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.hint).toContain("ASP may be offline");
     }),
   ]),
   defineScenario("activity human mode keeps stdout clean and does not require init", [
