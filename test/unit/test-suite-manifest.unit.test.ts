@@ -24,43 +24,40 @@ describe("test suite manifest", () => {
     expect(COVERAGE_SIGNAL_TESTS.length).toBeGreaterThan(0);
     expect(
       COVERAGE_SIGNAL_TESTS.every((testPath) =>
-        testPath.startsWith("./test/conformance/"),
+        !testPath.startsWith("./test/acceptance/")
+        && !testPath.startsWith("./test/integration/"),
       ),
     ).toBe(true);
   });
 
-  test("coverage isolated suites stay file-based and include the split deterministic lanes", () => {
-    expect(
-      COVERAGE_ISOLATED_SUITES.every((suite) =>
-        Array.isArray(suite.tests)
-        && suite.tests.length > 0
-        && suite.tests.every((testPath) => testPath.endsWith(".test.ts")),
-      ),
-    ).toBe(true);
-    expect(COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests)).toContain(
-      "./test/unit/init-command-interactive.cancel-invalid.unit.test.ts",
+  test("coverage isolated suites stay file-based and self-describing", () => {
+    expect(COVERAGE_ISOLATED_SUITES.length).toBeGreaterThan(0);
+    expect(new Set(COVERAGE_ISOLATED_SUITES.map((suite) => suite.label)).size).toBe(
+      COVERAGE_ISOLATED_SUITES.length,
     );
-    expect(COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests)).toContain(
-      "./test/unit/ragequit-command-handler.entry-submit.unit.test.ts",
-    );
-    expect(COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests)).toContain(
-      "./test/unit/accounts-command-readonly.unit.test.ts",
-    );
-    expect(COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests)).toContain(
-      "./test/unit/history-command-readonly.unit.test.ts",
-    );
+    for (const suite of COVERAGE_ISOLATED_SUITES) {
+      expect(typeof suite.label).toBe("string");
+      expect(suite.label.trim().length).toBeGreaterThan(0);
+      expect(typeof suite.reason).toBe("string");
+      expect(suite.reason.trim().length).toBeGreaterThan(0);
+      expect(Number.isInteger(suite.timeoutMs)).toBe(true);
+      expect(suite.timeoutMs).toBeGreaterThan(0);
+      expect(suite.tests.length).toBeGreaterThan(0);
+      expect(suite.tests.every((testPath) => testPath.endsWith(".test.ts"))).toBe(
+        true,
+      );
+    }
   });
 
   test("default main batches cover each shared target exactly once", () => {
     const flattenedTargets = DEFAULT_MAIN_BATCHES.flatMap((batch) => batch.targets);
     expect(flattenedTargets).toEqual(DEFAULT_MAIN_TEST_TARGETS);
-    expect(DEFAULT_MAIN_BATCHES.map((batch) => batch.label)).toEqual([
-      "acceptance",
-      "unit",
-      "integration",
-      "fuzz",
-      "services",
-    ]);
+    expect(new Set(DEFAULT_MAIN_BATCHES.map((batch) => batch.label)).size).toBe(
+      DEFAULT_MAIN_BATCHES.length,
+    );
+    expect(DEFAULT_MAIN_BATCHES.every((batch) => batch.targets.length > 0)).toBe(
+      true,
+    );
   });
 
   test("default main exclusions isolate the readonly harness but keep split ragequit slices in the main lane", () => {

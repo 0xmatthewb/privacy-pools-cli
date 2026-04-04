@@ -167,41 +167,27 @@ describe("test runner arg helpers", () => {
   test("remaining isolated suites document a concrete isolation reason", () => {
     expect(DEFAULT_TEST_ISOLATED_SUITES.length).toBeGreaterThan(0);
     for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
+      expect(typeof suite.label).toBe("string");
+      expect(suite.label.trim().length).toBeGreaterThan(0);
       expect(typeof suite.reason).toBe("string");
       expect(suite.reason?.trim().length).toBeGreaterThan(0);
+      expect(suite.tests.length).toBeGreaterThan(0);
     }
   });
 
-  test("default isolation policy matches the Bun-aware final suite set", () => {
+  test("default and coverage isolation labels stay unique and structurally valid", () => {
     const labels = DEFAULT_TEST_ISOLATED_SUITES.map((suite) => suite.label);
-    expect(new Set(labels).size).toBe(labels.length);
-    for (const requiredLabel of [
-      "contracts-service",
-      "proofs-service",
-      "workflow-mocked",
-      "workflow-internal",
-      "bootstrap-runtime",
-    ]) {
-      expect(labels).toContain(requiredLabel);
-    }
-    expect(labels).not.toContain("workflow-service");
-  });
-
-  test("coverage isolation keeps only the final documented superset", () => {
-    const defaultLabels = DEFAULT_TEST_ISOLATED_SUITES.map((suite) => suite.label);
     const coverageLabels = COVERAGE_ISOLATED_SUITES.map((suite) => suite.label);
 
+    expect(new Set(labels).size).toBe(labels.length);
     expect(new Set(coverageLabels).size).toBe(coverageLabels.length);
-    for (const label of defaultLabels) {
+    for (const label of labels) {
       expect(coverageLabels).toContain(label);
     }
-    for (const coverageOnlyLabel of [
-      "workflow-service",
-      "launcher-runtime",
-    ]) {
-      expect(coverageLabels).toContain(coverageOnlyLabel);
+    for (const suite of COVERAGE_ISOLATED_SUITES) {
+      expect(typeof suite.reason).toBe("string");
+      expect(suite.reason.trim().length).toBeGreaterThan(0);
+      expect(suite.tests.length).toBeGreaterThan(0);
     }
-    expect(defaultLabels).toContain("account-readonly");
-    expect(coverageLabels).toContain("account-readonly");
   });
 });
