@@ -28,6 +28,9 @@ describe("test suite manifest", () => {
         && !testPath.startsWith("./test/integration/"),
       ),
     ).toBe(true);
+    expect(COVERAGE_SIGNAL_TESTS).not.toContain(
+      "./test/conformance/root-help-static.conformance.test.ts",
+    );
   });
 
   test("coverage isolated suites stay file-based and self-describing", () => {
@@ -47,6 +50,14 @@ describe("test suite manifest", () => {
         true,
       );
     }
+    expect(COVERAGE_ISOLATED_SUITES).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "launcher-routing",
+          tests: ["./test/unit/launcher-routing.unit.test.ts"],
+        }),
+      ]),
+    );
   });
 
   test("default main batches cover each shared target exactly once", () => {

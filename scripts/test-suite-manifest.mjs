@@ -62,6 +62,8 @@ export const BOOTSTRAP_RUNTIME_TEST =
   "./test/unit/bootstrap-runtime.unit.test.ts";
 export const LAUNCHER_RUNTIME_TEST =
   "./test/unit/launcher-runtime.unit.test.ts";
+export const LAUNCHER_ROUTING_TEST =
+  "./test/unit/launcher-routing.unit.test.ts";
 export const INIT_INTERACTIVE_CANCEL_INVALID_TEST =
   "./test/unit/init-command-interactive.cancel-invalid.unit.test.ts";
 export const INIT_INTERACTIVE_GENERATE_BACKUP_TEST =
@@ -107,7 +109,6 @@ export const COMMAND_SURFACE_TESTS = [
   "./test/conformance/command-metadata.conformance.test.ts",
   "./test/conformance/completion-spec.conformance.test.ts",
   "./test/conformance/lazy-startup.conformance.test.ts",
-  "./test/conformance/root-help-static.conformance.test.ts",
 ];
 
 // Keep source coverage focused on in-process tests that actually instrument
@@ -316,6 +317,15 @@ export const ISOLATED_SUITES = [
       "mock.module() interception of cli-main transitive imports is not safely reversible in-process across Bun versions",
   },
   {
+    label: "launcher-routing",
+    tests: [LAUNCHER_ROUTING_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    reason:
+      "the launcher routing suite exercises the runtime boundary and should contribute to the coverage signal in its own stable Bun process",
+  },
+  {
     label: "launcher-runtime",
     tests: [LAUNCHER_RUNTIME_TEST],
     timeoutMs: 120_000,
@@ -345,5 +355,4 @@ export const DEFAULT_MAIN_EXCLUDED_TESTS = [
 export const COVERAGE_MAIN_EXCLUDED_TESTS = [
   ...ANVIL_E2E_TESTS,
   ...COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests),
-  "./test/unit/launcher-routing.unit.test.ts",
 ];
