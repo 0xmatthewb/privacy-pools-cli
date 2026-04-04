@@ -42,12 +42,12 @@ const verifyNativePackageScript = readFileSync(
   join(CLI_ROOT, "scripts", "verify-packed-native-package.mjs"),
   "utf8",
 );
-const launcherSource = readFileSync(
-  join(CLI_ROOT, "src", "launcher.ts"),
+const nativeResolutionSource = readFileSync(
+  join(CLI_ROOT, "src", "runtime", "native-resolution.ts"),
   "utf8",
 );
-const nativeShellSource = readFileSync(
-  join(CLI_ROOT, "native", "shell", "src", "main.rs"),
+const nativeContractSource = readFileSync(
+  join(CLI_ROOT, "native", "shell", "src", "contract.rs"),
   "utf8",
 );
 
@@ -120,10 +120,10 @@ describe("runtime contract conformance", () => {
     expect(verifyNativePackageScript).toContain("protocol profile mismatch");
     expect(verifyNativePackageScript).toContain("CURRENT_RUNTIME_DESCRIPTOR");
 
-    expect(launcherSource).toContain("binaryPath");
-    expect(launcherSource).toContain("protocolProfile");
-    expect(launcherSource).toContain("CLI_PROTOCOL_PROFILE.profile");
-    expect(launcherSource).toContain("CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion");
-    expect(nativeShellSource).toContain("runtime-contract.json");
+    expect(nativeResolutionSource).toContain("binaryPath");
+    expect(nativeResolutionSource).toContain("protocolProfile");
+    expect(nativeResolutionSource).toContain("CLI_PROTOCOL_PROFILE.profile");
+    expect(nativeResolutionSource).toContain("CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion");
+    expect(nativeContractSource).toContain("runtime-contract.json");
   });
 });
