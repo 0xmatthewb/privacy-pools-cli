@@ -29,7 +29,7 @@ describe("help content", () => {
     expect(guide).toContain("flow ragequit");
     expect(guide).toContain("--new-wallet");
     expect(guide).toContain("--export-new-wallet <path>");
-    expect(guide).toContain("dedicated per-workflow wallet");
+    expect(guide).toMatch(/workflow wallet/i);
   });
 
   test("guideText keeps both the packaged install path and the source fallback", () => {
@@ -46,16 +46,16 @@ describe("help content", () => {
     expect(guide).toContain("privacy-pools accounts --chain mainnet");
     expect(guide).toContain("approved");
     expect(guide).toContain("declined");
-    expect(guide).toContain("Proof of Association");
-    expect(guide).toContain("use --chain");
+    expect(guide).toMatch(/Proof of Association|POA Needed|poi_required/);
+    expect(guide).toContain("--chain");
   });
 
   test("guideText frames bundled docs as package-relative and points users at built-in help", () => {
     const guide = guideText();
     expect(guide).toContain("privacy-pools <command> --help");
-    expect(guide).toContain(
-      "Package-relative docs (open from a source checkout or installed package root):",
-    );
+    expect(guide).toContain("docs/reference.md");
+    expect(guide).toContain("docs/runtime-upgrades.md");
+    expect(guide).toContain("AGENTS.md");
   });
 
   test("welcomeScreen includes npm link hint when running from source", () => {

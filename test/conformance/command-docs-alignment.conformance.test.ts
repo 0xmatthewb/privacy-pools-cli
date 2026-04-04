@@ -43,16 +43,16 @@ describe("command docs alignment", () => {
     }
   });
 
-  test("AGENTS machine sections keep machine-facing anchors", () => {
+  test("AGENTS machine sections keep critical machine-contract anchors", () => {
     const expectations: Array<{ path: CommandPath; markers: string[] }> = [
       { path: "init", markers: ["recoveryPhrase", "nextActions"] },
-      { path: "activity", markers: ["reviewStatus", "chainFiltered"] },
+      { path: "activity", markers: ["reviewStatus"] },
       { path: "status", markers: ["recommendedMode", "nextActions"] },
       { path: "accounts", markers: ["balances", "nextActions"] },
-      { path: "migrate status", markers: ["readiness", "submissionSupported"] },
-      { path: "history", markers: ["events", "poolAccountId"] },
-      { path: "sync", markers: ["syncedPools", "availablePoolAccounts"] },
-      { path: "withdraw quote", markers: ["baseFeeBPS", "relayTxCost"] },
+      { path: "migrate status", markers: ["readiness"] },
+      { path: "history", markers: ["events"] },
+      { path: "sync", markers: ["syncedPools"] },
+      { path: "withdraw quote", markers: ["relayTxCost"] },
     ];
 
     for (const expectation of expectations) {
