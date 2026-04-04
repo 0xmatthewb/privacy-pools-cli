@@ -13,17 +13,12 @@ import {
 } from "fs";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "path";
-import { homedir } from "os";
 import type { CLIConfig } from "../types.js";
+import { resolveConfigHome } from "../runtime/config-paths.js";
 import { CLIError } from "../utils/errors.js";
 
 function resolveConfigDir(): string {
-  const envOverride =
-    process.env.PRIVACY_POOLS_HOME?.trim() ||
-    process.env.PRIVACY_POOLS_CONFIG_DIR?.trim();
-  return envOverride && envOverride.length > 0
-    ? envOverride
-    : join(homedir(), ".privacy-pools");
+  return resolveConfigHome();
 }
 
 export function getConfigFilePath(): string {

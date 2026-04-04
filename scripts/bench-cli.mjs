@@ -31,36 +31,44 @@ const STRIPPED_ENV_PREFIXES = ["PRIVACY_POOLS_", "PP_"];
 
 const COMMANDS = [
   {
+    family: "static-local",
     label: "--help",
     args: ["--help"],
   },
   {
+    family: "static-local",
     label: "--version",
     args: ["--version"],
   },
   {
+    family: "static-local",
     label: "capabilities --agent",
     args: ["capabilities", "--agent"],
   },
   {
+    family: "static-local",
     label: "describe withdraw quote --agent",
     args: ["describe", "withdraw", "quote", "--agent"],
   },
   {
+    family: "heavy-help",
     label: "flow --help",
     args: ["flow", "--help"],
   },
   {
+    family: "heavy-help",
     label: "migrate --help",
     args: ["migrate", "--help"],
   },
   {
+    family: "js-read-only",
     label: "status --json --no-check",
     args: ["status", "--json", "--no-check"],
     isolateHome: true,
     skipDirectNative: true,
   },
   {
+    family: "native-public-read-only",
     label: "pools --agent",
     args: ["pools", "--agent"],
     env: ({ fixtureUrl }) => ({
@@ -72,6 +80,7 @@ const COMMANDS = [
     }),
   },
   {
+    family: "native-public-read-only",
     label: "pools --agent --chain sepolia",
     args: ["--chain", "sepolia", "pools", "--agent"],
     env: ({ fixtureUrl }) => ({
@@ -80,6 +89,7 @@ const COMMANDS = [
     }),
   },
   {
+    family: "native-public-read-only",
     label: "activity --agent",
     args: ["activity", "--agent"],
     env: ({ fixtureUrl }) => ({
@@ -87,6 +97,7 @@ const COMMANDS = [
     }),
   },
   {
+    family: "native-public-read-only",
     label: "activity --agent --chain sepolia --asset ETH",
     args: ["--chain", "sepolia", "activity", "--agent", "--asset", "ETH"],
     env: ({ fixtureUrl }) => ({
@@ -95,6 +106,7 @@ const COMMANDS = [
     }),
   },
   {
+    family: "native-public-read-only",
     label: "stats --agent",
     args: ["stats", "--agent"],
     env: ({ fixtureUrl }) => ({
@@ -102,6 +114,7 @@ const COMMANDS = [
     }),
   },
   {
+    family: "native-public-read-only",
     label: "stats pool --agent --chain sepolia --asset ETH",
     args: ["--chain", "sepolia", "stats", "pool", "--asset", "ETH", "--agent"],
     env: ({ fixtureUrl }) => ({
@@ -110,6 +123,13 @@ const COMMANDS = [
     }),
   },
 ];
+
+const COMMAND_FAMILY_LABELS = {
+  "static-local": "static/local",
+  "heavy-help": "heavy help",
+  "js-read-only": "js read-only/config",
+  "native-public-read-only": "native public read-only",
+};
 
 function sanitizedProcessEnv() {
   const env = {};
@@ -534,6 +554,7 @@ try {
           "",
           [
             "runtime",
+            "family",
             "command",
             "base median",
             "current median",
@@ -544,9 +565,17 @@ try {
       );
 
       for (const runtime of runtimes) {
+        let previousFamily = null;
         for (const command of COMMANDS) {
           if (runtime === "native" && command.skipDirectNative) {
             continue;
+          }
+
+          if (command.family !== previousFamily) {
+            process.stdout.write(
+              `# ${COMMAND_FAMILY_LABELS[command.family] ?? command.family}\n`,
+            );
+            previousFamily = command.family;
           }
 
           const extraEnv =
@@ -615,6 +644,7 @@ try {
             process.stdout.write(
               [
                 runtime,
+                COMMAND_FAMILY_LABELS[command.family] ?? command.family,
                 command.label,
                 formatMs(base.median),
                 formatMs(current.median),

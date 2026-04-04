@@ -1,12 +1,13 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { CliPackageInfo } from "./package-info.js";
-import { resolveInstalledNativeBinary } from "./launcher.js";
-import { nativePackageName as resolveNativePackageName } from "./native-distribution.js";
+import {
+  ENV_CLI_BINARY,
+  ENV_CLI_DISABLE_NATIVE,
+  nativePackageName as resolveNativePackageName,
+  resolveInstalledNativeBinary,
+} from "./runtime/native-resolution.js";
 import type { StatusIssue } from "./types.js";
-
-const ENV_CLI_BINARY = "PRIVACY_POOLS_CLI_BINARY";
-const ENV_CLI_DISABLE_NATIVE = "PRIVACY_POOLS_CLI_DISABLE_NATIVE";
 
 export interface NativeRuntimeAdvisoryDependencies {
   env?: NodeJS.ProcessEnv;

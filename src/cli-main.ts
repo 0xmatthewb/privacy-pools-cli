@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import { join } from "path";
-import { homedir } from "os";
 import type { CliPackageInfo } from "./package-info.js";
+import { resolveConfigHome } from "./runtime/config-paths.js";
 import {
   checkForUpdateInBackground,
   getUpdateNotice,
@@ -53,14 +53,6 @@ const WELCOME_BOOLEAN_FLAGS = new Set([
 
 const STATIC_LOCAL_COMMANDS = new Set<string>(GENERATED_STATIC_LOCAL_COMMANDS);
 
-function configHome(): string {
-  return (
-    process.env.PRIVACY_POOLS_HOME?.trim() ||
-    process.env.PRIVACY_POOLS_CONFIG_DIR?.trim() ||
-    join(homedir(), ".privacy-pools")
-  );
-}
-
 async function maybeLoadConfigEnv(
   firstCommandToken: string | undefined,
   isHelpLike: boolean,
@@ -79,7 +71,7 @@ async function maybeLoadConfigEnv(
   // Loading from CWD would let a malicious .env in a cloned repo silently
   // redirect RPC/ASP/relayer endpoints or swap the signer key.
   const { config: loadEnv } = await import("dotenv");
-  loadEnv({ path: join(configHome(), ".env") });
+  loadEnv({ path: join(resolveConfigHome(), ".env") });
 }
 
 function mapCommanderError(error: unknown): CLIError | null {
@@ -432,7 +424,7 @@ export const cliMainTestInternals = {
   firstNonOptionToken,
   isWelcomeFlagOnlyInvocation,
   parseRootArgv,
-  configHome,
+  configHome: resolveConfigHome,
   maybeLoadConfigEnv,
   mapCommanderError,
   shouldStartUpdateCheck,

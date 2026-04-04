@@ -31,6 +31,14 @@ The `js` lane still includes `status --json --no-check`, but that command is
 intentionally JS-owned for the fund-safety boundary and is not part of the
 enforced native shell gate.
 
+The benchmark output also labels each row by command family so regressions stay
+grounded in the right part of the CLI:
+
+- `static/local`: root help, version, and generated discovery fast paths
+- `heavy help`: JS-owned help surfaces that still exercise larger command trees
+- `js read-only/config`: safe read-only JS paths such as `status --json --no-check`
+- `native public read-only`: public read-only routes that should benefit most from the Rust shell
+
 It keeps the setup intentionally lightweight:
 
 - no extra dependencies
@@ -56,6 +64,13 @@ The default command matrix covers:
 - `stats --agent`
 - `stats pool --agent --chain sepolia --asset ETH`
 
+Treat those families as distinct budgets rather than one global number:
+
+- `static/local` should stay extremely fast and avoid loading the heavy JS tree
+- `heavy help` should remain bounded even though it still exercises JS-owned command shells
+- `js read-only/config` should avoid duplicate bootstrap/setup work
+- `native public read-only` is the main performance-sensitive native shell budget
+
 The enforced `bench:gate` thresholds apply to the direct native shell targets
 from the roadmap: root help/version/discovery, heavy subcommand help, and the
 native-owned public read-only commands. The `launcher-binary-override` lane is
@@ -71,3 +86,7 @@ release workflow exactly.
 
 If you want to compare a different ref, pass `--base <ref>` such as `HEAD~1`,
 `origin/main`, or a release tag.
+
+For local route diagnostics while profiling, set `PRIVACY_POOLS_DEBUG_RUNTIME=1`.
+That opt-in mode writes route-planning, launcher completion timing, and native
+resolution cache events to stderr without changing normal CLI output by default.

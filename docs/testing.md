@@ -122,6 +122,18 @@ budgets rather than strict SLAs:
 - `npm run test:e2e:anvil:smoke`: about a minute or better
 - `npm run test:e2e:anvil`: a few minutes or better
 
+For CLI startup work, prefer command-family budgets over one global benchmark:
+
+- `static/local`: root help, version, generated discovery, completion query
+- `native public read-only`: `pools`, `activity`, `stats`
+- `js read-only/config`: `status --json --no-check`, upgrade/config inspection
+- `transactional/proof-heavy`: deposit/withdraw/ragequit/flow, where network and proving costs dominate
+
+The benchmark harness in [`docs/performance.md`](./performance.md) prints those
+families explicitly so launcher/native work is judged against the right budget.
+Do not trade away UX or correctness in the transaction-heavy family to chase
+micro-optimizations that only matter on static or read-only routes.
+
 If a target is missed:
 
 - prefer acceptance migration, exact-file CI sharding, and affected-path selection

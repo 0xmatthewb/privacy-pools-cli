@@ -12,7 +12,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
+import { resolveConfigHome } from "../runtime/config-paths.js";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -26,11 +26,7 @@ function registryUrl(): string {
 }
 
 function configDir(): string {
-  return (
-    process.env.PRIVACY_POOLS_HOME?.trim() ||
-    process.env.PRIVACY_POOLS_CONFIG_DIR?.trim() ||
-    join(homedir(), ".privacy-pools")
-  );
+  return resolveConfigHome();
 }
 
 function cachePath(): string {

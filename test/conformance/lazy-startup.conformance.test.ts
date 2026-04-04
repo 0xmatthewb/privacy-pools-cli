@@ -66,6 +66,7 @@ describe("lazy startup conformance", () => {
   test("entrypoint stays free of heavy startup imports", () => {
     const entrySource = readSource("src/index.ts");
     const launcherSource = readSource("src/launcher.ts");
+    const localFastPathSource = readSource("src/runtime/local-fast-path.ts");
 
     expect(entrySource).not.toContain("./services/account.js");
     expect(entrySource).not.toContain('from "dotenv"');
@@ -74,8 +75,12 @@ describe("lazy startup conformance", () => {
 
     expect(launcherSource).not.toContain("./services/account.js");
     expect(launcherSource).not.toContain('from "dotenv"');
-    expect(launcherSource).toContain('await import("./static-discovery.js")');
+    expect(launcherSource).toContain('./runtime/local-fast-path.js');
+    expect(launcherSource).not.toContain('from "./static-discovery.js"');
     expect(launcherSource).not.toContain('from "./cli-main.js"');
+
+    expect(localFastPathSource).toContain('await import("../static-discovery.js")');
+    expect(localFastPathSource).not.toContain("../services/account.js");
   });
 
   test("full cli path keeps dotenv lazy", () => {

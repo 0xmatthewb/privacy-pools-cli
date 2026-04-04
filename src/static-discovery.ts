@@ -1,7 +1,7 @@
 import type { GlobalOptions } from "./types.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
-import type { ParsedRootArgv } from "./utils/root-argv.js";
+import { parseRootArgv, type ParsedRootArgv } from "./utils/root-argv.js";
 import {
   invalidOutputFormatMessage,
   isSupportedOutputFormat,
@@ -55,32 +55,7 @@ function detectStaticCompletionShell(
 }
 
 function fallbackJsonModeFromArgv(argv: string[]): boolean {
-  let formatValue: string | null = null;
-
-  for (let i = 0; i < argv.length; i++) {
-    const token = argv[i];
-
-    if (token === "--json" || token === "--agent") return true;
-
-    if (token === "-j") return true;
-
-    if (/^-[A-Za-z]+$/.test(token) && !token.startsWith("--")) {
-      if (token.includes("j")) return true;
-      continue;
-    }
-
-    if (token === "--format") {
-      formatValue = i + 1 < argv.length ? (argv[i + 1] ?? null) : null;
-      i++;
-      continue;
-    }
-
-    if (token.startsWith("--format=")) {
-      formatValue = token.slice("--format=".length);
-    }
-  }
-
-  return formatValue?.toLowerCase() === "json";
+  return parseRootArgv(argv).isStructuredOutputMode;
 }
 
 function isQuietMode(globalOpts: GlobalOptions): boolean {
@@ -389,55 +364,39 @@ function parseShortFlagBundle(
 }
 
 function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {
+  if (!hasValidStaticRootPrelude(argv)) {
+    return null;
+  }
+  return parseStaticCommandFromRootArgv(parseRootArgv(argv));
+}
+
+function hasValidStaticRootPrelude(argv: string[]): boolean {
   const globalOpts: GlobalOptions = {};
-  let command: ParsedStaticCommand["command"] | null = null;
-  const commandTokens: string[] = [];
-  let helpLike = false;
-  let versionLike = false;
+  let index = 0;
 
-  for (let i = 0; i < argv.length; i++) {
-    const token = argv[i];
+  for (; index < argv.length; index++) {
+    const token = argv[index];
 
-    if (token === "--") return null;
+    if (token === "--") return false;
+    if (!token.startsWith("-")) return true;
 
     if (token.startsWith("--")) {
-      const parsed = parseLongOption(token, argv[i + 1], globalOpts);
-      if (!parsed) return null;
-      helpLike = helpLike || parsed.helpLike;
-      versionLike = versionLike || parsed.versionLike;
-      if (parsed.consumedNext) i++;
+      const parsed = parseLongOption(token, argv[index + 1], globalOpts);
+      if (!parsed || parsed.helpLike || parsed.versionLike) return false;
+      if (parsed.consumedNext) index++;
       continue;
     }
 
-    if (token.startsWith("-")) {
-      const parsed =
-        token.length === 2
-          ? parseShortOption(token, argv[i + 1], globalOpts)
-          : parseShortFlagBundle(token, globalOpts);
-      if (!parsed) return null;
-      helpLike = helpLike || parsed.helpLike;
-      versionLike = versionLike || parsed.versionLike;
-      if ("consumedNext" in parsed && parsed.consumedNext) i++;
-      continue;
-    }
-
-    if (!command) {
-      if (!STATIC_DISCOVERY_COMMAND_SET.has(token)) {
-        return null;
-      }
-      command = token as ParsedStaticCommand["command"];
-      continue;
-    }
-
-    commandTokens.push(token);
+    const parsed =
+      token.length === 2
+        ? parseShortOption(token, argv[index + 1], globalOpts)
+        : parseShortFlagBundle(token, globalOpts);
+    if (!parsed) return false;
+    if (parsed.helpLike || parsed.versionLike) return false;
+    if ("consumedNext" in parsed && parsed.consumedNext) index++;
   }
 
-  if (!command || helpLike || versionLike) return null;
-  if (command === "guide" && commandTokens.length > 0) return null;
-  if (command === "capabilities" && commandTokens.length > 0) return null;
-  if (command === "describe" && commandTokens.length === 0) return null;
-
-  return { command, commandTokens, globalOpts };
+  return true;
 }
 
 function parseStaticCommandFromRootArgv(
@@ -688,6 +647,7 @@ export const staticDiscoveryTestInternals = {
   isKnownCompletionShell,
   detectStaticCompletionShell,
   fallbackJsonModeFromArgv,
+  hasValidStaticRootPrelude,
   staticGlobalOptsFromParsedRootArgv,
   parseLongOption,
   parseShortOption,
