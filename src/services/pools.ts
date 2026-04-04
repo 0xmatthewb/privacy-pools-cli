@@ -524,7 +524,7 @@ export async function resolvePool(
 
   // Try to resolve by symbol name via ASP first.
   const normalized = assetInput.toUpperCase();
-  if (!hasCustomRpc) {
+  try {
     const knownPool = await resolveKnownPool(
       publicClient,
       chainConfig,
@@ -534,6 +534,10 @@ export async function resolvePool(
     );
     if (knownPool) {
       return knownPool;
+    }
+  } catch (error) {
+    if (!hasCustomRpc) {
+      throw error;
     }
   }
 
@@ -553,19 +557,6 @@ export async function resolvePool(
     }
     // ASP unavailable — fall through to hardcoded fallback.
     aspLookupFailed = true;
-  }
-
-  if (!hasCustomRpc) {
-    const knownPool = await resolveKnownPool(
-      publicClient,
-      chainConfig,
-      normalized,
-      assetInput,
-      rpcOverride,
-    );
-    if (knownPool) {
-      return knownPool;
-    }
   }
 
   // Fallback: resolve symbol via hardcoded known-pool registry and

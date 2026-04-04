@@ -167,6 +167,44 @@ describe("resolvePool", () => {
     expect(pool.asset).toBe(ASSET);
   });
 
+  test("resolves known symbols through the built-in fast path even with a custom rpc override", async () => {
+    const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
+    const poolAddress = "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f" as Address;
+    const server = await startMockServer(11155111, {
+      statsPayload: { pools: [] },
+      rpcHandler: ({ to, data }) => {
+        if (to === CHAINS.sepolia.entrypoint.toLowerCase() && data.startsWith("0xd6dbaf58")) {
+          return encodeAbiParameters(
+            [{ type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }],
+            [poolAddress, 1000000n, 50n, 250n]
+          );
+        }
+        if (to === poolAddress.toLowerCase()) {
+          return encodeAbiParameters([{ type: "uint256" }], [SCOPE]);
+        }
+        if (to === asset.toLowerCase() && data.startsWith("0x95d89b41")) {
+          return encodeAbiParameters([{ type: "string" }], ["USDC"]);
+        }
+        if (to === asset.toLowerCase() && data.startsWith("0x313ce567")) {
+          return encodeAbiParameters([{ type: "uint8" }], [6]);
+        }
+        return null;
+      },
+    });
+    toClose.push(server);
+
+    const cfg = {
+      ...CHAINS.sepolia,
+      aspHost: server.url,
+    };
+
+    const pool = await resolvePool(cfg, "USDC", server.url);
+
+    expect(pool.asset.toLowerCase()).toBe(asset.toLowerCase());
+    expect(pool.pool.toLowerCase()).toBe(poolAddress.toLowerCase());
+    expect(pool.symbol).toBe("USDC");
+  });
+
   test("keeps deployment hints for known pools on local rpc", async () => {
     const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
     const poolAddress = "0x0b062fe33c4f1592d8ea63f9a0177fca44374c0f" as Address;

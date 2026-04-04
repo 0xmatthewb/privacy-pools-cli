@@ -4278,22 +4278,25 @@ fn resolve_pool_native(
     let mut available_assets_hint: Option<String> = None;
     let mut asp_lookup_failed = false;
 
-    if !has_custom_rpc {
-        if let Some(known_asset_address) = manifest
-            .runtime_config
-            .known_pools
-            .get(&chain.id)
-            .and_then(|pools| pools.get(&normalized))
-            .cloned()
-        {
-            if let Ok(resolution) = resolve_pool_from_asset_address_native(
-                chain,
-                &known_asset_address,
-                &rpc_urls,
-                &manifest.runtime_config.native_asset_address,
-                timeout_ms,
-            ) {
-                return Ok(resolution);
+    if let Some(known_asset_address) = manifest
+        .runtime_config
+        .known_pools
+        .get(&chain.id)
+        .and_then(|pools| pools.get(&normalized))
+        .cloned()
+    {
+        match resolve_pool_from_asset_address_native(
+            chain,
+            &known_asset_address,
+            &rpc_urls,
+            &manifest.runtime_config.native_asset_address,
+            timeout_ms,
+        ) {
+            Ok(resolution) => return Ok(resolution),
+            Err(error) => {
+                if !has_custom_rpc {
+                    return Err(error);
+                }
             }
         }
     }

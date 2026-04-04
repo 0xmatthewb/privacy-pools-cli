@@ -597,9 +597,9 @@ describe("pools service", () => {
     }
   });
 
-  test("resolvePool still consults ASP listings for canonical symbols on env-backed custom RPCs", async () => {
+  test("resolvePool uses the built-in fast path for canonical symbols on env-backed custom RPCs", async () => {
     const chainId = CHAINS.sepolia.id;
-    const asset = "0x00000000000000000000000000000000000000b1" as Address;
+    const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
     const pool = "0x00000000000000000000000000000000000000a1" as Address;
     const scope = 987654321n;
     let statsRequests = 0;
@@ -702,7 +702,7 @@ describe("pools service", () => {
     resetSdkServiceCachesForTests();
 
     const resolved = await resolvePool(chainConfig, "USDC");
-    expect(statsRequests).toBe(1);
+    expect(statsRequests).toBe(0);
     expect(resolved.symbol).toBe("USDC");
     expect(resolved.asset.toLowerCase()).toBe(asset.toLowerCase());
     expect(resolved.pool.toLowerCase()).toBe(pool.toLowerCase());
