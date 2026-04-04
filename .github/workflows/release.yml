@@ -4,19 +4,21 @@
 #   - When you push a git tag that starts with "v" (e.g. v1.2.3)
 #   - Manually via the "Run workflow" button (you type an existing tag)
 #
-# WHAT does it do?  (seven sequential stages)
+# WHAT does it do?  (eight sequential stages)
 #   1. validate  — runs the release-readiness suite as `npm run test:release`
 #                  to make sure the tagged code is healthy.
 #   2. package   — creates an npm tarball (.tgz) of the CLI.
 #   3. package-native — builds exact-version native package tarballs for the
 #                  supported host triplets.
-#   4. publish-native — publishes the native optional packages to npm and
+#   4. verify-package-install — installs the packaged artifacts across the
+#                  supported Node range before anything is published.
+#   5. publish-native — publishes the native optional packages to npm and
 #                  verifies they resolve at the tagged version.
-#   5. publish-root — publishes the root JS launcher package to npm after the
+#   6. publish-root — publishes the root JS launcher package to npm after the
 #                  native packages are live.
-#   6. verify-registry-install — installs the published npm package from the
+#   7. verify-registry-install — installs the published npm package from the
 #                  live registry on supported hosts and proves native resolution.
-#   7. release   — attaches the npm tarball, native tarballs, and checksum
+#   8. release   — attaches the npm tarball, native tarballs, and checksum
 #                  manifest to a GitHub Release page.
 #
 # HOW to create a release:
@@ -270,23 +272,42 @@ jobs:
             --native-tarball "${NATIVE_TARBALL}"
 
   # -----------------------------------------------------------
-  # Stage 5: Publish the root JS launcher package to npm
-  # This only runs after the native packages are live so installs can
-  # resolve the exact-version optional native package immediately.
-  # GitHub schedules this by `needs`, so the root publish job can stay near the
-  # registry verification steps even though the native publish job is declared
-  # later in this file.
+  # Stage 4: Verify the packaged install path across the supported Node range
+  # before anything is published to the live registry.
   # -----------------------------------------------------------
-  publish-root:
-    name: publish-root
+  verify-package-install:
+    name: packaged-install-${{ matrix.triplet }}-node-${{ matrix.node-version }}
     needs:
       - package
-      - publish-native
-    runs-on: ubuntu-latest
+      - package-native
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        triplet:
+          - darwin-arm64
+          - darwin-x64
+          - linux-x64-gnu
+          - win32-x64-msvc
+          - win32-arm64-msvc
+        node-version:
+          - "22.x"
+          - "24.x"
+          - "25.x"
+        include:
+          - triplet: darwin-arm64
+            runner: macos-latest
+          - triplet: darwin-x64
+            runner: macos-15-intel
+          - triplet: linux-x64-gnu
+            runner: ubuntu-latest
+          - triplet: win32-x64-msvc
+            runner: windows-latest
+          - triplet: win32-arm64-msvc
+            runner: windows-11-arm
     environment:
       name: native-release-signoff
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -296,21 +317,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "25.x"
-          registry-url: "https://registry.npmjs.org"
+          node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Ensure npm publish token is configured
-        shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [[ -z "${NODE_AUTH_TOKEN}" ]]; then
-            echo "NPM_TOKEN secret is required to publish the root npm package."
-            exit 1
-          fi
 
       - name: Download root npm package artifact
         uses: actions/download-artifact@v6
@@ -318,32 +328,31 @@ jobs:
           name: npm-package
           path: release-artifacts/npm
 
-      - name: Publish and verify root npm package
+      - name: Download matching native package artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: native-package-${{ matrix.triplet }}
+          path: release-artifacts/native/${{ matrix.triplet }}
+
+      - name: Verify packaged install
         shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          VERSION="$(node -p "require('./package.json').version")"
-          PACKAGE="$(node -p "require('./package.json').name")"
           CLI_TARBALL="$(echo release-artifacts/npm/*.tgz)"
-
-          if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
-            echo "${PACKAGE}@${VERSION} already published; verifying registry entry."
-          else
-            npm publish "${CLI_TARBALL}" --access public
-          fi
-
-          npm view "${PACKAGE}@${VERSION}" version
+          NATIVE_TARBALL="$(echo release-artifacts/native/${{ matrix.triplet }}/*.tgz)"
+          node scripts/verify-release-install.mjs \
+            --cli-tarball "${CLI_TARBALL}" \
+            --native-tarball "${NATIVE_TARBALL}"
 
   # -----------------------------------------------------------
-  # Stage 4: Publish the native optional packages to npm
-  # This only runs after the native package jobs succeed.
+  # Stage 5: Publish the native optional packages to npm
+  # This only runs after the native package jobs and packaged-install matrix succeed.
   # -----------------------------------------------------------
   publish-native:
     name: publish-native
     needs:
       - package
       - package-native
+      - verify-package-install
     runs-on: ubuntu-latest
     environment:
       name: native-release-signoff
@@ -439,7 +448,70 @@ jobs:
           done
 
   # -----------------------------------------------------------
-  # Stage 6: Verify the live npm registry install path
+  # Stage 6: Publish the root JS launcher package to npm
+  # This only runs after the native packages are live so installs can
+  # resolve the exact-version optional native package immediately.
+  # -----------------------------------------------------------
+  publish-root:
+    name: publish-root
+    needs:
+      - package
+      - publish-native
+    runs-on: ubuntu-latest
+    environment:
+      name: native-release-signoff
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure npm publish token is configured
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -z "${NODE_AUTH_TOKEN}" ]]; then
+            echo "NPM_TOKEN secret is required to publish the root npm package."
+            exit 1
+          fi
+
+      - name: Download root npm package artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: npm-package
+          path: release-artifacts/npm
+
+      - name: Publish and verify root npm package
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          PACKAGE="$(node -p "require('./package.json').name")"
+          CLI_TARBALL="$(echo release-artifacts/npm/*.tgz)"
+
+          if npm view "${PACKAGE}@${VERSION}" version >/dev/null 2>&1; then
+            echo "${PACKAGE}@${VERSION} already published; verifying registry entry."
+          else
+            npm publish "${CLI_TARBALL}" --access public
+          fi
+
+          npm view "${PACKAGE}@${VERSION}" version
+
+  # -----------------------------------------------------------
+  # Stage 7: Verify the live npm registry install path
   # This only runs after the root package and native packages are live.
   # -----------------------------------------------------------
   verify-registry-install:
@@ -501,7 +573,7 @@ jobs:
             --version "${VERSION}"
 
   # -----------------------------------------------------------
-  # Stage 7: Create or update the GitHub Release page
+  # Stage 8: Create or update the GitHub Release page
   # This only runs after the JS package, native package, npm publish, and
   # registry install verification jobs succeed.
   # -----------------------------------------------------------

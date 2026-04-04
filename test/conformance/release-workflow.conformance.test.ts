@@ -104,6 +104,7 @@ describe("release workflow conformance", () => {
     for (const requiredJob of [
       "validate:",
       "package:",
+      "verify-package-install:",
       "publish-native:",
       "publish-root:",
       "verify-registry-install:",
@@ -119,6 +120,19 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("native-release-signoff");
     expect(releaseWorkflow).toContain("SHA256SUMS.txt.sig");
     expect(releaseWorkflow).toContain("Release Artifact");
+  });
+
+  test("release workflow verifies packaged installs before publish", () => {
+    expect(releaseWorkflow).toContain(
+      "packaged-install-${{ matrix.triplet }}-node-${{ matrix.node-version }}",
+    );
+    expect(releaseWorkflow).toContain("name: native-package-${{ matrix.triplet }}");
+    expect(releaseWorkflow).toContain(
+      "node scripts/verify-release-install.mjs",
+    );
+    expect(releaseWorkflow).toMatch(
+      /publish-native:[\s\S]*?needs:[\s\S]*?verify-package-install/m,
+    );
   });
 
   test("release workflow verifies published installs across the supported node range", () => {
