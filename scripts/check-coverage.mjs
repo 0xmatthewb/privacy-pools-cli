@@ -11,6 +11,12 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { suiteUsesSharedBuiltWorkspaceSnapshot } from "./main-suite-plan.mjs";
+import { buildTestRunnerEnv } from "./test-runner-env.mjs";
+import {
+  cleanupSharedBuiltWorkspaceSnapshot,
+  createSharedBuiltWorkspaceSnapshot,
+} from "./test-workspace-snapshot.mjs";
 
 import {
   COVERAGE_SIGNAL_TESTS,
@@ -27,6 +33,16 @@ const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
 const coverageRootDir = mkdtempSync(join(tmpdir(), "pp-coverage-"));
 const keepCoverageRoot = process.env.PP_KEEP_COVERAGE_ROOT === "1";
 const MAX_COVERAGE_LCOV_RETRIES = 3;
+let sharedBuiltWorkspaceSnapshotRoot = null;
+
+class CoverageSuiteExitError extends Error {
+  constructor(label, status) {
+    super(`coverage suite ${label} exited with status ${status ?? "null"}`);
+    this.name = "CoverageSuiteExitError";
+    this.label = label;
+    this.status = status;
+  }
+}
 
 function normalizePath(path) {
   return path.replaceAll("\\", "/");
@@ -229,14 +245,30 @@ function collectExecutableSourceFiles(rootDir) {
     .sort((a, b) => a.localeCompare(b));
 }
 
-function runCoverageSuite(args, coverageDir, envOverrides = {}) {
-  const env = {};
-  for (const [key, value] of Object.entries(process.env)) {
-    if (value === undefined) continue;
-    if (key.startsWith("PRIVACY_POOLS_") || key.startsWith("PP_")) continue;
-    env[key] = value;
+function ensureSharedBuiltWorkspaceSnapshotRoot() {
+  if (!sharedBuiltWorkspaceSnapshotRoot) {
+    sharedBuiltWorkspaceSnapshotRoot = createSharedBuiltWorkspaceSnapshot(ROOT);
   }
 
+  return sharedBuiltWorkspaceSnapshotRoot;
+}
+
+function buildCoverageSuiteEnv(tests, envOverrides = {}) {
+  const sharedBuiltWorkspaceSnapshot =
+    suiteUsesSharedBuiltWorkspaceSnapshot(tests)
+      ? {
+          PP_TEST_BUILT_WORKSPACE_SNAPSHOT:
+            ensureSharedBuiltWorkspaceSnapshotRoot(),
+        }
+      : {};
+
+  return buildTestRunnerEnv({
+    ...sharedBuiltWorkspaceSnapshot,
+    ...envOverrides,
+  });
+}
+
+function runCoverageSuite(args, coverageDir, envOverrides = {}) {
   return spawnSync(
     "node",
     [
@@ -256,10 +288,7 @@ function runCoverageSuite(args, coverageDir, envOverrides = {}) {
       cwd: ROOT,
       encoding: "utf8",
       maxBuffer: 10 * 1024 * 1024,
-      env: {
-        ...env,
-        ...envOverrides,
-      },
+      env: envOverrides,
     },
   );
 }
@@ -274,9 +303,13 @@ function runCoverageSuiteWithFallback(label, tests, attempt = 1) {
     `[coverage] running ${attemptLabel}: ${tests.join(" ")}\n`,
   );
 
-  const result = runCoverageSuite(tests, coverageDir, {
-    PRIVACY_POOLS_HOME: homeDir,
-  });
+  const result = runCoverageSuite(
+    tests,
+    coverageDir,
+    buildCoverageSuiteEnv(tests, {
+      PRIVACY_POOLS_HOME: homeDir,
+    }),
+  );
   if (result.stdout) {
     process.stdout.write(result.stdout);
   }
@@ -287,7 +320,7 @@ function runCoverageSuiteWithFallback(label, tests, attempt = 1) {
   const lcovPath = join(coverageDir, "lcov.info");
   const wroteLcov = existsSync(lcovPath);
   if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+    throw new CoverageSuiteExitError(label, result.status ?? 1);
   }
   if (wroteLcov) {
     return [lcovPath];
@@ -407,9 +440,17 @@ try {
         `- ${row.source.replace(`${normalizePath(ROOT)}/`, "")}: ${row.missed} missed (${row.percent.toFixed(2)}%, ${row.hit}/${row.total})`,
       );
     }
-    process.exit(1);
+    process.exitCode = 1;
+  }
+} catch (error) {
+  if (error instanceof CoverageSuiteExitError) {
+    console.error(error.message);
+    process.exitCode = error.status ?? 1;
+  } else {
+    throw error;
   }
 } finally {
+  cleanupSharedBuiltWorkspaceSnapshot(sharedBuiltWorkspaceSnapshotRoot);
   if (!keepCoverageRoot) {
     rmSync(coverageRootDir, {
       recursive: true,
