@@ -20,6 +20,7 @@ import {
   JSON_SCHEMA_VERSION,
   jsonContractDocRelativePath,
 } from "../../src/utils/json.ts";
+import { isSupportedInstallNodeVersion } from "../../scripts/lib/install-verification.mjs";
 
 const PREPARED_CLI_TARBALL = process.env.PP_INSTALL_CLI_TARBALL?.trim() || null;
 
@@ -46,6 +47,27 @@ function sourceBaseNames(dir: string): string[] {
     .sort();
 }
 
+function collectRelativeFiles(rootDir: string, relativeDir = ""): string[] {
+  const currentDir = relativeDir ? join(rootDir, relativeDir) : rootDir;
+  const entries = readdirSync(currentDir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const childRelativePath = relativeDir
+      ? join(relativeDir, entry.name)
+      : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...collectRelativeFiles(rootDir, childRelativePath));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(childRelativePath);
+    }
+  }
+
+  return files;
+}
+
 interface PackedArtifact {
   extractRoot: string;
   packageRoot: string;
@@ -66,6 +88,10 @@ function sourcePackageJson(): {
 }
 
 function installPackagedProdDependencies(packageRoot: string): void {
+  if (!isSupportedInstallNodeVersion()) {
+    return;
+  }
+
   const npmCacheDir = createTrackedTempDir("pp-smoke-npm-cache-");
   try {
     const install = spawnSync(
@@ -137,21 +163,7 @@ function packAndExtractCli(
     const packageRoot = join(extractDir, "package");
     installPackagedProdDependencies(packageRoot);
 
-    const listedFiles = spawnSync("tar", ["-tzf", tarballPath], {
-      encoding: "utf8",
-      timeout: 120_000,
-      maxBuffer: 10 * 1024 * 1024,
-      env: buildChildProcessEnv(),
-    });
-    expect(listedFiles.status).toBe(0);
-
-    const filePaths = new Set(
-      listedFiles.stdout
-        .trim()
-        .split(/\r?\n/g)
-        .filter((entry) => entry.length > 0)
-        .map((entry) => entry.replace(/^package\//, "")),
-    );
+    const filePaths = new Set(collectRelativeFiles(packageRoot));
 
     const pkg = JSON.parse(
       readFileSync(join(packageRoot, "package.json"), "utf8"),
@@ -215,7 +227,7 @@ function runPackagedCli(
 
 describe("packaged CLI smoke", () => {
   let home: string;
-  let packed: PackedArtifact;
+  let packed: PackedArtifact | null = null;
 
   beforeAll(() => {
     packed = PREPARED_CLI_TARBALL
@@ -227,11 +239,13 @@ describe("packaged CLI smoke", () => {
   }, 240_000);
 
   afterAll(() => {
-    cleanupTrackedTempDir(packed.extractRoot);
+    if (packed) {
+      cleanupTrackedTempDir(packed.extractRoot);
+    }
   });
 
   const runSmokeCli = (args: string[], options: CliRunOptions = {}) =>
-    runPackagedCli(packed, args, options);
+    runPackagedCli(packed!, args, options);
 
   describe("binary boot", () => {
     test("packed tarball includes bundled proving artifacts", () => {

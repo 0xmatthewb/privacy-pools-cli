@@ -5,11 +5,10 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
-  renameSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const libDir = dirname(fileURLToPath(import.meta.url));
@@ -214,12 +213,12 @@ export function runNpmInstallWithRetry(args, options = {}) {
 
 export function packTarball(cwd, destinationDir, options = {}) {
   mkdirSync(destinationDir, { recursive: true });
-  const packArgs = ["pack", "--silent"];
+  const packArgs = ["pack", resolve(cwd), "--silent"];
   if (options.ignoreScripts) {
     packArgs.push("--ignore-scripts");
   }
   const packResult = spawnSync(npmCommand, packArgs, {
-    cwd,
+    cwd: destinationDir,
     encoding: "utf8",
     timeout: options.timeout ?? 300_000,
     maxBuffer: options.maxBuffer ?? 10 * 1024 * 1024,
@@ -239,10 +238,7 @@ export function packTarball(cwd, destinationDir, options = {}) {
   }
 
   const tarballName = packResult.stdout.trim();
-  const tarballSource = join(cwd, tarballName);
-  const tarballDestination = join(destinationDir, tarballName);
-  renameSync(tarballSource, tarballDestination);
-  return tarballDestination;
+  return join(destinationDir, tarballName);
 }
 
 export function packageInstallPath(installRoot, packageName) {

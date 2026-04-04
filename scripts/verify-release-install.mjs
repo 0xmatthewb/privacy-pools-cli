@@ -219,16 +219,19 @@ async function launchLocalRegistry(packages) {
     const { basename } = require("node:path");
 
     const packages = JSON.parse(process.env.PP_LOCAL_REGISTRY_PACKAGES || "[]");
-    const packageMap = new Map(packages.map((pkg) => [pkg.name, pkg]));
+    const packageMap = new Map(packages.map((pkg) => {
+      const tarballBuffer = readFileSync(pkg.tarballPath);
+      return [
+        pkg.name,
+        {
+          ...pkg,
+          tarballBuffer,
+          shasum: createHash("sha1").update(tarballBuffer).digest("hex"),
+          integrity: \`sha512-\${createHash("sha512").update(tarballBuffer).digest("base64")}\`,
+        },
+      ];
+    }));
     const fallbackBase = process.env.PP_LOCAL_REGISTRY_FALLBACK || "https://registry.npmjs.org";
-
-    function fileShasum(filePath) {
-      return createHash("sha1").update(readFileSync(filePath)).digest("hex");
-    }
-
-    function fileIntegrity(filePath) {
-      return \`sha512-\${createHash("sha512").update(readFileSync(filePath)).digest("base64")}\`;
-    }
 
     async function proxyToFallback(req, res, url) {
       const fallbackUrl = new URL(\`\${url.pathname}\${url.search}\`, fallbackBase);
@@ -260,7 +263,7 @@ async function launchLocalRegistry(packages) {
           }
 
           res.writeHead(200, { "Content-Type": "application/octet-stream" });
-          res.end(readFileSync(pkg.tarballPath));
+          res.end(pkg.tarballBuffer);
           return;
         }
 
@@ -301,8 +304,8 @@ async function launchLocalRegistry(packages) {
               version: pkg.version,
               dist: {
                 tarball: tarballUrl,
-                shasum: fileShasum(pkg.tarballPath),
-                integrity: fileIntegrity(pkg.tarballPath),
+                shasum: pkg.shasum,
+                integrity: pkg.integrity,
               },
             },
           },
