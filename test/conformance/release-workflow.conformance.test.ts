@@ -122,6 +122,18 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("Release Artifact");
   });
 
+  test("release validate job provisions the native toolchain required by test:release", () => {
+    expect(releaseWorkflow).toMatch(
+      /validate:[\s\S]*?uses:\s+dtolnay\/rust-toolchain@stable/m,
+    );
+    expect(releaseWorkflow).toMatch(
+      /validate:[\s\S]*?uses:\s+Swatinem\/rust-cache@v2/m,
+    );
+    expect(releaseWorkflow).toMatch(
+      /validate:[\s\S]*?uses:\s+taiki-e\/install-action@cargo-llvm-cov/m,
+    );
+  });
+
   test("release workflow verifies packaged installs before publish", () => {
     expect(releaseWorkflow).toContain(
       "packaged-install-${{ matrix.triplet }}-node-${{ matrix.node-version }}",
