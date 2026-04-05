@@ -3,6 +3,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  classifyNativeCoverageSources,
+  NATIVE_COVERAGE_DIAGNOSTICS,
+  NATIVE_COVERAGE_FAMILIES,
+  normalizeNativeCoveragePath,
+  nativeCoverageSourceMatches,
+} from "./lib/native-coverage-policy.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -10,59 +17,6 @@ const MANIFEST_PATH = resolve(ROOT, "native", "shell", "Cargo.toml");
 const coverageRootDir = mkdtempSync(join(tmpdir(), "pp-native-coverage-"));
 const keepCoverageRoot = process.env.PP_KEEP_COVERAGE_ROOT === "1";
 const lcovPath = join(coverageRootDir, "native.lcov");
-
-const thresholds = [
-  {
-    label: "native-bootstrap",
-    min: 85,
-    matchers: [
-      "native/shell/src/root_argv.rs",
-      "native/shell/src/completion.rs",
-      "native/shell/src/routing.rs",
-    ],
-  },
-  {
-    label: "native-root-argv",
-    min: 90,
-    matchers: ["native/shell/src/root_argv.rs"],
-  },
-  {
-    label: "native-completion",
-    min: 90,
-    matchers: ["native/shell/src/completion.rs"],
-  },
-  {
-    label: "native-routing",
-    min: 85,
-    matchers: ["native/shell/src/routing.rs"],
-  },
-  {
-    label: "native-host",
-    min: 85,
-    matchers: [
-      "native/shell/src/bridge.rs",
-      "native/shell/src/dispatch.rs",
-      "native/shell/src/main.rs",
-    ],
-  },
-  {
-    label: "native-core-utils",
-    min: 85,
-    matchers: [
-      "native/shell/src/config.rs",
-      "native/shell/src/contract.rs",
-      "native/shell/src/error.rs",
-      "native/shell/src/http_client.rs",
-      "native/shell/src/json.rs",
-      "native/shell/src/output.rs",
-      "native/shell/src/read_only_api.rs",
-    ],
-  },
-];
-
-function normalizePath(value) {
-  return value.replaceAll("\\", "/");
-}
 
 function parseLcovFile(filePath) {
   const records = readFileSync(filePath, "utf8").split("end_of_record\n");
@@ -73,9 +27,12 @@ function parseLcovFile(filePath) {
     if (!sourceMatch) continue;
 
     const rawSource = sourceMatch[1];
-    const source = normalizePath(
+    const absoluteSource = normalizeNativeCoveragePath(
       isAbsolute(rawSource) ? rawSource : resolve(ROOT, rawSource),
     );
+    const source = absoluteSource.startsWith(`${normalizeNativeCoveragePath(ROOT)}/`)
+      ? absoluteSource.slice(normalizeNativeCoveragePath(ROOT).length + 1)
+      : absoluteSource;
     const lineHits = files.get(source) ?? new Map();
     for (const line of record.matchAll(/^DA:(\d+),(\d+)/gm)) {
       const lineNumber = Number(line[1]);
@@ -93,7 +50,7 @@ function parseCoverageByMatchers(matchers, coverageMap) {
   let linesHit = 0;
 
   for (const [source, lineHits] of coverageMap.entries()) {
-    if (!matchers.some((matcher) => source.includes(normalizePath(matcher)))) {
+    if (!matchers.some((matcher) => nativeCoverageSourceMatches(source, matcher))) {
       continue;
     }
     linesFound += lineHits.size;
@@ -158,27 +115,66 @@ try {
   }
 
   const coverageMap = parseLcovFile(lcovPath);
+  const executableSources = [...coverageMap.keys()]
+    .filter((source) => source.startsWith("native/shell/src/"))
+    .sort();
+  const ownership = classifyNativeCoverageSources(executableSources);
+
+  if (ownership.unmatched.length > 0) {
+    fail(
+      [
+        "native coverage ownership has unmatched executable sources:",
+        ...ownership.unmatched.map((source) => `- ${source}`),
+      ].join("\n"),
+    );
+  }
+
+  if (ownership.multiplyMatched.length > 0) {
+    fail(
+      [
+        "native coverage ownership has multiply matched executable sources:",
+        ...ownership.multiplyMatched.map(
+          ({ source, families }) => `- ${source}: ${families.join(", ")}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
   let failed = false;
 
-  for (const threshold of thresholds) {
-    const stats = parseCoverageByMatchers(threshold.matchers, coverageMap);
+  for (const family of NATIVE_COVERAGE_FAMILIES) {
+    const stats = parseCoverageByMatchers(family.matchers, coverageMap);
     if (stats.linesFound === 0) {
       fail(
-        `native coverage ${threshold.label}: no executable lines matched ${threshold.matchers.join(
+        `native coverage ${family.label}: no executable lines matched ${family.matchers.join(
           ", ",
         )}`,
       );
     }
 
     const summary = `${stats.percent.toFixed(2)}% (${stats.linesHit}/${stats.linesFound})`;
-    process.stdout.write(`native coverage ${threshold.label}: ${summary}\n`);
+    const suffix = family.enforced ? "" : " (diagnostic)";
+    process.stdout.write(`native coverage ${family.label}${suffix}: ${summary}\n`);
 
-    if (stats.percent + Number.EPSILON < threshold.min) {
+    if (family.enforced && stats.percent + Number.EPSILON < family.min) {
       failed = true;
       process.stderr.write(
-        `native coverage ${threshold.label} fell below ${threshold.min}%: ${summary}\n`,
+        `native coverage ${family.label} fell below ${family.min}%: ${summary}\n`,
       );
     }
+  }
+
+  for (const diagnostic of NATIVE_COVERAGE_DIAGNOSTICS) {
+    const stats = parseCoverageByMatchers(diagnostic.matchers, coverageMap);
+    if (stats.linesFound === 0) {
+      fail(
+        `native coverage ${diagnostic.label}: no executable lines matched ${diagnostic.matchers.join(
+          ", ",
+        )}`,
+      );
+    }
+    const summary = `${stats.percent.toFixed(2)}% (${stats.linesHit}/${stats.linesFound})`;
+    process.stdout.write(`native coverage ${diagnostic.label} (diagnostic): ${summary}\n`);
   }
 
   if (failed) {

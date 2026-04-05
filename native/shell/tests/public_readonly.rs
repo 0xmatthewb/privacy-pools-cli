@@ -76,6 +76,34 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 }
 
 #[test]
+fn explicit_chain_activity_keeps_filtered_json_and_human_notes_stable() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let env = [("PRIVACY_POOLS_ASP_HOST", asp_host.as_str())];
+
+    let agent = run_native_with_env(&["--chain", "sepolia", "activity", "--agent"], &env);
+    assert!(agent.status.success());
+    assert!(stderr_string(&agent).trim().is_empty());
+    let payload = parse_stdout_json(&agent);
+    assert_eq!(payload["success"], Value::Bool(true));
+    assert_eq!(payload["chain"], Value::String("sepolia".to_string()));
+    assert_eq!(payload["chainFiltered"], Value::Bool(true));
+    assert_eq!(payload["total"], Value::Null);
+    assert_eq!(payload["totalPages"], Value::Null);
+    assert!(payload["note"]
+        .as_str()
+        .expect("chain-filtered note should be present")
+        .contains("Pagination totals are unavailable"),);
+
+    let human = run_native_with_env(&["--chain", "sepolia", "activity"], &env);
+    assert!(human.status.success());
+    assert!(stdout_string(&human).is_empty());
+    let stderr = stderr_string(&human);
+    assert!(stderr.contains("Global activity (sepolia):"));
+    assert!(stderr.contains("Note: Results filtered to sepolia. Some pages may be sparse."));
+}
+
+#[test]
 fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();
@@ -116,6 +144,26 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     );
     assert_eq!(
         stats_pool_payload["scope"],
+        Value::String("12345".to_string())
+    );
+
+    let activity = run_native_with_env(
+        &[
+            "--chain", "sepolia", "activity", "--asset", "ETH", "--agent",
+        ],
+        &env,
+    );
+    assert!(activity.status.success());
+    assert!(stderr_string(&activity).trim().is_empty());
+    let activity_payload = parse_stdout_json(&activity);
+    assert_eq!(activity_payload["success"], Value::Bool(true));
+    assert_eq!(
+        activity_payload["mode"],
+        Value::String("pool-activity".to_string())
+    );
+    assert_eq!(activity_payload["asset"], Value::String("ETH".to_string()));
+    assert_eq!(
+        activity_payload["scope"],
         Value::String("12345".to_string())
     );
 }

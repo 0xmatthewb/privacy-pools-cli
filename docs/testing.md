@@ -147,11 +147,16 @@ CI notes:
 - `npm run test:native:fmt` and `npm run test:native:lint` are the fast Rust-native formatting and clippy gates for `native/shell`.
 - `npm run test:native` runs the Rust-native suite directly against `native/shell`, including binary integration tests for the compiled native shell.
 - `npm run test:coverage:native` is the Rust line-coverage guard for the native shell. It requires `cargo-llvm-cov`; CI installs it with `taiki-e/install-action`.
-- The native gate now enforces `>= 85%` coverage for:
-  - bootstrap/parser/routing (`root_argv`, `completion`, `routing`)
+- The native gate now enforces `>= 85%` coverage for these non-overlapping ownership families:
+  - root/global argv parsing (`root_argv`)
+  - native completion parsing/rendering (`completion`)
+  - read-only routing/mode resolution (`routing`)
   - native host/dispatch (`bridge`, `dispatch`, `main`)
   - native core utilities (`config`, `contract`, `error`, `http_client`, `json`, `output`, `read_only_api`)
-- `commands/activity`, `commands/stats`, and `commands/pools` are still being widened in staged native coverage follow-ups. Until those families are also enforced, a green local profile means the enforced JS buckets plus the covered native bootstrap/host/core families are healthy; it is not yet the final “all native families are under `85%`” state.
+  - native activity command ownership (`commands/activity/**`)
+  - native stats command ownership (`commands/stats.rs`)
+- The native coverage gate now also fails closed if any executable `native/shell/src/**` file is not owned by exactly one native coverage family. Test-only support such as `native/shell/src/test_env.rs` is excluded from that ownership check.
+- `commands/pools/**` is now owned by the coverage policy and reported in diagnostics, but it remains diagnostic-only until the dedicated pools coverage wave lands. Until that family is also enforced, a green local profile means the enforced JS buckets plus the enforced native root/host/core/activity/stats families are healthy; it is not yet the final “all native families are under `85%`” state.
 - `scripts/run-test-profile.mjs` is the shared source of truth for the higher-level repo test profiles (`test:install`, `test:conformance`, `test:ci`, `test:release`, `test:all`) so gate ordering only has to change in one place.
 - `npm test` stays fast and host-neutral: it excludes packaged smoke, packaged native smoke, native-shell parity, and shared-Anvil suites. Those lanes still run in explicit higher-cost profiles.
 - `npm run test:release` and `npm run test:all` no longer rerun the source shared-Anvil smoke trio after `test:e2e:anvil`; they reuse the full shared-Anvil coverage and then run the installed-artifact verification directly so the highest-cost profiles stay meaningful without duplicating the same source E2E coverage.

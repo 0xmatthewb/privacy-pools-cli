@@ -141,4 +141,34 @@ mod tests {
             .expect_err("invalid page");
         assert!(error.message.contains("Invalid --page value"));
     }
+
+    #[test]
+    fn uses_defaults_and_skips_command_global_flags() {
+        let parsed = parse_activity_options(&argv(&[
+            "privacy-pools",
+            "--chain",
+            "sepolia",
+            "--json",
+            "activity",
+        ]))
+        .expect("defaults");
+
+        assert_eq!(parsed.asset, None);
+        assert_eq!(parsed.page, 1);
+        assert_eq!(parsed.per_page, 12);
+    }
+
+    #[test]
+    fn rejects_unknown_options() {
+        let error = parse_activity_options(&argv(&["privacy-pools", "activity", "--bogus"]))
+            .expect_err("unknown option");
+        assert!(error.message.contains("unknown option"));
+    }
+
+    #[test]
+    fn rejects_positionals_after_double_dash() {
+        let error = parse_activity_options(&argv(&["privacy-pools", "activity", "--", "extra"]))
+            .expect_err("unexpected positional");
+        assert!(error.message.contains("too many arguments"));
+    }
 }
