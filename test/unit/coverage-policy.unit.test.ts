@@ -1,0 +1,109 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import {
+  COVERAGE_THRESHOLDS,
+  createCoverageExcludedSources,
+  evaluateCoveragePolicy,
+  normalizeCoveragePath,
+} from "../../scripts/lib/coverage-policy.mjs";
+import {
+  cleanupTrackedTempDirs,
+  createTrackedTempDir,
+} from "../helpers/temp.ts";
+
+afterEach(() => {
+  cleanupTrackedTempDirs();
+});
+
+describe("coverage policy", () => {
+  test("coverage thresholds keep the enforced repo buckets and minima", () => {
+    expect(COVERAGE_THRESHOLDS).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "overall-src", min: 85 }),
+        expect.objectContaining({ label: "services", min: 85 }),
+        expect.objectContaining({ label: "workflow-engine", min: 85 }),
+        expect.objectContaining({ label: "commands", min: 85 }),
+        expect.objectContaining({ label: "utils", min: 85 }),
+        expect.objectContaining({ label: "output", min: 85 }),
+        expect.objectContaining({ label: "command-shells", min: 85 }),
+        expect.objectContaining({ label: "bootstrap", min: 85 }),
+        expect.objectContaining({ label: "launcher-runtime", min: 85 }),
+        expect.objectContaining({
+          label: "config",
+          min: 95,
+          matchers: ["src/config/"],
+        }),
+      ]),
+    );
+  });
+
+  test("excluded coverage sources stay limited to generated runtime artifacts", () => {
+    const excludedSources = createCoverageExcludedSources(process.cwd());
+
+    expect(
+      excludedSources.has(
+        normalizeCoveragePath(
+          resolve(process.cwd(), "src/utils/command-manifest.ts"),
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      excludedSources.has(
+        normalizeCoveragePath(
+          resolve(process.cwd(), "src/services/circuit-checksums.js"),
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      excludedSources.has(
+        normalizeCoveragePath(resolve(process.cwd(), "src/types.ts")),
+      ),
+    ).toBe(true);
+    expect(
+      excludedSources.has(
+        normalizeCoveragePath(resolve(process.cwd(), "src/services/pools.ts")),
+      ),
+    ).toBe(false);
+  });
+
+  test("coverage evaluation flags uninstrumented executable files but ignores excluded artifacts", () => {
+    const rootDir = createTrackedTempDir("pp-coverage-policy-");
+    mkdirSync(join(rootDir, "src", "utils"), { recursive: true });
+    writeFileSync(join(rootDir, "src", "covered.ts"), "export const ok = 1;\n");
+    writeFileSync(join(rootDir, "src", "missed.ts"), "export const missed = 1;\n");
+    writeFileSync(
+      join(rootDir, "src", "utils", "command-manifest.ts"),
+      "export const generated = 1;\n",
+    );
+
+    const coverageMap = new Map([
+      [
+        normalizeCoveragePath(resolve(rootDir, "src", "covered.ts")),
+        new Map([[1, 1]]),
+      ],
+    ]);
+
+    const evaluation = evaluateCoveragePolicy({
+      rootDir,
+      coverageMap,
+      thresholds: [{ label: "overall-src", min: 0, matchers: ["src/"] }],
+    });
+
+    expect(evaluation.failures).toContain(
+      "1 executable src file(s) were missing from LCOV instrumentation",
+    );
+    expect(evaluation.uninstrumentedSources).toEqual([
+      normalizeCoveragePath(resolve(rootDir, "src", "missed.ts")),
+    ]);
+    expect(evaluation.thresholdResults[0]).toMatchObject({
+      label: "overall-src",
+      failure: null,
+      stats: {
+        linesFound: 1,
+        linesHit: 1,
+        percent: 100,
+      },
+    });
+  });
+});

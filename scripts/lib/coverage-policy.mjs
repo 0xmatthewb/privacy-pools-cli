@@ -1,0 +1,221 @@
+import { readdirSync } from "node:fs";
+import { extname, join, resolve } from "node:path";
+
+export function normalizeCoveragePath(path) {
+  return path.replaceAll("\\", "/");
+}
+
+export function stripLcovSourceSearchAndHash(source) {
+  const queryIndex = source.indexOf("?");
+  const hashIndex = source.indexOf("#");
+  const cutIndex = [queryIndex, hashIndex]
+    .filter((index) => index >= 0)
+    .sort((a, b) => a - b)[0];
+  return cutIndex === undefined ? source : source.slice(0, cutIndex);
+}
+
+export function createCoverageExcludedSources(rootDir) {
+  return new Set([
+    // Generated artifact/data modules are verified via generation and contract tests
+    // rather than raw line-coverage thresholds.
+    normalizeCoveragePath(resolve(rootDir, "src/utils/command-manifest.ts")),
+    normalizeCoveragePath(resolve(rootDir, "src/services/circuit-checksums.js")),
+    normalizeCoveragePath(resolve(rootDir, "src/types.ts")),
+  ]);
+}
+
+export const COVERAGE_THRESHOLDS = [
+  { label: "overall-src", min: 85, matchers: ["src/"] },
+  { label: "services", min: 85, matchers: ["src/services/"] },
+  { label: "workflow-engine", min: 85, matchers: ["src/services/workflow.ts"] },
+  { label: "commands", min: 85, matchers: ["src/commands/"] },
+  { label: "utils", min: 85, matchers: ["src/utils/"] },
+  { label: "output", min: 85, matchers: ["src/output/"] },
+  { label: "command-shells", min: 85, matchers: ["src/command-shells/"] },
+  {
+    label: "bootstrap",
+    min: 85,
+    matchers: [
+      "src/program.ts",
+      "src/index.ts",
+      "src/cli-main.ts",
+      "src/static-discovery.ts",
+    ],
+  },
+  {
+    label: "launcher-runtime",
+    min: 85,
+    matchers: [
+      "src/launcher.ts",
+      "src/runtime/",
+      "src/utils/root-argv.ts",
+    ],
+  },
+  { label: "config", min: 95, matchers: ["src/config/"] },
+];
+
+export function isExcludedCoverageSource(source, excludedSources) {
+  return excludedSources.has(normalizeCoveragePath(source));
+}
+
+function matchesAnyPrefix(source, prefixes) {
+  return prefixes.some((prefix) => source.includes(prefix));
+}
+
+export function parseCoverageByMatchers(
+  matchers,
+  coverageMap,
+  { excludedSources } = {},
+) {
+  const effectiveExcludedSources = excludedSources ?? new Set();
+  let linesFound = 0;
+  let linesHit = 0;
+
+  for (const [normalizedSource, lineHits] of coverageMap.entries()) {
+    if (
+      isExcludedCoverageSource(normalizedSource, effectiveExcludedSources)
+      || !matchesAnyPrefix(normalizedSource, matchers)
+    ) {
+      continue;
+    }
+
+    linesFound += lineHits.size;
+    for (const hits of lineHits.values()) {
+      if (hits > 0) linesHit += 1;
+    }
+  }
+
+  return {
+    linesFound,
+    linesHit,
+    percent: linesFound === 0 ? 0 : (linesHit / linesFound) * 100,
+  };
+}
+
+export function collectTopUncoveredFiles(
+  coverageMap,
+  { excludedSources, limit = 12 } = {},
+) {
+  const effectiveExcludedSources = excludedSources ?? new Set();
+  const rows = [];
+
+  for (const [source, lineHits] of coverageMap.entries()) {
+    if (
+      isExcludedCoverageSource(source, effectiveExcludedSources)
+      || !source.includes("src/")
+    ) {
+      continue;
+    }
+
+    let missed = 0;
+    for (const hits of lineHits.values()) {
+      if (hits === 0) missed += 1;
+    }
+    if (missed === 0) continue;
+
+    const total = lineHits.size;
+    const hit = total - missed;
+    rows.push({
+      source,
+      missed,
+      total,
+      hit,
+      percent: total === 0 ? 0 : (hit / total) * 100,
+    });
+  }
+
+  return rows
+    .sort((a, b) => {
+      if (b.missed !== a.missed) return b.missed - a.missed;
+      return a.source.localeCompare(b.source);
+    })
+    .slice(0, limit);
+}
+
+export function collectExecutableSourceFiles(
+  rootDir,
+  { excludedSources = createCoverageExcludedSources(rootDir) } = {},
+) {
+  const files = [];
+  const queue = [resolve(rootDir, "src")];
+
+  while (queue.length > 0) {
+    const current = queue.pop();
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const entryPath = join(current, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(entryPath);
+        continue;
+      }
+
+      if (!entry.isFile()) continue;
+      if (extname(entry.name) !== ".ts" && extname(entry.name) !== ".js") {
+        continue;
+      }
+      if (entry.name.endsWith(".d.ts")) continue;
+
+      files.push(normalizeCoveragePath(entryPath));
+    }
+  }
+
+  return files
+    .filter((source) => !isExcludedCoverageSource(source, excludedSources))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export function evaluateCoveragePolicy({
+  rootDir,
+  coverageMap,
+  thresholds = COVERAGE_THRESHOLDS,
+  excludedSources = createCoverageExcludedSources(rootDir),
+}) {
+  const failures = [];
+  const executableSources = collectExecutableSourceFiles(rootDir, {
+    excludedSources,
+  });
+  const uninstrumentedSources = executableSources.filter((source) => {
+    return !coverageMap.has(source);
+  });
+
+  if (uninstrumentedSources.length > 0) {
+    failures.push(
+      `${uninstrumentedSources.length} executable src file(s) were missing from LCOV instrumentation`,
+    );
+  }
+
+  const thresholdResults = thresholds.map((threshold) => {
+    const stats = parseCoverageByMatchers(threshold.matchers, coverageMap, {
+      excludedSources,
+    });
+
+    let failure = null;
+    if (stats.linesFound === 0) {
+      failure =
+        `${threshold.label}: no instrumented lines matched ${threshold.matchers.join(", ")}`;
+    } else if (stats.percent < threshold.min) {
+      failure =
+        `${threshold.label}: ${stats.percent.toFixed(2)}% (${stats.linesHit}/${stats.linesFound}) < ${threshold.min}%`;
+    }
+
+    if (failure) {
+      failures.push(failure);
+    }
+
+    return {
+      ...threshold,
+      stats,
+      failure,
+    };
+  });
+
+  const overallStats = parseCoverageByMatchers(["src/"], coverageMap, {
+    excludedSources,
+  });
+
+  return {
+    failures,
+    overallStats,
+    thresholdResults,
+    uninstrumentedSources,
+  };
+}

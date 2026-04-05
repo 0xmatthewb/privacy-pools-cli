@@ -11,6 +11,18 @@ function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function formatJsonVariantDocLine(variant: string): string {
+  const separator = ": ";
+  const separatorIndex = variant.indexOf(separator);
+  if (separatorIndex === -1) {
+    throw new Error(`Invalid json variant '${variant}'.`);
+  }
+
+  const flag = variant.slice(0, separatorIndex);
+  const payload = variant.slice(separatorIndex + separator.length);
+  return normalizeWhitespace(`\`${flag}\` JSON payload: \`${payload}\``);
+}
+
 function extractDocumentSection(
   document: string,
   marker: string,
@@ -67,14 +79,23 @@ describe("command docs alignment", () => {
   });
 
   test("AGENTS accounts variants keep executable nextActions guidance", () => {
-    const marker = getCommandMetadata("accounts").agentsDocMarker;
+    const metadata = getCommandMetadata("accounts");
+    const marker = metadata.agentsDocMarker;
     expect(marker).toBeDefined();
 
     const section = extractDocumentSection(AGENTS, marker!, AGENT_MARKERS);
+    const jsonVariants = metadata.help?.jsonVariants ?? [];
+    const summaryVariant = jsonVariants.find((variant) =>
+      variant.startsWith("--summary:"),
+    );
+    const pendingOnlyVariant = jsonVariants.find((variant) =>
+      variant.startsWith("--pending-only:"),
+    );
 
-    expect(section).toContain("--summary");
-    expect(section).toContain("--pending-only");
-    expect(section).toContain("cliCommand");
+    expect(summaryVariant).toBeDefined();
+    expect(pendingOnlyVariant).toBeDefined();
+    expect(section).toContain(formatJsonVariantDocLine(summaryVariant!));
+    expect(section).toContain(formatJsonVariantDocLine(pendingOnlyVariant!));
   });
 
   test("AGENTS capabilities docs keep the structural machine-contract anchors", () => {
