@@ -393,3 +393,180 @@ fn filter_completion_candidates(candidates: Vec<String>, prefix: &str) -> Vec<St
     values.dedup();
     values
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::contract::manifest;
+    use crate::root_argv::parse_root_argv;
+
+    fn argv(tokens: &[&str]) -> Vec<String> {
+        tokens.iter().map(|value| value.to_string()).collect()
+    }
+
+    fn parsed(tokens: &[&str]) -> ParsedRootArgv {
+        parse_root_argv(&argv(tokens))
+    }
+
+    #[test]
+    fn guide_and_capabilities_reject_csv() {
+        let manifest = manifest();
+        let guide_error = handle_guide(&parsed(&["--format", "csv", "guide"]), manifest)
+            .expect_err("guide csv should fail");
+        assert_eq!(guide_error.code, "INPUT_ERROR");
+
+        let capabilities_error =
+            handle_capabilities(&parsed(&["--format", "csv", "capabilities"]), manifest)
+                .expect_err("capabilities csv should fail");
+        assert_eq!(capabilities_error.code, "INPUT_ERROR");
+    }
+
+    #[test]
+    fn guide_and_capabilities_quiet_modes_short_circuit() {
+        let manifest = manifest();
+        assert_eq!(
+            handle_guide(&parsed(&["--quiet", "guide"]), manifest).unwrap(),
+            0
+        );
+        assert_eq!(
+            handle_capabilities(&parsed(&["--quiet", "capabilities"]), manifest).unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn describe_reports_unknown_paths_and_missing_descriptors() {
+        let manifest = manifest();
+        let unknown = handle_describe(&parsed(&["describe", "missing"]), manifest)
+            .expect_err("unknown path should fail");
+        assert_eq!(unknown.code, "INPUT_ERROR");
+        assert!(unknown.message.contains("Unknown command path"));
+
+        let mut broken_manifest = manifest.clone();
+        broken_manifest.capabilities_payload = json!({
+            "commandDetails": {}
+        });
+        let missing_descriptor = handle_describe(
+            &parsed(&["--agent", "describe", "withdraw", "quote"]),
+            &broken_manifest,
+        )
+        .expect_err("missing descriptor should fail");
+        assert_eq!(missing_descriptor.code, "UNKNOWN_ERROR");
+    }
+
+    #[test]
+    fn completion_queries_filter_and_sort_candidates() {
+        let manifest = manifest();
+        let candidates = query_completion_candidates(
+            &argv(&["privacy-pools", "stats", "p"]),
+            Some(2),
+            &manifest.completion_spec,
+        );
+
+        assert!(candidates.contains(&"pool".to_string()));
+        assert!(!candidates.contains(&"global".to_string()));
+    }
+
+    #[test]
+    fn completion_script_missing_shell_is_unknown_error() {
+        let mut broken_manifest = manifest().clone();
+        broken_manifest.completion_scripts.clear();
+        let error = handle_completion(
+            &argv(&["completion", "bash"]),
+            &parsed(&["completion", "bash"]),
+            &broken_manifest,
+        )
+        .expect_err("missing completion script should fail");
+
+        assert_eq!(error.code, "UNKNOWN_ERROR");
+        assert!(error.message.contains("Missing completion script"));
+    }
+
+    #[test]
+    fn completion_helpers_cover_word_normalization_and_context() {
+        let command_name = "privacy-pools".to_string();
+        let normalized = normalize_completion_words(
+            &argv(&["privacy-pools", "stats"]),
+            &command_name,
+            std::slice::from_ref(&command_name),
+        );
+        assert_eq!(normalized, argv(&["privacy-pools", "stats"]));
+
+        let inserted = normalize_completion_words(
+            &argv(&["stats"]),
+            &command_name,
+            std::slice::from_ref(&command_name),
+        );
+        assert_eq!(inserted, argv(&["privacy-pools", "stats"]));
+
+        assert_eq!(normalize_completion_cword(Some(99), 2), 2);
+        assert_eq!(normalize_completion_cword(None, 0), 0);
+
+        let root = build_completion_tree(&manifest().completion_spec);
+        let (current, expecting_value_for) = resolve_completion_context(
+            &root,
+            &argv(&["privacy-pools", "completion", "--shell"]),
+            3,
+        );
+        assert!(current
+            .options
+            .iter()
+            .any(|option| { option.names.iter().any(|name| name == "--shell") }));
+        assert!(expecting_value_for
+            .as_ref()
+            .is_some_and(|option| option.names.iter().any(|name| name == "--shell")));
+    }
+
+    #[test]
+    fn merged_options_and_candidate_filtering_stay_deterministic() {
+        let root = CompletionNode {
+            options: vec![CompletionOptionSpec {
+                names: vec!["--help".to_string()],
+                takes_value: false,
+                values: vec![],
+            }],
+            subcommands: HashMap::new(),
+        };
+        let current = CompletionNode {
+            options: vec![
+                CompletionOptionSpec {
+                    names: vec!["--help".to_string()],
+                    takes_value: false,
+                    values: vec![],
+                },
+                CompletionOptionSpec {
+                    names: vec!["--shell".to_string()],
+                    takes_value: true,
+                    values: vec!["bash".to_string(), "zsh".to_string()],
+                },
+            ],
+            subcommands: HashMap::new(),
+        };
+
+        let merged = merged_completion_options(&current, &root);
+        assert_eq!(merged.len(), 2);
+        assert!(find_completion_option("--shell", &current, &root).is_some());
+
+        let filtered = filter_completion_candidates(
+            vec![
+                "--Shell".to_string(),
+                "--shell".to_string(),
+                "--agent".to_string(),
+                "--shell".to_string(),
+            ],
+            "--s",
+        );
+        assert_eq!(filtered, vec!["--shell".to_string()]);
+    }
+
+    #[test]
+    fn commander_error_helpers_match_commander_style() {
+        let unknown = commander_unknown_option_error("--weird");
+        assert_eq!(unknown.code, "INPUT_ERROR");
+        assert!(unknown.message.contains("unknown option '--weird'"));
+
+        let too_many = commander_too_many_arguments_error("pools", 1, 3);
+        assert_eq!(too_many.code, "INPUT_ERROR");
+        assert!(too_many.message.contains("too many arguments"));
+    }
+}

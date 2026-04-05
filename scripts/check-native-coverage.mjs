@@ -36,6 +36,28 @@ const thresholds = [
     min: 85,
     matchers: ["native/shell/src/routing.rs"],
   },
+  {
+    label: "native-host",
+    min: 85,
+    matchers: [
+      "native/shell/src/bridge.rs",
+      "native/shell/src/dispatch.rs",
+      "native/shell/src/main.rs",
+    ],
+  },
+  {
+    label: "native-core-utils",
+    min: 85,
+    matchers: [
+      "native/shell/src/config.rs",
+      "native/shell/src/contract.rs",
+      "native/shell/src/error.rs",
+      "native/shell/src/http_client.rs",
+      "native/shell/src/json.rs",
+      "native/shell/src/output.rs",
+      "native/shell/src/read_only_api.rs",
+    ],
+  },
 ];
 
 function normalizePath(value) {

@@ -182,3 +182,169 @@ fn exit_code_from_status(status: ExitStatus) -> i32 {
 
     1
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn with_env<R>(vars: &[(&str, Option<&str>)], run: impl FnOnce() -> R) -> R {
+        let _guard = crate::test_env::env_lock().lock().unwrap();
+        let previous = vars
+            .iter()
+            .map(|(key, _)| ((*key).to_string(), env::var(key).ok()))
+            .collect::<Vec<_>>();
+
+        for (key, value) in vars {
+            match value {
+                Some(value) => env::set_var(key, value),
+                None => env::remove_var(key),
+            }
+        }
+
+        let result = run();
+
+        for (key, value) in previous {
+            match value {
+                Some(value) => env::set_var(key, value),
+                None => env::remove_var(key),
+            }
+        }
+
+        result
+    }
+
+    fn runtime_contract_fixture() -> &'static crate::contract::NativeRuntimeContract {
+        runtime_contract()
+    }
+
+    fn encode_descriptor(value: serde_json::Value) -> String {
+        BASE64.encode(serde_json::to_vec(&value).expect("descriptor should serialize"))
+    }
+
+    #[test]
+    fn decode_js_bridge_descriptor_accepts_runtime_contract_match() {
+        let contract = runtime_contract_fixture();
+        let descriptor = encode_descriptor(json!({
+            "runtimeVersion": contract.runtime_version,
+            "workerProtocolVersion": contract.worker_protocol_version,
+            "nativeBridgeVersion": contract.native_bridge_version,
+            "workerRequestEnv": contract.worker_request_env,
+            "workerCommand": "node",
+            "workerArgs": ["-e", "process.exit(0)"],
+        }));
+
+        let decoded = decode_js_bridge_descriptor(&descriptor).expect("descriptor should decode");
+        assert_eq!(decoded.worker_command, "node");
+        assert_eq!(decoded.worker_args.len(), 2);
+    }
+
+    #[test]
+    fn decode_js_bridge_descriptor_rejects_incomplete_and_mismatched_contracts() {
+        let contract = runtime_contract_fixture();
+        let incomplete = encode_descriptor(json!({
+            "runtimeVersion": contract.runtime_version,
+            "workerProtocolVersion": contract.worker_protocol_version,
+            "nativeBridgeVersion": contract.native_bridge_version,
+            "workerRequestEnv": contract.worker_request_env,
+            "workerCommand": "",
+            "workerArgs": [],
+        }));
+        let incomplete_error = decode_js_bridge_descriptor(&incomplete)
+            .expect_err("incomplete descriptor should fail");
+        assert!(incomplete_error.message.contains("incomplete"));
+
+        let mismatch = encode_descriptor(json!({
+            "runtimeVersion": "runtime/v999",
+            "workerProtocolVersion": contract.worker_protocol_version,
+            "nativeBridgeVersion": contract.native_bridge_version,
+            "workerRequestEnv": contract.worker_request_env,
+            "workerCommand": "node",
+            "workerArgs": [],
+        }));
+        let mismatch_error =
+            decode_js_bridge_descriptor(&mismatch).expect_err("runtime mismatch should fail");
+        assert!(mismatch_error.message.contains("runtime version mismatch"));
+    }
+
+    #[test]
+    fn forward_to_js_worker_supports_bridge_descriptor_and_legacy_worker_path() {
+        let contract = runtime_contract_fixture();
+        let bridge_descriptor = encode_descriptor(json!({
+            "runtimeVersion": contract.runtime_version,
+            "workerProtocolVersion": contract.worker_protocol_version,
+            "nativeBridgeVersion": contract.native_bridge_version,
+            "workerRequestEnv": contract.worker_request_env,
+            "workerCommand": "node",
+            "workerArgs": [
+                "-e",
+                format!("process.exit(process.env.{} ? 7 : 1)", contract.worker_request_env),
+            ],
+        }));
+
+        let bridge_exit = with_env(
+            &[
+                (
+                    contract.native_bridge_env.as_str(),
+                    Some(bridge_descriptor.as_str()),
+                ),
+                (ENV_JS_WORKER_PATH, None),
+            ],
+            || forward_to_js_worker(&["status".to_string()]),
+        )
+        .expect("bridge descriptor should launch");
+        assert_eq!(bridge_exit, 7);
+
+        let temp_dir = env::temp_dir().join(format!(
+            "pp-bridge-test-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock should be after epoch")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&temp_dir).expect("temp dir should create");
+        let script_path = temp_dir.join("worker.sh");
+        fs::write(
+            &script_path,
+            format!(
+                "#!/bin/sh\n[ -n \"${}\" ]\nexit $?\n",
+                contract.worker_request_env
+            ),
+        )
+        .expect("script should write");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut permissions = fs::metadata(&script_path)
+                .expect("script should exist")
+                .permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&script_path, permissions).expect("script should be executable");
+        }
+
+        let legacy_exit = with_env(
+            &[
+                (contract.native_bridge_env.as_str(), None),
+                (
+                    ENV_JS_WORKER_PATH,
+                    Some(script_path.to_string_lossy().as_ref()),
+                ),
+            ],
+            || forward_to_js_worker(&["status".to_string()]),
+        )
+        .expect("legacy worker path should launch");
+        assert_eq!(legacy_exit, 0);
+    }
+
+    #[test]
+    fn exit_code_from_status_returns_process_exit_code() {
+        let status = Command::new("sh")
+            .arg("-c")
+            .arg("exit 19")
+            .status()
+            .expect("shell should run");
+        assert_eq!(exit_code_from_status(status), 19);
+    }
+}

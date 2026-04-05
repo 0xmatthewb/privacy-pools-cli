@@ -125,3 +125,139 @@ fn classify_network_error(error: ureq::Error, url: &str, category: ErrorCategory
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::{Shutdown, TcpListener};
+    use std::thread;
+
+    fn serve_once(response: String) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
+        let address = listener
+            .local_addr()
+            .expect("listener should expose address");
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("request should arrive");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(1)))
+                .expect("stream should support timeouts");
+            let mut buffer = Vec::new();
+            let mut chunk = [0u8; 1024];
+            loop {
+                match stream.read(&mut chunk) {
+                    Ok(0) => break,
+                    Ok(read) => {
+                        buffer.extend_from_slice(&chunk[..read]);
+                        if buffer.windows(4).any(|window| window == b"\r\n\r\n") {
+                            break;
+                        }
+                    }
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                        ) =>
+                    {
+                        break;
+                    }
+                    Err(error) => panic!("fixture request should read: {error}"),
+                }
+            }
+            stream
+                .write_all(response.as_bytes())
+                .expect("response should write");
+            let _ = stream.flush();
+            let _ = stream.shutdown(Shutdown::Both);
+        });
+        format!("http://{address}")
+    }
+
+    fn json_response(status: &str, body: &str) -> String {
+        format!(
+            "{status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+    }
+
+    #[test]
+    fn http_get_json_reads_successful_json() {
+        let url = serve_once(json_response("HTTP/1.1 200 OK", r#"{"ok":true}"#));
+        let value = http_get_json(&url, &[("X-Test", "1".to_string())], 2_000)
+            .expect("http get should succeed");
+        assert_eq!(value["ok"], Value::Bool(true));
+    }
+
+    #[test]
+    fn http_post_json_reads_successful_json() {
+        let url = serve_once(json_response("HTTP/1.1 200 OK", r#"{"result":"ok"}"#));
+        let value = http_post_json(&url, &Value::Null, 2_000).expect("http post should succeed");
+        assert_eq!(value["result"], Value::String("ok".to_string()));
+    }
+
+    #[test]
+    fn http_get_json_reports_invalid_json() {
+        let url = serve_once(json_response("HTTP/1.1 200 OK", "not-json"));
+        let error = http_get_json(&url, &[], 2_000).expect_err("invalid json should fail");
+        assert_eq!(error.code, "UNKNOWN_ERROR");
+        assert!(error.message.contains("Invalid JSON response"));
+    }
+
+    #[test]
+    fn http_get_json_with_js_transport_error_matches_js_rpc_shape() {
+        let error = http_get_json_with_js_transport_error("http://127.0.0.1:1", &[], 100)
+            .expect_err("transport failure should fail");
+        assert_eq!(error.code, "RPC_NETWORK_ERROR");
+        assert_eq!(error.message, "Network error: fetch failed");
+        assert_eq!(error.category, ErrorCategory::Rpc);
+        assert!(error.retryable);
+    }
+
+    #[test]
+    fn classify_network_error_maps_asp_statuses() {
+        let not_found_url = serve_once(json_response(
+            "HTTP/1.1 404 Not Found",
+            r#"{"error":"missing"}"#,
+        ));
+        let missing = http_get_json(&not_found_url, &[], 2_000).expect_err("404 should fail");
+        assert_eq!(missing.category, ErrorCategory::Asp);
+        assert!(missing.message.contains("resource not found"));
+        assert!(!missing.retryable);
+
+        let bad_request_url = serve_once(json_response(
+            "HTTP/1.1 400 Bad Request",
+            r#"{"error":"bad"}"#,
+        ));
+        let bad_request = http_get_json(&bad_request_url, &[], 2_000).expect_err("400 should fail");
+        assert!(bad_request.message.contains("returned an error"));
+        assert!(!bad_request.retryable);
+
+        let rate_limit_url = serve_once(json_response(
+            "HTTP/1.1 429 Too Many Requests",
+            r#"{"error":"slow"}"#,
+        ));
+        let rate_limited = http_get_json(&rate_limit_url, &[], 2_000).expect_err("429 should fail");
+        assert!(rate_limited.message.contains("rate-limiting"));
+        assert!(!rate_limited.retryable);
+
+        let unavailable_url = serve_once(json_response(
+            "HTTP/1.1 503 Service Unavailable",
+            r#"{"error":"down"}"#,
+        ));
+        let unavailable = http_get_json(&unavailable_url, &[], 2_000).expect_err("503 should fail");
+        assert!(unavailable
+            .message
+            .contains("Could not reach the ASP service"));
+        assert!(unavailable.retryable);
+    }
+
+    #[test]
+    fn http_post_json_classifies_rpc_transport_failures() {
+        let error = http_post_json("http://127.0.0.1:1", &Value::Null, 100)
+            .expect_err("rpc transport failure should fail");
+        assert_eq!(error.code, "RPC_NETWORK_ERROR");
+        assert_eq!(error.category, ErrorCategory::Rpc);
+        assert!(error.message.contains("http://127.0.0.1:1"));
+    }
+}

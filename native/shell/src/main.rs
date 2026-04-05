@@ -11,6 +11,8 @@ mod output;
 mod read_only_api;
 mod root_argv;
 mod routing;
+#[cfg(test)]
+mod test_env;
 
 use bridge::forward_to_js_worker;
 use commands::activity::handle_activity_native;
@@ -184,4 +186,76 @@ pub(crate) fn parse_timeout_ms(argv: &[String]) -> u64 {
         .filter(|value| value.is_finite() && *value > 0.0)
         .map(|value| (value * 1000.0).round() as u64)
         .unwrap_or(DEFAULT_TIMEOUT_MS)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn argv(tokens: &[&str]) -> Vec<String> {
+        tokens.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn parse_timeout_ms_defaults_and_parses_positive_values() {
+        assert_eq!(parse_timeout_ms(&argv(&[])), DEFAULT_TIMEOUT_MS);
+        assert_eq!(parse_timeout_ms(&argv(&["--timeout", "2.5"])), 2_500);
+        assert_eq!(
+            parse_timeout_ms(&argv(&["--timeout", "-1"])),
+            DEFAULT_TIMEOUT_MS
+        );
+        assert_eq!(parse_timeout_ms(&argv(&["--timeout=1"])), 1_000);
+    }
+
+    #[test]
+    fn run_rejects_invalid_output_formats() {
+        let argv = argv(&["--json", "--format", "yaml", "guide"]);
+        let parsed = parse_root_argv(&argv);
+        let error = run(&argv, &parsed).expect_err("invalid format should fail");
+        assert_eq!(error.code, "INPUT_ERROR");
+        assert!(error.message.contains("argument 'yaml' is invalid"));
+    }
+
+    #[test]
+    fn run_handles_root_version_and_root_help() {
+        let version_argv = argv(&["--version"]);
+        let version_parsed = parse_root_argv(&version_argv);
+        assert_eq!(run(&version_argv, &version_parsed).unwrap(), 0);
+
+        let help_argv = argv(&["--help"]);
+        let help_parsed = parse_root_argv(&help_argv);
+        assert_eq!(run(&help_argv, &help_parsed).unwrap(), 0);
+    }
+
+    #[test]
+    fn run_handles_machine_mode_without_command() {
+        let argv = argv(&["--agent"]);
+        let parsed = parse_root_argv(&argv);
+        assert_eq!(run(&argv, &parsed).unwrap(), 0);
+    }
+
+    #[test]
+    fn run_reports_unknown_commands_and_help_paths() {
+        let unknown_argv = argv(&["wat"]);
+        let unknown_parsed = parse_root_argv(&unknown_argv);
+        let unknown = run(&unknown_argv, &unknown_parsed).expect_err("unknown command should fail");
+        assert_eq!(unknown.code, "INPUT_ERROR");
+        assert!(unknown.message.contains("unknown command"));
+
+        let help_argv = argv(&["help", "missing-command"]);
+        let help_parsed = parse_root_argv(&help_argv);
+        let help_error = run(&help_argv, &help_parsed).expect_err("unknown help path should fail");
+        assert_eq!(help_error.code, "INPUT_ERROR");
+        assert!(help_error.message.contains("Unknown command path"));
+    }
+
+    #[test]
+    fn run_returns_js_worker_error_for_js_owned_commands_without_launcher() {
+        let _guard = crate::test_env::env_lock().lock().unwrap();
+        let argv = argv(&["status", "--no-check"]);
+        let parsed = parse_root_argv(&argv);
+        let error = run(&argv, &parsed).expect_err("status should forward to js worker");
+        assert_eq!(error.code, "UNKNOWN_ERROR");
+        assert!(error.message.contains("JS worker bootstrap is unavailable"));
+    }
 }
