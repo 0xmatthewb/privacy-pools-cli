@@ -1,7 +1,14 @@
 import type { GlobalOptions } from "./types.js";
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
-import { parseRootArgv, type ParsedRootArgv } from "./utils/root-argv.js";
+import {
+  parseRootArgv,
+  parseRootPreludeLongOption,
+  parseRootPreludeShortFlagBundle,
+  parseRootPreludeShortOption,
+  parseValidatedRootPrelude,
+  type ParsedRootArgv,
+} from "./utils/root-argv.js";
 import {
   invalidOutputFormatMessage,
   isSupportedOutputFormat,
@@ -240,163 +247,16 @@ async function renderStaticDescribe(
   process.stderr.write("\n");
 }
 
-function parseLongOption(
-  token: string,
-  nextToken: string | undefined,
-  globalOpts: GlobalOptions,
-): { consumedNext: boolean; helpLike: boolean; versionLike: boolean } | null {
-  const equalsIndex = token.indexOf("=");
-  const name = equalsIndex === -1 ? token : token.slice(0, equalsIndex);
-  const inlineValue = equalsIndex === -1 ? undefined : token.slice(equalsIndex + 1);
-
-  switch (name) {
-    case "--json":
-      globalOpts.json = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "--agent":
-      globalOpts.agent = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "--quiet":
-      globalOpts.quiet = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "--yes":
-      globalOpts.yes = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "--verbose":
-      globalOpts.verbose = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "--no-banner":
-    case "--no-color":
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "--help":
-      return { consumedNext: false, helpLike: true, versionLike: false };
-    case "--version":
-      return { consumedNext: false, helpLike: false, versionLike: true };
-    case "--chain":
-      if (inlineValue !== undefined) {
-        globalOpts.chain = inlineValue;
-        return { consumedNext: false, helpLike: false, versionLike: false };
-      }
-      if (nextToken === undefined) return null;
-      globalOpts.chain = nextToken;
-      return { consumedNext: true, helpLike: false, versionLike: false };
-    case "--format":
-      if (inlineValue !== undefined) {
-        globalOpts.format = inlineValue;
-        return { consumedNext: false, helpLike: false, versionLike: false };
-      }
-      if (nextToken === undefined) return null;
-      globalOpts.format = nextToken;
-      return { consumedNext: true, helpLike: false, versionLike: false };
-    case "--rpc-url":
-      if (inlineValue !== undefined) {
-        globalOpts.rpcUrl = inlineValue;
-        return { consumedNext: false, helpLike: false, versionLike: false };
-      }
-      if (nextToken === undefined) return null;
-      globalOpts.rpcUrl = nextToken;
-      return { consumedNext: true, helpLike: false, versionLike: false };
-    case "--timeout":
-      if (inlineValue !== undefined) {
-        globalOpts.timeout = inlineValue;
-        return { consumedNext: false, helpLike: false, versionLike: false };
-      }
-      if (nextToken === undefined) return null;
-      globalOpts.timeout = nextToken;
-      return { consumedNext: true, helpLike: false, versionLike: false };
-    default:
-      return null;
-  }
-}
-
-function parseShortOption(
-  token: string,
-  nextToken: string | undefined,
-  globalOpts: GlobalOptions,
-): { consumedNext: boolean; helpLike: boolean; versionLike: boolean } | null {
-  switch (token) {
-    case "-c":
-      if (nextToken === undefined) return null;
-      globalOpts.chain = nextToken;
-      return { consumedNext: true, helpLike: false, versionLike: false };
-    case "-r":
-      if (nextToken === undefined) return null;
-      globalOpts.rpcUrl = nextToken;
-      return { consumedNext: true, helpLike: false, versionLike: false };
-    case "-j":
-      globalOpts.json = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "-q":
-      globalOpts.quiet = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "-v":
-      globalOpts.verbose = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "-y":
-      globalOpts.yes = true;
-      return { consumedNext: false, helpLike: false, versionLike: false };
-    case "-h":
-      return { consumedNext: false, helpLike: true, versionLike: false };
-    case "-V":
-      return { consumedNext: false, helpLike: false, versionLike: true };
-    default:
-      return null;
-  }
-}
-
-function parseShortFlagBundle(
-  token: string,
-  globalOpts: GlobalOptions,
-): { helpLike: boolean; versionLike: boolean } | null {
-  let helpLike = false;
-  let versionLike = false;
-
-  for (const flag of token.slice(1)) {
-    const parsed = parseShortOption(`-${flag}`, undefined, globalOpts);
-    if (!parsed || parsed.consumedNext) {
-      return null;
-    }
-    helpLike = helpLike || parsed.helpLike;
-    versionLike = versionLike || parsed.versionLike;
-  }
-
-  return { helpLike, versionLike };
-}
-
 function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {
-  if (!hasValidStaticRootPrelude(argv)) {
+  const prelude = parseValidatedRootPrelude(argv);
+  if (!prelude) {
     return null;
   }
-  return parseStaticCommandFromRootArgv(parseRootArgv(argv));
+  return parseStaticCommandFromRootArgv(prelude.parsed);
 }
 
 function hasValidStaticRootPrelude(argv: string[]): boolean {
-  const globalOpts: GlobalOptions = {};
-  let index = 0;
-
-  for (; index < argv.length; index++) {
-    const token = argv[index];
-
-    if (token === "--") return false;
-    if (!token.startsWith("-")) return true;
-
-    if (token.startsWith("--")) {
-      const parsed = parseLongOption(token, argv[index + 1], globalOpts);
-      if (!parsed || parsed.helpLike || parsed.versionLike) return false;
-      if (parsed.consumedNext) index++;
-      continue;
-    }
-
-    const parsed =
-      token.length === 2
-        ? parseShortOption(token, argv[index + 1], globalOpts)
-        : parseShortFlagBundle(token, globalOpts);
-    if (!parsed) return false;
-    if (parsed.helpLike || parsed.versionLike) return false;
-    if ("consumedNext" in parsed && parsed.consumedNext) index++;
-  }
-
-  return true;
+  return parseValidatedRootPrelude(argv) !== null;
 }
 
 function parseStaticCommandFromRootArgv(
@@ -456,41 +316,17 @@ export async function runStaticDiscoveryCommand(
 function parseCompletionQuery(
   argv: string[],
 ): ParsedStaticCompletionQuery | null {
-  const globalOpts: GlobalOptions = {};
-  let index = 0;
-
-  for (; index < argv.length; index++) {
-    const token = argv[index];
-
-    if (token === "completion") {
-      index++;
-      break;
-    }
-
-    if (token === "--") return null;
-
-    if (token.startsWith("--")) {
-      const parsed = parseLongOption(token, argv[index + 1], globalOpts);
-      if (!parsed || parsed.helpLike || parsed.versionLike) return null;
-      if (parsed.consumedNext) index++;
-      continue;
-    }
-
-    if (token.startsWith("-")) {
-      const parsed =
-        token.length === 2
-          ? parseShortOption(token, argv[index + 1], globalOpts)
-          : parseShortFlagBundle(token, globalOpts);
-      if (!parsed) return null;
-      if (parsed.helpLike || parsed.versionLike) return null;
-      if ("consumedNext" in parsed && parsed.consumedNext) index++;
-      continue;
-    }
-
+  const prelude = parseValidatedRootPrelude(argv);
+  if (!prelude || prelude.parsed.firstCommandToken !== "completion") {
     return null;
   }
 
-  if (index >= argv.length) return null;
+  let index = prelude.commandIndex;
+  if (index === null || argv[index] !== "completion") {
+    return null;
+  }
+  index += 1;
+  const globalOpts = prelude.globalOpts;
 
   let shellFlag: string | undefined;
   let shellArg: string | undefined;
@@ -649,9 +485,9 @@ export const staticDiscoveryTestInternals = {
   fallbackJsonModeFromArgv,
   hasValidStaticRootPrelude,
   staticGlobalOptsFromParsedRootArgv,
-  parseLongOption,
-  parseShortOption,
-  parseShortFlagBundle,
+  parseLongOption: parseRootPreludeLongOption,
+  parseShortOption: parseRootPreludeShortOption,
+  parseShortFlagBundle: parseRootPreludeShortFlagBundle,
   parseStaticCommand,
   parseStaticCommandFromRootArgv,
   parseCompletionQuery,

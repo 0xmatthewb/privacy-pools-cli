@@ -3,6 +3,7 @@ import {
   ROOT_OPTIONS_WITH_VALUE,
   ROOT_WELCOME_BOOLEAN_FLAGS,
 } from "./root-global-flags.js";
+import type { GlobalOptions } from "../types.js";
 
 export interface ParsedRootArgv {
   argv: string[];
@@ -21,6 +22,18 @@ export interface ParsedRootArgv {
   isQuiet: boolean;
   suppressBanner: boolean;
   isWelcome: boolean;
+}
+
+export interface ParsedRootPrelude {
+  parsed: ParsedRootArgv;
+  globalOpts: GlobalOptions;
+  commandIndex: number | null;
+}
+
+interface ParsedRootPreludeTokenResult {
+  consumedNext: boolean;
+  helpLike: boolean;
+  versionLike: boolean;
 }
 
 export function rootArgvSlice(args: string[]): string[] {
@@ -112,6 +125,183 @@ export function isWelcomeFlagOnlyInvocation(args: string[]): boolean {
     return false;
   }
   return true;
+}
+
+export function parseRootPreludeLongOption(
+  token: string,
+  nextToken: string | undefined,
+  globalOpts: GlobalOptions,
+): ParsedRootPreludeTokenResult | null {
+  const equalsIndex = token.indexOf("=");
+  const name = equalsIndex === -1 ? token : token.slice(0, equalsIndex);
+  const inlineValue =
+    equalsIndex === -1 ? undefined : token.slice(equalsIndex + 1);
+
+  switch (name) {
+    case "--json":
+      globalOpts.json = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--agent":
+      globalOpts.agent = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--quiet":
+      globalOpts.quiet = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--yes":
+      globalOpts.yes = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--verbose":
+      globalOpts.verbose = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--no-banner":
+    case "--no-color":
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--help":
+      return { consumedNext: false, helpLike: true, versionLike: false };
+    case "--version":
+      return { consumedNext: false, helpLike: false, versionLike: true };
+    case "--chain":
+      if (inlineValue !== undefined) {
+        globalOpts.chain = inlineValue;
+        return { consumedNext: false, helpLike: false, versionLike: false };
+      }
+      if (nextToken === undefined) return null;
+      globalOpts.chain = nextToken;
+      return { consumedNext: true, helpLike: false, versionLike: false };
+    case "--format":
+      if (inlineValue !== undefined) {
+        globalOpts.format = inlineValue;
+        return { consumedNext: false, helpLike: false, versionLike: false };
+      }
+      if (nextToken === undefined) return null;
+      globalOpts.format = nextToken;
+      return { consumedNext: true, helpLike: false, versionLike: false };
+    case "--rpc-url":
+      if (inlineValue !== undefined) {
+        globalOpts.rpcUrl = inlineValue;
+        return { consumedNext: false, helpLike: false, versionLike: false };
+      }
+      if (nextToken === undefined) return null;
+      globalOpts.rpcUrl = nextToken;
+      return { consumedNext: true, helpLike: false, versionLike: false };
+    case "--timeout":
+      if (inlineValue !== undefined) {
+        globalOpts.timeout = inlineValue;
+        return { consumedNext: false, helpLike: false, versionLike: false };
+      }
+      if (nextToken === undefined) return null;
+      globalOpts.timeout = nextToken;
+      return { consumedNext: true, helpLike: false, versionLike: false };
+    default:
+      return null;
+  }
+}
+
+export function parseRootPreludeShortOption(
+  token: string,
+  nextToken: string | undefined,
+  globalOpts: GlobalOptions,
+): ParsedRootPreludeTokenResult | null {
+  switch (token) {
+    case "-c":
+      if (nextToken === undefined) return null;
+      globalOpts.chain = nextToken;
+      return { consumedNext: true, helpLike: false, versionLike: false };
+    case "-r":
+      if (nextToken === undefined) return null;
+      globalOpts.rpcUrl = nextToken;
+      return { consumedNext: true, helpLike: false, versionLike: false };
+    case "-j":
+      globalOpts.json = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "-q":
+      globalOpts.quiet = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "-v":
+      globalOpts.verbose = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "-y":
+      globalOpts.yes = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
+    case "-h":
+      return { consumedNext: false, helpLike: true, versionLike: false };
+    case "-V":
+      return { consumedNext: false, helpLike: false, versionLike: true };
+    default:
+      return null;
+  }
+}
+
+export function parseRootPreludeShortFlagBundle(
+  token: string,
+  globalOpts: GlobalOptions,
+): Omit<ParsedRootPreludeTokenResult, "consumedNext"> | null {
+  let helpLike = false;
+  let versionLike = false;
+
+  for (const flag of token.slice(1)) {
+    const parsed = parseRootPreludeShortOption(`-${flag}`, undefined, globalOpts);
+    if (!parsed || parsed.consumedNext) {
+      return null;
+    }
+    helpLike = helpLike || parsed.helpLike;
+    versionLike = versionLike || parsed.versionLike;
+  }
+
+  return { helpLike, versionLike };
+}
+
+export function parseValidatedRootPrelude(
+  argv: string[],
+): ParsedRootPrelude | null {
+  const rootArgs = rootArgvSlice(argv);
+  const globalOpts: GlobalOptions = {};
+  let commandIndex: number | null = null;
+
+  for (let index = 0; index < rootArgs.length; index++) {
+    const token = rootArgs[index] ?? "";
+
+    if (token === "--") {
+      return null;
+    }
+
+    if (!token.startsWith("-")) {
+      commandIndex = index;
+      break;
+    }
+
+    if (token.startsWith("--")) {
+      const parsed = parseRootPreludeLongOption(
+        token,
+        rootArgs[index + 1],
+        globalOpts,
+      );
+      if (!parsed || parsed.helpLike || parsed.versionLike) {
+        return null;
+      }
+      if (parsed.consumedNext) {
+        index++;
+      }
+      continue;
+    }
+
+    const parsed =
+      token.length === 2
+        ? parseRootPreludeShortOption(token, rootArgs[index + 1], globalOpts)
+        : parseRootPreludeShortFlagBundle(token, globalOpts);
+    if (!parsed || parsed.helpLike || parsed.versionLike) {
+      return null;
+    }
+    if ("consumedNext" in parsed && parsed.consumedNext) {
+      index++;
+    }
+  }
+
+  return {
+    parsed: parseRootArgv(argv),
+    globalOpts,
+    commandIndex,
+  };
 }
 
 export function parseRootArgv(argv: string[]): ParsedRootArgv {
