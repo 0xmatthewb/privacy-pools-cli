@@ -147,6 +147,7 @@ CI notes:
 - `npm run test:native:fmt` and `npm run test:native:lint` are the fast Rust-native formatting and clippy gates for `native/shell`.
 - `npm run test:native` runs the Rust-native suite directly against `native/shell`, including binary integration tests for the compiled native shell.
 - `npm run test:coverage:native` is the Rust line-coverage guard for the native bootstrap/parser/routing modules. It requires `cargo-llvm-cov`; CI installs it with `taiki-e/install-action`.
+- That native coverage gate is intentionally narrower than the full native shell today, so a green local profile means the enforced JS buckets and the guarded native bootstrap/routing slice are healthy; it does not by itself mean every executable native file is already held to an `85%` floor.
 - `scripts/run-test-profile.mjs` is the shared source of truth for the higher-level repo test profiles (`test:install`, `test:conformance`, `test:ci`, `test:release`, `test:all`) so gate ordering only has to change in one place.
 - `npm test` stays fast and host-neutral: it excludes packaged smoke, packaged native smoke, native-shell parity, and shared-Anvil suites. Those lanes still run in explicit higher-cost profiles.
 - `npm run test:release` and `npm run test:all` no longer rerun the source shared-Anvil smoke trio after `test:e2e:anvil`; they reuse the full shared-Anvil coverage and then run the installed-artifact verification directly so the highest-cost profiles stay meaningful without duplicating the same source E2E coverage.

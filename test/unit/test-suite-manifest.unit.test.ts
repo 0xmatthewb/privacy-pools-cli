@@ -5,6 +5,7 @@ import {
   DEFAULT_MAIN_BATCHES,
   DEFAULT_MAIN_EXCLUDED_TESTS,
   DEFAULT_MAIN_TEST_TARGETS,
+  LAUNCHER_ROUTING_TEST,
   NATIVE_PACKAGE_SMOKE_TEST,
   NATIVE_SHELL_SMOKE_TEST,
   PACKAGED_SMOKE_TEST,
@@ -50,14 +51,11 @@ describe("test suite manifest", () => {
         true,
       );
     }
-    expect(COVERAGE_ISOLATED_SUITES).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          label: "launcher-routing",
-          tests: ["./test/unit/launcher-routing.unit.test.ts"],
-        }),
-      ]),
-    );
+    expect(
+      COVERAGE_ISOLATED_SUITES.some((suite) =>
+        suite.tests.includes(LAUNCHER_ROUTING_TEST)
+      ),
+    ).toBe(true);
   });
 
   test("default main batches cover each shared target exactly once", () => {

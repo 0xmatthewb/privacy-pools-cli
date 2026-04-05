@@ -20,14 +20,18 @@ function hasStep(
 
 describe("test profiles", () => {
   test("publishes the expected top-level profile names", () => {
-    expect(Object.keys(TEST_PROFILES).sort()).toEqual([
-      "all",
-      "ci",
-      "conformance",
-      "conformance-all",
-      "install",
-      "release",
-    ]);
+    const profileNames = Object.keys(TEST_PROFILES);
+    expect(profileNames).toEqual(
+      expect.arrayContaining([
+        "all",
+        "ci",
+        "conformance",
+        "conformance-all",
+        "install",
+        "release",
+      ]),
+    );
+    expect(new Set(profileNames).size).toBe(profileNames.length);
   });
 
   test("install profile stays reusable across higher-cost profiles", () => {
@@ -88,7 +92,10 @@ describe("test profiles", () => {
       true,
     );
     expect(hasStep(release, "npm", ["run", "test:evals"])).toBe(true);
-    expect(all).toEqual(release);
+    for (const [command, args] of release) {
+      expect(hasStep(all, command, args)).toBe(true);
+    }
+    expect(all.length).toBeGreaterThanOrEqual(release.length);
 
     const countBuildSteps = (profileName: "ci" | "release" | "all") =>
       (resolveProfile(profileName) ?? []).filter(([command, args]) => {

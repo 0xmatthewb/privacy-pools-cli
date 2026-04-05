@@ -46,13 +46,45 @@ describe("bench cli helpers", () => {
     );
   });
 
-  test("command matrices publish the expected readonly commands", () => {
+  test("readonly benchmark matrix keeps the intended command contracts", () => {
     expect(Object.keys(COMMAND_MATRICES).sort()).toEqual(["default", "readonly"]);
-    expect(getCommandMatrix("readonly").map((command) => command.label)).toEqual([
-      "accounts --agent --chain sepolia --no-sync --summary",
-      "accounts --agent --chain sepolia --no-sync --pending-only",
-      "history --agent --chain sepolia --no-sync",
-      "migrate status --agent --chain mainnet",
+    expect(getCommandMatrix("readonly")).toEqual([
+      expect.objectContaining({
+        family: "js-read-only",
+        label: "accounts --agent --chain sepolia --no-sync --summary",
+        args: ["accounts", "--agent", "--chain", "sepolia", "--no-sync", "--summary"],
+        fixtureHome: "sepolia-readonly",
+        skipDirectNative: true,
+      }),
+      expect.objectContaining({
+        family: "js-read-only",
+        label: "accounts --agent --chain sepolia --no-sync --pending-only",
+        args: [
+          "accounts",
+          "--agent",
+          "--chain",
+          "sepolia",
+          "--no-sync",
+          "--pending-only",
+        ],
+        fixtureHome: "sepolia-readonly",
+        skipDirectNative: true,
+      }),
+      expect.objectContaining({
+        family: "js-read-only",
+        label: "history --agent --chain sepolia --no-sync",
+        args: ["history", "--agent", "--chain", "sepolia", "--no-sync"],
+        fixtureHome: "sepolia-readonly",
+        skipDirectNative: true,
+      }),
+      expect.objectContaining({
+        family: "js-read-only",
+        label: "migrate status --agent --chain mainnet",
+        args: ["migrate", "status", "--agent", "--chain", "mainnet"],
+        fixtureHome: "mainnet-migrate",
+        preferredRuntime: "launcher-binary-override",
+        skipDirectNative: true,
+      }),
     ]);
   });
 

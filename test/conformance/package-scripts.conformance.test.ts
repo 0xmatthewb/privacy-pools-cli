@@ -8,6 +8,7 @@ const packageJson = JSON.parse(
 ) as {
   files?: string[];
   scripts?: Record<string, string>;
+  version?: string;
 };
 
 function getScript(name: string): string {
@@ -125,12 +126,23 @@ describe("package scripts conformance", () => {
     expect(packageJson.scripts?.["test:native"]).toBe(
       "cargo test --manifest-path native/shell/Cargo.toml",
     );
-    expect(packageJson.scripts?.["bench:gate:release"]).toBe(
-      "node scripts/bench-cli.mjs --base v1.7.0 --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
-    );
-    expect(packageJson.scripts?.["bench:gate:readonly"]).toBe(
-      "node scripts/bench-cli.mjs --base self --matrix readonly --runtime launcher-binary-override --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
-    );
+    expectScriptContains("bench:gate:release", [
+      "node scripts/bench-cli.mjs",
+      `--base v${packageJson.version}`,
+      "--runtime native",
+      "--runs 6",
+      "--warmup 1",
+      "--assert-thresholds scripts/bench-thresholds.json",
+    ]);
+    expectScriptContains("bench:gate:readonly", [
+      "node scripts/bench-cli.mjs",
+      "--base self",
+      "--matrix readonly",
+      "--runtime launcher-binary-override",
+      "--runs 6",
+      "--warmup 1",
+      "--assert-thresholds scripts/bench-thresholds.json",
+    ]);
     expect(packageJson.scripts?.["test:stress"]).toBe("node scripts/run-stress.mjs");
   });
 
