@@ -5,8 +5,8 @@
  * CLI source, then asserts alignment between the two.
  *
  * Source of truth:
- *   Core contracts/circuits: public 0xbow-io/privacy-pools-core
- *   Frontend patterns:       public 0xbow-io/privacy-pools-website
+ *   Core contracts/circuits: checked-out privacy-pools-core source (with public fallback)
+ *   Frontend patterns:       checked-out privacy-pools-website source (with public fallback)
  *   SDK:                     installed @0xbow/privacy-pools-core-sdk@1.2.0
  *
  * @frontend-parity
@@ -109,13 +109,14 @@ function extractEventSignature(source: string, eventName: string): string {
 }
 
 describe("protocol conformance: CLI ↔ upstream", () => {
-  test("conformance source helper stays pinned to public upstream inputs", () => {
+  test("conformance source helper prefers local source checkouts with public fallback", () => {
     expect(githubHelper).toContain('const RAW_BASE = "https://raw.githubusercontent.com"');
     expect(githubHelper).toContain('export const CORE_REPO = "0xbow-io/privacy-pools-core"');
     expect(githubHelper).toContain('export const FRONTEND_REPO = "0xbow-io/privacy-pools-website"');
-    expect(githubHelper).not.toContain("CONFORMANCE_CORE_ROOT");
-    expect(githubHelper).not.toContain("CONFORMANCE_FRONTEND_ROOT");
-    expect(githubHelper).not.toContain("privacy-pools-core-main");
+    expect(githubHelper).toContain("CONFORMANCE_CORE_ROOT");
+    expect(githubHelper).toContain("CONFORMANCE_FRONTEND_ROOT");
+    expect(githubHelper).toContain("privacy-pools-core-main");
+    expect(githubHelper).toContain("privacy-pools-website");
   });
 
   beforeAll(async () => {
@@ -176,7 +177,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     }
   });
 
-  test("upstream fetch succeeded (canary — all protocol tests below are skipped if this fails)", () => {
+  test("source-of-truth reads succeeded (canary — all protocol tests below are skipped if this fails)", () => {
     if (fetchFailed) {
       console.warn("WARN: source-of-truth files were unavailable — protocol conformance tests are NOT running");
     }

@@ -238,17 +238,17 @@ describe("ABI selector parity conformance", () => {
         ]);
     } catch (err) {
       console.warn(
-        "Skipping ABI selector parity — could not fetch upstream files:",
+        "Skipping ABI selector parity — could not read source-of-truth files:",
         err,
       );
       fetchFailed = true;
     }
   });
 
-  test("upstream fetch succeeded (canary)", () => {
+  test("source-of-truth reads succeeded (canary)", () => {
     if (fetchFailed) {
       console.warn(
-        "WARN: upstream GitHub fetch failed — ABI selector parity tests are NOT running",
+        "WARN: source-of-truth reads failed — ABI selector parity tests are NOT running",
       );
     }
     expect(fetchFailed).toBe(false);

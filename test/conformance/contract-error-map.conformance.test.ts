@@ -71,9 +71,9 @@ describe("contract error classification conformance", () => {
     expect(errorMapKeys.length).toBeGreaterThanOrEqual(5);
   });
 
-  test("upstream fetch succeeded (canary — all tests below are skipped if this fails)", () => {
+  test("source-of-truth reads succeeded (canary — all tests below are skipped if this fails)", () => {
     if (fetchFailed) {
-      console.warn("WARN: upstream GitHub fetch failed — conformance tests are NOT running");
+      console.warn("WARN: source-of-truth reads failed — conformance tests are NOT running");
     }
     expect(fetchFailed).toBe(false);
   });
