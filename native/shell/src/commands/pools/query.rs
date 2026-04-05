@@ -6,7 +6,7 @@ use super::helpers::{
 };
 use super::model::{
     ChainSummary, NativePoolResolution, PoolListingEntry, PoolStatsResolutionInput,
-    PoolsChainQueryResult, PoolsCommandOptions,
+    PoolsChainQueryResult, PoolsCommandOptions, POOL_RESOLUTION_MAX_WORKERS,
 };
 use super::render::{render_pools_empty_output, render_pools_output};
 use super::rpc::resolve_cached_pool_resolution;
@@ -24,6 +24,8 @@ use crate::root_argv::{
     is_command_global_value_option, ParsedRootArgv,
 };
 use crate::routing::resolve_mode;
+use std::collections::VecDeque;
+use std::sync::{mpsc, Arc, Mutex};
 
 pub(crate) fn handle_pools_native(
     argv: &[String],
@@ -550,44 +552,13 @@ fn list_pools_native(
 
     let rpc_urls = get_rpc_urls(chain.id, rpc_override, config, runtime_config)?;
     let resolution_inputs = prepare_pool_resolution_inputs(stats_entries, chain.id);
-    let mut entries = vec![];
-    let mut rpc_read_failures = 0usize;
-
-    for chunk in resolution_inputs.chunks(super::model::POOL_RESOLUTION_BATCH_SIZE) {
-        let handles = chunk
-            .iter()
-            .map(|input| {
-                let chain = chain.clone();
-                let input = input.clone();
-                let rpc_urls = rpc_urls.clone();
-                let native_asset_address = runtime_config.native_asset_address.clone();
-                std::thread::spawn(move || {
-                    resolve_pool_listing_entry(
-                        chain,
-                        input,
-                        rpc_urls,
-                        native_asset_address,
-                        timeout_ms,
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
-
-        for handle in handles {
-            let resolved_entry = match handle.join() {
-                Ok(result) => result,
-                Err(_) => Err(pool_resolution_worker_join_failure(&chain.name)),
-            };
-
-            match resolved_entry {
-                Ok(entry) => entries.push(entry),
-                Err(error) if matches!(error.category, ErrorCategory::Rpc) => {
-                    rpc_read_failures += 1;
-                }
-                Err(error) => return Err(error),
-            }
-        }
-    }
+    let (entries, rpc_read_failures) = resolve_pool_listing_entries_bounded(
+        chain,
+        resolution_inputs,
+        &rpc_urls,
+        &runtime_config.native_asset_address,
+        timeout_ms,
+    )?;
 
     if entries.is_empty() && rpc_read_failures > 0 {
         return Err(CliError::rpc_retryable(
@@ -601,6 +572,92 @@ fn list_pools_native(
     }
 
     Ok(deduplicate_pool_entries(entries))
+}
+
+fn resolve_pool_listing_entries_bounded(
+    chain: &ChainDefinition,
+    resolution_inputs: Vec<PoolStatsResolutionInput>,
+    rpc_urls: &[String],
+    native_asset_address: &str,
+    timeout_ms: u64,
+) -> Result<(Vec<PoolListingEntry>, usize), CliError> {
+    if resolution_inputs.is_empty() {
+        return Ok((vec![], 0));
+    }
+
+    let total_inputs = resolution_inputs.len();
+    let worker_count = bounded_pool_resolution_worker_count(resolution_inputs.len());
+    let queue = Arc::new(Mutex::new(
+        resolution_inputs
+            .into_iter()
+            .enumerate()
+            .collect::<VecDeque<_>>(),
+    ));
+    let (tx, rx) = mpsc::channel();
+    let mut handles = Vec::with_capacity(worker_count);
+
+    for _ in 0..worker_count {
+        let queue = Arc::clone(&queue);
+        let tx = tx.clone();
+        let chain = chain.clone();
+        let rpc_urls = rpc_urls.to_vec();
+        let native_asset_address = native_asset_address.to_string();
+        handles.push(std::thread::spawn(move || loop {
+            let next = {
+                let mut queue = queue
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                queue.pop_front()
+            };
+            let Some((index, input)) = next else {
+                break;
+            };
+
+            let result = resolve_pool_listing_entry(
+                chain.clone(),
+                input,
+                rpc_urls.clone(),
+                native_asset_address.clone(),
+                timeout_ms,
+            );
+            if tx.send((index, result)).is_err() {
+                break;
+            }
+        }));
+    }
+    drop(tx);
+
+    let mut results = vec![None; total_inputs];
+    for (index, result) in rx {
+        if index >= results.len() {
+            return Err(pool_resolution_worker_join_failure(&chain.name));
+        }
+        results[index] = Some(result);
+    }
+
+    for handle in handles {
+        if handle.join().is_err() {
+            return Err(pool_resolution_worker_join_failure(&chain.name));
+        }
+    }
+
+    if results.iter().any(Option::is_none) {
+        return Err(pool_resolution_worker_join_failure(&chain.name));
+    }
+
+    let mut entries = vec![];
+    let mut rpc_read_failures = 0usize;
+    for result in results.into_iter().flatten() {
+        match result {
+            Ok(entry) => entries.push(entry),
+            Err(error) if matches!(error.category, ErrorCategory::Rpc) => {
+                rpc_read_failures += 1;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    Ok((entries, rpc_read_failures))
 }
 
 fn resolve_pool_listing_entry(
@@ -659,4 +716,22 @@ fn resolve_pool_listing_entry(
         growth24h: parse_json_number(input.stats_entry.get("growth24h")),
         pending_growth24h: parse_json_number(input.stats_entry.get("pendingGrowth24h")),
     })
+}
+
+fn bounded_pool_resolution_worker_count(input_count: usize) -> usize {
+    input_count.clamp(1, POOL_RESOLUTION_MAX_WORKERS)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::bounded_pool_resolution_worker_count;
+
+    #[test]
+    fn bounded_pool_resolution_worker_count_caps_and_stays_positive() {
+        assert_eq!(bounded_pool_resolution_worker_count(1), 1);
+        assert_eq!(bounded_pool_resolution_worker_count(2), 2);
+        assert_eq!(bounded_pool_resolution_worker_count(4), 4);
+        assert_eq!(bounded_pool_resolution_worker_count(8), 4);
+        assert_eq!(bounded_pool_resolution_worker_count(0), 1);
+    }
 }

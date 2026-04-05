@@ -1,4 +1,3 @@
-use super::helpers::pool_resolution_worker_join_failure;
 use super::model::{
     AssetConfigResult, NativePoolResolution, PoolResolutionCacheEntry, TokenMetadataLookupResult,
     TokenMetadataResult,
@@ -29,45 +28,10 @@ pub(super) fn resolve_cached_pool_resolution(
         }
     }
 
-    let chain_for_asset = chain.clone();
-    let asset_address_for_asset = asset_address.to_string();
-    let rpc_urls_for_asset = rpc_urls.to_vec();
-    let asset_handle = std::thread::spawn(move || {
-        read_asset_config(
-            &chain_for_asset,
-            &asset_address_for_asset,
-            &rpc_urls_for_asset,
-            timeout_ms,
-        )
-    });
-
-    let asset_address_for_metadata = asset_address.to_string();
-    let rpc_urls_for_metadata = rpc_urls.to_vec();
-    let native_asset_address = native_asset_address.to_string();
-    let metadata_handle = std::thread::spawn(move || {
-        resolve_token_metadata_lookup(
-            &asset_address_for_metadata,
-            &rpc_urls_for_metadata,
-            &native_asset_address,
-            timeout_ms,
-        )
-    });
-
-    let asset_config = match asset_handle.join() {
-        Ok(result) => result?,
-        Err(_) => return Err(pool_resolution_worker_join_failure(&chain.name)),
-    };
-    let token_lookup = match metadata_handle.join() {
-        Ok(result) => result,
-        Err(_) => TokenMetadataLookupResult {
-            metadata: TokenMetadataResult {
-                symbol: "???".to_string(),
-                decimals: 18,
-            },
-            cacheable: false,
-        },
-    };
+    let asset_config = read_asset_config(chain, asset_address, rpc_urls, timeout_ms)?;
     let scope = read_pool_scope(&asset_config.pool_address, rpc_urls, timeout_ms)?;
+    let token_lookup =
+        resolve_token_metadata_lookup(asset_address, rpc_urls, native_asset_address, timeout_ms);
 
     let resolved = PoolResolutionCacheEntry {
         asset_config,

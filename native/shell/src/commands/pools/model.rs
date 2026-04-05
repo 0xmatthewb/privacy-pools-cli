@@ -1,7 +1,7 @@
 use serde_json::Map;
 use serde_json::Value;
 
-pub(super) const POOL_RESOLUTION_BATCH_SIZE: usize = 4;
+pub(super) const POOL_RESOLUTION_MAX_WORKERS: usize = 4;
 
 #[derive(Debug, Clone)]
 pub(super) struct PoolsCommandOptions {
