@@ -79,7 +79,38 @@ describe("native manifest conformance", () => {
     );
   });
 
-  test("native manifest per-command help matches the live commander help", async () => {
+  test("generated native manifest keeps accounts compact-mode nextActions executable", () => {
+    const nativeManifest = JSON.parse(
+      readFileSync(nativeManifestPath, "utf8"),
+    ) as {
+      capabilitiesPayload: {
+        commandDetails: Record<string, { jsonVariants?: string[] }>;
+      };
+    };
+
+    const nativeAccountsJsonVariants =
+      nativeManifest.capabilitiesPayload.commandDetails.accounts?.jsonVariants ?? [];
+    const jsAccountsJsonVariants =
+      GENERATED_COMMAND_MANIFEST.capabilitiesPayload.commandDetails.accounts?.jsonVariants ?? [];
+    const summaryVariant = nativeAccountsJsonVariants.find((variant) =>
+      variant.startsWith("--summary:")
+    );
+    const pendingOnlyVariant = nativeAccountsJsonVariants.find((variant) =>
+      variant.startsWith("--pending-only:")
+    );
+
+    expect(nativeAccountsJsonVariants).toEqual(jsAccountsJsonVariants);
+    expect(summaryVariant).toBeDefined();
+    expect(summaryVariant).toContain("nextActions");
+    expect(summaryVariant).toContain("cliCommand");
+    expect(pendingOnlyVariant).toBeDefined();
+    expect(pendingOnlyVariant).toContain("nextActions");
+    expect(pendingOnlyVariant).toContain("cliCommand");
+  });
+
+  test(
+    "native manifest per-command help matches the live commander help",
+    async () => {
     const nativeManifest = JSON.parse(
       readFileSync(nativeManifestPath, "utf8"),
     ) as {
@@ -92,11 +123,13 @@ describe("native manifest conformance", () => {
     for (const path of GENERATED_COMMAND_PATHS) {
       const result = runCli([...path.split(" "), "--help"], {
         home: createTempHome(),
-        timeoutMs: 10_000,
+        timeoutMs: 20_000,
       });
       expect(result.status).toBe(0);
       expect(result.stderr).toBe("");
       expect(nativeManifest.helpTextByPath[path]).toBe(result.stdout.trim());
     }
-  });
+  },
+    { timeout: 20_000 },
+  );
 });

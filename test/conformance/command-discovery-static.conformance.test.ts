@@ -87,5 +87,23 @@ describe("command discovery static conformance", () => {
         GENERATED_COMMAND_ROUTES[path],
       );
     }
+
+    const accountsJsonVariants =
+      GENERATED_COMMAND_MANIFEST.capabilitiesPayload.commandDetails.accounts
+        ?.jsonVariants ?? [];
+    const summaryVariant = accountsJsonVariants.find((variant) =>
+      variant.startsWith("--summary:"),
+    );
+    const pendingOnlyVariant = accountsJsonVariants.find((variant) =>
+      variant.startsWith("--pending-only:"),
+    );
+
+    expect(summaryVariant).toBeDefined();
+    expect(summaryVariant).toContain("nextActions");
+    expect(summaryVariant).toContain("cliCommand");
+
+    expect(pendingOnlyVariant).toBeDefined();
+    expect(pendingOnlyVariant).toContain("nextActions");
+    expect(pendingOnlyVariant).toContain("cliCommand");
   });
 });

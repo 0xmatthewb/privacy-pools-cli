@@ -30,11 +30,15 @@ describe("docs generation drift detection", () => {
 
   test("docs/reference.md keeps accounts compact-mode nextActions contracts", () => {
     const reference = readFileSync(join(CLI_ROOT, "docs", "reference.md"), "utf8");
+    const normalizedReference = reference.replace(/\s+/g, " ");
 
     expect(reference).toContain("### `accounts`");
     expect(reference).toContain("**JSON variants:**");
-    expect(reference).toContain("--summary:");
-    expect(reference).toContain("--pending-only:");
-    expect(reference).toContain("cliCommand");
+    expect(normalizedReference).toContain(
+      "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+    );
+    expect(normalizedReference).toContain(
+      "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+    );
   });
 });
