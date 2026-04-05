@@ -280,46 +280,17 @@ pub(crate) fn resolve_pool_native(
         ));
     }
 
-    let Some(known_asset_address) = manifest
-        .runtime_config
-        .known_pools
-        .get(&chain.id)
-        .and_then(|pools| pools.get(&normalized))
-        .cloned()
-    else {
-        return Err(CliError::input(
-            format!("No pool found for asset \"{asset}\" on {}.", chain.name),
-            Some(if asp_lookup_failed {
-                "The ASP may be offline. Try using --asset with a token contract address (0x...)."
-                    .to_string()
-            } else if let Some(hint) = available_assets_hint {
-                format!("Available assets: {hint}")
-            } else {
-                "No pools found. Try using --asset with a contract address.".to_string()
-            }),
-        ));
-    };
-
-    super::rpc::resolve_pool_from_asset_address_native(
-        chain,
-        &known_asset_address,
-        &rpc_urls,
-        &manifest.runtime_config.native_asset_address,
-        timeout_ms,
-    )
-    .map_err(|error| {
-        if matches!(error.category, ErrorCategory::Rpc) {
-            return CliError::rpc_retryable(
-                format!(
-                    "Built-in pool fallback also failed for \"{asset}\" on {}.",
-                    chain.name
-                ),
-                Some("Check your RPC URL and network connectivity, then retry.".to_string()),
-                Some("RPC_POOL_RESOLUTION_FAILED"),
-            );
-        }
-        error
-    })
+    Err(CliError::input(
+        format!("No pool found for asset \"{asset}\" on {}.", chain.name),
+        Some(if asp_lookup_failed {
+            "The ASP may be offline. Try using --asset with a token contract address (0x...)."
+                .to_string()
+        } else if let Some(hint) = available_assets_hint {
+            format!("Available assets: {hint}")
+        } else {
+            "No pools found. Try using --asset with a contract address.".to_string()
+        }),
+    ))
 }
 
 fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError> {
@@ -414,4 +385,157 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
             .filter(|value| !value.is_empty()),
         sort: sort_value,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{handle_pools_native, parse_pools_options, resolve_pool_native};
+    use crate::config::CliConfig;
+    use crate::contract::{manifest, ChainDefinition, Manifest};
+    use crate::error::ErrorCategory;
+    use crate::root_argv::parse_root_argv;
+    use std::collections::HashMap;
+
+    fn cli_config() -> CliConfig {
+        CliConfig {
+            default_chain: "mainnet".to_string(),
+            rpc_overrides: HashMap::new(),
+        }
+    }
+
+    fn manifest_and_chain(chain_name: &str) -> (Manifest, ChainDefinition) {
+        let manifest = manifest().clone();
+        let chain = manifest
+            .runtime_config
+            .chains
+            .get(chain_name)
+            .cloned()
+            .expect("chain should exist in manifest");
+        (manifest, chain)
+    }
+
+    #[test]
+    fn handle_pools_native_rejects_multi_chain_custom_rpc_queries() {
+        let argv = vec![
+            "privacy-pools".to_string(),
+            "--rpc-url".to_string(),
+            "https://rpc.example".to_string(),
+            "pools".to_string(),
+        ];
+        let parsed = parse_root_argv(&argv);
+        let error = handle_pools_native(&argv, &parsed, manifest())
+            .expect_err("multi-chain custom rpc should fail");
+        assert_eq!(error.code, "INPUT_ERROR");
+        assert!(error.message.contains("--rpc-url"));
+    }
+
+    #[test]
+    fn parse_pools_options_supports_inline_values_and_global_flags() {
+        let options = parse_pools_options(&[
+            "privacy-pools".to_string(),
+            "--chain".to_string(),
+            "sepolia".to_string(),
+            "--format=json".to_string(),
+            "--quiet".to_string(),
+            "pools".to_string(),
+            "--all-chains".to_string(),
+            "--search= eth  ".to_string(),
+            "--sort".to_string(),
+            "CHAIN-ASSET".to_string(),
+        ])
+        .expect("options should parse");
+
+        assert!(options.all_chains);
+        assert_eq!(options.search.as_deref(), Some("eth"));
+        assert_eq!(options.sort, "chain-asset");
+
+        let defaults = parse_pools_options(&["privacy-pools".to_string(), "pools".to_string()])
+            .expect("default options should parse");
+        assert_eq!(defaults.search, None);
+        assert_eq!(defaults.sort, "tvl-desc");
+    }
+
+    #[test]
+    fn parse_pools_options_rejects_invalid_sort_unknown_flags_and_extra_args() {
+        let invalid_sort = parse_pools_options(&[
+            "privacy-pools".to_string(),
+            "pools".to_string(),
+            "--sort".to_string(),
+            "weird".to_string(),
+        ])
+        .expect_err("invalid sort should fail");
+        assert_eq!(invalid_sort.code, "INPUT_ERROR");
+        assert!(invalid_sort.message.contains("Invalid --sort value"));
+
+        let unknown = parse_pools_options(&[
+            "privacy-pools".to_string(),
+            "pools".to_string(),
+            "--mystery".to_string(),
+        ])
+        .expect_err("unknown option should fail");
+        assert_eq!(unknown.category, ErrorCategory::Input);
+        assert!(unknown.message.contains("unknown option"));
+
+        let extra = parse_pools_options(&[
+            "privacy-pools".to_string(),
+            "pools".to_string(),
+            "--".to_string(),
+            "unexpected".to_string(),
+        ])
+        .expect_err("extra args should fail");
+        assert_eq!(extra.category, ErrorCategory::Input);
+        assert!(extra.message.contains("too many arguments"));
+    }
+
+    #[test]
+    fn resolve_pool_native_maps_direct_rpc_failures_to_retryable_errors() {
+        let (mut manifest, chain) = manifest_and_chain("mainnet");
+        manifest
+            .runtime_config
+            .default_rpc_urls
+            .insert(chain.id, vec!["http://127.0.0.1:1".to_string()]);
+
+        let error = resolve_pool_native(
+            &chain,
+            "0x1111111111111111111111111111111111111111",
+            None,
+            &cli_config(),
+            &manifest,
+            100,
+        )
+        .expect_err("bad rpc should fail");
+
+        assert_eq!(error.code, "RPC_POOL_RESOLUTION_FAILED");
+        assert!(error.retryable);
+        assert!(error.message.contains("Failed to resolve pool"));
+    }
+
+    #[test]
+    fn resolve_pool_native_returns_asp_hint_for_custom_rpc_symbol_lookup_failures() {
+        let (mut manifest, mut chain) = manifest_and_chain("mainnet");
+        manifest
+            .runtime_config
+            .known_pools
+            .entry(chain.id)
+            .or_default()
+            .remove("MISSING");
+        chain.asp_host = "http://127.0.0.1:1".to_string();
+
+        let error = resolve_pool_native(
+            &chain,
+            "MISSING",
+            Some("http://127.0.0.1:1".to_string()),
+            &cli_config(),
+            &manifest,
+            100,
+        )
+        .expect_err("asp lookup failure should surface an input hint");
+
+        assert_eq!(error.code, "INPUT_ERROR");
+        assert!(error
+            .hint
+            .as_deref()
+            .unwrap_or_default()
+            .contains("ASP may be offline"));
+    }
 }

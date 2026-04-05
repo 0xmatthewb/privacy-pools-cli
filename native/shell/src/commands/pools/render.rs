@@ -392,3 +392,118 @@ fn format_amount(
 ) -> String {
     super::rpc::format_amount(value, decimals, symbol, max_decimals)
 }
+
+#[cfg(test)]
+mod extended_tests {
+    use super::*;
+
+    fn sample_entry() -> PoolListingEntry {
+        PoolListingEntry {
+            chain: "mainnet".to_string(),
+            chain_id: 1,
+            asset: "ETH".to_string(),
+            token_address: "0x1111111111111111111111111111111111111111".to_string(),
+            pool: "0x2222222222222222222222222222222222222222".to_string(),
+            scope: "12345".to_string(),
+            decimals: 18,
+            minimum_deposit: "1000000000000000".to_string(),
+            vetting_fee_bps: "50".to_string(),
+            max_relay_fee_bps: "250".to_string(),
+            total_in_pool_value: Some("5000000000000000000".to_string()),
+            total_in_pool_value_usd: Some("1,234.99".to_string()),
+            total_deposits_value: Some("10000000000000000000".to_string()),
+            total_deposits_value_usd: Some("2,468.00".to_string()),
+            accepted_deposits_value: Some("4500000000000000000".to_string()),
+            accepted_deposits_value_usd: Some("1,100.00".to_string()),
+            pending_deposits_value: Some("500000000000000000".to_string()),
+            pending_deposits_value_usd: Some("134.00".to_string()),
+            total_deposits_count: Some(42),
+            accepted_deposits_count: Some(35),
+            pending_deposits_count: Some(7),
+            growth24h: Some(0.5),
+            pending_growth24h: Some(0.25),
+        }
+    }
+
+    #[test]
+    fn pool_entry_json_includes_chain_only_when_requested() {
+        let entry = sample_entry();
+        let with_chain = pool_entry_to_json(&entry, true);
+        assert_eq!(with_chain["chain"], Value::String("mainnet".to_string()));
+        assert_eq!(with_chain["asset"], Value::String("ETH".to_string()));
+        assert_eq!(with_chain["decimals"], Value::Number(18.into()));
+        assert_eq!(with_chain["pendingDepositsCount"], Value::Number(7.into()));
+
+        let without_chain = pool_entry_to_json(&entry, false);
+        assert!(without_chain.get("chain").is_none());
+        assert_eq!(
+            without_chain["tokenAddress"],
+            Value::String("0x1111111111111111111111111111111111111111".to_string()),
+        );
+
+        let mut sparse = entry.clone();
+        sparse.total_in_pool_value = None;
+        sparse.total_deposits_count = None;
+        let sparse_json = pool_entry_to_json(&sparse, false);
+        assert_eq!(sparse_json["totalInPoolValue"], Value::Null);
+        assert_eq!(sparse_json["totalDepositsCount"], Value::Null);
+    }
+
+    #[test]
+    fn warning_and_summary_json_helpers_preserve_shape() {
+        let warning = pool_warning_to_json(PoolWarning {
+            chain: "mainnet".to_string(),
+            category: "rpc".to_string(),
+            message: "retry".to_string(),
+        });
+        assert_eq!(warning["chain"], Value::String("mainnet".to_string()));
+        assert_eq!(warning["category"], Value::String("rpc".to_string()));
+
+        let summary = chain_summary_to_json(ChainSummary {
+            chain: "mainnet".to_string(),
+            pools: 3,
+            error: Some("down".to_string()),
+        });
+        assert_eq!(summary["pools"], Value::Number(3.into()));
+        assert_eq!(summary["error"], Value::String("down".to_string()));
+    }
+
+    #[test]
+    fn listing_rows_format_amounts_usd_and_fees_for_single_and_multi_chain() {
+        let entry = sample_entry();
+        let single = pool_listing_row(&entry, false);
+        assert_eq!(single[0], "ETH");
+        assert_eq!(single[1], "42");
+        assert_eq!(single[2], "5 ETH");
+        assert_eq!(single[3], "$1,234");
+        assert_eq!(single[4], "0.5 ETH");
+        assert_eq!(single[5], "0.001 ETH");
+        assert_eq!(single[6], "0.50%");
+
+        let multi = pool_listing_row(&entry, true);
+        assert_eq!(multi[0], "mainnet");
+        assert_eq!(multi[1], "ETH");
+    }
+
+    #[test]
+    fn formatting_helpers_handle_fallback_and_invalid_values() {
+        let mut entry = sample_entry();
+        entry.total_deposits_count = None;
+        entry.total_in_pool_value = None;
+        entry.accepted_deposits_value = Some("1200000000000000000".to_string());
+        entry.minimum_deposit = "not-a-number".to_string();
+        entry.vetting_fee_bps = "oops".to_string();
+
+        assert_eq!(format_pool_deposits_count(&entry), "-");
+        assert_eq!(
+            format_pool_stat_amount(entry.accepted_deposits_value.as_deref(), 18, "ETH"),
+            "1.2 ETH",
+        );
+        assert_eq!(format_pool_stat_amount(Some("bad"), 18, "ETH"), "-");
+        assert_eq!(format_pool_minimum_deposit(&entry), "not-a-number");
+        assert_eq!(format_bps_value(&entry.vetting_fee_bps), "oops");
+        assert_eq!(parse_usd_string(Some("bad")), "-");
+        assert_eq!(parse_usd_string(Some("  ")), "-");
+        assert_eq!(parse_usd_string(None), "-");
+    }
+}

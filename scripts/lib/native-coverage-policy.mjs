@@ -60,7 +60,7 @@ export const NATIVE_COVERAGE_FAMILIES = [
   {
     label: "native-pools",
     min: 85,
-    enforced: false,
+    enforced: true,
     matchers: ["native/shell/src/commands/pools/"],
   },
 ];

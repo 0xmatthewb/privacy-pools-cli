@@ -156,7 +156,7 @@ CI notes:
   - native activity command ownership (`commands/activity/**`)
   - native stats command ownership (`commands/stats.rs`)
 - The native coverage gate now also fails closed if any executable `native/shell/src/**` file is not owned by exactly one native coverage family. Test-only support such as `native/shell/src/test_env.rs` is excluded from that ownership check.
-- `commands/pools/**` is now owned by the coverage policy and reported in diagnostics, but it remains diagnostic-only until the dedicated pools coverage wave lands. Until that family is also enforced, a green local profile means the enforced JS buckets plus the enforced native root/host/core/activity/stats families are healthy; it is not yet the final “all native families are under `85%`” state.
+- `commands/pools/**` is now also enforced at `>= 85%`, so a green local profile means every executable native-shell ownership family is under a blocking native coverage floor, not just the root/host/core/activity/stats subset.
 - `scripts/run-test-profile.mjs` is the shared source of truth for the higher-level repo test profiles (`test:install`, `test:conformance`, `test:ci`, `test:release`, `test:all`) so gate ordering only has to change in one place.
 - `npm test` stays fast and host-neutral: it excludes packaged smoke, packaged native smoke, native-shell parity, and shared-Anvil suites. Those lanes still run in explicit higher-cost profiles.
 - `npm run test:release` and `npm run test:all` no longer rerun the source shared-Anvil smoke trio after `test:e2e:anvil`; they reuse the full shared-Anvil coverage and then run the installed-artifact verification directly so the highest-cost profiles stay meaningful without duplicating the same source E2E coverage.

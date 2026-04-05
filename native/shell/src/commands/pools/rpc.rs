@@ -159,3 +159,53 @@ fn truncate_decimals(value: &str, max: usize) -> String {
         format!("{int_part}.{trimmed}")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn address_and_biguint_helpers_validate_expected_inputs() {
+        assert!(is_hex_address("0x1234567890abcdef1234567890abcdef12345678"));
+        assert!(!is_hex_address("0x1234"));
+        assert!(!is_hex_address("ETH"));
+
+        assert_eq!(
+            parse_biguint("0x10")
+                .expect("hex value should parse")
+                .to_string(),
+            "16"
+        );
+        assert_eq!(
+            parse_biguint("42")
+                .expect("decimal value should parse")
+                .to_string(),
+            "42"
+        );
+        assert!(parse_biguint("").is_none());
+    }
+
+    #[test]
+    fn format_amount_truncates_and_preserves_significant_digits() {
+        assert_eq!(
+            format_amount(&BigUint::from(123_450_000u64), 6, Some("USDC"), Some(2)),
+            "123.45 USDC"
+        );
+        assert_eq!(
+            format_amount(&BigUint::from(42u32), 0, Some("ETH"), Some(2)),
+            "42 ETH"
+        );
+        assert_eq!(
+            format_amount(&BigUint::from(123u32), 6, None, Some(2)),
+            "0.0001"
+        );
+        assert_eq!(
+            format_amount(&BigUint::from(1_230_000u64), 6, None, Some(4)),
+            "1.23"
+        );
+        assert_eq!(
+            format_amount(&BigUint::from(1u32), 18, Some("ETH"), Some(2)),
+            "0.000000000000000001 ETH"
+        );
+    }
+}

@@ -1,11 +1,11 @@
 #![allow(dead_code)]
-
-use assert_cmd::prelude::*;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::ffi::OsString;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -41,8 +41,7 @@ pub fn run_native(args: &[&str]) -> Output {
 }
 
 pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
-    let mut command =
-        Command::cargo_bin("privacy-pools-cli-native-shell").expect("native shell should build");
+    let mut command = Command::new(native_shell_bin_path());
     command.current_dir(env!("CARGO_MANIFEST_DIR"));
     command.env("NO_COLOR", "1");
     command.env("PP_NO_UPDATE_CHECK", "1");
@@ -51,6 +50,42 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
     }
     command.args(args);
     command.output().expect("native shell should execute")
+}
+
+fn native_shell_bin_path() -> PathBuf {
+    if let Some(path) = cargo_bin_env_path() {
+        return path;
+    }
+
+    fallback_native_shell_bin_path()
+}
+
+fn cargo_bin_env_path() -> Option<PathBuf> {
+    std::env::var_os("CARGO_BIN_EXE_privacy-pools-cli-native-shell").map(PathBuf::from)
+}
+
+fn fallback_native_shell_bin_path() -> PathBuf {
+    let current_exe = std::env::current_exe().expect("test binary path should be available");
+    let debug_dir = current_exe
+        .parent()
+        .and_then(|deps| deps.parent())
+        .expect("test binary should live under target/<profile>/deps");
+    let bin_name = native_shell_binary_name();
+    let candidate = debug_dir.join(bin_name);
+    assert!(
+        candidate.exists(),
+        "native shell binary should exist at {}",
+        candidate.display()
+    );
+    candidate
+}
+
+fn native_shell_binary_name() -> OsString {
+    let mut value = OsString::from("privacy-pools-cli-native-shell");
+    if cfg!(windows) {
+        value.push(".exe");
+    }
+    value
 }
 
 pub fn stdout_string(output: &Output) -> String {

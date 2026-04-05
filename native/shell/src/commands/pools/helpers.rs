@@ -251,3 +251,293 @@ fn parse_biguint(value: &str) -> Option<BigUint> {
         BigUint::parse_bytes(value.as_bytes(), 10)
     }
 }
+
+#[cfg(test)]
+mod extended_tests {
+    use super::*;
+    use crate::commands::pools::model::PoolListingEntry;
+    use serde_json::json;
+
+    fn pool_entry(
+        chain: &str,
+        asset: &str,
+        pool: &str,
+        total_in_pool_value: Option<&str>,
+        accepted_deposits_value: Option<&str>,
+        total_deposits_count: Option<u64>,
+    ) -> PoolListingEntry {
+        PoolListingEntry {
+            chain: chain.to_string(),
+            chain_id: if chain == "mainnet" { 1 } else { 10 },
+            asset: asset.to_string(),
+            token_address: "0x1111111111111111111111111111111111111111".to_string(),
+            pool: pool.to_string(),
+            scope: "12345".to_string(),
+            decimals: 18,
+            minimum_deposit: "1000000000000000".to_string(),
+            vetting_fee_bps: "50".to_string(),
+            max_relay_fee_bps: "250".to_string(),
+            total_in_pool_value: total_in_pool_value.map(str::to_string),
+            total_in_pool_value_usd: Some("1234".to_string()),
+            total_deposits_value: None,
+            total_deposits_value_usd: None,
+            accepted_deposits_value: accepted_deposits_value.map(str::to_string),
+            accepted_deposits_value_usd: None,
+            pending_deposits_value: None,
+            pending_deposits_value_usd: None,
+            total_deposits_count,
+            accepted_deposits_count: None,
+            pending_deposits_count: None,
+            growth24h: None,
+            pending_growth24h: None,
+        }
+    }
+
+    #[test]
+    fn normalize_pool_stats_entries_accepts_arrays_and_objects() {
+        let array_entries = normalize_pool_stats_entries(&json!([
+            { "tokenAddress": "0x1111111111111111111111111111111111111111" },
+            123,
+        ]));
+        assert_eq!(array_entries.len(), 1);
+
+        let nested_entries = normalize_pool_stats_entries(&json!({
+            "pools": [
+                { "tokenAddress": "0x1111111111111111111111111111111111111111" },
+                "ignored"
+            ]
+        }));
+        assert_eq!(nested_entries.len(), 1);
+
+        let keyed_entries = normalize_pool_stats_entries(&json!({
+            "eth": { "tokenAddress": "0x1111111111111111111111111111111111111111" },
+            "usdc": { "tokenAddress": "0x2222222222222222222222222222222222222222" },
+            "pools": [{ "ignored": true }]
+        }));
+        assert_eq!(keyed_entries.len(), 1);
+
+        assert!(normalize_pool_stats_entries(&json!("bad")).is_empty());
+    }
+
+    #[test]
+    fn resolves_pool_addresses_and_filters_invalid_values() {
+        let entry = json!({
+            "assetAddress": "0x1111111111111111111111111111111111111111",
+            "tokenAddress": "0x2222222222222222222222222222222222222222",
+            "poolAddress": "0x3333333333333333333333333333333333333333",
+            "pool": "0x4444444444444444444444444444444444444444"
+        })
+        .as_object()
+        .cloned()
+        .unwrap();
+        assert_eq!(
+            resolve_pool_asset_address(&entry).as_deref(),
+            Some("0x1111111111111111111111111111111111111111"),
+        );
+        assert_eq!(
+            resolve_pool_stats_pool_address(&entry).as_deref(),
+            Some("0x3333333333333333333333333333333333333333"),
+        );
+
+        let fallback_entry = json!({
+            "tokenAddress": "0x2222222222222222222222222222222222222222",
+            "pool": "0x4444444444444444444444444444444444444444"
+        })
+        .as_object()
+        .cloned()
+        .unwrap();
+        assert_eq!(
+            resolve_pool_asset_address(&fallback_entry).as_deref(),
+            Some("0x2222222222222222222222222222222222222222"),
+        );
+        assert_eq!(
+            resolve_pool_stats_pool_address(&fallback_entry).as_deref(),
+            Some("0x4444444444444444444444444444444444444444"),
+        );
+
+        let invalid_entry = json!({
+            "assetAddress": "not-an-address",
+            "poolAddress": "still-bad"
+        })
+        .as_object()
+        .cloned()
+        .unwrap();
+        assert_eq!(resolve_pool_asset_address(&invalid_entry), None);
+        assert_eq!(resolve_pool_stats_pool_address(&invalid_entry), None);
+    }
+
+    #[test]
+    fn prepare_inputs_filters_chain_and_deduplicates_by_pool_then_asset() {
+        let stats_entries = vec![
+            json!({
+                "chainId": 1,
+                "poolAddress": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "tokenAddress": "0x1111111111111111111111111111111111111111"
+            })
+            .as_object()
+            .cloned()
+            .unwrap(),
+            json!({
+                "chainId": 1,
+                "poolAddress": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "tokenAddress": "0x2222222222222222222222222222222222222222"
+            })
+            .as_object()
+            .cloned()
+            .unwrap(),
+            json!({
+                "chainId": 1,
+                "tokenAddress": "0x3333333333333333333333333333333333333333"
+            })
+            .as_object()
+            .cloned()
+            .unwrap(),
+            json!({
+                "chainId": 10,
+                "tokenAddress": "0x4444444444444444444444444444444444444444"
+            })
+            .as_object()
+            .cloned()
+            .unwrap(),
+            json!({
+                "chainId": 1,
+                "tokenAddress": "bad-address"
+            })
+            .as_object()
+            .cloned()
+            .unwrap(),
+        ];
+
+        let prepared = prepare_pool_resolution_inputs(stats_entries, 1);
+        assert_eq!(prepared.len(), 2);
+        assert_eq!(
+            prepared[0].asset_address,
+            "0x1111111111111111111111111111111111111111",
+        );
+        assert_eq!(
+            prepared[1].asset_address,
+            "0x3333333333333333333333333333333333333333",
+        );
+    }
+
+    #[test]
+    fn deduplication_search_and_sort_cover_common_listing_modes() {
+        let duplicate_pool = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let entries = vec![
+            pool_entry(
+                "optimism",
+                "USDC",
+                "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                Some("5"),
+                None,
+                Some(4),
+            ),
+            pool_entry("mainnet", "ETH", duplicate_pool, Some("10"), None, Some(2)),
+            pool_entry("mainnet", "ETH", duplicate_pool, Some("12"), None, Some(5)),
+            pool_entry(
+                "arbitrum",
+                "DAI",
+                "0xcccccccccccccccccccccccccccccccccccccccc",
+                None,
+                Some("8"),
+                Some(3),
+            ),
+        ];
+
+        let deduped = deduplicate_pool_entries(entries.clone());
+        assert_eq!(deduped.len(), 3);
+
+        assert_eq!(apply_pool_search(entries.clone(), None).len(), 4);
+        assert_eq!(apply_pool_search(entries.clone(), Some("   ")).len(), 4);
+        let filtered = apply_pool_search(entries.clone(), Some("mainnet eth"));
+        assert_eq!(filtered.len(), 2);
+        assert!(apply_pool_search(entries.clone(), Some("no-match")).is_empty());
+
+        let mut by_asset = deduped.clone();
+        sort_pools(&mut by_asset, "asset-asc");
+        assert_eq!(
+            by_asset
+                .iter()
+                .map(|entry| entry.asset.as_str())
+                .collect::<Vec<_>>(),
+            vec!["DAI", "ETH", "USDC"],
+        );
+
+        sort_pools(&mut by_asset, "asset-desc");
+        assert_eq!(
+            by_asset
+                .iter()
+                .map(|entry| entry.asset.as_str())
+                .collect::<Vec<_>>(),
+            vec!["USDC", "ETH", "DAI"],
+        );
+
+        let mut by_tvl = deduped.clone();
+        sort_pools(&mut by_tvl, "tvl-desc");
+        assert_eq!(by_tvl[0].asset, "ETH");
+        sort_pools(&mut by_tvl, "tvl-asc");
+        assert_eq!(by_tvl[0].asset, "USDC");
+
+        let mut by_deposits = deduped.clone();
+        sort_pools(&mut by_deposits, "deposits-desc");
+        assert_eq!(by_deposits[0].asset, "USDC");
+        sort_pools(&mut by_deposits, "deposits-asc");
+        assert_eq!(by_deposits[0].asset, "ETH");
+
+        let mut by_chain_asset = deduped.clone();
+        sort_pools(&mut by_chain_asset, "chain-asset");
+        assert_eq!(
+            by_chain_asset
+                .iter()
+                .map(|entry| format!("{}:{}", entry.chain, entry.asset))
+                .collect::<Vec<_>>(),
+            vec!["arbitrum:DAI", "mainnet:ETH", "optimism:USDC"],
+        );
+    }
+
+    #[test]
+    fn numeric_and_json_helpers_cover_hex_decimal_and_null_paths() {
+        assert_eq!(
+            compare_optional_biguint(Some("0x0f"), Some("12"), true),
+            std::cmp::Ordering::Less,
+        );
+        assert_eq!(
+            compare_optional_biguint(Some("2"), Some("12"), false),
+            std::cmp::Ordering::Less,
+        );
+
+        let resolution = pool_listing_entry_to_resolution(&pool_entry(
+            "mainnet",
+            "ETH",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            Some("10"),
+            None,
+            Some(1),
+        ));
+        assert_eq!(resolution.symbol, "ETH");
+
+        assert_eq!(
+            parse_json_string(Some(&json!("hello"))).as_deref(),
+            Some("hello"),
+        );
+        assert_eq!(parse_json_string(Some(&json!(123))), None);
+
+        assert_eq!(
+            parse_json_decimal_string(Some(&json!("123"))).as_deref(),
+            Some("123"),
+        );
+        assert_eq!(
+            parse_json_decimal_string(Some(&json!(456))).as_deref(),
+            Some("456"),
+        );
+        assert_eq!(parse_json_decimal_string(Some(&json!("12.3"))), None);
+
+        assert_eq!(parse_json_number(Some(&json!(1.25))), Some(1.25));
+        assert_eq!(parse_json_number(Some(&json!("bad"))), None);
+
+        let error = pool_resolution_worker_join_failure("mainnet");
+        assert_eq!(error.code, "UNKNOWN_ERROR");
+        assert!(error.message.contains("mainnet"));
+        assert_eq!(error.category.as_str(), "UNKNOWN");
+    }
+}

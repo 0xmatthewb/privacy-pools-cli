@@ -84,3 +84,35 @@ pub(super) fn pools_worker_join_failure(chain_name: &str) -> PoolsChainQueryResu
         error: Some(error),
     }
 }
+
+#[cfg(test)]
+mod extended_tests {
+    use super::pools_worker_join_failure;
+
+    #[test]
+    fn pools_worker_join_failure_returns_warning_summary_and_error() {
+        let result = pools_worker_join_failure("mainnet");
+        assert!(result.entries.is_empty());
+        assert_eq!(result.summary.chain, "mainnet");
+        assert_eq!(result.summary.pools, 0);
+        assert!(result.summary.error.as_deref().unwrap().contains("mainnet"));
+        assert_eq!(
+            result
+                .warning
+                .as_ref()
+                .map(|warning| warning.chain.as_str()),
+            Some("mainnet"),
+        );
+        assert_eq!(
+            result
+                .warning
+                .as_ref()
+                .map(|warning| warning.category.as_str()),
+            Some("UNKNOWN"),
+        );
+        assert_eq!(
+            result.error.as_ref().map(|error| error.code.as_str()),
+            Some("UNKNOWN_ERROR")
+        );
+    }
+}

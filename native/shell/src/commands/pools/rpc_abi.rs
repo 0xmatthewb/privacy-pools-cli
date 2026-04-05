@@ -155,7 +155,11 @@ pub(super) fn decode_abi_string(hex_data: &str) -> Result<String, CliError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_abi_string, decode_abi_words, encode_address_word};
+    use super::{
+        checksum_address, decode_abi_string, decode_abi_words, decode_address_word,
+        decode_uint256_word, encode_address_word,
+    };
+    use num_bigint::BigUint;
 
     #[test]
     fn encode_address_word_rejects_invalid_addresses() {
@@ -178,5 +182,83 @@ mod tests {
             "4554480000000000000000000000000000000000000000000000000000000000"
         );
         assert_eq!(decode_abi_string(encoded).unwrap(), "ETH");
+    }
+
+    #[test]
+    fn decode_uint256_word_defaults_to_zero_for_invalid_hex() {
+        assert_eq!(decode_uint256_word("ff"), BigUint::from(255u32));
+        assert_eq!(decode_uint256_word("not-hex"), BigUint::from(0u32));
+    }
+
+    #[test]
+    fn decode_address_word_requires_exact_word_length() {
+        let error = decode_address_word("1234").expect_err("expected malformed address word");
+        assert_eq!(error.code, "RPC_POOL_RESOLUTION_FAILED");
+
+        let decoded =
+            decode_address_word("0000000000000000000000001234567890abcdef1234567890abcdef12345678")
+                .expect("valid address word should decode");
+        assert_eq!(decoded, "0x1234567890abcdef1234567890abcdef12345678");
+    }
+
+    #[test]
+    fn checksum_address_validates_and_normalizes() {
+        let error = checksum_address("bad").expect_err("expected malformed address");
+        assert_eq!(error.code, "RPC_POOL_RESOLUTION_FAILED");
+
+        let checksummed = checksum_address("0x52908400098527886e0f7030069857d2e4169ee7").unwrap();
+        assert_eq!(checksummed, "0x52908400098527886E0F7030069857D2E4169EE7");
+    }
+
+    #[test]
+    fn decode_abi_string_rejects_invalid_offsets_lengths_and_payloads() {
+        let short = concat!(
+            "0x",
+            "0000000000000000000000000000000000000000000000000000000000000020"
+        );
+        assert_eq!(
+            decode_abi_string(short)
+                .expect_err("short payload should fail")
+                .code,
+            "RPC_POOL_RESOLUTION_FAILED",
+        );
+
+        let misaligned = concat!(
+            "0x",
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        assert_eq!(
+            decode_abi_string(misaligned)
+                .expect_err("misaligned offset should fail")
+                .code,
+            "RPC_POOL_RESOLUTION_FAILED",
+        );
+
+        let invalid_payload = concat!(
+            "0x",
+            "0000000000000000000000000000000000000000000000000000000000000020",
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "zz00000000000000000000000000000000000000000000000000000000000000"
+        );
+        assert_eq!(
+            decode_abi_string(invalid_payload)
+                .expect_err("invalid hex payload should fail")
+                .code,
+            "RPC_POOL_RESOLUTION_FAILED",
+        );
+
+        let invalid_utf8 = concat!(
+            "0x",
+            "0000000000000000000000000000000000000000000000000000000000000020",
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "ff00000000000000000000000000000000000000000000000000000000000000"
+        );
+        assert_eq!(
+            decode_abi_string(invalid_utf8)
+                .expect_err("invalid utf8 payload should fail")
+                .code,
+            "RPC_POOL_RESOLUTION_FAILED",
+        );
     }
 }

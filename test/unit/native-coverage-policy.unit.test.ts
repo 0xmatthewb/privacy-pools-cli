@@ -57,11 +57,11 @@ describe("native coverage policy", () => {
     expect(ownership.multiplyMatched).toEqual([]);
   });
 
-  test("treats pools as owned but diagnostic-only during the staged rollout", () => {
+  test("enforces pools ownership while keeping diagnostic breakdowns", () => {
     const poolsFamily = NATIVE_COVERAGE_FAMILIES.find(
       (family) => family.label === "native-pools",
     );
-    expect(poolsFamily?.enforced).toBe(false);
+    expect(poolsFamily?.enforced).toBe(true);
     expect(
       NATIVE_COVERAGE_DIAGNOSTICS.some(
         (diagnostic) => diagnostic.label === "native-pools-query",
