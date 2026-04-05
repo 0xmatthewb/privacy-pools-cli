@@ -270,6 +270,35 @@ describe("sdk service", () => {
       expect((ds as any).chainConfigs[0].startBlock).toBe(CHAINS.sepolia.startBlock);
     });
 
+    test("prefers an internal event-scan RPC when no explicit override exists", async () => {
+      const chainWithEventScan = {
+        ...CHAINS.mainnet,
+        eventScanRpcUrl: "https://events.example.com",
+      };
+
+      const ds = await getDataService(
+        chainWithEventScan,
+        poolAddress,
+      );
+
+      expect((ds as any).chainConfigs[0].rpcUrl).toBe("https://events.example.com");
+    });
+
+    test("explicit overrides beat the internal event-scan RPC path", async () => {
+      const chainWithEventScan = {
+        ...CHAINS.mainnet,
+        eventScanRpcUrl: "https://events.example.com",
+      };
+
+      const ds = await getDataService(
+        chainWithEventScan,
+        poolAddress,
+        "https://rpc.example.com",
+      );
+
+      expect((ds as any).chainConfigs[0].rpcUrl).toBe("https://rpc.example.com");
+    });
+
     test("uses local compatibility data service for localhost RPCs", async () => {
       const ds = await getDataService(
         CHAINS.sepolia,

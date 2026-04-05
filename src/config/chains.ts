@@ -61,6 +61,9 @@ export const CHAINS: Record<string, ChainConfig> = {
     chain: mainnet,
     entrypoint: "0x6818809eefce719e480a7526d76bd3e561526b46",
     multicall3Address: mainnet.contracts?.multicall3?.address as Address | undefined,
+    // The website uses a secure relative hypersync proxy for event scans.
+    // The CLI only fills eventScanRpcUrl when it has a trustworthy absolute
+    // endpoint to ship, so this remains unset for now.
     startBlock: 22153707n,
     aspHost: "https://api.0xbow.io",
     relayerHost: "https://fastrelay.xyz",

@@ -5,7 +5,7 @@ import {
 import { createPublicClient, fallback, http, parseAbiItem } from "viem";
 import type { PublicClient, Address, Hex } from "viem";
 import type { ChainConfig } from "../types.js";
-import { getRpcUrls } from "./config.js";
+import { getRpcUrl, getRpcUrls, hasCustomRpcOverride } from "./config.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 import { withSuppressedSdkStdout } from "./account.js";
 
@@ -91,6 +91,27 @@ function dataServiceCacheKey(
 
 function readOnlyRpcSessionCacheKey(chainId: number, rpcUrl: string): string {
   return `${chainId}:${rpcUrl}`;
+}
+
+function resolveConfiguredEventScanRpcUrl(
+  chainConfig: ChainConfig,
+): string | undefined {
+  const candidate = chainConfig.eventScanRpcUrl?.trim();
+  return candidate ? candidate : undefined;
+}
+
+async function resolveDataServiceRpcUrl(
+  chainConfig: ChainConfig,
+  rpcOverride?: string,
+): Promise<string> {
+  if (hasCustomRpcOverride(chainConfig.id, rpcOverride)) {
+    return getRpcUrl(chainConfig.id, rpcOverride);
+  }
+
+  return (
+    resolveConfiguredEventScanRpcUrl(chainConfig)
+    ?? await getHealthyRpcUrl(chainConfig.id, rpcOverride)
+  );
 }
 
 function createRpcClient(
@@ -472,7 +493,7 @@ export async function getDataService(
   poolAddress: Address,
   rpcOverride?: string
 ): Promise<DataService> {
-  const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
+  const rpcUrl = await resolveDataServiceRpcUrl(chainConfig, rpcOverride);
   const useLocalCompat = isLocalRpcUrl(rpcUrl);
   const cacheKey = dataServiceCacheKey(
     chainConfig.id,

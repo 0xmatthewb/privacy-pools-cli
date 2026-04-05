@@ -7,6 +7,8 @@ export interface ChainConfig {
   chain: Chain;
   entrypoint: Address;
   multicall3Address?: Address;
+  /** Internal-only dedicated RPC for event-scan/DataService reads when available. */
+  eventScanRpcUrl?: string;
   startBlock: bigint;
   aspHost: string;
   relayerHost: string;

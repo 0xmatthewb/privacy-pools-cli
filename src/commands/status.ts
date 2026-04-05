@@ -116,18 +116,22 @@ export async function handleStatusCommand(
       const rpcCheck = shouldCheckRpc
         ? (async () => {
             try {
-              const { getPublicClient } = await import("../services/sdk.js");
-              const client = getPublicClient(
+              const { getReadOnlyRpcSession } = await import("../services/sdk.js");
+              const rpcSession = await getReadOnlyRpcSession(
                 selectedChainConfig,
                 globalOpts?.rpcUrl,
               );
-              const blockNumber = await client.getBlockNumber();
+              const blockNumber = await rpcSession.getLatestBlockNumber();
               let signerBalance: bigint | undefined;
               if (signerAddress) {
                 try {
-                  signerBalance = await client.getBalance({
-                    address: signerAddress as Address,
-                  });
+                  signerBalance = await rpcSession.runRead(
+                    `signer-balance:${signerAddress.toLowerCase()}`,
+                    () =>
+                      rpcSession.publicClient.getBalance({
+                        address: signerAddress as Address,
+                      }),
+                  );
                 } catch {
                   signerBalance = undefined;
                 }

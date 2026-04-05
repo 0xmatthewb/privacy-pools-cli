@@ -181,9 +181,12 @@ describe("status command handler", () => {
     const getBalanceMock = mock(async () => 987654321n);
     mock.module("../../src/services/sdk.ts", () => ({
       ...realSdk,
-      getPublicClient: () => ({
-        getBlockNumber: getBlockNumberMock,
-        getBalance: getBalanceMock,
+      getReadOnlyRpcSession: async () => ({
+        publicClient: {
+          getBalance: getBalanceMock,
+        },
+        runRead: async (_cacheKey: string, loader: () => Promise<unknown>) => loader(),
+        getLatestBlockNumber: getBlockNumberMock,
       }),
     }));
 
@@ -218,9 +221,12 @@ describe("status command handler", () => {
     });
     mock.module("../../src/services/sdk.ts", () => ({
       ...realSdk,
-      getPublicClient: () => ({
-        getBlockNumber: getBlockNumberMock,
-        getBalance: getBalanceMock,
+      getReadOnlyRpcSession: async () => ({
+        publicClient: {
+          getBalance: getBalanceMock,
+        },
+        runRead: async (_cacheKey: string, loader: () => Promise<unknown>) => loader(),
+        getLatestBlockNumber: getBlockNumberMock,
       }),
     }));
 
@@ -250,11 +256,14 @@ describe("status command handler", () => {
     const getBalanceMock = mock(async () => 123n);
     mock.module("../../src/services/sdk.ts", () => ({
       ...realSdk,
-      getPublicClient: () => ({
-        getBlockNumber: async () => {
+      getReadOnlyRpcSession: async () => ({
+        publicClient: {
+          getBalance: getBalanceMock,
+        },
+        runRead: async (_cacheKey: string, loader: () => Promise<unknown>) => loader(),
+        getLatestBlockNumber: async () => {
           throw new Error("rpc offline");
         },
-        getBalance: getBalanceMock,
       }),
     }));
 
