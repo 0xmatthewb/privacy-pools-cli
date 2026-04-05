@@ -198,6 +198,7 @@ describe("install verification env hygiene", () => {
 
   test("install verification helpers recognize the supported node range", () => {
     expect(isSupportedInstallNodeVersion("v22.0.0")).toBe(true);
+    expect(isSupportedInstallNodeVersion("23.1.0")).toBe(true);
     expect(isSupportedInstallNodeVersion("24.3.1")).toBe(true);
     expect(isSupportedInstallNodeVersion("25.0.0")).toBe(true);
     expect(isSupportedInstallNodeVersion("v20.20.0")).toBe(false);

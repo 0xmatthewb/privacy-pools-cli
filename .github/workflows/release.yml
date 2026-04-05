@@ -65,6 +65,7 @@ jobs:
       matrix:
         node-version:
           - "22.x"
+          - "23.x"
           - "24.x"
           - "25.x"
     steps:
@@ -311,6 +312,7 @@ jobs:
           - win32-arm64-msvc
         node-version:
           - "22.x"
+          - "23.x"
           - "24.x"
           - "25.x"
         include:
@@ -550,6 +552,7 @@ jobs:
           - win32-arm64-msvc
         node-version:
           - "22.x"
+          - "23.x"
           - "24.x"
           - "25.x"
         include:

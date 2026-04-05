@@ -80,6 +80,25 @@ function extractValidateNodeVersions(workflow: string): string[] {
     .sort();
 }
 
+function extractWorkflowJobNodeVersions(
+  workflow: string,
+  jobName: string,
+): string[] {
+  const escapedJobName = jobName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = workflow.match(
+    new RegExp(
+      `${escapedJobName}:[\\s\\S]*?node-version:\\s*((?:\\n\\s*-\\s*"[^"]+")+)`,
+    ),
+  );
+  if (!match) {
+    return [];
+  }
+
+  return [...match[1]!.matchAll(/-\s*"([^"]+)"/g)]
+    .map((entry) => entry[1]!)
+    .sort();
+}
+
 function expectedNativeTriplets(): string[] {
   return SUPPORTED_NATIVE_DISTRIBUTIONS.map((distribution) => distribution.triplet).sort();
 }
@@ -150,6 +169,7 @@ describe("release workflow conformance", () => {
   test("release validate job exercises the full supported node range", () => {
     expect(extractValidateNodeVersions(releaseWorkflow)).toEqual([
       "22.x",
+      "23.x",
       "24.x",
       "25.x",
     ]);
@@ -171,9 +191,29 @@ describe("release workflow conformance", () => {
   test("release workflow verifies published installs across the supported node range", () => {
     expect(extractRegistryInstallNodeVersions(releaseWorkflow)).toEqual([
       "22.x",
+      "23.x",
       "24.x",
       "25.x",
     ]);
+  });
+
+  test("release workflow verifies packaged installs across the supported node range", () => {
+    expect(extractWorkflowJobNodeVersions(releaseWorkflow, "verify-package-install")).toEqual([
+      "22.x",
+      "23.x",
+      "24.x",
+      "25.x",
+    ]);
+  });
+
+  test("blocking CI smoke lanes cover the full supported packaged-install range", () => {
+    const expectedNodeVersions = ["22.x", "23.x", "24.x", "25.x"];
+    expect(extractWorkflowJobNodeVersions(ciWorkflow, "packaged-smoke")).toEqual(
+      expectedNodeVersions,
+    );
+    expect(extractWorkflowJobNodeVersions(ciWorkflow, "native-smoke")).toEqual(
+      expectedNodeVersions,
+    );
   });
 
   test("native triplets stay aligned across release, smoke workflows, and package metadata", () => {
