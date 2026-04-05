@@ -162,7 +162,8 @@ CI notes:
 - `npm run test:release` and `npm run test:all` no longer rerun the source shared-Anvil smoke trio after `test:e2e:anvil`; they reuse the full shared-Anvil coverage and then run the installed-artifact verification directly so the highest-cost profiles stay meaningful without duplicating the same source E2E coverage.
 - Public GitHub plus npm are the conformance sources of truth. Use `CONFORMANCE_UPSTREAM_REF=<sha>` only when you intentionally want to audit against a specific public upstream revision instead of `main`.
 - `npm run test:conformance` is the faster core public-source conformance lane. `npm run test:conformance:all` adds the slower frontend-parity shard on top.
-- `npm run test:ci` and `npm run test:release` stay on the faster core conformance lane. Use `npm run test:conformance:all` when you explicitly want the slower frontend-parity/live-source superset too.
+- `npm run test:ci` stays on the faster core conformance lane. `npm run test:release` upgrades to the live/frontend-parity conformance superset before the release benchmark gate.
+- The top-level local profiles share prepared build snapshots and install artifacts, so run `npm run test:ci`, `npm run test:release`, and `npm run test:all` serially on one checkout rather than in parallel.
 - `.github/workflows/flake.yml` is the non-blocking Bun-native flake lane (`--randomize` plus targeted `--rerun-each`).
 - `.github/workflows/flake-anvil.yml` is the separate heavier flake lane for shared-Anvil smoke reruns. It is informational and changed-path selected on pull requests so the fast flake job stays lightweight.
 - `.github/workflows/native-coverage.yml` remains the dedicated Rust-native coverage lane for detailed reporting, and the shared `test:ci` / `test:release` profiles now also run `npm run test:coverage:native` so local and blocking verification fail on native coverage regressions too.
