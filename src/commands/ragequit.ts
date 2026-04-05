@@ -334,7 +334,7 @@ export async function handleRagequitCommand(
         message: "Select asset pool to ragequit:",
         choices: pools.map((p) => ({
           name: `${p.symbol} (${formatAddress(p.asset)})`,
-          value: p.symbol,
+          value: p.asset,
         })),
       });
       pool = await resolvePool(

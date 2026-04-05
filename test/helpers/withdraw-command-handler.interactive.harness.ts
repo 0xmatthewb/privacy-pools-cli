@@ -3,6 +3,7 @@ import {
   APPROVED_POOL_ACCOUNT,
   CLIError,
   DEFAULT_RELAYER_FEE_RECEIVER,
+  ETH_POOL,
   USDC_POOL,
   buildAllPoolAccountRefsMock,
   buildLoadedAspDepositReviewStateMock,
@@ -85,7 +86,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
     selectPromptMock
       .mockImplementationOnce(async () => {
         events.push("asset");
-        return "ETH";
+        return ETH_POOL.asset;
       })
       .mockImplementationOnce(async () => {
         events.push("pool-account");
@@ -321,7 +322,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
 export function registerWithdrawInteractiveAssetSelectionTests(): void {
   test("prompts humans to choose an asset when it is omitted", async () => {
     useIsolatedHome({ withSigner: true });
-    selectPromptMock.mockImplementationOnce(async () => "ETH");
+    selectPromptMock.mockImplementationOnce(async () => ETH_POOL.asset);
 
     const { stderr } = await captureAsyncOutput(() =>
       handleWithdrawCommand(
@@ -348,7 +349,7 @@ export function registerWithdrawInteractiveAssetSelectionTests(): void {
       },
     ]);
     resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
-    selectPromptMock.mockImplementationOnce(async () => "USDC");
+    selectPromptMock.mockImplementationOnce(async () => USDC_POOL.asset);
 
     await captureAsyncOutput(() =>
       handleWithdrawCommand(
@@ -363,7 +364,7 @@ export function registerWithdrawInteractiveAssetSelectionTests(): void {
 
     expect(resolvePoolMock).toHaveBeenCalledWith(
       expect.objectContaining({ name: "mainnet", id: 1 }),
-      "USDC",
+      USDC_POOL.asset,
       undefined,
     );
   });

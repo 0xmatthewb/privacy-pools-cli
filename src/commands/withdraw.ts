@@ -478,7 +478,7 @@ export async function handleWithdrawCommand(
         message: "Select asset to withdraw:",
         choices: pools.map((p) => ({
           name: `${p.symbol} (${formatAddress(p.asset)})`,
-          value: p.symbol,
+          value: p.asset,
         })),
       });
       pool = await resolvePool(

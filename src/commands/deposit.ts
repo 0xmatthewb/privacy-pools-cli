@@ -157,7 +157,7 @@ export async function handleDepositCommand(
         message: "Select asset to deposit:",
         choices: pools.map((p) => ({
           name: `${p.symbol} (${formatAddress(p.asset)})`,
-          value: p.symbol,
+          value: p.asset,
         })),
       });
       pool = await resolvePool(

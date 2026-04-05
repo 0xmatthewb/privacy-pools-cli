@@ -947,7 +947,7 @@ export function registerRagequitHumanConfirmationTests(): void {
   test("lets humans choose an asset interactively when none is provided", async () => {
     useIsolatedHome({ withSigner: true });
     listPoolsMock.mockImplementation(async () => [ETH_POOL]);
-    selectPromptMock.mockImplementationOnce(async () => "ETH");
+    selectPromptMock.mockImplementationOnce(async () => ETH_POOL.asset);
     selectPromptMock.mockImplementationOnce(async () => 1);
 
     const { stderr } = await captureAsyncOutput(() =>
@@ -972,7 +972,7 @@ export function registerRagequitHumanConfirmationTests(): void {
       },
     ]);
     resolvePoolMock.mockImplementationOnce(async () => ETH_POOL);
-    selectPromptMock.mockImplementationOnce(async () => "ETH");
+    selectPromptMock.mockImplementationOnce(async () => ETH_POOL.asset);
     selectPromptMock.mockImplementationOnce(async () => 1);
 
     await captureAsyncOutput(() =>
@@ -985,7 +985,7 @@ export function registerRagequitHumanConfirmationTests(): void {
 
     expect(resolvePoolMock).toHaveBeenCalledWith(
       expect.objectContaining({ name: "mainnet", id: 1 }),
-      "ETH",
+      ETH_POOL.asset,
       undefined,
     );
     expect(ragequitMock).toHaveBeenCalledTimes(1);

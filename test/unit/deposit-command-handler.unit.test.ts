@@ -140,7 +140,7 @@ const decodeEventLogMock = mock(() => ({
   },
 }));
 const confirmPromptMock = mock(async () => true);
-const selectPromptMock = mock(async () => "ETH");
+const selectPromptMock = mock(async () => ETH_POOL.asset);
 
 let handleDepositCommand: typeof import("../../src/commands/deposit.ts").handleDepositCommand;
 let world: TestWorld;
@@ -239,7 +239,7 @@ beforeEach(() => {
   confirmPromptMock.mockClear();
   selectPromptMock.mockClear();
   confirmPromptMock.mockImplementation(async () => true);
-  selectPromptMock.mockImplementation(async () => "ETH");
+  selectPromptMock.mockImplementation(async () => ETH_POOL.asset);
   saveAccountMock.mockImplementation(() => undefined);
   saveSyncMetaMock.mockImplementation(() => undefined);
   getDataServiceMock.mockImplementation(async () => ({}));
@@ -319,7 +319,7 @@ describe("deposit command handler", () => {
 
   test("lets humans pick an asset interactively when none is provided", async () => {
     useIsolatedHome({ withSigner: true });
-    selectPromptMock.mockImplementation(async () => "USDC");
+    selectPromptMock.mockImplementation(async () => USDC_POOL.asset);
     resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
 
     const { stderr } = await captureAsyncOutput(() =>
@@ -346,7 +346,7 @@ describe("deposit command handler", () => {
       },
     ]);
     resolvePoolMock.mockImplementation(async () => USDC_POOL);
-    selectPromptMock.mockImplementation(async () => "USDC");
+    selectPromptMock.mockImplementation(async () => USDC_POOL.asset);
 
     const { stderr } = await captureAsyncOutput(() =>
       handleDepositCommand(
@@ -359,7 +359,7 @@ describe("deposit command handler", () => {
 
     expect(resolvePoolMock).toHaveBeenCalledWith(
       expect.objectContaining({ name: "mainnet", id: 1 }),
-      "USDC",
+      USDC_POOL.asset,
       undefined,
     );
     expect(depositERC20Mock).toHaveBeenCalledTimes(1);
