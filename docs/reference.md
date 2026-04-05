@@ -206,6 +206,10 @@ privacy-pools pools --agent --chain mainnet
 
 **JSON output:** `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }`
 
+**JSON variants:**
+- `detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }`
+- `detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poiRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }`
+
 ### `activity`
 
 Show public activity feed
@@ -309,6 +313,11 @@ privacy-pools deposit 0.1 --asset ETH --chain mainnet
 
 **JSON output:** `{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
+**JSON variants:**
+- `--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }`
+- `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
+- `--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient }`
+
 ### `withdraw`
 
 Privately withdraw funds via relayer
@@ -344,6 +353,13 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet
 **Safety:** Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
 
 **JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+
+**JSON variants:**
+- `direct: same fields but mode: "direct", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.`
+- `quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+- `--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }`
+- `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
+- `--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }`
 
 ### `withdraw quote`
 
@@ -388,6 +404,10 @@ privacy-pools accounts --no-sync --chain mainnet
 | `--pending-only` | Show only pending ASP approvals |
 
 **JSON output:** `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+
+**JSON variants:**
+- `--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+- `--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `migrate`
 
@@ -507,6 +527,11 @@ privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet
 **Safety:** Ragequit is public and irreversible and reveals the original deposit address onchain.
 
 **JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+
+**JSON variants:**
+- `--unsigned: { mode, operation, chain, asset, amount, transactions[] }`
+- `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
+- `--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `guide`
 

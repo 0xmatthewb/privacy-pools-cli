@@ -200,6 +200,15 @@ for (const path of CAPABILITIES_COMMAND_ORDER) {
     lines.push("");
     lines.push(`**JSON output:** \`${jsonFields}\``);
   }
+
+  const jsonVariants = metadata.help?.jsonVariants ?? [];
+  if (jsonVariants.length > 0) {
+    lines.push("");
+    lines.push("**JSON variants:**");
+    for (const variant of jsonVariants) {
+      lines.push(`- \`${variant}\``);
+    }
+  }
 }
 
 // ── Global Flags ──

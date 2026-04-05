@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
@@ -26,5 +26,15 @@ describe("docs generation drift detection", () => {
       );
     }
     expect(result.status).toBe(0);
+  });
+
+  test("docs/reference.md keeps accounts compact-mode nextActions contracts", () => {
+    const reference = readFileSync(join(CLI_ROOT, "docs", "reference.md"), "utf8");
+
+    expect(reference).toContain("### `accounts`");
+    expect(reference).toContain("**JSON variants:**");
+    expect(reference).toContain("--summary:");
+    expect(reference).toContain("--pending-only:");
+    expect(reference).toContain("cliCommand");
   });
 });

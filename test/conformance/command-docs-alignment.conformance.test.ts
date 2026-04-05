@@ -66,6 +66,17 @@ describe("command docs alignment", () => {
     }
   });
 
+  test("AGENTS accounts variants keep executable nextActions guidance", () => {
+    const marker = getCommandMetadata("accounts").agentsDocMarker;
+    expect(marker).toBeDefined();
+
+    const section = extractDocumentSection(AGENTS, marker!, AGENT_MARKERS);
+
+    expect(section).toContain("--summary");
+    expect(section).toContain("--pending-only");
+    expect(section).toContain("cliCommand");
+  });
+
   test("AGENTS capabilities docs keep the structural machine-contract anchors", () => {
     const capabilitiesSection = extractDocumentSection(
       AGENTS,
