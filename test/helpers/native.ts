@@ -35,12 +35,31 @@ export const CARGO_AVAILABLE =
 
 let cachedNativeBinaryPath: string | null = null;
 
+function collectRustSourceFiles(dir: string): string[] {
+  if (!existsSync(dir)) {
+    return [];
+  }
+
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const entryPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectRustSourceFiles(entryPath));
+      continue;
+    }
+
+    if (entry.isFile() && entry.name.endsWith(".rs")) {
+      files.push(entryPath);
+    }
+  }
+
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
 function nativeBuildInputs(): string[] {
-  const sourceFiles = existsSync(NATIVE_SRC_DIR)
-    ? readdirSync(NATIVE_SRC_DIR)
-        .filter((entry) => entry.endsWith(".rs"))
-        .map((entry) => join(NATIVE_SRC_DIR, entry))
-    : [];
+  const sourceFiles = collectRustSourceFiles(NATIVE_SRC_DIR);
 
   return [MANIFEST_PATH, ...sourceFiles, ...NATIVE_GENERATED_INPUTS];
 }
@@ -88,3 +107,7 @@ export function ensureNativeShellBinary(): string {
   cachedNativeBinaryPath = BINARY_PATH;
   return cachedNativeBinaryPath;
 }
+
+export const nativeTestInternals = {
+  nativeBuildInputs,
+};

@@ -25,6 +25,7 @@ export const TEST_PROFILE_FRAGMENTS = {
     ["npm", ["run", "test:native:lint"]],
     ["npm", ["run", "test:native"]],
   ],
+  "native-coverage": [["npm", ["run", "test:coverage:native"]]],
   "native-shell-parity": [["npm", ["run", "test:smoke:native:shell"]]],
   coverage: [["npm", ["run", "test:coverage"]]],
   "anvil-smoke": [["npm", ["run", "test:e2e:anvil:smoke"]]],
@@ -42,13 +43,14 @@ function composeProfile(...fragmentNames) {
 }
 
 const RELEASE_GRADE_PROFILE = [
-  ["npm", ["test"]],
-  ["npm", ["run", "test:install"]],
-  ...composeProfile(
-    "native-core",
-    "coverage",
-    "anvil-full",
-    "anvil-installed-smoke",
+    ["npm", ["test"]],
+    ["npm", ["run", "test:install"]],
+    ...composeProfile(
+      "native-core",
+      "native-coverage",
+      "coverage",
+      "anvil-full",
+      "anvil-installed-smoke",
     "evals",
     "native-shell-parity",
   ),
@@ -68,6 +70,7 @@ export const TEST_PROFILES = {
     ["npm", ["run", "test:install"]],
     ...composeProfile(
       "native-core",
+      "native-coverage",
       "coverage",
       "anvil-smoke",
       "evals",

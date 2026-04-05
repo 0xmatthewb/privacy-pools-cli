@@ -404,9 +404,12 @@ export function launchSyncGateRpcServer(
     let output = "";
     const timeout = setTimeout(() => {
       cleanupStartupListeners();
-      cleanupProcessExit();
-      proc.kill();
-      reject(new Error("Sync-gate RPC server did not start within 10s"));
+      void terminateChildProcess(proc)
+        .catch(() => undefined)
+        .finally(() => {
+          cleanupProcessExit();
+          reject(new Error("Sync-gate RPC server did not start within 10s"));
+        });
     }, 10_000);
 
     const handleError = (err: Error) => {

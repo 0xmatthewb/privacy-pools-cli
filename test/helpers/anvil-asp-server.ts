@@ -247,9 +247,12 @@ export function launchAnvilAspServer(
     let output = "";
     const timeout = setTimeout(() => {
       cleanupStartupListeners();
-      cleanupProcessExit();
-      proc.kill();
-      reject(new Error("Anvil ASP server did not start within 10s"));
+      void terminateChildProcess(proc)
+        .catch(() => undefined)
+        .finally(() => {
+          cleanupProcessExit();
+          reject(new Error("Anvil ASP server did not start within 10s"));
+        });
     }, 10_000);
 
     const handleError = (error: Error) => {

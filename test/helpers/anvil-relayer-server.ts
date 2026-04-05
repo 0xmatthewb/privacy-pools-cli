@@ -357,9 +357,12 @@ export function launchAnvilRelayerServer(
     let output = "";
     const timeout = setTimeout(() => {
       cleanupStartupListeners();
-      cleanupProcessExit();
-      proc.kill();
-      reject(new Error("Anvil relayer server did not start within 10s"));
+      void terminateChildProcess(proc)
+        .catch(() => undefined)
+        .finally(() => {
+          cleanupProcessExit();
+          reject(new Error("Anvil relayer server did not start within 10s"));
+        });
     }, 10_000);
 
     const handleError = (error: Error) => {

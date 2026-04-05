@@ -67,6 +67,7 @@ describe("test profiles", () => {
     const all = resolveProfile("all") ?? [];
 
     expect(hasStep(ci, "npm", ["test"])).toBe(true);
+    expect(hasStep(ci, "npm", ["run", "test:coverage:native"])).toBe(true);
     expect(hasStep(ci, "npm", ["run", "test:coverage"])).toBe(true);
     expect(hasStep(ci, "npm", ["run", "test:native"])).toBe(true);
     expect(hasStep(ci, "npm", ["run", "test:smoke:native:shell"])).toBe(true);
@@ -75,6 +76,9 @@ describe("test profiles", () => {
     expect(hasStep(ci, "npm", ["run", "docs:check"])).toBe(true);
 
     expect(hasStep(release, "npm", ["run", "test:e2e:anvil"])).toBe(true);
+    expect(hasStep(release, "npm", ["run", "test:coverage:native"])).toBe(
+      true,
+    );
     expect(
       hasStep(release, "node", ["scripts/run-anvil-smoke.mjs", "--installed-only"]),
     ).toBe(true);

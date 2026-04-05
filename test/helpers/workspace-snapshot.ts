@@ -82,11 +82,16 @@ export function createWorkspaceSnapshot(
     );
   }
 
-  if (options.build) {
-    buildWorkspaceSnapshot(snapshotRoot);
-  }
+  try {
+    if (options.build) {
+      buildWorkspaceSnapshot(snapshotRoot);
+    }
 
-  return snapshotRoot;
+    return snapshotRoot;
+  } catch (error) {
+    cleanupTrackedTempDir(snapshotRoot);
+    throw error;
+  }
 }
 
 export function createBuiltWorkspaceSnapshot(

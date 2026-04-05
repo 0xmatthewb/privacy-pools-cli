@@ -87,44 +87,49 @@ function createRetainedBuiltWorkspaceSnapshot(): string {
   const snapshotRoot = createTempHome("pp-built-cli-snapshot-");
   retainedTempHomes.add(snapshotRoot);
 
-  cpSync(CLI_ROOT, snapshotRoot, {
-    recursive: true,
-    filter(source) {
-      const relative = source.slice(CLI_ROOT.length).replace(/^[/\\]/, "");
-      if (relative === "") return true;
-      if (
-        relative === "native/shell/target" ||
-        relative.startsWith("native/shell/target/")
-      ) {
-        return false;
-      }
+  try {
+    cpSync(CLI_ROOT, snapshotRoot, {
+      recursive: true,
+      filter(source) {
+        const relative = source.slice(CLI_ROOT.length).replace(/^[/\\]/, "");
+        if (relative === "") return true;
+        if (
+          relative === "native/shell/target" ||
+          relative.startsWith("native/shell/target/")
+        ) {
+          return false;
+        }
 
-      const topLevel = relative.split(/[/\\]/)[0];
-      return topLevel !== ".git" && topLevel !== "node_modules" && topLevel !== "dist";
-    },
-  });
+        const topLevel = relative.split(/[/\\]/)[0];
+        return topLevel !== ".git" && topLevel !== "node_modules" && topLevel !== "dist";
+      },
+    });
 
-  symlinkSync(
-    join(CLI_ROOT, "node_modules"),
-    join(snapshotRoot, "node_modules"),
-    process.platform === "win32" ? "junction" : "dir",
-  );
-
-  const build = spawnSync(npmBin(), ["run", "-s", "build"], {
-    cwd: snapshotRoot,
-    encoding: "utf8",
-    timeout: 120_000,
-    maxBuffer: 10 * 1024 * 1024,
-    env: buildChildProcessEnv(),
-  });
-
-  if (build.status !== 0) {
-    throw new Error(
-      `Built CLI snapshot build failed (exit ${build.status}):\n${build.stderr}\n${build.stdout}`,
+    symlinkSync(
+      join(CLI_ROOT, "node_modules"),
+      join(snapshotRoot, "node_modules"),
+      process.platform === "win32" ? "junction" : "dir",
     );
-  }
 
-  return snapshotRoot;
+    const build = spawnSync(npmBin(), ["run", "-s", "build"], {
+      cwd: snapshotRoot,
+      encoding: "utf8",
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: buildChildProcessEnv(),
+    });
+
+    if (build.status !== 0) {
+      throw new Error(
+        `Built CLI snapshot build failed (exit ${build.status}):\n${build.stderr}\n${build.stdout}`,
+      );
+    }
+
+    return snapshotRoot;
+  } catch (error) {
+    cleanupTrackedTempHome(snapshotRoot);
+    throw error;
+  }
 }
 
 function getDefaultBuiltWorkspaceSnapshotRoot(): string {
