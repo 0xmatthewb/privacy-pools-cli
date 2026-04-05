@@ -19,7 +19,7 @@ describe("native helper staleness inputs", () => {
     ).toBe(true);
     expect(
       inputs.some((path) =>
-        path.endsWith("/native/shell/src/commands/activity.rs"),
+        path.endsWith("/native/shell/src/commands/activity/mod.rs"),
       ),
     ).toBe(true);
   });
