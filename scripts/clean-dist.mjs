@@ -5,4 +5,9 @@ import { fileURLToPath } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
 
-rmSync(join(repoRoot, "dist"), { recursive: true, force: true });
+rmSync(join(repoRoot, "dist"), {
+  recursive: true,
+  force: true,
+  maxRetries: 10,
+  retryDelay: 50,
+});
