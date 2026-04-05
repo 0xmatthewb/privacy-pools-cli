@@ -40,6 +40,16 @@ type AssetConfigReadResult = {
   maxRelayFeeBPS: bigint;
 };
 type TokenMetadata = { symbol: string; decimals: number };
+type ResolveTokenMetadataOptions = {
+  allowFallback?: boolean;
+};
+type ResolveTokenMetadataResult = {
+  tokenMeta: TokenMetadata;
+  usedFallback: boolean;
+};
+type ResolveReadOnlyPoolDescriptorOptions = {
+  allowTokenMetadataFallback?: boolean;
+};
 
 function tokenCacheKey(chainId: number, assetAddress: Address): string {
   return `${chainId}:${assetAddress.toLowerCase()}`;
@@ -222,8 +232,25 @@ export async function resolveTokenMetadata(
   publicClient: PublicClient,
   assetAddress: Address,
   runRead?: ReadOnlyRunRead,
+  options?: ResolveTokenMetadataOptions,
 ): Promise<TokenMetadata> {
+  const result = await resolveTokenMetadataResult(
+    publicClient,
+    assetAddress,
+    runRead,
+    options,
+  );
+  return result.tokenMeta;
+}
+
+async function resolveTokenMetadataResult(
+  publicClient: PublicClient,
+  assetAddress: Address,
+  runRead?: ReadOnlyRunRead,
+  options: ResolveTokenMetadataOptions = {},
+): Promise<ResolveTokenMetadataResult> {
   const startedAt = runtimeStopwatch();
+  const allowFallback = options.allowFallback ?? false;
   const cacheKey = tokenCacheKey(publicClient.chain?.id ?? 0, assetAddress);
   const cached = tokenCache.get(cacheKey);
   if (cached) {
@@ -234,7 +261,10 @@ export async function resolveTokenMetadata(
       elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
       outcome: "cache-hit",
     });
-    return cached;
+    return {
+      tokenMeta: cached,
+      usedFallback: false,
+    };
   }
 
   if (isNativeAssetAddress(assetAddress)) {
@@ -247,7 +277,10 @@ export async function resolveTokenMetadata(
       elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
       outcome: "ok",
     });
-    return result;
+    return {
+      tokenMeta: result,
+      usedFallback: false,
+    };
   }
 
   try {
@@ -276,7 +309,10 @@ export async function resolveTokenMetadata(
       elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
       outcome: "ok",
     });
-    return result;
+    return {
+      tokenMeta: result,
+      usedFallback: false,
+    };
   } catch {
     // Fallback is intentionally not cached so transient RPC failures
     // or partial test doubles do not poison later successful reads.
@@ -285,9 +321,22 @@ export async function resolveTokenMetadata(
       operation: "token-metadata",
       asset: assetAddress,
       elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
-      outcome: "fallback",
+      outcome: allowFallback ? "fallback" : "error",
     });
-    return { symbol: "???", decimals: 18 };
+    if (allowFallback) {
+      return {
+        tokenMeta: { symbol: "???", decimals: 18 },
+        usedFallback: true,
+      };
+    }
+
+    throw new CLIError(
+      `Failed to resolve ERC-20 metadata for ${assetAddress} on ${publicClient.chain?.name ?? `chain ${publicClient.chain?.id ?? "unknown"}`}.`,
+      "RPC",
+      "Check your RPC URL and network connectivity, then retry.",
+      "RPC_POOL_RESOLUTION_FAILED",
+      true,
+    );
   }
 }
 
@@ -481,8 +530,9 @@ function resolvedPoolCacheKey(
   chainId: number,
   rpcUrl: string,
   assetAddress: Address,
+  allowTokenMetadataFallback: boolean,
 ): string {
-  return `${chainId}:${rpcUrl}:${assetAddress.toLowerCase()}`;
+  return `${chainId}:${rpcUrl}:${assetAddress.toLowerCase()}:${allowTokenMetadataFallback ? "metadata-fallback-ok" : "metadata-strict"}`;
 }
 
 export function resetPoolsServiceCachesForTests(): void {
@@ -496,21 +546,26 @@ async function resolveReadOnlyPoolDescriptor(
   rpcSession: ReadOnlyRpcSession,
   assetAddress: Address,
   rpcOverride?: string,
+  options: ResolveReadOnlyPoolDescriptorOptions = {},
 ): Promise<PoolStats> {
+  const allowTokenMetadataFallback = options.allowTokenMetadataFallback ?? false;
   const cacheKey = resolvedPoolCacheKey(
     chainConfig.id,
     rpcSession.rpcUrl,
     assetAddress,
+    allowTokenMetadataFallback,
   );
   const cached = resolvedPoolCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
+  let persistResolvedDescriptor = true;
   const poolPromise = (async () => {
     const publicClient = rpcSession.publicClient;
     let assetConfig: AssetConfigReadResult;
     let tokenMeta: TokenMetadata;
+    let tokenMetadataUsedFallback = false;
 
     if (isReadOnlyMulticallEnabled(chainConfig, rpcSession)) {
       const multicallStartedAt = runtimeStopwatch();
@@ -530,34 +585,42 @@ async function resolveReadOnlyPoolDescriptor(
           errorCategory: error instanceof CLIError ? error.category : undefined,
         });
         disableReadOnlyMulticall(chainConfig, rpcSession);
-        [assetConfig, tokenMeta] = await Promise.all([
+        const [resolvedAssetConfig, tokenMetaResult] = await Promise.all([
           getAssetConfigReadOnly(
             publicClient,
             chainConfig.entrypoint,
             assetAddress,
             rpcSession.runRead,
           ),
-          resolveTokenMetadata(
+          resolveTokenMetadataResult(
             publicClient,
             assetAddress,
             rpcSession.runRead,
+            { allowFallback: allowTokenMetadataFallback },
           ),
         ]);
+        assetConfig = resolvedAssetConfig;
+        tokenMeta = tokenMetaResult.tokenMeta;
+        tokenMetadataUsedFallback = tokenMetaResult.usedFallback;
       }
     } else {
-      [assetConfig, tokenMeta] = await Promise.all([
+      const [resolvedAssetConfig, tokenMetaResult] = await Promise.all([
         getAssetConfigReadOnly(
           publicClient,
           chainConfig.entrypoint,
           assetAddress,
           rpcSession.runRead,
         ),
-        resolveTokenMetadata(
+        resolveTokenMetadataResult(
           publicClient,
           assetAddress,
           rpcSession.runRead,
+          { allowFallback: allowTokenMetadataFallback },
         ),
       ]);
+      assetConfig = resolvedAssetConfig;
+      tokenMeta = tokenMetaResult.tokenMeta;
+      tokenMetadataUsedFallback = tokenMetaResult.usedFallback;
     }
     const [scope, deploymentBlock] = await Promise.all([
       getScopeReadOnly(
@@ -573,6 +636,7 @@ async function resolveReadOnlyPoolDescriptor(
       ),
     ]);
 
+    persistResolvedDescriptor = !tokenMetadataUsedFallback;
     return {
       asset: assetAddress,
       pool: assetConfig.pool,
@@ -588,7 +652,11 @@ async function resolveReadOnlyPoolDescriptor(
 
   resolvedPoolCache.set(cacheKey, poolPromise);
   try {
-    return await poolPromise;
+    const resolvedPool = await poolPromise;
+    if (!persistResolvedDescriptor) {
+      resolvedPoolCache.delete(cacheKey);
+    }
+    return resolvedPool;
   } catch (error) {
     resolvedPoolCache.delete(cacheKey);
     throw error;
@@ -646,6 +714,7 @@ export async function listPools(
             rpcSession,
             assetAddress,
             rpcOverride,
+            { allowTokenMetadataFallback: true },
           );
           const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
 
@@ -711,6 +780,7 @@ async function resolveKnownPoolAddress(
   knownAddress: Address,
   assetInput: string,
   rpcOverride?: string,
+  options: ResolveReadOnlyPoolDescriptorOptions = {},
 ): Promise<PoolStats> {
   try {
     return await resolveReadOnlyPoolDescriptor(
@@ -718,6 +788,7 @@ async function resolveKnownPoolAddress(
       rpcSession,
       knownAddress,
       rpcOverride,
+      options,
     );
   } catch {
     throw new CLIError(
@@ -770,6 +841,7 @@ export async function listKnownPoolsFromRegistry(
         address,
         symbol,
         rpcOverride,
+        { allowTokenMetadataFallback: true },
       ),
     ),
   );

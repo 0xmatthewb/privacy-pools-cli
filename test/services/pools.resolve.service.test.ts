@@ -5,6 +5,7 @@ import type { Address } from "viem";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { lookupPoolDeploymentBlock } from "../../src/config/deployment-hints.ts";
 import {
+  listPools,
   resetPoolsServiceCachesForTests,
   resolvePool,
   resolveTokenMetadata,
@@ -382,7 +383,7 @@ describe("resolveTokenMetadata", () => {
     expect(result.decimals).toBe(18);
   });
 
-  test("falls back to ???/18 for non-standard token that reverts", async () => {
+  test("rejects strict ERC-20 metadata resolution when symbol or decimals revert", async () => {
     const { createPublicClient, http } = await import("viem");
     const { mainnet } = await import("viem/chains");
 
@@ -404,7 +405,36 @@ describe("resolveTokenMetadata", () => {
       transport: http(server.url),
     });
 
-    const result = await resolveTokenMetadata(client, nonStandardToken);
+    await expect(resolveTokenMetadata(client, nonStandardToken)).rejects.toMatchObject({
+      category: "RPC",
+      code: "RPC_POOL_RESOLUTION_FAILED",
+      retryable: true,
+    });
+  });
+
+  test("can opt into ???/18 fallback for read-only listings", async () => {
+    const { createPublicClient, http } = await import("viem");
+    const { mainnet } = await import("viem/chains");
+
+    const server = await startMockServer(31362, {
+      rpcHandler: ({ data }) => {
+        if (data.startsWith("0x95d89b41") || data.startsWith("0x313ce567")) {
+          return "0x";
+        }
+        return null;
+      },
+    });
+    toClose.push(server);
+
+    const nonStandardToken = "0x00000000000000000000000000000000000000cc" as Address;
+    const client = createPublicClient({
+      chain: { ...mainnet, id: 31362 },
+      transport: http(server.url),
+    });
+
+    const result = await resolveTokenMetadata(client, nonStandardToken, undefined, {
+      allowFallback: true,
+    });
     expect(result.symbol).toBe("???");
     expect(result.decimals).toBe(18);
   });
@@ -433,7 +463,12 @@ describe("resolveTokenMetadata", () => {
       transport: http(fallbackServer.url),
     });
 
-    const fallbackResult = await resolveTokenMetadata(fallbackClient, asset);
+    const fallbackResult = await resolveTokenMetadata(
+      fallbackClient,
+      asset,
+      undefined,
+      { allowFallback: true },
+    );
     expect(fallbackResult).toEqual({ symbol: "???", decimals: 18 });
 
     const successServer = await startMockServer(chainId, {
@@ -456,5 +491,43 @@ describe("resolveTokenMetadata", () => {
 
     const successResult = await resolveTokenMetadata(successClient, asset);
     expect(successResult).toEqual({ symbol: "USDC", decimals: 6 });
+  });
+
+  test("read-only fallback descriptors do not poison later strict pool resolution", async () => {
+    let metadataReads = 0;
+    const server = await startMockServer(31364, {
+      statsPayload: { pools: [{ tokenAddress: ASSET }] },
+      rpcHandler: ({ to, data }) => {
+        if (to === ASSET.toLowerCase() && data.startsWith("0x95d89b41")) {
+          metadataReads += 1;
+          if (metadataReads === 1) {
+            return "0x";
+          }
+          return encodeAbiParameters([{ type: "string" }], ["USDC"]);
+        }
+        if (to === ASSET.toLowerCase() && data.startsWith("0x313ce567")) {
+          return metadataReads === 1
+            ? "0x"
+            : encodeAbiParameters([{ type: "uint8" }], [6]);
+        }
+        return null;
+      },
+    });
+    toClose.push(server);
+
+    const cfg = chainConfig(31364, server);
+
+    const listedPools = await listPools(cfg, server.url);
+    expect(listedPools).toHaveLength(1);
+    expect(listedPools[0]).toMatchObject({
+      symbol: "???",
+      decimals: 18,
+    });
+
+    const resolvedPool = await resolvePool(cfg, ASSET, server.url);
+    expect(resolvedPool).toMatchObject({
+      symbol: "USDC",
+      decimals: 6,
+    });
   });
 });

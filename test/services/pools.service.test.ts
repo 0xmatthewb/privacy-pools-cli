@@ -646,6 +646,89 @@ describe("pools service", () => {
     }
   });
 
+  test("listKnownPoolsFromRegistry tolerates missing token metadata for read-only migration discovery", async () => {
+    const chainId = 31345;
+    const asset = "0x00000000000000000000000000000000000000c2" as Address;
+    const pool = "0x00000000000000000000000000000000000000d2" as Address;
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e2" as Address,
+      aspHost: "http://127.0.0.1:1",
+    };
+    const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+      const url = req.url ?? "";
+      if (req.method === "POST") {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += String(chunk);
+        });
+        req.on("end", () => {
+          const json = JSON.parse(body);
+          const call = json?.params?.[0] ?? {};
+          const to = String(call.to ?? "").toLowerCase();
+          const data = String(call.data ?? "").toLowerCase();
+
+          let result = "0x";
+          if (
+            to === chainConfig.entrypoint.toLowerCase()
+            && data.startsWith("0xd6dbaf58")
+          ) {
+            result = encodeAbiParameters(
+              [
+                { type: "address" },
+                { type: "uint256" },
+                { type: "uint256" },
+                { type: "uint256" },
+              ],
+              [pool, 1000000n, 50n, 250n],
+            );
+          } else if (to === pool.toLowerCase()) {
+            result = encodeAbiParameters([{ type: "uint256" }], [555n]);
+          }
+
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", id: json.id, result }));
+        });
+        return;
+      }
+
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", () => resolve()),
+    );
+    const addr = server.address();
+    if (!addr || typeof addr === "string") throw new Error("bind failed");
+    const url = `http://127.0.0.1:${addr.port}`;
+    toClose.push({
+      url,
+      close: () =>
+        new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        ),
+    });
+
+    const previousKnownPools = KNOWN_POOLS[chainId];
+    KNOWN_POOLS[chainId] = { TEST: asset };
+
+    try {
+      const pools = await listKnownPoolsFromRegistry(chainConfig, url);
+      expect(pools).toHaveLength(1);
+      expect(pools[0]).toMatchObject({
+        symbol: "???",
+        decimals: 18,
+      });
+    } finally {
+      if (previousKnownPools) {
+        KNOWN_POOLS[chainId] = previousKnownPools;
+      } else {
+        delete KNOWN_POOLS[chainId];
+      }
+    }
+  });
+
   test("resolvePool skips ASP listing for canonical known symbols on built-in default RPCs", async () => {
     const chainId = CHAINS.sepolia.id;
     const ethPool = "0x00000000000000000000000000000000000000a1" as Address;
