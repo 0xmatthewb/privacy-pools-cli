@@ -13,7 +13,7 @@ pub(super) fn resolve_cached_pool_resolution(
     native_asset_address: &str,
     timeout_ms: u64,
 ) -> Result<PoolResolutionCacheEntry, CliError> {
-    let cache_key = pool_resolution_cache_key(chain.id, asset_address);
+    let cache_key = pool_resolution_cache_key(chain.id, asset_address, rpc_urls);
     {
         let cache = pool_resolution_cache()
             .lock()
@@ -48,6 +48,55 @@ fn pool_resolution_cache() -> &'static Mutex<HashMap<String, PoolResolutionCache
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn pool_resolution_cache_key(chain_id: u64, asset_address: &str) -> String {
-    format!("{chain_id}:{}", asset_address.to_lowercase())
+fn pool_resolution_cache_key(chain_id: u64, asset_address: &str, rpc_urls: &[String]) -> String {
+    format!(
+        "{chain_id}:{}:{}",
+        asset_address.to_lowercase(),
+        rpc_urls.join("|")
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pool_resolution_cache_key;
+
+    #[test]
+    fn pool_resolution_cache_key_includes_rpc_identity() {
+        let first = pool_resolution_cache_key(
+            1,
+            "0xABCDEFabcdefABCDEFabcdefABCDEFabcdefABCD",
+            &[String::from("https://rpc-one.example")],
+        );
+        let second = pool_resolution_cache_key(
+            1,
+            "0xABCDEFabcdefABCDEFabcdefABCDEFabcdefABCD",
+            &[String::from("https://rpc-two.example")],
+        );
+
+        assert_ne!(first, second);
+        assert!(first.contains("https://rpc-one.example"));
+        assert!(second.contains("https://rpc-two.example"));
+    }
+
+    #[test]
+    fn pool_resolution_cache_key_keeps_multi_url_ordering() {
+        let first = pool_resolution_cache_key(
+            1,
+            "0xABCDEFabcdefABCDEFabcdefABCDEFabcdefABCD",
+            &[
+                String::from("https://rpc-one.example"),
+                String::from("https://rpc-two.example"),
+            ],
+        );
+        let second = pool_resolution_cache_key(
+            1,
+            "0xABCDEFabcdefABCDEFabcdefABCDEFabcdefABCD",
+            &[
+                String::from("https://rpc-two.example"),
+                String::from("https://rpc-one.example"),
+            ],
+        );
+
+        assert_ne!(first, second);
+    }
 }
