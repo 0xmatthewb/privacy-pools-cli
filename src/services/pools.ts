@@ -42,6 +42,7 @@ type AssetConfigReadResult = {
 type TokenMetadata = { symbol: string; decimals: number };
 type ResolveTokenMetadataOptions = {
   allowFallback?: boolean;
+  rpcCacheKey?: string;
 };
 type ResolveTokenMetadataResult = {
   tokenMeta: TokenMetadata;
@@ -51,8 +52,12 @@ type ResolveReadOnlyPoolDescriptorOptions = {
   allowTokenMetadataFallback?: boolean;
 };
 
-function tokenCacheKey(chainId: number, assetAddress: Address): string {
-  return `${chainId}:${assetAddress.toLowerCase()}`;
+function tokenCacheKey(
+  chainId: number,
+  rpcCacheKey: string | undefined,
+  assetAddress: Address,
+): string {
+  return `${chainId}:${rpcCacheKey ?? "__default_rpc__"}:${assetAddress.toLowerCase()}`;
 }
 
 function readOnlyMulticallCacheKey(chainId: number, rpcUrl: string): string {
@@ -251,7 +256,11 @@ async function resolveTokenMetadataResult(
 ): Promise<ResolveTokenMetadataResult> {
   const startedAt = runtimeStopwatch();
   const allowFallback = options.allowFallback ?? false;
-  const cacheKey = tokenCacheKey(publicClient.chain?.id ?? 0, assetAddress);
+  const cacheKey = tokenCacheKey(
+    publicClient.chain?.id ?? 0,
+    options.rpcCacheKey,
+    assetAddress,
+  );
   const cached = tokenCache.get(cacheKey);
   if (cached) {
     emitRuntimeDiagnostic("rpc-latency", {
@@ -402,7 +411,11 @@ async function resolveReadOnlyPoolMetadataViaMulticall(
       };
 
   tokenCache.set(
-    tokenCacheKey(publicClient.chain?.id ?? 0, assetAddress),
+    tokenCacheKey(
+      publicClient.chain?.id ?? 0,
+      rpcSession.rpcUrl,
+      assetAddress,
+    ),
     tokenMeta,
   );
   emitRuntimeDiagnostic("rpc-latency", {
@@ -596,7 +609,10 @@ async function resolveReadOnlyPoolDescriptor(
             publicClient,
             assetAddress,
             rpcSession.runRead,
-            { allowFallback: allowTokenMetadataFallback },
+            {
+              allowFallback: allowTokenMetadataFallback,
+              rpcCacheKey: rpcSession.rpcUrl,
+            },
           ),
         ]);
         assetConfig = resolvedAssetConfig;
@@ -615,7 +631,10 @@ async function resolveReadOnlyPoolDescriptor(
           publicClient,
           assetAddress,
           rpcSession.runRead,
-          { allowFallback: allowTokenMetadataFallback },
+          {
+            allowFallback: allowTokenMetadataFallback,
+            rpcCacheKey: rpcSession.rpcUrl,
+          },
         ),
       ]);
       assetConfig = resolvedAssetConfig;

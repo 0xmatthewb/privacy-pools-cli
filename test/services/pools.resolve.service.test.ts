@@ -494,6 +494,65 @@ describe("resolveTokenMetadata", () => {
     expect(successResult).toEqual({ symbol: "USDC", decimals: 6 });
   });
 
+  test("does not reuse strict metadata across different rpc urls", async () => {
+    const { createPublicClient, http } = await import("viem");
+    const { mainnet } = await import("viem/chains");
+
+    const asset = "0x00000000000000000000000000000000000000ee" as Address;
+    const chainId = 31365;
+    const successServer = await startMockServer(chainId, {
+      rpcHandler: ({ to, data }) => {
+        if (to === asset.toLowerCase() && data.startsWith("0x95d89b41")) {
+          return encodeAbiParameters([{ type: "string" }], ["USDC"]);
+        }
+        if (to === asset.toLowerCase() && data.startsWith("0x313ce567")) {
+          return encodeAbiParameters([{ type: "uint8" }], [6]);
+        }
+        return null;
+      },
+    });
+    toClose.push(successServer);
+
+    const successClient = createPublicClient({
+      chain: { ...mainnet, id: chainId },
+      transport: http(successServer.url),
+    });
+
+    await expect(
+      resolveTokenMetadata(successClient, asset, undefined, {
+        rpcCacheKey: successServer.url,
+      }),
+    ).resolves.toEqual({ symbol: "USDC", decimals: 6 });
+
+    const failingServer = await startMockServer(chainId, {
+      rpcHandler: ({ to, data }) => {
+        if (
+          to === asset.toLowerCase()
+          && (data.startsWith("0x95d89b41") || data.startsWith("0x313ce567"))
+        ) {
+          return "0x";
+        }
+        return null;
+      },
+    });
+    toClose.push(failingServer);
+
+    const failingClient = createPublicClient({
+      chain: { ...mainnet, id: chainId },
+      transport: http(failingServer.url),
+    });
+
+    await expect(
+      resolveTokenMetadata(failingClient, asset, undefined, {
+        rpcCacheKey: failingServer.url,
+      }),
+    ).rejects.toMatchObject({
+      category: "RPC",
+      code: "RPC_POOL_RESOLUTION_FAILED",
+      retryable: true,
+    });
+  });
+
   test("registry fallback descriptors do not poison later strict pool resolution", async () => {
     let metadataReads = 0;
     const chainId = 31364;
