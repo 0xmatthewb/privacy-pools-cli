@@ -236,56 +236,56 @@ async function runSuitesWithConcurrency(suites, forwardedSuiteArgs, concurrency)
 }
 
 async function main() {
-  if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs, ROOT)) {
-    const { sharedArgs, targetFiles } = splitExplicitTargets(
-      forwardedArgs,
-      (pathArg) => collectTestFiles(pathArg, ROOT),
-      ROOT,
-    );
-    const { mainTargets, isolatedGroups } = groupTargetsByIsolation(
-      targetFiles,
-      DEFAULT_TEST_ISOLATED_SUITES,
-      ROOT,
-    );
-
-    if (mainTargets.length > 0) {
-      await runSuite("custom", mainTargets, [...mainTargets, ...sharedArgs]);
-    }
-
-    for (const suite of isolatedGroups) {
-      const suiteArgs = [...suite.tests];
-      if (!hasExplicitTimeoutArg(sharedArgs)) {
-        suiteArgs.push("--timeout", String(suite.timeoutMs));
-      }
-      suiteArgs.push(...sharedArgs);
-      await runSuite(`custom:${suite.label}`, suite.tests, suiteArgs);
-    }
-    return;
-  }
-
-  const mainSuites = buildDefaultMainSuites({
-    rootDir: ROOT,
-    testBatches: DEFAULT_MAIN_BATCHES,
-    excludedTests: DEFAULT_MAIN_EXCLUDED_TESTS,
-  });
-
   try {
+    if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs, ROOT)) {
+      const { sharedArgs, targetFiles } = splitExplicitTargets(
+        forwardedArgs,
+        (pathArg) => collectTestFiles(pathArg, ROOT),
+        ROOT,
+      );
+      const { mainTargets, isolatedGroups } = groupTargetsByIsolation(
+        targetFiles,
+        DEFAULT_TEST_ISOLATED_SUITES,
+        ROOT,
+      );
+
+      if (mainTargets.length > 0) {
+        await runSuite("custom", mainTargets, [...mainTargets, ...sharedArgs]);
+      }
+
+      for (const suite of isolatedGroups) {
+        const suiteArgs = [...suite.tests];
+        if (!hasExplicitTimeoutArg(sharedArgs)) {
+          suiteArgs.push("--timeout", String(suite.timeoutMs));
+        }
+        suiteArgs.push(...sharedArgs);
+        await runSuite(`custom:${suite.label}`, suite.tests, suiteArgs);
+      }
+      return;
+    }
+
+    const mainSuites = buildDefaultMainSuites({
+      rootDir: ROOT,
+      testBatches: DEFAULT_MAIN_BATCHES,
+      excludedTests: DEFAULT_MAIN_EXCLUDED_TESTS,
+    });
+
     await runSuitesWithConcurrency(
       mainSuites,
       forwardedArgs,
       resolveMainBatchConcurrency({ suiteCount: mainSuites.length }),
     );
 
-    for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
-      const suiteArgs = [...suite.tests];
-      if (!hasExplicitTimeoutArg(forwardedArgs)) {
-        suiteArgs.push("--timeout", String(suite.timeoutMs));
+      for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
+        const suiteArgs = [...suite.tests];
+        if (!hasExplicitTimeoutArg(forwardedArgs)) {
+          suiteArgs.push("--timeout", String(suite.timeoutMs));
+        }
+        suiteArgs.push(...forwardedArgs);
+        await runSuite(suite.label, suite.tests, [
+          ...suiteArgs,
+        ]);
       }
-      suiteArgs.push(...forwardedArgs);
-      await runSuite(suite.label, suite.tests, [
-        ...suiteArgs,
-      ]);
-    }
   } finally {
     await cleanupSuiteResources();
   }
