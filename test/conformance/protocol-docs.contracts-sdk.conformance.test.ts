@@ -5,8 +5,8 @@
  * CLI source, then asserts alignment between the two.
  *
  * Source of truth:
- *   Core contracts/circuits: checked-out privacy-pools-core source (with public fallback)
- *   Frontend patterns:       checked-out privacy-pools-website source (with public fallback)
+ *   Core contracts/circuits: checked-out privacy-pools-core source (with optional strict-local mode)
+ *   Frontend patterns:       checked-out privacy-pools-website source (with optional strict-local mode)
  *   SDK:                     installed @0xbow/privacy-pools-core-sdk@1.2.0
  *
  * @frontend-parity
@@ -109,12 +109,13 @@ function extractEventSignature(source: string, eventName: string): string {
 }
 
 describe("protocol conformance: CLI ↔ upstream", () => {
-  test("conformance source helper prefers local source checkouts with public fallback", () => {
+  test("conformance source helper supports strict local source-of-truth mode", () => {
     expect(githubHelper).toContain('const RAW_BASE = "https://raw.githubusercontent.com"');
     expect(githubHelper).toContain('export const CORE_REPO = "0xbow-io/privacy-pools-core"');
     expect(githubHelper).toContain('export const FRONTEND_REPO = "0xbow-io/privacy-pools-website"');
     expect(githubHelper).toContain("CONFORMANCE_CORE_ROOT");
     expect(githubHelper).toContain("CONFORMANCE_FRONTEND_ROOT");
+    expect(githubHelper).toContain("CONFORMANCE_REQUIRE_LOCAL_SOURCES");
     expect(githubHelper).toContain("privacy-pools-core-main");
     expect(githubHelper).toContain("privacy-pools-website");
   });

@@ -6,6 +6,9 @@
  *   2. Known local sibling checkouts when present
  *   3. Public raw GitHub content (main or CONFORMANCE_UPSTREAM_REF)
  *   4. Shallow git checkout fallback when raw fetch is unavailable
+ *
+ * Set CONFORMANCE_REQUIRE_LOCAL_SOURCES=1 to fail closed when a local source
+ * checkout for the core/frontend repo is unavailable.
  */
 
 import { execFileSync } from "node:child_process";
@@ -31,6 +34,12 @@ let cleanupRegistered = false;
 
 function upstreamRefFor(): string {
   return process.env.CONFORMANCE_UPSTREAM_REF || "main";
+}
+
+function requireLocalSources(): boolean {
+  const raw = process.env.CONFORMANCE_REQUIRE_LOCAL_SOURCES?.trim();
+  if (!raw) return false;
+  return raw !== "0" && raw.toLowerCase() !== "false";
 }
 
 function resolveLocalSourceRoot(repo: string): string | null {
@@ -155,6 +164,15 @@ export async function fetchGitHubFile(
     const text = readLocalSourceFile(repo, path);
     cache.set(key, text);
     return text;
+  }
+
+  if (
+    requireLocalSources()
+    && (repo === CORE_REPO || repo === FRONTEND_REPO)
+  ) {
+    throw new Error(
+      `Local source checkout required for ${repo}; set CONFORMANCE_CORE_ROOT/CONFORMANCE_FRONTEND_ROOT or place the expected sibling checkout in the workspace.`,
+    );
   }
 
   const ref = upstreamRefFor();
