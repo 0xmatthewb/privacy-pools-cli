@@ -9,7 +9,7 @@ use std::net::{Shutdown, TcpListener, TcpStream};
 use std::process::{Command, Output};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Mutex,
 };
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -88,6 +88,7 @@ pub fn encode_bridge_descriptor(value: Value) -> String {
 pub struct FixtureServer {
     base_url: String,
     running: Arc<AtomicBool>,
+    connection_handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
     join_handle: Option<JoinHandle<()>>,
 }
 
@@ -121,6 +122,11 @@ impl Drop for FixtureServer {
         if let Some(handle) = self.join_handle.take() {
             let _ = handle.join();
         }
+        if let Ok(mut handles) = self.connection_handles.lock() {
+            while let Some(handle) = handles.pop() {
+                let _ = handle.join();
+            }
+        }
     }
 }
 
@@ -142,11 +148,20 @@ pub fn launch_fixture_server_with_behavior(behavior: FixtureBehavior) -> Fixture
     let running_for_thread = Arc::clone(&running);
     let behavior = Arc::new(behavior);
     let behavior_for_thread = Arc::clone(&behavior);
+    let connection_handles = Arc::new(Mutex::new(Vec::<JoinHandle<()>>::new()));
+    let connection_handles_for_thread = Arc::clone(&connection_handles);
 
     let join_handle = thread::spawn(move || {
         while running_for_thread.load(Ordering::SeqCst) {
             match listener.accept() {
-                Ok((stream, _)) => handle_connection(stream, &behavior_for_thread),
+                Ok((stream, _)) => {
+                    let behavior = Arc::clone(&behavior_for_thread);
+                    let handle = thread::spawn(move || handle_connection(stream, &behavior));
+                    connection_handles_for_thread
+                        .lock()
+                        .expect("fixture server should track connection threads")
+                        .push(handle);
+                }
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                     thread::sleep(Duration::from_millis(10));
                 }
@@ -158,6 +173,7 @@ pub fn launch_fixture_server_with_behavior(behavior: FixtureBehavior) -> Fixture
     FixtureServer {
         base_url,
         running,
+        connection_handles,
         join_handle: Some(join_handle),
     }
 }

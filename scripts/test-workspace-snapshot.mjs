@@ -4,12 +4,17 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
+const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
+
 function npmBin() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
 export function createSharedBuiltWorkspaceSnapshot(rootDir) {
-  const snapshotRoot = mkdtempSync(join(tmpdir(), "pp-shared-built-workspace-"));
+  const prefix = TEST_RUN_ID
+    ? `pp-shared-built-workspace-${TEST_RUN_ID}-`
+    : "pp-shared-built-workspace-";
+  const snapshotRoot = mkdtempSync(join(tmpdir(), prefix));
 
   cpSync(rootDir, snapshotRoot, {
     recursive: true,

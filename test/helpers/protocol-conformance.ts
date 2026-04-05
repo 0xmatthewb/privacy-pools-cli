@@ -156,6 +156,50 @@ export function extractQuotedPathLiterals(source: string): Set<string> {
   );
 }
 
+export function extractSolidityFunctionNames(source: string): Set<string> {
+  return new Set(
+    [...source.matchAll(/function\s+([A-Za-z0-9_]+)\s*\(/g)].map(
+      (match) => match[1],
+    ),
+  );
+}
+
+export function extractSolidityErrorNames(source: string): Set<string> {
+  return new Set(
+    [...source.matchAll(/error\s+([A-Za-z0-9_]+)\s*\(/g)].map(
+      (match) => match[1],
+    ),
+  );
+}
+
+export function extractSolidityStructFields(
+  source: string,
+  structName: string,
+): Set<string> {
+  const match = source.match(
+    new RegExp(`struct\\s+${structName}\\s*\\{([\\s\\S]*?)\\}`, "m"),
+  );
+  if (!match) {
+    throw new Error(`Missing struct ${structName}`);
+  }
+  return new Set(
+    match[1]
+      .split(";")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => line.split(/\s+/u).pop() ?? "")
+      .filter(Boolean),
+  );
+}
+
+export function extractFunctionNameLiterals(source: string): Set<string> {
+  return new Set(
+    [...source.matchAll(/functionName:\s*["']([A-Za-z0-9_]+)["']/g)].map(
+      (match) => match[1],
+    ),
+  );
+}
+
 export function extractNamedExports(source: string): Set<string> {
   const names = new Set<string>();
   for (const match of source.matchAll(/export\s*\{([^}]+)\}/g)) {

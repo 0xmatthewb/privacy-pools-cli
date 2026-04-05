@@ -18,6 +18,10 @@ import {
   WITHDRAWN_EVENT_SIGNATURE,
   bundledCircuitFiles,
   extractEventSignature,
+  extractFunctionNameLiterals,
+  extractSolidityErrorNames,
+  extractSolidityFunctionNames,
+  extractSolidityStructFields,
   extractNamedExports,
   extractQuotedPathLiterals,
   loadProtocolTruthSources,
@@ -111,10 +115,13 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // ---------------------------------------------------------------
 
   run("CLI assetConfig ABI field names match upstream IEntrypoint.sol", () => {
-    for (const field of ["assetConfig", "minimumDepositAmount", "vettingFeeBPS", "maxRelayFeeBPS"]) {
-      expect(cliPools).toContain(field);
-      expect(truth().upstreamIEntrypoint).toContain(field);
-    }
+    const upstreamEntrypointFunctions = extractSolidityFunctionNames(
+      truth().upstreamIEntrypoint,
+    );
+    expect(upstreamEntrypointFunctions).toContain("assetConfig");
+    expect(cliPools).toContain(
+      '"function assetConfig(address asset) view returns (address pool, uint256 minimumDepositAmount, uint256 vettingFeeBPS, uint256 maxRelayFeeBPS)"',
+    );
   });
 
   run("CLI SCOPE() call matches core interface contract", () => {
@@ -251,13 +258,18 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   });
 
   run("CLI Withdrawal struct fields match upstream IPrivacyPool.sol", () => {
-    expect(truth().upstreamIPrivacyPool).toContain("struct Withdrawal");
-    expect(truth().upstreamIPrivacyPool).toContain("processooor");
-
-    // CLI unsigned-flows constructs this struct in withdraw and relay ABIs
-    expect(cliUnsignedFlows).toContain("processooor");
-    // CLI withdraw command also references it
-    expect(cliWithdraw).toContain("processooor");
+    const upstreamWithdrawalFields = extractSolidityStructFields(
+      truth().upstreamIPrivacyPool,
+      "Withdrawal",
+    );
+    expect(upstreamWithdrawalFields).toContain("processooor");
+    expect(cliUnsignedFlows).toContain(
+      '"function withdraw((address processooor, bytes data) _withdrawal, (uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[8] pubSignals) _proof)"',
+    );
+    expect(cliUnsignedFlows).toContain(
+      '"function relay((address processooor, bytes data) _withdrawal, (uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[8] pubSignals) _proof, uint256 _scope)"',
+    );
+    expect(cliWithdraw).toContain("processooor:");
   });
 
   // ---------------------------------------------------------------
@@ -265,36 +277,34 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // ---------------------------------------------------------------
 
   run("upstream IEntrypoint.sol defines latestRoot used by CLI for stale-state detection", () => {
-    expect(cliWithdraw).toContain("latestRoot");
-    expect(truth().upstreamIEntrypoint).toContain("latestRoot");
+    expect(extractFunctionNameLiterals(cliWithdraw)).toContain("latestRoot");
+    expect(extractSolidityFunctionNames(truth().upstreamIEntrypoint)).toContain(
+      "latestRoot",
+    );
   });
 
   run("upstream IEntrypoint.sol defines precommitment tracking the CLI relies on", () => {
     expect(cliDeposit).toContain("precommitment");
-    expect(truth().upstreamIEntrypoint).toContain("usedPrecommitments");
-    expect(truth().upstreamIEntrypoint).toContain("PrecommitmentAlreadyUsed");
+    expect(extractSolidityFunctionNames(truth().upstreamIEntrypoint)).toContain(
+      "usedPrecommitments",
+    );
+    expect(extractSolidityErrorNames(truth().upstreamIEntrypoint)).toContain(
+      "PrecommitmentAlreadyUsed",
+    );
   });
 
   run("upstream IState.sol defines the known-root history the CLI validates", () => {
-    // CLI reads currentRoot and cached roots from the pool contract
-    expect(cliPoolRoots).toContain("currentRoot");
-    expect(cliPoolRoots).toContain("roots");
-    expect(cliPoolRoots).toContain("ROOT_HISTORY_SIZE");
-
-    // currentRoot and roots are defined in IState.sol (inherited by IPrivacyPool)
-    expect(truth().upstreamIState).toContain("currentRoot");
-    expect(truth().upstreamIState).toContain("roots");
-    expect(truth().upstreamIState).toContain("ROOT_HISTORY_SIZE");
-
-    // IPrivacyPool must inherit from IState
+    const cliFunctionNames = extractFunctionNameLiterals(cliPoolRoots);
+    const upstreamStateFunctions = extractSolidityFunctionNames(truth().upstreamIState);
+    for (const functionName of ["currentRoot", "roots", "ROOT_HISTORY_SIZE"]) {
+      expect(cliFunctionNames).toContain(functionName);
+      expect(upstreamStateFunctions).toContain(functionName);
+    }
     expect(truth().upstreamIPrivacyPool).toContain("IState");
   });
 
   run("upstream IState.sol defines depositors mapping the CLI reads for ragequit", () => {
-    // CLI ragequit looks up the original depositor for a commitment label
-    expect(cliRagequit).toContain("depositors");
-
-    // depositors mapping is defined in IState.sol (inherited by IPrivacyPool)
+    expect(extractFunctionNameLiterals(cliRagequit)).toContain("depositors");
     expect(truth().upstreamIState).toContain("depositors");
   });
 
@@ -363,12 +373,18 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // ---------------------------------------------------------------
 
   run("CLI local contract writes match upstream deposit, withdraw, and ragequit functions", () => {
-    expect(cliContracts).toContain('functionName: "deposit"');
-    expect(cliContracts).toContain('functionName: "withdraw"');
-    expect(cliContracts).toContain('functionName: "ragequit"');
-    expect(truth().upstreamIEntrypoint).toContain("function deposit(");
-    expect(truth().upstreamIPrivacyPool).toContain("function withdraw(");
-    expect(truth().upstreamIPrivacyPool).toContain("function ragequit(");
+    const cliFunctionNames = extractFunctionNameLiterals(cliContracts);
+    expect(cliFunctionNames).toContain("deposit");
+    expect(cliFunctionNames).toContain("withdraw");
+    expect(cliFunctionNames).toContain("ragequit");
+    expect(extractSolidityFunctionNames(truth().upstreamIEntrypoint)).toContain(
+      "deposit",
+    );
+    const privacyPoolFunctions = extractSolidityFunctionNames(
+      truth().upstreamIPrivacyPool,
+    );
+    expect(privacyPoolFunctions).toContain("withdraw");
+    expect(privacyPoolFunctions).toContain("ragequit");
   });
 
   // ---------------------------------------------------------------
