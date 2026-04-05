@@ -73,6 +73,7 @@ export function normalizePublicEventReviewStatus(
   const normalizedType = type?.trim().toLowerCase();
   if (
     normalizedType === "withdrawal" ||
+    normalizedType === "migration" ||
     normalizedType === "ragequit" ||
     normalizedType === "exit"
   ) {

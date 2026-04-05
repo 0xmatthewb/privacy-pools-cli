@@ -854,6 +854,33 @@ describe("renderPoolDetail parity", () => {
     expect(json.myFunds).toBeNull();
   });
 
+  test("JSON mode: normalizes migration recentActivity status as approved", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderPoolDetail(ctx, {
+        ...STUB_POOL_DETAIL_DATA,
+        recentActivity: [
+          {
+            type: "migration",
+            amount: "0.75 ETH",
+            timeLabel: "3h ago",
+            status: "declined",
+          },
+        ],
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.recentActivity).toEqual([
+      {
+        type: "migration",
+        amount: "0.75 ETH",
+        timeLabel: "3h ago",
+        status: "approved",
+      },
+    ]);
+  });
+
   test("JSON mode: includes myFundsWarning when wallet state could not be loaded", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: PoolDetailRenderData = {
