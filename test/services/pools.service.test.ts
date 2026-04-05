@@ -14,6 +14,7 @@ import { resetSdkServiceCachesForTests } from "../../src/services/sdk.ts";
 import {
   listKnownPoolsFromRegistry,
   listPools,
+  resetPoolsServiceCachesForTests,
   resolvePool,
 } from "../../src/services/pools.ts";
 
@@ -127,11 +128,13 @@ describe("pools service", () => {
   beforeEach(() => {
     overrideAspRetryWaitForTests(async () => {});
     resetSdkServiceCachesForTests();
+    resetPoolsServiceCachesForTests();
   });
 
   afterEach(async () => {
     overrideAspRetryWaitForTests();
     resetSdkServiceCachesForTests();
+    resetPoolsServiceCachesForTests();
     if (originalSepoliaRpc === undefined) {
       delete process.env.PRIVACY_POOLS_RPC_URL_SEPOLIA;
     } else {
@@ -434,6 +437,64 @@ describe("pools service", () => {
     };
 
     await expect(listPools(chainConfig, server.url)).resolves.toEqual([]);
+  });
+
+  test("listPools reuses resolved on-chain pool metadata across repeated reads", async () => {
+    const chainId = 313390;
+    let assetConfigCalls = 0;
+    let scopeCalls = 0;
+    let symbolCalls = 0;
+    let decimalsCalls = 0;
+    const server = await startMockServerWithConfig(
+      chainId,
+      { pools: [{ tokenAddress: "0x00000000000000000000000000000000000000b1" }] },
+      {
+        entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+        pool: "0x00000000000000000000000000000000000000a1" as Address,
+        asset: "0x00000000000000000000000000000000000000b1" as Address,
+      },
+    );
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      aspHost: server.url,
+    };
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input, init) => {
+      const requestUrl =
+        input instanceof Request ? input.url : String(input);
+      if (!requestUrl.startsWith(server.url) || init?.method !== "POST") {
+        return originalFetch(input, init);
+      }
+
+      const body = JSON.parse(String(init.body)) as {
+        params?: Array<{ data?: string }>;
+      };
+      const data = String(body.params?.[0]?.data ?? "").toLowerCase();
+      if (data.startsWith("0xd6dbaf58")) assetConfigCalls++;
+      if (data.startsWith("0x33d09200")) scopeCalls++;
+      if (data.startsWith("0x95d89b41")) symbolCalls++;
+      if (data.startsWith("0x313ce567")) decimalsCalls++;
+      return originalFetch(input, init);
+    };
+
+    try {
+      const first = await listPools(chainConfig, server.url);
+      const second = await listPools(chainConfig, server.url);
+
+      expect(first).toHaveLength(1);
+      expect(second).toEqual(first);
+      expect(assetConfigCalls).toBe(1);
+      expect(scopeCalls).toBe(1);
+      expect(symbolCalls).toBe(1);
+      expect(decimalsCalls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   test("listKnownPoolsFromRegistry returns an empty list when the registry has no entries for the chain", async () => {

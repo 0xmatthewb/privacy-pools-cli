@@ -16,7 +16,11 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { CHAINS } from "../../src/config/chains.ts";
-import { resolvePool } from "../../src/services/pools.ts";
+import {
+  resetPoolsServiceCachesForTests,
+  resolvePool,
+} from "../../src/services/pools.ts";
+import { resetSdkServiceCachesForTests } from "../../src/services/sdk.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
 /* ------------------------------------------------------------------ */
@@ -108,6 +112,8 @@ describe("resolvePool malformed address rejection", () => {
   const toClose: Array<MockServer & { addressPathHit: () => boolean }> = [];
 
   afterEach(async () => {
+    resetSdkServiceCachesForTests();
+    resetPoolsServiceCachesForTests();
     while (toClose.length > 0) await toClose.pop()!.close();
   });
 

@@ -4,7 +4,11 @@ import type { ChainConfig, PoolStats } from "../types.js";
 import { NATIVE_ASSET_ADDRESS, KNOWN_POOLS } from "../config/chains.js";
 import { resolvePoolDeploymentBlock } from "../config/deployment-hints.js";
 import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
-import { getPublicClient } from "./sdk.js";
+import {
+  getPublicClient,
+  getReadOnlyRpcSession,
+  type ReadOnlyRpcSession,
+} from "./sdk.js";
 import { hasCustomRpcOverride } from "./config.js";
 import { CLIError, sanitizeEndpointForDisplay } from "../utils/errors.js";
 import {
@@ -25,6 +29,9 @@ const poolAbi = parseAbi([
 
 // Cache token metadata to avoid repeated on-chain calls
 const tokenCache = new Map<string, { symbol: string; decimals: number }>();
+const resolvedPoolCache = new Map<string, Promise<PoolStats>>();
+
+type ReadOnlyRunRead = ReadOnlyRpcSession["runRead"];
 
 function isRpcLikeError(error: unknown): boolean {
   if (error instanceof CLIError) {
@@ -171,7 +178,8 @@ function normalizeStatsEntries(
 
 export async function resolveTokenMetadata(
   publicClient: PublicClient,
-  assetAddress: Address
+  assetAddress: Address,
+  runRead?: ReadOnlyRunRead,
 ): Promise<{ symbol: string; decimals: number }> {
   const startedAt = runtimeStopwatch();
   const cacheKey = `${publicClient.chain?.id ?? 0}:${assetAddress.toLowerCase()}`;
@@ -203,20 +211,23 @@ export async function resolveTokenMetadata(
   }
 
   try {
-    const [symbol, decimals] = await Promise.all([
-      publicClient.readContract({
-        address: assetAddress,
-        abi: erc20Abi,
-        functionName: "symbol",
-      }),
-      publicClient.readContract({
-        address: assetAddress,
-        abi: erc20Abi,
-        functionName: "decimals",
-      }),
-    ]);
+    const read = runRead ?? ((_: string, loader: () => Promise<{ symbol: string; decimals: number }>) => loader());
+    const result = await read(`token-metadata:${cacheKey}`, async () => {
+      const [symbol, decimals] = await Promise.all([
+        publicClient.readContract({
+          address: assetAddress,
+          abi: erc20Abi,
+          functionName: "symbol",
+        }),
+        publicClient.readContract({
+          address: assetAddress,
+          abi: erc20Abi,
+          functionName: "decimals",
+        }),
+      ]);
 
-    const result = { symbol: symbol as string, decimals: decimals as number };
+      return { symbol: symbol as string, decimals: decimals as number };
+    });
     tokenCache.set(cacheKey, result);
     emitRuntimeDiagnostic("rpc-latency", {
       chainId: publicClient.chain?.id ?? 0,
@@ -246,7 +257,8 @@ export async function resolveTokenMetadata(
 async function getAssetConfigReadOnly(
   publicClient: PublicClient,
   entrypoint: Address,
-  assetAddress: Address
+  assetAddress: Address,
+  runRead?: ReadOnlyRunRead,
 ): Promise<{
   pool: Address;
   minimumDepositAmount: bigint;
@@ -255,12 +267,16 @@ async function getAssetConfigReadOnly(
 }> {
   const startedAt = runtimeStopwatch();
   try {
-    const result = await publicClient.readContract({
-      address: entrypoint,
-      abi: entrypointAbi,
-      functionName: "assetConfig",
-      args: [assetAddress],
-    });
+    const read = runRead ?? ((_: string, loader: () => Promise<unknown>) => loader());
+    const result = await read(
+      `asset-config:${publicClient.chain?.id ?? 0}:${entrypoint.toLowerCase()}:${assetAddress.toLowerCase()}`,
+      () => publicClient.readContract({
+        address: entrypoint,
+        abi: entrypointAbi,
+        functionName: "assetConfig",
+        args: [assetAddress],
+      }),
+    );
 
     emitRuntimeDiagnostic("rpc-latency", {
       chainId: publicClient.chain?.id ?? 0,
@@ -290,15 +306,20 @@ async function getAssetConfigReadOnly(
  */
 async function getScopeReadOnly(
   publicClient: PublicClient,
-  poolAddress: Address
+  poolAddress: Address,
+  runRead?: ReadOnlyRunRead,
 ): Promise<bigint> {
   const startedAt = runtimeStopwatch();
   try {
-    const scope = await publicClient.readContract({
-      address: poolAddress,
-      abi: poolAbi,
-      functionName: "SCOPE",
-    }) as bigint;
+    const read = runRead ?? ((_: string, loader: () => Promise<unknown>) => loader());
+    const scope = await read(
+      `pool-scope:${publicClient.chain?.id ?? 0}:${poolAddress.toLowerCase()}`,
+      () => publicClient.readContract({
+        address: poolAddress,
+        abi: poolAbi,
+        functionName: "SCOPE",
+      }),
+    ) as bigint;
     emitRuntimeDiagnostic("rpc-latency", {
       chainId: publicClient.chain?.id ?? 0,
       operation: "pool-scope",
@@ -332,12 +353,92 @@ async function resolveRuntimeDeploymentBlock(
   );
 }
 
+function resolvedPoolCacheKey(
+  chainId: number,
+  rpcUrl: string,
+  assetAddress: Address,
+): string {
+  return `${chainId}:${rpcUrl}:${assetAddress.toLowerCase()}`;
+}
+
+export function resetPoolsServiceCachesForTests(): void {
+  tokenCache.clear();
+  resolvedPoolCache.clear();
+}
+
+async function resolveReadOnlyPoolDescriptor(
+  chainConfig: ChainConfig,
+  rpcSession: ReadOnlyRpcSession,
+  assetAddress: Address,
+  rpcOverride?: string,
+): Promise<PoolStats> {
+  const cacheKey = resolvedPoolCacheKey(
+    chainConfig.id,
+    rpcSession.rpcUrl,
+    assetAddress,
+  );
+  const cached = resolvedPoolCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const poolPromise = (async () => {
+    const publicClient = rpcSession.publicClient;
+    const [assetConfig, tokenMeta] = await Promise.all([
+      getAssetConfigReadOnly(
+        publicClient,
+        chainConfig.entrypoint,
+        assetAddress,
+        rpcSession.runRead,
+      ),
+      resolveTokenMetadata(
+        publicClient,
+        assetAddress,
+        rpcSession.runRead,
+      ),
+    ]);
+    const [scope, deploymentBlock] = await Promise.all([
+      getScopeReadOnly(
+        publicClient,
+        assetConfig.pool,
+        rpcSession.runRead,
+      ),
+      resolveRuntimeDeploymentBlock(
+        chainConfig,
+        rpcOverride,
+        assetAddress,
+        assetConfig.pool,
+      ),
+    ]);
+
+    return {
+      asset: assetAddress,
+      pool: assetConfig.pool,
+      deploymentBlock,
+      scope,
+      symbol: tokenMeta.symbol,
+      decimals: tokenMeta.decimals,
+      minimumDepositAmount: assetConfig.minimumDepositAmount,
+      vettingFeeBPS: assetConfig.vettingFeeBPS,
+      maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
+    } satisfies PoolStats;
+  })();
+
+  resolvedPoolCache.set(cacheKey, poolPromise);
+  try {
+    return await poolPromise;
+  } catch (error) {
+    resolvedPoolCache.delete(cacheKey);
+    throw error;
+  }
+}
+
 export async function listPools(
   chainConfig: ChainConfig,
   rpcOverride?: string
 ): Promise<PoolStats[]> {
   const startedAt = runtimeStopwatch();
-  const publicClient = getPublicClient(chainConfig, rpcOverride);
+  const rpcSession = await getReadOnlyRpcSession(chainConfig, rpcOverride);
 
   let statsData: unknown;
   let aspUnreachable = false;
@@ -378,40 +479,16 @@ export async function listPools(
             entry as Record<string, unknown>
           );
           if (!assetAddress) return null;
-
-          // Fetch asset config and token metadata in parallel
-          const [assetConfig, tokenMeta] = await Promise.all([
-            getAssetConfigReadOnly(
-              publicClient,
-              chainConfig.entrypoint,
-              assetAddress
-            ),
-            resolveTokenMetadata(publicClient, assetAddress),
-          ]);
-
-          // Scope requires the pool address from assetConfig
-          const scope = await getScopeReadOnly(
-            publicClient,
-            assetConfig.pool
-          );
-          const deploymentBlock = await resolveRuntimeDeploymentBlock(
+          const pool = await resolveReadOnlyPoolDescriptor(
             chainConfig,
-            rpcOverride,
+            rpcSession,
             assetAddress,
-            assetConfig.pool,
+            rpcOverride,
           );
           const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
 
           return {
-            asset: assetAddress,
-            pool: assetConfig.pool,
-            deploymentBlock,
-            scope,
-            symbol: tokenMeta.symbol,
-            decimals: tokenMeta.decimals,
-            minimumDepositAmount: assetConfig.minimumDepositAmount,
-            vettingFeeBPS: assetConfig.vettingFeeBPS,
-            maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
+            ...pool,
             ...metrics,
           } satisfies PoolStats;
         } catch (error) {
@@ -467,41 +544,19 @@ export async function listPools(
 }
 
 async function resolveKnownPoolAddress(
-  publicClient: PublicClient,
+  rpcSession: ReadOnlyRpcSession,
   chainConfig: ChainConfig,
   knownAddress: Address,
   assetInput: string,
   rpcOverride?: string,
 ): Promise<PoolStats> {
   try {
-    const assetConfig = await getAssetConfigReadOnly(
-      publicClient,
-      chainConfig.entrypoint,
-      knownAddress
-    );
-    const scope = await getScopeReadOnly(publicClient, assetConfig.pool);
-    const { symbol, decimals } = await resolveTokenMetadata(
-      publicClient,
-      knownAddress
-    );
-    const deploymentBlock = await resolveRuntimeDeploymentBlock(
+    return await resolveReadOnlyPoolDescriptor(
       chainConfig,
-      rpcOverride,
+      rpcSession,
       knownAddress,
-      assetConfig.pool,
+      rpcOverride,
     );
-
-    return {
-      asset: knownAddress,
-      pool: assetConfig.pool,
-      deploymentBlock,
-      scope,
-      symbol,
-      decimals,
-      minimumDepositAmount: assetConfig.minimumDepositAmount,
-      vettingFeeBPS: assetConfig.vettingFeeBPS,
-      maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
-    };
   } catch {
     throw new CLIError(
       `Built-in pool fallback also failed for "${assetInput}" on ${chainConfig.name}.`,
@@ -514,7 +569,7 @@ async function resolveKnownPoolAddress(
 }
 
 async function resolveKnownPool(
-  publicClient: PublicClient,
+  rpcSession: ReadOnlyRpcSession,
   chainConfig: ChainConfig,
   normalizedSymbol: string,
   assetInput: string,
@@ -524,7 +579,7 @@ async function resolveKnownPool(
   if (!knownAddress) return null;
 
   return resolveKnownPoolAddress(
-    publicClient,
+    rpcSession,
     chainConfig,
     knownAddress,
     assetInput,
@@ -544,11 +599,11 @@ export async function listKnownPoolsFromRegistry(
   ) as Array<[string, Address]>;
   if (knownEntries.length === 0) return [];
 
-  const publicClient = getPublicClient(chainConfig, rpcOverride);
+  const rpcSession = await getReadOnlyRpcSession(chainConfig, rpcOverride);
   const pools = await Promise.all(
     knownEntries.map(([symbol, address]) =>
       resolveKnownPoolAddress(
-        publicClient,
+        rpcSession,
         chainConfig,
         address,
         symbol,
@@ -572,44 +627,20 @@ export async function resolvePool(
   rpcOverride?: string
 ): Promise<PoolStats> {
   const startedAt = runtimeStopwatch();
-  const publicClient = getPublicClient(chainConfig, rpcOverride);
+  const rpcSession = await getReadOnlyRpcSession(chainConfig, rpcOverride);
+  const publicClient = rpcSession.publicClient;
   const hasCustomRpc = hasCustomRpcOverride(chainConfig.id, rpcOverride);
 
   // If it looks like an address, validate on-chain directly
   if (/^0x[0-9a-fA-F]{40}$/.test(assetInput)) {
     const assetAddress = assetInput as Address;
     try {
-      const assetConfig = await getAssetConfigReadOnly(
-        publicClient,
-        chainConfig.entrypoint,
-        assetAddress
-      );
-      const scope = await getScopeReadOnly(
-        publicClient,
-        assetConfig.pool
-      );
-      const { symbol, decimals } = await resolveTokenMetadata(
-        publicClient,
-        assetAddress
-      );
-      const deploymentBlock = await resolveRuntimeDeploymentBlock(
+      return await resolveReadOnlyPoolDescriptor(
         chainConfig,
-        rpcOverride,
+        rpcSession,
         assetAddress,
-        assetConfig.pool,
+        rpcOverride,
       );
-
-      return {
-        asset: assetAddress,
-        pool: assetConfig.pool,
-        deploymentBlock,
-        scope,
-        symbol,
-        decimals,
-        minimumDepositAmount: assetConfig.minimumDepositAmount,
-        vettingFeeBPS: assetConfig.vettingFeeBPS,
-        maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
-      };
     } catch (error) {
       emitRuntimeDiagnostic("pool-resolution", {
         chain: chainConfig.name,
@@ -640,7 +671,7 @@ export async function resolvePool(
   const normalized = assetInput.toUpperCase();
   try {
     const knownPool = await resolveKnownPool(
-      publicClient,
+      rpcSession,
       chainConfig,
       normalized,
       assetInput,

@@ -4,7 +4,12 @@ import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { lookupPoolDeploymentBlock } from "../../src/config/deployment-hints.ts";
-import { resolvePool, resolveTokenMetadata } from "../../src/services/pools.ts";
+import {
+  resetPoolsServiceCachesForTests,
+  resolvePool,
+  resolveTokenMetadata,
+} from "../../src/services/pools.ts";
+import { resetSdkServiceCachesForTests } from "../../src/services/sdk.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
 /* ------------------------------------------------------------------ */
@@ -134,6 +139,8 @@ describe("resolvePool", () => {
   const toClose: MockServer[] = [];
 
   afterEach(async () => {
+    resetSdkServiceCachesForTests();
+    resetPoolsServiceCachesForTests();
     while (toClose.length > 0) await toClose.pop()!.close();
   });
 
@@ -335,6 +342,8 @@ describe("resolveTokenMetadata", () => {
   const toClose: MockServer[] = [];
 
   afterEach(async () => {
+    resetSdkServiceCachesForTests();
+    resetPoolsServiceCachesForTests();
     while (toClose.length > 0) await toClose.pop()!.close();
   });
 

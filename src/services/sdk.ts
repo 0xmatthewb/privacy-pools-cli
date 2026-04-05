@@ -11,6 +11,7 @@ import { withSuppressedSdkStdout } from "./account.js";
 
 const LOG_PROBE_ADDRESS = "0x0000000000000000000000000000000000000000";
 const LOG_PROBE_RANGE = 1_024n;
+const READ_ONLY_LATEST_BLOCK_TTL_MS = 1_000;
 
 const LOCAL_DEPOSIT_EVENT = parseAbiItem(
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)"
@@ -70,6 +71,7 @@ const DATA_SERVICE_LOG_FETCH_CONFIG = new Map<
 
 const healthyRpcUrlCache = new Map<string, Promise<string>>();
 const dataServiceCache = new Map<string, Promise<DataService>>();
+const readOnlyRpcSessionCache = new Map<string, Promise<ReadOnlyRpcSession>>();
 
 function normalizeRpcOverride(rpcOverride?: string): string {
   return rpcOverride?.trim() ?? "";
@@ -87,9 +89,36 @@ function dataServiceCacheKey(
   return `${chainId}:${rpcUrl}:${isLocalCompat ? "local" : "remote"}`;
 }
 
+function readOnlyRpcSessionCacheKey(chainId: number, rpcUrl: string): string {
+  return `${chainId}:${rpcUrl}`;
+}
+
+function createRpcClient(
+  chainConfig: ChainConfig,
+  rpcUrls: readonly string[],
+): PublicClient {
+  const timeoutMs = getNetworkTimeoutMs();
+  const transport =
+    rpcUrls.length === 1
+      ? http(rpcUrls[0], { timeout: timeoutMs })
+      : fallback(rpcUrls.map((url) => http(url, { timeout: timeoutMs })));
+  return createPublicClient({
+    chain: chainConfig.chain,
+    transport,
+  });
+}
+
+export interface ReadOnlyRpcSession {
+  rpcUrl: string;
+  publicClient: PublicClient;
+  runRead<T>(cacheKey: string, loader: () => Promise<T>): Promise<T>;
+  getLatestBlockNumber(): Promise<bigint>;
+}
+
 export function resetSdkServiceCachesForTests(): void {
   healthyRpcUrlCache.clear();
   dataServiceCache.clear();
+  readOnlyRpcSessionCache.clear();
 }
 
 export function getPublicClient(
@@ -97,15 +126,74 @@ export function getPublicClient(
   rpcOverride?: string
 ): PublicClient {
   const urls = getRpcUrls(chainConfig.id, rpcOverride);
-  const timeoutMs = getNetworkTimeoutMs();
-  const transport =
-    urls.length === 1
-      ? http(urls[0], { timeout: timeoutMs })
-      : fallback(urls.map((url) => http(url, { timeout: timeoutMs })));
-  return createPublicClient({
-    chain: chainConfig.chain,
-    transport,
+  return createRpcClient(chainConfig, urls);
+}
+
+export async function getReadOnlyRpcSession(
+  chainConfig: ChainConfig,
+  rpcOverride?: string,
+): Promise<ReadOnlyRpcSession> {
+  const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
+  const cacheKey = readOnlyRpcSessionCacheKey(chainConfig.id, rpcUrl);
+  const cached = readOnlyRpcSessionCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const sessionPromise = Promise.resolve().then(() => {
+    const publicClient = createRpcClient(chainConfig, [rpcUrl]);
+    const inflightReads = new Map<string, Promise<unknown>>();
+    let latestBlockCache:
+      | { promise: Promise<bigint>; expiresAt: number }
+      | null = null;
+
+    const runRead = <T>(cacheKey: string, loader: () => Promise<T>): Promise<T> => {
+      const cachedRead = inflightReads.get(cacheKey);
+      if (cachedRead) {
+        return cachedRead as Promise<T>;
+      }
+
+      const readPromise = loader().finally(() => {
+        inflightReads.delete(cacheKey);
+      });
+      inflightReads.set(cacheKey, readPromise as Promise<unknown>);
+      return readPromise;
+    };
+
+    const getLatestBlockNumber = (): Promise<bigint> => {
+      const now = Date.now();
+      if (latestBlockCache && latestBlockCache.expiresAt > now) {
+        return latestBlockCache.promise;
+      }
+
+      const promise = runRead("latest-block", () => publicClient.getBlockNumber());
+      latestBlockCache = {
+        promise,
+        expiresAt: now + READ_ONLY_LATEST_BLOCK_TTL_MS,
+      };
+      promise.catch(() => {
+        if (latestBlockCache?.promise === promise) {
+          latestBlockCache = null;
+        }
+      });
+      return promise;
+    };
+
+    return {
+      rpcUrl,
+      publicClient,
+      runRead,
+      getLatestBlockNumber,
+    } satisfies ReadOnlyRpcSession;
   });
+
+  readOnlyRpcSessionCache.set(cacheKey, sessionPromise);
+  try {
+    return await sessionPromise;
+  } catch (error) {
+    readOnlyRpcSessionCache.delete(cacheKey);
+    throw error;
+  }
 }
 
 /**
@@ -215,14 +303,37 @@ export function isLocalRpcUrl(url: string): boolean {
 }
 
 class LocalCompatDataService {
+  private latestBlockCache:
+    | { promise: Promise<bigint>; expiresAt: number }
+    | null = null;
+
   constructor(
     private readonly client: PublicClient,
-    private readonly chainConfig: ChainConfig
+    private readonly chainConfig: ChainConfig,
   ) {}
+
+  private getLatestBlockNumber(): Promise<bigint> {
+    const now = Date.now();
+    if (this.latestBlockCache && this.latestBlockCache.expiresAt > now) {
+      return this.latestBlockCache.promise;
+    }
+
+    const promise = this.client.getBlockNumber();
+    this.latestBlockCache = {
+      promise,
+      expiresAt: now + READ_ONLY_LATEST_BLOCK_TTL_MS,
+    };
+    promise.catch(() => {
+      if (this.latestBlockCache?.promise === promise) {
+        this.latestBlockCache = null;
+      }
+    });
+    return promise;
+  }
 
   private async resolveFromBlock(candidate?: bigint): Promise<bigint | null> {
     const requested = candidate ?? this.chainConfig.startBlock;
-    const latest = await this.client.getBlockNumber();
+    const latest = await this.getLatestBlockNumber();
     return requested > latest ? null : requested;
   }
 
@@ -372,12 +483,13 @@ export async function getDataService(
   if (cached) return cached;
 
   const dataServicePromise = useLocalCompat
-    ? Promise.resolve(
-        new LocalCompatDataService(
-          getPublicClient(chainConfig, rpcUrl),
-          chainConfig
-        ) as unknown as DataService
-      )
+    ? (async () => {
+        const rpcSession = await getReadOnlyRpcSession(chainConfig, rpcUrl);
+        return new LocalCompatDataService(
+          rpcSession.publicClient,
+          chainConfig,
+        ) as unknown as DataService;
+      })()
     : withSuppressedSdkStdout(async () =>
         new DataService(
           [

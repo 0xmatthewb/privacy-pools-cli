@@ -3,6 +3,7 @@ import {
   getPublicClient,
   getDataService,
   getHealthyRpcUrl,
+  getReadOnlyRpcSession,
   resetSdkServiceCachesForTests,
 } from "../../src/services/sdk.ts";
 import { CHAINS } from "../../src/config/chains.ts";
@@ -66,6 +67,45 @@ describe("sdk service", () => {
 
       const arbClient = getPublicClient(CHAINS.arbitrum);
       expect(arbClient.chain?.id).toBe(42161);
+    });
+  });
+
+  /* ---------------------------------------------------------------- */
+  /*  getReadOnlyRpcSession                                            */
+  /* ---------------------------------------------------------------- */
+
+  describe("getReadOnlyRpcSession", () => {
+    test("reuses a read-only session for the same chain and healthy rpc url", async () => {
+      const first = await getReadOnlyRpcSession(
+        CHAINS.mainnet,
+        "https://rpc.example.com",
+      );
+      const second = await getReadOnlyRpcSession(
+        CHAINS.mainnet,
+        "https://rpc.example.com",
+      );
+
+      expect(first).toBe(second);
+      expect(first.rpcUrl).toBe("https://rpc.example.com");
+      expect(first.publicClient.chain?.id).toBe(1);
+    });
+
+    test("dedupes latest block reads within the short-lived session window", async () => {
+      const session = await getReadOnlyRpcSession(
+        CHAINS.mainnet,
+        "https://rpc.example.com",
+      );
+      const getBlockNumberMock = mock(async () => 123n);
+      (session.publicClient as any).getBlockNumber = getBlockNumberMock;
+
+      const [first, second] = await Promise.all([
+        session.getLatestBlockNumber(),
+        session.getLatestBlockNumber(),
+      ]);
+
+      expect(first).toBe(123n);
+      expect(second).toBe(123n);
+      expect(getBlockNumberMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -457,6 +497,28 @@ describe("sdk service", () => {
       await expect((ds as any).getDeposits(poolInfo)).resolves.toEqual([]);
 
       expect(called).toBe(false);
+    });
+
+    test("local compatibility data service reuses the latest block height across adjacent reads", async () => {
+      const ds = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "http://127.0.0.1:8545",
+      );
+
+      const getBlockNumberMock = mock(async () => 1_000n);
+      (ds as any).client = {
+        getBlockNumber: getBlockNumberMock,
+        getLogs: async () => [],
+      };
+
+      await Promise.all([
+        (ds as any).getDeposits(poolInfo),
+        (ds as any).getWithdrawals(poolInfo),
+        (ds as any).getRagequits(poolInfo),
+      ]);
+
+      expect(getBlockNumberMock).toHaveBeenCalledTimes(1);
     });
 
     test("local compatibility data service accepts zero-valued uint256 event fields", async () => {

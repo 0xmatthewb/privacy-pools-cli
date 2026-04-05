@@ -4,7 +4,7 @@ import type { PoolAccount, RagequitEvent } from "@0xbow/privacy-pools-core-sdk";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
-import { getDataService } from "../services/sdk.js";
+import { getDataService, getReadOnlyRpcSession } from "../services/sdk.js";
 import {
   getStoredLegacyPoolAccounts,
   initializeAccountServiceWithState,
@@ -12,7 +12,6 @@ import {
 } from "../services/account.js";
 import { listPools } from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
-import { getPublicClient } from "../services/sdk.js";
 import { spinner, verbose } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, printError } from "../utils/errors.js";
@@ -472,8 +471,11 @@ export async function handleHistoryCommand(
     // Fetch current block for approximate relative timestamps (non-fatal).
     let currentBlock: bigint | null = null;
     try {
-      const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-      currentBlock = await publicClient.getBlockNumber();
+      const rpcSession = await getReadOnlyRpcSession(
+        chainConfig,
+        globalOpts?.rpcUrl,
+      );
+      currentBlock = await rpcSession.getLatestBlockNumber();
     } catch {
       /* non-fatal — fall back to block numbers */
     }

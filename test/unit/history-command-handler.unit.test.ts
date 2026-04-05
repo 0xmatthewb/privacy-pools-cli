@@ -94,8 +94,8 @@ const initializeAccountServiceWithStateMock = mock(async () => ({
   skipImmediateSync: false,
 }));
 const syncAccountEventsMock = mock(async () => false);
-const getPublicClientMock = mock(() => ({
-  getBlockNumber: async () => 250n,
+const getReadOnlyRpcSessionMock = mock(async () => ({
+  getLatestBlockNumber: async () => 250n,
 }));
 const renderHistoryMock = mock(() => undefined);
 const renderHistoryNoPoolsMock = mock(() => undefined);
@@ -123,7 +123,7 @@ async function loadHistoryCommand(): Promise<void> {
   mock.module("../../src/services/sdk.ts", () => ({
     ...realSdk,
     getDataService: getDataServiceMock,
-    getPublicClient: getPublicClientMock,
+    getReadOnlyRpcSession: getReadOnlyRpcSessionMock,
   }));
   mock.module("../../src/services/account.ts", () => ({
     ...realAccount,
@@ -157,7 +157,7 @@ beforeEach(async () => {
   getDataServiceMock.mockClear();
   initializeAccountServiceWithStateMock.mockClear();
   syncAccountEventsMock.mockClear();
-  getPublicClientMock.mockClear();
+  getReadOnlyRpcSessionMock.mockClear();
   renderHistoryMock.mockClear();
   renderHistoryNoPoolsMock.mockClear();
   printErrorMock.mockClear();
@@ -309,8 +309,8 @@ describe("history command handler", () => {
   });
 
   test("renders history even when the current block lookup fails", async () => {
-    getPublicClientMock.mockImplementationOnce(() => ({
-      getBlockNumber: async () => {
+    getReadOnlyRpcSessionMock.mockImplementationOnce(async () => ({
+      getLatestBlockNumber: async () => {
         throw new Error("rpc unavailable");
       },
     }));
