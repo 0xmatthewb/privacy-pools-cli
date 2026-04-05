@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
@@ -59,14 +59,22 @@ export function createSharedBuiltWorkspaceSnapshot(rootDir) {
 
 export function cleanupSharedBuiltWorkspaceSnapshot(snapshotRoot) {
   if (!snapshotRoot) return;
-  try {
-    rmSync(snapshotRoot, {
-      recursive: true,
-      force: true,
-      maxRetries: 3,
-      retryDelay: 50,
-    });
-  } catch {
-    // Best effort cleanup only.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      rmSync(snapshotRoot, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 100,
+      });
+    } catch {
+      // Retry a few times below before giving up.
+    }
+
+    if (!existsSync(snapshotRoot)) {
+      return;
+    }
   }
+
+  // Best effort cleanup only.
 }
