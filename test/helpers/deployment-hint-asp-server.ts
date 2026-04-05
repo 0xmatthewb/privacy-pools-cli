@@ -120,12 +120,23 @@ export function launchDeploymentHintAspServer(
       }),
     });
     const cleanupProcessExit = registerProcessExitCleanup(proc);
+    const cleanupStartupListeners = () => {
+      proc.stdout?.removeAllListeners("data");
+      proc.removeAllListeners("error");
+      proc.removeAllListeners("exit");
+    };
 
     let output = "";
     const timeout = setTimeout(() => {
       cleanupProcessExit();
-      proc.kill();
-      reject(new Error("Deployment-hint ASP server did not start within 10s"));
+      cleanupStartupListeners();
+      void terminateChildProcess(proc)
+        .catch(() => {
+          // Best effort teardown for timeout paths.
+        })
+        .finally(() => {
+          reject(new Error("Deployment-hint ASP server did not start within 10s"));
+        });
     }, 10_000);
 
     proc.stdout!.on("data", (chunk: Buffer) => {
@@ -133,8 +144,8 @@ export function launchDeploymentHintAspServer(
       const match = output.match(/DEPLOYMENT_HINT_ASP_PORT=(\d+)/);
       if (match) {
         clearTimeout(timeout);
+        cleanupStartupListeners();
         const port = Number(match[1]);
-        proc.stdout?.removeAllListeners("data");
         proc.stdout?.destroy();
         proc.unref();
         resolvePromise({
@@ -149,12 +160,14 @@ export function launchDeploymentHintAspServer(
     proc.on("error", (error) => {
       clearTimeout(timeout);
       cleanupProcessExit();
+      cleanupStartupListeners();
       reject(error);
     });
 
     proc.on("exit", (code) => {
       clearTimeout(timeout);
       cleanupProcessExit();
+      cleanupStartupListeners();
       reject(new Error(`Deployment-hint ASP server exited early with code ${code}`));
     });
   });
