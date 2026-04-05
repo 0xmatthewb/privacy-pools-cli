@@ -85,9 +85,12 @@ describe("lazy startup conformance", () => {
 
   test("full cli path keeps dotenv lazy", () => {
     const source = readSource("src/cli-main.ts");
+    const helperSource = readSource("src/runtime/cli-main-helpers.ts");
 
     expect(source).not.toContain('from "dotenv"');
-    expect(source).toContain('await import("dotenv")');
+    expect(source).toContain('./runtime/cli-main-helpers.js');
+    expect(helperSource).not.toContain('from "dotenv"');
+    expect(helperSource).toContain('await import("dotenv")');
   });
 
   test("static discovery stays on the generated discovery artifact", () => {
