@@ -21,6 +21,7 @@ export function createCoverageExcludedSources(rootDir) {
     normalizeCoveragePath(resolve(rootDir, "src/utils/command-manifest.ts")),
     normalizeCoveragePath(resolve(rootDir, "src/services/circuit-checksums.js")),
     normalizeCoveragePath(resolve(rootDir, "src/types.ts")),
+    normalizeCoveragePath(resolve(rootDir, "src/static-discovery/types.ts")),
   ]);
 }
 
@@ -40,6 +41,7 @@ export const COVERAGE_THRESHOLDS = [
       "src/index.ts",
       "src/cli-main.ts",
       "src/static-discovery.ts",
+      "src/static-discovery/",
     ],
   },
   {

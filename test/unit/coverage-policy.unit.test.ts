@@ -62,9 +62,29 @@ describe("coverage policy", () => {
     ).toBe(true);
     expect(
       excludedSources.has(
+        normalizeCoveragePath(
+          resolve(process.cwd(), "src/static-discovery/types.ts"),
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      excludedSources.has(
         normalizeCoveragePath(resolve(process.cwd(), "src/services/pools.ts")),
       ),
     ).toBe(false);
+  });
+
+  test("bootstrap threshold keeps static discovery helpers in the same bucket", () => {
+    const bootstrapThreshold = COVERAGE_THRESHOLDS.find(
+      (threshold) => threshold.label === "bootstrap",
+    );
+
+    expect(bootstrapThreshold).toMatchObject({
+      label: "bootstrap",
+      min: 85,
+    });
+    expect(bootstrapThreshold?.matchers).toContain("src/static-discovery.ts");
+    expect(bootstrapThreshold?.matchers).toContain("src/static-discovery/");
   });
 
   test("coverage evaluation flags uninstrumented executable files but ignores excluded artifacts", () => {
