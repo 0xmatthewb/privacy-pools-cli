@@ -36,6 +36,43 @@ const sepoliaChainConfig = CHAINS.sepolia;
 const opSepoliaChainConfig = CHAINS["op-sepolia"];
 const mockPoolAddress = "0x1234567890abcdef1234567890abcdef12345678" as const;
 const mockScope = 12345n;
+const chainPoolFixtures = new Map<number, {
+  poolAddress: `0x${string}`;
+  scope: bigint;
+  assetAddress?: `0x${string}`;
+  assetSymbol?: string;
+  assetDecimals?: number;
+}>([
+  [mainnetChainConfig.id, {
+    poolAddress: "0x1111111111111111111111111111111111111111",
+    scope: 12345n,
+  }],
+  [arbitrumChainConfig.id, {
+    poolAddress: "0x2222222222222222222222222222222222222222",
+    scope: 32345n,
+    assetAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    assetSymbol: "USDC",
+    assetDecimals: 6,
+  }],
+  [optimismChainConfig.id, {
+    poolAddress: "0x3333333333333333333333333333333333333333",
+    scope: 22345n,
+    assetAddress: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+    assetSymbol: "USDC",
+    assetDecimals: 6,
+  }],
+  [sepoliaChainConfig.id, {
+    poolAddress: mockPoolAddress,
+    scope: 12345n,
+  }],
+  [opSepoliaChainConfig.id, {
+    poolAddress: "0x4444444444444444444444444444444444444444",
+    scope: 42345n,
+    assetAddress: "0x4200000000000000000000000000000000000006",
+    assetSymbol: "WETH",
+    assetDecimals: 18,
+  }],
+]);
 
 let fixture: FixtureServer;
 let rpcServers: Record<string, SyncGateRpcServer>;
@@ -119,6 +156,7 @@ function seedDetailedCachedAccount(
 ): void {
   const accountsDir = join(home, ".privacy-pools", "accounts");
   mkdirSync(accountsDir, { recursive: true });
+  const scope = chainPoolFixtures.get(chainId)?.scope ?? mockScope;
 
   const approved = commitment(
     1n,
@@ -163,7 +201,7 @@ function seedDetailedCachedAccount(
       masterKeys: [1n, 2n],
       poolAccounts: new Map([
         [
-          mockScope,
+          scope,
           [
             { label: approved.label as any, deposit: approved, children: [] },
             { label: pending.label as any, deposit: pending, children: [] },
@@ -213,32 +251,27 @@ beforeAll(async () => {
     mainnet: await launchSyncGateRpcServer({
       chainId: mainnetChainConfig.id,
       entrypoint: mainnetChainConfig.entrypoint,
-      poolAddress: mockPoolAddress,
-      scope: mockScope,
+      ...chainPoolFixtures.get(mainnetChainConfig.id)!,
     }),
     arbitrum: await launchSyncGateRpcServer({
       chainId: arbitrumChainConfig.id,
       entrypoint: arbitrumChainConfig.entrypoint,
-      poolAddress: mockPoolAddress,
-      scope: mockScope,
+      ...chainPoolFixtures.get(arbitrumChainConfig.id)!,
     }),
     optimism: await launchSyncGateRpcServer({
       chainId: optimismChainConfig.id,
       entrypoint: optimismChainConfig.entrypoint,
-      poolAddress: mockPoolAddress,
-      scope: mockScope,
+      ...chainPoolFixtures.get(optimismChainConfig.id)!,
     }),
     sepolia: await launchSyncGateRpcServer({
       chainId: sepoliaChainConfig.id,
       entrypoint: sepoliaChainConfig.entrypoint,
-      poolAddress: mockPoolAddress,
-      scope: mockScope,
+      ...chainPoolFixtures.get(sepoliaChainConfig.id)!,
     }),
     "op-sepolia": await launchSyncGateRpcServer({
       chainId: opSepoliaChainConfig.id,
       entrypoint: opSepoliaChainConfig.entrypoint,
-      poolAddress: mockPoolAddress,
-      scope: mockScope,
+      ...chainPoolFixtures.get(opSepoliaChainConfig.id)!,
     }),
   };
 });
