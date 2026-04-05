@@ -6,6 +6,7 @@ export interface ChainConfig {
   name: string;
   chain: Chain;
   entrypoint: Address;
+  multicall3Address?: Address;
   startBlock: bigint;
   aspHost: string;
   relayerHost: string;

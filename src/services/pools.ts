@@ -30,8 +30,50 @@ const poolAbi = parseAbi([
 // Cache token metadata to avoid repeated on-chain calls
 const tokenCache = new Map<string, { symbol: string; decimals: number }>();
 const resolvedPoolCache = new Map<string, Promise<PoolStats>>();
+const disabledReadOnlyMulticallCache = new Set<string>();
 
 type ReadOnlyRunRead = ReadOnlyRpcSession["runRead"];
+type AssetConfigReadResult = {
+  pool: Address;
+  minimumDepositAmount: bigint;
+  vettingFeeBPS: bigint;
+  maxRelayFeeBPS: bigint;
+};
+type TokenMetadata = { symbol: string; decimals: number };
+
+function tokenCacheKey(chainId: number, assetAddress: Address): string {
+  return `${chainId}:${assetAddress.toLowerCase()}`;
+}
+
+function readOnlyMulticallCacheKey(chainId: number, rpcUrl: string): string {
+  return `${chainId}:${rpcUrl}`;
+}
+
+function isNativeAssetAddress(assetAddress: Address): boolean {
+  return assetAddress.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase();
+}
+
+function isReadOnlyMulticallEnabled(
+  chainConfig: ChainConfig,
+  rpcSession: ReadOnlyRpcSession,
+): boolean {
+  if (!chainConfig.multicall3Address) {
+    return false;
+  }
+
+  return !disabledReadOnlyMulticallCache.has(
+    readOnlyMulticallCacheKey(chainConfig.id, rpcSession.rpcUrl),
+  );
+}
+
+function disableReadOnlyMulticall(
+  chainConfig: ChainConfig,
+  rpcSession: ReadOnlyRpcSession,
+): void {
+  disabledReadOnlyMulticallCache.add(
+    readOnlyMulticallCacheKey(chainConfig.id, rpcSession.rpcUrl),
+  );
+}
 
 function isRpcLikeError(error: unknown): boolean {
   if (error instanceof CLIError) {
@@ -180,9 +222,9 @@ export async function resolveTokenMetadata(
   publicClient: PublicClient,
   assetAddress: Address,
   runRead?: ReadOnlyRunRead,
-): Promise<{ symbol: string; decimals: number }> {
+): Promise<TokenMetadata> {
   const startedAt = runtimeStopwatch();
-  const cacheKey = `${publicClient.chain?.id ?? 0}:${assetAddress.toLowerCase()}`;
+  const cacheKey = tokenCacheKey(publicClient.chain?.id ?? 0, assetAddress);
   const cached = tokenCache.get(cacheKey);
   if (cached) {
     emitRuntimeDiagnostic("rpc-latency", {
@@ -195,9 +237,7 @@ export async function resolveTokenMetadata(
     return cached;
   }
 
-  if (
-    assetAddress.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase()
-  ) {
+  if (isNativeAssetAddress(assetAddress)) {
     const result = { symbol: "ETH", decimals: 18 };
     tokenCache.set(cacheKey, result);
     emitRuntimeDiagnostic("rpc-latency", {
@@ -249,6 +289,90 @@ export async function resolveTokenMetadata(
     });
     return { symbol: "???", decimals: 18 };
   }
+}
+
+async function resolveReadOnlyPoolMetadataViaMulticall(
+  chainConfig: ChainConfig,
+  rpcSession: ReadOnlyRpcSession,
+  assetAddress: Address,
+): Promise<{
+  assetConfig: AssetConfigReadResult;
+  tokenMeta: TokenMetadata;
+}> {
+  const startedAt = runtimeStopwatch();
+  const publicClient = rpcSession.publicClient;
+  const usesNativeMetadata = isNativeAssetAddress(assetAddress);
+  const contracts: Array<{
+    address: Address;
+    abi: unknown;
+    functionName: string;
+    args?: readonly Address[];
+  }> = [
+    {
+      address: chainConfig.entrypoint,
+      abi: entrypointAbi,
+      functionName: "assetConfig",
+      args: [assetAddress],
+    },
+  ];
+
+  if (!usesNativeMetadata) {
+    contracts.push(
+      {
+        address: assetAddress,
+        abi: erc20Abi,
+        functionName: "symbol",
+      },
+      {
+        address: assetAddress,
+        abi: erc20Abi,
+        functionName: "decimals",
+      },
+    );
+  }
+
+  const results = await (publicClient as typeof publicClient & {
+    multicall(args: unknown): Promise<unknown[]>;
+  }).multicall({
+    allowFailure: false,
+    multicallAddress: chainConfig.multicall3Address,
+    contracts,
+  });
+
+  const [assetConfigResult, symbolResult, decimalsResult] = results;
+  const [pool, minimumDepositAmount, vettingFeeBPS, maxRelayFeeBPS] =
+    assetConfigResult as [Address, bigint, bigint, bigint];
+  const tokenMeta = usesNativeMetadata
+    ? { symbol: "ETH", decimals: 18 }
+    : {
+        symbol: symbolResult as string,
+        decimals:
+          typeof decimalsResult === "number"
+            ? decimalsResult
+            : Number(decimalsResult),
+      };
+
+  tokenCache.set(
+    tokenCacheKey(publicClient.chain?.id ?? 0, assetAddress),
+    tokenMeta,
+  );
+  emitRuntimeDiagnostic("rpc-latency", {
+    chainId: publicClient.chain?.id ?? 0,
+    operation: "pool-metadata-multicall",
+    asset: assetAddress,
+    elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+    outcome: "ok",
+  });
+
+  return {
+    assetConfig: {
+      pool,
+      minimumDepositAmount,
+      vettingFeeBPS,
+      maxRelayFeeBPS,
+    },
+    tokenMeta,
+  };
 }
 
 /**
@@ -364,6 +488,7 @@ function resolvedPoolCacheKey(
 export function resetPoolsServiceCachesForTests(): void {
   tokenCache.clear();
   resolvedPoolCache.clear();
+  disabledReadOnlyMulticallCache.clear();
 }
 
 async function resolveReadOnlyPoolDescriptor(
@@ -384,19 +509,56 @@ async function resolveReadOnlyPoolDescriptor(
 
   const poolPromise = (async () => {
     const publicClient = rpcSession.publicClient;
-    const [assetConfig, tokenMeta] = await Promise.all([
-      getAssetConfigReadOnly(
-        publicClient,
-        chainConfig.entrypoint,
-        assetAddress,
-        rpcSession.runRead,
-      ),
-      resolveTokenMetadata(
-        publicClient,
-        assetAddress,
-        rpcSession.runRead,
-      ),
-    ]);
+    let assetConfig: AssetConfigReadResult;
+    let tokenMeta: TokenMetadata;
+
+    if (isReadOnlyMulticallEnabled(chainConfig, rpcSession)) {
+      const multicallStartedAt = runtimeStopwatch();
+      try {
+        ({ assetConfig, tokenMeta } = await resolveReadOnlyPoolMetadataViaMulticall(
+          chainConfig,
+          rpcSession,
+          assetAddress,
+        ));
+      } catch (error) {
+        emitRuntimeDiagnostic("rpc-latency", {
+          chainId: publicClient.chain?.id ?? 0,
+          operation: "pool-metadata-multicall",
+          asset: assetAddress,
+          elapsedMs: elapsedRuntimeMs(multicallStartedAt).toFixed(2),
+          outcome: "fallback",
+          errorCategory: error instanceof CLIError ? error.category : undefined,
+        });
+        disableReadOnlyMulticall(chainConfig, rpcSession);
+        [assetConfig, tokenMeta] = await Promise.all([
+          getAssetConfigReadOnly(
+            publicClient,
+            chainConfig.entrypoint,
+            assetAddress,
+            rpcSession.runRead,
+          ),
+          resolveTokenMetadata(
+            publicClient,
+            assetAddress,
+            rpcSession.runRead,
+          ),
+        ]);
+      }
+    } else {
+      [assetConfig, tokenMeta] = await Promise.all([
+        getAssetConfigReadOnly(
+          publicClient,
+          chainConfig.entrypoint,
+          assetAddress,
+          rpcSession.runRead,
+        ),
+        resolveTokenMetadata(
+          publicClient,
+          assetAddress,
+          rpcSession.runRead,
+        ),
+      ]);
+    }
     const [scope, deploymentBlock] = await Promise.all([
       getScopeReadOnly(
         publicClient,

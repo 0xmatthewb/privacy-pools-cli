@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
@@ -10,7 +10,10 @@ import {
 import { lookupPoolDeploymentBlock } from "../../src/config/deployment-hints.ts";
 import { overrideAspRetryWaitForTests } from "../../src/services/asp.ts";
 import { DEFAULT_RPC_URLS } from "../../src/services/config.ts";
-import { resetSdkServiceCachesForTests } from "../../src/services/sdk.ts";
+import {
+  getReadOnlyRpcSession,
+  resetSdkServiceCachesForTests,
+} from "../../src/services/sdk.ts";
 import {
   listKnownPoolsFromRegistry,
   listPools,
@@ -495,6 +498,94 @@ describe("pools service", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  test("listPools uses multicall for supported read-only pool metadata", async () => {
+    const chainId = 313391;
+    const asset = "0x00000000000000000000000000000000000000b1" as Address;
+    const pool = "0x00000000000000000000000000000000000000a1" as Address;
+    const server = await startMockServer(chainId, {
+      pools: [{ tokenAddress: asset }],
+    });
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      multicall3Address: "0xca11bde05977b3631167028862be2a173976ca11" as Address,
+      aspHost: server.url,
+    };
+
+    const rpcSession = await getReadOnlyRpcSession(chainConfig, server.url);
+    const multicallMock = mock(async () => [
+      [pool, 1000000000000000n, 50n, 250n],
+      "ETHX",
+      18,
+    ]);
+    const readContractMock = mock(async ({ functionName }: { functionName: string }) => {
+      if (functionName === "SCOPE") {
+        return 123456789n;
+      }
+
+      throw new Error(`unexpected direct read ${functionName}`);
+    });
+    (rpcSession.publicClient as any).multicall = multicallMock;
+    (rpcSession.publicClient as any).readContract = readContractMock;
+
+    const pools = await listPools(chainConfig, server.url);
+
+    expect(pools).toHaveLength(1);
+    expect(pools[0]?.pool).toBe(pool);
+    expect(pools[0]?.symbol).toBe("ETHX");
+    expect(multicallMock).toHaveBeenCalledTimes(1);
+    expect(readContractMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("listPools falls back to direct reads when multicall fails", async () => {
+    const chainId = 313392;
+    const asset = "0x00000000000000000000000000000000000000b1" as Address;
+    const pool = "0x00000000000000000000000000000000000000a1" as Address;
+    const server = await startMockServer(chainId, {
+      pools: [{ tokenAddress: asset }],
+    });
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      multicall3Address: "0xca11bde05977b3631167028862be2a173976ca11" as Address,
+      aspHost: server.url,
+    };
+
+    const rpcSession = await getReadOnlyRpcSession(chainConfig, server.url);
+    const multicallMock = mock(async () => {
+      throw new Error("multicall unavailable");
+    });
+    const readContractMock = mock(async ({ functionName }: { functionName: string }) => {
+      switch (functionName) {
+        case "assetConfig":
+          return [pool, 1000000000000000n, 50n, 250n];
+        case "symbol":
+          return "ETHX";
+        case "decimals":
+          return 18;
+        case "SCOPE":
+          return 123456789n;
+        default:
+          throw new Error(`unexpected direct read ${functionName}`);
+      }
+    });
+    (rpcSession.publicClient as any).multicall = multicallMock;
+    (rpcSession.publicClient as any).readContract = readContractMock;
+
+    const pools = await listPools(chainConfig, server.url);
+
+    expect(pools).toHaveLength(1);
+    expect(pools[0]?.pool).toBe(pool);
+    expect(multicallMock).toHaveBeenCalledTimes(1);
+    expect(readContractMock).toHaveBeenCalledTimes(4);
   });
 
   test("listKnownPoolsFromRegistry returns an empty list when the registry has no entries for the chain", async () => {
