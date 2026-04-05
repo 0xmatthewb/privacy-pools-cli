@@ -88,5 +88,6 @@ If you want to compare a different ref, pass `--base <ref>` such as `HEAD~1`,
 `origin/main`, or a release tag.
 
 For local route diagnostics while profiling, set `PRIVACY_POOLS_DEBUG_RUNTIME=1`.
-That opt-in mode writes route-planning, launcher completion timing, and native
-resolution cache events to stderr without changing normal CLI output by default.
+That opt-in mode writes route-planning, launcher completion timing, native
+resolution cache events, ASP request latency, RPC read latency, and pool
+resolution timing to stderr without changing normal CLI output by default.

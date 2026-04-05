@@ -7,6 +7,11 @@ import { fetchPoolsStats, type PoolStatsEntry } from "./asp.js";
 import { getPublicClient } from "./sdk.js";
 import { hasCustomRpcOverride } from "./config.js";
 import { CLIError, sanitizeEndpointForDisplay } from "../utils/errors.js";
+import {
+  elapsedRuntimeMs,
+  emitRuntimeDiagnostic,
+  runtimeStopwatch,
+} from "../runtime/diagnostics.js";
 
 // Entrypoint ABI fragment for read-only calls
 const entrypointAbi = parseAbi([
@@ -168,15 +173,32 @@ export async function resolveTokenMetadata(
   publicClient: PublicClient,
   assetAddress: Address
 ): Promise<{ symbol: string; decimals: number }> {
+  const startedAt = runtimeStopwatch();
   const cacheKey = `${publicClient.chain?.id ?? 0}:${assetAddress.toLowerCase()}`;
   const cached = tokenCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    emitRuntimeDiagnostic("rpc-latency", {
+      chainId: publicClient.chain?.id ?? 0,
+      operation: "token-metadata-cache",
+      asset: assetAddress,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "cache-hit",
+    });
+    return cached;
+  }
 
   if (
     assetAddress.toLowerCase() === NATIVE_ASSET_ADDRESS.toLowerCase()
   ) {
     const result = { symbol: "ETH", decimals: 18 };
     tokenCache.set(cacheKey, result);
+    emitRuntimeDiagnostic("rpc-latency", {
+      chainId: publicClient.chain?.id ?? 0,
+      operation: "token-metadata-native",
+      asset: assetAddress,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "ok",
+    });
     return result;
   }
 
@@ -196,10 +218,24 @@ export async function resolveTokenMetadata(
 
     const result = { symbol: symbol as string, decimals: decimals as number };
     tokenCache.set(cacheKey, result);
+    emitRuntimeDiagnostic("rpc-latency", {
+      chainId: publicClient.chain?.id ?? 0,
+      operation: "token-metadata",
+      asset: assetAddress,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "ok",
+    });
     return result;
   } catch {
     // Fallback is intentionally not cached so transient RPC failures
     // or partial test doubles do not poison later successful reads.
+    emitRuntimeDiagnostic("rpc-latency", {
+      chainId: publicClient.chain?.id ?? 0,
+      operation: "token-metadata",
+      asset: assetAddress,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "fallback",
+    });
     return { symbol: "???", decimals: 18 };
   }
 }
@@ -217,15 +253,36 @@ async function getAssetConfigReadOnly(
   vettingFeeBPS: bigint;
   maxRelayFeeBPS: bigint;
 }> {
-  const result = await publicClient.readContract({
-    address: entrypoint,
-    abi: entrypointAbi,
-    functionName: "assetConfig",
-    args: [assetAddress],
-  });
+  const startedAt = runtimeStopwatch();
+  try {
+    const result = await publicClient.readContract({
+      address: entrypoint,
+      abi: entrypointAbi,
+      functionName: "assetConfig",
+      args: [assetAddress],
+    });
 
-  const [pool, minimumDepositAmount, vettingFeeBPS, maxRelayFeeBPS] = result as [Address, bigint, bigint, bigint];
-  return { pool, minimumDepositAmount, vettingFeeBPS, maxRelayFeeBPS };
+    emitRuntimeDiagnostic("rpc-latency", {
+      chainId: publicClient.chain?.id ?? 0,
+      operation: "asset-config",
+      asset: assetAddress,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "ok",
+    });
+
+    const [pool, minimumDepositAmount, vettingFeeBPS, maxRelayFeeBPS] = result as [Address, bigint, bigint, bigint];
+    return { pool, minimumDepositAmount, vettingFeeBPS, maxRelayFeeBPS };
+  } catch (error) {
+    emitRuntimeDiagnostic("rpc-latency", {
+      chainId: publicClient.chain?.id ?? 0,
+      operation: "asset-config",
+      asset: assetAddress,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "error",
+      errorCategory: error instanceof CLIError ? error.category : undefined,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -235,11 +292,32 @@ async function getScopeReadOnly(
   publicClient: PublicClient,
   poolAddress: Address
 ): Promise<bigint> {
-  return publicClient.readContract({
-    address: poolAddress,
-    abi: poolAbi,
-    functionName: "SCOPE",
-  }) as Promise<bigint>;
+  const startedAt = runtimeStopwatch();
+  try {
+    const scope = await publicClient.readContract({
+      address: poolAddress,
+      abi: poolAbi,
+      functionName: "SCOPE",
+    }) as bigint;
+    emitRuntimeDiagnostic("rpc-latency", {
+      chainId: publicClient.chain?.id ?? 0,
+      operation: "pool-scope",
+      pool: poolAddress,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "ok",
+    });
+    return scope;
+  } catch (error) {
+    emitRuntimeDiagnostic("rpc-latency", {
+      chainId: publicClient.chain?.id ?? 0,
+      operation: "pool-scope",
+      pool: poolAddress,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "error",
+      errorCategory: error instanceof CLIError ? error.category : undefined,
+    });
+    throw error;
+  }
 }
 
 async function resolveRuntimeDeploymentBlock(
@@ -258,6 +336,7 @@ export async function listPools(
   chainConfig: ChainConfig,
   rpcOverride?: string
 ): Promise<PoolStats[]> {
+  const startedAt = runtimeStopwatch();
   const publicClient = getPublicClient(chainConfig, rpcOverride);
 
   let statsData: unknown;
@@ -274,6 +353,14 @@ export async function listPools(
   const pools: PoolStats[] = [];
 
   if (aspUnreachable && statsEntries.length === 0) {
+    emitRuntimeDiagnostic("pool-resolution", {
+      chain: chainConfig.name,
+      operation: "list",
+      aspEntries: 0,
+      resolvedPools: 0,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "asp-unreachable",
+    });
     throw new CLIError(
       `Cannot reach ASP (${sanitizeEndpointForDisplay(chainConfig.aspHost)}) to discover pools.`,
       "ASP",
@@ -348,6 +435,15 @@ export async function listPools(
     }
 
     if (pools.length === 0 && rpcReadFailures > 0) {
+      emitRuntimeDiagnostic("pool-resolution", {
+        chain: chainConfig.name,
+        operation: "list",
+        aspEntries: statsEntries.length,
+        resolvedPools: 0,
+        rpcReadFailures,
+        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+        outcome: "rpc-error",
+      });
       throw new CLIError(
         `Failed to resolve pools on ${chainConfig.name} due to RPC errors.`,
         "RPC",
@@ -357,6 +453,15 @@ export async function listPools(
       );
     }
   }
+
+  emitRuntimeDiagnostic("pool-resolution", {
+    chain: chainConfig.name,
+    operation: "list",
+    aspEntries: statsEntries.length,
+    resolvedPools: pools.length,
+    elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+    outcome: aspUnreachable ? "fallback" : "ok",
+  });
 
   return pools;
 }
@@ -466,6 +571,7 @@ export async function resolvePool(
   assetInput: string,
   rpcOverride?: string
 ): Promise<PoolStats> {
+  const startedAt = runtimeStopwatch();
   const publicClient = getPublicClient(chainConfig, rpcOverride);
   const hasCustomRpc = hasCustomRpcOverride(chainConfig.id, rpcOverride);
 
@@ -505,6 +611,14 @@ export async function resolvePool(
         maxRelayFeeBPS: assetConfig.maxRelayFeeBPS,
       };
     } catch (error) {
+      emitRuntimeDiagnostic("pool-resolution", {
+        chain: chainConfig.name,
+        operation: "resolve",
+        mode: "address",
+        asset: assetInput,
+        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+        outcome: isRpcLikeError(error) ? "rpc-error" : "input-error",
+      });
       if (isRpcLikeError(error)) {
         throw new CLIError(
           `Failed to resolve pool for ${assetInput} on ${chainConfig.name} due to RPC error.`,
@@ -533,9 +647,26 @@ export async function resolvePool(
       rpcOverride,
     );
     if (knownPool) {
+      emitRuntimeDiagnostic("pool-resolution", {
+        chain: chainConfig.name,
+        operation: "resolve",
+        mode: "known-pool",
+        asset: assetInput,
+        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+        outcome: "ok",
+      });
       return knownPool;
     }
   } catch (error) {
+    emitRuntimeDiagnostic("pool-resolution", {
+      chain: chainConfig.name,
+      operation: "resolve",
+      mode: "known-pool",
+      asset: assetInput,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "error",
+      errorCategory: error instanceof CLIError ? error.category : undefined,
+    });
     if (!hasCustomRpc) {
       throw error;
     }
@@ -548,11 +679,30 @@ export async function resolvePool(
     const pools = await listPools(chainConfig, rpcOverride);
     const match = pools.find((p) => p.symbol.toUpperCase() === normalized);
 
-    if (match) return match;
+    if (match) {
+      emitRuntimeDiagnostic("pool-resolution", {
+        chain: chainConfig.name,
+        operation: "resolve",
+        mode: "asp-list",
+        asset: assetInput,
+        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+        outcome: "ok",
+      });
+      return match;
+    }
     availableAssetsHint = pools.map((p) => p.symbol).join(", ");
   } catch (error) {
     // Re-throw non-ASP errors (e.g. INPUT errors from the block above).
     if (error instanceof CLIError && error.category !== "ASP") {
+      emitRuntimeDiagnostic("pool-resolution", {
+        chain: chainConfig.name,
+        operation: "resolve",
+        mode: "asp-list",
+        asset: assetInput,
+        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+        outcome: "error",
+        errorCategory: error.category,
+      });
       throw error;
     }
     // ASP unavailable — fall through to hardcoded fallback.
@@ -563,6 +713,14 @@ export async function resolvePool(
   // verify on-chain. This keeps asset-specific commands working when
   // public pool discovery is incomplete or temporarily unavailable.
   if (!aspLookupFailed) {
+    emitRuntimeDiagnostic("pool-resolution", {
+      chain: chainConfig.name,
+      operation: "resolve",
+      mode: "asp-list",
+      asset: assetInput,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "not-found",
+    });
     throw new CLIError(
       `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
       "INPUT",
@@ -572,6 +730,14 @@ export async function resolvePool(
     );
   }
 
+  emitRuntimeDiagnostic("pool-resolution", {
+    chain: chainConfig.name,
+    operation: "resolve",
+    mode: "asp-list",
+    asset: assetInput,
+    elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+    outcome: "asp-unreachable",
+  });
   throw new CLIError(
     `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
     "INPUT",
