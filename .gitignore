@@ -9,7 +9,11 @@ coverage-tmp/
 
 # Privacy Pools local secrets/state (if user points PRIVACY_POOLS_HOME into repo)
 .privacy-pools/
+!test/fixtures/bench-homes/**/.privacy-pools/
+!test/fixtures/bench-homes/**/.privacy-pools/**
 privacy-pools-recovery.txt
 .mnemonic
 .signer
+!test/fixtures/bench-homes/**/.privacy-pools/.mnemonic
+!test/fixtures/bench-homes/**/.privacy-pools/.signer
 native/shell/target/

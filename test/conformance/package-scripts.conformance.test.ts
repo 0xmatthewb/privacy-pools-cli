@@ -128,6 +128,9 @@ describe("package scripts conformance", () => {
     expect(packageJson.scripts?.["bench:gate:release"]).toBe(
       "node scripts/bench-cli.mjs --base v1.7.0 --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
     );
+    expect(packageJson.scripts?.["bench:gate:readonly"]).toBe(
+      "node scripts/bench-cli.mjs --base self --matrix readonly --runtime launcher-binary-override --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
+    );
     expect(packageJson.scripts?.["test:stress"]).toBe("node scripts/run-stress.mjs");
   });
 

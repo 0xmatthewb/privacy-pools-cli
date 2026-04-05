@@ -39,5 +39,19 @@
     "stats pool --agent --chain sepolia --asset ETH": {
       "minImprovementPct": 25
     }
+  },
+  "launcher-binary-override": {
+    "accounts --agent --chain sepolia --no-sync --summary": {
+      "maxMedianMs": 1500
+    },
+    "accounts --agent --chain sepolia --no-sync --pending-only": {
+      "maxMedianMs": 1400
+    },
+    "history --agent --chain sepolia --no-sync": {
+      "maxMedianMs": 1400
+    },
+    "migrate status --agent --chain mainnet": {
+      "maxMedianMs": 900
+    }
   }
 }

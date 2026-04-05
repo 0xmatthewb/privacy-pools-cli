@@ -83,6 +83,7 @@ describe("test profiles", () => {
       hasStep(release, "node", ["scripts/run-anvil-smoke.mjs", "--installed-only"]),
     ).toBe(true);
     expect(hasStep(release, "npm", ["run", "bench:gate:release"])).toBe(true);
+    expect(hasStep(release, "npm", ["run", "bench:gate:readonly"])).toBe(true);
     expect(hasStep(release, "npm", ["run", "test:smoke:native:shell"])).toBe(
       true,
     );

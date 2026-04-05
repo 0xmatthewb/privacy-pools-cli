@@ -35,7 +35,10 @@ export const TEST_PROFILE_FRAGMENTS = {
   ]],
   "anvil-full": [["npm", ["run", "test:e2e:anvil"]]],
   evals: [["npm", ["run", "test:evals"]]],
-  "release-bench": [["npm", ["run", "bench:gate:release"]]],
+  "release-bench": [
+    ["npm", ["run", "bench:gate:release"]],
+    ["npm", ["run", "bench:gate:readonly"]],
+  ],
 };
 
 function composeProfile(...fragmentNames) {

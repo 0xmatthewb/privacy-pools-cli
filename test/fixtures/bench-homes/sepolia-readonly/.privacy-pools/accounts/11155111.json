@@ -1,0 +1,215 @@
+{
+  "__privacyPoolsCliAccountVersion": 3,
+  "masterKeys": [
+    {
+      "__type": "bigint",
+      "value": "1"
+    },
+    {
+      "__type": "bigint",
+      "value": "2"
+    }
+  ],
+  "poolAccounts": {
+    "__type": "map",
+    "value": [
+      [
+        {
+          "__type": "bigint",
+          "value": "12345"
+        },
+        [
+          {
+            "label": {
+              "__type": "bigint",
+              "value": "1"
+            },
+            "deposit": {
+              "label": {
+                "__type": "bigint",
+                "value": "1"
+              },
+              "hash": {
+                "__type": "bigint",
+                "value": "11"
+              },
+              "value": {
+                "__type": "bigint",
+                "value": "1000000000000000000"
+              },
+              "blockNumber": {
+                "__type": "bigint",
+                "value": "10"
+              },
+              "txHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "nullifier": {
+                "__type": "bigint",
+                "value": "1001"
+              },
+              "secret": {
+                "__type": "bigint",
+                "value": "2001"
+              }
+            },
+            "children": []
+          },
+          {
+            "label": {
+              "__type": "bigint",
+              "value": "2"
+            },
+            "deposit": {
+              "label": {
+                "__type": "bigint",
+                "value": "2"
+              },
+              "hash": {
+                "__type": "bigint",
+                "value": "22"
+              },
+              "value": {
+                "__type": "bigint",
+                "value": "2000000000000000000"
+              },
+              "blockNumber": {
+                "__type": "bigint",
+                "value": "20"
+              },
+              "txHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+              "nullifier": {
+                "__type": "bigint",
+                "value": "1002"
+              },
+              "secret": {
+                "__type": "bigint",
+                "value": "2002"
+              }
+            },
+            "children": []
+          },
+          {
+            "label": {
+              "__type": "bigint",
+              "value": "3"
+            },
+            "deposit": {
+              "label": {
+                "__type": "bigint",
+                "value": "3"
+              },
+              "hash": {
+                "__type": "bigint",
+                "value": "33"
+              },
+              "value": {
+                "__type": "bigint",
+                "value": "5000000000000000000"
+              },
+              "blockNumber": {
+                "__type": "bigint",
+                "value": "30"
+              },
+              "txHash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+              "nullifier": {
+                "__type": "bigint",
+                "value": "1003"
+              },
+              "secret": {
+                "__type": "bigint",
+                "value": "2003"
+              }
+            },
+            "children": [
+              {
+                "label": {
+                  "__type": "bigint",
+                  "value": "3"
+                },
+                "hash": {
+                  "__type": "bigint",
+                  "value": "333"
+                },
+                "value": {
+                  "__type": "bigint",
+                  "value": "0"
+                },
+                "blockNumber": {
+                  "__type": "bigint",
+                  "value": "31"
+                },
+                "txHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "nullifier": {
+                  "__type": "bigint",
+                  "value": "1003"
+                },
+                "secret": {
+                  "__type": "bigint",
+                  "value": "2003"
+                }
+              }
+            ]
+          },
+          {
+            "label": {
+              "__type": "bigint",
+              "value": "4"
+            },
+            "deposit": {
+              "label": {
+                "__type": "bigint",
+                "value": "4"
+              },
+              "hash": {
+                "__type": "bigint",
+                "value": "44"
+              },
+              "value": {
+                "__type": "bigint",
+                "value": "4000000000000000000"
+              },
+              "blockNumber": {
+                "__type": "bigint",
+                "value": "40"
+              },
+              "txHash": "0x4444444444444444444444444444444444444444444444444444444444444444",
+              "nullifier": {
+                "__type": "bigint",
+                "value": "1004"
+              },
+              "secret": {
+                "__type": "bigint",
+                "value": "2004"
+              }
+            },
+            "children": [],
+            "ragequit": {
+              "ragequitter": "0x1111111111111111111111111111111111111111",
+              "commitment": {
+                "__type": "bigint",
+                "value": "44"
+              },
+              "label": {
+                "__type": "bigint",
+                "value": "4"
+              },
+              "value": {
+                "__type": "bigint",
+                "value": "4000000000000000000"
+              },
+              "blockNumber": {
+                "__type": "bigint",
+                "value": "444"
+              },
+              "transactionHash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+          }
+        ]
+      ]
+    ]
+  },
+  "__legacyPoolAccounts": {
+    "__type": "map",
+    "value": []
+  },
+  "__legacyMigrationReadinessStatus": "no_legacy"
+}
