@@ -1,5 +1,5 @@
+use crate::contract::Manifest;
 use crate::root_argv::{all_non_option_tokens, ParsedRootArgv};
-use crate::Manifest;
 
 #[derive(Debug, Clone)]
 pub(crate) struct NativeMode {

@@ -1,15 +1,14 @@
+use crate::commands::pools::{default_read_only_chains, resolve_pool_native};
 use crate::config::{load_config, resolve_chain};
 use crate::contract::Manifest;
 use crate::error::CliError;
 use crate::output::{
     format_count_number, print_csv, print_json_success, print_table, write_stderr_text,
 };
+use crate::parse_timeout_ms;
+use crate::read_only_api::{fetch_global_statistics, fetch_pool_statistics};
 use crate::root_argv::{has_short_flag, read_long_option_value, ParsedRootArgv};
 use crate::routing::{resolve_mode, NativeMode};
-use crate::{
-    default_read_only_chains, fetch_global_statistics, fetch_pool_statistics, parse_timeout_ms,
-    resolve_pool_native,
-};
 use serde_json::{json, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
