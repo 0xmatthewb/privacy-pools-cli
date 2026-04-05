@@ -339,6 +339,35 @@ export function registerWithdrawInteractiveAssetSelectionTests(): void {
     expect(stderr).toContain("Selected PA-1");
   });
 
+  test("interactive asset selection re-resolves the chosen pool before quoting", async () => {
+    useIsolatedHome({ withSigner: true });
+    listPoolsMock.mockImplementationOnce(async () => [
+      {
+        ...USDC_POOL,
+        asset: "0x9999999999999999999999999999999999999999",
+      },
+    ]);
+    resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
+    selectPromptMock.mockImplementationOnce(async () => "USDC");
+
+    await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "100",
+        undefined,
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(resolvePoolMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "mainnet", id: 1 }),
+      "USDC",
+      undefined,
+    );
+  });
+
 }
 export function registerWithdrawInteractiveCompletionTests(): void {
   test("warns human relayed withdrawals when the remainder falls below the relayer minimum", async () => {

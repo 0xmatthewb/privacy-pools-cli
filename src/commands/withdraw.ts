@@ -481,7 +481,11 @@ export async function handleWithdrawCommand(
           value: p.symbol,
         })),
       });
-      pool = pools.find((p) => p.symbol === selected)!;
+      pool = await resolvePool(
+        chainConfig,
+        selected,
+        globalOpts?.rpcUrl,
+      );
     } else {
       throw new CLIError(
         "No asset specified. Use --asset <symbol|address>.",

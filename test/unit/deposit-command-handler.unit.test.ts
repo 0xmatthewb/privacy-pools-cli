@@ -320,6 +320,7 @@ describe("deposit command handler", () => {
   test("lets humans pick an asset interactively when none is provided", async () => {
     useIsolatedHome({ withSigner: true });
     selectPromptMock.mockImplementation(async () => "USDC");
+    resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
 
     const { stderr } = await captureAsyncOutput(() =>
       handleDepositCommand(
@@ -334,6 +335,35 @@ describe("deposit command handler", () => {
     expect(approveERC20Mock).toHaveBeenCalledTimes(1);
     expect(depositERC20Mock).toHaveBeenCalledTimes(1);
     expectStderrOnlyContains({ stdout: "", stderr }, ["Deposit confirmed"]);
+  });
+
+  test("interactive asset selection re-resolves the chosen pool before deposit validation", async () => {
+    useIsolatedHome({ withSigner: true });
+    listPoolsMock.mockImplementation(async () => [
+      {
+        ...USDC_POOL,
+        minimumDepositAmount: 2_000_000n,
+      },
+    ]);
+    resolvePoolMock.mockImplementation(async () => USDC_POOL);
+    selectPromptMock.mockImplementation(async () => "USDC");
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleDepositCommand(
+        "1",
+        undefined,
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(resolvePoolMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "mainnet", id: 1 }),
+      "USDC",
+      undefined,
+    );
+    expect(depositERC20Mock).toHaveBeenCalledTimes(1);
+    expect(stderr).toContain("Deposit confirmed");
   });
 
   test("fails cleanly for humans when no pools are available to choose from", async () => {

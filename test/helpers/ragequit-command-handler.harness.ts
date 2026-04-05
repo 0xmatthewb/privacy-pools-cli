@@ -963,6 +963,34 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(stderr).toContain("Ragequit confirmed");
   });
 
+  test("interactive asset selection re-resolves the chosen pool before ragequit execution", async () => {
+    useIsolatedHome({ withSigner: true });
+    listPoolsMock.mockImplementation(async () => [
+      {
+        ...ETH_POOL,
+        pool: "0x9999999999999999999999999999999999999999",
+      },
+    ]);
+    resolvePoolMock.mockImplementationOnce(async () => ETH_POOL);
+    selectPromptMock.mockImplementationOnce(async () => "ETH");
+    selectPromptMock.mockImplementationOnce(async () => 1);
+
+    await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        undefined,
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(resolvePoolMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "mainnet", id: 1 }),
+      "ETH",
+      undefined,
+    );
+    expect(ragequitMock).toHaveBeenCalledTimes(1);
+  });
+
   test("fails cleanly for humans when no pools are available to choose from", async () => {
     useIsolatedHome({ withSigner: true });
     listPoolsMock.mockImplementation(async () => []);

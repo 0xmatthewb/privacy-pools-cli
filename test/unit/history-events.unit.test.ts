@@ -183,7 +183,7 @@ describe("history event extraction", () => {
     expect(withdrawals[0].value).toBe(0n);
   });
 
-  test("safe-only fallback suppresses synthetic migrated bookkeeping when legacy history is unavailable", () => {
+  test("safe-only history keeps synthetic migrated bookkeeping without legacy dedupe context", () => {
     const depositTxHash =
       "0x4444444444444444444444444444444444444444444444444444444444444444";
     const deposit = makeDeposit({
@@ -204,7 +204,20 @@ describe("history event extraction", () => {
 
     const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
 
-    expect(events).toEqual([]);
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "deposit",
+        value: 100n,
+        blockNumber: 20n,
+        txHash: depositTxHash,
+      }),
+      expect.objectContaining({
+        type: "withdrawal",
+        value: 0n,
+        blockNumber: 20n,
+        txHash: depositTxHash,
+      }),
+    ]);
   });
 
   test("merged history prefers legacy migration events and suppresses the safe-side duplicate", () => {
@@ -273,7 +286,7 @@ describe("history event extraction", () => {
     ]);
   });
 
-  test("migration children do not surface as user withdrawal history events", () => {
+  test("migration-flagged safe-side children still render as withdrawals without legacy history", () => {
     const deposit = makeDeposit({ value: 100n, blockNumber: 10n });
     const migrationChild = makeDeposit({
       hash: 22n,
@@ -290,7 +303,9 @@ describe("history event extraction", () => {
     const events = buildHistoryEventsFromAccount(account as any, [POOL_USDC] as any);
     const withdrawals = events.filter((e) => e.type === "withdrawal");
 
-    expect(withdrawals).toHaveLength(0);
+    expect(withdrawals).toHaveLength(1);
+    expect(withdrawals[0].value).toBe(0n);
+    expect(withdrawals[0].txHash).toBe(migrationChild.txHash);
   });
 
   test("ragequit without prior withdrawals uses full deposit value", () => {

@@ -60,38 +60,6 @@ function resolvePoolAccountLabel(
   return typeof poolAccount.label === "bigint" ? poolAccount.label : null;
 }
 
-function isMigrationBookkeepingChild(
-  deposit: PoolAccount["deposit"],
-  child: PoolAccount["children"][number],
-): boolean {
-  if (child.isMigration === true) {
-    return true;
-  }
-
-  return (
-    child.blockNumber === deposit.blockNumber &&
-    child.txHash === deposit.txHash &&
-    child.value === deposit.value
-  );
-}
-
-function isSyntheticMigratedDeposit(poolAccount: PoolAccount): boolean {
-  const firstChild = poolAccount.children[0];
-  if (!firstChild) {
-    return false;
-  }
-
-  if (firstChild.isMigration === true) {
-    return false;
-  }
-
-  return (
-    firstChild.blockNumber === poolAccount.deposit.blockNumber &&
-    firstChild.txHash === poolAccount.deposit.txHash &&
-    firstChild.value === poolAccount.deposit.value
-  );
-}
-
 export { createHistoryCommand } from "../command-shells/history.js";
 
 export function buildHistoryEventsFromAccount(
@@ -116,14 +84,8 @@ export function buildHistoryEventsFromAccount(
       const label = resolvePoolAccountLabel(pa);
       const isHandledLegacyPoolAccount =
         label !== null && handledLegacyLabels.has(poolAccountLabelKey(scopeKey, label));
-      const shouldSuppressSyntheticMigratedBookkeeping =
-        !isHandledLegacyPoolAccount && isSyntheticMigratedDeposit(pa);
 
-      if (
-        pa.deposit &&
-        !isHandledLegacyPoolAccount &&
-        !shouldSuppressSyntheticMigratedBookkeeping
-      ) {
+      if (pa.deposit && !isHandledLegacyPoolAccount) {
         events.push({
           type: "deposit",
           asset: pool.symbol,
@@ -140,10 +102,6 @@ export function buildHistoryEventsFromAccount(
         let prevValue = pa.deposit.value;
         for (const child of pa.children) {
           if (isHandledLegacyPoolAccount && child.hash === pa.deposit.hash) {
-            prevValue = child.value;
-            continue;
-          }
-          if (isMigrationBookkeepingChild(pa.deposit, child)) {
             prevValue = child.value;
             continue;
           }
