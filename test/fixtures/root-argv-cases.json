@@ -1,0 +1,222 @@
+[
+  {
+    "name": "bare welcome",
+    "argv": [],
+    "expected": {
+      "rootArgvSlice": [],
+      "firstCommandToken": null,
+      "nonOptionTokens": [],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": false,
+      "isHelpLike": false,
+      "isVersionLike": false,
+      "isRootHelpInvocation": false,
+      "isQuiet": false,
+      "isWelcome": true,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  },
+  {
+    "name": "welcome flags with split timeout",
+    "argv": ["--timeout", "30", "-qy", "--no-color"],
+    "expected": {
+      "rootArgvSlice": ["--timeout", "30", "-qy", "--no-color"],
+      "firstCommandToken": null,
+      "nonOptionTokens": [],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": false,
+      "isHelpLike": false,
+      "isVersionLike": false,
+      "isRootHelpInvocation": false,
+      "isQuiet": true,
+      "isWelcome": true,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  },
+  {
+    "name": "missing timeout value is not welcome",
+    "argv": ["--timeout"],
+    "expected": {
+      "rootArgvSlice": ["--timeout"],
+      "firstCommandToken": null,
+      "nonOptionTokens": [],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": false,
+      "isHelpLike": false,
+      "isVersionLike": false,
+      "isRootHelpInvocation": false,
+      "isQuiet": false,
+      "isWelcome": false,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  },
+  {
+    "name": "help command alias is root help",
+    "argv": ["help"],
+    "expected": {
+      "rootArgvSlice": ["help"],
+      "firstCommandToken": "help",
+      "nonOptionTokens": ["help"],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": false,
+      "isHelpLike": true,
+      "isVersionLike": false,
+      "isRootHelpInvocation": true,
+      "isQuiet": false,
+      "isWelcome": false,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  },
+  {
+    "name": "quiet short bundle with version",
+    "argv": ["-qV"],
+    "expected": {
+      "rootArgvSlice": ["-qV"],
+      "firstCommandToken": null,
+      "nonOptionTokens": [],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": false,
+      "isHelpLike": false,
+      "isVersionLike": true,
+      "isRootHelpInvocation": false,
+      "isQuiet": true,
+      "isWelcome": false,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  },
+  {
+    "name": "agent mode outranks csv",
+    "argv": ["--agent", "--format", "csv", "guide"],
+    "expected": {
+      "rootArgvSlice": ["--agent", "--format", "csv", "guide"],
+      "firstCommandToken": "guide",
+      "nonOptionTokens": ["guide"],
+      "formatFlagValue": "csv",
+      "isAgent": true,
+      "isCsvMode": false,
+      "isStructuredOutputMode": true,
+      "isHelpLike": false,
+      "isVersionLike": false,
+      "isRootHelpInvocation": false,
+      "isQuiet": false,
+      "isWelcome": false,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  },
+  {
+    "name": "split chain and inline rpc values",
+    "argv": ["--chain", "mainnet", "--rpc-url=https://rpc.example", "status"],
+    "expected": {
+      "rootArgvSlice": ["--chain", "mainnet", "--rpc-url=https://rpc.example", "status"],
+      "firstCommandToken": "status",
+      "nonOptionTokens": ["status"],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": false,
+      "isHelpLike": false,
+      "isVersionLike": false,
+      "isRootHelpInvocation": false,
+      "isQuiet": false,
+      "isWelcome": false,
+      "globalChain": "mainnet",
+      "globalRpcUrl": "https://rpc.example"
+    }
+  },
+  {
+    "name": "short chain and rpc values",
+    "argv": ["-c", "sepolia", "-r", "https://rpc.short", "status"],
+    "expected": {
+      "rootArgvSlice": ["-c", "sepolia", "-r", "https://rpc.short", "status"],
+      "firstCommandToken": "status",
+      "nonOptionTokens": ["status"],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": false,
+      "isHelpLike": false,
+      "isVersionLike": false,
+      "isRootHelpInvocation": false,
+      "isQuiet": false,
+      "isWelcome": false,
+      "globalChain": "sepolia",
+      "globalRpcUrl": "https://rpc.short"
+    }
+  },
+  {
+    "name": "inline json format root help",
+    "argv": ["--format=json", "--help"],
+    "expected": {
+      "rootArgvSlice": ["--format=json", "--help"],
+      "firstCommandToken": null,
+      "nonOptionTokens": [],
+      "formatFlagValue": "json",
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": true,
+      "isHelpLike": true,
+      "isVersionLike": false,
+      "isRootHelpInvocation": true,
+      "isQuiet": false,
+      "isWelcome": false,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  },
+  {
+    "name": "double dash stops root parsing",
+    "argv": ["--json", "--", "status", "--json"],
+    "expected": {
+      "rootArgvSlice": ["--json"],
+      "firstCommandToken": null,
+      "nonOptionTokens": [],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": true,
+      "isHelpLike": false,
+      "isVersionLike": false,
+      "isRootHelpInvocation": false,
+      "isQuiet": false,
+      "isWelcome": false,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  },
+  {
+    "name": "command before double dash keeps subcommand",
+    "argv": ["status", "--", "--help"],
+    "expected": {
+      "rootArgvSlice": ["status"],
+      "firstCommandToken": "status",
+      "nonOptionTokens": ["status"],
+      "formatFlagValue": null,
+      "isAgent": false,
+      "isCsvMode": false,
+      "isStructuredOutputMode": false,
+      "isHelpLike": false,
+      "isVersionLike": false,
+      "isRootHelpInvocation": false,
+      "isQuiet": false,
+      "isWelcome": false,
+      "globalChain": null,
+      "globalRpcUrl": null
+    }
+  }
+]

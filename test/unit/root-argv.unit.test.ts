@@ -1,51 +1,60 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { parseRootArgv, rootArgvSlice } from "../../src/utils/root-argv.ts";
+import {
+  parseRootArgv,
+  parseValidatedRootPrelude,
+  rootArgvSlice,
+} from "../../src/utils/root-argv.ts";
+
+const rootArgvCases = JSON.parse(
+  readFileSync(resolve(process.cwd(), "test/fixtures/root-argv-cases.json"), "utf8"),
+);
 
 describe("root argv parsing", () => {
-  test("stops parsing global flags at -- like the native shell", () => {
-    const argv = ["--json", "--", "status", "--json"];
+  for (const testCase of rootArgvCases) {
+    test(`matches shared root argv parity fixture: ${testCase.name}`, () => {
+      const parsed = parseRootArgv(testCase.argv);
+      const prelude = parseValidatedRootPrelude(testCase.argv);
 
-    expect(rootArgvSlice(argv)).toEqual(["--json"]);
-    expect(parseRootArgv(argv)).toMatchObject({
-      firstCommandToken: undefined,
-      nonOptionTokens: [],
-      isJson: true,
-      isRootHelpInvocation: false,
+      expect(rootArgvSlice(testCase.argv)).toEqual(testCase.expected.rootArgvSlice);
+      expect({
+        firstCommandToken: parsed.firstCommandToken ?? null,
+        nonOptionTokens: parsed.nonOptionTokens,
+        formatFlagValue: parsed.formatFlagValue,
+        isAgent: parsed.isAgent,
+        isCsvMode: parsed.isCsvMode,
+        isStructuredOutputMode: parsed.isStructuredOutputMode,
+        isHelpLike: parsed.isHelpLike,
+        isVersionLike: parsed.isVersionLike,
+        isRootHelpInvocation: parsed.isRootHelpInvocation,
+        isQuiet: parsed.isQuiet,
+        isWelcome: parsed.isWelcome,
+        globalChain: prelude?.globalOpts.chain ?? null,
+        globalRpcUrl: prelude?.globalOpts.rpcUrl ?? null,
+      }).toEqual({
+        firstCommandToken: testCase.expected.firstCommandToken,
+        nonOptionTokens: testCase.expected.nonOptionTokens,
+        formatFlagValue: testCase.expected.formatFlagValue,
+        isAgent: testCase.expected.isAgent,
+        isCsvMode: testCase.expected.isCsvMode,
+        isStructuredOutputMode: testCase.expected.isStructuredOutputMode,
+        isHelpLike: testCase.expected.isHelpLike,
+        isVersionLike: testCase.expected.isVersionLike,
+        isRootHelpInvocation: testCase.expected.isRootHelpInvocation,
+        isQuiet: testCase.expected.isQuiet,
+        isWelcome: testCase.expected.isWelcome,
+        globalChain: testCase.expected.globalChain,
+        globalRpcUrl: testCase.expected.globalRpcUrl,
+      });
     });
-  });
+  }
 
-  test("still resolves root commands before the -- boundary", () => {
-    expect(parseRootArgv(["status", "--", "--help"])).toMatchObject({
-      firstCommandToken: "status",
-      nonOptionTokens: ["status"],
-      isHelpLike: false,
-    });
-  });
+  test("invalid output formats are still detected without breaking machine mode", () => {
+    const parsed = parseRootArgv(["--json", "--format", "yaml", "guide"]);
 
-  test("structured machine flags outrank csv mode", () => {
-    expect(parseRootArgv(["--agent", "--format", "csv", "guide"])).toMatchObject({
-      isAgent: true,
-      isJson: true,
-      isCsvMode: false,
-      isStructuredOutputMode: true,
-      isWelcome: false,
-    });
-  });
-
-  test("welcome parsing accepts split-value options and bundled welcome flags", () => {
-    expect(
-      parseRootArgv(["--timeout", "30", "-qy", "--no-color"]),
-    ).toMatchObject({
-      isMachineMode: false,
-      isQuiet: true,
-      isWelcome: true,
-    });
-  });
-
-  test("welcome parsing rejects incomplete root options with missing values", () => {
-    expect(parseRootArgv(["--timeout"])).toMatchObject({
-      isMachineMode: false,
-      isWelcome: false,
-    });
+    expect(parsed.formatFlagValue).toBe("yaml");
+    expect(parsed.isStructuredOutputMode).toBe(true);
+    expect(parsed.isWelcome).toBe(false);
   });
 });

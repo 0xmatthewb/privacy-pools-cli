@@ -360,20 +360,124 @@ pub(crate) fn is_command_global_inline_value_option(token: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct SharedRootArgvCase {
+        name: String,
+        argv: Vec<String>,
+        expected: SharedRootArgvExpectation,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct SharedRootArgvExpectation {
+        root_argv_slice: Vec<String>,
+        first_command_token: Option<String>,
+        non_option_tokens: Vec<String>,
+        format_flag_value: Option<String>,
+        is_agent: bool,
+        is_csv_mode: bool,
+        is_structured_output_mode: bool,
+        is_help_like: bool,
+        is_version_like: bool,
+        is_root_help_invocation: bool,
+        is_quiet: bool,
+        is_welcome: bool,
+        global_chain: Option<String>,
+        global_rpc_url: Option<String>,
+    }
 
     fn argv(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| value.to_string()).collect()
     }
 
+    fn shared_root_argv_cases() -> Vec<SharedRootArgvCase> {
+        serde_json::from_str(include_str!("../../../test/fixtures/root-argv-cases.json"))
+            .expect("shared root argv fixture must deserialize")
+    }
+
     #[test]
-    fn structured_machine_flags_outrank_csv_mode() {
-        let parsed = parse_root_argv(&argv(&["--agent", "--format", "csv", "guide"]));
-        assert!(parsed.is_agent);
-        assert!(!parsed.is_csv_mode);
-        assert!(parsed.is_structured_output_mode);
-        assert!(!is_welcome_flag_only_invocation(&argv(&[
-            "--agent", "--format", "csv", "guide",
-        ])));
+    fn matches_shared_root_argv_parity_fixture() {
+        for case in shared_root_argv_cases() {
+            let parsed = parse_root_argv(&case.argv);
+            let is_welcome = is_welcome_flag_only_invocation(&case.argv)
+                && !(parsed.is_structured_output_mode || parsed.is_csv_mode);
+
+            assert_eq!(
+                root_argv_slice(&case.argv),
+                case.expected.root_argv_slice.as_slice(),
+                "root argv slice mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.first_command_token, case.expected.first_command_token,
+                "first command mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.non_option_tokens, case.expected.non_option_tokens,
+                "non-option tokens mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.format_flag_value, case.expected.format_flag_value,
+                "format flag mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.is_agent, case.expected.is_agent,
+                "agent-mode mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.is_csv_mode, case.expected.is_csv_mode,
+                "csv-mode mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.is_structured_output_mode, case.expected.is_structured_output_mode,
+                "structured-output mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.is_help_like, case.expected.is_help_like,
+                "help-like mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.is_version_like, case.expected.is_version_like,
+                "version-like mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.is_root_help_invocation, case.expected.is_root_help_invocation,
+                "root-help mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.is_quiet, case.expected.is_quiet,
+                "quiet mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                is_welcome, case.expected.is_welcome,
+                "welcome mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.global_chain(),
+                case.expected.global_chain,
+                "global chain mismatch for {}",
+                case.name
+            );
+            assert_eq!(
+                parsed.global_rpc_url(),
+                case.expected.global_rpc_url,
+                "global rpc mismatch for {}",
+                case.name
+            );
+        }
     }
 
     #[test]
