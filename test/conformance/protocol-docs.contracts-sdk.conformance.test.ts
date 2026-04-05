@@ -11,167 +11,65 @@
  *
  * @frontend-parity
  */
-import { readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
 import { beforeAll, describe, expect, test } from "bun:test";
 import {
-  AccountService,
-  DataService,
-  PrivacyPoolSDK,
-  calculateContext,
-  generateMasterKeys,
-  generateMerkleProof,
-} from "@0xbow/privacy-pools-core-sdk";
-import {
-  CORE_REPO,
-  FRONTEND_REPO,
-  fetchGitHubFile,
-} from "../helpers/github.ts";
-import { CLI_ROOT } from "../helpers/paths.ts";
-
-// --- Upstream content (populated in beforeAll) ---
-
-let upstreamIPrivacyPool = "";
-let upstreamIEntrypoint = "";
-let upstreamCircuitsIndex = "";
-let upstreamWithdrawInput = { stateSiblings: [] as string[], ASPSiblings: [] as string[] };
-let upstreamAspClient = "";
-let upstreamRelayerClient = "";
-let upstreamIState = "";
-let installedSdkCore = "";
-let installedSdkIndex = "";
-let installedSdkCrypto = "";
-let installedSdkAccountService = "";
-
-// --- CLI source code (read synchronously) ---
-
-const cliChains = readFileSync(resolve(CLI_ROOT, "src/config/chains.ts"), "utf8");
-const cliWithdraw = readFileSync(resolve(CLI_ROOT, "src/commands/withdraw.ts"), "utf8");
-const cliPoolRoots = readFileSync(resolve(CLI_ROOT, "src/services/pool-roots.ts"), "utf8");
-const cliRagequit = readFileSync(resolve(CLI_ROOT, "src/commands/ragequit.ts"), "utf8");
-const cliDeposit = readFileSync(resolve(CLI_ROOT, "src/commands/deposit.ts"), "utf8");
-const cliAsp = readFileSync(resolve(CLI_ROOT, "src/services/asp.ts"), "utf8");
-const cliRelayer = readFileSync(resolve(CLI_ROOT, "src/services/relayer.ts"), "utf8");
-const cliPools = readFileSync(resolve(CLI_ROOT, "src/services/pools.ts"), "utf8");
-const cliSdk = readFileSync(resolve(CLI_ROOT, "src/services/sdk.ts"), "utf8");
-const cliCircuitAssets = readFileSync(
-  resolve(CLI_ROOT, "src/services/circuit-assets.js"),
-  "utf8",
-);
-const bundledCircuitFiles = readdirSync(
-  resolve(CLI_ROOT, "assets/circuits/v1.2.0"),
-);
-const cliContracts = readFileSync(resolve(CLI_ROOT, "src/services/contracts.ts"), "utf8");
-const cliProofs = readFileSync(resolve(CLI_ROOT, "src/services/proofs.ts"), "utf8");
-const cliWallet = readFileSync(resolve(CLI_ROOT, "src/services/wallet.ts"), "utf8");
-const cliAccount = readFileSync(resolve(CLI_ROOT, "src/services/account.ts"), "utf8");
-const cliUnsignedFlows = readFileSync(resolve(CLI_ROOT, "src/utils/unsigned-flows.ts"), "utf8");
-const cliWorkflow = readFileSync(resolve(CLI_ROOT, "src/services/workflow.ts"), "utf8");
-const cliInstallAnvilVerifier = readFileSync(
-  resolve(CLI_ROOT, "scripts/verify-cli-install-anvil.mjs"),
-  "utf8",
-);
-const githubHelper = readFileSync(
-  resolve(CLI_ROOT, "test/helpers/github.ts"),
-  "utf8",
-);
-const syncGateRpcServer = readFileSync(
-  resolve(CLI_ROOT, "test/helpers/sync-gate-rpc-server.ts"),
-  "utf8",
-);
-
-const DEPOSIT_EVENT_SIGNATURE =
-  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)";
-const WITHDRAWN_EVENT_SIGNATURE =
-  "event Withdrawn(address indexed _processooor, uint256 _value, uint256 _spentNullifier, uint256 _newCommitment)";
-const RAGEQUIT_EVENT_SIGNATURE =
-  "event Ragequit(address indexed _ragequitter, uint256 _commitment, uint256 _label, uint256 _value)";
+  DEPOSIT_EVENT_SIGNATURE,
+  RAGEQUIT_EVENT_SIGNATURE,
+  WITHDRAWN_EVENT_SIGNATURE,
+  bundledCircuitFiles,
+  extractEventSignature,
+  extractNamedExports,
+  extractQuotedPathLiterals,
+  loadProtocolTruthSources,
+  protocolCliSources,
+  sdkRuntimeExports,
+  type ProtocolTruthSources,
+} from "../helpers/protocol-conformance.ts";
 
 let fetchFailed = false;
-
-function normalizeSignature(signature: string): string {
-  return signature
-    .replace(/\s+/g, " ")
-    .replace(/\s*\(\s*/g, "(")
-    .replace(/\s*\)\s*/g, ")")
-    .replace(/\s*,\s*/g, ", ")
-    .trim();
-}
-
-function extractEventSignature(source: string, eventName: string): string {
-  const match = source.match(
-    new RegExp(`event\\s+${eventName}\\s*\\(([^;]+)\\)\\s*;`, "m"),
-  );
-  if (!match) {
-    throw new Error(`Missing upstream event signature for ${eventName}`);
-  }
-  return normalizeSignature(`event ${eventName}(${match[1]})`);
-}
+let truthSources: ProtocolTruthSources | null = null;
+const {
+  account: cliAccount,
+  asp: cliAsp,
+  chains: cliChains,
+  circuitAssets: cliCircuitAssets,
+  contracts: cliContracts,
+  deposit: cliDeposit,
+  installAnvilVerifier: cliInstallAnvilVerifier,
+  pools: cliPools,
+  poolRoots: cliPoolRoots,
+  proofs: cliProofs,
+  ragequit: cliRagequit,
+  relayer: cliRelayer,
+  sdk: cliSdk,
+  syncGateRpcServer,
+  unsignedFlows: cliUnsignedFlows,
+  wallet: cliWallet,
+  withdraw: cliWithdraw,
+  workflow: cliWorkflow,
+} = protocolCliSources;
 
 describe("protocol conformance: CLI ↔ upstream", () => {
   test("conformance source helper supports strict local source-of-truth mode", () => {
-    expect(githubHelper).toContain('const RAW_BASE = "https://raw.githubusercontent.com"');
-    expect(githubHelper).toContain('export const CORE_REPO = "0xbow-io/privacy-pools-core"');
-    expect(githubHelper).toContain('export const FRONTEND_REPO = "0xbow-io/privacy-pools-website"');
-    expect(githubHelper).toContain("CONFORMANCE_CORE_ROOT");
-    expect(githubHelper).toContain("CONFORMANCE_FRONTEND_ROOT");
-    expect(githubHelper).toContain("CONFORMANCE_REQUIRE_LOCAL_SOURCES");
-    expect(githubHelper).toContain("privacy-pools-core-main");
-    expect(githubHelper).toContain("privacy-pools-website");
+    expect(protocolCliSources.githubHelper).toContain(
+      'const RAW_BASE = "https://raw.githubusercontent.com"',
+    );
+    expect(protocolCliSources.githubHelper).toContain(
+      'export const CORE_REPO = "0xbow-io/privacy-pools-core"',
+    );
+    expect(protocolCliSources.githubHelper).toContain(
+      'export const FRONTEND_REPO = "0xbow-io/privacy-pools-website"',
+    );
+    expect(protocolCliSources.githubHelper).toContain("CONFORMANCE_CORE_ROOT");
+    expect(protocolCliSources.githubHelper).toContain("CONFORMANCE_FRONTEND_ROOT");
+    expect(protocolCliSources.githubHelper).toContain("CONFORMANCE_REQUIRE_LOCAL_SOURCES");
+    expect(protocolCliSources.githubHelper).toContain("privacy-pools-core-main");
+    expect(protocolCliSources.githubHelper).toContain("privacy-pools-website");
   });
 
   beforeAll(async () => {
     try {
-      [
-        upstreamIPrivacyPool,
-        upstreamIEntrypoint,
-        upstreamCircuitsIndex,
-        upstreamAspClient,
-        upstreamRelayerClient,
-        upstreamIState,
-      ] = await Promise.all([
-        fetchGitHubFile(CORE_REPO, "packages/contracts/src/interfaces/IPrivacyPool.sol"),
-        fetchGitHubFile(CORE_REPO, "packages/contracts/src/interfaces/IEntrypoint.sol"),
-        fetchGitHubFile(CORE_REPO, "packages/circuits/src/index.ts"),
-        fetchGitHubFile(FRONTEND_REPO, "src/utils/aspClient.ts"),
-        fetchGitHubFile(FRONTEND_REPO, "src/utils/relayerClient.ts"),
-        fetchGitHubFile(CORE_REPO, "packages/contracts/src/interfaces/IState.sol"),
-      ]);
-
-      installedSdkCore = readFileSync(
-        resolve(
-          CLI_ROOT,
-          "node_modules/@0xbow/privacy-pools-core-sdk/src/core/sdk.ts",
-        ),
-        "utf8",
-      );
-      installedSdkIndex = readFileSync(
-        resolve(
-          CLI_ROOT,
-          "node_modules/@0xbow/privacy-pools-core-sdk/src/index.ts",
-        ),
-        "utf8",
-      );
-      installedSdkCrypto = readFileSync(
-        resolve(
-          CLI_ROOT,
-          "node_modules/@0xbow/privacy-pools-core-sdk/src/crypto.ts",
-        ),
-        "utf8",
-      );
-      installedSdkAccountService = readFileSync(
-        resolve(
-          CLI_ROOT,
-          "node_modules/@0xbow/privacy-pools-core-sdk/src/core/account.service.ts",
-        ),
-        "utf8",
-      );
-
-      const rawInput = await fetchGitHubFile(
-        CORE_REPO,
-        "packages/circuits/inputs/withdraw/default.json",
-      );
-      upstreamWithdrawInput = JSON.parse(rawInput);
+      truthSources = await loadProtocolTruthSources();
     } catch (err) {
       console.warn("Skipping protocol conformance — could not read source-of-truth files:", err);
       fetchFailed = true;
@@ -192,6 +90,8 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     });
   };
 
+  const truth = () => truthSources!;
+
   // ---------------------------------------------------------------
   // 1. SDK methods: CLI calls → installed SDK source
   // ---------------------------------------------------------------
@@ -200,10 +100,10 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     const cliAll = cliWithdraw + cliRagequit + cliProofs;
     expect(cliAll).toContain("proveWithdrawal");
     expect(cliAll).toContain("proveCommitment");
-    expect(installedSdkCore).toContain("proveWithdrawal");
-    expect(installedSdkCore).toContain("proveCommitment");
-    expect(typeof PrivacyPoolSDK.prototype.proveWithdrawal).toBe("function");
-    expect(typeof PrivacyPoolSDK.prototype.proveCommitment).toBe("function");
+    expect(truth().installedSdkCore).toContain("proveWithdrawal");
+    expect(truth().installedSdkCore).toContain("proveCommitment");
+    expect(typeof sdkRuntimeExports.PrivacyPoolSDK.prototype.proveWithdrawal).toBe("function");
+    expect(typeof sdkRuntimeExports.PrivacyPoolSDK.prototype.proveCommitment).toBe("function");
   });
 
   // ---------------------------------------------------------------
@@ -213,13 +113,13 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   run("CLI assetConfig ABI field names match upstream IEntrypoint.sol", () => {
     for (const field of ["assetConfig", "minimumDepositAmount", "vettingFeeBPS", "maxRelayFeeBPS"]) {
       expect(cliPools).toContain(field);
-      expect(upstreamIEntrypoint).toContain(field);
+      expect(truth().upstreamIEntrypoint).toContain(field);
     }
   });
 
   run("CLI SCOPE() call matches core interface contract", () => {
     expect(cliPools).toContain("SCOPE()");
-    expect(upstreamIState).toContain("SCOPE()");
+    expect(truth().upstreamIState).toContain("SCOPE()");
   });
 
   // ---------------------------------------------------------------
@@ -227,11 +127,11 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // ---------------------------------------------------------------
 
   run("CLI tree depth (32) matches upstream circuit config", () => {
-    expect(upstreamCircuitsIndex).toContain("params: [32]");
+    expect(truth().upstreamCircuitsIndex).toContain("params: [32]");
     expect(cliWithdraw).toContain("stateTreeDepth: 32n");
     expect(cliWithdraw).toContain("aspTreeDepth: 32n");
-    expect(upstreamWithdrawInput.stateSiblings.length).toBe(32);
-    expect(upstreamWithdrawInput.ASPSiblings.length).toBe(32);
+    expect(truth().upstreamWithdrawInput.stateSiblings.length).toBe(32);
+    expect(truth().upstreamWithdrawInput.ASPSiblings.length).toBe(32);
   });
 
   // ---------------------------------------------------------------
@@ -240,21 +140,21 @@ describe("protocol conformance: CLI ↔ upstream", () => {
 
   for (const endpoint of ["/public/mt-roots", "/public/mt-leaves", "/public/pools-stats"]) {
     run(`ASP endpoint "${endpoint}" used by both CLI and frontend`, () => {
-      expect(cliAsp).toContain(endpoint);
-      expect(upstreamAspClient).toContain(endpoint);
+      expect(extractQuotedPathLiterals(cliAsp)).toContain(endpoint);
+      expect(extractQuotedPathLiterals(truth().upstreamAspClient)).toContain(endpoint);
     });
   }
 
   for (const endpoint of ["/relayer/details", "/relayer/quote", "/relayer/request"]) {
     run(`relayer endpoint "${endpoint}" used by both CLI and frontend`, () => {
-      expect(cliRelayer).toContain(endpoint);
-      expect(upstreamRelayerClient).toContain(endpoint);
+      expect(extractQuotedPathLiterals(cliRelayer)).toContain(endpoint);
+      expect(extractQuotedPathLiterals(truth().upstreamRelayerClient)).toContain(endpoint);
     });
   }
 
   run("X-Pool-Scope header used by both CLI and frontend", () => {
     expect(cliAsp).toContain("X-Pool-Scope");
-    expect(upstreamAspClient).toContain("X-Pool-Scope");
+    expect(truth().upstreamAspClient).toContain("X-Pool-Scope");
   });
 
   // ---------------------------------------------------------------
@@ -262,8 +162,8 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // ---------------------------------------------------------------
 
   run("core circuit compile config includes the circuits the CLI provisions", () => {
-    expect(upstreamCircuitsIndex).toContain('compile("commitment"');
-    expect(upstreamCircuitsIndex).toContain('compile("withdraw"');
+    expect(truth().upstreamCircuitsIndex).toContain('compile("commitment"');
+    expect(truth().upstreamCircuitsIndex).toContain('compile("withdraw"');
   });
 
   // ---------------------------------------------------------------
@@ -274,10 +174,11 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     const cliAll = cliSdk + cliAccount;
     expect(cliAll).toContain("AccountService");
     expect(cliAll).toContain("DataService");
-    expect(installedSdkIndex).toContain('export { AccountService }');
-    expect(installedSdkIndex).toContain('export { DataService }');
-    expect(typeof AccountService).toBe("function");
-    expect(typeof DataService).toBe("function");
+    const sdkExports = extractNamedExports(truth().installedSdkIndex);
+    expect(sdkExports).toContain("AccountService");
+    expect(sdkExports).toContain("DataService");
+    expect(typeof sdkRuntimeExports.AccountService).toBe("function");
+    expect(typeof sdkRuntimeExports.DataService).toBe("function");
   });
 
   // ---------------------------------------------------------------
@@ -288,12 +189,12 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliWallet).toContain("generateMasterKeys");
     expect(cliWithdraw).toContain("calculateContext");
     expect(cliWithdraw).toContain("generateMerkleProof");
-    expect(installedSdkCrypto).toContain("generateMasterKeys");
-    expect(installedSdkCrypto).toContain("calculateContext");
-    expect(installedSdkCrypto).toContain("generateMerkleProof");
-    expect(typeof generateMasterKeys).toBe("function");
-    expect(typeof calculateContext).toBe("function");
-    expect(typeof generateMerkleProof).toBe("function");
+    expect(truth().installedSdkCrypto).toContain("generateMasterKeys");
+    expect(truth().installedSdkCrypto).toContain("calculateContext");
+    expect(truth().installedSdkCrypto).toContain("generateMerkleProof");
+    expect(typeof sdkRuntimeExports.generateMasterKeys).toBe("function");
+    expect(typeof sdkRuntimeExports.calculateContext).toBe("function");
+    expect(typeof sdkRuntimeExports.generateMerkleProof).toBe("function");
   });
 
   // ---------------------------------------------------------------
@@ -312,13 +213,13 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     // state.  This checks the full signature, not just parameter names.
     expect(cliDeposit).toContain(DEPOSIT_EVENT_SIGNATURE);
 
-    expect(extractEventSignature(upstreamIPrivacyPool, "Deposited")).toBe(
+    expect(extractEventSignature(truth().upstreamIPrivacyPool, "Deposited")).toBe(
       DEPOSIT_EVENT_SIGNATURE,
     );
   });
 
   run("all deposit event parser copies used by sync and install remain aligned with upstream", () => {
-    expect(extractEventSignature(upstreamIPrivacyPool, "Deposited")).toBe(
+    expect(extractEventSignature(truth().upstreamIPrivacyPool, "Deposited")).toBe(
       DEPOSIT_EVENT_SIGNATURE,
     );
 
@@ -334,15 +235,15 @@ describe("protocol conformance: CLI ↔ upstream", () => {
 
   run("upstream IPrivacyPool.sol defines Withdrawn and Ragequit events the CLI rebuild path depends on", () => {
     expect(cliAccount).toContain("initializeWithEvents");
-    expect(upstreamIPrivacyPool).toContain("event Withdrawn");
-    expect(upstreamIPrivacyPool).toContain("event Ragequit");
+    expect(truth().upstreamIPrivacyPool).toContain("event Withdrawn");
+    expect(truth().upstreamIPrivacyPool).toContain("event Ragequit");
   });
 
   run("sync reconstruction parser signatures stay aligned with upstream withdraw and ragequit events", () => {
-    expect(extractEventSignature(upstreamIPrivacyPool, "Withdrawn")).toBe(
+    expect(extractEventSignature(truth().upstreamIPrivacyPool, "Withdrawn")).toBe(
       WITHDRAWN_EVENT_SIGNATURE,
     );
-    expect(extractEventSignature(upstreamIPrivacyPool, "Ragequit")).toBe(
+    expect(extractEventSignature(truth().upstreamIPrivacyPool, "Ragequit")).toBe(
       RAGEQUIT_EVENT_SIGNATURE,
     );
     expect(cliSdk).toContain(WITHDRAWN_EVENT_SIGNATURE);
@@ -350,8 +251,8 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   });
 
   run("CLI Withdrawal struct fields match upstream IPrivacyPool.sol", () => {
-    expect(upstreamIPrivacyPool).toContain("struct Withdrawal");
-    expect(upstreamIPrivacyPool).toContain("processooor");
+    expect(truth().upstreamIPrivacyPool).toContain("struct Withdrawal");
+    expect(truth().upstreamIPrivacyPool).toContain("processooor");
 
     // CLI unsigned-flows constructs this struct in withdraw and relay ABIs
     expect(cliUnsignedFlows).toContain("processooor");
@@ -365,13 +266,13 @@ describe("protocol conformance: CLI ↔ upstream", () => {
 
   run("upstream IEntrypoint.sol defines latestRoot used by CLI for stale-state detection", () => {
     expect(cliWithdraw).toContain("latestRoot");
-    expect(upstreamIEntrypoint).toContain("latestRoot");
+    expect(truth().upstreamIEntrypoint).toContain("latestRoot");
   });
 
   run("upstream IEntrypoint.sol defines precommitment tracking the CLI relies on", () => {
     expect(cliDeposit).toContain("precommitment");
-    expect(upstreamIEntrypoint).toContain("usedPrecommitments");
-    expect(upstreamIEntrypoint).toContain("PrecommitmentAlreadyUsed");
+    expect(truth().upstreamIEntrypoint).toContain("usedPrecommitments");
+    expect(truth().upstreamIEntrypoint).toContain("PrecommitmentAlreadyUsed");
   });
 
   run("upstream IState.sol defines the known-root history the CLI validates", () => {
@@ -381,12 +282,12 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliPoolRoots).toContain("ROOT_HISTORY_SIZE");
 
     // currentRoot and roots are defined in IState.sol (inherited by IPrivacyPool)
-    expect(upstreamIState).toContain("currentRoot");
-    expect(upstreamIState).toContain("roots");
-    expect(upstreamIState).toContain("ROOT_HISTORY_SIZE");
+    expect(truth().upstreamIState).toContain("currentRoot");
+    expect(truth().upstreamIState).toContain("roots");
+    expect(truth().upstreamIState).toContain("ROOT_HISTORY_SIZE");
 
     // IPrivacyPool must inherit from IState
-    expect(upstreamIPrivacyPool).toContain("IState");
+    expect(truth().upstreamIPrivacyPool).toContain("IState");
   });
 
   run("upstream IState.sol defines depositors mapping the CLI reads for ragequit", () => {
@@ -394,7 +295,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliRagequit).toContain("depositors");
 
     // depositors mapping is defined in IState.sol (inherited by IPrivacyPool)
-    expect(upstreamIState).toContain("depositors");
+    expect(truth().upstreamIState).toContain("depositors");
   });
 
   // ---------------------------------------------------------------
@@ -416,13 +317,13 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     run(`AccountService.${method}() exists upstream and is used by CLI (${usedBy})`, () => {
       const cliAll = cliDeposit + cliWithdraw + cliRagequit + cliAccount;
       expect(cliAll).toContain(method);
-      expect(installedSdkAccountService).toContain(method);
+      expect(truth().installedSdkAccountService).toContain(method);
     });
   }
 
   run("AccountService.initializeWithEvents() exists upstream and is used by CLI init and sync paths", () => {
     expect(cliAccount).toContain("initializeWithEvents");
-    expect(installedSdkAccountService).toContain("initializeWithEvents");
+    expect(truth().installedSdkAccountService).toContain("initializeWithEvents");
   });
 
   // ---------------------------------------------------------------
@@ -431,7 +332,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
 
   run("CLI uses SDK Hash type from upstream crypto module", () => {
     expect(cliWithdraw).toContain("type Hash as SDKHash");
-    expect(installedSdkCrypto).toContain("Hash");
+    expect(truth().installedSdkCrypto).toContain("Hash");
   });
 
   // ---------------------------------------------------------------
@@ -442,7 +343,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     // CLI passes these config fields when constructing DataService
     expect(cliSdk).toContain("privacyPoolAddress");
     expect(cliSdk).toContain("startBlock");
-    expect(installedSdkIndex).toContain("DataService");
+    expect(extractNamedExports(truth().installedSdkIndex)).toContain("DataService");
   });
 
   run("CLI-managed circuit artifacts match upstream circuit names and files", () => {
@@ -453,7 +354,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
       expect(bundledCircuitFiles).toContain(`${circuit}.wasm`);
       expect(bundledCircuitFiles).toContain(`${circuit}.zkey`);
       expect(bundledCircuitFiles).toContain(`${circuit}.vkey`);
-      expect(upstreamCircuitsIndex).toContain(`"${circuit}"`);
+      expect(truth().upstreamCircuitsIndex).toContain(`"${circuit}"`);
     }
   });
 
@@ -465,9 +366,9 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliContracts).toContain('functionName: "deposit"');
     expect(cliContracts).toContain('functionName: "withdraw"');
     expect(cliContracts).toContain('functionName: "ragequit"');
-    expect(upstreamIEntrypoint).toContain("function deposit(");
-    expect(upstreamIPrivacyPool).toContain("function withdraw(");
-    expect(upstreamIPrivacyPool).toContain("function ragequit(");
+    expect(truth().upstreamIEntrypoint).toContain("function deposit(");
+    expect(truth().upstreamIPrivacyPool).toContain("function withdraw(");
+    expect(truth().upstreamIPrivacyPool).toContain("function ragequit(");
   });
 
   // ---------------------------------------------------------------
@@ -487,8 +388,8 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliProofs).toContain("stateSiblings");
     expect(cliProofs).toContain("ASPSiblings");
     expect(cliProofs).toContain("snarkjs.groth16.fullProve");
-    expect(upstreamWithdrawInput).toHaveProperty("stateSiblings");
-    expect(upstreamWithdrawInput).toHaveProperty("ASPSiblings");
+    expect(truth().upstreamWithdrawInput).toHaveProperty("stateSiblings");
+    expect(truth().upstreamWithdrawInput).toHaveProperty("ASPSiblings");
   });
 
   // ---------------------------------------------------------------
@@ -500,7 +401,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliRagequit).toContain("submitRagequit");
     expect(cliContracts).toContain('functionName: "ragequit"');
     expect(cliProofs).toContain("proveCommitment");
-    expect(upstreamIPrivacyPool).toContain("ragequit");
+    expect(truth().upstreamIPrivacyPool).toContain("ragequit");
   });
 
   // ---------------------------------------------------------------
@@ -512,7 +413,7 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliDeposit).toContain("depositETH(");
     expect(cliDeposit).toContain("depositERC20(");
     expect(cliContracts).toContain('functionName: "deposit"');
-    expect(installedSdkAccountService).toContain("createDepositSecrets");
-    expect(upstreamIEntrypoint).toContain("function deposit(");
+    expect(truth().installedSdkAccountService).toContain("createDepositSecrets");
+    expect(truth().upstreamIEntrypoint).toContain("function deposit(");
   });
 });
