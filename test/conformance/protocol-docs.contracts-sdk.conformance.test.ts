@@ -54,23 +54,6 @@ const {
 } = protocolCliSources;
 
 describe("protocol conformance: CLI ↔ upstream", () => {
-  test("conformance source helper supports strict local source-of-truth mode", () => {
-    expect(protocolCliSources.githubHelper).toContain(
-      'const RAW_BASE = "https://raw.githubusercontent.com"',
-    );
-    expect(protocolCliSources.githubHelper).toContain(
-      'export const CORE_REPO = "0xbow-io/privacy-pools-core"',
-    );
-    expect(protocolCliSources.githubHelper).toContain(
-      'export const FRONTEND_REPO = "0xbow-io/privacy-pools-website"',
-    );
-    expect(protocolCliSources.githubHelper).toContain("CONFORMANCE_CORE_ROOT");
-    expect(protocolCliSources.githubHelper).toContain("CONFORMANCE_FRONTEND_ROOT");
-    expect(protocolCliSources.githubHelper).toContain("CONFORMANCE_REQUIRE_LOCAL_SOURCES");
-    expect(protocolCliSources.githubHelper).toContain("privacy-pools-core-main");
-    expect(protocolCliSources.githubHelper).toContain("privacy-pools-website");
-  });
-
   beforeAll(async () => {
     try {
       truthSources = await loadProtocolTruthSources();

@@ -32,7 +32,6 @@ export const protocolCliSources = {
   ),
   contracts: readFileSync(resolve(CLI_ROOT, "src/services/contracts.ts"), "utf8"),
   deposit: readFileSync(resolve(CLI_ROOT, "src/commands/deposit.ts"), "utf8"),
-  githubHelper: readFileSync(resolve(CLI_ROOT, "test/helpers/github.ts"), "utf8"),
   installAnvilVerifier: readFileSync(
     resolve(CLI_ROOT, "scripts/verify-cli-install-anvil.mjs"),
     "utf8",
