@@ -714,7 +714,6 @@ export async function listPools(
             rpcSession,
             assetAddress,
             rpcOverride,
-            { allowTokenMetadataFallback: true },
           );
           const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
 

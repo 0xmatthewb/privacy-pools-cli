@@ -1,15 +1,16 @@
 use super::model::{TokenMetadataLookupResult, TokenMetadataResult};
 use super::rpc_abi::{decode_abi_string, decode_abi_words, decode_uint256_word, function_selector};
 use super::rpc_transport::rpc_call;
+use crate::error::CliError;
 
 pub(super) fn resolve_token_metadata(
     asset_address: &str,
     rpc_urls: &[String],
     native_asset_address: &str,
     timeout_ms: u64,
-) -> TokenMetadataResult {
+) -> Result<TokenMetadataResult, CliError> {
     resolve_token_metadata_lookup(asset_address, rpc_urls, native_asset_address, timeout_ms)
-        .metadata
+        .map(|result| result.metadata)
 }
 
 pub(super) fn resolve_token_metadata_lookup(
@@ -17,15 +18,15 @@ pub(super) fn resolve_token_metadata_lookup(
     rpc_urls: &[String],
     native_asset_address: &str,
     timeout_ms: u64,
-) -> TokenMetadataLookupResult {
+) -> Result<TokenMetadataLookupResult, CliError> {
     if asset_address.eq_ignore_ascii_case(native_asset_address) {
-        return TokenMetadataLookupResult {
+        return Ok(TokenMetadataLookupResult {
             metadata: TokenMetadataResult {
                 symbol: "ETH".to_string(),
                 decimals: 18,
             },
             cacheable: true,
-        };
+        });
     }
 
     let symbol_selector = function_selector("symbol()");
@@ -56,13 +57,17 @@ pub(super) fn resolve_token_metadata_lookup(
 fn build_token_metadata_lookup(
     symbol_result: Option<String>,
     decimals_result: Option<u32>,
-) -> TokenMetadataLookupResult {
-    TokenMetadataLookupResult {
-        metadata: TokenMetadataResult {
-            symbol: symbol_result.clone().unwrap_or_else(|| "???".to_string()),
-            decimals: decimals_result.unwrap_or(18),
-        },
-        cacheable: symbol_result.is_some() && decimals_result.is_some(),
+) -> Result<TokenMetadataLookupResult, CliError> {
+    match (symbol_result, decimals_result) {
+        (Some(symbol), Some(decimals)) => Ok(TokenMetadataLookupResult {
+            metadata: TokenMetadataResult { symbol, decimals },
+            cacheable: true,
+        }),
+        _ => Err(CliError::rpc_retryable(
+            "Failed to resolve ERC-20 metadata for pool discovery.".to_string(),
+            Some("Check your RPC URL and network connectivity, then retry.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        )),
     }
 }
 
@@ -71,6 +76,7 @@ mod extended_tests {
     use super::{
         build_token_metadata_lookup, resolve_token_metadata, resolve_token_metadata_lookup,
     };
+    use crate::error::ErrorCategory;
 
     #[test]
     fn native_asset_lookup_short_circuits_to_eth() {
@@ -79,36 +85,38 @@ mod extended_tests {
             &[],
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             1_000,
-        );
+        )
+        .expect("native asset lookup should succeed");
         assert_eq!(metadata.metadata.symbol, "ETH");
         assert_eq!(metadata.metadata.decimals, 18);
         assert!(metadata.cacheable);
     }
 
     #[test]
-    fn build_token_metadata_lookup_keeps_success_and_fallback_shapes_stable() {
-        let metadata = build_token_metadata_lookup(Some("USDC".to_string()), Some(6));
+    fn build_token_metadata_lookup_requires_symbol_and_decimals() {
+        let metadata = build_token_metadata_lookup(Some("USDC".to_string()), Some(6))
+            .expect("complete metadata should succeed");
         assert_eq!(metadata.metadata.symbol, "USDC");
         assert_eq!(metadata.metadata.decimals, 6);
         assert!(metadata.cacheable);
 
-        let fallback = build_token_metadata_lookup(None, None);
-        assert_eq!(fallback.metadata.symbol, "???");
-        assert_eq!(fallback.metadata.decimals, 18);
-        assert!(!fallback.cacheable);
+        let error = build_token_metadata_lookup(None, None)
+            .expect_err("missing metadata should fail closed");
+        assert!(matches!(error.category, ErrorCategory::Rpc));
+        assert_eq!(error.code, "RPC_POOL_RESOLUTION_FAILED");
     }
 
     #[test]
-    fn token_lookup_falls_back_when_rpc_metadata_is_unreachable() {
-        let metadata = resolve_token_metadata_lookup(
+    fn token_lookup_fails_closed_when_rpc_metadata_is_unreachable() {
+        let error = resolve_token_metadata_lookup(
             "0x1111111111111111111111111111111111111111",
             &["http://127.0.0.1:9".to_string()],
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             25,
-        );
-        assert_eq!(metadata.metadata.symbol, "???");
-        assert_eq!(metadata.metadata.decimals, 18);
-        assert!(!metadata.cacheable);
+        )
+        .expect_err("unreachable metadata should fail closed");
+        assert!(matches!(error.category, ErrorCategory::Rpc));
+        assert_eq!(error.code, "RPC_POOL_RESOLUTION_FAILED");
     }
 
     #[test]
@@ -118,7 +126,8 @@ mod extended_tests {
             &[],
             "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
             1_000,
-        );
+        )
+        .expect("native asset metadata should succeed");
         assert_eq!(metadata.symbol, "ETH");
         assert_eq!(metadata.decimals, 18);
     }

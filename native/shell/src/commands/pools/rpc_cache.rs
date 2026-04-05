@@ -26,7 +26,7 @@ pub(super) fn resolve_cached_pool_resolution(
     let asset_config = read_asset_config(chain, asset_address, rpc_urls, timeout_ms)?;
     let scope = read_pool_scope(&asset_config.pool_address, rpc_urls, timeout_ms)?;
     let token_lookup =
-        resolve_token_metadata_lookup(asset_address, rpc_urls, native_asset_address, timeout_ms);
+        resolve_token_metadata_lookup(asset_address, rpc_urls, native_asset_address, timeout_ms)?;
 
     let resolved = PoolResolutionCacheEntry {
         asset_config,

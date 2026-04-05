@@ -69,7 +69,7 @@ pub(super) fn resolve_pool_from_asset_address_native(
     let asset_config = read_asset_config(chain, asset_address, rpc_urls, timeout_ms)?;
     let scope = read_pool_scope(&asset_config.pool_address, rpc_urls, timeout_ms)?;
     let token_metadata =
-        resolve_token_metadata(asset_address, rpc_urls, native_asset_address, timeout_ms);
+        resolve_token_metadata(asset_address, rpc_urls, native_asset_address, timeout_ms)?;
 
     Ok(NativePoolResolution {
         symbol: token_metadata.symbol,

@@ -588,6 +588,87 @@ describe("pools service", () => {
     expect(readContractMock).toHaveBeenCalledTimes(4);
   });
 
+  test("listPools fails closed when ERC-20 metadata cannot be resolved", async () => {
+    const chainId = 313393;
+    const asset = "0x00000000000000000000000000000000000000b1" as Address;
+    const pool = "0x00000000000000000000000000000000000000a1" as Address;
+    const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+      const url = req.url ?? "";
+
+      if (req.method === "GET" && url === `/${chainId}/public/pools-stats`) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ pools: [{ tokenAddress: asset }] }));
+        return;
+      }
+
+      if (req.method === "POST") {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += String(chunk);
+        });
+        req.on("end", () => {
+          const json = JSON.parse(body);
+          const call = json?.params?.[0] ?? {};
+          const to = String(call.to ?? "").toLowerCase();
+          const data = String(call.data ?? "").toLowerCase();
+
+          let result = "0x";
+          if (
+            to === "0x00000000000000000000000000000000000000e1"
+            && data.startsWith("0xd6dbaf58")
+          ) {
+            result = encodeAbiParameters(
+              [
+                { type: "address" },
+                { type: "uint256" },
+                { type: "uint256" },
+                { type: "uint256" },
+              ],
+              [pool, 1000000000000000n, 50n, 250n],
+            );
+          } else if (to === pool.toLowerCase()) {
+            result = encodeAbiParameters([{ type: "uint256" }], [123456789n]);
+          }
+
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", id: json.id, result }));
+        });
+        return;
+      }
+
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", () => resolve()),
+    );
+    const addressInfo = server.address();
+    if (!addressInfo || typeof addressInfo === "string") {
+      throw new Error("Failed to bind mock server");
+    }
+    const url = `http://127.0.0.1:${addressInfo.port}`;
+    toClose.push({
+      url,
+      close: () =>
+        new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        ),
+    });
+
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      aspHost: url,
+    };
+
+    await expect(listPools(chainConfig, url)).rejects.toMatchObject({
+      category: "RPC",
+      code: "RPC_POOL_RESOLUTION_FAILED",
+      retryable: true,
+    });
+  });
+
   test("listKnownPoolsFromRegistry returns an empty list when the registry has no entries for the chain", async () => {
     const chainConfig = {
       ...CHAINS.mainnet,

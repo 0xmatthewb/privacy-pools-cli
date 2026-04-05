@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
-import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
+import { CHAINS, KNOWN_POOLS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { lookupPoolDeploymentBlock } from "../../src/config/deployment-hints.ts";
 import {
+  listKnownPoolsFromRegistry,
   listPools,
   resetPoolsServiceCachesForTests,
   resolvePool,
@@ -493,10 +494,11 @@ describe("resolveTokenMetadata", () => {
     expect(successResult).toEqual({ symbol: "USDC", decimals: 6 });
   });
 
-  test("read-only fallback descriptors do not poison later strict pool resolution", async () => {
+  test("registry fallback descriptors do not poison later strict pool resolution", async () => {
     let metadataReads = 0;
-    const server = await startMockServer(31364, {
-      statsPayload: { pools: [{ tokenAddress: ASSET }] },
+    const chainId = 31364;
+    const server = await startMockServer(chainId, {
+      statsPayload: { pools: [] },
       rpcHandler: ({ to, data }) => {
         if (to === ASSET.toLowerCase() && data.startsWith("0x95d89b41")) {
           metadataReads += 1;
@@ -515,19 +517,29 @@ describe("resolveTokenMetadata", () => {
     });
     toClose.push(server);
 
-    const cfg = chainConfig(31364, server);
+    const cfg = chainConfig(chainId, server);
+    const previousKnownPools = KNOWN_POOLS[chainId];
+    KNOWN_POOLS[chainId] = { USDC: ASSET };
 
-    const listedPools = await listPools(cfg, server.url);
-    expect(listedPools).toHaveLength(1);
-    expect(listedPools[0]).toMatchObject({
-      symbol: "???",
-      decimals: 18,
-    });
+    try {
+      const listedPools = await listKnownPoolsFromRegistry(cfg, server.url);
+      expect(listedPools).toHaveLength(1);
+      expect(listedPools[0]).toMatchObject({
+        symbol: "???",
+        decimals: 18,
+      });
 
-    const resolvedPool = await resolvePool(cfg, ASSET, server.url);
-    expect(resolvedPool).toMatchObject({
-      symbol: "USDC",
-      decimals: 6,
-    });
+      const resolvedPool = await resolvePool(cfg, ASSET, server.url);
+      expect(resolvedPool).toMatchObject({
+        symbol: "USDC",
+        decimals: 6,
+      });
+    } finally {
+      if (previousKnownPools) {
+        KNOWN_POOLS[chainId] = previousKnownPools;
+      } else {
+        delete KNOWN_POOLS[chainId];
+      }
+    }
   });
 });
