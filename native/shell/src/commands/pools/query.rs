@@ -266,21 +266,21 @@ pub(crate) fn resolve_pool_native(
         }
     }
 
-    if has_custom_rpc {
-        return Err(CliError::input(
-            format!("No pool found for asset \"{asset}\" on {}.", chain.name),
-            Some(if asp_lookup_failed {
-                "The ASP may be offline. Try using --asset with a token contract address (0x...)."
-                    .to_string()
-            } else if let Some(hint) = available_assets_hint {
-                format!("Available assets: {hint}")
-            } else {
-                "No pools found. Try using --asset with a contract address.".to_string()
-            }),
-        ));
-    }
+    Err(pool_not_found_error(
+        chain,
+        asset,
+        asp_lookup_failed,
+        available_assets_hint,
+    ))
+}
 
-    Err(CliError::input(
+fn pool_not_found_error(
+    chain: &ChainDefinition,
+    asset: &str,
+    asp_lookup_failed: bool,
+    available_assets_hint: Option<String>,
+) -> CliError {
+    CliError::input(
         format!("No pool found for asset \"{asset}\" on {}.", chain.name),
         Some(if asp_lookup_failed {
             "The ASP may be offline. Try using --asset with a token contract address (0x...)."
@@ -290,7 +290,7 @@ pub(crate) fn resolve_pool_native(
         } else {
             "No pools found. Try using --asset with a contract address.".to_string()
         }),
-    ))
+    )
 }
 
 fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError> {
