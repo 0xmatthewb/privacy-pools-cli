@@ -62,7 +62,7 @@ describe("test profiles", () => {
     ).toBe(true);
     expect(
       hasStep(release, "node", ["scripts/run-conformance-suite.mjs", "all"]),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   test("ci and release profiles keep the high-cost verification lanes", () => {

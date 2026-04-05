@@ -59,7 +59,7 @@ const RELEASE_GRADE_PROFILE = [
   ),
   ...composeProfile(
     "docs-reference-check",
-    "repo-conformance-core",
+    "repo-conformance-live",
     "release-bench",
   ),
 ];
