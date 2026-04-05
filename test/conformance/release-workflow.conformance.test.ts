@@ -67,6 +67,19 @@ function extractRegistryInstallNodeVersions(workflow: string): string[] {
     .sort();
 }
 
+function extractValidateNodeVersions(workflow: string): string[] {
+  const match = workflow.match(
+    /validate:[\s\S]*?node-version:\s*((?:\n\s*-\s*"[^"]+")+)/,
+  );
+  if (!match) {
+    return [];
+  }
+
+  return [...match[1]!.matchAll(/-\s*"([^"]+)"/g)]
+    .map((entry) => entry[1]!)
+    .sort();
+}
+
 function expectedNativeTriplets(): string[] {
   return SUPPORTED_NATIVE_DISTRIBUTIONS.map((distribution) => distribution.triplet).sort();
 }
@@ -132,6 +145,14 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toMatch(
       /validate:[\s\S]*?uses:\s+taiki-e\/install-action@cargo-llvm-cov/m,
     );
+  });
+
+  test("release validate job exercises the full supported node range", () => {
+    expect(extractValidateNodeVersions(releaseWorkflow)).toEqual([
+      "22.x",
+      "24.x",
+      "25.x",
+    ]);
   });
 
   test("release workflow verifies packaged installs before publish", () => {
