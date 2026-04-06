@@ -497,7 +497,8 @@ describe("init command handler", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("IMPORTANT: Save your recovery phrase securely");
+    expect(stderr).toContain("Save your recovery phrase securely.");
+    expect(stderr).toContain("This is the only time it will be displayed.");
     expect(stderr).toContain("No signer key set");
   });
 

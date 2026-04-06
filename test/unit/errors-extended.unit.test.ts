@@ -285,6 +285,18 @@ describe("sanitizeDiagnosticText", () => {
     expect(sanitized).toContain("<redacted-address>");
     expect(sanitized).toContain("<redacted-hex>");
   });
+
+  test("redacts valid BIP-39 mnemonic phrases without clobbering ordinary text", () => {
+    const mnemonic =
+      "test test test test test test test test test test test junk";
+    const sanitized = sanitizeDiagnosticText(
+      `wallet import failed for phrase ${mnemonic} after a temporary network timeout`,
+    );
+
+    expect(sanitized).not.toContain(mnemonic);
+    expect(sanitized).toContain("<redacted-mnemonic>");
+    expect(sanitized).toContain("temporary network timeout");
+  });
 });
 
 describe("sanitizeEndpointForDisplay", () => {

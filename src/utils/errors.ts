@@ -1,4 +1,6 @@
 import chalk from "chalk";
+import { validateMnemonic as bip39ValidateMnemonic } from "@scure/bip39";
+import { wordlist as bip39EnglishWordlist } from "@scure/bip39/wordlists/english.js";
 import { dangerTone, notice } from "./theme.js";
 import { printJsonError } from "./json.js";
 import { isTransientNetworkError } from "./network.js";
@@ -49,6 +51,8 @@ const PRIVATE_KEY_PATTERN = /\b0x[0-9a-fA-F]{64}\b/g;
 const LONG_HEX_PATTERN = /\b0x[0-9a-fA-F]{80,}\b/g;
 const ADDRESS_PATTERN = /\b0x[0-9a-fA-F]{40}\b/g;
 const URL_SAFE_SEGMENT_PATTERN = /^[A-Za-z0-9._~-]+$/;
+const SUPPORTED_MNEMONIC_WORD_COUNTS = new Set([12, 24]);
+const ALPHA_WORD_PATTERN = /\b[a-z]+\b/gi;
 
 function isSensitiveEndpointSegment(segment: string): boolean {
   const decoded = segment.trim();
@@ -94,7 +98,7 @@ export function sanitizeDiagnosticText(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "unknown error";
 
-  return trimmed
+  return redactMnemonicPhrases(trimmed)
     .replace(URL_PATTERN, "<redacted-url>")
     .replace(PRIVATE_KEY_PATTERN, "<redacted-private-key>")
     .replace(LONG_HEX_PATTERN, "<redacted-hex>")
@@ -110,6 +114,76 @@ export function sanitizeDiagnosticText(value: string): string {
     )
     .replace(IPV4_HOST_PATTERN, "<redacted-host>")
     .replace(HOSTNAME_PATTERN, "<redacted-host>");
+}
+
+function redactMnemonicCandidate(candidate: string): string {
+  const normalized = candidate
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .join(" ");
+  const wordCount = normalized ? normalized.split(" ").length : 0;
+  if (!SUPPORTED_MNEMONIC_WORD_COUNTS.has(wordCount)) {
+    return candidate;
+  }
+  return bip39ValidateMnemonic(normalized, bip39EnglishWordlist)
+    ? "<redacted-mnemonic>"
+    : candidate;
+}
+
+function redactMnemonicPhrases(value: string): string {
+  const words = Array.from(value.matchAll(ALPHA_WORD_PATTERN)).map((match) => ({
+    start: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length,
+  }));
+  if (words.length === 0) return value;
+
+  const replacements: Array<{ start: number; end: number }> = [];
+
+  for (let index = 0; index < words.length; index += 1) {
+    let matchedCount = 0;
+
+    for (const wordCount of [24, 12]) {
+      const lastWord = words[index + wordCount - 1];
+      if (!lastWord) continue;
+
+      let onlyWhitespaceBetweenWords = true;
+      for (let offset = 1; offset < wordCount; offset += 1) {
+        const between = value.slice(
+          words[index + offset - 1].end,
+          words[index + offset].start,
+        );
+        if (!/^\s+$/.test(between)) {
+          onlyWhitespaceBetweenWords = false;
+          break;
+        }
+      }
+
+      if (!onlyWhitespaceBetweenWords) continue;
+
+      const candidate = value.slice(words[index].start, lastWord.end);
+      if (redactMnemonicCandidate(candidate) === "<redacted-mnemonic>") {
+        replacements.push({ start: words[index].start, end: lastWord.end });
+        matchedCount = wordCount;
+        break;
+      }
+    }
+
+    if (matchedCount > 0) {
+      index += matchedCount - 1;
+    }
+  }
+
+  if (replacements.length === 0) return value;
+
+  let sanitized = value;
+  for (const replacement of replacements.toReversed()) {
+    sanitized =
+      sanitized.slice(0, replacement.start) +
+      "<redacted-mnemonic>" +
+      sanitized.slice(replacement.end);
+  }
+  return sanitized;
 }
 
 export class CLIError extends Error {

@@ -4,14 +4,14 @@ Build transaction payloads offline without submitting. Useful for external signi
 
 ```bash
 # Envelope format (default): includes metadata and proof artifacts
-privacy-pools deposit 0.1 --asset ETH --unsigned --json
+privacy-pools deposit 0.1 ETH --unsigned --json
 
 # Raw tx format: just the transaction objects, ready to sign and broadcast
-privacy-pools deposit 0.1 --asset ETH --unsigned tx --json
+privacy-pools deposit 0.1 ETH --unsigned tx --json
 
 # Works with withdraw and ragequit too
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --unsigned --json
-privacy-pools ragequit --asset ETH --from-pa PA-1 --unsigned --json
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... --unsigned --json
+privacy-pools ragequit ETH --from-pa PA-1 --unsigned --json
 ```
 
 ## Dry Run
@@ -19,9 +19,9 @@ privacy-pools ragequit --asset ETH --from-pa PA-1 --unsigned --json
 Validate inputs, check balances, and generate proofs without submitting anything onchain.
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --dry-run
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --dry-run
-privacy-pools ragequit --asset ETH --from-pa PA-1 --dry-run
+privacy-pools deposit 0.1 ETH --dry-run
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... --dry-run
+privacy-pools ragequit ETH --from-pa PA-1 --dry-run
 ```
 
 ## Installation Notes

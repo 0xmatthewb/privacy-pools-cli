@@ -43,6 +43,7 @@ import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { notice } from "../utils/theme.js";
 import { createOutputContext } from "../output/common.js";
+import { formatCallout } from "../output/layout.js";
 import { renderInitResult } from "../output/init.js";
 
 interface InitCommandOptions {
@@ -410,16 +411,12 @@ export async function handleInitCommand(
     if (!importedMnemonic && !isJson) {
       process.stderr.write("\n");
       process.stderr.write(
-        chalk.bold(
-          notice("IMPORTANT: Save your recovery phrase securely!"),
-        ) + "\n",
+        formatCallout("danger", [
+          "Save your recovery phrase securely.",
+          "This is the only time it will be displayed.",
+          `Recovery phrase: ${chalk.bold(mnemonic)}`,
+        ]),
       );
-      process.stderr.write(
-        chalk.bold(notice("   This is the ONLY time it will be displayed.")) +
-          "\n",
-      );
-      process.stderr.write("\n");
-      process.stderr.write(chalk.bold(mnemonic) + "\n");
       process.stderr.write("\n");
 
       // Offer to save recovery phrase to a file, then confirm backup

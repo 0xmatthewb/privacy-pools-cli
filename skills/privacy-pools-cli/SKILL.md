@@ -269,7 +269,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 
 ```
 1. privacy-pools capabilities --agent                                   # Discover all commands
-2. privacy-pools status --agent                                         # Check setup and health
+2. privacy-pools status --agent --check                                 # Check setup and health
 3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
 4. privacy-pools flow start 0.1 ETH --to <addr> --agent                 # Easy path: deposit now, save later withdrawal
 5. privacy-pools flow watch latest --agent                              # Resume the saved workflow until it finishes or pauses
