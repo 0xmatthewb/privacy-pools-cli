@@ -1,8 +1,8 @@
 use super::model::{ChainSummary, PoolListingEntry, PoolWarning, PoolsRenderData};
 use crate::output::{
-    format_count_number, format_key_value_rows, format_section_heading, insert_optional_f64,
-    insert_optional_string, insert_optional_u64, print_csv, print_json_success, print_table,
-    write_info, write_stderr_text, write_warn,
+    build_next_action, format_count_number, format_key_value_rows, format_section_heading,
+    insert_optional_f64, insert_optional_string, insert_optional_u64, print_csv,
+    print_json_success, print_table, write_info, write_stderr_text, write_warn,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -57,6 +57,21 @@ pub(super) fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData
 
 pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
     if mode.is_json() {
+        // Build nextActions: deposit template with chain context when single-chain.
+        let mut next_opts = Map::new();
+        next_opts.insert("agent".to_string(), Value::Bool(true));
+        if !data.all_chains {
+            next_opts.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+        }
+        let next_actions = Value::Array(vec![build_next_action(
+            "deposit",
+            "Deposit into a pool.",
+            "after_pools",
+            Some(&["<amount>", "<asset>"]),
+            Some(&next_opts),
+            Some(false),
+        )]);
+
         if data.all_chains {
             let mut payload = Map::new();
             payload.insert("allChains".to_string(), Value::Bool(true));
@@ -95,18 +110,27 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
                     ),
                 );
             }
+            payload.insert("nextActions".to_string(), next_actions);
             print_json_success(Value::Object(payload));
         } else {
-            print_json_success(json!({
-                "chain": data.chain_name,
-                "search": data.search,
-                "sort": data.sort,
-                "pools": data
-                    .filtered_pools
-                    .iter()
-                    .map(|entry| pool_entry_to_json(entry, false))
-                    .collect::<Vec<_>>(),
-            }));
+            let mut payload = Map::new();
+            payload.insert("chain".to_string(), Value::String(data.chain_name));
+            payload.insert(
+                "search".to_string(),
+                data.search.map(Value::String).unwrap_or(Value::Null),
+            );
+            payload.insert("sort".to_string(), Value::String(data.sort));
+            payload.insert(
+                "pools".to_string(),
+                Value::Array(
+                    data.filtered_pools
+                        .iter()
+                        .map(|entry| pool_entry_to_json(entry, false))
+                        .collect::<Vec<_>>(),
+                ),
+            );
+            payload.insert("nextActions".to_string(), next_actions);
+            print_json_success(Value::Object(payload));
         }
         return;
     }

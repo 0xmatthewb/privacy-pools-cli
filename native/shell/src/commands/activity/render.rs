@@ -1,14 +1,17 @@
 use super::format::{format_asp_approval_status_label, format_tx_hash_short};
 use super::model::{ActivityRenderData, NormalizedActivityEvent};
 use crate::output::{
-    format_key_value_rows, format_section_heading, format_time_ago, print_csv, print_json_success,
-    print_table, write_stderr_text,
+    build_next_action, format_key_value_rows, format_section_heading, format_time_ago, print_csv,
+    print_json_success, print_table, write_stderr_text,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
 
 pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData) {
     if mode.is_json() {
+        // Clone asset before any move for use in pagination nextAction.
+        let asset_for_pagination = data.asset.clone();
+
         let mut payload = Map::new();
         payload.insert("mode".to_string(), Value::String(data.mode.to_string()));
         payload.insert("chain".to_string(), Value::String(data.chain.clone()));
@@ -46,6 +49,36 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
                 ),
             );
         }
+
+        // Pagination nextAction when more pages exist.
+        if let Some(total_pages) = data.total_pages {
+            if data.page < total_pages {
+                let mut opts = Map::new();
+                opts.insert("agent".to_string(), Value::Bool(true));
+                opts.insert("page".to_string(), Value::Number((data.page + 1).into()));
+                opts.insert("limit".to_string(), Value::Number(data.per_page.into()));
+                if data.mode == "pool-activity" {
+                    if let Some(ref asset) = asset_for_pagination {
+                        opts.insert("asset".to_string(), Value::String(asset.clone()));
+                    }
+                }
+                if data.chain != "all-mainnets" {
+                    opts.insert("chain".to_string(), Value::String(data.chain.clone()));
+                }
+                payload.insert(
+                    "nextActions".to_string(),
+                    Value::Array(vec![build_next_action(
+                        "activity",
+                        "View the next page.",
+                        "after_activity",
+                        None,
+                        Some(&opts),
+                        None,
+                    )]),
+                );
+            }
+        }
+
         print_json_success(Value::Object(payload));
         return;
     }

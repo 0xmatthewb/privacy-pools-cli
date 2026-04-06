@@ -83,14 +83,20 @@ fn json_schema_version() -> &'static str {
 }
 
 pub fn print_json_success(payload: Value) {
-    let mut object = payload.as_object().cloned().unwrap_or_default();
+    let source = payload.as_object().cloned().unwrap_or_default();
+    let mut object = Map::new();
+    // Envelope fields first, matching JS-side printJsonSuccess ordering.
     object.insert(
         "schemaVersion".to_string(),
         Value::String(json_schema_version().to_string()),
     );
     object.insert("success".to_string(), Value::Bool(true));
-    let output = Value::Object(object);
-    write_stdout_text(&serde_json::to_string(&output).expect("json success must serialize"));
+    for (key, value) in source {
+        object.insert(key, value);
+    }
+    write_stdout_text(
+        &serde_json::to_string(&Value::Object(object)).expect("json success must serialize"),
+    );
 }
 
 pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> ! {
@@ -276,6 +282,111 @@ pub fn insert_optional_f64(object: &mut Map<String, Value>, key: &str, value: Op
             .map(Value::Number)
             .unwrap_or(Value::Null),
     );
+}
+
+// ── NextAction helpers ────────────────────────────────────────────────────────
+
+fn camel_to_kebab(key: &str) -> String {
+    let mut result = String::with_capacity(key.len() + 4);
+    for ch in key.chars() {
+        if ch.is_uppercase() {
+            if !result.is_empty() {
+                result.push('-');
+            }
+            result.push(ch.to_lowercase().next().unwrap_or(ch));
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
+fn build_cli_command(
+    command: &str,
+    args: Option<&[&str]>,
+    options: Option<&Map<String, Value>>,
+) -> String {
+    let mut parts = vec!["privacy-pools".to_string(), command.to_string()];
+
+    if let Some(args) = args {
+        for arg in args {
+            parts.push(arg.to_string());
+        }
+    }
+
+    if let Some(opts) = options {
+        for (key, value) in opts {
+            if key == "agent" {
+                if value.as_bool() == Some(true) {
+                    parts.push("--agent".to_string());
+                }
+                continue;
+            }
+            match value {
+                Value::Null => {}
+                Value::Bool(true) => parts.push(format!("--{}", camel_to_kebab(key))),
+                Value::Bool(false) => parts.push(format!("--no-{}", camel_to_kebab(key))),
+                Value::Number(n) => {
+                    parts.push(format!("--{}", camel_to_kebab(key)));
+                    parts.push(n.to_string());
+                }
+                Value::String(s) => {
+                    parts.push(format!("--{}", camel_to_kebab(key)));
+                    parts.push(s.clone());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    parts.join(" ")
+}
+
+/// Build a NextAction JSON value matching the JS `createNextAction` shape.
+///
+/// Mirrors `src/output/common.ts:createNextAction` + `withCliCommand`.
+pub fn build_next_action(
+    command: &str,
+    reason: &str,
+    when: &str,
+    args: Option<&[&str]>,
+    options: Option<&Map<String, Value>>,
+    runnable: Option<bool>,
+) -> Value {
+    let cli_command = build_cli_command(command, args, options);
+    let mut action = Map::new();
+    action.insert("command".to_string(), Value::String(command.to_string()));
+    action.insert("reason".to_string(), Value::String(reason.to_string()));
+    action.insert("when".to_string(), Value::String(when.to_string()));
+
+    if let Some(args) = args {
+        if !args.is_empty() {
+            action.insert(
+                "args".to_string(),
+                Value::Array(args.iter().map(|a| Value::String(a.to_string())).collect()),
+            );
+        }
+    }
+
+    if let Some(opts) = options {
+        if !opts.is_empty() {
+            let filtered: Map<String, Value> = opts
+                .iter()
+                .filter(|(_, v)| !v.is_null())
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            if !filtered.is_empty() {
+                action.insert("options".to_string(), Value::Object(filtered));
+            }
+        }
+    }
+
+    if runnable == Some(false) {
+        action.insert("runnable".to_string(), Value::Bool(false));
+    }
+
+    action.insert("cliCommand".to_string(), Value::String(cli_command));
+    Value::Object(action)
 }
 
 fn escape_csv_field(value: &str) -> String {
