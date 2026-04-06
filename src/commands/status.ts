@@ -106,6 +106,11 @@ export async function handleStatusCommand(
       const shouldCheckRpc = shouldCheckAll || opts.checkRpc === true;
 
       result.healthChecksEnabled = { rpc: shouldCheckRpc, asp: shouldCheckAsp };
+      const shouldShowProgress =
+        !mode.isQuiet &&
+        !mode.isJson &&
+        !mode.isCsv &&
+        (shouldCheckRpc || shouldCheckAsp);
 
       const aspCheck = shouldCheckAsp
         ? (async () => {
@@ -151,7 +156,29 @@ export async function handleStatusCommand(
             signerBalance?: bigint;
           }>(null);
 
-      const [aspLive, rpcStatus] = await Promise.all([aspCheck, rpcCheck]);
+      const healthCheckLabel =
+        shouldCheckRpc && shouldCheckAsp
+          ? "Checking chain health"
+          : shouldCheckRpc
+          ? "Checking RPC health"
+          : "Checking ASP health";
+      const [aspLive, rpcStatus] = shouldShowProgress
+        ? await (async () => {
+            const [{ spinner }, { withSpinnerProgress }] = await Promise.all([
+              import("../utils/format.js"),
+              import("../utils/proof-progress.js"),
+            ]);
+            const spin = spinner(`${healthCheckLabel}...`, false);
+            spin.start();
+            try {
+              return await withSpinnerProgress(spin, healthCheckLabel, () =>
+                Promise.all([aspCheck, rpcCheck])
+              );
+            } finally {
+              spin.stop();
+            }
+          })()
+        : await Promise.all([aspCheck, rpcCheck]);
 
       if (aspLive !== null) {
         result.aspLive = aspLive;

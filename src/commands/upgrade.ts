@@ -22,10 +22,45 @@ export async function handleUpgradeCommand(
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const ctx = createOutputContext(mode, globalOpts?.verbose ?? false);
+  const shouldShowProgress =
+    !mode.isQuiet &&
+    !mode.isJson &&
+    !mode.isCsv;
 
   try {
     const pkg = readCliPackageInfo(import.meta.url);
-    let result = await inspectUpgrade(pkg);
+    let result = shouldShowProgress
+      ? await (async () => {
+          const [{ spinner }, { withSpinnerProgress }] = await Promise.all([
+            import("../utils/format.js"),
+            import("../utils/proof-progress.js"),
+          ]);
+          const spin = spinner("Checking for upgrades...", false);
+          spin.start();
+          try {
+            return await withSpinnerProgress(spin, "Checking for upgrades", () =>
+              inspectUpgrade(pkg)
+            );
+          } finally {
+            spin.stop();
+          }
+        })()
+      : await inspectUpgrade(pkg);
+
+    const performUpgradeWithProgress = async () => {
+      if (!shouldShowProgress) {
+        return performUpgrade(result);
+      }
+
+      const { spinner } = await import("../utils/format.js");
+      const spin = spinner("Installing update...", false);
+      spin.start();
+      try {
+        return await performUpgrade(result);
+      } finally {
+        spin.stop();
+      }
+    };
 
     const forceCheckOnly = opts.check === true || !result.updateAvailable;
     const shouldAutoRun =
@@ -47,7 +82,7 @@ export async function handleUpgradeCommand(
     }
 
     if (shouldAutoRun) {
-      result = await performUpgrade(result);
+      result = await performUpgradeWithProgress();
       renderUpgradeResult(ctx, result);
       return;
     }
@@ -69,7 +104,7 @@ export async function handleUpgradeCommand(
       return;
     }
 
-    result = await performUpgrade(result);
+    result = await performUpgradeWithProgress();
     renderUpgradeResult(ctx, result);
   } catch (error) {
     printError(error, mode.isJson);

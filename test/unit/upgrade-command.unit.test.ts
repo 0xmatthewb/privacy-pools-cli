@@ -28,6 +28,10 @@ const realInquirerPrompts = captureModuleExports(
   await import("@inquirer/prompts"),
 );
 const realErrors = captureModuleExports(await import("../../src/utils/errors.ts"));
+const realFormat = captureModuleExports(await import("../../src/utils/format.ts"));
+const realProofProgress = captureModuleExports(
+  await import("../../src/utils/proof-progress.ts"),
+);
 
 const UPGRADE_COMMAND_RESTORES = [
   ["../../src/package-info.ts", realPackageInfo],
@@ -35,6 +39,8 @@ const UPGRADE_COMMAND_RESTORES = [
   ["../../src/output/upgrade.ts", realUpgradeOutput],
   ["@inquirer/prompts", realInquirerPrompts],
   ["../../src/utils/errors.ts", realErrors],
+  ["../../src/utils/format.ts", realFormat],
+  ["../../src/utils/proof-progress.ts", realProofProgress],
 ] as const;
 
 const readCliPackageInfoMock = mock(() => ({
@@ -219,6 +225,81 @@ describe("upgrade command handler", () => {
         performed: true,
       }),
     );
+  });
+
+  test("shows progress while inspecting and auto-installing in human mode", async () => {
+    const spinnerInstances: Array<{
+      start: ReturnType<typeof mock>;
+      stop: ReturnType<typeof mock>;
+      text: string;
+    }> = [];
+    const spinnerMock = mock(() => {
+      const instance = {
+        start: mock(() => undefined),
+        stop: mock(() => undefined),
+        text: "",
+      };
+      spinnerInstances.push(instance);
+      return instance;
+    });
+    const withSpinnerProgressMock = mock(
+      async (_spin: unknown, _label: string, fn: () => Promise<unknown>) =>
+        await fn(),
+    );
+
+    mock.module("../../src/utils/format.ts", () => ({
+      ...realFormat,
+      spinner: spinnerMock,
+    }));
+    mock.module("../../src/utils/proof-progress.ts", () => ({
+      ...realProofProgress,
+      withSpinnerProgress: withSpinnerProgressMock,
+    }));
+
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({ yes: true })),
+    );
+
+    expect(spinnerMock).toHaveBeenCalledTimes(2);
+    expect(spinnerMock.mock.calls[0]?.[0]).toBe("Checking for upgrades...");
+    expect(spinnerMock.mock.calls[1]?.[0]).toBe("Installing update...");
+    expect(withSpinnerProgressMock).toHaveBeenCalledWith(
+      spinnerInstances[0],
+      "Checking for upgrades",
+      expect.any(Function),
+    );
+    expect(spinnerInstances[0]?.start).toHaveBeenCalledTimes(1);
+    expect(spinnerInstances[0]?.stop).toHaveBeenCalledTimes(1);
+    expect(spinnerInstances[1]?.start).toHaveBeenCalledTimes(1);
+    expect(spinnerInstances[1]?.stop).toHaveBeenCalledTimes(1);
+  });
+
+  test("suppresses upgrade progress spinners in json mode", async () => {
+    const spinnerMock = mock(() => ({
+      start: mock(() => undefined),
+      stop: mock(() => undefined),
+      text: "",
+    }));
+    const withSpinnerProgressMock = mock(
+      async (_spin: unknown, _label: string, fn: () => Promise<unknown>) =>
+        await fn(),
+    );
+
+    mock.module("../../src/utils/format.ts", () => ({
+      ...realFormat,
+      spinner: spinnerMock,
+    }));
+    mock.module("../../src/utils/proof-progress.ts", () => ({
+      ...realProofProgress,
+      withSpinnerProgress: withSpinnerProgressMock,
+    }));
+
+    await captureAsyncOutput(() =>
+      handleUpgradeCommand({}, fakeCommand({ json: true, yes: true })),
+    );
+
+    expect(spinnerMock).not.toHaveBeenCalled();
+    expect(withSpinnerProgressMock).not.toHaveBeenCalled();
   });
 
   test("prompts interactive humans before upgrading", async () => {

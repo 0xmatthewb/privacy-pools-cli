@@ -23,8 +23,14 @@ import {
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_ASP_HOST_SEPOLIA = process.env.PRIVACY_POOLS_ASP_HOST_SEPOLIA;
 const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
+const realFormat = captureModuleExports(await import("../../src/utils/format.ts"));
+const realProofProgress = captureModuleExports(
+  await import("../../src/utils/proof-progress.ts"),
+);
 const STATUS_MODULE_RESTORES = [
   ["../../src/services/sdk.ts", realSdk],
+  ["../../src/utils/format.ts", realFormat],
+  ["../../src/utils/proof-progress.ts", realProofProgress],
 ] as const;
 
 function fakeCommand(
@@ -134,8 +140,9 @@ describe("status command handler", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Privacy Pools CLI Status");
-    expect(stderr).toContain("Config not found");
-    expect(stderr).toContain("Run 'privacy-pools init'");
+    expect(stderr).toContain("Wallet:");
+    expect(stderr).toMatch(/Config:\s+not found/);
+    expect(stderr).toContain("privacy-pools init");
   });
 
   test("redacts sensitive custom endpoint details in status output", async () => {
@@ -279,6 +286,74 @@ describe("status command handler", () => {
     expect(json.rpcBlockNumber).toBeUndefined();
     expect(json.signerBalance).toBeUndefined();
     expect(getBalanceMock).not.toHaveBeenCalled();
+  });
+
+  test("shows a human-mode spinner while health checks run", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "sepolia" });
+
+    const startMock = mock(() => undefined);
+    const stopMock = mock(() => undefined);
+    const spinnerInstance = { start: startMock, stop: stopMock, text: "" };
+    const spinnerMock = mock(() => spinnerInstance);
+    const withSpinnerProgressMock = mock(
+      async (_spin: unknown, _label: string, fn: () => Promise<unknown>) =>
+        await fn(),
+    );
+
+    mock.module("../../src/utils/format.ts", () => ({
+      ...realFormat,
+      spinner: spinnerMock,
+    }));
+    mock.module("../../src/utils/proof-progress.ts", () => ({
+      ...realProofProgress,
+      withSpinnerProgress: withSpinnerProgressMock,
+    }));
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleStatusCommand({}, fakeCommand({ chain: "sepolia" })),
+    );
+
+    expect(spinnerMock).toHaveBeenCalledWith("Checking chain health...", false);
+    expect(startMock).toHaveBeenCalledTimes(1);
+    expect(stopMock).toHaveBeenCalledTimes(1);
+    expect(withSpinnerProgressMock).toHaveBeenCalledWith(
+      spinnerInstance,
+      "Checking chain health",
+      expect.any(Function),
+    );
+    expect(stderr).toContain("Privacy Pools CLI Status");
+  });
+
+  test("suppresses the health-check spinner in json mode", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "sepolia" });
+
+    const spinnerMock = mock(() => ({
+      start: mock(() => undefined),
+      stop: mock(() => undefined),
+      text: "",
+    }));
+    const withSpinnerProgressMock = mock(
+      async (_spin: unknown, _label: string, fn: () => Promise<unknown>) =>
+        await fn(),
+    );
+
+    mock.module("../../src/utils/format.ts", () => ({
+      ...realFormat,
+      spinner: spinnerMock,
+    }));
+    mock.module("../../src/utils/proof-progress.ts", () => ({
+      ...realProofProgress,
+      withSpinnerProgress: withSpinnerProgressMock,
+    }));
+
+    await captureAsyncJsonOutput(() =>
+      handleStatusCommand({}, fakeCommand({ json: true, chain: "sepolia" })),
+    );
+
+    expect(spinnerMock).not.toHaveBeenCalled();
+    expect(withSpinnerProgressMock).not.toHaveBeenCalled();
   });
 
   test("treats malformed saved signer keys as present but invalid", async () => {
