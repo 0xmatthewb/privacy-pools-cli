@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent } from "./common.js";
+import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent, createNextAction, appendNextActions } from "./common.js";
 import { POA_PORTAL_URL } from "../config/chains.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
@@ -138,23 +138,31 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
 export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
 
+  const agentNextActions = [
+    createNextAction("deposit", "Deposit into a pool.", "after_pools", {
+      args: ["<amount>", "<asset>"],
+      options: { agent: true },
+      runnable: false,
+    }),
+  ];
+
   if (ctx.mode.isJson) {
     if (allChains) {
-      printJsonSuccess({
+      printJsonSuccess(appendNextActions({
         allChains: true,
         search,
         sort,
         chains: chainSummaries,
         pools: filteredPools.map((entry) => poolToJson(entry.pool, entry.chain)),
         warnings: warnings.length > 0 ? warnings : undefined,
-      });
+      }, agentNextActions));
     } else {
-      printJsonSuccess({
+      printJsonSuccess(appendNextActions({
         chain: chainName,
         search,
         sort,
         pools: filteredPools.map((entry) => poolToJson(entry.pool)),
-      });
+      }, agentNextActions));
     }
     return;
   }

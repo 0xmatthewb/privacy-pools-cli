@@ -408,6 +408,13 @@ describe("next-step parity across renderers", () => {
         return captureOutput(() => renderAccounts(ctx, STUB_ACCOUNTS));
       },
     },
+    {
+      name: "renderSyncComplete",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderSyncComplete(ctx, STUB_SYNC));
+      },
+    },
   ];
 
   for (const { name, render } of cases) {
@@ -425,24 +432,10 @@ describe("next-step parity across renderers", () => {
 describe("surfaces without next steps stay quiet", () => {
   const cases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
     {
-      name: "renderPools",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderPools(ctx, STUB_POOLS));
-      },
-    },
-    {
       name: "renderPoolDetail",
       render: (json) => {
         const ctx = createOutputContext(makeMode({ isJson: json }));
         return captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL));
-      },
-    },
-    {
-      name: "renderSyncComplete",
-      render: (json) => {
-        const ctx = createOutputContext(makeMode({ isJson: json }));
-        return captureOutput(() => renderSyncComplete(ctx, STUB_SYNC));
       },
     },
   ];
@@ -452,6 +445,29 @@ describe("surfaces without next steps stay quiet", () => {
       const jsonResult = render(true);
       const jsonCommands = getJsonNextActionCommands(jsonResult.stdout);
       expect(jsonCommands).toHaveLength(0);
+
+      const humanResult = render(false);
+      expect(stderrContainsNextSteps(humanResult.stderr)).toBe(false);
+    });
+  }
+});
+
+describe("agent-only next steps: JSON present, human quiet", () => {
+  const cases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
+    {
+      name: "renderPools",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderPools(ctx, STUB_POOLS));
+      },
+    },
+  ];
+
+  for (const { name, render } of cases) {
+    test(`${name}: JSON nextActions present, human "Next steps:" absent (template-only)`, () => {
+      const jsonResult = render(true);
+      const jsonCommands = getJsonNextActionCommands(jsonResult.stdout);
+      expect(jsonCommands.length).toBeGreaterThan(0);
 
       const humanResult = render(false);
       expect(stderrContainsNextSteps(humanResult.stderr)).toBe(false);

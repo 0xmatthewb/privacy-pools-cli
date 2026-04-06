@@ -12,6 +12,9 @@ import {
   success,
   isSilent,
   guardCsvUnsupported,
+  createNextAction,
+  appendNextActions,
+  renderNextSteps,
 } from "./common.js";
 import { formatKeyValueRows, formatSectionHeading } from "./layout.js";
 
@@ -52,15 +55,29 @@ export function renderSyncComplete(
 ): void {
   guardCsvUnsupported(ctx, "sync");
 
+  const agentNextActions = [
+    createNextAction("accounts", "Review synced Pool Accounts.", "after_sync", {
+      options: { agent: true, chain: result.chain },
+    }),
+  ];
+  const humanNextActions = [
+    createNextAction("accounts", "Review synced Pool Accounts.", "after_sync", {
+      options: { chain: result.chain },
+    }),
+  ];
+
   if (ctx.mode.isJson) {
     printJsonSuccess(
-      {
-        chain: result.chain,
-        syncedPools: result.syncedPools,
-        syncedSymbols: result.syncedSymbols,
-        availablePoolAccounts: result.availablePoolAccounts,
-        previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
-      },
+      appendNextActions(
+        {
+          chain: result.chain,
+          syncedPools: result.syncedPools,
+          syncedSymbols: result.syncedSymbols,
+          availablePoolAccounts: result.availablePoolAccounts,
+          previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
+        },
+        agentNextActions,
+      ),
     );
     return;
   }
@@ -91,4 +108,5 @@ export function renderSyncComplete(
       ]),
     );
   }
+  renderNextSteps(ctx, humanNextActions);
 }

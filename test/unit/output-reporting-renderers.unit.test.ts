@@ -127,7 +127,10 @@ describe("renderPools parity", () => {
     expect(json.pools.length).toBe(1);
     expect(json.pools[0].asset).toBe("ETH");
     expect(json.pools[0].tokenAddress).toBe("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions.length).toBe(1);
+    expect(json.nextActions[0].command).toBe("deposit");
+    expect(json.nextActions[0].runnable).toBe(false);
     expect(stderr).toBe("");
   });
 

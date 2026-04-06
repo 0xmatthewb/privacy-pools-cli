@@ -54,7 +54,11 @@ export type NextActionWhen =
   | "status_unsigned_no_accounts"
   | "status_unsigned_has_accounts"
   | "status_ready_no_accounts"
-  | "status_ready_has_accounts";
+  | "status_ready_has_accounts"
+  | "after_sync"
+  | "after_pools"
+  | "after_upgrade"
+  | "after_activity";
 
 export interface NextAction {
   command: string;

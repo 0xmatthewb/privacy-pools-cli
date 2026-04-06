@@ -1,4 +1,5 @@
 import type { UpgradeResult } from "../services/upgrade.js";
+import type { NextAction } from "../types.js";
 import { accent } from "../utils/theme.js";
 import type { OutputContext } from "./common.js";
 import {
@@ -8,6 +9,9 @@ import {
   printJsonSuccess,
   success,
   warn,
+  createNextAction,
+  appendNextActions,
+  renderNextSteps,
 } from "./common.js";
 import {
   formatCallout,
@@ -23,8 +27,30 @@ export function renderUpgradeResult(
 ): void {
   guardCsvUnsupported(ctx, "upgrade");
 
+  let agentNextActions: NextAction[] | undefined;
+  let humanNextActions: NextAction[] | undefined;
+
+  if (result.status === "ready") {
+    agentNextActions = [
+      createNextAction("upgrade", "Install the available update.", "after_upgrade", {
+        options: { agent: true, yes: true },
+      }),
+    ];
+    humanNextActions = [
+      createNextAction("upgrade", "Install the available update.", "after_upgrade", {
+        options: { yes: true },
+      }),
+    ];
+  } else if (result.status === "manual") {
+    agentNextActions = [
+      createNextAction("upgrade", "Upgrade manually using the command shown.", "after_upgrade", {
+        runnable: false,
+      }),
+    ];
+  }
+
   if (ctx.mode.isJson) {
-    printJsonSuccess(result);
+    printJsonSuccess(appendNextActions({ ...result }, agentNextActions));
     return;
   }
 
@@ -101,6 +127,7 @@ export function renderUpgradeResult(
       process.stderr.write(formatSectionHeading("Manual command", { divider: true }));
       process.stderr.write(`  ${accent(result.command)}\n`);
     }
+    renderNextSteps(ctx, humanNextActions);
     process.stderr.write("\n");
     return;
   }

@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printCsv, printTable, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { formatAddress } from "../utils/format.js";
 import { accentBold } from "../utils/theme.js";
 import { explorerTxUrl } from "../config/chains.js";
@@ -68,6 +68,23 @@ function toIsoTimestamp(timestampMs: number | null): string | null {
 // ── Renderers ────────────────────────────────────────────────────────────────
 
 export function renderActivity(ctx: OutputContext, data: ActivityRenderData): void {
+  const hasNextPage = data.totalPages !== null && data.page < data.totalPages;
+  const paginationOptions: Record<string, string | number | boolean> = {
+    page: data.page + 1,
+    ...(data.mode === "pool-activity" && data.asset ? { asset: data.asset } : {}),
+    ...(data.chain !== "all-mainnets" ? { chain: data.chain } : {}),
+  };
+  const agentNextActions = hasNextPage
+    ? [createNextAction("activity", "View the next page.", "after_activity", {
+        options: { agent: true, ...paginationOptions },
+      })]
+    : undefined;
+  const humanNextActions = hasNextPage
+    ? [createNextAction("activity", "View the next page.", "after_activity", {
+        options: paginationOptions,
+      })]
+    : undefined;
+
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
       mode: data.mode,
@@ -99,7 +116,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       payload.chainFiltered = true;
       payload.note = "Pagination totals are unavailable when filtering by chain. Results may be sparse.";
     }
-    printJsonSuccess(payload, false);
+    printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
   }
 
@@ -180,4 +197,5 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       ),
     );
   }
+  renderNextSteps(ctx, humanNextActions);
 }

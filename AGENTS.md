@@ -53,12 +53,8 @@ and, when present, an exact-version optional native shell package for the host:
 | Windows (x64, MSVC) | `@0xmatthewb/privacy-pools-cli-native-windows-x64-msvc` |
 | Windows (ARM64, MSVC) | `@0xmatthewb/privacy-pools-cli-native-windows-arm64-msvc` |
 
-Node/npm still use `darwin` and `win32` internally in `os` selectors because
-those are the official Node platform ids. `darwin` means macOS.
-
 Linux native packaging currently targets x64 glibc hosts. Alpine and other
-musl-based environments fall back to the JS launcher automatically instead of
-loading an incompatible native package.
+musl-based environments fall back to the JS launcher automatically.
 
 For agent onboarding, prefer the plain npm install above on a supported host.
 Normal npm installs include the host optional native package automatically.
@@ -145,7 +141,7 @@ privacy-pools pools --agent --sort tvl-desc
 privacy-pools pools ETH --agent             # detail view for a specific pool
 ```
 
-JSON payload (single chain): `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }], warnings? }`
+JSON payload (single chain): `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 Default sort is `tvl-desc` (highest pool balance first). Override with `--sort`.
 
@@ -164,7 +160,7 @@ privacy-pools activity --agent
 privacy-pools activity --agent --asset ETH --limit 20
 ```
 
-JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }] }`
+JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 When querying all CLI-supported mainnet chains (no `--chain`), `chain` is `"all-mainnets"` and `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
 
@@ -220,7 +216,7 @@ privacy-pools upgrade --agent --check
 privacy-pools upgrade --agent --yes
 ```
 
-JSON payload: `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }`
+JSON payload: `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 `upgrade` checks npm for the latest published `privacy-pools-cli` release. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine modes, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
 
@@ -450,7 +446,7 @@ privacy-pools sync --agent
 privacy-pools sync --agent --asset ETH
 ```
 
-JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts? }`
+JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ## Auto-Sync Behavior
 

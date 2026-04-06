@@ -92,7 +92,8 @@
         "performed": "boolean",
         "command": "string|null",
         "installContext": "{ kind: \"global_npm\"|\"bun_global\"|\"source_checkout\"|\"local_project\"|\"npx\"|\"ci\"|\"unknown\", supportedAutoRun: boolean, reason: string }",
-        "installedVersion": "string|null"
+        "installedVersion": "string|null",
+        "nextActions": "NextAction[]? (suggests upgrade command when status is ready or manual)"
       }
     },
     "flow": {
@@ -169,7 +170,8 @@
         "sort": "string",
         "chains": "ChainSummary[]? (multi-chain mode: { chain, pools, error })",
         "pools": "Pool[]",
-        "warnings": "PoolWarning[]? (multi-chain mode)"
+        "warnings": "PoolWarning[]? (multi-chain mode)",
+        "nextActions": "NextAction[]? (suggests deposit as a template action)"
       },
       "poolFields": {
         "asset": "string",
@@ -540,7 +542,8 @@
         "totalPages": "number|null",
         "chainFiltered": "boolean? (true when chain filtering happens client-side)",
         "note": "string? (explains pagination limitations when chainFiltered is true)",
-        "events": "ActivityEvent[]"
+        "events": "ActivityEvent[]",
+        "nextActions": "NextAction[]? (pagination: suggests next page when more pages exist)"
       },
       "poolActivityExtraFields": {
         "asset": "string",
@@ -645,7 +648,8 @@
         "syncedPools": "number",
         "syncedSymbols": "string[]? (present on successful sync)",
         "availablePoolAccounts": "number",
-        "previousAvailablePoolAccounts": "number? (count before sync)"
+        "previousAvailablePoolAccounts": "number? (count before sync)",
+        "nextActions": "NextAction[]? (suggests accounts to review synced Pool Accounts)"
       }
     },
     "guide": {
