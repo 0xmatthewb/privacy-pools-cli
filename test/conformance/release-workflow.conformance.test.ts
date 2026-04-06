@@ -32,6 +32,10 @@ const verifyRegistryInstallScript = readFileSync(
   join(CLI_ROOT, "scripts", "verify-registry-install.mjs"),
   "utf8",
 );
+const verifyPublishedArtifactScript = readFileSync(
+  join(CLI_ROOT, "scripts", "verify-npm-published-artifact.mjs"),
+  "utf8",
+);
 const verifyCliInstallAnvilScript = readFileSync(
   join(CLI_ROOT, "scripts", "verify-cli-install-anvil.mjs"),
   "utf8",
@@ -173,9 +177,11 @@ describe("release workflow conformance", () => {
       "validate:",
       "package:",
       "verify-package-install:",
+      "verify-package-install-musl:",
       "publish-native:",
       "publish-root:",
       "verify-registry-install:",
+      "verify-registry-install-musl:",
       "release:",
     ]) {
       expect(releaseWorkflow).toContain(requiredJob);
@@ -185,6 +191,10 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain("npm publish");
     expect(releaseWorkflow).toContain("node scripts/verify-release-install.mjs");
     expect(releaseWorkflow).toContain("node scripts/verify-registry-install.mjs");
+    expect(releaseWorkflow).toContain(
+      "node scripts/verify-npm-published-artifact.mjs",
+    );
+    expect(releaseWorkflow).toContain("node scripts/verify-js-fallback-install.mjs");
     expect(releaseWorkflow).toContain("native-release-signoff");
     expect(releaseWorkflow).toContain("SHA256SUMS.txt.sig");
     expect(releaseWorkflow).toContain("Release Artifact");
@@ -215,12 +225,18 @@ describe("release workflow conformance", () => {
     expect(releaseWorkflow).toContain(
       "packaged-install-${{ matrix.triplet }}-node-${{ matrix.node-version }}",
     );
+    expect(releaseWorkflow).toContain(
+      "packaged-install-linux-x64-musl-node-${{ matrix.node-label }}",
+    );
     expect(releaseWorkflow).toContain("name: native-package-${{ matrix.triplet }}");
     expect(releaseWorkflow).toContain(
       "node scripts/verify-release-install.mjs",
     );
     expect(releaseWorkflow).toMatch(
       /publish-native:[\s\S]*?needs:[\s\S]*?verify-package-install/m,
+    );
+    expect(releaseWorkflow).toMatch(
+      /publish-native:[\s\S]*?needs:[\s\S]*?verify-package-install-musl/m,
     );
   });
 
@@ -231,6 +247,9 @@ describe("release workflow conformance", () => {
       "24.x",
       "25.x",
     ]);
+    expect(releaseWorkflow).toContain(
+      "registry-install-linux-x64-musl-node-${{ matrix.node-label }}",
+    );
   });
 
   test("release workflow verifies packaged installs across the supported node range", () => {
@@ -279,5 +298,14 @@ describe("release workflow conformance", () => {
 
     expect(verifyCliInstallAnvilScript).toContain("PRIVACY_POOLS_CLI_DISABLE_NATIVE");
     expect(verifyCliInstallAnvilScript).toContain("resolveCliTarballPath");
+  });
+
+  test("release workflow ties smoke and publish reruns to the verified artifacts from this run", () => {
+    expect(releaseWorkflow).toContain("PP_INSTALL_CLI_TARBALL");
+    expect(releaseWorkflow).toContain(
+      "node scripts/verify-npm-published-artifact.mjs",
+    );
+    expect(verifyPublishedArtifactScript).toContain("dist.integrity");
+    expect(verifyPublishedArtifactScript).toContain("sha512-");
   });
 });

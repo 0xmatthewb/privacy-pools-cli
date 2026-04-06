@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { cpSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   TEST_MNEMONIC,
@@ -26,6 +26,7 @@ import {
   createBuiltWorkspaceSnapshot,
   createWorkspaceSnapshot,
 } from "../helpers/workspace-snapshot.ts";
+import { createTrackedTempDir } from "../helpers/temp.ts";
 import {
   killFixtureServer,
   launchFixtureServer,
@@ -43,9 +44,67 @@ const nativePackageSmokeTest =
   CARGO_AVAILABLE && currentTriplet && currentPackageName ? test : test.skip;
 const BANNER_SENTINEL =
   ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
+const PREPARED_CLI_TARBALL =
+  process.env.PP_INSTALL_CLI_TARBALL?.trim() || null;
 const PREPARED_NATIVE_TARBALL =
   process.env.PP_INSTALL_NATIVE_TARBALL?.trim() || null;
 const USE_EXISTING_DIST = process.env.PP_INSTALL_USE_EXISTING_DIST?.trim() === "1";
+
+function createPreparedCliSnapshot(tarballPath: string): string {
+  const installRoot = createTrackedTempDir("pp-native-package-cli-install-");
+  const snapshotContainer = createTrackedTempDir("pp-native-package-cli-root-");
+  const snapshotRoot = join(snapshotContainer, "workspace");
+
+  writeFileSync(
+    join(installRoot, "package.json"),
+    JSON.stringify(
+      {
+        name: "pp-native-package-smoke-root",
+        private: true,
+        dependencies: {
+          "privacy-pools-cli": `file:${resolve(tarballPath)}`,
+        },
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+
+  const installResult = spawnSync(
+    npmBin(),
+    [
+      "install",
+      "--silent",
+      "--no-package-lock",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+    ],
+    {
+      cwd: installRoot,
+      encoding: "utf8",
+      timeout: 180_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: buildChildProcessEnv(),
+    },
+  );
+
+  if (installResult.status !== 0) {
+    throw new Error(
+      `installing prepared cli tarball failed (exit ${installResult.status}):\n${installResult.stderr}\n${installResult.stdout}`,
+    );
+  }
+
+  cpSync(
+    join(installRoot, "node_modules", "privacy-pools-cli"),
+    snapshotRoot,
+    {
+      recursive: true,
+    },
+  );
+  return snapshotRoot;
+}
 
 function installPreparedNativePackage(snapshotRoot: string, tarballPath: string): void {
   const result = spawnSync(
@@ -85,12 +144,14 @@ describe("native package smoke", () => {
     if (!PREPARED_NATIVE_TARBALL) {
       nativeBinary = ensureNativeShellBinary();
     }
-    snapshotRoot = USE_EXISTING_DIST
-      ? createWorkspaceSnapshot({
-          includeDist: true,
-          nodeModulesMode: "copy",
-        })
-      : createBuiltWorkspaceSnapshot({ nodeModulesMode: "copy" });
+    snapshotRoot = PREPARED_CLI_TARBALL
+      ? createPreparedCliSnapshot(PREPARED_CLI_TARBALL)
+      : USE_EXISTING_DIST
+        ? createWorkspaceSnapshot({
+            includeDist: true,
+            nodeModulesMode: "copy",
+          })
+        : createBuiltWorkspaceSnapshot({ nodeModulesMode: "copy" });
     fixture = await launchFixtureServer();
 
     if (PREPARED_NATIVE_TARBALL) {

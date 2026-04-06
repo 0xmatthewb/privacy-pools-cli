@@ -263,7 +263,10 @@ jobs:
           path: dist-root
 
       - name: Run native smoke test
-        run: npm run test:smoke:native:package
+        shell: bash
+        run: |
+          CLI_TARBALL="$(echo dist-root/*.tgz)"
+          PP_INSTALL_CLI_TARBALL="${CLI_TARBALL}" npm run test:smoke:native:package
 
       - name: Build release native shell
         run: npm run native:build:release
@@ -363,6 +366,47 @@ jobs:
             --cli-tarball "${CLI_TARBALL}" \
             --native-tarball "${NATIVE_TARBALL}"
 
+  verify-package-install-musl:
+    name: packaged-install-linux-x64-musl-node-${{ matrix.node-label }}
+    needs:
+      - package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "22"
+            node-label: "22.x"
+          - node-version: "23"
+            node-label: "23.x"
+          - node-version: "24"
+            node-label: "24.x"
+          - node-version: "25"
+            node-label: "25.x"
+    container:
+      image: node:${{ matrix.node-version }}-alpine
+    environment:
+      name: native-release-signoff
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Download root npm package artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: npm-package
+          path: release-artifacts/npm
+
+      - name: Verify packaged musl fallback install
+        shell: sh
+        run: |
+          CLI_TARBALL="$(echo release-artifacts/npm/*.tgz)"
+          node scripts/verify-js-fallback-install.mjs \
+            --cli-tarball "${CLI_TARBALL}"
+
   # -----------------------------------------------------------
   # Stage 5: Publish the native optional packages to npm
   # This only runs after the native package jobs and packaged-install matrix succeed.
@@ -373,6 +417,7 @@ jobs:
       - package
       - package-native
       - verify-package-install
+      - verify-package-install-musl
     runs-on: ubuntu-latest
     environment:
       name: native-release-signoff
@@ -464,7 +509,10 @@ jobs:
               npm publish "${TARBALL}" --access public
             fi
 
-            npm view "${PACKAGE}@${VERSION}" version
+            node scripts/verify-npm-published-artifact.mjs \
+              --package "${PACKAGE}" \
+              --version "${VERSION}" \
+              --tarball "${TARBALL}"
           done
 
   # -----------------------------------------------------------
@@ -528,7 +576,10 @@ jobs:
             npm publish "${CLI_TARBALL}" --access public
           fi
 
-          npm view "${PACKAGE}@${VERSION}" version
+          node scripts/verify-npm-published-artifact.mjs \
+            --package "${PACKAGE}" \
+            --version "${VERSION}" \
+            --tarball "${CLI_TARBALL}"
 
   # -----------------------------------------------------------
   # Stage 7: Verify the live npm registry install path
@@ -593,6 +644,43 @@ jobs:
             --package "${PACKAGE}" \
             --version "${VERSION}"
 
+  verify-registry-install-musl:
+    name: registry-install-linux-x64-musl-node-${{ matrix.node-label }}
+    needs:
+      - publish-root
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node-version: "22"
+            node-label: "22.x"
+          - node-version: "23"
+            node-label: "23.x"
+          - node-version: "24"
+            node-label: "24.x"
+          - node-version: "25"
+            node-label: "25.x"
+    container:
+      image: node:${{ matrix.node-version }}-alpine
+    environment:
+      name: native-release-signoff
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Verify npm registry musl fallback install
+        shell: sh
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          PACKAGE="$(node -p "require('./package.json').name")"
+          node scripts/verify-js-fallback-install.mjs \
+            --package "${PACKAGE}" \
+            --version "${VERSION}"
+
   # -----------------------------------------------------------
   # Stage 8: Create or update the GitHub Release page
   # This only runs after the JS package, native package, npm publish, and
@@ -606,6 +694,7 @@ jobs:
       - publish-root
       - publish-native
       - verify-registry-install
+      - verify-registry-install-musl
     runs-on: ubuntu-latest
     environment:
       name: native-release-signoff
