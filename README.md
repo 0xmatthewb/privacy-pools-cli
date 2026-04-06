@@ -51,16 +51,12 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient...
 
 ### How it works
 
-`flow start` deposits into a pool and saves a local workflow. Once 0xbow's Association Set Provider (ASP) approves it, `flow watch` waits through the default balanced privacy delay (a randomized 15 to 90 minute hold) before requesting the relayed private withdrawal. The saved workflow spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
+`flow start` deposits into a pool and saves a local workflow. Once the Association Set Provider (ASP) approves it, `flow watch` waits through a privacy delay before requesting the relayed private withdrawal. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). You can always recover your funds publicly via `ragequit`, even without ASP approval.
 
-With `--new-wallet`, the CLI generates a dedicated wallet for the workflow, asks you to back it up, then waits for you to fund it before continuing. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in that same wallet. Useful for one-off flows where you don't want to use your main signer.
-
-Each deposit creates a **Pool Account** (PA-1, PA-2, ...) that the ASP reviews. You can always recover your funds, even without approval. `ragequit` exits publicly to your original deposit address, and `flow ragequit` does the same for saved workflows. Once the public deposit exists, `flow ragequit` is an optional manual recovery path, the canonical path for declined saved flows, and the required path when the saved full-balance private withdrawal can no longer satisfy the relayer minimum.
-
-The manual commands (`deposit`, `accounts`, `withdraw`) remain available when you need partial withdrawals, custom Pool Account selection, unsigned payloads, or dry-runs. See [docs/reference.md](docs/reference.md) for details.
+The manual commands (`deposit`, `accounts`, `withdraw`) remain available for partial withdrawals, custom Pool Account selection, unsigned payloads, or dry-runs. See [docs/reference.md](docs/reference.md) for details.
 
 > [!TIP]
-> Restoring an existing account? Prefer `privacy-pools init --mnemonic-file ./recovery.txt` or `cat recovery.txt | privacy-pools init --mnemonic-stdin`. Inline `--mnemonic` is still supported, but it is visible in shell history and process listings. For legacy pre-upgrade accounts, check `privacy-pools migrate status --all-chains`.
+> Restoring an existing wallet? Use `--mnemonic-file` or `--mnemonic-stdin` instead of inline `--mnemonic`.
 
 ## Install
 
@@ -84,13 +80,8 @@ when available, an exact-version optional native shell package for your host OS.
 | Windows (x64, MSVC) | `@0xmatthewb/privacy-pools-cli-native-windows-x64-msvc` |
 | Windows (ARM64, MSVC) | `@0xmatthewb/privacy-pools-cli-native-windows-arm64-msvc` |
 
-Node/npm still use `darwin` and `win32` internally in package metadata because
-the `os` field expects Node platform identifiers. There is full macOS support:
-`darwin` is simply Node's platform name for macOS.
-
 Linux native packaging currently targets x64 glibc hosts. Alpine and other
-musl-based environments fall back to the JS launcher automatically instead of
-loading an incompatible native package.
+musl-based environments fall back to the JS launcher automatically.
 
 Or run from source:
 

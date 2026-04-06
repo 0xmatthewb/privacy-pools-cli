@@ -1499,12 +1499,9 @@ describe("bootstrap runtime coverage", () => {
     expect(stderr).toBe("");
   });
 
-  test("index sets NO_COLOR before delegating to the full cli path", async () => {
+  test("index passes --no-color through to the launcher", async () => {
     forceJsLauncherFallback();
-    const runLauncherMock = mock(async () => {
-      expect(process.env.NO_COLOR).toBe("1");
-      return undefined;
-    });
+    const runLauncherMock = mock(async () => undefined);
 
     for (const launcherModulePath of LAUNCHER_MODULE_PATHS) {
       mock.module(launcherModulePath, () => ({
