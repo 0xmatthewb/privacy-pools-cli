@@ -171,6 +171,7 @@ mod tests {
             "rootHelp": "help",
             "structuredRootHelp": "structured help",
             "helpTextByPath": {},
+            "guideStructuredText": "guide",
             "guideHumanText": "guide",
             "capabilitiesHumanText": "capabilities",
             "describeHumanTextByPath": {},

@@ -1,7 +1,8 @@
 use super::format::{format_asp_approval_status_label, format_tx_hash_short};
 use super::model::{ActivityRenderData, NormalizedActivityEvent};
 use crate::output::{
-    format_time_ago, print_csv, print_json_success, print_table, write_stderr_text,
+    format_key_value_rows, format_section_heading, format_time_ago, print_csv, print_json_success,
+    print_table, write_stderr_text,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -86,6 +87,23 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
             .unwrap_or_else(|| data.chain.clone());
         write_stderr_text(&format!("\nGlobal activity ({chain_label}):\n\n"));
     }
+
+    let chain_label = data
+        .chains
+        .as_ref()
+        .map(|chains| chains.join(", "))
+        .unwrap_or_else(|| data.chain.clone());
+    write_stderr_text(&format_section_heading("Summary"));
+    let mut summary_rows = vec![
+        ("Mode", data.mode.to_string()),
+        ("Scope", chain_label),
+        ("Page", data.page.to_string()),
+        ("Results", data.events.len().to_string()),
+    ];
+    if let Some(total) = data.total {
+        summary_rows.push(("Total events", total.to_string()));
+    }
+    write_stderr_text(&format_key_value_rows(&summary_rows));
 
     if data.events.is_empty() {
         write_stderr_text("No activity found.");

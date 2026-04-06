@@ -8,7 +8,10 @@ use crate::completion::{
 };
 use crate::contract::{CompletionCommandSpec, CompletionOptionSpec, Manifest};
 use crate::error::CliError;
-use crate::output::{print_json_success, write_stderr_block_text, write_stdout_text};
+use crate::output::{
+    format_section_heading, print_json_success, write_stderr_block_text, write_stderr_text,
+    write_stdout_text,
+};
 use crate::root_argv::ParsedRootArgv;
 use crate::routing::{is_static_quiet_mode, resolve_command_path};
 
@@ -28,7 +31,7 @@ pub fn handle_guide(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i32,
     if parsed.is_structured_output_mode {
         print_json_success(json!({
             "mode": "help",
-            "help": manifest.guide_human_text.trim()
+            "help": manifest.guide_structured_text.trim()
         }));
         return Ok(0);
     }
@@ -37,7 +40,11 @@ pub fn handle_guide(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i32,
         return Ok(0);
     }
 
-    write_stderr_block_text(&manifest.guide_human_text);
+    write_stderr_text(&format!(
+        "{}{}\n\n",
+        format_section_heading("Quick guide"),
+        manifest.guide_human_text.trim_end()
+    ));
     Ok(0)
 }
 
@@ -57,7 +64,7 @@ pub fn handle_capabilities(parsed: &ParsedRootArgv, manifest: &Manifest) -> Resu
         return Ok(0);
     }
 
-    write_stderr_block_text(&manifest.capabilities_human_text);
+    write_stderr_text(&manifest.capabilities_human_text);
     Ok(0)
 }
 

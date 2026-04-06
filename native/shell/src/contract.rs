@@ -23,6 +23,8 @@ pub struct Manifest {
     pub structured_root_help: String,
     #[serde(rename = "helpTextByPath")]
     pub help_text_by_path: HashMap<String, String>,
+    #[serde(rename = "guideStructuredText")]
+    pub guide_structured_text: String,
     #[serde(rename = "guideHumanText")]
     pub guide_human_text: String,
     #[serde(rename = "capabilitiesHumanText")]

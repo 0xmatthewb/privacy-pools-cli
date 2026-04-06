@@ -51,6 +51,33 @@ pub fn write_stderr_block_text(text: &str) {
     std::io::Write::write_all(&mut std::io::stderr(), value.as_bytes()).ok();
 }
 
+pub fn format_section_heading(title: &str) -> String {
+    format!("\n{}\n{}:\n", "─".repeat(18), title)
+}
+
+pub fn format_key_value_rows(rows: &[(&str, String)]) -> String {
+    if rows.is_empty() {
+        return String::new();
+    }
+
+    let width = rows
+        .iter()
+        .map(|(label, _)| label.len() + 1)
+        .max()
+        .unwrap_or(0);
+
+    let mut output = String::new();
+    for (label, value) in rows {
+        output.push_str(&format!(
+            "  {:<width$} {}\n",
+            format!("{label}:"),
+            value,
+            width = width
+        ));
+    }
+    output
+}
+
 fn json_schema_version() -> &'static str {
     manifest().json_schema_version.as_str()
 }

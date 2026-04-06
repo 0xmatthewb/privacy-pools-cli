@@ -276,6 +276,7 @@ mod tests {
                 "guide": "Guide help",
                 "ragequit": "Usage: privacy-pools ragequit"
             },
+            "guideStructuredText": "guide",
             "guideHumanText": "guide",
             "capabilitiesHumanText": "capabilities",
             "describeHumanTextByPath": {

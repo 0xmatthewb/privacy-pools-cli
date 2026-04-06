@@ -249,7 +249,9 @@ async function buildNativeShellManifest() {
   const structuredRootHelp = JSON.parse(
     captureBuiltCli(["--json", "--help"]).stdout,
   ).help;
-  const guideHumanText = captureBuiltCli(["guide"]).stderr;
+  const guideStructuredText = JSON.parse(
+    captureBuiltCli(["--agent", "guide"]).stdout,
+  ).help;
   const capabilitiesHumanText = captureBuiltCli(["capabilities"]).stderr;
 
   const helpTextByPath = Object.fromEntries(
@@ -283,7 +285,8 @@ async function buildNativeShellManifest() {
     rootHelp,
     structuredRootHelp,
     helpTextByPath,
-    guideHumanText,
+    guideStructuredText,
+    guideHumanText: guideStructuredText,
     capabilitiesHumanText,
     describeHumanTextByPath,
     completionSpec: STATIC_COMPLETION_SPEC,

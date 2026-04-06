@@ -1,7 +1,8 @@
 use super::model::{ChainSummary, PoolListingEntry, PoolWarning, PoolsRenderData};
 use crate::output::{
-    format_count_number, insert_optional_f64, insert_optional_string, insert_optional_u64,
-    print_csv, print_json_success, print_table, write_info, write_stderr_text, write_warn,
+    format_count_number, format_key_value_rows, format_section_heading, insert_optional_f64,
+    insert_optional_string, insert_optional_u64, print_csv, print_json_success, print_table,
+    write_info, write_stderr_text, write_warn,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -172,6 +173,26 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         write_info("No pools found.");
         return;
     }
+
+    let mut summary_rows = vec![
+        (
+            "Scope",
+            if data.all_chains {
+                "all supported chains".to_string()
+            } else {
+                data.chain_name.clone()
+            },
+        ),
+        ("Matched pools", data.filtered_pools.len().to_string()),
+        ("Sort", data.sort.clone()),
+    ];
+    if let Some(search) = data.search.clone() {
+        if !search.is_empty() {
+            summary_rows.push(("Search", search));
+        }
+    }
+    write_stderr_text(&format_section_heading("Summary"));
+    write_stderr_text(&format_key_value_rows(&summary_rows));
 
     let headers = if data.all_chains {
         vec![

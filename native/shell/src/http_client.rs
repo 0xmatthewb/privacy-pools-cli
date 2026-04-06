@@ -133,6 +133,25 @@ mod tests {
     use std::net::{Shutdown, TcpListener};
     use std::thread;
 
+    fn header_end(buffer: &[u8]) -> Option<usize> {
+        buffer
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .map(|index| index + 4)
+    }
+
+    fn expected_body_len(buffer: &[u8]) -> Option<usize> {
+        let header_bytes = buffer.get(..header_end(buffer)?)?;
+        let header_text = std::str::from_utf8(header_bytes).ok()?;
+        header_text.lines().find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            if !name.eq_ignore_ascii_case("Content-Length") {
+                return None;
+            }
+            value.trim().parse::<usize>().ok()
+        })
+    }
+
     fn serve_once(response: String) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").expect("listener should bind");
         let address = listener
@@ -150,8 +169,11 @@ mod tests {
                     Ok(0) => break,
                     Ok(read) => {
                         buffer.extend_from_slice(&chunk[..read]);
-                        if buffer.windows(4).any(|window| window == b"\r\n\r\n") {
-                            break;
+                        if let Some(headers_end) = header_end(&buffer) {
+                            let body_len = expected_body_len(&buffer).unwrap_or(0);
+                            if buffer.len() >= headers_end + body_len {
+                                break;
+                            }
                         }
                     }
                     Err(error)

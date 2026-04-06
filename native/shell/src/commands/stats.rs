@@ -3,7 +3,8 @@ use crate::config::{load_config, resolve_chain};
 use crate::contract::Manifest;
 use crate::error::CliError;
 use crate::output::{
-    format_count_number, print_csv, print_json_success, print_table, write_stderr_text,
+    format_count_number, format_key_value_rows, format_section_heading, print_csv,
+    print_json_success, print_table, write_stderr_text,
 };
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_statistics, fetch_pool_statistics};
@@ -178,6 +179,13 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
     }
 
     write_stderr_text(&format!("\nGlobal statistics ({}):\n\n", data.chain));
+    write_stderr_text(&format_section_heading("Summary"));
+    let mut summary_rows = vec![("Scope", data.chain.clone())];
+    let cache_timestamp = value_as_display_string(&data.cache_timestamp, "");
+    if !cache_timestamp.is_empty() {
+        summary_rows.push(("Cache timestamp", cache_timestamp));
+    }
+    write_stderr_text(&format_key_value_rows(&summary_rows));
     print_table(vec!["Metric", "All Time", "Last 24h"], rows);
 }
 
@@ -210,6 +218,13 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
         "\nPool statistics for {} on {}:\n\n",
         data.asset, data.chain
     ));
+    write_stderr_text(&format_section_heading("Summary"));
+    let mut summary_rows = vec![("Asset", data.asset.clone()), ("Chain", data.chain.clone())];
+    let cache_timestamp = value_as_display_string(&data.cache_timestamp, "");
+    if !cache_timestamp.is_empty() {
+        summary_rows.push(("Cache timestamp", cache_timestamp));
+    }
+    write_stderr_text(&format_key_value_rows(&summary_rows));
     print_table(vec!["Metric", "All Time", "Last 24h"], rows);
 }
 
@@ -270,5 +285,13 @@ fn parse_count_value(value: Option<&Value>) -> String {
             .map(|parsed| format_count_number(parsed.trunc() as u64))
             .unwrap_or_else(|| "-".to_string()),
         _ => "-".to_string(),
+    }
+}
+
+fn value_as_display_string(value: &Value, fallback: &str) -> String {
+    match value {
+        Value::String(raw) if !raw.trim().is_empty() => raw.clone(),
+        Value::Number(number) => number.to_string(),
+        _ => fallback.to_string(),
     }
 }
