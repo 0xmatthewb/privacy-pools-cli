@@ -87,7 +87,7 @@ defineScenarioSuite("agent improvements acceptance", [
       assertStdoutEmpty(),
       assertStderr((stderr) => {
         expect(stderr).toContain("Command: stats global");
-        expect(stderr).toContain("Usage: privacy-pools stats global");
+        expect(stderr).toMatch(/Usage:\s+privacy-pools stats global/);
       }),
     ],
   ),

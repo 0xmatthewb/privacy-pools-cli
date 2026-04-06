@@ -18,6 +18,11 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { formatAddress, formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+} from "./layout.js";
 
 export interface RagequitDryRunData {
   chain: string;
@@ -101,14 +106,43 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success("Dry-run complete. No transaction was submitted.", silent);
-  info(`Chain: ${data.chain}`, silent);
-  info(`Asset: ${data.asset}`, silent);
-  info(`Pool Account: ${data.poolAccountId}`, silent);
-  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}`, silent);
-  if (data.destinationAddress) {
-    info(`Destination: ${formatAddress(data.destinationAddress)}`, silent);
+  if (!silent) {
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Chain", value: data.chain },
+        { label: "Asset", value: data.asset },
+        { label: "Pool Account", value: data.poolAccountId },
+        {
+          label: "Amount",
+          value: formatAmount(
+            data.amount,
+            data.decimals,
+            data.asset,
+            displayDecimals(data.decimals),
+          ),
+        },
+        ...(data.destinationAddress
+          ? [{
+              label: "Destination",
+              value: formatAddress(data.destinationAddress),
+            }]
+          : []),
+      ]),
+    );
+    process.stderr.write(
+      formatCallout(
+        "recovery",
+        "Ragequit is a public, non-private withdrawal that returns funds to your deposit address.",
+      ),
+    );
+    process.stderr.write(
+      formatCallout(
+        "danger",
+        "Once submitted onchain, this public recovery path cannot be turned back into a private withdrawal for the same Pool Account.",
+      ),
+    );
   }
-  info("Privacy note: ragequit is a public, non-private withdrawal that returns funds to your deposit address.", silent);
   renderNextSteps(ctx, humanNextActions);
 }
 
@@ -165,12 +199,39 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     `Ragequit ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to ${destinationLabel}.`,
     silent,
   );
-  info(`Tx: ${formatTxHash(data.txHash)}`, silent);
-  if (data.explorerUrl) {
-    info(`Explorer: ${data.explorerUrl}`, silent);
-  }
-  if (data.destinationAddress) {
-    info(`Destination: ${formatAddress(data.destinationAddress)}`, silent);
+  if (!silent) {
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Chain", value: data.chain },
+        { label: "Pool Account", value: data.poolAccountId },
+        {
+          label: "Amount",
+          value: formatAmount(
+            data.amount,
+            data.decimals,
+            data.asset,
+            displayDecimals(data.decimals),
+          ),
+        },
+        { label: "Tx", value: formatTxHash(data.txHash) },
+        ...(data.explorerUrl
+          ? [{ label: "Explorer", value: data.explorerUrl }]
+          : []),
+        ...(data.destinationAddress
+          ? [{
+              label: "Destination",
+              value: formatAddress(data.destinationAddress),
+            }]
+          : []),
+      ]),
+    );
+    process.stderr.write(
+      formatCallout(
+        "recovery",
+        "Privacy was not preserved. Ragequit uses the public recovery path back to the original deposit address.",
+      ),
+    );
   }
   renderNextSteps(ctx, humanNextActions);
 }

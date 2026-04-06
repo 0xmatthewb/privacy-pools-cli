@@ -11,6 +11,7 @@ import { printJsonSuccess, printCsv, printTable, isSilent } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { parseUsd } from "../utils/format.js";
 import type { TimeBasedStatistics } from "../types.js";
+import { formatKeyValueRows, formatSectionHeading } from "./layout.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,10 +123,28 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
   if (data.perChain && data.perChain.length > 0) {
     for (const entry of data.perChain) {
       process.stderr.write(`\n${accentBold(`Global statistics (${entry.chain}):`)}\n\n`);
+      process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+      process.stderr.write(
+        formatKeyValueRows([
+          { label: "Chain", value: entry.chain },
+          ...(entry.cacheTimestamp
+            ? [{ label: "Cache timestamp", value: entry.cacheTimestamp }]
+            : []),
+        ]),
+      );
       renderStatsTable(entry.allTime, entry.last24h);
     }
   } else {
     process.stderr.write(`\n${accentBold(`Global statistics (${data.chain}):`)}\n\n`);
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Scope", value: data.chain },
+        ...(data.cacheTimestamp
+          ? [{ label: "Cache timestamp", value: data.cacheTimestamp }]
+          : []),
+      ]),
+    );
     renderStatsTable(data.allTime, data.last24h);
   }
 }
@@ -156,6 +175,16 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
   const silent = isSilent(ctx);
   if (!silent) {
     process.stderr.write(`\n${accentBold(`Pool statistics for ${data.asset} on ${data.chain}:`)}\n\n`);
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Asset", value: data.asset },
+        { label: "Chain", value: data.chain },
+        ...(data.cacheTimestamp
+          ? [{ label: "Cache timestamp", value: data.cacheTimestamp }]
+          : []),
+      ]),
+    );
     renderStatsTable(data.allTime, data.last24h);
   }
 }

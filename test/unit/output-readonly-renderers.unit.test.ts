@@ -466,11 +466,12 @@ describe("read-only output renderers", () => {
     );
 
     expect(stderr).toContain("Privacy Pools CLI Status");
-    expect(stderr).toContain("Config:");
-    expect(stderr).toContain("Recovery phrase: set");
-    expect(stderr).toContain("Signer key: not set");
-    expect(stderr).toContain("ASP (https://asp.example): healthy");
-    expect(stderr).toContain("RPC: connected");
+    expect(stderr).toContain("Wallet:");
+    expect(stderr).toMatch(/Config:\s+\/tmp\/privacy-pools\/config\.json/);
+    expect(stderr).toMatch(/Recovery phrase:\s+set/);
+    expect(stderr).toMatch(/Signer key:\s+not set/);
+    expect(stderr).toMatch(/ASP \(https:\/\/asp\.example\):\s+healthy/);
+    expect(stderr).toMatch(/RPC:\s+connected/);
     expect(stderr).toContain("unsigned mode only");
     expect(stderr).toContain("accounts --chain sepolia");
   });
@@ -500,9 +501,9 @@ describe("read-only output renderers", () => {
       }),
     );
 
-    expect(stderr).toContain("Signer key is set but invalid");
-    expect(stderr).toContain("ASP (https://asp.example): unreachable");
-    expect(stderr).toContain("RPC: connected (block 77)");
+    expect(stderr).toContain("is set but invalid");
+    expect(stderr).toMatch(/ASP \(https:\/\/asp\.example\):\s+unreachable/);
+    expect(stderr).toMatch(/RPC:\s+connected \(block 77\)/);
   });
 
   test("renderAccounts human summary covers spent and exited-only groups", () => {

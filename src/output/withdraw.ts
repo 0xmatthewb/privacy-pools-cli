@@ -21,6 +21,11 @@ import {
 } from "./common.js";
 import { formatAmount, formatAddress, formatTxHash, formatBPS, formatUsdValue, displayDecimals } from "../utils/format.js";
 import { formatUnits } from "viem";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+} from "./layout.js";
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────
 
@@ -106,22 +111,53 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success("Dry-run complete. No transaction was submitted.", silent);
-  info(`Mode: ${data.withdrawMode}`, silent);
-  info(`Recipient: ${formatAddress(data.recipient)}`, silent);
-  info(`Pool Account: ${data.poolAccountId}`, silent);
-  if (data.withdrawMode === "relayed" && data.feeBPS) {
-    info(`Relayer fee: ${formatBPS(data.feeBPS)}`, silent);
-    if (data.quoteExpiresAt) info(`Quote expires: ${data.quoteExpiresAt}`, silent);
-  }
-  if (data.withdrawMode === "relayed" && data.extraGas) {
-    info("Gas token received: enabled (receive ETH for gas)", silent);
-  }
-  info(
-    `Pool Account balance: ${formatAmount(data.selectedCommitmentValue, data.decimals, data.asset, displayDecimals(data.decimals))}`,
-    silent,
-  );
-  if (data.withdrawMode === "direct") {
-    warn("Direct withdrawals are not privacy-preserving. Use relayed mode (default) for private withdrawals.", silent);
+  if (!silent) {
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Mode", value: data.withdrawMode },
+        {
+          label: "Amount",
+          value: formatAmount(
+            data.amount,
+            data.decimals,
+            data.asset,
+            displayDecimals(data.decimals),
+          ),
+        },
+        { label: "Recipient", value: formatAddress(data.recipient) },
+        { label: "Pool Account", value: data.poolAccountId },
+        ...(data.withdrawMode === "relayed" && data.feeBPS
+          ? [{ label: "Relayer fee", value: formatBPS(data.feeBPS) }]
+          : []),
+        ...(data.withdrawMode === "relayed" && data.quoteExpiresAt
+          ? [{ label: "Quote expires", value: data.quoteExpiresAt }]
+          : []),
+        ...(data.withdrawMode === "relayed" && data.extraGas
+          ? [{
+              label: "Gas token received",
+              value: "enabled (receive ETH for gas)",
+            }]
+          : []),
+        {
+          label: "Pool Account balance",
+          value: formatAmount(
+            data.selectedCommitmentValue,
+            data.decimals,
+            data.asset,
+            displayDecimals(data.decimals),
+          ),
+        },
+      ]),
+    );
+    if (data.withdrawMode === "direct") {
+      process.stderr.write(
+        formatCallout(
+          "privacy",
+          "Direct withdrawals are not privacy-preserving. Use relayed mode for private withdrawals.",
+        ),
+      );
+    }
   }
 }
 
@@ -215,28 +251,59 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     `Withdrew ${formatAmount(data.amount, data.decimals, data.asset, dd)} from ${data.poolAccountId} to ${formatAddress(data.recipient)}.`,
     silent,
   );
-  if (data.withdrawMode === "direct") {
-    warn(
-      "Privacy note: direct withdrawals are not private and link the deposit and withdrawal onchain.",
-      silent,
+  if (!silent) {
+    const feeBpsNum = data.feeBPS ? Number(data.feeBPS) : null;
+    const netAmount = feeBpsNum !== null
+      ? data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n
+      : null;
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Mode", value: data.withdrawMode },
+        { label: "Pool Account", value: data.poolAccountId },
+        { label: "Recipient", value: formatAddress(data.recipient) },
+        {
+          label: "Amount",
+          value: formatAmount(data.amount, data.decimals, data.asset, dd),
+        },
+        { label: "Tx", value: formatTxHash(data.txHash) },
+        ...(data.explorerUrl
+          ? [{ label: "Explorer", value: data.explorerUrl }]
+          : []),
+        ...(data.withdrawMode === "relayed" && data.feeBPS
+          ? [{
+              label: "Relayer fee",
+              value: formatBPS(data.feeBPS),
+            }]
+          : []),
+        ...(netAmount !== null
+          ? [{
+              label: "You receive",
+              value: `~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`,
+            }]
+          : []),
+        ...(data.withdrawMode === "relayed" && data.extraGas
+          ? [{
+              label: "Gas token received",
+              value: "ETH included with withdrawal",
+            }]
+          : []),
+        ...(data.remainingBalance === 0n
+          ? [{ label: "Remaining", value: `${data.poolAccountId} fully withdrawn`, valueTone: "success" as const }]
+          : [{
+              label: `Remaining in ${data.poolAccountId}`,
+              value: `${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`,
+            }]),
+      ]),
     );
-  }
-  info(`Tx: ${formatTxHash(data.txHash)}`, silent);
-  if (data.explorerUrl) {
-    info(`Explorer: ${data.explorerUrl}`, silent);
-  }
-  if (data.withdrawMode === "relayed" && data.feeBPS) {
-    const feeBpsNum = Number(data.feeBPS);
-    const netAmount = data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n;
-    info(`Relayer fee: ${formatBPS(data.feeBPS)}. You receive: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`, silent);
-  }
-  if (data.withdrawMode === "relayed" && data.extraGas) {
-    info("Gas token received: ETH included with withdrawal", silent);
-  }
-  if (data.remainingBalance === 0n) {
-    info(`${data.poolAccountId} fully withdrawn`, silent);
-  } else {
-    info(`Remaining in ${data.poolAccountId}: ${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`, silent);
+    if (data.withdrawMode === "direct") {
+      process.stderr.write(
+        formatCallout(
+          "privacy",
+          "Direct withdrawals are not private and link the deposit and withdrawal onchain.",
+        ),
+      );
+    }
   }
   renderNextSteps(ctx, humanNextActions);
 }
@@ -384,27 +451,54 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  info("Withdrawal quote:", silent);
-  info(`Asset: ${data.asset}`, silent);
-  info(`Withdraw amount: ${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`, silent);
-  info(`Relayer fee: ${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`, silent);
-  if (extraGasFundFormatted) {
-    info(`Gas token received: ${extraGasFundFormatted}`, silent);
-  }
-  info(`You receive: ~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`, silent);
-  info(`Min withdraw: ${minWithdrawFormatted}`, silent);
-  if (data.recipient) {
-    info(`Recipient: ${formatAddress(data.recipient)}`, silent);
-  }
-  if (data.quoteExpiresAt) {
-    const expiresIn = new Date(data.quoteExpiresAt).getTime() - Date.now();
-    const expiresLabel = expiresIn > 0
-      ? `${Math.ceil(expiresIn / 1000)}s remaining`
-      : "expired";
-    info(`Quote expires: ${data.quoteExpiresAt} (${expiresLabel})`, silent);
-  }
-  if (data.extraGas && !extraGasFundFormatted) {
-    info("Gas token received: enabled (receive ETH for gas)", silent);
+  if (!silent) {
+    const quoteRows = [
+      { label: "Asset", value: data.asset },
+      {
+        label: "Withdraw amount",
+        value: `${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`,
+      },
+      {
+        label: "Relayer fee",
+        value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`,
+      },
+      ...(extraGasFundFormatted
+        ? [{ label: "Gas token received", value: extraGasFundFormatted }]
+        : []),
+      {
+        label: "You receive",
+        value: `~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`,
+      },
+      { label: "Min withdraw", value: minWithdrawFormatted },
+      ...(data.recipient
+        ? [{ label: "Recipient", value: formatAddress(data.recipient) }]
+        : []),
+      ...(data.quoteExpiresAt
+        ? (() => {
+            const expiresIn = new Date(data.quoteExpiresAt).getTime() - Date.now();
+            const expiresLabel = expiresIn > 0
+              ? `${Math.ceil(expiresIn / 1000)}s remaining`
+              : "expired";
+            return [{
+              label: "Quote expires",
+              value: `${data.quoteExpiresAt} (${expiresLabel})`,
+            }];
+          })()
+        : []),
+      ...(data.extraGas && !extraGasFundFormatted
+        ? [{
+            label: "Gas token received",
+            value: "enabled (receive ETH for gas)",
+          }]
+        : []),
+    ];
+    process.stderr.write(
+      formatSectionHeading("Withdrawal quote", {
+        divider: true,
+        padTop: false,
+      }),
+    );
+    process.stderr.write(formatKeyValueRows(quoteRows));
   }
   renderNextSteps(ctx, humanNextActions);
 }

@@ -148,10 +148,10 @@ describe("renderCapabilities parity", () => {
     expect(stderr).toContain("Agent Capabilities");
     expect(stderr).toContain("Commands:");
     expect(stderr).toContain("test-cmd");
-    expect(stderr).toContain("Global Flags:");
-    expect(stderr).toContain("Typical Agent Workflow:");
-    expect(stderr).toContain("Protocol Profile:");
-    expect(stderr).toContain("Runtime Compatibility:");
+    expect(stderr).toContain("Global flags:");
+    expect(stderr).toContain("Typical agent workflow:");
+    expect(stderr).toContain("Protocol profile:");
+    expect(stderr).toContain("Runtime compatibility:");
   });
 });
 
@@ -248,7 +248,7 @@ describe("renderCommandDescription parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Command: test-cmd");
-    expect(stderr).toContain("Usage: privacy-pools test-cmd");
+    expect(stderr).toMatch(/Usage:\s+privacy-pools test-cmd/);
     expect(stderr).toContain("Flags:");
     expect(stderr).toContain("--flag");
   });
@@ -558,10 +558,10 @@ describe("renderStatus parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Privacy Pools CLI Status");
     expect(stderr).toContain("Config:");
-    expect(stderr).toContain("Recovery phrase: set");
+    expect(stderr).toMatch(/Recovery phrase:\s+set/);
     expect(stderr).toContain("Signer key:");
-    expect(stderr).toContain("Default chain: sepolia");
-    expect(stderr).toContain("Deposits on:");
+    expect(stderr).toMatch(/Default chain:\s+sepolia/);
+    expect(stderr).toContain("Detected deposits:");
   });
 
   test("human mode: shows signer balance when available", () => {
@@ -583,7 +583,7 @@ describe("renderStatus parity", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
 
-    expect(stderr).toContain("Health checks skipped");
+    expect(stderr).toMatch(/Checks:\s+skipped/);
   });
 
   test("human mode: shows setup complete when config+mnemonic+signer present", () => {

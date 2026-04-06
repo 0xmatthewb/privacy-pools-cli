@@ -15,6 +15,7 @@ import {
   normalizePublicEventReviewStatus,
   renderAspApprovalStatus,
 } from "../utils/statuses.js";
+import { formatCallout, formatKeyValueRows, formatSectionHeading } from "./layout.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,17 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       : accentBold(`Global activity (${chainLabel}):`);
   process.stderr.write(`\n${header}\n\n`);
 
+  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+  process.stderr.write(
+    formatKeyValueRows([
+      { label: "Mode", value: data.mode },
+      { label: "Scope", value: chainLabel },
+      { label: "Page", value: String(data.page) },
+      { label: "Results", value: String(data.events.length) },
+      ...(data.total !== null ? [{ label: "Total events", value: String(data.total) }] : []),
+    ]),
+  );
+
   if (data.events.length === 0) {
     process.stderr.write("No activity found.\n");
     return;
@@ -162,7 +174,10 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
 
   if (data.chainFiltered) {
     process.stderr.write(
-      `\n  Note: Results filtered to ${data.chain}. Some pages may be sparse.\n`,
+      formatCallout(
+        "read-only",
+        `Results are filtered to ${data.chain}. Some pages may be sparse.`,
+      ),
     );
   }
 }

@@ -19,6 +19,7 @@ import {
 } from "../utils/format.js";
 import { CLIError } from "../utils/errors.js";
 import { accent } from "../utils/theme.js";
+import { formatSectionHeading } from "./layout.js";
 
 // ── Re-exports so renderers only need one import ─────────────────────────────
 
@@ -210,7 +211,9 @@ export function renderNextSteps(
   const runnable = nextActions.filter((a) => a.runnable !== false);
   if (runnable.length === 0) return;
 
-  process.stderr.write(chalk.dim("\nNext steps:\n"));
+  process.stderr.write(
+    formatSectionHeading("Next steps", { divider: true, tone: "muted" }),
+  );
   for (const action of runnable) {
     const cmd = formatNextActionCommand(action);
     process.stderr.write(`  ${accent(cmd)}\n`);

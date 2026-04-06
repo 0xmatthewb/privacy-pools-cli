@@ -19,6 +19,11 @@ import {
   success,
   warn,
 } from "./common.js";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+} from "./layout.js";
 
 export interface FlowRenderData {
   action: "start" | "watch" | "status" | "ragequit";
@@ -81,12 +86,6 @@ function phaseLabel(phase: FlowPhase): string {
     default:
       return phase;
   }
-}
-
-function humanWalletModeLabel(walletMode: FlowSnapshot["walletMode"]): string {
-  return walletMode === "new_wallet"
-    ? "Dedicated workflow wallet"
-    : "Configured signer (must match original depositor)";
 }
 
 function joinWithAnd(parts: string[]): string {
@@ -603,10 +602,14 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   }
 
   if (data.action === "status") {
-    info(
-      "This is the saved local workflow snapshot. Run flow watch for a live re-check and to advance it.",
-      silent,
-    );
+    if (!silent) {
+      process.stderr.write(
+        formatCallout(
+          "read-only",
+          "This is the saved local workflow snapshot. Run flow watch for a live re-check and to advance it.",
+        ),
+      );
+    }
   }
 
   const phase = data.snapshot.phase;
@@ -615,39 +618,58 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   const isPreDeposit = isFunding || phase === "depositing_publicly";
   const isWaitingDelay = phase === "approved_waiting_privacy_delay";
 
-  // ── Always-shown core fields ──
-  info(`Workflow: ${data.snapshot.workflowId}`, silent);
-  info(`Phase: ${phaseLabel(phase)}`, silent);
-  info(`Chain: ${data.snapshot.chain}`, silent);
-  info(`Asset: ${data.snapshot.asset}`, silent);
-  if (usesPublicRecoveryPath) {
-    info("Public recovery destination: original deposit address", silent);
-  } else {
-    info(`Recipient: ${data.snapshot.recipient}`, silent);
-  }
-  if (shouldExposeConfirmedPoolAccount(data.snapshot) && data.snapshot.poolAccountId) {
-    info(`Pool Account: ${data.snapshot.poolAccountId}`, silent);
-  }
-
-  // ── Wallet address: shown for new-wallet flows in any phase ──
-  if (data.snapshot.walletMode === "new_wallet" && data.snapshot.walletAddress) {
-    info(`Wallet: ${data.snapshot.walletAddress}`, silent);
+  if (!silent) {
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    const summaryRows = [
+      { label: "Workflow", value: data.snapshot.workflowId },
+      { label: "Phase", value: phaseLabel(phase) },
+      { label: "Chain", value: data.snapshot.chain },
+      { label: "Asset", value: data.snapshot.asset },
+      {
+        label: usesPublicRecoveryPath
+          ? "Public recovery destination"
+          : "Recipient",
+        value: usesPublicRecoveryPath
+          ? "original deposit address"
+          : data.snapshot.recipient,
+      },
+      ...(shouldExposeConfirmedPoolAccount(data.snapshot) &&
+      data.snapshot.poolAccountId
+        ? [{ label: "Pool Account", value: data.snapshot.poolAccountId }]
+        : []),
+      ...(data.snapshot.walletMode === "new_wallet" && data.snapshot.walletAddress
+        ? [{ label: "Wallet", value: data.snapshot.walletAddress }]
+        : []),
+    ];
+    process.stderr.write(formatKeyValueRows(summaryRows));
   }
 
   // ── Funding phase: show what's needed to proceed ──
   if (isFunding) {
+    const fundingRows = [];
     const requiredTokenFunding = formatFlowAssetAmount(
       data.snapshot.requiredTokenFunding,
       data.snapshot,
     );
     if (requiredTokenFunding) {
-      info(`Required token amount: ${requiredTokenFunding}`, silent);
+      fundingRows.push({
+        label: "Required token amount",
+        value: requiredTokenFunding,
+      });
     }
     const requiredNativeFunding = formatFlowNativeFunding(
       data.snapshot.requiredNativeFunding,
     );
     if (requiredNativeFunding) {
-      info(`Required native gas: ${requiredNativeFunding}`, silent);
+      fundingRows.push({
+        label: "Required native gas",
+        value: requiredNativeFunding,
+      });
+    }
+
+    if (!silent && fundingRows.length > 0) {
+      process.stderr.write(formatSectionHeading("Funding", { divider: true }));
+      process.stderr.write(formatKeyValueRows(fundingRows));
     }
   }
 
@@ -657,8 +679,11 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       data.snapshot.depositAmount,
       data.snapshot,
     );
-    if (depositAmount) {
-      info(`Deposit amount: ${depositAmount}`, silent);
+    if (!silent && depositAmount) {
+      process.stderr.write(formatSectionHeading("Deposit", { divider: true }));
+      process.stderr.write(
+        formatKeyValueRows([{ label: "Deposit amount", value: depositAmount }]),
+      );
     }
   }
 
@@ -668,26 +693,44 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       data.snapshot.committedValue,
       data.snapshot,
     );
-    if (committedValue) {
-      info(`Deposited: ${committedValue} (net after vetting fee)`, silent);
+    if (!silent && committedValue) {
+      process.stderr.write(formatSectionHeading("Deposit", { divider: true }));
+      process.stderr.write(
+        formatKeyValueRows([
+          {
+            label: "Deposited",
+            value: `${committedValue} (net after vetting fee)`,
+          },
+        ]),
+      );
     }
   }
 
   // ── Privacy delay: show profile when relevant, deadline when actively waiting ──
   if (isWaitingDelay || phase === "awaiting_asp" || phase === "approved_ready_to_withdraw") {
-    info(
-      `Privacy delay: ${flowPrivacyDelayProfileSummary(
+    const privacyDelayRows = [
+      {
+        label: "Privacy delay",
+        value: flowPrivacyDelayProfileSummary(
         data.snapshot.privacyDelayProfile ?? "off",
         data.snapshot.privacyDelayConfigured ?? false,
-      )}`,
-      silent,
-    );
-  }
-  if (isWaitingDelay && data.snapshot.privacyDelayUntil) {
-    info(
-      `Privacy delay until: ${describeFlowPrivacyDelayDeadline(data.snapshot.privacyDelayUntil) ?? data.snapshot.privacyDelayUntil}`,
-      silent,
-    );
+        ),
+      },
+      ...(isWaitingDelay && data.snapshot.privacyDelayUntil
+        ? [
+            {
+              label: "Privacy delay until",
+              value:
+                describeFlowPrivacyDelayDeadline(data.snapshot.privacyDelayUntil) ??
+                data.snapshot.privacyDelayUntil,
+            },
+          ]
+        : []),
+    ];
+    if (!silent) {
+      process.stderr.write(formatSectionHeading("Privacy delay", { divider: true }));
+      process.stderr.write(formatKeyValueRows(privacyDelayRows));
+    }
   }
 
   // ── Full-balance note: important context for active flows ──
@@ -703,37 +746,74 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   }
 
   // ── Warnings ──
-  for (const flowWarning of warnings) {
-    warn(flowWarning.message, silent);
+  const warningLines = warnings.map((flowWarning) => flowWarning.message);
+  if (
+    data.snapshot.walletMode === "new_wallet" &&
+    (isTerminal ||
+      phase === "paused_declined" ||
+      phase === "paused_poi_required" ||
+      phase === "stopped_external")
+  ) {
+    warningLines.push(
+      "Any leftover funds or gas reserve remain in the dedicated workflow wallet until you move them manually.",
+    );
+  }
+  if (warningLines.length > 0 && !silent) {
+    process.stderr.write(formatCallout("warning", warningLines));
   }
 
   // ── Transaction links: only show the relevant one ──
-  if (isTerminal || data.action === "ragequit") {
-    if (data.snapshot.withdrawExplorerUrl) {
-      info(`Withdrawal: ${data.snapshot.withdrawExplorerUrl}`, silent);
-    } else if (data.snapshot.ragequitExplorerUrl) {
-      info(`Public recovery: ${data.snapshot.ragequitExplorerUrl}`, silent);
-    }
-    if (data.snapshot.depositExplorerUrl) {
-      info(`Deposit: ${data.snapshot.depositExplorerUrl}`, silent);
-    }
-  } else if (data.snapshot.depositExplorerUrl && !isPreDeposit) {
-    info(`Deposit: ${data.snapshot.depositExplorerUrl}`, silent);
-  }
-
-  if (
+  const showOptionalPublicRecovery =
     data.action === "status" &&
     !usesPublicRecoveryPath &&
     !isPreDeposit &&
     phase !== "withdrawing" &&
     phase !== "paused_declined" &&
     phase !== "paused_poi_required" &&
-    !requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot)
-  ) {
-    info(
-      `Optional public recovery: privacy-pools flow ragequit ${data.snapshot.workflowId}.${configuredSignerRecoverySuffix(data.snapshot)}`,
-      silent,
-    );
+    !requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot);
+  const hasRecoverySection =
+    isTerminal ||
+    data.action === "ragequit" ||
+    (data.snapshot.depositExplorerUrl && !isPreDeposit) ||
+    showOptionalPublicRecovery ||
+    phase === "paused_poi_required" ||
+    phase === "stopped_external";
+  const recoveryRows = [];
+  if (isTerminal || data.action === "ragequit") {
+    if (data.snapshot.withdrawExplorerUrl) {
+      recoveryRows.push({
+        label: "Withdrawal",
+        value: data.snapshot.withdrawExplorerUrl,
+      });
+    } else if (data.snapshot.ragequitExplorerUrl) {
+      recoveryRows.push({
+        label: "Public recovery",
+        value: data.snapshot.ragequitExplorerUrl,
+      });
+    }
+    if (data.snapshot.depositExplorerUrl) {
+      recoveryRows.push({
+        label: "Deposit",
+        value: data.snapshot.depositExplorerUrl,
+      });
+    }
+  } else if (data.snapshot.depositExplorerUrl && !isPreDeposit) {
+    recoveryRows.push({
+      label: "Deposit",
+      value: data.snapshot.depositExplorerUrl,
+    });
+  }
+
+  if (showOptionalPublicRecovery) {
+    recoveryRows.push({
+      label: "Optional public recovery",
+      value: `privacy-pools flow ragequit ${data.snapshot.workflowId}.${configuredSignerRecoverySuffix(data.snapshot)}`,
+    });
+  }
+
+  if (hasRecoverySection && !silent) {
+    process.stderr.write(formatSectionHeading("Recovery", { divider: true }));
+    process.stderr.write(formatKeyValueRows(recoveryRows));
   }
 
   // ── Phase-specific guidance ──
@@ -749,19 +829,10 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       silent,
     );
   }
-  if (
-    data.snapshot.walletMode === "new_wallet" &&
-    (isTerminal ||
-      phase === "paused_declined" ||
-      phase === "paused_poi_required" ||
-      phase === "stopped_external")
-  ) {
-    warn(
-      "Any leftover funds or gas reserve remain in the dedicated workflow wallet until you move them manually.",
-      silent,
-    );
-  }
   if (data.snapshot.lastError) {
+    if (!silent) {
+      process.stderr.write(formatSectionHeading("Last error", { divider: true }));
+    }
     warn(
       `Last error (${data.snapshot.lastError.step}): ${data.snapshot.lastError.errorMessage}`,
       silent,

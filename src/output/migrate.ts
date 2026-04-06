@@ -10,6 +10,7 @@ import {
 } from "./common.js";
 import { accentBold, notice } from "../utils/theme.js";
 import type { MigrationChainStatus } from "../services/migration.js";
+import { formatCallout, formatKeyValueRows, formatSectionHeading } from "./layout.js";
 
 export interface MigrationWarning {
   chain: string;
@@ -135,13 +136,36 @@ export function renderMigrationStatus(
     process.stderr.write(`\n${accentBold("Migration Status")}\n\n`);
   }
 
-  info(statusSummaryLine(result.status), silent);
-  info(
-    "Read-only check only. The CLI does not submit migrations; use the Privacy Pools website to migrate or recover legacy accounts.",
-    silent,
-  );
+  if (!silent) {
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Status", value: statusSummaryLine(result.status) },
+        { label: "Requires migration", value: result.requiresMigration ? "yes" : "no" },
+        {
+          label: "Website recovery",
+          value: result.requiresWebsiteRecovery ? "required" : "not required",
+          valueTone: result.requiresWebsiteRecovery ? "warning" as const : "success" as const,
+        },
+        {
+          label: "Readiness resolved",
+          value: result.readinessResolved ? "yes" : "no",
+          valueTone: result.readinessResolved ? "success" as const : "warning" as const,
+        },
+      ]),
+    );
+    process.stderr.write(
+      formatCallout(
+        "read-only",
+        "Read-only check only. The CLI does not submit migrations; use the Privacy Pools website to migrate or recover legacy accounts.",
+      ),
+    );
+  }
 
   if (result.chainReadiness.length > 0) {
+    if (!silent) {
+      process.stderr.write(formatSectionHeading("Per-chain readiness", { divider: true }));
+    }
     printTable(
       ["Chain", "Status", "Legacy", "Migrated", "Remaining", "Declined"],
       result.chainReadiness.map((entry) => [
@@ -173,21 +197,33 @@ export function renderMigrationStatus(
   }
 
   if (result.warnings && result.warnings.length > 0) {
-    for (const entry of result.warnings) {
-      warn(`${entry.chain}: ${entry.message}`, silent);
+    if (!silent) {
+      process.stderr.write(
+        formatCallout(
+          "warning",
+          result.warnings.map((entry) => `${entry.chain}: ${entry.message}`),
+        ),
+      );
     }
   }
 
   if (!result.readinessResolved) {
-    warn(
-      "Some legacy ASP review data was unavailable. Review the account in the website before treating this result as final.",
-      silent,
-    );
+    if (!silent) {
+      process.stderr.write(
+        formatCallout(
+          "warning",
+          "Some legacy ASP review data was unavailable. Review the account in the website before treating this result as final.",
+        ),
+      );
+    }
   }
 
   if (!silent) {
     process.stderr.write(
-      `\n${notice("Website-only action")}: migrate or recover legacy accounts in privacypools.com, then rerun this command.\n`,
+      formatCallout(
+        "recovery",
+        `${notice("Website-only action")}: migrate or recover legacy accounts in privacypools.com, then rerun this command.`,
+      ),
     );
   }
 }

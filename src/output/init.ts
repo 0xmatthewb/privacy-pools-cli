@@ -20,6 +20,11 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { isTestnetChain } from "../config/chains.js";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+} from "./layout.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -104,13 +109,38 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  if (result.mnemonicImported && !silent) {
-    info("Reminder: your signer key pays gas; your recovery phrase is the only way to access your deposits.", silent);
-    process.stderr.write("\n");
-  }
-  if (!result.mnemonicImported && ctx.mode.skipPrompts) {
-    warn("You skipped the backup confirmation step. Make sure your recovery phrase is securely stored — without it, deposited funds cannot be recovered.", silent);
-  }
   success("Setup complete!", silent);
+  if (!silent) {
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Default chain", value: result.defaultChain },
+        {
+          label: "Recovery phrase",
+          value: result.mnemonicImported ? "imported" : "generated",
+        },
+        {
+          label: "Signer key",
+          value: result.signerKeySet ? "configured" : "not set",
+          valueTone: result.signerKeySet ? "success" : "warning",
+        },
+      ]),
+    );
+    if (result.mnemonicImported) {
+      process.stderr.write(
+        formatCallout(
+          "recovery",
+          "Your signer key pays gas; your recovery phrase is still the only way to recover deposited funds.",
+        ),
+      );
+    } else if (ctx.mode.skipPrompts) {
+      process.stderr.write(
+        formatCallout(
+          "danger",
+          "You skipped the backup confirmation step. Make sure your recovery phrase is securely stored before depositing funds.",
+        ),
+      );
+    }
+  }
   renderNextSteps(ctx, humanNextActions);
 }

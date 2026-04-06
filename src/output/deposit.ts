@@ -22,6 +22,11 @@ import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js"
 import { isTestnetChain, POA_PORTAL_URL } from "../config/chains.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import { formatUnits } from "viem";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+} from "./layout.js";
 
 export interface DepositDryRunData {
   chain: string;
@@ -93,17 +98,41 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success("Dry-run complete. No transaction was submitted.", silent);
-  info(`Chain: ${data.chain}`, silent);
-  info(`Asset: ${data.asset}`, silent);
-  info(`Pool Account: ${data.poolAccountId}`, silent);
-  info(`Amount: ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}`, silent);
-  const balanceLabel =
-    data.balanceSufficient === "unknown"
-      ? "unknown (no signer key provided)"
-      : data.balanceSufficient
-        ? "yes"
-        : "no";
-  info(`Balance sufficient: ${balanceLabel}`, silent);
+  if (!silent) {
+    const balanceLabel =
+      data.balanceSufficient === "unknown"
+        ? "unknown (no signer key provided)"
+        : data.balanceSufficient
+          ? "yes"
+          : "no";
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Chain", value: data.chain },
+        { label: "Asset", value: data.asset },
+        { label: "Pool Account", value: data.poolAccountId },
+        {
+          label: "Amount",
+          value: formatAmount(
+            data.amount,
+            data.decimals,
+            data.asset,
+            displayDecimals(data.decimals),
+          ),
+        },
+        {
+          label: "Balance sufficient",
+          value: balanceLabel,
+          valueTone:
+            data.balanceSufficient === true
+              ? "success"
+              : data.balanceSufficient === false
+              ? "warning"
+              : "muted",
+        },
+      ]),
+    );
+  }
 }
 
 /**
@@ -183,20 +212,33 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   if (!silent) process.stderr.write("\n");
   const dd = displayDecimals(data.decimals);
   success(`Deposited ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
-  info(
-    `Your deposit is now under review. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
-    silent,
-  );
-  info(`Pool Account: ${data.poolAccountId}`, silent);
-  if (data.committedValue !== undefined) {
-    info(
-      `Net deposited: ${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after vetting fee)`,
-      silent,
+  if (!silent) {
+    const summaryRows = [
+      { label: "Chain", value: data.chain },
+      { label: "Pool Account", value: data.poolAccountId },
+      {
+        label: "Amount",
+        value: formatAmount(data.amount, data.decimals, data.asset, dd),
+      },
+      ...(data.committedValue !== undefined
+        ? [{
+            label: "Net deposited",
+            value: `${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after vetting fee)`,
+          }]
+        : []),
+      { label: "Tx", value: formatTxHash(data.txHash) },
+      ...(data.explorerUrl
+        ? [{ label: "Explorer", value: data.explorerUrl }]
+        : []),
+    ];
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(formatKeyValueRows(summaryRows));
+    process.stderr.write(
+      formatCallout(
+        "warning",
+        `This deposit is now under review. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
+      ),
     );
-  }
-  info(`Tx: ${formatTxHash(data.txHash)}`, silent);
-  if (data.explorerUrl) {
-    info(`Explorer: ${data.explorerUrl}`, silent);
   }
   renderNextSteps(ctx, humanNextActions);
 }

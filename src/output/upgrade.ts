@@ -9,6 +9,11 @@ import {
   success,
   warn,
 } from "./common.js";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+} from "./layout.js";
 
 export type { UpgradeResult } from "../services/upgrade.js";
 
@@ -34,6 +39,14 @@ export function renderUpgradeResult(
       `privacy-pools-cli is already up to date (${result.currentVersion}).`,
       ctx.mode.isQuiet,
     );
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Current version", value: result.currentVersion },
+        { label: "Latest version", value: result.latestVersion },
+        { label: "Status", value: "up to date", valueTone: "success" },
+      ]),
+    );
     process.stderr.write("\n");
     return;
   }
@@ -42,26 +55,50 @@ export function renderUpgradeResult(
     `Update available: ${result.currentVersion} -> ${result.latestVersion}`,
     ctx.mode.isQuiet,
   );
+  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+  process.stderr.write(
+    formatKeyValueRows([
+      { label: "Current version", value: result.currentVersion },
+      { label: "Latest version", value: result.latestVersion },
+      { label: "Install context", value: result.installContext.kind },
+      {
+        label: "Auto-run",
+        value: result.installContext.supportedAutoRun ? "supported" : "manual only",
+        valueTone: result.installContext.supportedAutoRun ? "success" : "warning",
+      },
+    ]),
+  );
 
   if (result.status === "manual") {
-    warn(
-      "Automatic upgrade is not available from this install context.",
-      ctx.mode.isQuiet,
+    process.stderr.write(
+      formatCallout(
+        "warning",
+        [
+          "Automatic upgrade is not available from this install context.",
+          result.installContext.reason,
+        ],
+      ),
     );
-    process.stderr.write(`${result.installContext.reason}\n`);
     if (result.command) {
-      process.stderr.write(`Run manually:\n  ${accent(result.command)}\n`);
+      process.stderr.write(formatSectionHeading("Manual command", { divider: true }));
+      process.stderr.write(`  ${accent(result.command)}\n`);
     }
     process.stderr.write("\n");
     return;
   }
 
   if (result.status === "ready") {
-    info(result.installContext.reason, ctx.mode.isQuiet);
     process.stderr.write(
-      `Run ${accent("privacy-pools upgrade --yes")} to install automatically, or run:\n`,
+      formatCallout(
+        "read-only",
+        [
+          result.installContext.reason,
+          `Run ${accent("privacy-pools upgrade --yes")} to install automatically, or use the manual command below.`,
+        ],
+      ),
     );
     if (result.command) {
+      process.stderr.write(formatSectionHeading("Manual command", { divider: true }));
       process.stderr.write(`  ${accent(result.command)}\n`);
     }
     process.stderr.write("\n");
@@ -69,9 +106,12 @@ export function renderUpgradeResult(
   }
 
   if (result.status === "cancelled") {
-    warn("Upgrade cancelled. No changes were made.", ctx.mode.isQuiet);
+    process.stderr.write(
+      formatCallout("warning", "Upgrade cancelled. No changes were made."),
+    );
     if (result.command) {
-      process.stderr.write(`Install later with:\n  ${accent(result.command)}\n`);
+      process.stderr.write(formatSectionHeading("Install later", { divider: true }));
+      process.stderr.write(`  ${accent(result.command)}\n`);
     }
     process.stderr.write("\n");
     return;
@@ -81,9 +121,16 @@ export function renderUpgradeResult(
     `Upgraded privacy-pools-cli to ${result.installedVersion ?? result.latestVersion}.`,
     ctx.mode.isQuiet,
   );
-  info(
-    "Re-run privacy-pools to use the updated version.",
-    ctx.mode.isQuiet,
+  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+  process.stderr.write(
+    formatKeyValueRows([
+      { label: "Installed version", value: result.installedVersion ?? result.latestVersion },
+      { label: "Previous version", value: result.currentVersion },
+      { label: "Status", value: "updated", valueTone: "success" },
+    ]),
+  );
+  process.stderr.write(
+    formatCallout("success", "Re-run privacy-pools to use the updated version."),
   );
   process.stderr.write("\n");
 }

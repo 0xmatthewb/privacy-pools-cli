@@ -192,10 +192,11 @@ describe("renderDepositDryRun parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Dry-run complete");
-    expect(stderr).toContain("Chain: sepolia");
-    expect(stderr).toContain("Asset: ETH");
-    expect(stderr).toContain("Pool Account: PA-1");
-    expect(stderr).toContain("Balance sufficient: yes");
+    expect(stderr).toContain("Summary:");
+    expect(stderr).toMatch(/Chain:\s+sepolia/);
+    expect(stderr).toMatch(/Asset:\s+ETH/);
+    expect(stderr).toMatch(/Pool Account:\s+PA-1/);
+    expect(stderr).toMatch(/Balance sufficient:\s+yes/);
   });
 });
 
@@ -373,9 +374,10 @@ describe("renderRagequitDryRun parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Dry-run complete");
-    expect(stderr).toContain("Chain: sepolia");
-    expect(stderr).toContain("Asset: ETH");
-    expect(stderr).toContain("Pool Account: PA-2");
+    expect(stderr).toContain("Summary:");
+    expect(stderr).toMatch(/Chain:\s+sepolia/);
+    expect(stderr).toMatch(/Asset:\s+ETH/);
+    expect(stderr).toMatch(/Pool Account:\s+PA-2/);
     expect(stderr).toContain("Destination:");
     expect(stderr).toContain("Next steps:");
   });
@@ -604,8 +606,8 @@ describe("renderWithdrawDryRun parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Dry-run complete");
-    expect(stderr).toContain("Mode: direct");
-    expect(stderr).toContain("Pool Account: PA-1");
+    expect(stderr).toMatch(/Mode:\s+direct/);
+    expect(stderr).toMatch(/Pool Account:\s+PA-1/);
   });
 });
 
@@ -927,7 +929,7 @@ describe("renderWithdrawQuote parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Withdrawal quote");
-    expect(stderr).toContain("Asset: ETH");
+    expect(stderr).toMatch(/Asset:\s+ETH/);
     expect(stderr).toContain("Relayer fee:");
     expect(stderr).toContain("You receive:");
     expect(stderr).toContain("Recipient:");

@@ -342,9 +342,9 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toContain("Deposit amount: 100 USDC");
-    expect(stderr).toContain("Required token amount: 100 USDC");
-    expect(stderr).toContain("Required native gas: 0.1 ETH");
+    expect(stderr).toMatch(/Deposit amount:\s+100 USDC/);
+    expect(stderr).toMatch(/Required token amount:\s+100 USDC/);
+    expect(stderr).toMatch(/Required native gas:\s+0\.1 ETH/);
     // Committed value is phase-gated: not shown during awaiting_funding
     expect(stderr).not.toContain("Committed value:");
     // Wallet mode removed from human output (shown in JSON only)
@@ -376,9 +376,9 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toContain("Deposit amount: not-a-bigint");
-    expect(stderr).toContain("Required token amount: still-not-a-bigint");
-    expect(stderr).toContain("Required native gas: bad-native-value");
+    expect(stderr).toMatch(/Deposit amount:\s+not-a-bigint/);
+    expect(stderr).toMatch(/Required token amount:\s+still-not-a-bigint/);
+    expect(stderr).toMatch(/Required native gas:\s+bad-native-value/);
     // Committed value is phase-gated: not shown during awaiting_funding
     expect(stderr).not.toContain("Committed value:");
   });
@@ -505,7 +505,9 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain("Approved and waiting for privacy delay");
-    expect(stderr).toContain("Privacy delay: Balanced (randomized 15 to 90 minutes)");
+    expect(stderr).toMatch(
+      /Privacy delay:\s+Balanced \(randomized 15 to 90 minutes\)/,
+    );
     expect(stderr).toContain("Privacy delay until:");
     expect(stderr).toContain("local time");
     expect(stderr).toContain("manual round partial withdrawals");
@@ -796,6 +798,6 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain("Workflow wf-123 is mystery_phase.");
-    expect(stderr).toContain("Phase: mystery_phase");
+    expect(stderr).toMatch(/Phase:\s+mystery_phase/);
   });
 });

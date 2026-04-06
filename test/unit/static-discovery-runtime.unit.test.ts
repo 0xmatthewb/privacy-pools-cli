@@ -322,8 +322,8 @@ describe("static discovery runtime", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Privacy Pools CLI: Agent Capabilities");
     expect(stderr).toContain("Commands:");
-    expect(stderr).toContain("Global Flags:");
-    expect(stderr).toContain("Typical Agent Workflow:");
+    expect(stderr).toContain("Global flags:");
+    expect(stderr).toContain("Typical agent workflow:");
   });
 
   test("can reuse parsed root argv for static discovery commands", async () => {

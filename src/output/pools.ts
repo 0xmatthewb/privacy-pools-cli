@@ -19,6 +19,11 @@ import {
   renderAspApprovalStatus,
   renderPoolAccountStatus,
 } from "../utils/statuses.js";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+} from "./layout.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -191,10 +196,12 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   }
 
   if (warnings.length > 0) {
-    for (const warning of warnings) {
-      warn(`${warning.chain} (${warning.category}): ${warning.message}`, false);
-    }
-    process.stderr.write("\n");
+    process.stderr.write(
+      formatCallout(
+        "warning",
+        warnings.map((warning) => `${warning.chain} (${warning.category}): ${warning.message}`),
+      ),
+    );
   }
 
   if (filteredPools.length === 0) {
@@ -205,6 +212,16 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     }
     return;
   }
+
+  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+  process.stderr.write(
+    formatKeyValueRows([
+      { label: "Scope", value: allChains ? "all supported chains" : chainName },
+      { label: "Matched pools", value: String(filteredPools.length) },
+      { label: "Sort", value: sort },
+      ...(search ? [{ label: "Search", value: search }] : []),
+    ]),
+  );
 
   const headers = allChains
     ? ["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]

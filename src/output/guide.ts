@@ -7,6 +7,7 @@
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, isSilent, guardCsvUnsupported } from "./common.js";
 import { guideText } from "../utils/help.js";
+import { renderHumanGuideText } from "./discovery.js";
 
 /**
  * Render guide output.
@@ -23,7 +24,5 @@ export function renderGuide(ctx: OutputContext): void {
   guardCsvUnsupported(ctx, "guide");
   if (isSilent(ctx)) return;
 
-  process.stderr.write("\n");
-  process.stderr.write(guideText() + "\n");
-  process.stderr.write("\n");
+  renderHumanGuideText(guideText());
 }

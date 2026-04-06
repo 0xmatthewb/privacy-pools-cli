@@ -45,8 +45,8 @@ defineScenarioSuite("output-mode acceptance", [
     assertStderr((stderr) => {
       expect(stderr).toContain("Agent Capabilities");
       expect(stderr).toContain("Commands:");
-      expect(stderr).toContain("Global Flags:");
-      expect(stderr).toContain("Typical Agent Workflow:");
+      expect(stderr).toContain("Global flags:");
+      expect(stderr).toContain("Typical agent workflow:");
     }),
   ]),
   defineScenario("capabilities stays fully silent in quiet mode", [
@@ -61,7 +61,9 @@ defineScenarioSuite("output-mode acceptance", [
     assertStdoutEmpty(),
     assertStderr((stderr) => {
       expect(stderr).toContain("Command: withdraw quote");
-      expect(stderr).toContain("Usage: privacy-pools withdraw quote");
+      expect(stderr).toMatch(
+        /Usage:\s+privacy-pools withdraw quote <amount> --asset <symbol\|address>/,
+      );
     }),
   ]),
   defineScenario("describe stays fully silent in quiet mode", [
@@ -83,7 +85,8 @@ defineScenarioSuite("output-mode acceptance", [
     assertStdoutEmpty(),
     assertStderr((stderr) => {
       expect(stderr).toContain("Privacy Pools CLI Status");
-      expect(stderr).toContain("Config not found");
+      expect(stderr).toMatch(/Config:\s+not found/);
+      expect(stderr).toContain("Run 'privacy-pools init'");
     }),
   ]),
   defineScenario("status with init writes wallet readiness details to stderr", [

@@ -12,14 +12,11 @@ import {
   createNextAction,
   renderNextSteps,
   printJsonSuccess,
-  success,
-  warn,
-  info,
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
 import { displayDecimals, formatAmount } from "../utils/format.js";
-import { highlight, accentBold } from "../utils/theme.js";
+import { accentBold } from "../utils/theme.js";
 import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import type {
   NextActionOptionValue,
@@ -27,6 +24,12 @@ import type {
   StatusIssueAffect,
   StatusRecommendedMode,
 } from "../types.js";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+  type KeyValueRow,
+} from "./layout.js";
 
 export interface StatusCheckResult {
   configExists: boolean;
@@ -455,109 +458,171 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   const silent = isSilent(ctx);
 
-  if (!silent) process.stderr.write(`\n${accentBold("Privacy Pools CLI Status")}\n\n`);
+  if (!silent) {
+    process.stderr.write(`\n${accentBold("Privacy Pools CLI Status")}\n`);
 
-  // Config
-  if (result.configExists) {
-    success(`Config: ${result.configDir}/config.json`, silent);
-  } else {
-    warn("Config not found. Run 'privacy-pools init'.", silent);
-  }
-
-  // Mnemonic
-  if (result.recoveryPhraseSet) {
-    success("Recovery phrase: set", silent);
-  } else {
-    warn("Recovery phrase: not set", silent);
-  }
-
-  // Signer
-  if (result.signerAddress && result.signerKeyValid) {
-    success(`Signer key: ${result.signerAddress}`, silent);
-    if (
-      result.signerBalance !== undefined &&
+    const walletRows: KeyValueRow[] = [
+      {
+        label: "Config",
+        value: result.configExists
+          ? `${result.configDir}/config.json`
+          : "not found. Run 'privacy-pools init'.",
+        valueTone: result.configExists ? "success" as const : "warning" as const,
+      },
+      {
+        label: "Recovery phrase",
+        value: result.recoveryPhraseSet ? "set" : "not set",
+        valueTone: result.recoveryPhraseSet ? "success" as const : "warning" as const,
+      },
+      {
+        label: "Signer key",
+        value: result.signerAddress && result.signerKeyValid
+          ? result.signerAddress
+          : result.signerKeySet && !result.signerKeyValid
+          ? "is set but invalid. Re-run 'privacy-pools init' to reconfigure."
+          : "not set",
+        valueTone: result.signerAddress && result.signerKeyValid
+          ? "success" as const
+          : "warning" as const,
+      },
+      ...(result.signerBalance !== undefined &&
       result.signerBalanceDecimals !== undefined &&
       result.signerBalanceSymbol
-    ) {
-      info(
-        `Signer balance: ${formatAmount(result.signerBalance, result.signerBalanceDecimals, result.signerBalanceSymbol, displayDecimals(result.signerBalanceDecimals))}`,
-        silent,
+        ? [{
+            label: "Signer balance",
+            value: formatAmount(
+              result.signerBalance,
+              result.signerBalanceDecimals,
+              result.signerBalanceSymbol,
+              displayDecimals(result.signerBalanceDecimals),
+            ),
+          }]
+        : []),
+    ];
+    process.stderr.write(formatSectionHeading("Wallet", { divider: true }));
+    process.stderr.write(formatKeyValueRows(walletRows));
+
+    const networkRows: KeyValueRow[] = [
+      { label: "Default chain", value: result.defaultChain ?? "none" },
+      ...(result.selectedChain
+        ? [{ label: "Selected chain", value: result.selectedChain }]
+        : []),
+      ...(result.selectedChain && result.rpcUrl
+        ? [{
+            label: "RPC endpoint",
+            value: `${result.rpcUrl}${result.rpcIsCustom ? "" : " (default)"}`,
+          }]
+        : []),
+      ...(ctx.isVerbose && result.selectedChain && result.entrypoint
+        ? [{ label: "Contract", value: result.entrypoint }]
+        : []),
+      ...(ctx.isVerbose && result.healthChecksEnabled
+        ? [{
+            label: "Health checks",
+            value: `rpc=${result.healthChecksEnabled.rpc ? "enabled" : "disabled"}, asp=${result.healthChecksEnabled.asp ? "enabled" : "disabled"}`,
+          }]
+        : []),
+      ...(result.selectedChain && result.aspHost
+        ? [{
+            label: `ASP (${result.aspHost})`,
+            value: result.aspLive === undefined
+              ? "not checked"
+              : result.aspLive
+              ? "healthy"
+              : "unreachable",
+            valueTone:
+              result.aspLive === undefined
+                ? "muted" as const
+                : result.aspLive
+                ? "success" as const
+                : "warning" as const,
+          }]
+        : []),
+      ...(result.selectedChain
+        ? [{
+            label: "RPC",
+            value: result.rpcLive === undefined
+              ? "not checked"
+              : result.rpcLive
+              ? `connected (block ${result.rpcBlockNumber})`
+              : "unreachable",
+            valueTone:
+              result.rpcLive === undefined
+                ? "muted" as const
+                : result.rpcLive
+                ? "success" as const
+                : "warning" as const,
+          }]
+        : []),
+      ...(result.selectedChain &&
+      result.aspLive === undefined &&
+      result.rpcLive === undefined
+        ? [{
+            label: "Checks",
+            value: "skipped. Use --check-rpc and/or --check-asp.",
+            valueTone: "muted" as const,
+          }]
+        : []),
+    ];
+    process.stderr.write(formatSectionHeading("Network", { divider: true }));
+    process.stderr.write(formatKeyValueRows(networkRows));
+
+    process.stderr.write(formatSectionHeading("Deposits", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        {
+          label: "Detected deposits",
+          value:
+            result.accountFiles.length > 0
+              ? result.accountFiles.map(([name]) => name).join(", ")
+              : "No deposits yet",
+          valueTone: result.accountFiles.length > 0 ? "accent" as const : "muted" as const,
+        },
+      ]),
+    );
+
+    process.stderr.write(formatSectionHeading("Recommendation", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        {
+          label: "Recommended mode",
+          value: preflight.recommendedMode,
+          valueTone:
+            preflight.recommendedMode === "ready"
+              ? "success" as const
+              : preflight.recommendedMode === "read-only"
+              ? "warning" as const
+              : "accent" as const,
+        },
+        {
+          label: "Readiness",
+          value: readyForDeposit
+            ? "Setup complete."
+            : readyForUnsigned
+            ? "Setup complete (unsigned mode only, no signer key)."
+            : "Not ready: run 'privacy-pools init' to get started.",
+          valueTone: readyForDeposit ? "success" as const : "warning" as const,
+        },
+      ]),
+    );
+
+    if (preflight.blockingIssues && preflight.blockingIssues.length > 0) {
+      process.stderr.write(
+        formatCallout(
+          "danger",
+          preflight.blockingIssues.map((issue) => issue.message),
+        ),
       );
     }
-  } else if (result.signerKeySet && !result.signerKeyValid) {
-    warn("Signer key is set but invalid. Re-run 'privacy-pools init' to reconfigure.", silent);
-  } else {
-    warn("Signer key: not set", silent);
-  }
 
-  // Default chain
-  const defaultChain = result.defaultChain ?? "none";
-  info(`Default chain: ${defaultChain}`, silent);
-  if (result.selectedChain) {
-    info(`Selected chain: ${result.selectedChain}`, silent);
-  }
-
-  // Chain details
-  if (result.selectedChain) {
-    if (ctx.isVerbose) {
-      info(`Contract: ${result.entrypoint}`, silent);
-    }
-    info(`RPC: ${result.rpcUrl}${result.rpcIsCustom ? "" : chalk.dim(" (default)")}`, silent);
-
-    const checks = result.healthChecksEnabled;
-    if (ctx.isVerbose && checks) {
-      info(
-        `Health checks: rpc=${checks.rpc ? "enabled" : "disabled"}, asp=${checks.asp ? "enabled" : "disabled"}`,
-        silent,
-      );
-    }
-
-    if (result.aspLive !== undefined) {
-      if (result.aspLive) {
-        success(`ASP (${result.aspHost}): healthy`, silent);
-      } else {
-        warn(`ASP (${result.aspHost}): unreachable`, silent);
-      }
-    }
-
-    if (result.rpcLive !== undefined) {
-      if (result.rpcLive) {
-        success(`RPC: connected (block ${result.rpcBlockNumber})`, silent);
-      } else {
-        warn("RPC: unreachable", silent);
-      }
-    }
-
-    if (result.aspLive === undefined && result.rpcLive === undefined) {
-      info("Health checks skipped. Use --check-rpc and/or --check-asp.", silent);
-    }
-  }
-
-  // Account files
-  if (!silent) {
-    process.stderr.write("\n");
-    if (result.accountFiles.length > 0) {
-      info("Deposits on:", silent);
-      for (const [name] of result.accountFiles) {
-        process.stderr.write(`  ${highlight("●")} ${name}\n`);
-      }
-    } else {
-      info("No deposits yet.", silent);
-    }
-    // Readiness summary — describes configuration, not fund availability.
-    if (readyForDeposit) {
-      success("Setup complete.", silent);
-    } else if (readyForUnsigned) {
-      info("Setup complete (unsigned mode only, no signer key).", silent);
-    } else {
-      warn("Not ready: run 'privacy-pools init' to get started.", silent);
-    }
+    const warningLines = preflight.warnings?.map((issue) => issue.message) ?? [];
     if (aspOnlyDegraded) {
-      process.stderr.write("\n");
-      info(
-        "ASP checks are down, so private review status may be stale. Public recovery remains available while RPC is healthy: use ragequit (or flow ragequit for saved workflows) if you already know the affected account/workflow.",
-        silent,
+      warningLines.push(
+        "Public recovery remains available while RPC is healthy: use ragequit (or flow ragequit for saved workflows) if you already know the affected account or workflow.",
       );
+    }
+    if (warningLines.length > 0) {
+      process.stderr.write(formatCallout("warning", warningLines));
     }
   }
   renderNextSteps(ctx, humanNextActions);

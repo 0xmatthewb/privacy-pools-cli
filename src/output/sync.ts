@@ -13,6 +13,7 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
+import { formatKeyValueRows, formatSectionHeading } from "./layout.js";
 
 export interface SyncResult {
   chain: string;
@@ -74,6 +75,20 @@ export function renderSyncComplete(
   if (delta > 0) {
     success(`Found ${delta} new Pool Account(s).`, silent);
   }
-
-  info(`Available Pool Accounts: ${result.availablePoolAccounts}`, silent);
+  if (!silent) {
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        { label: "Chain", value: result.chain },
+        { label: "Synced pools", value: String(result.syncedPools) },
+        { label: "Available Pool Accounts", value: String(result.availablePoolAccounts) },
+        ...(result.previousAvailablePoolAccounts !== undefined
+          ? [{ label: "Previous available", value: String(result.previousAvailablePoolAccounts) }]
+          : []),
+        ...(delta > 0
+          ? [{ label: "New Pool Accounts", value: String(delta), valueTone: "success" as const }]
+          : []),
+      ]),
+    );
+  }
 }

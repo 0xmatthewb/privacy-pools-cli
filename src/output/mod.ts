@@ -21,6 +21,22 @@ export {
   renderNextSteps,
   formatNextActionCommand,
 } from "./common.js";
+export {
+  type CalloutKind,
+  type KeyValueRow,
+  type SectionListOptions,
+  type SectionHeadingOptions,
+  type SectionTone,
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionList,
+  formatSectionHeading,
+} from "./layout.js";
+export {
+  renderHumanCapabilities,
+  renderHumanCommandDescription,
+  renderHumanGuideText,
+} from "./discovery.js";
 
 // Command renderers
 export { renderGuide } from "./guide.js";
