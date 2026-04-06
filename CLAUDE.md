@@ -105,3 +105,22 @@ Defined in `src/config/chains.ts`: mainnet (1), arbitrum (42161), optimism (10),
 - Test files follow `<name>.<category>.test.ts` naming (e.g., `withdrawal.unit.test.ts`).
 - Error handling: throw `CLIError` with category, code, hint, and retryable fields.
 - Version references: CLI v1.7.0, SDK v1.2.0, JSON schema v1.7.0.
+
+## Native/JS Duplication Inventory
+
+The native Rust shell reimplements certain JS-side logic for performance.
+These areas must be kept in sync when either side changes.
+
+| Area | Rust file(s) | JS file(s) |
+|------|-------------|------------|
+| Config loading | `native/shell/src/config.rs` | `src/services/config.ts`, `src/config/chains.ts` |
+| Root argv parsing | `native/shell/src/root_argv.rs` | `src/utils/root-argv.ts` |
+| Output formatting | `native/shell/src/output.rs` | `src/output/layout.ts`, `src/utils/format.ts` |
+| RPC ABI encoding | `native/shell/src/commands/pools/rpc_abi.rs` | viem library |
+| Token metadata | `native/shell/src/commands/pools/rpc_token.rs` | viem `readContract` |
+| NextActions | `native/shell/src/output.rs` | `src/output/common.ts` |
+
+The bridge version guard (`src/runtime/runtime-contract.js` ↔ `native/shell/src/contract.rs`)
+ensures the native binary is compatible with the JS runtime at the protocol level, but cannot
+detect semantic drift within a version. When modifying any duplicated area, update both sides
+and verify with `npm run test:conformance:all`.
