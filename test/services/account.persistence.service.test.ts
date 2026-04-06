@@ -1366,3 +1366,103 @@ describe("account persistence", () => {
     expect(service).toBeInstanceOf(AccountService);
   });
 });
+
+// ── Backup/recovery round-trip ────────────────────────────────────────────
+
+describe("backup and recovery round-trip", () => {
+  afterEach(() => {
+    if (ORIGINAL_HOME === undefined) {
+      delete process.env.PRIVACY_POOLS_HOME;
+    } else {
+      process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+    }
+    AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
+    global.fetch = ORIGINAL_FETCH;
+    cleanupTrackedTempDirs();
+  });
+
+  function makeAccountState(value: bigint = 500000n, ragequit = false) {
+    return {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map([
+        [1n, [{
+          label: 11n,
+          deposit: {
+            hash: 12n,
+            value,
+            label: 11n,
+            nullifier: 13n,
+            secret: 14n,
+            blockNumber: 1n,
+            txHash: "0x" + "11".repeat(32),
+          },
+          children: [],
+          isMigrated: false,
+          ragequit: ragequit
+            ? { label: 11n, value, transactionHash: "0x" + "22".repeat(32), blockNumber: 2n, timestamp: 3n }
+            : undefined,
+        }]],
+      ]),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+    };
+  }
+
+  test("serialize then deserialize preserves known account structure", () => {
+    const state = makeAccountState(500000n);
+    const serialized = serialize(state);
+    const restored = deserialize(serialized) as any;
+
+    // Master keys preserved
+    expect(restored.masterKeys).toBeDefined();
+    expect(restored.masterKeys.length).toBe(2);
+    expect(restored.masterKeys[0]).toBe(1n);
+    expect(restored.masterKeys[1]).toBe(2n);
+
+    // Pool accounts preserved as Map
+    expect(restored.poolAccounts).toBeInstanceOf(Map);
+    expect(restored.poolAccounts.size).toBe(1);
+
+    // Deposit fields preserved
+    const entries = restored.poolAccounts.get(1n);
+    expect(entries).toBeDefined();
+    expect(entries.length).toBe(1);
+    const pa = entries[0];
+    expect(pa.label).toBe(11n);
+    expect(pa.deposit.value).toBe(500000n);
+    expect(pa.deposit.hash).toBe(12n);
+    expect(pa.deposit.nullifier).toBe(13n);
+    expect(pa.deposit.secret).toBe(14n);
+    expect(pa.deposit.blockNumber).toBe(1n);
+    expect(pa.deposit.txHash).toBe("0x" + "11".repeat(32));
+  });
+
+  test("save to disk then load from disk preserves full state", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const state = makeAccountState(999n, true);
+    const chainId = 11155111;
+    saveAccount(chainId, state);
+
+    const loaded = loadAccount(chainId);
+    expect(loaded).not.toBeNull();
+
+    // Verify key fields survived the full write→read cycle
+    expect(loaded.masterKeys).toBeDefined();
+    expect(loaded.masterKeys[0]).toBe(1n);
+    expect(loaded.poolAccounts).toBeInstanceOf(Map);
+    const entries = loaded.poolAccounts.get(1n);
+    expect(entries[0].deposit.value).toBe(999n);
+    expect(entries[0].ragequit).toBeDefined();
+    expect(entries[0].ragequit.transactionHash).toBe("0x" + "22".repeat(32));
+  });
+
+  test("same mnemonic produces identical master keys", () => {
+    const { generateMasterKeys } = require("@0xbow/privacy-pools-core-sdk");
+    const keys1 = generateMasterKeys(MNEMONIC);
+    const keys2 = generateMasterKeys(MNEMONIC);
+    expect(keys1[0]).toBe(keys2[0]);
+    expect(keys1[1]).toBe(keys2[1]);
+  });
+});

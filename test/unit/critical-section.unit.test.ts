@@ -150,4 +150,70 @@ describe("critical section guard", () => {
     expect(killCalled).toBe(true);
     expect(killSignal).toBe("SIGTERM");
   });
+
+  test("signal deferred across async gap is re-emitted after release", async () => {
+    let killCalled = false;
+    let killSignal: string | undefined;
+    process.kill = ((_pid: number, sig?: string | number) => {
+      killCalled = true;
+      killSignal = sig as string;
+      return true;
+    }) as any;
+
+    guardCriticalSection();
+
+    // Simulate async work with a signal arriving mid-await
+    const work = new Promise<void>((resolve) => setTimeout(resolve, 10));
+    process.emit("SIGINT", "SIGINT");
+    expect(killCalled).toBe(false); // signal is held during guard
+
+    await work;
+    expect(killCalled).toBe(false); // still held after async work
+
+    releaseCriticalSection();
+    expect(killCalled).toBe(true);
+    expect(killSignal).toBe("SIGINT");
+  });
+
+  test("signal re-emitted after exception in guarded work (try/finally pattern)", () => {
+    let killCalled = false;
+    let killSignal: string | undefined;
+    process.kill = ((_pid: number, sig?: string | number) => {
+      killCalled = true;
+      killSignal = sig as string;
+      return true;
+    }) as any;
+
+    guardCriticalSection();
+    process.emit("SIGINT", "SIGINT");
+
+    try {
+      throw new Error("simulated failure during state persistence");
+    } catch {
+      // error handled
+    } finally {
+      releaseCriticalSection();
+    }
+
+    expect(killCalled).toBe(true);
+    expect(killSignal).toBe("SIGINT");
+  });
+
+  test("second signal overwrites first (last-wins behavior)", () => {
+    let killCalled = false;
+    let killSignal: string | undefined;
+    process.kill = ((_pid: number, sig?: string | number) => {
+      killCalled = true;
+      killSignal = sig as string;
+      return true;
+    }) as any;
+
+    guardCriticalSection();
+    process.emit("SIGINT", "SIGINT");
+    process.emit("SIGTERM", "SIGTERM");
+
+    releaseCriticalSection();
+    expect(killCalled).toBe(true);
+    expect(killSignal).toBe("SIGTERM"); // last signal wins
+  });
 });

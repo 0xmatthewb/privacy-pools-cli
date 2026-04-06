@@ -142,4 +142,64 @@ describe("acquireProcessLock", () => {
     expect(existsSync(lockPath)).toBe(true);
     expect(readFileSync(lockPath, "utf-8").trim()).toBe("12345");
   });
+
+  test("lock contention CLIError has INPUT category and lock-path hint", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const lockPath = join(home, ".lock");
+
+    const foreignPid = 99999998;
+    writeFileSync(lockPath, String(foreignPid), { flag: "wx", mode: 0o600 });
+
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number) => {
+      if (pid === foreignPid && (signal === 0 || signal === undefined)) return true;
+      throw Object.assign(new Error("ESRCH"), { code: "ESRCH" });
+    }) as typeof process.kill);
+
+    try {
+      let caught: CLIError | undefined;
+      try {
+        acquireProcessLock();
+      } catch (err) {
+        caught = err as CLIError;
+      }
+      expect(caught).toBeInstanceOf(CLIError);
+      expect(caught!.category).toBe("INPUT");
+      expect(caught!.message).toBe("Another privacy-pools operation is in progress.");
+      expect(caught!.hint).toContain(lockPath);
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  test("lock contention error is structured for JSON output", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    const lockPath = join(home, ".lock");
+
+    const foreignPid = 99999997;
+    writeFileSync(lockPath, String(foreignPid), { flag: "wx", mode: 0o600 });
+
+    const killSpy = spyOn(process, "kill").mockImplementation(((pid: number, signal?: number) => {
+      if (pid === foreignPid && (signal === 0 || signal === undefined)) return true;
+      throw Object.assign(new Error("ESRCH"), { code: "ESRCH" });
+    }) as typeof process.kill);
+
+    try {
+      let caught: CLIError | undefined;
+      try {
+        acquireProcessLock();
+      } catch (err) {
+        caught = err as CLIError;
+      }
+      expect(caught).toBeInstanceOf(CLIError);
+      // Verify all fields agents need for structured error rendering
+      expect(typeof caught!.code).toBe("string");
+      expect(typeof caught!.category).toBe("string");
+      expect(typeof caught!.message).toBe("string");
+      expect(typeof caught!.hint).toBe("string");
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
 });
