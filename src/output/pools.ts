@@ -141,7 +141,10 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const agentNextActions = [
     createNextAction("deposit", "Deposit into a pool.", "after_pools", {
       args: ["<amount>", "<asset>"],
-      options: { agent: true },
+      options: {
+        agent: true,
+        ...(allChains ? {} : { chain: chainName }),
+      },
       runnable: false,
     }),
   ];

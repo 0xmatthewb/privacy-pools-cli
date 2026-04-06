@@ -71,6 +71,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   const hasNextPage = data.totalPages !== null && data.page < data.totalPages;
   const paginationOptions: Record<string, string | number | boolean> = {
     page: data.page + 1,
+    limit: data.perPage,
     ...(data.mode === "pool-activity" && data.asset ? { asset: data.asset } : {}),
     ...(data.chain !== "all-mainnets" ? { chain: data.chain } : {}),
   };

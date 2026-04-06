@@ -41,13 +41,10 @@ export function renderUpgradeResult(
         options: { yes: true },
       }),
     ];
-  } else if (result.status === "manual") {
-    agentNextActions = [
-      createNextAction("upgrade", "Upgrade manually using the command shown.", "after_upgrade", {
-        runnable: false,
-      }),
-    ];
   }
+  // No nextAction for "manual" status — the remediation is an external
+  // install command (in result.command), not a CLI command. Emitting
+  // "upgrade" as a nextAction would cause agents to loop.
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({ ...result }, agentNextActions));

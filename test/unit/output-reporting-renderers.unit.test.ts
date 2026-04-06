@@ -7,6 +7,7 @@ import { createOutputContext } from "../../src/output/common.ts";
 import { renderPoolsEmpty, renderPools, renderPoolDetail, poolToJson, type PoolsRenderData, type PoolDetailRenderData, type PoolDetailActivityEvent } from "../../src/output/pools.ts";
 import { renderAccountsNoPools, renderAccounts, type AccountPoolGroup } from "../../src/output/accounts.ts";
 import { renderHistoryNoPools, renderHistory } from "../../src/output/history.ts";
+import { renderUpgradeResult, type UpgradeResult } from "../../src/output/upgrade.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
@@ -131,7 +132,28 @@ describe("renderPools parity", () => {
     expect(json.nextActions.length).toBe(1);
     expect(json.nextActions[0].command).toBe("deposit");
     expect(json.nextActions[0].runnable).toBe(false);
+    // Single-chain query must carry chain context to prevent wrong-network deposits
+    expect(json.nextActions[0].options.chain).toBe("sepolia");
+    expect(json.nextActions[0].cliCommand).toContain("--chain sepolia");
     expect(stderr).toBe("");
+  });
+
+  test("JSON mode: all-chains query omits chain from deposit nextAction", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: PoolsRenderData = {
+      ...STUB_POOLS_DATA,
+      allChains: true,
+      chainName: "mainnet",
+      chainSummaries: [{ chain: "mainnet", pools: 1, error: null }],
+    };
+    const { stdout } = captureOutput(() => renderPools(ctx, data));
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions[0].command).toBe("deposit");
+    // All-chains query must NOT include chain — agent picks the target chain
+    expect(json.nextActions[0].options.chain).toBeUndefined();
+    expect(json.nextActions[0].cliCommand).not.toContain("--chain");
   });
 
   test("human mode: emits table to stderr", () => {
@@ -993,5 +1015,59 @@ describe("renderPoolDetail parity", () => {
   test("CSV mode: throws CLIError", () => {
     const ctx = createOutputContext(makeMode({ isCsv: true }));
     expect(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA)).toThrow(CLIError);
+  });
+});
+
+// ── renderUpgradeResult nextActions parity ─────────────────────────────────
+
+describe("renderUpgradeResult nextActions", () => {
+  const baseResult: UpgradeResult = {
+    status: "up_to_date",
+    currentVersion: "1.7.0",
+    latestVersion: "1.7.0",
+    updateAvailable: false,
+    performed: false,
+    command: null,
+    installContext: { kind: "global_npm", supportedAutoRun: true, reason: "Global npm install." },
+    installedVersion: null,
+  };
+
+  test("JSON mode: 'ready' status emits runnable upgrade nextAction", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const result: UpgradeResult = { ...baseResult, status: "ready", latestVersion: "1.8.0", updateAvailable: true, command: "npm i -g privacy-pools-cli@1.8.0" };
+    const { stdout } = captureOutput(() => renderUpgradeResult(ctx, result));
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions.length).toBe(1);
+    expect(json.nextActions[0].command).toBe("upgrade");
+    expect(json.nextActions[0].runnable).toBeUndefined(); // runnable (default true)
+    expect(json.nextActions[0].options.yes).toBe(true);
+  });
+
+  test("JSON mode: 'manual' status emits no nextActions", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const result: UpgradeResult = {
+      ...baseResult,
+      status: "manual",
+      latestVersion: "1.8.0",
+      updateAvailable: true,
+      command: "npm i -g privacy-pools-cli@1.8.0",
+      installContext: { kind: "source_checkout", supportedAutoRun: false, reason: "Source checkout." },
+    };
+    const { stdout } = captureOutput(() => renderUpgradeResult(ctx, result));
+
+    const json = parseCapturedJson(stdout);
+    // Manual status must NOT emit nextActions — the remediation is an external
+    // install command in result.command, not a CLI command.
+    expect(json.nextActions).toBeUndefined();
+  });
+
+  test("JSON mode: 'up_to_date' status emits no nextActions", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() => renderUpgradeResult(ctx, baseResult));
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toBeUndefined();
   });
 });

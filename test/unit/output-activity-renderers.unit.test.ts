@@ -143,6 +143,57 @@ describe("renderActivity pool-activity parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toBe("");
   });
+
+  test("JSON mode: pagination nextAction includes limit and chain", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: ActivityRenderData = {
+      ...STUB_POOL_ACTIVITY,
+      page: 1,
+      perPage: 20,
+      totalPages: 3,
+      total: 60,
+    };
+    const { stdout } = captureOutput(() => renderActivity(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions.length).toBe(1);
+    const action = json.nextActions[0];
+    expect(action.command).toBe("activity");
+    expect(action.options.page).toBe(2);
+    // limit must be carried to preserve window size across pages
+    expect(action.options.limit).toBe(20);
+    // chain must be carried for chain-specific queries
+    expect(action.options.chain).toBe("sepolia");
+    expect(action.cliCommand).toContain("--limit 20");
+    expect(action.cliCommand).toContain("--page 2");
+  });
+
+  test("JSON mode: no nextAction on last page", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: ActivityRenderData = {
+      ...STUB_POOL_ACTIVITY,
+      page: 3,
+      perPage: 10,
+      totalPages: 3,
+    };
+    const { stdout } = captureOutput(() => renderActivity(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toBeUndefined();
+  });
+
+  test("JSON mode: no nextAction when totalPages is null", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: ActivityRenderData = {
+      ...STUB_POOL_ACTIVITY,
+      totalPages: null,
+    };
+    const { stdout } = captureOutput(() => renderActivity(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.nextActions).toBeUndefined();
+  });
 });
 
 // ── renderActivity global-activity parity ────────────────────────────────────
