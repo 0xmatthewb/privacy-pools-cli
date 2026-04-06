@@ -1,7 +1,14 @@
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
 const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
@@ -65,11 +72,26 @@ export function createSharedBuiltWorkspaceSnapshot(rootDir) {
 
 export function cleanupSharedBuiltWorkspaceSnapshot(snapshotRoot) {
   if (!snapshotRoot) return;
+  let cleanupRoot = snapshotRoot;
+
+  if (existsSync(snapshotRoot)) {
+    const detachedRoot = join(
+      dirname(snapshotRoot),
+      `.pp-shared-built-workspace-cleanup-${basename(snapshotRoot)}-${process.pid}-${Date.now()}`,
+    );
+    try {
+      renameSync(snapshotRoot, detachedRoot);
+      cleanupRoot = detachedRoot;
+    } catch {
+      cleanupRoot = snapshotRoot;
+    }
+  }
+
   const deadline = Date.now() + CLEANUP_TIMEOUT_MS;
 
   while (Date.now() <= deadline) {
     try {
-      rmSync(snapshotRoot, {
+      rmSync(cleanupRoot, {
         recursive: true,
         force: true,
         maxRetries: 10,
@@ -79,7 +101,7 @@ export function cleanupSharedBuiltWorkspaceSnapshot(snapshotRoot) {
       // Retry a few times below before giving up.
     }
 
-    if (!existsSync(snapshotRoot)) {
+    if (!existsSync(cleanupRoot)) {
       return;
     }
 
