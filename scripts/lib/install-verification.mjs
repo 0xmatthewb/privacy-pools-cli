@@ -56,6 +56,15 @@ export function parseArgs(argv) {
   return result;
 }
 
+export function resolveCliTarballPath(
+  parsedArgs,
+  fallbackPath = null,
+) {
+  const explicitPath = parsedArgs?.["cli-tarball"]?.trim();
+  const candidate = explicitPath || fallbackPath;
+  return candidate ? resolve(candidate) : null;
+}
+
 export function fail(message) {
   process.stderr.write(`${message}\n`);
   process.exit(1);

@@ -24,6 +24,7 @@ describe("flake workflow conformance", () => {
       "node scripts/run-flake-suite.mjs",
     );
     expect(flakeWorkflow).toContain("Setup Bun");
+    expect(flakeWorkflow).toContain("cache: npm");
     expect(flakeWorkflow).toContain("run: npm ci");
     expect(flakeWorkflow).toContain("Run flake suite");
     expect(flakeWorkflow).toContain("run: npm run test:flake");
@@ -42,6 +43,7 @@ describe("flake workflow conformance", () => {
     );
     expect(flakeAnvilWorkflow).not.toContain("Bun-native flake workflow");
     expect(flakeAnvilWorkflow).toContain("Setup Bun");
+    expect(flakeAnvilWorkflow).toContain("cache: npm");
     expect(flakeAnvilWorkflow).toContain("run: npm ci");
     expect(flakeAnvilWorkflow).toContain("Run shared-Anvil flake suite");
     expect(flakeAnvilWorkflow).toContain("run: npm run test:flake:anvil");

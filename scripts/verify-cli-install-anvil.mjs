@@ -22,9 +22,11 @@ import { sepolia } from "viem/chains";
 import {
   formatResultDiagnostics,
   npmProcessEnv,
+  parseArgs,
   parseJson,
   packageInstallPath,
   packTarball,
+  resolveCliTarballPath,
   resolveInstalledDependencyPackagePath,
   runInstalledCli as runInstalledCliBase,
   runNpmInstallWithRetry,
@@ -53,6 +55,7 @@ const TEST_PRIVATE_KEY =
 const RELAYED_RECIPIENT = "0x4444444444444444444444444444444444444444";
 const DUMMY_CID =
   "bafybeigdyrzt5sharedanvile2etests12345678901234567890";
+const args = parseArgs(process.argv.slice(2));
 
 const entrypointAbi = parseAbi([
   "function updateRoot(uint256 _root, string _ipfsCID) returns (uint256 _index)",
@@ -371,6 +374,7 @@ const anvilClient = createPublicClient({
 const currentTriplet = nativeTriplet();
 
 const distIndexPath = join(repoRoot, "dist", "index.js");
+const requestedCliTarball = resolveCliTarballPath(args, distIndexPath);
 const tempRoot = mkdtempSync(join(tmpdir(), "pp-installed-cli-anvil-"));
 const cliTarballDir = join(tempRoot, "cli");
 const nativePackageDir = join(tempRoot, "native-package");
@@ -386,11 +390,17 @@ mkdirSync(installRoot, { recursive: true });
 try {
   await resetSharedFixture(sharedEnv);
 
-  run(npmCommand, ["run", "build"]);
+  const cliTarball = resolveCliTarballPath(args) ?? (() => {
+    run(npmCommand, ["run", "build"]);
 
-  if (!existsSync(distIndexPath)) {
-    fail("dist/index.js not found after build.");
-  }
+    if (!existsSync(distIndexPath)) {
+      fail("dist/index.js not found after build.");
+    }
+
+    return packTarball(repoRoot, cliTarballDir, {
+      npmStateRoot: tempRoot,
+    });
+  })();
 
   if (!currentTriplet) {
     process.stdout.write(
@@ -418,9 +428,6 @@ try {
     "--release",
   ]);
 
-  const cliTarball = packTarball(repoRoot, cliTarballDir, {
-    npmStateRoot: tempRoot,
-  });
   run("node", [
     join(repoRoot, "scripts", "prepare-native-package.mjs"),
     "--triplet",
@@ -946,7 +953,7 @@ try {
   }
 
   process.stdout.write(
-    `Verified installed CLI and native tarballs against shared Anvil using ${distIndexPath}\n`,
+    `Verified installed CLI and native tarballs against shared Anvil using ${cliTarball ?? requestedCliTarball}\n`,
   );
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

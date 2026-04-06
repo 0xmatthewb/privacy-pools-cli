@@ -5,6 +5,12 @@ import { join, resolve } from "node:path";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 
 const TEST_RUN_ID = process.env.PP_TEST_RUN_ID?.trim();
+const CLEANUP_RETRY_DELAY_MS = 100;
+const CLEANUP_TIMEOUT_MS = 5_000;
+
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
 
 function npmBin() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
@@ -59,7 +65,9 @@ export function createSharedBuiltWorkspaceSnapshot(rootDir) {
 
 export function cleanupSharedBuiltWorkspaceSnapshot(snapshotRoot) {
   if (!snapshotRoot) return;
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  const deadline = Date.now() + CLEANUP_TIMEOUT_MS;
+
+  while (Date.now() <= deadline) {
     try {
       rmSync(snapshotRoot, {
         recursive: true,
@@ -74,6 +82,8 @@ export function cleanupSharedBuiltWorkspaceSnapshot(snapshotRoot) {
     if (!existsSync(snapshotRoot)) {
       return;
     }
+
+    sleepMs(CLEANUP_RETRY_DELAY_MS);
   }
 
   // Best effort cleanup only.

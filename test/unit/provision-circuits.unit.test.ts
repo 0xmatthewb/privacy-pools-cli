@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { bundledCircuitsDir } from "../../src/services/circuit-assets.js";
 import { CLI_ROOT } from "../helpers/paths.ts";
@@ -93,5 +93,44 @@ describe("circuits:provision", () => {
     }
     expect(second.stdout).toContain("copied=0");
     expect(second.stdout).toContain(`skipped=${ALL_FILES.length}`);
+  });
+
+  test("replaces a corrupted cached circuit artifact instead of silently reusing it", () => {
+    const circuitsDir = createTrackedTempDir("pp-circuits-provision-repair-");
+    const version = installedSdkVersion();
+    const bundledDir = bundledCircuitsDir(CLI_ROOT, version);
+
+    const first = spawnSync("node", ["scripts/provision-circuits.mjs"], {
+      cwd: CLI_ROOT,
+      encoding: "utf8",
+      timeout: 60_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: {
+        ...process.env,
+        PRIVACY_POOLS_CIRCUITS_DIR: circuitsDir,
+      },
+    });
+    expect(first.status).toBe(0);
+
+    const corruptedFile = join(circuitsDir, "withdraw.vkey");
+    writeFileSync(corruptedFile, "corrupted-circuit-data", "utf8");
+
+    const second = spawnSync("node", ["scripts/provision-circuits.mjs"], {
+      cwd: CLI_ROOT,
+      encoding: "utf8",
+      timeout: 60_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: {
+        ...process.env,
+        PRIVACY_POOLS_CIRCUITS_DIR: circuitsDir,
+      },
+    });
+
+    expect(second.status).toBe(0);
+    expect(second.stderr).toBe("");
+    expect(second.stdout).toContain("copy withdraw.vkey");
+    expect(sha256File(corruptedFile)).toBe(
+      sha256File(join(bundledDir, "withdraw.vkey")),
+    );
   });
 });

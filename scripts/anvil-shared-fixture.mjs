@@ -67,6 +67,10 @@ const REQUIRED_CONTRACT_FIXTURE_FILES = [
   "vendor/ERC1967Proxy.json",
 ];
 
+function formatDuration(durationMs) {
+  return `${(durationMs / 1_000).toFixed(durationMs >= 10_000 ? 1 : 2)}s`;
+}
+
 function resolveSharedCircuitCacheDir() {
   const sdkEntry = require.resolve("@0xbow/privacy-pools-core-sdk");
   const sdkRoot = resolve(dirname(sdkEntry), "..", "..");
@@ -143,6 +147,7 @@ function validateContractFixture() {
 }
 
 function ensureSharedCircuitArtifacts(sharedCircuitsDir, baseEnv) {
+  const startedAt = Date.now();
   mkdirSync(sharedCircuitsDir, { recursive: true });
 
   const result = spawnSync(NODE_EXECUTABLE, [PROVISION_CIRCUITS_SCRIPT], {
@@ -156,11 +161,41 @@ function ensureSharedCircuitArtifacts(sharedCircuitsDir, baseEnv) {
     },
   });
 
-  if (result.status !== 0) {
+  if (result.error || result.status !== 0) {
+    const details = [];
+    if (typeof result.status === "number") {
+      details.push(`exit status ${result.status}`);
+    }
+    if (result.signal) {
+      details.push(`signal ${result.signal}`);
+    }
+    if (result.error instanceof Error && result.error.message) {
+      details.push(result.error.message);
+    }
+    const stderr = result.stderr?.trim();
+    if (stderr) {
+      details.push(`stderr: ${stderr}`);
+    }
+    const stdout = result.stdout?.trim();
+    if (stdout) {
+      details.push(`stdout: ${stdout}`);
+    }
     throw new Error(
-      result.stderr || result.stdout || "failed to provision shared circuit artifacts",
+      details.length > 0
+        ? `failed to provision shared circuit artifacts (${details.join("; ")})`
+        : "failed to provision shared circuit artifacts",
     );
   }
+
+  return {
+    durationMs: Date.now() - startedAt,
+    summary:
+      result.stdout
+        .split(/\r?\n/u)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .at(-1) ?? "",
+  };
 }
 
 function getFreePort() {
@@ -563,23 +598,74 @@ function launchTsxServer(scriptPath, env, label, baseEnv = process.env) {
   }));
 }
 
-export async function setupSharedAnvilFixture(options = {}) {
-  const baseEnv = options.baseEnv ?? process.env;
-  const stateRoot = mkdtempSync(join(tmpdir(), "pp-anvil-shared-"));
-  const sharedCircuitsDir = baseEnv.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim()
-    || resolveSharedCircuitCacheDir();
-  ensureSharedCircuitArtifacts(sharedCircuitsDir, baseEnv);
-  const aspStateFile = join(stateRoot, "asp-state.json");
-  const resetStateFile = join(stateRoot, "reset-state.json");
-  const envFile = join(stateRoot, "env.json");
+function createSharedAnvilStateRoot() {
+  return mkdtempSync(join(tmpdir(), "pp-anvil-shared-"));
+}
 
-  const anvil = await launchAnvil(baseEnv);
+function removeSharedAnvilStateRoot(stateRoot) {
+  rmSync(stateRoot, { recursive: true, force: true });
+}
+
+function logSharedAnvil(message) {
+  process.stdout.write(message);
+}
+
+const DEFAULT_SETUP_SHARED_ANVIL_DEPENDENCIES = {
+  createStateRoot: createSharedAnvilStateRoot,
+  deployProtocol,
+  ensureSharedCircuitArtifacts,
+  launchAnvil,
+  launchTsxServer,
+  log: logSharedAnvil,
+  removeStateRoot: removeSharedAnvilStateRoot,
+  resolveSharedCircuitCacheDir,
+  rpc,
+  seedInitialAspRoot,
+  terminateChild,
+};
+
+export async function setupSharedAnvilFixture(options = {}) {
+  const fixtureStartedAt = Date.now();
+  const baseEnv = options.baseEnv ?? process.env;
+  const dependencies = {
+    ...DEFAULT_SETUP_SHARED_ANVIL_DEPENDENCIES,
+    ...options.dependencies,
+  };
+  const sharedCircuitsDir = baseEnv.PP_ANVIL_SHARED_CIRCUITS_DIR?.trim()
+    || dependencies.resolveSharedCircuitCacheDir();
+  const circuitProvision = dependencies.ensureSharedCircuitArtifacts(
+    sharedCircuitsDir,
+    baseEnv,
+  );
+  dependencies.log(
+    `[anvil] circuit provisioning completed in ${formatDuration(circuitProvision.durationMs)} (${circuitProvision.summary})\n`,
+  );
+  let stateRoot = null;
+  let anvil = null;
   let aspServer = null;
   let relayerServer = null;
 
+  const cleanupFixtureResources = async () => {
+    await Promise.allSettled([
+      relayerServer
+        ? dependencies.terminateChild(relayerServer.proc)
+        : Promise.resolve(),
+      aspServer ? dependencies.terminateChild(aspServer.proc) : Promise.resolve(),
+      anvil ? dependencies.terminateChild(anvil.proc) : Promise.resolve(),
+    ]);
+    if (stateRoot) {
+      dependencies.removeStateRoot(stateRoot);
+    }
+  };
+
   try {
-    const deployment = await deployProtocol(anvil.url);
-    await seedInitialAspRoot(anvil.url, deployment.entrypoint);
+    stateRoot = dependencies.createStateRoot();
+  const aspStateFile = join(stateRoot, "asp-state.json");
+  const resetStateFile = join(stateRoot, "reset-state.json");
+  const envFile = join(stateRoot, "env.json");
+    anvil = await dependencies.launchAnvil(baseEnv);
+    const deployment = await dependencies.deployProtocol(anvil.url);
+    await dependencies.seedInitialAspRoot(anvil.url, deployment.entrypoint);
     const baselineAspState = {
       chainId: LOCAL_TEST_CHAIN.id,
       rpcUrl: anvil.url,
@@ -611,13 +697,13 @@ export async function setupSharedAnvilFixture(options = {}) {
     };
     writeFileSync(aspStateFile, JSON.stringify(baselineAspState, null, 2), "utf8");
 
-    aspServer = await launchTsxServer(
+    aspServer = await dependencies.launchTsxServer(
       ASP_SERVER_SCRIPT,
       { PP_ANVIL_ASP_STATE_FILE: aspStateFile },
       "asp",
       baseEnv,
     );
-    relayerServer = await launchTsxServer(
+    relayerServer = await dependencies.launchTsxServer(
       RELAYER_SERVER_SCRIPT,
       {
         PP_ANVIL_RELAYER_CONFIG: JSON.stringify({
@@ -647,7 +733,7 @@ export async function setupSharedAnvilFixture(options = {}) {
       baseEnv,
     );
 
-    const initialSnapshotId = await rpc(anvil.url, "evm_snapshot");
+    const initialSnapshotId = await dependencies.rpc(anvil.url, "evm_snapshot");
     writeFileSync(
       resetStateFile,
       JSON.stringify({
@@ -683,25 +769,20 @@ export async function setupSharedAnvilFixture(options = {}) {
       "utf8",
     );
 
+    const fixtureSetupDurationMs = Date.now() - fixtureStartedAt;
+    dependencies.log(
+      `[anvil] shared fixture ready in ${formatDuration(fixtureSetupDurationMs)}\n`,
+    );
+
     return {
       envFile,
+      fixtureSetupDurationMs,
+      circuitProvisionDurationMs: circuitProvision.durationMs,
       sharedCircuitsDir,
-      cleanup: async () => {
-        await Promise.allSettled([
-          relayerServer ? terminateChild(relayerServer.proc) : Promise.resolve(),
-          aspServer ? terminateChild(aspServer.proc) : Promise.resolve(),
-          terminateChild(anvil.proc),
-        ]);
-        rmSync(stateRoot, { recursive: true, force: true });
-      },
+      cleanup: cleanupFixtureResources,
     };
   } catch (error) {
-    await Promise.allSettled([
-      relayerServer ? terminateChild(relayerServer.proc) : Promise.resolve(),
-      aspServer ? terminateChild(aspServer.proc) : Promise.resolve(),
-      terminateChild(anvil.proc),
-    ]);
-    rmSync(stateRoot, { recursive: true, force: true });
+    await cleanupFixtureResources();
     throw error;
   }
 }

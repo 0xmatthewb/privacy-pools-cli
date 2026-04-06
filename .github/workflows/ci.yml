@@ -5,24 +5,27 @@
 #   - Every push (merge) to "main"
 #
 # WHAT does it do?
-#   Eleven independent jobs run in parallel:
+#   Twelve jobs run, with one shared JS-artifact prep job feeding the
+#   packaging/install lanes:
 #     1. linux-core  — shards the default fast suite across exact file lists
 #     2. npm-test — runs the repo's top-level `npm test` wrapper as a literal gate
-#     3. packaged-smoke — builds the npm package and runs smoke tests
+#     3. prepare-js-artifacts — builds and packs the JS CLI once for
+#        packaging/install consumers in this workflow
+#     4. packaged-smoke — runs smoke tests against the prepared npm package
 #        against the packed tarball (catches packaging mistakes)
-#     4. root-install-smoke — verifies the installed root-only launcher path
+#     5. root-install-smoke — verifies the installed root-only launcher path
 #        from the packed npm artifact with optional native deps omitted
-#     5. native-smoke — exercises the packaged-native path on Linux
+#     6. native-smoke — exercises the packaged-native path on Linux
 #        so the default launcher route is covered by blocking CI
-#     6. native-unit — runs focused Rust unit tests for the native shell
+#     7. native-unit — runs focused Rust unit tests for the native shell
 #        bootstrap/parser/routing modules so native behavior has direct ownership
-#     7. supported-native-smoke — verifies installed root+native artifacts on the
+#     8. supported-native-smoke — verifies installed root+native artifacts on the
 #        supported host matrix for the published distribution story
-#     8. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
+#     9. anvil-e2e-smoke — runs deposit/withdraw/ragequit happy paths
 #        against the self-contained local Anvil fixture
-#     9. coverage-guard — enforces coverage floors for key source directories
-#    10. evals — runs machine-facing eval fixtures
-#    11. conformance-core — checks required protocol/docs conformance
+#    10. coverage-guard — enforces coverage floors for key source directories
+#    11. evals — runs machine-facing eval fixtures
+#    12. conformance-core — checks required protocol/docs conformance
 #
 # If any job fails the PR gets a red X, telling you something is broken.
 
@@ -68,6 +71,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select linux-core
         id: select
@@ -133,6 +138,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select npm-test
         id: select
@@ -158,11 +165,69 @@ jobs:
         run: npm test
 
   # -----------------------------------------------------------
-  # Job 3: package the CLI and run smoke tests against it
+  # Job 3: build and pack the JS CLI once for packaging consumers
+  # -----------------------------------------------------------
+  prepare-js-artifacts:
+    name: prepare-js-artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      cli_tarball_name: ${{ steps.prepare.outputs.cli_tarball_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Select ci-js-artifacts
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job ci-js-artifacts >> "$GITHUB_OUTPUT"
+
+      - name: Skip ci-js-artifacts
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping ci-js-artifacts: ${{ steps.select.outputs.reason }}"
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: npm ci
+
+      - name: Prepare JS artifacts
+        if: steps.select.outputs.should_run == 'true'
+        id: prepare
+        run: node scripts/ci/prepare-js-artifacts.mjs --artifact-root "${{ runner.temp }}/pp-ci-js-artifacts"
+
+      - name: Upload dist artifact
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-js-dist
+          path: ${{ steps.prepare.outputs.dist_dir }}/**
+          if-no-files-found: error
+
+      - name: Upload root CLI tarball
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-js-cli-tarball
+          path: ${{ steps.prepare.outputs.cli_tarball }}
+          if-no-files-found: error
+
+  # -----------------------------------------------------------
+  # Job 4: package the CLI and run smoke tests against it
   # -----------------------------------------------------------
   packaged-smoke:
     name: packaged-smoke
     runs-on: ubuntu-latest
+    needs:
+      - prepare-js-artifacts
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -182,6 +247,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select packaged-smoke
         id: select
@@ -202,16 +269,27 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
 
+      - name: Download root CLI tarball
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/download-artifact@v6
+        with:
+          name: ci-js-cli-tarball
+          path: .ci-artifacts/root-tarball
+
       - name: Run packaged smoke tests
         if: steps.select.outputs.should_run == 'true'
+        env:
+          PP_INSTALL_CLI_TARBALL: .ci-artifacts/root-tarball/${{ needs.prepare-js-artifacts.outputs.cli_tarball_name }}
         run: npm run test:smoke
 
   # -----------------------------------------------------------
-  # Job 4: verify the root-only installed artifact path directly
+  # Job 5: verify the root-only installed artifact path directly
   # -----------------------------------------------------------
   root-install-smoke:
     name: root-install-smoke
     runs-on: ubuntu-latest
+    needs:
+      - prepare-js-artifacts
     timeout-minutes: 25
     steps:
       - name: Checkout
@@ -223,6 +301,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select root-install-smoke
         id: select
@@ -233,24 +313,27 @@ jobs:
         run: |
           echo "Skipping root-install-smoke: ${{ steps.select.outputs.reason }}"
 
-      - name: Install dependencies
+      - name: Download root CLI tarball
         if: steps.select.outputs.should_run == 'true'
-        run: npm ci
-
-      - name: Build
-        if: steps.select.outputs.should_run == 'true'
-        run: npm run build
+        uses: actions/download-artifact@v6
+        with:
+          name: ci-js-cli-tarball
+          path: .ci-artifacts/root-tarball
 
       - name: Run root-only installed artifact gate
         if: steps.select.outputs.should_run == 'true'
-        run: npm run test:artifacts:root
+        run: |
+          node scripts/verify-root-only-host-artifact.mjs \
+            --cli-tarball ".ci-artifacts/root-tarball/${{ needs.prepare-js-artifacts.outputs.cli_tarball_name }}"
 
   # -----------------------------------------------------------
-  # Job 5: packaged native smoke on the default Linux triplet
+  # Job 6: packaged native smoke on the default Linux triplet
   # -----------------------------------------------------------
   native-smoke:
     name: native-smoke-node-${{ matrix.node-version }}
     runs-on: ubuntu-latest
+    needs:
+      - prepare-js-artifacts
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -270,6 +353,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select native-smoke
         id: select
@@ -300,8 +385,17 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
 
+      - name: Download prepared dist
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/download-artifact@v6
+        with:
+          name: ci-js-dist
+          path: dist
+
       - name: Run native package smoke tests
         if: steps.select.outputs.should_run == 'true'
+        env:
+          PP_INSTALL_USE_EXISTING_DIST: "1"
         run: npm run test:smoke:native:package
 
   # -----------------------------------------------------------
@@ -321,6 +415,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select native-unit
         id: select
@@ -350,13 +446,15 @@ jobs:
         run: npm run test:native
 
   # -----------------------------------------------------------
-  # Job 6: installed root-plus-native verification on supported hosts.
+  # Job 8: installed root-plus-native verification on supported hosts.
   # Linux smoke already covers Node 22/23/24/25, so this heavier cross-OS
   # install lane stays on the recommended CI runtime to avoid tripling cost.
   # -----------------------------------------------------------
   supported-native-smoke:
     name: supported-native-smoke-${{ matrix.label }}-node-${{ matrix.node-version }}
     runs-on: ${{ matrix.runner }}
+    needs:
+      - prepare-js-artifacts
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -384,6 +482,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select supported-native-smoke
         id: select
@@ -404,21 +504,12 @@ jobs:
         with:
           workspaces: native/shell
 
-      - name: Install dependencies
+      - name: Download root CLI tarball
         if: steps.select.outputs.should_run == 'true'
-        run: npm ci
-
-      - name: Build package
-        if: steps.select.outputs.should_run == 'true'
-        run: npm run build
-
-      - name: Pack root CLI tarball
-        if: steps.select.outputs.should_run == 'true'
-        id: pack-cli
-        shell: bash
-        run: |
-          FILE="$(npm pack --silent)"
-          echo "tarball=${FILE}" >> "${GITHUB_OUTPUT}"
+        uses: actions/download-artifact@v6
+        with:
+          name: ci-js-cli-tarball
+          path: .ci-artifacts/root-tarball
 
       - name: Build release native shell
         if: steps.select.outputs.should_run == 'true'
@@ -437,15 +528,17 @@ jobs:
         shell: bash
         run: |
           node scripts/verify-release-install.mjs \
-            --cli-tarball "${{ steps.pack-cli.outputs.tarball }}" \
+            --cli-tarball ".ci-artifacts/root-tarball/${{ needs.prepare-js-artifacts.outputs.cli_tarball_name }}" \
             --native-tarball "${{ steps.pack-native.outputs.tarball }}"
 
   # -----------------------------------------------------------
-  # Job 7: self-contained happy-path smoke coverage via Anvil
+  # Job 9: self-contained happy-path smoke coverage via Anvil
   # -----------------------------------------------------------
   anvil-e2e-smoke:
     name: anvil-e2e-smoke
     runs-on: ubuntu-latest
+    needs:
+      - prepare-js-artifacts
     timeout-minutes: 35
     steps:
       - name: Checkout
@@ -457,6 +550,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select anvil-e2e-smoke
         id: select
@@ -477,6 +572,12 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Restore Rust cache
+        if: steps.select.outputs.should_run == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/shell
+
       - name: Install Foundry
         if: steps.select.outputs.should_run == 'true'
         uses: foundry-rs/foundry-toolchain@v1
@@ -487,12 +588,21 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
 
+      - name: Download root CLI tarball
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/download-artifact@v6
+        with:
+          name: ci-js-cli-tarball
+          path: .ci-artifacts/root-tarball
+
       - name: Run Anvil happy-path smoke tests
         if: steps.select.outputs.should_run == 'true'
+        env:
+          PP_INSTALL_CLI_TARBALL: .ci-artifacts/root-tarball/${{ needs.prepare-js-artifacts.outputs.cli_tarball_name }}
         run: npm run test:e2e:anvil:smoke
 
   # -----------------------------------------------------------
-  # Job 8: enforce source-level coverage floors
+  # Job 10: enforce source-level coverage floors
   # -----------------------------------------------------------
   coverage-guard:
     name: coverage-guard
@@ -508,6 +618,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select coverage-guard
         id: select
@@ -533,7 +645,7 @@ jobs:
         run: npm run test:coverage
 
   # -----------------------------------------------------------
-  # Job 9: agent-facing eval coverage
+  # Job 11: agent-facing eval coverage
   # -----------------------------------------------------------
   evals:
     name: evals
@@ -549,6 +661,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select evals
         id: select
@@ -574,7 +688,7 @@ jobs:
         run: npm run test:evals
 
   # -----------------------------------------------------------
-  # Job 10: required protocol/docs conformance
+  # Job 12: required protocol/docs conformance
   # -----------------------------------------------------------
   conformance-core:
     name: conformance-core
@@ -590,6 +704,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select conformance-core
         id: select

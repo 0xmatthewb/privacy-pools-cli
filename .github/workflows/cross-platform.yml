@@ -38,9 +38,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare-js-artifacts:
+    name: prepare-js-artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      cli_tarball_name: ${{ steps.prepare.outputs.cli_tarball_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Select cross-platform
+        id: select
+        run: node scripts/ci/select-jobs.mjs --job cross-platform >> "$GITHUB_OUTPUT"
+
+      - name: Skip cross-platform
+        if: steps.select.outputs.should_run != 'true'
+        run: |
+          echo "Skipping cross-platform: ${{ steps.select.outputs.reason }}"
+
+      - name: Install dependencies
+        if: steps.select.outputs.should_run == 'true'
+        run: npm ci
+
+      - name: Prepare JS artifacts
+        if: steps.select.outputs.should_run == 'true'
+        id: prepare
+        run: node scripts/ci/prepare-js-artifacts.mjs --artifact-root "${{ runner.temp }}/pp-cross-platform-js-artifacts"
+
+      - name: Upload dist artifact
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: cross-platform-js-dist
+          path: ${{ steps.prepare.outputs.dist_dir }}/**
+          if-no-files-found: error
+
+      - name: Upload root CLI tarball
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: cross-platform-js-cli-tarball
+          path: ${{ steps.prepare.outputs.cli_tarball }}
+          if-no-files-found: error
+
   smoke-matrix:
     name: smoke-${{ matrix.label }}-node-${{ matrix.node-version }}
     runs-on: ${{ matrix.runner }}
+    needs:
+      - prepare-js-artifacts
     timeout-minutes: 30
 
     strategy:
@@ -72,6 +127,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select cross-platform
         id: select
@@ -92,22 +149,38 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Restore Rust cache
+        if: steps.select.outputs.should_run == 'true'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/shell
+
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
 
-      - name: Typecheck
+      - name: Download prepared dist
         if: steps.select.outputs.should_run == 'true'
-        run: npm run typecheck
+        uses: actions/download-artifact@v6
+        with:
+          name: cross-platform-js-dist
+          path: dist
 
-      - name: Build
+      - name: Download root CLI tarball
         if: steps.select.outputs.should_run == 'true'
-        run: npm run build
+        uses: actions/download-artifact@v6
+        with:
+          name: cross-platform-js-cli-tarball
+          path: .ci-artifacts/root-tarball
 
       - name: Run packaged smoke tests
         if: steps.select.outputs.should_run == 'true'
+        env:
+          PP_INSTALL_CLI_TARBALL: .ci-artifacts/root-tarball/${{ needs.prepare-js-artifacts.outputs.cli_tarball_name }}
         run: npm run test:smoke
 
       - name: Run native package smoke tests
         if: steps.select.outputs.should_run == 'true'
+        env:
+          PP_INSTALL_USE_EXISTING_DIST: "1"
         run: npm run test:smoke:native:package

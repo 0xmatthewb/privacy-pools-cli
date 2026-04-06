@@ -25,6 +25,8 @@ const nativeDistributionModulePath = join(
 const {
   isSupportedInstallNodeVersion,
   packTarball,
+  parseArgs,
+  resolveCliTarballPath,
   unsupportedInstallNodeMessage,
 } = await import(
   pathToFileURL(installVerificationModulePath).href
@@ -81,12 +83,12 @@ const cargoCheck = triplet
   : null;
 
 const distIndexPath = join(repoRoot, "dist", "index.js");
-if (!existsSync(distIndexPath)) {
-  fail("dist/index.js not found. Run `npm run build` before verifying release artifacts.");
-}
+const args = parseArgs(process.argv.slice(2));
+const requestedCliTarball = resolveCliTarballPath(args, distIndexPath);
 const tempRoot = mkdtempSync(join(tmpdir(), "pp-release-artifacts-host-"));
 const cliTarballDir = join(tempRoot, "cli");
 const nativePackageDir = join(tempRoot, "native-package");
+let effectiveCliTarball = null;
 
 mkdirSync(cliTarballDir, { recursive: true });
 
@@ -96,14 +98,21 @@ try {
       `${unsupportedInstallNodeMessage("Installed current-host artifact verification")}\n`,
     );
   } else {
-    const cliTarball = packTarball(repoRoot, cliTarballDir, {
-      npmStateRoot: tempRoot,
-      ignoreScripts: true,
-    });
+    effectiveCliTarball = resolveCliTarballPath(args) ?? (() => {
+      if (!existsSync(distIndexPath)) {
+        fail("dist/index.js not found. Run `npm run build` before verifying release artifacts.");
+      }
+
+      return packTarball(repoRoot, cliTarballDir, {
+        npmStateRoot: tempRoot,
+        ignoreScripts: true,
+      });
+    })();
+
     run("node", [
       VERIFY_ROOT_ONLY_INSTALL,
       "--cli-tarball",
-      cliTarball,
+      effectiveCliTarball,
     ]);
 
     if (!triplet) {
@@ -136,7 +145,7 @@ try {
       run("node", [
         join(repoRoot, "scripts", "verify-release-install.mjs"),
         "--cli-tarball",
-        cliTarball,
+        effectiveCliTarball,
         "--native-tarball",
         nativeTarball,
       ]);
@@ -145,7 +154,7 @@ try {
 
   const hostLabel = triplet ?? `${process.platform}/${process.arch}`;
   process.stdout.write(
-    `Verified current-host release artifacts for ${hostLabel} using ${distIndexPath}\n`,
+    `Verified current-host release artifacts for ${hostLabel} using ${effectiveCliTarball ?? requestedCliTarball}\n`,
   );
 } finally {
   rmSync(tempRoot, { recursive: true, force: true });

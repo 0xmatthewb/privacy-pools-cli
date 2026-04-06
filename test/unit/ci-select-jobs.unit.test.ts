@@ -402,6 +402,49 @@ describe("ci job selection", () => {
     expect(crossPlatformEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
   });
 
+  test("cross-platform runs when packaged smoke coverage changes", () => {
+    const decision = evaluateJobSelection({
+      job: "cross-platform",
+      eventName: "pull_request",
+      changedFiles: ["test/integration/cli-packaged-smoke.integration.test.ts"],
+    });
+
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toContain(
+      "test/integration/cli-packaged-smoke.integration.test.ts",
+    );
+  });
+
+  test("prepared js artifact lane follows the packaging smoke selectors", () => {
+    const prepDecision = evaluateJobSelection({
+      job: "ci-js-artifacts",
+      eventName: "pull_request",
+      changedFiles: ["scripts/ci/prepare-js-artifacts.mjs"],
+    });
+    expect(prepDecision.shouldRun).toBe(true);
+    expect(prepDecision.reason).toContain("scripts/ci/prepare-js-artifacts.mjs");
+
+    const installVerifierDecision = evaluateJobSelection({
+      job: "ci-js-artifacts",
+      eventName: "pull_request",
+      changedFiles: ["scripts/verify-release-install.mjs"],
+    });
+    expect(installVerifierDecision.shouldRun).toBe(true);
+    expect(installVerifierDecision.reason).toContain(
+      "scripts/verify-release-install.mjs",
+    );
+
+    const anvilVerifierDecision = evaluateJobSelection({
+      job: "ci-js-artifacts",
+      eventName: "pull_request",
+      changedFiles: ["scripts/verify-cli-install-anvil.mjs"],
+    });
+    expect(anvilVerifierDecision.shouldRun).toBe(true);
+    expect(anvilVerifierDecision.reason).toContain(
+      "scripts/verify-cli-install-anvil.mjs",
+    );
+  });
+
   test("anvil lanes run when shared CLI helpers change", () => {
     const smokeDecision = evaluateJobSelection({
       job: "anvil-e2e-smoke",
@@ -442,6 +485,45 @@ describe("ci job selection", () => {
     });
     expect(flakeEnvDecision.shouldRun).toBe(true);
     expect(flakeEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
+  });
+
+  test("artifact-backed smoke lanes run when bundled package assets change", () => {
+    const assetPath = "assets/circuits/v1.2.0/withdraw.zkey";
+
+    for (const job of [
+      "packaged-smoke",
+      "root-install-smoke",
+      "native-smoke",
+      "supported-native-smoke",
+      "cross-platform",
+      "ci-js-artifacts",
+    ] as const) {
+      const decision = evaluateJobSelection({
+        job,
+        eventName: "pull_request",
+        changedFiles: [assetPath],
+      });
+      expect(decision.shouldRun).toBe(true);
+      expect(decision.reason).toContain(assetPath);
+    }
+  });
+
+  test("anvil lanes run when circuit provisioning inputs change", () => {
+    const changedFiles = ["scripts/provision-circuits.mjs"];
+
+    for (const job of [
+      "anvil-e2e-smoke",
+      "flake-anvil",
+      "full-anvil",
+    ] as const) {
+      const decision = evaluateJobSelection({
+        job,
+        eventName: "pull_request",
+        changedFiles,
+      });
+      expect(decision.shouldRun).toBe(true);
+      expect(decision.reason).toContain("scripts/provision-circuits.mjs");
+    }
   });
 
   test("packaged and native lanes run for shipped runtime contract docs", () => {

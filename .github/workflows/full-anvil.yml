@@ -54,6 +54,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select full-anvil
         id: select
@@ -86,10 +88,19 @@ jobs:
         with:
           cache: true
 
+      - name: Restore shared circuit cache
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pp-anvil-shared-circuits
+          key: full-anvil-circuits-${{ runner.os }}-${{ hashFiles('package-lock.json', 'scripts/provision-circuits.mjs', 'src/services/circuit-assets.js', 'src/services/circuit-checksums.js') }}
+
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
 
       - name: Run full Anvil end-to-end suite
         if: steps.select.outputs.should_run == 'true'
+        env:
+          PP_ANVIL_SHARED_CIRCUITS_DIR: ${{ runner.temp }}/pp-anvil-shared-circuits
         run: npm run test:e2e:anvil

@@ -35,6 +35,10 @@ const TEST_FILES = [
   ),
 ];
 
+function formatDuration(durationMs) {
+  return `${(durationMs / 1_000).toFixed(durationMs >= 10_000 ? 1 : 2)}s`;
+}
+
 const extraArgs = process.argv.slice(2);
 const explicitTargets = hasExplicitTestTarget(extraArgs, ROOT)
   ? splitExplicitTargets(
@@ -46,6 +50,7 @@ const explicitTargets = hasExplicitTestTarget(extraArgs, ROOT)
 const sharedArgs = explicitTargets?.sharedArgs ?? extraArgs;
 const selectedTests = explicitTargets?.targetFiles ?? TEST_FILES;
 const runnerEnv = buildTestRunnerEnv();
+const suiteStartedAt = Date.now();
 const sharedFixture = await setupSharedAnvilFixture({ baseEnv: runnerEnv });
 let result = { status: 0, signal: null, error: undefined };
 let processTimeoutMs = 900_000;
@@ -106,8 +111,12 @@ try {
     "--process-timeout-ms",
     String(processTimeoutMs),
   ];
+  process.stdout.write(
+    `[anvil] executing ${selectedTests.length} test file(s)\n`,
+  );
 
   for (const testFile of selectedTests) {
+    const testStartedAt = Date.now();
     process.stdout.write(`\n[anvil] ${testFile}\n`);
     result = NODE_ONLY_TEST_FILES.has(resolve(testFile))
       ? spawnSync(
@@ -128,6 +137,13 @@ try {
           },
         );
 
+    const testDurationMs = Date.now() - testStartedAt;
+    process.stdout.write(
+      result.error || result.status !== 0 || result.signal
+        ? `[anvil] failed ${testFile} after ${formatDuration(testDurationMs)}\n`
+        : `[anvil] completed ${testFile} in ${formatDuration(testDurationMs)}\n`,
+    );
+
     if (result.error || result.status !== 0 || result.signal) {
       break;
     }
@@ -135,6 +151,10 @@ try {
 } finally {
   await sharedFixture.cleanup();
 }
+
+process.stdout.write(
+  `[anvil] suite finished in ${formatDuration(Date.now() - suiteStartedAt)}\n`,
+);
 
 if (result.error) {
   const timedOut =

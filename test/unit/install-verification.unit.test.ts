@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   assertInstalledPackageVersion,
   buildInstallBaseEnv,
@@ -8,6 +8,8 @@ import {
   isSupportedInstallNodeVersion,
   isRetriableNpmInstallFailure,
   npmProcessEnv,
+  parseArgs,
+  resolveCliTarballPath,
   resolveInstalledDependencyPackagePath,
   runNpmInstallWithRetry,
   unsupportedInstallNodeMessage,
@@ -97,6 +99,23 @@ describe("install verification env hygiene", () => {
     expect(env.PRIVACY_POOLS_HOME).toBe("/tmp/privacy-pools-test-home");
     expect(env.TERM_SESSION_ID).toBeUndefined();
     expect(env.ITERM_SESSION_ID).toBeUndefined();
+  });
+
+  test("resolveCliTarballPath prefers an explicit cli tarball argument", () => {
+    const parsedArgs = parseArgs([
+      "--cli-tarball",
+      "./artifacts/privacy-pools-cli.tgz",
+    ]);
+
+    expect(resolveCliTarballPath(parsedArgs)).toBe(
+      resolve("./artifacts/privacy-pools-cli.tgz"),
+    );
+  });
+
+  test("resolveCliTarballPath falls back when no explicit cli tarball is provided", () => {
+    expect(resolveCliTarballPath({}, "./fallback/privacy-pools-cli.tgz")).toBe(
+      resolve("./fallback/privacy-pools-cli.tgz"),
+    );
   });
 
   test("resolveInstalledDependencyPackagePath matches launcher-style module resolution for hoisted and nested optional packages", () => {

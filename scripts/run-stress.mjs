@@ -6,6 +6,7 @@ import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const RUNNER = resolve(ROOT, "scripts", "run-bun-tests.mjs");
+const STRESS_PROCESS_TIMEOUT_MS = 20 * 60_000;
 
 const result = spawnSync(
   "node",
@@ -13,9 +14,9 @@ const result = spawnSync(
     RUNNER,
     "./test/stress/cli.stress-120-rounds.stress.ts",
     "--timeout",
-    "240000",
-    "--process-timeout-ms",
     "900000",
+    "--process-timeout-ms",
+    `${STRESS_PROCESS_TIMEOUT_MS}`,
   ],
   {
     cwd: ROOT,

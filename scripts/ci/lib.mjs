@@ -16,6 +16,16 @@ const SHARD_WEIGHT_MANIFEST = resolve(
   "scripts/ci/test-shard-weights.json",
 );
 const BUILD_CONFIG_RULES = ["tsconfig.json"];
+const PACKAGED_ARTIFACT_RULES = [
+  "assets/",
+  "scripts/ci/prepare-js-artifacts.mjs",
+];
+const CIRCUIT_ASSET_RULES = [
+  "assets/circuits/",
+  "scripts/provision-circuits.mjs",
+  "src/services/circuit-assets.js",
+  "src/services/circuit-checksums.js",
+];
 
 const JOB_RULES = {
   "linux-core": [
@@ -42,6 +52,7 @@ const JOB_RULES = {
     "scripts/clean-dist.mjs",
     "scripts/run-bun-tests.mjs",
     "scripts/test-runner-env.mjs",
+    ...PACKAGED_ARTIFACT_RULES,
     "package.json",
     "package-lock.json",
     ...BUILD_CONFIG_RULES,
@@ -59,6 +70,7 @@ const JOB_RULES = {
   "root-install-smoke": [
     "src/",
     "scripts/clean-dist.mjs",
+    ...PACKAGED_ARTIFACT_RULES,
     "scripts/verify-root-only-host-artifact.mjs",
     "scripts/verify-root-only-install.mjs",
     "scripts/lib/install-verification.mjs",
@@ -74,6 +86,7 @@ const JOB_RULES = {
     "scripts/clean-dist.mjs",
     "scripts/run-bun-tests.mjs",
     "scripts/test-runner-env.mjs",
+    ...PACKAGED_ARTIFACT_RULES,
     "scripts/pack-native-tarball.mjs",
     "scripts/prepare-native-package.mjs",
     "scripts/verify-release-install.mjs",
@@ -118,6 +131,7 @@ const JOB_RULES = {
     "scripts/clean-dist.mjs",
     "scripts/run-bun-tests.mjs",
     "scripts/test-runner-env.mjs",
+    ...PACKAGED_ARTIFACT_RULES,
     "scripts/pack-native-tarball.mjs",
     "scripts/prepare-native-package.mjs",
     "scripts/release-install-asp-fixture.mjs",
@@ -136,6 +150,7 @@ const JOB_RULES = {
   ],
   "anvil-e2e-smoke": [
     "src/",
+    ...CIRCUIT_ASSET_RULES,
     "scripts/anvil*",
     "scripts/run-anvil*",
     "scripts/test-runner-env.mjs",
@@ -153,6 +168,7 @@ const JOB_RULES = {
   ],
   "flake-anvil": [
     "src/",
+    ...CIRCUIT_ASSET_RULES,
     "scripts/anvil*",
     "scripts/run-anvil*",
     "scripts/test-runner-env.mjs",
@@ -215,6 +231,7 @@ const JOB_RULES = {
     "scripts/clean-dist.mjs",
     "scripts/run-bun-tests.mjs",
     "scripts/test-runner-env.mjs",
+    ...PACKAGED_ARTIFACT_RULES,
     "scripts/pack-native-tarball.mjs",
     "scripts/prepare-native-package.mjs",
     "scripts/verify-release-install.mjs",
@@ -224,6 +241,7 @@ const JOB_RULES = {
     "package-lock.json",
     ...BUILD_CONFIG_RULES,
     "docs/contracts/",
+    "test/integration/cli-packaged-smoke.integration.test.ts",
     "test/integration/cli-native-package-smoke.integration.test.ts",
     "test/helpers/",
     ".github/workflows/cross-platform.yml",
@@ -241,6 +259,7 @@ const JOB_RULES = {
   ],
   "full-anvil": [
     "src/",
+    ...CIRCUIT_ASSET_RULES,
     "scripts/anvil*",
     "scripts/run-anvil*",
     "scripts/test-runner-env.mjs",
@@ -263,6 +282,16 @@ const JOB_RULES = {
     ".github/workflows/flake.yml",
   ],
 };
+
+JOB_RULES["ci-js-artifacts"] = Array.from(
+  new Set([
+    ...JOB_RULES["packaged-smoke"],
+    ...JOB_RULES["root-install-smoke"],
+    ...JOB_RULES["native-smoke"],
+    ...JOB_RULES["supported-native-smoke"],
+    ...JOB_RULES["anvil-e2e-smoke"],
+  ]),
+);
 
 function normalizePath(value) {
   return value.replaceAll("\\", "/").replace(/^\.\/+/, "");

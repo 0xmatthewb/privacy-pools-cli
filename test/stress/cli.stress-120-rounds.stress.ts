@@ -21,6 +21,8 @@ const OFFLINE_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
   PRIVACY_POOLS_RELAYER_HOST: "http://127.0.0.1:9",
 };
+const STRESS_AUDIT_ROUNDS = 120;
+const STRESS_AUDIT_TIMEOUT_MS = 15 * 60_000;
 
 describe("CLI stress audit", () => {
   test(
@@ -32,9 +34,9 @@ describe("CLI stress audit", () => {
 
     // Each lane has full arguments and expected error behavior.
     // With OFFLINE_ENV, `status` succeeds (local config check only),
-    // while deposit/withdraw/ragequit fail fast on RPC errors because
-    // pool resolution first tries ASP and then fails closed when the
-    // RPC fallback is unreachable too.
+    // while deposit/withdraw/ragequit now fail closed during symbol-based
+    // pool resolution with a structured INPUT error plus the documented
+    // ASP-offline hint before any RPC-backed contract reads can begin.
     const commandMatrix: {
       args: string[];
       label: string;
@@ -49,7 +51,7 @@ describe("CLI stress audit", () => {
       {
         args: ["--json", "deposit", "0.01", "--asset", "ETH", "--yes"],
         label: "deposit",
-        expectedCategory: "RPC",
+        expectedCategory: "INPUT",
       },
       {
         args: [
@@ -58,12 +60,12 @@ describe("CLI stress audit", () => {
           "--yes",
         ],
         label: "withdraw",
-        expectedCategory: "RPC",
+        expectedCategory: "INPUT",
       },
       {
         args: ["--json", "ragequit", "--asset", "ETH", "--yes"],
         label: "ragequit",
-        expectedCategory: "RPC",
+        expectedCategory: "INPUT",
       },
       {
         args: ["--json", "status", "--check"],
@@ -72,7 +74,7 @@ describe("CLI stress audit", () => {
       },
     ];
 
-    const rounds = 120;
+    const rounds = STRESS_AUDIT_ROUNDS;
     let ok = 0;
 
     for (let i = 0; i < rounds; i++) {
@@ -119,10 +121,14 @@ describe("CLI stress audit", () => {
         expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       }
       ok++;
+
+      if ((i + 1) % 20 === 0) {
+        console.log(`stress audit progress: ${i + 1}/${rounds}`);
+      }
     }
 
     expect(ok).toBe(rounds);
     },
-    240_000
+    STRESS_AUDIT_TIMEOUT_MS
   );
 });

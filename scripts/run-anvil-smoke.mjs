@@ -25,6 +25,7 @@ const smokePattern = [
   "deposit -> approve -> withdraw \\(relayed\\) -> sync",
   "flow start -> approved watch -> completed",
 ].join("|");
+const preparedCliTarball = process.env.PP_INSTALL_CLI_TARBALL?.trim() || null;
 const forwardedArgs = [];
 let installedOnly = false;
 
@@ -70,9 +71,13 @@ try {
       );
 
   if (!result.error && result.status === 0) {
+    const verifyArgs = [VERIFY_INSTALLED_CLI];
+    if (preparedCliTarball) {
+      verifyArgs.push("--cli-tarball", preparedCliTarball);
+    }
     installedArtifactResult = spawnSync(
       "node",
-      [VERIFY_INSTALLED_CLI],
+      verifyArgs,
       {
         stdio: "inherit",
         env: sharedEnv,

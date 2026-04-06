@@ -20,6 +20,8 @@ const installVerificationModulePath = join(
 const {
   isSupportedInstallNodeVersion,
   packTarball,
+  parseArgs,
+  resolveCliTarballPath,
   unsupportedInstallNodeMessage,
 } = await import(
   pathToFileURL(installVerificationModulePath).href
@@ -55,12 +57,8 @@ function run(command, args, options = {}) {
 }
 
 const distIndexPath = join(repoRoot, "dist", "index.js");
-if (!existsSync(distIndexPath)) {
-  fail(
-    "dist/index.js not found. Run `npm run build` before verifying the root-only artifact.",
-  );
-}
-
+const args = parseArgs(process.argv.slice(2));
+const requestedCliTarball = resolveCliTarballPath(args, distIndexPath);
 const tempRoot = mkdtempSync(join(tmpdir(), "pp-root-artifact-host-"));
 const cliTarballDir = join(tempRoot, "cli");
 
@@ -72,13 +70,21 @@ try {
       `${unsupportedInstallNodeMessage("Installed root-only artifact verification")}\n`,
     );
     process.stdout.write(
-      `Skipped root-only release artifact verification using ${distIndexPath}\n`,
+      `Skipped root-only release artifact verification using ${requestedCliTarball}\n`,
     );
   } else {
-    const cliTarball = packTarball(repoRoot, cliTarballDir, {
-      npmStateRoot: tempRoot,
-      ignoreScripts: true,
-    });
+    const cliTarball = resolveCliTarballPath(args) ?? (() => {
+      if (!existsSync(distIndexPath)) {
+        fail(
+          "dist/index.js not found. Run `npm run build` before verifying the root-only artifact.",
+        );
+      }
+
+      return packTarball(repoRoot, cliTarballDir, {
+        npmStateRoot: tempRoot,
+        ignoreScripts: true,
+      });
+    })();
 
     run("node", [
       VERIFY_ROOT_ONLY_INSTALL,
@@ -87,7 +93,7 @@ try {
     ]);
 
     process.stdout.write(
-      `Verified root-only release artifact using ${distIndexPath}\n`,
+      `Verified root-only release artifact using ${cliTarball}\n`,
     );
   }
 } finally {

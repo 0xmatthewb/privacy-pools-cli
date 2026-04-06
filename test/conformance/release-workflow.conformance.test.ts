@@ -16,6 +16,10 @@ const crossPlatformWorkflow = readFileSync(
   join(CLI_ROOT, ".github", "workflows", "cross-platform.yml"),
   "utf8",
 );
+const fullAnvilWorkflow = readFileSync(
+  join(CLI_ROOT, ".github", "workflows", "full-anvil.yml"),
+  "utf8",
+);
 const nativeCoverageWorkflow = readFileSync(
   join(CLI_ROOT, ".github", "workflows", "native-coverage.yml"),
   "utf8",
@@ -112,6 +116,7 @@ describe("release workflow conformance", () => {
     for (const requiredJob of [
       "linux-core:",
       "npm-test:",
+      "prepare-js-artifacts:",
       "packaged-smoke:",
       "root-install-smoke:",
       "native-smoke:",
@@ -130,6 +135,37 @@ describe("release workflow conformance", () => {
     expect(ciWorkflow).toContain("npm run test:native");
     expect(ciWorkflow).toContain("npm run test:smoke:native:package");
     expect(ciWorkflow).toContain("npm run test:e2e:anvil:smoke");
+  });
+
+  test("blocking CI and cross-platform workflows reuse prepared JS artifacts for install verification", () => {
+    expect(ciWorkflow).toContain("prepare-js-artifacts:");
+    expect(ciWorkflow).toContain("node scripts/ci/prepare-js-artifacts.mjs");
+    expect(ciWorkflow).toContain("name: ci-js-dist");
+    expect(ciWorkflow).toContain("name: ci-js-cli-tarball");
+    expect(ciWorkflow).toContain("PP_INSTALL_CLI_TARBALL:");
+    expect(ciWorkflow).toContain("PP_INSTALL_USE_EXISTING_DIST: \"1\"");
+    expect(ciWorkflow).toContain("--cli-tarball");
+
+    expect(crossPlatformWorkflow).toContain("prepare-js-artifacts:");
+    expect(crossPlatformWorkflow).toContain(
+      "node scripts/ci/prepare-js-artifacts.mjs",
+    );
+    expect(crossPlatformWorkflow).not.toContain("run: npm run typecheck");
+    expect(crossPlatformWorkflow).toContain("PP_INSTALL_CLI_TARBALL:");
+    expect(crossPlatformWorkflow).toContain(
+      "PP_INSTALL_USE_EXISTING_DIST: \"1\"",
+    );
+  });
+
+  test("pr workflows keep npm caching and full anvil keeps verified shared circuit caching", () => {
+    expect(ciWorkflow).toContain("cache: npm");
+    expect(crossPlatformWorkflow).toContain("cache: npm");
+    expect(fullAnvilWorkflow).toContain("cache: npm");
+    expect(fullAnvilWorkflow).toContain("actions/cache@v4");
+    expect(fullAnvilWorkflow).toContain("PP_ANVIL_SHARED_CIRCUITS_DIR:");
+    expect(fullAnvilWorkflow).toContain("scripts/provision-circuits.mjs");
+    expect(fullAnvilWorkflow).toContain("src/services/circuit-assets.js");
+    expect(fullAnvilWorkflow).toContain("src/services/circuit-checksums.js");
   });
 
   test("release workflow keeps the publish and verification contract", () => {
@@ -242,5 +278,6 @@ describe("release workflow conformance", () => {
     }
 
     expect(verifyCliInstallAnvilScript).toContain("PRIVACY_POOLS_CLI_DISABLE_NATIVE");
+    expect(verifyCliInstallAnvilScript).toContain("resolveCliTarballPath");
   });
 });
