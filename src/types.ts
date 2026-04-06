@@ -47,18 +47,28 @@ export type NextActionWhen =
   | "after_init"
   | "after_restore"
   | "after_deposit"
+  | "after_dry_run"
   | "after_quote"
   | "after_withdraw"
+  | "after_ragequit"
   | "has_pending"
   | "status_not_ready"
   | "status_unsigned_no_accounts"
   | "status_unsigned_has_accounts"
   | "status_ready_no_accounts"
   | "status_ready_has_accounts"
+  | "status_degraded_health"
+  | "status_restore_discovery"
   | "after_sync"
   | "after_pools"
   | "after_upgrade"
-  | "after_activity";
+  | "after_activity"
+  | "flow_manual_followup"
+  | "flow_public_recovery_pending"
+  | "flow_public_recovery_required"
+  | "flow_resume"
+  | "flow_public_recovery_optional"
+  | "flow_declined";
 
 export interface NextAction {
   command: string;
