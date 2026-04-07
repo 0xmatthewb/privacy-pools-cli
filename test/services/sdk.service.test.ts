@@ -124,7 +124,7 @@ describe("sdk service", () => {
       expect(fetchMock).toHaveBeenCalledTimes(0);
     });
 
-    test("returns a healthy url when block and log probes succeed", async () => {
+    test("returns the first healthy url in configured order", async () => {
       const urls = getRpcUrls(CHAINS.mainnet.id);
       const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as { method: string };
@@ -136,8 +136,7 @@ describe("sdk service", () => {
 
       const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
-      // With concurrent racing, any healthy URL can win.
-      expect(urls).toContain(url);
+      expect(url).toBe(urls[0]);
     });
 
     test("picks a healthy url when some fail the log probe", async () => {
@@ -209,6 +208,27 @@ describe("sdk service", () => {
       expect(url).toBe(urls[0]);
     });
 
+    test("preserves configured order even when a later rpc responds faster", async () => {
+      const urls = getRpcUrls(CHAINS.mainnet.id);
+      const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = String(input);
+        const body = JSON.parse(String(init?.body)) as { method: string };
+
+        if (requestUrl === urls[0]) {
+          await Bun.sleep(15);
+        }
+
+        if (body.method === "eth_blockNumber") return rpcSuccess("0x1000");
+        if (body.method === "eth_getLogs") return rpcSuccess([]);
+        throw new Error(`unexpected method ${body.method}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
+
+      expect(url).toBe(urls[0]);
+    });
+
     test("memoizes successful probe results per chain and override", async () => {
       const urls = getRpcUrls(CHAINS.mainnet.id);
       const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -222,9 +242,9 @@ describe("sdk service", () => {
       const first = await getHealthyRpcUrl(CHAINS.mainnet.id);
       const second = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
-      expect(urls).toContain(first);
+      expect(first).toBe(urls[0]);
       expect(second).toBe(first); // Memoized — same result.
-      // First call probes all URLs concurrently; second call is cached.
+      // First call probes the configured URLs; second call is cached.
       const firstCallCount = fetchMock.mock.calls.length;
       expect(firstCallCount).toBeGreaterThanOrEqual(2); // At least one full probe
     });

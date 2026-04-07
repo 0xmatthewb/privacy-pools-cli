@@ -72,7 +72,7 @@ fn extract_rpc_call_result(response: &Value) -> Result<Option<String>, CliError>
 /// Send multiple eth_call requests as a single JSON-RPC batch.
 ///
 /// Returns a Vec of results in the same order as `requests`.
-/// Each entry is `Ok(hex_result)` or `Err(error)` for individual call failures.
+/// Retries later RPC URLs when a batch response is partial or contains per-call errors.
 /// Falls back to sequential `rpc_call` if the RPC returns a non-array response.
 pub(super) fn rpc_batch_call(
     rpc_urls: &[String],
@@ -111,7 +111,12 @@ pub(super) fn rpc_batch_call(
         match http_post_json(rpc_url, &batch_body, timeout_ms) {
             Ok(response) => {
                 if let Some(items) = response.as_array() {
-                    return Ok(parse_batch_response(items, requests.len()));
+                    let parsed = parse_batch_response(items, requests.len());
+                    if let Some(error) = first_batch_error(&parsed) {
+                        last_error = Some(error);
+                        continue;
+                    }
+                    return Ok(parsed);
                 }
                 // Non-array response: RPC doesn't support batch. Fall back to sequential.
                 return sequential_fallback(rpc_urls, requests, timeout_ms);
@@ -130,6 +135,12 @@ pub(super) fn rpc_batch_call(
             Some("RPC_POOL_RESOLUTION_FAILED"),
         )
     }))
+}
+
+fn first_batch_error(results: &[Result<String, CliError>]) -> Option<CliError> {
+    results
+        .iter()
+        .find_map(|entry| entry.as_ref().err().cloned())
 }
 
 fn parse_batch_response(items: &[Value], expected_count: usize) -> Vec<Result<String, CliError>> {
@@ -178,8 +189,11 @@ fn sequential_fallback(
 
 #[cfg(test)]
 mod extended_tests {
-    use super::{extract_rpc_call_result, parse_batch_response};
+    use super::{extract_rpc_call_result, parse_batch_response, rpc_batch_call};
     use serde_json::json;
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::thread;
 
     #[test]
     fn parse_batch_response_returns_results_in_order() {
@@ -245,5 +259,119 @@ mod extended_tests {
         }))
         .expect("empty payload should not throw");
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn rpc_batch_call_retries_later_urls_when_first_batch_is_partial() {
+        let first = spawn_rpc_test_server(json!([
+            {"jsonrpc": "2.0", "id": 0, "result": "0xAAAA"},
+            {"jsonrpc": "2.0", "id": 1, "error": {"message": "rate limited"}},
+        ]));
+        let second = spawn_rpc_test_server(json!([
+            {"jsonrpc": "2.0", "id": 0, "result": "0xBBBB"},
+            {"jsonrpc": "2.0", "id": 1, "result": "0xCCCC"},
+        ]));
+
+        let rpc_urls = vec![first.url.clone(), second.url.clone()];
+        let results = rpc_batch_call(
+            &rpc_urls,
+            &[("0xpool", "0xscope"), ("0xasset", "0xsymbol")],
+            1_000,
+        )
+        .expect("later healthy rpc should satisfy the batch");
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].as_ref().unwrap(), "0xBBBB");
+        assert_eq!(results[1].as_ref().unwrap(), "0xCCCC");
+    }
+
+    struct RpcTestServer {
+        url: String,
+        handle: Option<thread::JoinHandle<()>>,
+    }
+
+    impl Drop for RpcTestServer {
+        fn drop(&mut self) {
+            if let Some(handle) = self.handle.take() {
+                let _ = handle.join();
+            }
+        }
+    }
+
+    fn spawn_rpc_test_server(response_body: serde_json::Value) -> RpcTestServer {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("test rpc listener should bind");
+        let address = listener
+            .local_addr()
+            .expect("test rpc listener should expose address");
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener
+                .accept()
+                .expect("test rpc server should accept a client");
+            let _request = read_http_request(&mut stream);
+            let body = response_body.to_string();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("test rpc server should respond");
+            let _ = stream.flush();
+        });
+
+        RpcTestServer {
+            url: format!("http://{address}"),
+            handle: Some(handle),
+        }
+    }
+
+    fn read_http_request(stream: &mut TcpStream) -> Vec<u8> {
+        let mut buffer = Vec::<u8>::new();
+        let mut chunk = [0u8; 2048];
+
+        loop {
+            match stream.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(read) => {
+                    buffer.extend_from_slice(&chunk[..read]);
+                    if request_is_complete(&buffer) {
+                        break;
+                    }
+                }
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    break;
+                }
+                Err(error) => panic!("test rpc server failed to read request: {error}"),
+            }
+        }
+
+        buffer
+    }
+
+    fn request_is_complete(buffer: &[u8]) -> bool {
+        let Some(headers_end) = buffer.windows(4).position(|window| window == b"\r\n\r\n") else {
+            return false;
+        };
+        let headers_len = headers_end + 4;
+        let headers = String::from_utf8_lossy(&buffer[..headers_len]);
+        let content_length = headers
+            .lines()
+            .find_map(|line| line.split_once(':'))
+            .and_then(|(name, value)| {
+                if name.eq_ignore_ascii_case("content-length") {
+                    value.trim().parse::<usize>().ok()
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0);
+
+        buffer.len() >= headers_len + content_length
     }
 }

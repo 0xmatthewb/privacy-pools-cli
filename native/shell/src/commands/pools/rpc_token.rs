@@ -3,6 +3,7 @@ use super::rpc_abi::{decode_abi_string, decode_abi_words, decode_uint256_word, f
 use super::rpc_transport::rpc_call;
 use crate::error::CliError;
 
+#[cfg(test)]
 pub(super) fn resolve_token_metadata(
     asset_address: &str,
     rpc_urls: &[String],

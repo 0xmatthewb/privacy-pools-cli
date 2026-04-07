@@ -4,7 +4,6 @@ use super::rpc_abi::{
     decode_uint256_word, encode_address_word, function_selector,
 };
 pub(super) use super::rpc_cache::resolve_cached_pool_resolution;
-use super::rpc_token::resolve_token_metadata;
 use super::rpc_transport::{rpc_batch_call, rpc_call};
 use crate::contract::ChainDefinition;
 use crate::error::CliError;
@@ -69,8 +68,8 @@ pub(super) fn resolve_pool_from_asset_address_native(
     // Step 1: assetConfig to get pool address (must be first — pool address needed for SCOPE).
     let asset_config = read_asset_config(chain, asset_address, rpc_urls, timeout_ms)?;
 
-    // Step 2: Batch SCOPE + token metadata (symbol + decimals) in one roundtrip.
-    // For native assets (ETH), skip the token metadata calls entirely.
+    // Step 2: Batch SCOPE + ERC-20 symbol in one roundtrip.
+    // For native assets (ETH), skip token metadata calls entirely.
     let is_native = asset_address.eq_ignore_ascii_case(native_asset_address);
 
     let scope_selector = function_selector("SCOPE()");
@@ -98,18 +97,15 @@ pub(super) fn resolve_pool_from_asset_address_native(
             scope: decode_uint256_word(scope).to_string(),
         })
     } else {
-        // ERC-20: batch SCOPE + symbol + decimals.
+        // ERC-20: batch SCOPE + symbol.
         let symbol_selector = function_selector("symbol()");
-        let decimals_selector = function_selector("decimals()");
         let symbol_data = format!("0x{}", hex::encode(symbol_selector));
-        let decimals_data = format!("0x{}", hex::encode(decimals_selector));
 
         let batch_results = rpc_batch_call(
             rpc_urls,
             &[
                 (&asset_config.pool_address, &scope_data),
                 (asset_address, &symbol_data),
-                (asset_address, &decimals_data),
             ],
             timeout_ms,
         )?;
@@ -134,22 +130,6 @@ pub(super) fn resolve_pool_from_asset_address_native(
             .ok_or_else(|| {
                 CliError::rpc(
                     "Failed to resolve ERC-20 symbol.",
-                    Some("Check your RPC URL and retry.".to_string()),
-                    Some("RPC_POOL_RESOLUTION_FAILED"),
-                )
-            })?;
-
-        // Parse decimals result.
-        let decimals = batch_results[2]
-            .as_ref()
-            .ok()
-            .and_then(|hex| decode_abi_words(hex).ok())
-            .and_then(|words| words.first().cloned())
-            .map(|word| decode_uint256_word(&word))
-            .and_then(|value| value.to_u32_digits().first().copied())
-            .ok_or_else(|| {
-                CliError::rpc(
-                    "Failed to resolve ERC-20 decimals.",
                     Some("Check your RPC URL and retry.".to_string()),
                     Some("RPC_POOL_RESOLUTION_FAILED"),
                 )

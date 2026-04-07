@@ -239,54 +239,22 @@ export async function getHealthyRpcUrl(
     if (urls.length <= 1) return urls[0];
 
     const probeTimeoutMs = Math.min(getNetworkTimeoutMs(), 3_000);
+    // Probe every URL concurrently, but preserve configured priority by returning
+    // the first healthy URL in order.
+    const healthChecks = urls.map(async (url) => ({
+      url,
+      healthy: await isHealthyRpcUrl(url, probeTimeoutMs),
+    }));
 
-    // Race all URLs concurrently — return the first one that passes
-    // both eth_blockNumber and eth_getLogs probes.
-    const winner = await new Promise<string | null>((resolve) => {
-      let settled = false;
-      let pending = urls.length;
-
-      for (const url of urls) {
-        (async () => {
-          try {
-            const latestBlock = await rpcProbe<string>(
-              url,
-              "eth_blockNumber",
-              [],
-              probeTimeoutMs,
-            );
-            if (!latestBlock || settled) return;
-
-            const toBlock = BigInt(latestBlock);
-            const fromBlock = toBlock > LOG_PROBE_RANGE ? toBlock - LOG_PROBE_RANGE : 0n;
-            const logProbe = await rpcProbe<unknown>(
-              url,
-              "eth_getLogs",
-              [{
-                address: LOG_PROBE_ADDRESS,
-                fromBlock: `0x${fromBlock.toString(16)}`,
-                toBlock: `0x${toBlock.toString(16)}`,
-              }],
-              probeTimeoutMs,
-            );
-            if (Array.isArray(logProbe) && !settled) {
-              settled = true;
-              resolve(url);
-            }
-          } catch {
-            // URL unhealthy
-          } finally {
-            pending--;
-            if (pending === 0 && !settled) {
-              resolve(null);
-            }
-          }
-        })();
+    for (const healthCheck of healthChecks) {
+      const { url, healthy } = await healthCheck;
+      if (healthy) {
+        return url;
       }
-    });
+    }
 
     // All probes failed; return first URL so downstream gets the natural error.
-    return winner ?? urls[0];
+    return urls[0];
   })();
 
   healthyRpcUrlCache.set(cacheKey, probePromise);
@@ -295,6 +263,34 @@ export async function getHealthyRpcUrl(
   } catch (error) {
     healthyRpcUrlCache.delete(cacheKey);
     throw error;
+  }
+}
+
+async function isHealthyRpcUrl(url: string, timeoutMs: number): Promise<boolean> {
+  try {
+    const latestBlock = await rpcProbe<string>(
+      url,
+      "eth_blockNumber",
+      [],
+      timeoutMs,
+    );
+    if (!latestBlock) return false;
+
+    const toBlock = BigInt(latestBlock);
+    const fromBlock = toBlock > LOG_PROBE_RANGE ? toBlock - LOG_PROBE_RANGE : 0n;
+    const logProbe = await rpcProbe<unknown>(
+      url,
+      "eth_getLogs",
+      [{
+        address: LOG_PROBE_ADDRESS,
+        fromBlock: `0x${fromBlock.toString(16)}`,
+        toBlock: `0x${toBlock.toString(16)}`,
+      }],
+      timeoutMs,
+    );
+    return Array.isArray(logProbe);
+  } catch {
+    return false;
   }
 }
 
