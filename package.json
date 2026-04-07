@@ -65,6 +65,7 @@
     "docs:preview": "npm run build && node scripts/generate-reference.mjs",
     "docs:check": "npm run build && node scripts/generate-reference.mjs --check",
     "preview:cli": "node --import tsx scripts/preview-cli-visuals.mjs",
+    "preview:cli:tty": "node --import tsx scripts/preview-cli-visuals-tty.mjs",
     "test:artifacts:root": "node scripts/verify-root-only-host-artifact.mjs",
     "test:artifacts:host": "node scripts/verify-current-host-release-artifacts.mjs",
     "bench:gate": "node scripts/bench-cli.mjs --base self --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
@@ -86,6 +87,7 @@
   },
   "devDependencies": {
     "@types/bun": "1.3.11",
+    "node-pty": "^1.1.0",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
   },

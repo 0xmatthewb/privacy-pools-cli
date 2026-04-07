@@ -3,7 +3,7 @@
 import {
   formatPreviewCaseList,
   parsePreviewArgs,
-  runCapturedPreviewSuite,
+  runTtyPreviewSuite,
 } from "./lib/preview-cli.mjs";
 
 export async function main(argv = process.argv.slice(2)) {
@@ -14,7 +14,7 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
 
-  const result = await runCapturedPreviewSuite({ caseIds });
+  const result = await runTtyPreviewSuite({ caseIds });
   if (result.failures?.length > 0) {
     process.exitCode = 1;
   }
@@ -23,7 +23,7 @@ export async function main(argv = process.argv.slice(2)) {
 if (import.meta.main) {
   await main().catch((error) => {
     process.stderr.write(
-      `Preview harness failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
+      `TTY preview harness failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
     );
     process.exitCode = 1;
   });
