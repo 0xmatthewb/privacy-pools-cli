@@ -25,12 +25,15 @@ import {
 } from "./bench/report.mjs";
 import { runBench } from "./bench/runner.mjs";
 import {
+  cleanupDistSnapshot,
+  ensureNativeBinary,
+  prepareDistSnapshot,
+} from "./bench/artifacts.mjs";
+import {
   assertNativeSupported,
   buildCheckout,
-  buildNativeShell,
   cleanupBaselineWorktree,
   createBaselineWorktree,
-  nativeShellBinaryPath,
 } from "./bench/worktree.mjs";
 
 function resolveRuntimes(runtime) {
@@ -85,9 +88,7 @@ try {
 
     const fixtureSet = await launchBenchFixtures();
     try {
-      const currentDist = join(repoRoot, "dist", "index.js");
       const baselineDir = baselineWorktree ?? repoRoot;
-      const baselineDist = join(baselineDir, "dist", "index.js");
       const currentBaseEnv = withRepoBinPath();
       const baselineBaseEnv = withRepoBinPath();
       const runtimes = resolveRuntimes(commandArgs.runtime);
@@ -100,108 +101,117 @@ try {
         runtimes.includes(LAUNCHER_BINARY_OVERRIDE_RUNTIME)
       ) {
         assertNativeSupported();
-        buildNativeShell(repoRoot);
-        currentNativeBinary = nativeShellBinaryPath(repoRoot);
+        currentNativeBinary = ensureNativeBinary(repoRoot);
       }
 
-      printHeader(commandArgs);
+      const currentDistSnapshot = prepareDistSnapshot(repoRoot);
+      const baselineDistSnapshot = prepareDistSnapshot(baselineDir);
+      try {
+        printHeader(commandArgs);
 
-      for (const runtime of runtimes) {
-        let previousFamily = null;
-        for (const command of commands) {
-          if (runtime === "native" && command.skipDirectNative) {
-            continue;
-          }
+        for (const runtime of runtimes) {
+          let previousFamily = null;
+          for (const command of commands) {
+            if (runtime === "native" && command.skipDirectNative) {
+              continue;
+            }
 
-          if (command.family !== previousFamily) {
-            printFamilyHeader(
-              COMMAND_FAMILY_LABELS[command.family] ?? command.family,
-            );
-            previousFamily = command.family;
-          }
+            if (command.family !== previousFamily) {
+              printFamilyHeader(
+                COMMAND_FAMILY_LABELS[command.family] ?? command.family,
+              );
+              previousFamily = command.family;
+            }
 
-          const extraEnv =
-            typeof command.env === "function"
-              ? command.env(fixtureSet)
-              : {};
-          const currentEnv =
-            runtime === "native" || runtime === LAUNCHER_BINARY_OVERRIDE_RUNTIME
-              ? withRepoBinPath(
-                  {
+            const extraEnv =
+              typeof command.env === "function"
+                ? command.env(fixtureSet)
+                : {};
+            const currentEnv =
+              runtime === "native" || runtime === LAUNCHER_BINARY_OVERRIDE_RUNTIME
+                ? withRepoBinPath(
+                    {
+                      ...extraEnv,
+                      PRIVACY_POOLS_CLI_BINARY: currentNativeBinary,
+                      ...(runtime === LAUNCHER_BINARY_OVERRIDE_RUNTIME
+                        ? { PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH: "1" }
+                        : {}),
+                    },
+                    { disableNative: false },
+                  )
+                : {
+                    ...currentBaseEnv,
                     ...extraEnv,
-                    PRIVACY_POOLS_CLI_BINARY: currentNativeBinary,
-                    ...(runtime === LAUNCHER_BINARY_OVERRIDE_RUNTIME
-                      ? { PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH: "1" }
-                      : {}),
-                  },
-                  { disableNative: false },
-                )
-              : {
-                  ...currentBaseEnv,
-                  ...extraEnv,
-                };
-          const baseEnv = {
-            ...baselineBaseEnv,
-            ...extraEnv,
-          };
-          const currentHome = prepareCommandHome(command);
-          const baseHome = prepareCommandHome(command);
+                  };
+            const baseEnv = {
+              ...baselineBaseEnv,
+              ...extraEnv,
+            };
+            const currentHome = prepareCommandHome(command);
+            const baseHome = prepareCommandHome(command);
 
-          if (currentHome) {
-            currentEnv.PRIVACY_POOLS_HOME = currentHome.configHome;
-          }
-          if (baseHome) {
-            baseEnv.PRIVACY_POOLS_HOME = baseHome.configHome;
-          }
+            if (currentHome) {
+              currentEnv.PRIVACY_POOLS_HOME = currentHome.configHome;
+            }
+            if (baseHome) {
+              baseEnv.PRIVACY_POOLS_HOME = baseHome.configHome;
+            }
 
-          try {
-            const base = runBench(
-              process.execPath,
-              [baselineDist],
-              baselineDir,
-              command.args,
-              baseEnv,
-              commandArgs.warmup,
-              commandArgs.runs,
-            );
-            const currentRunner = resolveCurrentRunner(
-              runtime,
-              currentDist,
-              currentNativeBinary,
-            );
-            const current = runBench(
-              currentRunner.command,
-              currentRunner.prefixArgs,
-              repoRoot,
-              command.args,
-              currentEnv,
-              commandArgs.warmup,
-              commandArgs.runs,
-            );
+            try {
+              const base = runBench(
+                process.execPath,
+                [baselineDistSnapshot.entrypoint],
+                baselineDir,
+                command.args,
+                baseEnv,
+                commandArgs.warmup,
+                commandArgs.runs,
+              );
+              if (runtime === "native" || runtime === LAUNCHER_BINARY_OVERRIDE_RUNTIME) {
+                currentNativeBinary = ensureNativeBinary(repoRoot);
+              }
+              const currentRunner = resolveCurrentRunner(
+                runtime,
+                currentDistSnapshot.entrypoint,
+                currentNativeBinary,
+              );
+              const current = runBench(
+                currentRunner.command,
+                currentRunner.prefixArgs,
+                repoRoot,
+                command.args,
+                currentEnv,
+                commandArgs.warmup,
+                commandArgs.runs,
+              );
 
-            printRow({
-              runtime,
-              familyLabel: COMMAND_FAMILY_LABELS[command.family] ?? command.family,
-              label: command.label,
-              baseMedian: base.median,
-              currentMedian: current.median,
-            });
-            evaluateThresholds({
-              thresholdFailures,
-              thresholds,
-              runtime,
-              label: command.label,
-              currentMedian: current.median,
-              baseMedian: base.median,
-            });
-          } finally {
-            cleanupPreparedFixtureHome(currentHome);
-            cleanupPreparedFixtureHome(baseHome);
+              printRow({
+                runtime,
+                familyLabel: COMMAND_FAMILY_LABELS[command.family] ?? command.family,
+                label: command.label,
+                baseMedian: base.median,
+                currentMedian: current.median,
+              });
+              evaluateThresholds({
+                thresholdFailures,
+                thresholds,
+                runtime,
+                label: command.label,
+                currentMedian: current.median,
+                baseMedian: base.median,
+              });
+            } finally {
+              cleanupPreparedFixtureHome(currentHome);
+              cleanupPreparedFixtureHome(baseHome);
+            }
           }
         }
-      }
 
-      assertNoThresholdFailures(thresholdFailures);
+        assertNoThresholdFailures(thresholdFailures);
+      } finally {
+        cleanupDistSnapshot(currentDistSnapshot);
+        cleanupDistSnapshot(baselineDistSnapshot);
+      }
     } finally {
       await fixtureSet.stop();
     }
