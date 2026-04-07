@@ -52,6 +52,9 @@ export interface CommandMetadata {
   agentsDocMarker?: string;
 }
 
+const POOLS_LIST_JSON_FIELDS =
+  "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }";
+
 export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   init: {
     description: "Initialize wallet and configuration",
@@ -329,8 +332,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools pools --search usdc --sort asset-asc",
         "privacy-pools pools --agent --chain mainnet",
       ],
-      jsonFields:
-        "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      jsonFields: POOLS_LIST_JSON_FIELDS,
       jsonVariants: [
         "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }",
         "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poiRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }",

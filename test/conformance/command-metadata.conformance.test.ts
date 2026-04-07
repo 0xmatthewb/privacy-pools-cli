@@ -114,6 +114,16 @@ describe("command metadata conformance", () => {
     expect(poolsJsonFields).toContain("chain?");
     expect(poolsJsonFields).toContain("allChains?");
     expect(poolsJsonFields).toContain("chains?");
+    expect(poolsJsonFields).toContain("decimals");
+    expect(poolsJsonFields).toContain("minimumDeposit");
+    expect(poolsJsonFields).toContain("vettingFeeBPS");
+    expect(poolsJsonFields).toContain("maxRelayFeeBPS");
+    expect(poolsJsonFields).toContain("acceptedDepositsCount");
+    expect(poolsJsonFields).toContain("pendingDepositsCount");
+    expect(poolsJsonFields).toContain("growth24h");
+    expect(poolsJsonFields).toContain("pendingGrowth24h");
+    expect(poolsJsonFields).toContain("nextActions");
+    expect(poolsJsonFields).toContain("cliCommand");
     expect(poolsJsonVariants).toContain("myFundsWarning");
     expect(poolsJsonVariants).toContain("recentActivity");
     expect(withdrawQuoteFields).toContain("baseFeeBPS");
