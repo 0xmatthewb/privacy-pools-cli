@@ -248,7 +248,7 @@ export function registerInitImportVisibleSecretTests(): void {
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleInitCommand(
         {
-          mnemonic: VALID_MNEMONIC,
+          recoveryPhrase: VALID_MNEMONIC,
           privateKey: "0x" + "44".repeat(32),
           defaultChain: "mainnet",
         },
@@ -257,7 +257,7 @@ export function registerInitImportVisibleSecretTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("--mnemonic is visible in process list");
+    expect(stderr).toContain("--recovery-phrase is visible in process list");
     expect(stderr).toContain("--private-key is visible in process list");
     expect(stderr).toContain("Signer key saved.");
   });

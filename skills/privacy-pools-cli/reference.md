@@ -425,7 +425,7 @@ Representative payload (abridged):
   ],
   "agentWorkflow": [
     "1. privacy-pools status --agent",
-    "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
+    "2. privacy-pools init --agent --default-chain <chain> --show-recovery-phrase",
     "3. privacy-pools pools --agent --chain <chain>",
     "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
     "5. privacy-pools flow watch [workflowId|latest] --agent",
@@ -566,14 +566,14 @@ Automatic upgrade is supported only for recognized global npm installs. Source c
 ### `init`
 
 ```bash
-privacy-pools init --agent --default-chain mainnet --show-mnemonic
-privacy-pools init --agent --mnemonic-file ./recovery.txt --default-chain mainnet
-cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
+privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
+privacy-pools init --agent --recovery-phrase-file ./recovery.txt --default-chain mainnet
+cat phrase.txt | privacy-pools init --agent --recovery-phrase-stdin --default-chain mainnet
 privacy-pools init --agent --private-key-file ./key.txt --default-chain mainnet
-printf '%s\n' 0x... | privacy-pools init --agent --mnemonic-file ./recovery.txt --private-key-stdin --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --agent --recovery-phrase-file ./recovery.txt --private-key-stdin --default-chain mainnet
 ```
 
-Inline `--mnemonic` and `--private-key` remain available as a last resort, but the preferred file/stdin flows above avoid leaking secrets into shell history or process listings.
+Inline `--recovery-phrase` and `--private-key` remain available as a last resort, but the preferred file/stdin flows above avoid leaking secrets into shell history or process listings.
 
 ```json
 {
@@ -596,8 +596,8 @@ Inline `--mnemonic` and `--private-key` remain available as a last resort, but t
 |-------|------|-------|
 | `defaultChain` | string | The chain set during init |
 | `signerKeySet` | boolean | Whether a signer key was configured |
-| `recoveryPhrase` | string | Contains the recovery phrase only when `--show-mnemonic` is passed and a new one was generated |
-| `recoveryPhraseRedacted` | boolean | `true` when a recovery phrase was generated but `--show-mnemonic` was not passed |
+| `recoveryPhrase` | string | Contains the recovery phrase only when `--show-recovery-phrase` is passed and a new one was generated |
+| `recoveryPhraseRedacted` | boolean | `true` when a recovery phrase was generated but `--show-recovery-phrase` was not passed |
 | `nextActions` | array | Optional structured follow-up commands for agents |
 
 When importing an existing recovery phrase or private key, neither `recoveryPhrase` nor `recoveryPhraseRedacted` is present.
@@ -606,7 +606,7 @@ New CLI-generated recovery phrases use 24 words (256-bit entropy). Imported reco
 
 When `init` imports an existing recovery phrase, `nextActions` points to `migrate status --agent --all-chains` first so legacy migration or website-based recovery readiness can be checked before assuming imported account state is fully restorable in the CLI. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
 
-Use only one stdin secret source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
+Use only one stdin secret source per invocation: either `--recovery-phrase-stdin` or `--private-key-stdin`.
 
 ### `deposit`
 

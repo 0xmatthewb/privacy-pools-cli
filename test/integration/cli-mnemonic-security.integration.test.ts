@@ -3,7 +3,7 @@
  *
  * Verifies that secret material (mnemonic, private key) never leaks
  * into standard JSON output. The mnemonic should only appear when
- * explicitly requested via --show-mnemonic.
+ * explicitly requested via --show-recovery-phrase.
  */
 import { describe, expect, test } from "bun:test";
 import { createTempHome, runCli } from "../helpers/cli.ts";
@@ -17,7 +17,7 @@ describe("mnemonic security", () => {
     const result = runCli(
       [
         "--json", "init",
-        "--mnemonic", TEST_MNEMONIC,
+        "--recovery-phrase", TEST_MNEMONIC,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
         "--yes",
@@ -36,7 +36,7 @@ describe("mnemonic security", () => {
     runCli(
       [
         "--json", "init",
-        "--mnemonic", TEST_MNEMONIC,
+        "--recovery-phrase", TEST_MNEMONIC,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
         "--yes",
@@ -58,7 +58,7 @@ describe("mnemonic security", () => {
     runCli(
       [
         "--json", "init",
-        "--mnemonic", TEST_MNEMONIC,
+        "--recovery-phrase", TEST_MNEMONIC,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
         "--yes",
@@ -78,7 +78,7 @@ describe("mnemonic security", () => {
     const result = runCli(
       [
         "--json", "init",
-        "--mnemonic", "not a valid mnemonic phrase at all",
+        "--recovery-phrase", "not a valid mnemonic phrase at all",
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
         "--yes",

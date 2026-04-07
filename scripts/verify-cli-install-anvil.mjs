@@ -539,7 +539,7 @@ try {
     [
       "--agent",
       "init",
-      "--mnemonic-file",
+      "--recovery-phrase-file",
       mnemonicFile,
       "--private-key-stdin",
       "--default-chain",
@@ -861,7 +861,7 @@ try {
     [
       "--agent",
       "init",
-      "--mnemonic-file",
+      "--recovery-phrase-file",
       jsFallbackMnemonicFile,
       "--private-key-stdin",
       "--default-chain",

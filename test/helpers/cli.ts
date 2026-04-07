@@ -401,7 +401,7 @@ export function buildTestInitArgs(
   const args = [
     "--json",
     "init",
-    "--mnemonic-file",
+    "--recovery-phrase-file",
     mnemonicPath,
     "--private-key-file",
     privateKeyPath,

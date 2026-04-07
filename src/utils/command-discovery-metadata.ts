@@ -141,7 +141,7 @@ function supportedGlobalFlagMetadata(path: CommandPath): GlobalFlagMetadata[] {
 
 const AGENT_WORKFLOW = [
   "1. privacy-pools status --agent",
-  "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
+  "2. privacy-pools init --agent --default-chain <chain> --show-recovery-phrase",
   "3. privacy-pools pools --agent --chain <chain>",
   "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
   "5. privacy-pools flow watch [workflowId|latest] --agent",

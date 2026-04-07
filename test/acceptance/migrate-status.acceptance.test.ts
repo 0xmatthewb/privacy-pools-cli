@@ -89,7 +89,7 @@ defineScenarioSuite("migrate status acceptance", [
           [
             "--json",
             "init",
-            "--mnemonic-file",
+            "--recovery-phrase-file",
             mnemonicPath,
             "--private-key-file",
             privateKeyPath,
@@ -170,7 +170,7 @@ defineScenarioSuite("migrate status acceptance", [
         [
           "--json",
           "init",
-          "--mnemonic-file",
+          "--recovery-phrase-file",
           mnemonicPath,
           "--private-key-file",
           privateKeyPath,

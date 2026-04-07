@@ -724,7 +724,7 @@ describe("launcher routing", () => {
         runLauncher(PKG, [
           "--agent",
           "init",
-          "--mnemonic",
+          "--recovery-phrase",
           "test test test test test test test test test test test junk",
           "--private-key",
           `0x${"44".repeat(32)}`,

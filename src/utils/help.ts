@@ -193,7 +193,7 @@ export function guideText(): string {
     chalk.bold("Using CLI with an Existing Website Account"),
     `  If you already use ${accent("privacypools.com")}, you can access the same account from the CLI:`,
     `  1. Export your 12/24-word recovery phrase from the website.`,
-    `  2. Run: ${accent("privacy-pools init --mnemonic-file ./recovery.txt")} ${chalk.dim("(or: cat recovery.txt | privacy-pools init --mnemonic-stdin)")}`,
+    `  2. Run: ${accent("privacy-pools init --recovery-phrase-file ./recovery.txt")} ${chalk.dim("(or: cat recovery.txt | privacy-pools init --recovery-phrase-stdin)")}`,
     `  3. Set your signer key: ${accent("export PRIVACY_POOLS_PRIVATE_KEY=0x...")}`,
     `  4. Run: ${accent("privacy-pools accounts")}  ${chalk.dim("(syncs on-chain state automatically)")}`,
     `  If the website account predates the entropy upgrade, run ${accent("privacy-pools migrate status")} to inspect legacy readiness on CLI-supported chains. Review beta or website-only legacy migration surfaces in the website.`,

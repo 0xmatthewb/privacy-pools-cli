@@ -332,17 +332,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Initialize wallet and configuration",
       "usage": "init",
       "flags": [
-        "--mnemonic <phrase>",
-        "--mnemonic-file <path>",
-        "--mnemonic-stdin",
+        "--recovery-phrase <phrase>",
+        "--recovery-phrase-file <path>",
+        "--recovery-phrase-stdin",
         "--private-key <key>",
         "--private-key-file <path>",
         "--private-key-stdin",
         "--default-chain <chain>",
         "--force",
-        "--show-mnemonic"
+        "--show-recovery-phrase"
       ],
-      "agentFlags": "--agent --default-chain <chain> --show-mnemonic",
+      "agentFlags": "--agent --default-chain <chain> --show-recovery-phrase",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -669,15 +669,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "init",
       "flags": [
-        "--mnemonic <phrase>",
-        "--mnemonic-file <path>",
-        "--mnemonic-stdin",
+        "--recovery-phrase <phrase>",
+        "--recovery-phrase-file <path>",
+        "--recovery-phrase-stdin",
         "--private-key <key>",
         "--private-key-file <path>",
         "--private-key-stdin",
         "--default-chain <chain>",
         "--force",
-        "--show-mnemonic"
+        "--show-recovery-phrase"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -703,10 +703,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools init",
         "privacy-pools init --yes --default-chain mainnet",
         "privacy-pools init --force --yes --default-chain mainnet",
-        "privacy-pools init --agent --default-chain mainnet --show-mnemonic",
-        "privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key.txt",
-        "cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet",
-        "printf '%s\\n' 0x... | privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-stdin --yes --default-chain mainnet"
+        "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
+        "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
+        "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
+        "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
       ],
       "jsonFields": "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
@@ -718,7 +718,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
-        "When generating a new recovery phrase in machine mode, pass --show-mnemonic and capture it immediately.",
+        "When generating a new recovery phrase in machine mode, pass --show-recovery-phrase and capture it immediately.",
         "When importing an existing recovery phrase, nextActions points to migrate status --agent --all-chains first so the CLI can check legacy migration or website-recovery readiness before restoring account state."
       ]
     },
@@ -2312,7 +2312,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   ],
   "agentWorkflow": [
     "1. privacy-pools status --agent",
-    "2. privacy-pools init --agent --default-chain <chain> --show-mnemonic",
+    "2. privacy-pools init --agent --default-chain <chain> --show-recovery-phrase",
     "3. privacy-pools pools --agent --chain <chain>",
     "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
     "5. privacy-pools flow watch [workflowId|latest] --agent",

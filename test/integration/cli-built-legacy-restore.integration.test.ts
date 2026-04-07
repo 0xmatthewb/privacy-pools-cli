@@ -120,7 +120,7 @@ describe("built CLI legacy restore safety", () => {
       [
         "--json",
         "init",
-        "--mnemonic-file",
+        "--recovery-phrase-file",
         mnemonicPath,
         "--private-key-file",
         privateKeyPath,
@@ -193,7 +193,7 @@ describe("built CLI legacy restore safety", () => {
       [
         "--json",
         "init",
-        "--mnemonic-file",
+        "--recovery-phrase-file",
         mnemonicPath,
         "--private-key-file",
         privateKeyPath,

@@ -258,7 +258,7 @@ defineScenarioSuite("json-contract acceptance", [
         [
           "--json",
           "init",
-          "--mnemonic-file",
+          "--recovery-phrase-file",
           join(ctx.home, ".test-secrets", "mnemonic.txt"),
           "--private-key-file",
           join(ctx.home, ".test-secrets", "private-key.txt"),

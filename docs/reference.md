@@ -16,18 +16,18 @@ Creates or imports the local Privacy Pools wallet state under ~/.privacy-pools/.
 privacy-pools init
 privacy-pools init --yes --default-chain mainnet
 privacy-pools init --force --yes --default-chain mainnet
-privacy-pools init --agent --default-chain mainnet --show-mnemonic
-privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-file ./my-key.txt
-cat phrase.txt | privacy-pools init --mnemonic-stdin --yes --default-chain mainnet
-printf '%s\n' 0x... | privacy-pools init --mnemonic-file ./my-mnemonic.txt --private-key-stdin --yes --default-chain mainnet
+privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
+privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt
+cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--mnemonic <phrase>` | Import an existing recovery phrase (unsafe: visible in process list) |
-| `--mnemonic-file <path>` | Import recovery phrase from a file (raw phrase or Privacy Pools backup file) |
-| `--mnemonic-stdin` | Import recovery phrase from stdin (raw phrase or Privacy Pools backup text) |
-| `--show-mnemonic` | Include generated recovery phrase in JSON output (unsafe: may be logged or piped) |
+| `--recovery-phrase <phrase>` | Import an existing recovery phrase (unsafe: visible in process list) |
+| `--recovery-phrase-file <path>` | Import recovery phrase from a file (raw phrase or Privacy Pools backup file) |
+| `--recovery-phrase-stdin` | Import recovery phrase from stdin (raw phrase or Privacy Pools backup text) |
+| `--show-recovery-phrase` | Include generated recovery phrase in JSON output (unsafe: may be logged or piped) |
 | `--private-key <key>` | Set the signer private key (unsafe: visible in process list) |
 | `--private-key-file <path>` | Set the signer private key from a file |
 | `--private-key-stdin` | Set the signer private key from stdin |

@@ -66,7 +66,7 @@ export function extractFirstRunnableAction(payload: unknown): NextAction | null 
   return actions.find((a) => isRunnableAction(a)) ?? null;
 }
 
-/** Convert camelCase option keys to CLI-style kebab-case (e.g. showMnemonic → show-mnemonic). */
+/** Convert camelCase option keys to CLI-style kebab-case (e.g. showRecoveryPhrase → show-recovery-phrase). */
 function camelToKebab(key: string): string {
   return key.replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`);
 }

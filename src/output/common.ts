@@ -139,7 +139,7 @@ export function appendNextActions<T extends Record<string, unknown>>(
  * understand the suggested command.  Machine-only options (e.g. `agent: true`)
  * are excluded because they are not useful in a human-mode hint.
  */
-/** Convert camelCase option keys to CLI-style kebab-case (e.g. showMnemonic → show-mnemonic). */
+/** Convert camelCase option keys to CLI-style kebab-case (e.g. showRecoveryPhrase → show-recovery-phrase). */
 function camelToKebab(key: string): string {
   return key.replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`);
 }

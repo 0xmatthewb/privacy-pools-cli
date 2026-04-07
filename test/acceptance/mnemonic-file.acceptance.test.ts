@@ -22,7 +22,7 @@ function initArgs(home: string, filePath: string): string[] {
   return [
     "--json",
     "init",
-    "--mnemonic-file",
+    "--recovery-phrase-file",
     filePath,
     "--private-key-file",
     privateKeyPath,

@@ -311,7 +311,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   if (notReady) {
     agentNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
-      { options: { agent: true, showMnemonic: true, ...initAgentChainOpts } })];
+      { options: { agent: true, showRecoveryPhrase: true, ...initAgentChainOpts } })];
     humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
       { options: initHumanChainOpts })];
   } else if (degradedReadOnly) {

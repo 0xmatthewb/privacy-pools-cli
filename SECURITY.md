@@ -74,7 +74,7 @@ This CLI protects three primary asset classes:
 ## Operational Safety Guidance
 
 - Treat the mnemonic as the highest-value secret. Loss means permanent loss of access.
-- In agent mode, only use `--show-mnemonic` when immediately capturing to secure storage.
+- In agent mode, only use `--show-recovery-phrase` when immediately capturing to secure storage.
 - After any crash or timeout during transactional operations, run `privacy-pools sync --agent` before retrying deposits.
 
 ## Known Limitations

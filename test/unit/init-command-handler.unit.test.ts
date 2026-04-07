@@ -94,13 +94,13 @@ afterEach(() => {
 });
 
 describe("init command handler", () => {
-  test("generates and returns a new mnemonic in JSON mode when --show-mnemonic is set", async () => {
+  test("generates and returns a new mnemonic in JSON mode when --show-recovery-phrase is set", async () => {
     const home = useIsolatedHome();
 
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       handleInitCommand(
         {
-          showMnemonic: true,
+          showRecoveryPhrase: true,
           defaultChain: "sepolia",
           privateKey: "0x" + "11".repeat(32),
         },
@@ -134,7 +134,7 @@ describe("init command handler", () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       handleInitCommand(
         {
-          mnemonicFile,
+          recoveryPhraseFile: mnemonicFile,
           privateKey: "0x" + "22".repeat(32),
           defaultChain: "mainnet",
         },
@@ -157,7 +157,7 @@ describe("init command handler", () => {
     await captureAsyncOutput(() =>
       handleInitCommand(
         {
-          showMnemonic: true,
+          showRecoveryPhrase: true,
           defaultChain: "mainnet",
           privateKey: "0x" + "33".repeat(32),
         },
@@ -168,7 +168,7 @@ describe("init command handler", () => {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
-          showMnemonic: true,
+          showRecoveryPhrase: true,
           defaultChain: "mainnet",
         },
         fakeCommand({ json: true }),
@@ -188,8 +188,8 @@ describe("init command handler", () => {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
-          mnemonic: "test test test test test test test test test test test junk",
-          mnemonicStdin: true,
+          recoveryPhrase: "test test test test test test test test test test test junk",
+          recoveryPhraseStdin: true,
         },
         fakeCommand({ json: true }),
       ),
@@ -226,7 +226,7 @@ describe("init command handler", () => {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
-          mnemonicStdin: true,
+          recoveryPhraseStdin: true,
           privateKeyStdin: true,
         },
         fakeCommand({ json: true }),
@@ -248,7 +248,7 @@ describe("init command handler", () => {
       handleInitCommand(
         {
           defaultChain: "polygon",
-          showMnemonic: true,
+          showRecoveryPhrase: true,
         },
         fakeCommand({ json: true }),
       ),
@@ -262,13 +262,13 @@ describe("init command handler", () => {
 
   test("rejects recovery phrase files that contain no valid mnemonic", async () => {
     const home = useIsolatedHome();
-    const mnemonicFile = join(home, "recovery.txt");
-    writeFileSync(mnemonicFile, "not a recovery phrase", "utf8");
+    const recoveryPhraseFile = join(home, "recovery.txt");
+    writeFileSync(recoveryPhraseFile, "not a recovery phrase", "utf8");
 
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
-          mnemonicFile,
+          recoveryPhraseFile,
         },
         fakeCommand({ json: true }),
       ),
@@ -289,7 +289,7 @@ describe("init command handler", () => {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
-          mnemonic: "not a valid phrase",
+          recoveryPhrase: "not a valid phrase",
         },
         fakeCommand({ json: true }),
       ),
@@ -311,7 +311,7 @@ describe("init command handler", () => {
     const { json } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
-          showMnemonic: true,
+          showRecoveryPhrase: true,
           defaultChain: "mainnet",
           privateKey: "0x" + "11".repeat(32),
         },
@@ -347,9 +347,9 @@ describe("init command handler", () => {
 
   test("rejects ambiguous mnemonic backup files that contain multiple recovery phrases", async () => {
     const home = useIsolatedHome();
-    const mnemonicFile = join(home, "ambiguous.txt");
+    const recoveryPhraseFile = join(home, "ambiguous.txt");
     writeFileSync(
-      mnemonicFile,
+      recoveryPhraseFile,
       [
         "test test test test test test test test test test test junk",
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
@@ -360,7 +360,7 @@ describe("init command handler", () => {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
-          mnemonicFile,
+          recoveryPhraseFile,
         },
         fakeCommand({ json: true }),
       ),
@@ -376,12 +376,12 @@ describe("init command handler", () => {
 
   test("fails closed when the recovery phrase file cannot be read", async () => {
     const home = useIsolatedHome();
-    const missingFile = join(home, "missing-mnemonic.txt");
+    const missingFile = join(home, "missing-recovery-phrase.txt");
 
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
-          mnemonicFile: missingFile,
+          recoveryPhraseFile: missingFile,
           privateKey: "0x" + "66".repeat(32),
         },
         fakeCommand({ json: true }),
@@ -406,7 +406,7 @@ describe("init command handler", () => {
       handleInitCommand(
         {
           privateKeyFile: missingFile,
-          showMnemonic: true,
+          showRecoveryPhrase: true,
         },
         fakeCommand({ json: true }),
       ),
@@ -450,7 +450,7 @@ describe("init command handler", () => {
       const { json } = await captureAsyncJsonOutput(() =>
         handleInitCommand(
           {
-            showMnemonic: true,
+            showRecoveryPhrase: true,
             defaultChain: "mainnet",
           },
           fakeCommand({ json: true }),
@@ -489,7 +489,7 @@ describe("init command handler", () => {
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleInitCommand(
         {
-          showMnemonic: false,
+          showRecoveryPhrase: false,
           defaultChain: "mainnet",
         },
         fakeCommand({ yes: true }),
@@ -508,7 +508,7 @@ describe("init command handler", () => {
     const { json } = await captureAsyncJsonOutput(() =>
       handleInitCommand(
         {
-          showMnemonic: true,
+          showRecoveryPhrase: true,
           defaultChain: "sepolia",
           rpcUrl: "http://127.0.0.1:8545",
         },

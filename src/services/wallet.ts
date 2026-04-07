@@ -102,7 +102,7 @@ export function loadMnemonic(): string {
     throw new CLIError(
       "Stored recovery phrase is invalid or corrupted.",
       "INPUT",
-      "Re-initialize with: privacy-pools init --mnemonic '<your phrase>'"
+      "Re-initialize with: privacy-pools init --recovery-phrase '<your phrase>'"
     );
   }
   return mnemonic;

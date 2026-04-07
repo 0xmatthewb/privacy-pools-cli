@@ -70,9 +70,9 @@ describe("formatNextActionCommand", () => {
       command: "init",
       reason: "Setup.",
       when: "status_not_ready",
-      options: { agent: true, showMnemonic: true },
+      options: { agent: true, showRecoveryPhrase: true },
     });
-    expect(result).toBe("privacy-pools init --show-mnemonic");
+    expect(result).toBe("privacy-pools init --show-recovery-phrase");
   });
 
   test("boolean false emits --no-<kebab-flag>", () => {

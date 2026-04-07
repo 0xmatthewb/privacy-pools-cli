@@ -77,7 +77,7 @@
         "defaultChain": "string",
         "signerKeySet": "boolean",
         "recoveryPhraseRedacted": "boolean? (true when a new recovery phrase was generated but not printed)",
-        "recoveryPhrase": "string? (present only when newly generated and --show-mnemonic is provided)",
+        "recoveryPhrase": "string? (present only when newly generated and --show-recovery-phrase is provided)",
         "warning": "string? (security guidance for agents)",
         "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
       }

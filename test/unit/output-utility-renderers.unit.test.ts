@@ -448,9 +448,9 @@ describe("renderStatus parity", () => {
         command: "init",
         reason: "Complete CLI setup before transacting.",
         when: "status_not_ready",
-        options: { agent: true, showMnemonic: true, defaultChain: "sepolia" },
+        options: { agent: true, showRecoveryPhrase: true, defaultChain: "sepolia" },
       },
-      "privacy-pools init --agent --show-mnemonic --default-chain sepolia",
+      "privacy-pools init --agent --show-recovery-phrase --default-chain sepolia",
     );
   });
 

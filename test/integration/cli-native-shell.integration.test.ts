@@ -728,7 +728,7 @@ describe("native shell parity", () => {
     const args = [
       "--agent",
       "init",
-      "--mnemonic",
+      "--recovery-phrase",
       TEST_MNEMONIC,
       "--private-key",
       TEST_PRIVATE_KEY,

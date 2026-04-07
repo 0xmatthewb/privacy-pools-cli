@@ -106,10 +106,10 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
     subcommands: [
       completionCommand("init", {
         options: [
-          completionOption("--mnemonic <phrase>"),
-          completionOption("--mnemonic-file <path>"),
-          completionOption("--mnemonic-stdin"),
-          completionOption("--show-mnemonic"),
+          completionOption("--recovery-phrase <phrase>"),
+          completionOption("--recovery-phrase-file <path>"),
+          completionOption("--recovery-phrase-stdin"),
+          completionOption("--show-recovery-phrase"),
           completionOption("--private-key <key>"),
           completionOption("--private-key-file <path>"),
           completionOption("--private-key-stdin"),

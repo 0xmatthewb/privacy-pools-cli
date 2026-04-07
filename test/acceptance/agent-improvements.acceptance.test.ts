@@ -189,7 +189,7 @@ defineScenarioSuite("agent improvements acceptance", [
           [
             "--json",
             "init",
-            "--mnemonic-stdin",
+            "--recovery-phrase-stdin",
             "--private-key-file",
             join(ctx.home, ".test-secrets", "private-key.txt"),
             "--default-chain",
@@ -218,7 +218,7 @@ defineScenarioSuite("agent improvements acceptance", [
           [
             "--json",
             "init",
-            "--mnemonic-file",
+            "--recovery-phrase-file",
             join(ctx.home, ".test-secrets", "mnemonic.txt"),
             "--private-key-stdin",
             "--default-chain",
@@ -243,7 +243,7 @@ defineScenarioSuite("agent improvements acceptance", [
       [
         "--json",
         "init",
-        "--mnemonic-stdin",
+        "--recovery-phrase-stdin",
         "--private-key-stdin",
         "--default-chain",
         "sepolia",
@@ -262,7 +262,7 @@ defineScenarioSuite("agent improvements acceptance", [
       );
     }),
     runCliStep(
-      ["--json", "init", "--mnemonic-stdin", "--default-chain", "sepolia", "--yes"],
+      ["--json", "init", "--recovery-phrase-stdin", "--default-chain", "sepolia", "--yes"],
       { input: "", timeoutMs: 60_000 },
     ),
     assertExit(2),
@@ -282,7 +282,7 @@ defineScenarioSuite("agent improvements acceptance", [
           [
             "--json",
             "init",
-            "--mnemonic-file",
+            "--recovery-phrase-file",
             join(ctx.home, ".test-secrets", "mnemonic.txt"),
             "--private-key-stdin",
             "--default-chain",
@@ -305,7 +305,7 @@ defineScenarioSuite("agent improvements acceptance", [
           [
             "--json",
             "init",
-            "--mnemonic-file",
+            "--recovery-phrase-file",
             join(ctx.home, ".test-secrets", "mnemonic.txt"),
             "--private-key-stdin",
             "--default-chain",

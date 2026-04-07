@@ -77,7 +77,7 @@ describe("external JSON contract doc conformance", () => {
     expect(init.successFields?.defaultChain).toBe("string");
     expect(init.successFields?.signerKeySet).toBe("boolean");
     expect(init.successFields?.recoveryPhraseRedacted).toContain("boolean?");
-    expect(init.successFields?.recoveryPhrase).toContain("--show-mnemonic");
+    expect(init.successFields?.recoveryPhrase).toContain("--show-recovery-phrase");
 
     const status = commands.status as { successFields?: Record<string, string> };
     expect(status.successFields?.selectedChain).toBe("string|null");

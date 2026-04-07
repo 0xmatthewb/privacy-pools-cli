@@ -8,21 +8,26 @@ export function createInitCommand(): Command {
   return new Command("init")
     .description(metadata.description)
     .option(
-      "--mnemonic <phrase>",
+      "--recovery-phrase <phrase>",
       "Import an existing recovery phrase (unsafe: visible in process list)",
     )
     .option(
-      "--mnemonic-file <path>",
+      "--recovery-phrase-file <path>",
       "Import recovery phrase from a file (raw phrase or Privacy Pools backup file)",
     )
     .option(
-      "--mnemonic-stdin",
+      "--recovery-phrase-stdin",
       "Import recovery phrase from stdin (raw phrase or Privacy Pools backup text)",
     )
     .option(
-      "--show-mnemonic",
+      "--show-recovery-phrase",
       "Include generated recovery phrase in JSON output (unsafe: may be logged or piped)",
     )
+    // Hidden aliases for backwards compatibility
+    .addOption(new Option("--mnemonic <phrase>").hideHelp())
+    .addOption(new Option("--mnemonic-file <path>").hideHelp())
+    .addOption(new Option("--mnemonic-stdin").hideHelp())
+    .addOption(new Option("--show-mnemonic").hideHelp())
     .option(
       "--private-key <key>",
       "Set the signer private key (unsafe: visible in process list)",

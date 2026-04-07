@@ -45,7 +45,7 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Check upgrade availability | `privacy-pools upgrade --agent --check` | Read-only unless `--yes` is also present and the install is a supported global npm install |
 | Discover capabilities | `privacy-pools capabilities --agent` | No wallet needed |
 | Describe one command | `privacy-pools describe withdraw quote --agent` | No wallet needed |
-| Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-mnemonic` | One-time setup |
+| Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-recovery-phrase` | One-time setup |
 | Start easy flow | `privacy-pools flow start 0.1 ETH --to 0x... --agent` | Deposit now, save later private withdrawal |
 | Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet, stores it locally for the workflow, and exports a backup before waiting for token funding plus ETH gas |
 | Watch easy flow | `privacy-pools flow watch latest --agent` | Resume the saved workflow through funding, approval, privacy delay, and withdrawal |
@@ -270,7 +270,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 ```
 1. privacy-pools capabilities --agent                                   # Discover all commands
 2. privacy-pools status --agent --check                                 # Check setup and health
-3. privacy-pools init --agent --default-chain mainnet --show-mnemonic   # Initialize (once)
+3. privacy-pools init --agent --default-chain mainnet --show-recovery-phrase   # Initialize (once)
 4. privacy-pools flow start 0.1 ETH --to <addr> --agent                 # Easy path: deposit now, save later withdrawal
 5. privacy-pools flow watch latest --agent                              # Resume the saved workflow until it finishes or pauses
 6. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined, relayer-blocked, or you intentionally choose the public path
@@ -331,11 +331,11 @@ Recommended retry strategy:
 ## 10. Security
 
 - The **recovery phrase** is the master secret. Anyone with it can spend all deposited funds. Store it in an encrypted file or secrets manager, never in plain text, logs, or source control.
-- When using `--show-mnemonic` during `init`, capture the recovery phrase output programmatically and write it to a secure store. Do not log or display it to end users.
+- When using `--show-recovery-phrase` during `init`, capture the recovery phrase output programmatically and write it to a secure store. Do not log or display it to end users.
 - The config directory (`~/.privacy-pools`) contains key material. Restrict filesystem permissions (`chmod 700`).
 - Avoid setting `PRIVACY_POOLS_PRIVATE_KEY` in shared or CI environments where env vars may be logged. Prefer `--private-key-file` with a restricted-access file.
-- For non-interactive secret import, prefer `--mnemonic-stdin` or `--private-key-stdin` over process-list-visible flags. Use only one stdin secret source per invocation.
-- Agents that call `init --agent --show-mnemonic` should pipe the `recoveryPhrase` field from the JSON response directly to a secrets manager, then discard it from memory.
+- For non-interactive secret import, prefer `--recovery-phrase-stdin` or `--private-key-stdin` over process-list-visible flags. Use only one stdin secret source per invocation.
+- Agents that call `init --agent --show-recovery-phrase` should pipe the `recoveryPhrase` field from the JSON response directly to a secrets manager, then discard it from memory.
 
 ---
 

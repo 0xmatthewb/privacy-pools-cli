@@ -107,15 +107,15 @@ describe("agent nextActions eval", () => {
     const action: NextAction = {
       command: "init",
       options: {
-        showMnemonic: true,
+        showRecoveryPhrase: true,
         defaultChain: "mainnet",
         extraGas: false,
       },
     };
 
     const args = buildArgsFromNextAction(action);
-    expect(args).toContain("--show-mnemonic");
-    expect(args).not.toContain("--showMnemonic");
+    expect(args).toContain("--show-recovery-phrase");
+    expect(args).not.toContain("--showRecoveryPhrase");
     expect(args).toContain("--default-chain");
     expect(args).not.toContain("--defaultChain");
     expect(args).toContain("--no-extra-gas");

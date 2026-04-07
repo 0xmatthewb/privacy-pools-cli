@@ -32,7 +32,7 @@ defineScenarioSuite("status/init acceptance", [
           [
             "--json",
             "init",
-            "--mnemonic-file",
+            "--recovery-phrase-file",
             mnemonicPath,
             "--private-key-file",
             privateKeyPath,

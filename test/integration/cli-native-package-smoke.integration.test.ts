@@ -211,7 +211,7 @@ describe("native package smoke", () => {
       [
         "--agent",
         "init",
-        "--mnemonic",
+        "--recovery-phrase",
         TEST_MNEMONIC,
         "--private-key",
         TEST_PRIVATE_KEY,
@@ -537,7 +537,7 @@ describe("native package smoke", () => {
       [
         "--agent",
         "init",
-        "--mnemonic-stdin",
+        "--recovery-phrase-stdin",
         "--private-key",
         TEST_PRIVATE_KEY,
         "--default-chain",
@@ -562,7 +562,7 @@ describe("native package smoke", () => {
       [
         "--agent",
         "init",
-        "--mnemonic",
+        "--recovery-phrase",
         TEST_MNEMONIC,
         "--private-key-stdin",
         "--default-chain",
@@ -627,7 +627,7 @@ describe("native package smoke", () => {
       [
         "--agent",
         "init",
-        "--mnemonic",
+        "--recovery-phrase",
         TEST_MNEMONIC,
         "--private-key",
         TEST_PRIVATE_KEY,
@@ -728,7 +728,7 @@ describe("native package smoke", () => {
         [
           "--agent",
           "init",
-          "--mnemonic",
+          "--recovery-phrase",
           TEST_MNEMONIC,
           "--private-key",
           TEST_PRIVATE_KEY,

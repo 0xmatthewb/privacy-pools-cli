@@ -105,7 +105,7 @@ describe("launcher runtime coverage", () => {
     expect(
       launcherTestInternals.invocationContainsInlineSecrets([
         "init",
-        "--mnemonic",
+        "--recovery-phrase",
         "test test test test test test test test test test test junk",
       ]),
     ).toBe(true);
@@ -541,7 +541,7 @@ describe("launcher runtime coverage", () => {
         runLauncher(PKG, [
           "--agent",
           "init",
-          "--mnemonic",
+          "--recovery-phrase",
           "test test test test test test test test test test test junk",
           "--default-chain",
           "mainnet",

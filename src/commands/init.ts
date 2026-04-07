@@ -47,6 +47,11 @@ import { formatCallout } from "../output/layout.js";
 import { renderInitResult } from "../output/init.js";
 
 interface InitCommandOptions {
+  recoveryPhrase?: string;
+  recoveryPhraseFile?: string;
+  recoveryPhraseStdin?: boolean;
+  showRecoveryPhrase?: boolean;
+  // Hidden aliases (backwards compatibility)
   mnemonic?: string;
   mnemonicFile?: string;
   mnemonicStdin?: boolean;
@@ -188,17 +193,25 @@ export async function handleInitCommand(
   const skipPrompts = mode.skipPrompts;
 
   try {
+    // ── Coalesce legacy --mnemonic* aliases into --recovery-phrase* ──
+    const phrase = opts.recoveryPhrase ?? opts.mnemonic;
+    const phraseFile = opts.recoveryPhraseFile ?? opts.mnemonicFile;
+    const phraseStdin = opts.recoveryPhraseStdin ?? opts.mnemonicStdin;
+    const showPhrase = opts.showRecoveryPhrase ?? opts.showMnemonic;
+    // Track which flag name the user actually typed for warning messages
+    const phraseInlineFlag = opts.recoveryPhrase ? "--recovery-phrase" : opts.mnemonic ? "--mnemonic" : undefined;
+
     // ── Phase 1: Eager validation (before any disk writes) ──────────
 
     const mnemonicSourceCount =
-      Number(Boolean(opts.mnemonic)) +
-      Number(Boolean(opts.mnemonicFile)) +
-      Number(Boolean(opts.mnemonicStdin));
+      Number(Boolean(phrase)) +
+      Number(Boolean(phraseFile)) +
+      Number(Boolean(phraseStdin));
     if (mnemonicSourceCount > 1) {
       throw new CLIError(
         "Cannot specify more than one recovery phrase source.",
         "INPUT",
-        "Use only one of: --mnemonic, --mnemonic-file, --mnemonic-stdin.",
+        "Use only one of: --recovery-phrase, --recovery-phrase-file, --recovery-phrase-stdin.",
       );
     }
 
@@ -214,7 +227,7 @@ export async function handleInitCommand(
       );
     }
 
-    if (opts.mnemonicStdin && opts.privateKeyStdin) {
+    if (phraseStdin && opts.privateKeyStdin) {
       throw new CLIError(
         "Cannot read both recovery phrase and signer key from stdin in one invocation.",
         "INPUT",
@@ -268,22 +281,22 @@ export async function handleInitCommand(
       }
       return extracted.mnemonic;
     };
-    if (opts.mnemonicFile) {
+    if (phraseFile) {
       let fileContent: string;
       try {
-        fileContent = readFileSync(opts.mnemonicFile, "utf-8");
+        fileContent = readFileSync(phraseFile, "utf-8");
       } catch (err) {
         throw new CLIError(
-          `Could not read recovery phrase file: ${opts.mnemonicFile}`,
+          `Could not read recovery phrase file: ${phraseFile}`,
           "INPUT",
           err instanceof Error ? err.message : undefined,
         );
       }
       mnemonicSource = extractMnemonicOrThrow(fileContent, "file");
-    } else if (opts.mnemonicStdin) {
+    } else if (phraseStdin) {
       mnemonicSource = extractMnemonicOrThrow(readStdinUtf8(), "stdin");
-    } else if (opts.mnemonic) {
-      mnemonicSource = opts.mnemonic;
+    } else if (phrase) {
+      mnemonicSource = phrase;
     }
 
     if (mnemonicSource && !validateMnemonic(mnemonicSource)) {
@@ -366,10 +379,10 @@ export async function handleInitCommand(
     let importedMnemonic = Boolean(mnemonicSource);
 
     if (mnemonicSource) {
-      if (opts.mnemonic && !silent) {
+      if (phraseInlineFlag && !silent) {
         process.stderr.write(
           notice(
-            "Warning: --mnemonic is visible in process list and shell history. Prefer --mnemonic-file or --mnemonic-stdin.\n",
+            `Warning: ${phraseInlineFlag} is visible in process list and shell history. Prefer --recovery-phrase-file or --recovery-phrase-stdin.\n`,
           ),
         );
       }
@@ -470,7 +483,7 @@ export async function handleInitCommand(
         process.stderr.write("\n");
       }
     } else if (!importedMnemonic && isJson && !isQuiet) {
-      if (opts.showMnemonic) {
+      if (showPhrase) {
         process.stderr.write(
           chalk.bold(
             notice("Save your recovery phrase from the JSON output below."),
@@ -480,7 +493,7 @@ export async function handleInitCommand(
         process.stderr.write(
           chalk.bold(
             notice(
-              "Recovery phrase is redacted from JSON by default. Re-run with --show-mnemonic to print it once.",
+              "Recovery phrase is redacted from JSON by default. Re-run with --show-recovery-phrase to print it once.",
             ),
           ) + "\n",
         );
@@ -616,15 +629,15 @@ export async function handleInitCommand(
     // Warn agent users about mnemonic capture
     const mnemonicGenerated = !mnemonicSource;
     const mnemonicWarning =
-      mnemonicGenerated && isJson && !opts.showMnemonic
-        ? "Mnemonic generated but not included in output. Re-run with --show-mnemonic to capture it. Without the mnemonic, deposited funds cannot be recovered."
+      mnemonicGenerated && isJson && !showPhrase
+        ? "Recovery phrase generated but not included in output. Re-run with --show-recovery-phrase to capture it. Without the recovery phrase, deposited funds cannot be recovered."
         : undefined;
 
     renderInitResult(ctx, {
       defaultChain: config.defaultChain,
       signerKeySet: !!resolvedSignerKey,
       mnemonicImported: !!mnemonicSource,
-      showMnemonic: !!opts.showMnemonic,
+      showMnemonic: !!showPhrase,
       mnemonic,
       warning: mnemonicWarning,
     });

@@ -694,7 +694,7 @@ export function assertInstalledInitViaStdin({
     [
       "--agent",
       "init",
-      "--mnemonic-file",
+      "--recovery-phrase-file",
       writeInstallSecretFile(homeDir, "install-test-mnemonic.txt", mnemonic),
       "--private-key-stdin",
       "--default-chain",

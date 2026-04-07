@@ -27,7 +27,7 @@ privacy-pools upgrade --agent --check
 
 # Easy workflow
 privacy-pools status --agent
-privacy-pools init --agent --default-chain mainnet --show-mnemonic
+privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
 privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
 privacy-pools flow watch latest --agent
 privacy-pools flow ragequit latest --agent    # saved-workflow public recovery if declined, relayer-blocked, or you intentionally choose the public path
@@ -252,28 +252,28 @@ These commands require `privacy-pools init` to have been run first.
 Initialize wallet and configuration.
 
 ```bash
-privacy-pools init --agent --default-chain mainnet --show-mnemonic
-privacy-pools init --agent --mnemonic-file ./recovery.txt --default-chain mainnet
-cat phrase.txt | privacy-pools init --agent --mnemonic-stdin --default-chain mainnet
+privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
+privacy-pools init --agent --recovery-phrase-file ./recovery.txt --default-chain mainnet
+cat phrase.txt | privacy-pools init --agent --recovery-phrase-stdin --default-chain mainnet
 privacy-pools init --agent --private-key-file ./signer-key.txt --default-chain mainnet
-printf '%s\n' 0x... | privacy-pools init --agent --mnemonic-file ./recovery.txt --private-key-stdin --default-chain mainnet
+printf '%s\n' 0x... | privacy-pools init --agent --recovery-phrase-file ./recovery.txt --private-key-stdin --default-chain mainnet
 ```
 
 JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
-When `--show-mnemonic` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
+When `--show-recovery-phrase` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
 
 Newly generated CLI recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may be either 12 or 24 words.
 
 When `init` imports an existing recovery phrase, `nextActions` points to `migrate status --agent --all-chains` first so agents can check legacy migration or website-based recovery readiness before assuming imported account state is fully restorable in the CLI. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>` instead.
 
-> **CRITICAL**: When generating a new recovery phrase, always pass `--show-mnemonic` to capture it in JSON output. Without this flag, the recovery phrase is stored on disk but not returned. You cannot retrieve it later via the CLI. Losing the recovery phrase means losing access to all deposited funds.
+> **CRITICAL**: When generating a new recovery phrase, always pass `--show-recovery-phrase` to capture it in JSON output. Without this flag, the recovery phrase is stored on disk but not returned. You cannot retrieve it later via the CLI. Losing the recovery phrase means losing access to all deposited funds.
 
 > **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
 
-Use only one secret stdin source per invocation: either `--mnemonic-stdin` or `--private-key-stdin`.
+Use only one secret stdin source per invocation: either `--recovery-phrase-stdin` or `--private-key-stdin`.
 
-Inline `--mnemonic` and `--private-key` are still supported as a last resort, but they are intentionally omitted from the primary examples because shell history and process listings can expose them.
+Inline `--recovery-phrase` and `--private-key` are still supported as a last resort, but they are intentionally omitted from the primary examples because shell history and process listings can expose them.
 
 Proof commands use bundled checksum-verified circuit artifacts shipped with the CLI. Set `PRIVACY_POOLS_CIRCUITS_DIR` only when you already have a trusted pre-provisioned directory that you want the CLI to use instead.
 
