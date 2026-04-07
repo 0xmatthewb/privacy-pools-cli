@@ -90,6 +90,26 @@ describe("sdk service", () => {
       expect(first.publicClient.chain?.id).toBe(1);
     });
 
+    test("builds default read-only sessions with the cheaper basic probe", async () => {
+      const seenMethods: string[] = [];
+      const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { method: string };
+        seenMethods.push(body.method);
+        if (body.method === "eth_blockNumber") return rpcSuccess("0x1000");
+        if (body.method === "eth_call") return rpcSuccess("0x");
+        throw new Error(`unexpected method ${body.method}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const session = await getReadOnlyRpcSession(CHAINS.sepolia);
+
+      expect(session.rpcUrl).toBe(getRpcUrls(CHAINS.sepolia.id)[0]);
+      expect(session.publicClient.chain?.id).toBe(11155111);
+      expect(seenMethods).toContain("eth_blockNumber");
+      expect(seenMethods).toContain("eth_call");
+      expect(seenMethods).not.toContain("eth_getLogs");
+    });
+
     test("dedupes latest block reads within the short-lived session window", async () => {
       const session = await getReadOnlyRpcSession(
         CHAINS.mainnet,
@@ -106,6 +126,45 @@ describe("sdk service", () => {
       expect(first).toBe(123n);
       expect(second).toBe(123n);
       expect(getBlockNumberMock).toHaveBeenCalledTimes(1);
+    });
+
+    test("selects a single basic-probe-healthy rpc url for multi-url read-only sessions", async () => {
+      const urls = getRpcUrls(CHAINS.sepolia.id);
+      const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = String(input);
+        const body = JSON.parse(String(init?.body)) as { method: string };
+
+        if (requestUrl === urls[0] && body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (requestUrl === urls[0] && body.method === "eth_call") {
+          return rpcSuccess("0x");
+        }
+        if (requestUrl === urls[0] && body.method === "eth_getLogs") {
+          return rpcError("logs unavailable");
+        }
+
+        if (body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (body.method === "eth_call") {
+          return rpcSuccess("0x");
+        }
+        if (body.method === "eth_getLogs") {
+          return rpcSuccess([]);
+        }
+
+        throw new Error(`unexpected probe ${body.method} for ${requestUrl}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const session = await getReadOnlyRpcSession(CHAINS.sepolia);
+
+      expect(session.rpcUrl).toBe(urls[0]);
+      expect(fetchMock.mock.calls.every(([, init]) => {
+        const body = JSON.parse(String(init?.body)) as { method: string };
+        return body.method !== "eth_getLogs";
+      })).toBe(true);
     });
   });
 
@@ -206,6 +265,40 @@ describe("sdk service", () => {
       expect(url).toBe(urls[0]);
     });
 
+    test("basic probe mode accepts the first call-capable url without requiring logs", async () => {
+      const urls = getRpcUrls(CHAINS.mainnet.id);
+      const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = String(input);
+        const body = JSON.parse(String(init?.body)) as { method: string };
+
+        if (requestUrl === urls[0] && body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (requestUrl === urls[0] && body.method === "eth_call") {
+          return rpcSuccess("0x");
+        }
+        if (requestUrl === urls[0] && body.method === "eth_getLogs") {
+          return rpcError("logs unavailable");
+        }
+        if (body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (body.method === "eth_call") {
+          return rpcSuccess("0x");
+        }
+        if (body.method === "eth_getLogs") {
+          return rpcSuccess([]);
+        }
+
+        throw new Error(`unexpected probe ${body.method} for ${requestUrl}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const url = await getHealthyRpcUrl(CHAINS.mainnet.id, undefined, "basic");
+
+      expect(url).toBe(urls[0]);
+    });
+
     test("preserves configured order even when a later rpc responds faster", async () => {
       const urls = getRpcUrls(CHAINS.mainnet.id);
       const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -247,10 +340,47 @@ describe("sdk service", () => {
       expect(firstCallCount).toBeGreaterThanOrEqual(2); // At least one full probe
     });
 
+    test("keeps the basic probe cache separate from the strict log-capable cache", async () => {
+      const urls = getRpcUrls(CHAINS.mainnet.id);
+      const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = String(input);
+        const body = JSON.parse(String(init?.body)) as { method: string };
+
+        if (requestUrl === urls[0] && body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (requestUrl === urls[0] && body.method === "eth_call") {
+          return rpcSuccess("0x");
+        }
+        if (requestUrl === urls[0] && body.method === "eth_getLogs") {
+          return rpcError("rate limited");
+        }
+        if (body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (body.method === "eth_call") {
+          return rpcSuccess("0x");
+        }
+        if (body.method === "eth_getLogs") {
+          return rpcSuccess([]);
+        }
+
+        throw new Error(`unexpected probe ${body.method} for ${requestUrl}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const session = await getReadOnlyRpcSession(CHAINS.mainnet);
+      const strictUrl = await getHealthyRpcUrl(CHAINS.mainnet.id);
+
+      expect(session.rpcUrl).toBe(urls[0]);
+      expect(strictUrl).toBe(urls[1]);
+    });
+
     test("does not share memoized healthy RPC results across override keys", async () => {
       const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as { method: string };
         if (body.method === "eth_blockNumber") return rpcSuccess("0x1000");
+        if (body.method === "eth_call") return rpcSuccess("0x");
         if (body.method === "eth_getLogs") return rpcSuccess([]);
         throw new Error(`unexpected method ${body.method}`);
       });
@@ -261,6 +391,42 @@ describe("sdk service", () => {
 
       expect(getRpcUrls(CHAINS.mainnet.id)).toContain(base);
       expect(overrideResult).toBe("https://rpc.example.com");
+    });
+
+    test("does not share memoized healthy RPC results across probe modes", async () => {
+      const urls = getRpcUrls(CHAINS.mainnet.id);
+      const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const requestUrl = String(input);
+        const body = JSON.parse(String(init?.body)) as { method: string };
+
+        if (requestUrl === urls[0] && body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (requestUrl === urls[0] && body.method === "eth_call") {
+          return rpcSuccess("0x");
+        }
+        if (requestUrl === urls[0] && body.method === "eth_getLogs") {
+          return rpcError("logs unavailable");
+        }
+        if (body.method === "eth_blockNumber") {
+          return rpcSuccess("0x1000");
+        }
+        if (body.method === "eth_call") {
+          return rpcSuccess("0x");
+        }
+        if (body.method === "eth_getLogs") {
+          return rpcSuccess([]);
+        }
+
+        throw new Error(`unexpected probe ${body.method} for ${requestUrl}`);
+      });
+      globalThis.fetch = fetchMock as typeof fetch;
+
+      const basic = await getHealthyRpcUrl(CHAINS.mainnet.id, undefined, "basic");
+      const full = await getHealthyRpcUrl(CHAINS.mainnet.id);
+
+      expect(basic).toBe(urls[0]);
+      expect(full).toBe(urls[1]);
     });
   });
 

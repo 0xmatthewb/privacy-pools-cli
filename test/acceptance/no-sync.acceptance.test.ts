@@ -650,7 +650,7 @@ defineScenarioSuite("no-sync acceptance", [
     { timeoutMs: 30_000 },
   ),
   defineScenario(
-    "mainnet pending-only aggregation stays cached, partial-failure tolerant, and poll-oriented",
+    "mainnet pending-only aggregation stays cached, asp-tolerant, and poll-oriented",
     [
       seedHome("mainnet"),
       (ctx) => {
@@ -708,8 +708,7 @@ defineScenarioSuite("no-sync acceptance", [
           "PA-2",
         ]);
         expect(json.balances).toBeUndefined();
-        expect(json.warnings).toHaveLength(1);
-        expect(json.warnings?.[0]?.chain).toBe("optimism");
+        expect(json.warnings).toBeUndefined();
         expect(json.nextActions).toHaveLength(1);
         expect(json.nextActions?.[0]).toMatchObject({
           command: "accounts",

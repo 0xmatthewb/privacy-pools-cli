@@ -11,12 +11,16 @@ import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
+  assertAccountStateFreshForNoSync,
   getStoredLegacyPoolAccounts,
   initializeAccountServiceWithState,
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
-import { listPools } from "../services/pools.js";
+import {
+  listKnownPoolsFromRegistry,
+  listPools,
+} from "../services/pools.js";
 import {
   formatIncompleteAspReviewDataMessage,
   hasIncompleteDepositReviewData,
@@ -142,10 +146,16 @@ async function loadAccountsForChain(
   } = ctx;
   verbose(`Chain: ${chainConfig.name} (${chainConfig.id})`, isVerbose, silent);
 
+  if (opts.sync === false) {
+    assertAccountStateFreshForNoSync(chainConfig.id);
+  }
+
   if (spin && showPerChainProgress) {
     spin.text = `Discovering pools on ${chainConfig.name}...`;
   }
-  const pools = await listPools(chainConfig, rpcUrl);
+  const pools = opts.sync === false
+    ? await listKnownPoolsFromRegistry(chainConfig, rpcUrl)
+    : await listPools(chainConfig, rpcUrl);
   verbose(
     `Discovered ${pools.length} pool(s) on ${chainConfig.name}`,
     isVerbose,

@@ -98,6 +98,52 @@ export function registerReadonlyAccountsTests(): void {
     );
   });
 
+  test("accounts --no-sync fails before pool discovery when the saved snapshot is stale", async () => {
+    useIsolatedHome("mainnet");
+    const { handleAccountsCommand } = getReadonlyCommandHandlers();
+    readonlyHarnessMocks.listPoolsMock.mockClear();
+    readonlyHarnessMocks.listKnownPoolsFromRegistryMock.mockClear();
+    readonlyHarnessMocks.assertAccountStateFreshForNoSyncMock.mockImplementationOnce(
+      () => {
+        throw new Error("stale snapshot");
+      },
+    );
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleAccountsCommand(
+        { sync: false },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.error.message ?? json.errorMessage).toContain("stale snapshot");
+    expect(readonlyHarnessMocks.listPoolsMock).not.toHaveBeenCalled();
+    expect(readonlyHarnessMocks.listKnownPoolsFromRegistryMock).not.toHaveBeenCalled();
+    expect(exitCode).toBe(1);
+  });
+
+  test("accounts --no-sync uses registry-backed pool discovery", async () => {
+    useIsolatedHome("mainnet");
+    const { handleAccountsCommand } = getReadonlyCommandHandlers();
+    readonlyHarnessMocks.listPoolsMock.mockClear();
+    readonlyHarnessMocks.listKnownPoolsFromRegistryMock.mockClear();
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleAccountsCommand(
+        { sync: false, summary: true },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(readonlyHarnessMocks.listKnownPoolsFromRegistryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "mainnet" }),
+      undefined,
+    );
+    expect(readonlyHarnessMocks.listPoolsMock).not.toHaveBeenCalled();
+  });
+
   test("accounts summary and pending-only modes route through the compact JSON variants", async () => {
     useIsolatedHome("mainnet");
     const { handleAccountsCommand } = getReadonlyCommandHandlers();

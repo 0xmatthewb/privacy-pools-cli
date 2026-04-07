@@ -796,6 +796,84 @@ describe("pools service", () => {
     }
   });
 
+  test("listKnownPoolsFromRegistry settles multicall viability before parallel resolution", async () => {
+    const chainId = 31346;
+    const assetOne = "0x00000000000000000000000000000000000000c3" as Address;
+    const assetTwo = "0x00000000000000000000000000000000000000c4" as Address;
+    const poolOne = "0x00000000000000000000000000000000000000d3" as Address;
+    const poolTwo = "0x00000000000000000000000000000000000000d4" as Address;
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e3" as Address,
+      multicall3Address: "0xca11bde05977b3631167028862be2a173976ca11" as Address,
+      aspHost: "http://127.0.0.1:1",
+    };
+
+    const previousKnownPools = KNOWN_POOLS[chainId];
+    KNOWN_POOLS[chainId] = {
+      TEST_A: assetOne,
+      TEST_B: assetTwo,
+    };
+
+    try {
+      const rpcSession = await getReadOnlyRpcSession(chainConfig, "https://rpc.example.com");
+      const multicallMock = mock(async () => {
+        throw new Error("multicall unavailable");
+      });
+      const readContractMock = mock(async (
+        {
+          functionName,
+          address,
+          args,
+        }: {
+          functionName: string;
+          address: Address;
+          args?: readonly unknown[];
+        },
+      ) => {
+        switch (functionName) {
+          case "assetConfig":
+            if (args?.[0] === assetOne) return [poolOne, 1000000n, 50n, 250n];
+            if (args?.[0] === assetTwo) return [poolTwo, 2000000n, 75n, 300n];
+            break;
+          case "symbol":
+            if (address === assetOne) return "TESTA";
+            if (address === assetTwo) return "TESTB";
+            break;
+          case "decimals":
+            if (address === assetOne) return 18;
+            if (address === assetTwo) return 6;
+            break;
+          case "SCOPE":
+            if (address === poolOne) return 333n;
+            if (address === poolTwo) return 444n;
+            break;
+          default:
+            break;
+        }
+
+        throw new Error(`unexpected direct read ${functionName} for ${address}`);
+      });
+      (rpcSession.publicClient as any).multicall = multicallMock;
+      (rpcSession.publicClient as any).readContract = readContractMock;
+
+      const pools = await listKnownPoolsFromRegistry(chainConfig, "https://rpc.example.com");
+
+      expect(pools).toHaveLength(2);
+      expect(pools[0]?.pool).toBe(poolOne);
+      expect(pools[1]?.pool).toBe(poolTwo);
+      expect(multicallMock).toHaveBeenCalledTimes(1);
+      expect(readContractMock).toHaveBeenCalledTimes(8);
+    } finally {
+      if (previousKnownPools) {
+        KNOWN_POOLS[chainId] = previousKnownPools;
+      } else {
+        delete KNOWN_POOLS[chainId];
+      }
+    }
+  });
+
   test("listKnownPoolsFromRegistry tolerates missing token metadata for read-only migration discovery", async () => {
     const chainId = 31345;
     const asset = "0x00000000000000000000000000000000000000c2" as Address;

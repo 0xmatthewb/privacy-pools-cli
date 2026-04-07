@@ -100,6 +100,12 @@ export function needsLegacyAccountRebuild(chainId: number): boolean {
   return savedAccountNeedsLegacyRefresh(savedAccount);
 }
 
+export function assertAccountStateFreshForNoSync(chainId: number): void {
+  if (needsLegacyAccountRebuild(chainId)) {
+    throw staleAccountRefreshRequiredError();
+  }
+}
+
 export interface InitializeAccountServiceStateOptions {
   allowLegacyAccountRebuild?: boolean;
   forceSyncSavedAccount?: boolean;

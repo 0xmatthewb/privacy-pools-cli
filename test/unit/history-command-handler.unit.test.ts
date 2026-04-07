@@ -59,7 +59,17 @@ const listPoolsMock = mock(async () => [
     deploymentBlock: 1n,
   },
 ]);
+const listKnownPoolsFromRegistryMock = mock(async () => [
+  {
+    symbol: "ETH",
+    pool: "0x1111111111111111111111111111111111111111",
+    scope: 1n,
+    decimals: 18,
+    deploymentBlock: 1n,
+  },
+]);
 const getDataServiceMock = mock(async () => ({}));
+const assertAccountStateFreshForNoSyncMock = mock(() => {});
 const initializeAccountServiceWithStateMock = mock(async () => ({
   accountService: {
     account: {
@@ -127,12 +137,14 @@ async function loadHistoryCommand(): Promise<void> {
   }));
   mock.module("../../src/services/account.ts", () => ({
     ...realAccount,
+    assertAccountStateFreshForNoSync: assertAccountStateFreshForNoSyncMock,
     initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
     syncAccountEvents: syncAccountEventsMock,
   }));
   mock.module("../../src/services/pools.ts", () => ({
     ...realPools,
     listPools: listPoolsMock,
+    listKnownPoolsFromRegistry: listKnownPoolsFromRegistryMock,
   }));
   mock.module("../../src/output/history.ts", () => ({
     ...realHistoryOutput,
@@ -154,7 +166,10 @@ beforeEach(async () => {
   loadConfigMock.mockClear();
   loadMnemonicMock.mockClear();
   listPoolsMock.mockClear();
+  listKnownPoolsFromRegistryMock.mockClear();
   getDataServiceMock.mockClear();
+  assertAccountStateFreshForNoSyncMock.mockClear();
+  assertAccountStateFreshForNoSyncMock.mockImplementation(() => {});
   initializeAccountServiceWithStateMock.mockClear();
   syncAccountEventsMock.mockClear();
   getReadOnlyRpcSessionMock.mockClear();
@@ -180,7 +195,7 @@ describe("history command handler", () => {
       expect.objectContaining({
         chain: "mainnet",
         chainId: 1,
-        currentBlock: 250n,
+        currentBlock: null,
         avgBlockTimeSec: expect.any(Number),
       }),
     );
@@ -195,6 +210,7 @@ describe("history command handler", () => {
       }),
     ]);
     expect(syncAccountEventsMock).toHaveBeenCalled();
+    expect(getReadOnlyRpcSessionMock).not.toHaveBeenCalled();
   });
 
   test("merges stored legacy migration history and suppresses safe-side duplicates", async () => {
@@ -300,12 +316,19 @@ describe("history command handler", () => {
       handleHistoryCommand({ sync: false, limit: "2" }, fakeCommand({ json: true })),
     );
 
+    expect(assertAccountStateFreshForNoSyncMock).toHaveBeenCalledWith(1);
+    expect(listKnownPoolsFromRegistryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "mainnet" }),
+      undefined,
+    );
+    expect(listPoolsMock).not.toHaveBeenCalled();
     expect(syncAccountEventsMock).toHaveBeenCalled();
     expect(syncAccountEventsMock.mock.calls[0]?.[4]).toMatchObject({
       skip: true,
       errorLabel: "History",
       allowLegacyRecoveryVisibility: true,
     });
+    expect(getReadOnlyRpcSessionMock).not.toHaveBeenCalled();
   });
 
   test("renders history even when the current block lookup fails", async () => {
@@ -316,7 +339,7 @@ describe("history command handler", () => {
     }));
 
     await captureAsyncOutput(() =>
-      handleHistoryCommand({ limit: "2" }, fakeCommand({ json: true })),
+      handleHistoryCommand({ limit: "2" }, fakeCommand({})),
     );
 
     expect(renderHistoryMock).toHaveBeenCalled();

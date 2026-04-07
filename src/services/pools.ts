@@ -858,18 +858,20 @@ export async function listKnownPoolsFromRegistry(
   if (knownEntries.length === 0) return [];
 
   const rpcSession = await getReadOnlyRpcSession(chainConfig, rpcOverride);
-  const pools = await Promise.all(
-    knownEntries.map(([symbol, address]) =>
-      resolveKnownPoolAddress(
-        rpcSession,
-        chainConfig,
-        address,
-        symbol,
-        rpcOverride,
-        { allowTokenMetadataFallback: true },
-      ),
-    ),
-  );
+  const resolveKnownEntry = ([symbol, address]: [string, Address]) =>
+    resolveKnownPoolAddress(
+      rpcSession,
+      chainConfig,
+      address,
+      symbol,
+      rpcOverride,
+      { allowTokenMetadataFallback: true },
+    );
+  const firstPool = await resolveKnownEntry(knownEntries[0]);
+  const restPools = knownEntries.length > 1
+    ? await Promise.all(knownEntries.slice(1).map(resolveKnownEntry))
+    : [];
+  const pools = [firstPool, ...restPools];
 
   const seenPools = new Set<string>();
   return pools.filter((pool) => {

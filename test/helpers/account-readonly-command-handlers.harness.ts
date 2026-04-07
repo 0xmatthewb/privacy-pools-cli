@@ -176,6 +176,7 @@ const initializeAccountServiceWithStateMock = mock(async () => ({
   skipImmediateSync: false,
   rebuiltLegacyAccount: false,
 }));
+const assertAccountStateFreshForNoSyncMock = mock(() => {});
 const syncAccountEventsMock = mock(async () => false);
 const withSuppressedSdkStdoutSyncMock = mock(<T>(fn: () => T): T => fn());
 const withSuppressedSdkStdoutMock = mock(async <T>(fn: () => Promise<T>): Promise<T> => await fn());
@@ -240,6 +241,7 @@ async function loadReadonlyHandlers(): Promise<void> {
   installModuleMocks([
     ["../../src/services/account.ts", () => ({
       ...realAccount,
+      assertAccountStateFreshForNoSync: assertAccountStateFreshForNoSyncMock,
       initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
       syncAccountEvents: syncAccountEventsMock,
       withSuppressedSdkStdoutSync: withSuppressedSdkStdoutSyncMock,
@@ -305,6 +307,7 @@ export function registerAccountReadonlyCommandHandlerHarness(): void {
       skipImmediateSync: false,
       rebuiltLegacyAccount: false,
     }));
+    assertAccountStateFreshForNoSyncMock.mockImplementation(() => {});
     syncAccountEventsMock.mockImplementation(async () => false);
     listPoolsMock.mockImplementation(async () => [MAINNET_POOL]);
     resolvePoolMock.mockImplementation(async () => MAINNET_POOL);
@@ -364,6 +367,7 @@ export function getReadonlyCommandHandlers(): ReadonlyCommandHandlers {
 
 export const readonlyHarnessMocks = {
   initializeAccountServiceWithStateMock,
+  assertAccountStateFreshForNoSyncMock,
   syncAccountEventsMock,
   listPoolsMock,
   resolvePoolMock,

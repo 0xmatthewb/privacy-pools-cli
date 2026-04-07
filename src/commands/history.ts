@@ -6,11 +6,15 @@ import { loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService, getReadOnlyRpcSession } from "../services/sdk.js";
 import {
+  assertAccountStateFreshForNoSync,
   getStoredLegacyPoolAccounts,
   initializeAccountServiceWithState,
   syncAccountEvents,
 } from "../services/account.js";
-import { listPools } from "../services/pools.js";
+import {
+  listKnownPoolsFromRegistry,
+  listPools,
+} from "../services/pools.js";
 import { explorerTxUrl } from "../config/chains.js";
 import { spinner, verbose } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
@@ -353,7 +357,13 @@ export async function handleHistoryCommand(
     const spin = spinner("Loading history...", silent);
     spin.start();
 
-    const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
+    if (opts.sync === false) {
+      assertAccountStateFreshForNoSync(chainConfig.id);
+    }
+
+    const pools = opts.sync === false
+      ? await listKnownPoolsFromRegistry(chainConfig, globalOpts?.rpcUrl)
+      : await listPools(chainConfig, globalOpts?.rpcUrl);
     verbose(`Discovered ${pools.length} pool(s)`, isVerbose, silent);
 
     if (pools.length === 0) {
@@ -428,14 +438,16 @@ export async function handleHistoryCommand(
 
     // Fetch current block for approximate relative timestamps (non-fatal).
     let currentBlock: bigint | null = null;
-    try {
-      const rpcSession = await getReadOnlyRpcSession(
-        chainConfig,
-        globalOpts?.rpcUrl,
-      );
-      currentBlock = await rpcSession.getLatestBlockNumber();
-    } catch {
-      /* non-fatal — fall back to block numbers */
+    if (!mode.isJson) {
+      try {
+        const rpcSession = await getReadOnlyRpcSession(
+          chainConfig,
+          globalOpts?.rpcUrl,
+        );
+        currentBlock = await rpcSession.getLatestBlockNumber();
+      } catch {
+        /* non-fatal — fall back to block numbers */
+      }
     }
 
     spin.stop();

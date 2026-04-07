@@ -73,12 +73,18 @@ const healthyRpcUrlCache = new Map<string, Promise<string>>();
 const dataServiceCache = new Map<string, Promise<DataService>>();
 const readOnlyRpcSessionCache = new Map<string, Promise<ReadOnlyRpcSession>>();
 
+type RpcProbeMode = "basic" | "full";
+
 function normalizeRpcOverride(rpcOverride?: string): string {
   return rpcOverride?.trim() ?? "";
 }
 
-function healthyRpcCacheKey(chainId: number, rpcOverride?: string): string {
-  return `${chainId}:${normalizeRpcOverride(rpcOverride)}`;
+function healthyRpcCacheKey(
+  chainId: number,
+  rpcOverride: string | undefined,
+  probeMode: RpcProbeMode,
+): string {
+  return `${chainId}:${normalizeRpcOverride(rpcOverride)}:${probeMode}`;
 }
 
 function dataServiceCacheKey(
@@ -154,7 +160,7 @@ export async function getReadOnlyRpcSession(
   chainConfig: ChainConfig,
   rpcOverride?: string,
 ): Promise<ReadOnlyRpcSession> {
-  const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride);
+  const rpcUrl = await getHealthyRpcUrl(chainConfig.id, rpcOverride, "basic");
   const cacheKey = readOnlyRpcSessionCacheKey(chainConfig.id, rpcUrl);
   const cached = readOnlyRpcSessionCache.get(cacheKey);
   if (cached) {
@@ -219,18 +225,21 @@ export async function getReadOnlyRpcSession(
 
 /**
  * Probes RPC URLs in order and returns the first that responds to
- * both `eth_blockNumber` and a representative `eth_getLogs` call within
- * a short timeout. Falls back to the first URL if all probes fail so the
- * caller still gets the natural error.
+ * the requested probe mode within a short timeout. `basic` checks
+ * `eth_blockNumber` plus a minimal `eth_call`; `full` checks
+ * `eth_blockNumber` plus a representative `eth_getLogs` call.
+ * Falls back to the first URL if all probes fail so the caller still
+ * gets the natural error.
  *
  * When only a single URL is available the probe is skipped entirely
  * (fast path – no network call).
  */
 export async function getHealthyRpcUrl(
   chainId: number,
-  rpcOverride?: string
+  rpcOverride?: string,
+  probeMode: RpcProbeMode = "full",
 ): Promise<string> {
-  const cacheKey = healthyRpcCacheKey(chainId, rpcOverride);
+  const cacheKey = healthyRpcCacheKey(chainId, rpcOverride, probeMode);
   const cached = healthyRpcUrlCache.get(cacheKey);
   if (cached) return cached;
 
@@ -243,7 +252,7 @@ export async function getHealthyRpcUrl(
     // the first healthy URL in order.
     const healthChecks = urls.map(async (url) => ({
       url,
-      healthy: await isHealthyRpcUrl(url, probeTimeoutMs),
+      healthy: await isHealthyRpcUrl(url, probeTimeoutMs, probeMode),
     }));
 
     for (const healthCheck of healthChecks) {
@@ -266,7 +275,11 @@ export async function getHealthyRpcUrl(
   }
 }
 
-async function isHealthyRpcUrl(url: string, timeoutMs: number): Promise<boolean> {
+async function isHealthyRpcUrl(
+  url: string,
+  timeoutMs: number,
+  probeMode: RpcProbeMode,
+): Promise<boolean> {
   try {
     const latestBlock = await rpcProbe<string>(
       url,
@@ -275,6 +288,16 @@ async function isHealthyRpcUrl(url: string, timeoutMs: number): Promise<boolean>
       timeoutMs,
     );
     if (!latestBlock) return false;
+
+    if (probeMode === "basic") {
+      const callProbe = await rpcProbe<unknown>(
+        url,
+        "eth_call",
+        [{ to: LOG_PROBE_ADDRESS, data: "0x" }, "latest"],
+        timeoutMs,
+      );
+      return typeof callProbe === "string";
+    }
 
     const toBlock = BigInt(latestBlock);
     const fromBlock = toBlock > LOG_PROBE_RANGE ? toBlock - LOG_PROBE_RANGE : 0n;
