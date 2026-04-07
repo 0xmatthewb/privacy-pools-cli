@@ -93,7 +93,7 @@
         "command": "string|null",
         "installContext": "{ kind: \"global_npm\"|\"bun_global\"|\"source_checkout\"|\"local_project\"|\"npx\"|\"ci\"|\"unknown\", supportedAutoRun: boolean, reason: string }",
         "installedVersion": "string|null",
-        "nextActions": "NextAction[]? (suggests upgrade command when status is ready or manual)"
+        "nextActions": "NextAction[]? (suggests upgrade command when status is ready)"
       }
     },
     "flow": {

@@ -63,7 +63,7 @@ privacy-pools upgrade --agent --yes
 **Safety:** Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.
 **Safety:** A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes.
 
-**JSON output:** `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null }`
+**JSON output:** `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `flow`
 
@@ -204,7 +204,7 @@ privacy-pools pools --agent --chain mainnet
 | `--search <query>` | Filter by chain/symbol/address/scope |
 | `--sort <mode>` | Sort mode (default, asset-asc, asset-desc, tvl-desc, tvl-asc, deposits-desc, deposits-asc, chain-asset) |
 
-**JSON output:** `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings? }`
+**JSON output:** `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, totalDepositsCount, totalDepositsValue, acceptedDepositsValue, pendingDepositsValue, ... }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 **JSON variants:**
 - `detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }`
@@ -227,7 +227,7 @@ privacy-pools activity --asset USDC --agent --chain mainnet
 | `--page <n>` | Page number |
 | `--limit <n>` | Items per page |
 
-**JSON output:** `{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }] }`
+**JSON output:** `{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `stats`
 
@@ -477,7 +477,7 @@ privacy-pools sync --chain mainnet
 |------|-------------|
 | `-a, --asset <symbol\|address>` | Sync only a single pool asset |
 
-**JSON output:** `{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts? }`
+**JSON output:** `{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `status`
 
@@ -611,14 +611,14 @@ Build transaction payloads offline without submitting. Useful for external signi
 
 ```bash
 # Envelope format (default): includes metadata and proof artifacts
-privacy-pools deposit 0.1 --asset ETH --unsigned --json
+privacy-pools deposit 0.1 ETH --unsigned --json
 
 # Raw tx format: just the transaction objects, ready to sign and broadcast
-privacy-pools deposit 0.1 --asset ETH --unsigned tx --json
+privacy-pools deposit 0.1 ETH --unsigned tx --json
 
 # Works with withdraw and ragequit too
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --unsigned --json
-privacy-pools ragequit --asset ETH --from-pa PA-1 --unsigned --json
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... --unsigned --json
+privacy-pools ragequit ETH --from-pa PA-1 --unsigned --json
 ```
 
 ## Dry Run
@@ -626,9 +626,9 @@ privacy-pools ragequit --asset ETH --from-pa PA-1 --unsigned --json
 Validate inputs, check balances, and generate proofs without submitting anything onchain.
 
 ```bash
-privacy-pools deposit 0.1 --asset ETH --dry-run
-privacy-pools withdraw 0.05 --asset ETH --to 0xRecipient... --dry-run
-privacy-pools ragequit --asset ETH --from-pa PA-1 --dry-run
+privacy-pools deposit 0.1 ETH --dry-run
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... --dry-run
+privacy-pools ragequit ETH --from-pa PA-1 --dry-run
 ```
 
 ## Installation Notes
