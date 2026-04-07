@@ -64,6 +64,7 @@
     "docs:generate": "npm run build && node scripts/generate-reference.mjs --write",
     "docs:preview": "npm run build && node scripts/generate-reference.mjs",
     "docs:check": "npm run build && node scripts/generate-reference.mjs --check",
+    "preview:cli": "node --import tsx scripts/preview-cli-visuals.mjs",
     "test:artifacts:root": "node scripts/verify-root-only-host-artifact.mjs",
     "test:artifacts:host": "node scripts/verify-current-host-release-artifacts.mjs",
     "bench:gate": "node scripts/bench-cli.mjs --base self --runtime native --runs 6 --warmup 1 --assert-thresholds scripts/bench-thresholds.json",
