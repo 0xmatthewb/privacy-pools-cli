@@ -12,51 +12,41 @@ Compliant privacy on Ethereum, right from your terminal. Deposit funds publicly 
 
 ## Getting Started
 
-```bash
-# 1. Initialize (creates a 24-word recovery phrase and signer key)
-privacy-pools init
-
-# 2. See what's available
-privacy-pools pools
-```
-
-```
-┌───────┬────────────────┬─────────────────┬────────────┬──────────────┬─────────────┬─────────────┐
-│ Asset │ Total Deposits │ Pool Balance    │ USD Value  │ Pending      │ Min Deposit │ Vetting Fee │
-├───────┼────────────────┼─────────────────┼────────────┼──────────────┼─────────────┼─────────────┤
-│ ETH   │ 2,875          │ 823.92 ETH      │ $1,667,647 │ 1.20 ETH     │ 0.01 ETH    │ 0.50%       │
-│ USDC  │ 351            │ 310,722 USDC    │ $310,693   │ 500 USDC     │ 25 USDC     │ 0.50%       │
-│ USDT  │ 78             │ 105,544 USDT    │ $105,540   │ 0 USDT       │ 25 USDT     │ 0.00%       │
-│ ...   │                │                 │            │              │             │             │
-└───────┴────────────────┴─────────────────┴────────────┴──────────────┴─────────────┴─────────────┘
-```
+### New account
 
 ```bash
-# 3. Easy path: deposit now, save the later private withdrawal, and resume when ready
+privacy-pools init       # creates a recovery phrase and saves it locally
+privacy-pools pools      # browse available pools and assets
+```
+
+### Already have a privacypools.com account?
+
+```bash
+privacy-pools init       # select "Import existing recovery phrase" when prompted
+```
+
+### Deposit and withdraw privately
+
+```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient...
-privacy-pools flow watch                     # or pass --watch to flow start
-privacy-pools flow status latest            # inspect the saved workflow later
-privacy-pools flow ragequit latest          # optional public recovery once the deposit exists; canonical if declined or private completion is no longer possible
-
-# 4. Manual path: deposit into a pool
-privacy-pools deposit 0.1 ETH
-
-# 5. Wait for ASP approval (most deposits are approved within 1 hour, but some may take longer: up to 7 days)
-privacy-pools accounts --chain mainnet --pending-only   # poll while the deposit remains pending
-privacy-pools accounts --chain mainnet                  # confirm approved vs declined vs PoA-needed before next step
-
-# 6. Withdraw privately to any address
-privacy-pools withdraw 0.05 ETH --to 0xRecipient...
+privacy-pools flow watch                   # waits for ASP approval + privacy delay, then withdraws
+privacy-pools flow status latest           # check progress any time
 ```
 
-### How it works
+`flow start` deposits into a pool, and `flow watch` handles the rest: it waits for the Association Set Provider (ASP) to approve your deposit, observes a privacy delay, then requests a relayed private withdrawal. Most deposits are approved within 1 hour, but some may take up to 7 days.
 
-`flow start` deposits into a pool and saves a local workflow. Once the Association Set Provider (ASP) approves it, `flow watch` waits through a privacy delay before requesting the relayed private withdrawal. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). You can always recover your funds publicly via `ragequit`, even without ASP approval.
+### Individual commands
 
-The manual commands (`deposit`, `accounts`, `withdraw`) remain available for partial withdrawals, custom Pool Account selection, unsigned payloads, or dry-runs. See [docs/reference.md](docs/reference.md) for details.
+For more control, use the commands directly:
 
-> [!TIP]
-> Restoring an existing wallet? Use `--mnemonic-file` or `--mnemonic-stdin` instead of inline `--mnemonic`.
+```bash
+privacy-pools deposit 0.1 ETH                        # deposit into a pool
+privacy-pools accounts --chain mainnet                # check approval status
+privacy-pools withdraw 0.05 ETH --to 0xRecipient...  # withdraw privately
+privacy-pools ragequit latest                         # public recovery (works even without ASP approval)
+```
+
+See [docs/reference.md](docs/reference.md) for the full flag reference.
 
 ## Install
 
@@ -113,7 +103,7 @@ npm run start -- --help
 | `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
 | `upgrade` | Check npm for updates or upgrade this CLI | |
-| `init` | Set up wallet and config (run once) | |
+| `init` | Create or import your account (run once) | |
 | `flow` | Guided deposit-to-private-withdrawal workflow | Yes |
 | `deposit` | Deposit funds into a Privacy Pool | Yes |
 | `withdraw` | Privately withdraw funds via relayer | Yes |
