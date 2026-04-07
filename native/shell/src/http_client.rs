@@ -1,13 +1,21 @@
 use crate::error::{CliError, ErrorCategory};
 use serde_json::Value;
+use std::sync::OnceLock;
 use std::time::Duration;
+
+fn shared_agent() -> &'static ureq::Agent {
+    static AGENT: OnceLock<ureq::Agent> = OnceLock::new();
+    AGENT.get_or_init(|| ureq::AgentBuilder::new().build())
+}
 
 pub(crate) fn http_get_json(
     url: &str,
     headers: &[(&str, String)],
     timeout_ms: u64,
 ) -> Result<Value, CliError> {
-    let mut request = ureq::get(url).timeout(Duration::from_millis(timeout_ms));
+    let mut request = shared_agent()
+        .get(url)
+        .timeout(Duration::from_millis(timeout_ms));
     for (key, value) in headers {
         request = request.set(key, value);
     }
@@ -28,7 +36,9 @@ pub(crate) fn http_get_json_with_js_transport_error(
     headers: &[(&str, String)],
     timeout_ms: u64,
 ) -> Result<Value, CliError> {
-    let mut request = ureq::get(url).timeout(Duration::from_millis(timeout_ms));
+    let mut request = shared_agent()
+        .get(url)
+        .timeout(Duration::from_millis(timeout_ms));
     for (key, value) in headers {
         request = request.set(key, value);
     }
@@ -48,7 +58,8 @@ pub(crate) fn http_get_json_with_js_transport_error(
 }
 
 pub(crate) fn http_post_json(url: &str, body: &Value, timeout_ms: u64) -> Result<Value, CliError> {
-    let response = ureq::post(url)
+    let response = shared_agent()
+        .post(url)
         .timeout(Duration::from_millis(timeout_ms))
         .set("Content-Type", "application/json")
         .send_string(&serde_json::to_string(body).map_err(|error| {

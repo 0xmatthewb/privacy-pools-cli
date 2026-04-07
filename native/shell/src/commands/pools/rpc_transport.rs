@@ -69,10 +69,150 @@ fn extract_rpc_call_result(response: &Value) -> Result<Option<String>, CliError>
     Ok(None)
 }
 
+/// Send multiple eth_call requests as a single JSON-RPC batch.
+///
+/// Returns a Vec of results in the same order as `requests`.
+/// Each entry is `Ok(hex_result)` or `Err(error)` for individual call failures.
+/// Falls back to sequential `rpc_call` if the RPC returns a non-array response.
+pub(super) fn rpc_batch_call(
+    rpc_urls: &[String],
+    requests: &[(&str, &str)], // (to, data) pairs
+    timeout_ms: u64,
+) -> Result<Vec<Result<String, CliError>>, CliError> {
+    if requests.is_empty() {
+        return Ok(vec![]);
+    }
+    if requests.len() == 1 {
+        return Ok(vec![rpc_call(
+            rpc_urls,
+            requests[0].0,
+            requests[0].1,
+            timeout_ms,
+        )]);
+    }
+
+    let batch: Vec<Value> = requests
+        .iter()
+        .enumerate()
+        .map(|(id, (to, data))| {
+            json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "method": "eth_call",
+                "params": [{ "to": to, "data": data }, "latest"]
+            })
+        })
+        .collect();
+
+    let batch_body = Value::Array(batch);
+
+    let mut last_error = None;
+    for rpc_url in rpc_urls {
+        match http_post_json(rpc_url, &batch_body, timeout_ms) {
+            Ok(response) => {
+                if let Some(items) = response.as_array() {
+                    return Ok(parse_batch_response(items, requests.len()));
+                }
+                // Non-array response: RPC doesn't support batch. Fall back to sequential.
+                return sequential_fallback(rpc_urls, requests, timeout_ms);
+            }
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        CliError::rpc(
+            "RPC pool resolution failed.",
+            Some("Check your RPC connection and try again.".to_string()),
+            Some("RPC_POOL_RESOLUTION_FAILED"),
+        )
+    }))
+}
+
+fn parse_batch_response(items: &[Value], expected_count: usize) -> Vec<Result<String, CliError>> {
+    let mut results: Vec<Option<Result<String, CliError>>> = vec![None; expected_count];
+
+    for item in items {
+        let id = item.get("id").and_then(Value::as_u64).unwrap_or(u64::MAX) as usize;
+        if id >= expected_count {
+            continue;
+        }
+        results[id] = Some(match extract_rpc_call_result(item) {
+            Ok(Some(result)) => Ok(result),
+            Ok(None) => Err(CliError::rpc(
+                "Batch RPC call returned no result.",
+                Some("Retry the command or switch RPC providers.".to_string()),
+                Some("RPC_POOL_RESOLUTION_FAILED"),
+            )),
+            Err(error) => Err(error),
+        });
+    }
+
+    results
+        .into_iter()
+        .map(|entry| {
+            entry.unwrap_or_else(|| {
+                Err(CliError::rpc(
+                    "Batch RPC call missing response entry.",
+                    Some("Retry the command or switch RPC providers.".to_string()),
+                    Some("RPC_POOL_RESOLUTION_FAILED"),
+                ))
+            })
+        })
+        .collect()
+}
+
+fn sequential_fallback(
+    rpc_urls: &[String],
+    requests: &[(&str, &str)],
+    timeout_ms: u64,
+) -> Result<Vec<Result<String, CliError>>, CliError> {
+    Ok(requests
+        .iter()
+        .map(|(to, data)| rpc_call(rpc_urls, to, data, timeout_ms))
+        .collect())
+}
+
 #[cfg(test)]
 mod extended_tests {
-    use super::extract_rpc_call_result;
+    use super::{extract_rpc_call_result, parse_batch_response};
     use serde_json::json;
+
+    #[test]
+    fn parse_batch_response_returns_results_in_order() {
+        let items = vec![
+            json!({"jsonrpc": "2.0", "id": 1, "result": "0xBBBB"}),
+            json!({"jsonrpc": "2.0", "id": 0, "result": "0xAAAA"}),
+        ];
+        let results = parse_batch_response(&items, 2);
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].as_ref().unwrap(), "0xAAAA");
+        assert_eq!(results[1].as_ref().unwrap(), "0xBBBB");
+    }
+
+    #[test]
+    fn parse_batch_response_handles_individual_errors() {
+        let items = vec![
+            json!({"jsonrpc": "2.0", "id": 0, "result": "0x1234"}),
+            json!({"jsonrpc": "2.0", "id": 1, "error": {"message": "revert"}}),
+        ];
+        let results = parse_batch_response(&items, 2);
+        assert!(results[0].is_ok());
+        assert!(results[1].is_err());
+    }
+
+    #[test]
+    fn parse_batch_response_fills_missing_entries_with_errors() {
+        let items = vec![json!({"jsonrpc": "2.0", "id": 0, "result": "0xAA"})];
+        let results = parse_batch_response(&items, 3);
+        assert_eq!(results.len(), 3);
+        assert!(results[0].is_ok());
+        assert!(results[1].is_err());
+        assert!(results[2].is_err());
+    }
 
     #[test]
     fn extract_rpc_call_result_returns_successful_result_payloads() {

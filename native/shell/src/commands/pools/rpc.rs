@@ -1,11 +1,11 @@
 use super::model::{AssetConfigResult, NativePoolResolution};
 use super::rpc_abi::{
-    checksum_address, decode_abi_words, decode_address_word, decode_uint256_word,
-    encode_address_word, function_selector,
+    checksum_address, decode_abi_string, decode_abi_words, decode_address_word,
+    decode_uint256_word, encode_address_word, function_selector,
 };
 pub(super) use super::rpc_cache::resolve_cached_pool_resolution;
 use super::rpc_token::resolve_token_metadata;
-use super::rpc_transport::rpc_call;
+use super::rpc_transport::{rpc_batch_call, rpc_call};
 use crate::contract::ChainDefinition;
 use crate::error::CliError;
 use num_bigint::BigUint;
@@ -66,16 +66,101 @@ pub(super) fn resolve_pool_from_asset_address_native(
     native_asset_address: &str,
     timeout_ms: u64,
 ) -> Result<NativePoolResolution, CliError> {
+    // Step 1: assetConfig to get pool address (must be first — pool address needed for SCOPE).
     let asset_config = read_asset_config(chain, asset_address, rpc_urls, timeout_ms)?;
-    let scope = read_pool_scope(&asset_config.pool_address, rpc_urls, timeout_ms)?;
-    let token_metadata =
-        resolve_token_metadata(asset_address, rpc_urls, native_asset_address, timeout_ms)?;
 
-    Ok(NativePoolResolution {
-        symbol: token_metadata.symbol,
-        pool_address: asset_config.pool_address,
-        scope,
-    })
+    // Step 2: Batch SCOPE + token metadata (symbol + decimals) in one roundtrip.
+    // For native assets (ETH), skip the token metadata calls entirely.
+    let is_native = asset_address.eq_ignore_ascii_case(native_asset_address);
+
+    let scope_selector = function_selector("SCOPE()");
+    let scope_data = format!("0x{}", hex::encode(scope_selector));
+
+    if is_native {
+        // Native asset: only need SCOPE (symbol/decimals are hardcoded).
+        let scope_response = rpc_call(
+            rpc_urls,
+            &asset_config.pool_address,
+            &scope_data,
+            timeout_ms,
+        )?;
+        let scope_words = decode_abi_words(&scope_response)?;
+        let scope = scope_words.first().ok_or_else(|| {
+            CliError::rpc(
+                "Malformed RPC response while resolving pool scope.",
+                Some("Retry the command or switch RPC providers.".to_string()),
+                Some("RPC_POOL_RESOLUTION_FAILED"),
+            )
+        })?;
+        Ok(NativePoolResolution {
+            symbol: "ETH".to_string(),
+            pool_address: asset_config.pool_address,
+            scope: decode_uint256_word(scope).to_string(),
+        })
+    } else {
+        // ERC-20: batch SCOPE + symbol + decimals.
+        let symbol_selector = function_selector("symbol()");
+        let decimals_selector = function_selector("decimals()");
+        let symbol_data = format!("0x{}", hex::encode(symbol_selector));
+        let decimals_data = format!("0x{}", hex::encode(decimals_selector));
+
+        let batch_results = rpc_batch_call(
+            rpc_urls,
+            &[
+                (&asset_config.pool_address, &scope_data),
+                (asset_address, &symbol_data),
+                (asset_address, &decimals_data),
+            ],
+            timeout_ms,
+        )?;
+
+        // Parse SCOPE result.
+        let scope_hex = batch_results[0].as_ref().map_err(|e| e.clone())?;
+        let scope_words = decode_abi_words(scope_hex)?;
+        let scope = scope_words.first().ok_or_else(|| {
+            CliError::rpc(
+                "Malformed RPC response while resolving pool scope.",
+                Some("Retry the command or switch RPC providers.".to_string()),
+                Some("RPC_POOL_RESOLUTION_FAILED"),
+            )
+        })?;
+        let scope_str = decode_uint256_word(scope).to_string();
+
+        // Parse symbol result.
+        let symbol = batch_results[1]
+            .as_ref()
+            .ok()
+            .and_then(|hex| decode_abi_string(hex).ok())
+            .ok_or_else(|| {
+                CliError::rpc(
+                    "Failed to resolve ERC-20 symbol.",
+                    Some("Check your RPC URL and retry.".to_string()),
+                    Some("RPC_POOL_RESOLUTION_FAILED"),
+                )
+            })?;
+
+        // Parse decimals result.
+        let decimals = batch_results[2]
+            .as_ref()
+            .ok()
+            .and_then(|hex| decode_abi_words(hex).ok())
+            .and_then(|words| words.first().cloned())
+            .map(|word| decode_uint256_word(&word))
+            .and_then(|value| value.to_u32_digits().first().copied())
+            .ok_or_else(|| {
+                CliError::rpc(
+                    "Failed to resolve ERC-20 decimals.",
+                    Some("Check your RPC URL and retry.".to_string()),
+                    Some("RPC_POOL_RESOLUTION_FAILED"),
+                )
+            })?;
+
+        Ok(NativePoolResolution {
+            symbol,
+            pool_address: asset_config.pool_address,
+            scope: scope_str,
+        })
+    }
 }
 pub(super) fn is_hex_address(value: &str) -> bool {
     value.len() == 42
