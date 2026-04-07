@@ -35,6 +35,7 @@ import {
   renderAspApprovalStatus,
   renderPoolAccountStatus,
 } from "../utils/statuses.js";
+import type { NextActionOptionValue } from "../types.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -243,6 +244,40 @@ function buildPollNextActions(meta: AccountsRootMeta, pendingCount: number) {
           pendingOnly: true,
         },
       },
+    ),
+  ];
+}
+
+function buildEmptyAccountsNextActions(
+  meta: AccountsRootMeta,
+  options: {
+    summary?: boolean;
+    pendingOnly?: boolean;
+  },
+) {
+  const scopeOptions: Record<string, NextActionOptionValue> | undefined = meta.allChains
+    ? { allChains: true }
+    : isMultiChain(meta)
+      ? undefined
+      : { chain: meta.chain };
+
+  if (options.pendingOnly) {
+    return [
+      createNextAction(
+        "accounts",
+        "Re-run accounts without --pending-only to confirm approved, declined, or Proof of Association results.",
+        "accounts_pending_empty",
+        { options: scopeOptions },
+      ),
+    ];
+  }
+
+  return [
+    createNextAction(
+      "pools",
+      "Browse pools to make your first deposit.",
+      options.summary ? "accounts_summary_empty" : "accounts_empty",
+      { options: scopeOptions },
     ),
   ];
 }
@@ -473,31 +508,45 @@ export function renderAccountsNoPools(
     warnings: data.warnings,
   };
   const includeChainFields = isMultiChain(data);
+  const nextActions = buildEmptyAccountsNextActions(meta, {
+    summary: data.summary,
+    pendingOnly: data.pendingOnly,
+  });
 
   if (ctx.mode.isJson) {
     if (data.summary) {
       printJsonSuccess(
-        withRootMeta(
-          {
-            pendingCount: 0,
-            approvedCount: 0,
-            poiRequiredCount: 0,
-            declinedCount: 0,
-            unknownCount: 0,
-            spentCount: 0,
-            exitedCount: 0,
-            balances: [],
-          },
-          meta,
+        appendNextActions(
+          withRootMeta(
+            {
+              pendingCount: 0,
+              approvedCount: 0,
+              poiRequiredCount: 0,
+              declinedCount: 0,
+              unknownCount: 0,
+              spentCount: 0,
+              exitedCount: 0,
+              balances: [],
+            },
+            meta,
+          ),
+          nextActions,
         ),
       );
       return;
     }
     if (data.pendingOnly) {
-      printJsonSuccess(withRootMeta({ accounts: [], pendingCount: 0 }, meta));
+      printJsonSuccess(
+        appendNextActions(withRootMeta({ accounts: [], pendingCount: 0 }, meta), nextActions),
+      );
       return;
     }
-    printJsonSuccess(withRootMeta({ accounts: [], balances: [], pendingCount: 0 }, meta));
+    printJsonSuccess(
+      appendNextActions(
+        withRootMeta({ accounts: [], balances: [], pendingCount: 0 }, meta),
+        nextActions,
+      ),
+    );
     return;
   }
 
@@ -544,6 +593,7 @@ export function renderAccountsNoPools(
           : `Re-run accounts --chain ${data.chain} without --pending-only to confirm approved, declined, or POA Needed results.`,
         silent,
       );
+      renderNextSteps(ctx, nextActions);
     }
     return;
   }
@@ -554,6 +604,7 @@ export function renderAccountsNoPools(
       : `No Pool Accounts found on ${data.chain}.`,
     silent,
   );
+  renderNextSteps(ctx, nextActions);
 }
 
 /**

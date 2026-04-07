@@ -82,6 +82,27 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       },
     ),
   ];
+  const humanActionOptions: Record<string, string | boolean> = {
+    chain: data.chain,
+    to: data.recipient,
+    fromPa: data.poolAccountId,
+  };
+  if (data.withdrawMode === "direct") {
+    humanActionOptions.direct = true;
+  } else if (data.extraGas !== undefined) {
+    humanActionOptions.extraGas = data.extraGas;
+  }
+  const humanNextActions = [
+    createNextAction(
+      "withdraw",
+      "Submit the withdrawal for real when you are ready to broadcast it.",
+      "after_dry_run",
+      {
+        args: [formatUnits(data.amount, data.decimals), data.asset],
+        options: humanActionOptions,
+      },
+    ),
+  ];
 
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
@@ -159,6 +180,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       );
     }
   }
+  renderNextSteps(ctx, humanNextActions);
 }
 
 // ── Success ──────────────────────────────────────────────────────────────────

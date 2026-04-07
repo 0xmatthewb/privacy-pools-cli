@@ -766,6 +766,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   const showOptionalPublicRecovery =
     data.action === "status" &&
     !usesPublicRecoveryPath &&
+    !isTerminal &&
     !isPreDeposit &&
     phase !== "withdrawing" &&
     phase !== "paused_declined" &&

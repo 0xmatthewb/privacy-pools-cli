@@ -615,6 +615,27 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("privacy-pools flow ragequit wf-123");
   });
 
+  test("human status mode suppresses optional public recovery copy for terminal workflows", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "completed",
+          aspStatus: "approved",
+          withdrawTxHash:
+            "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          withdrawBlockNumber: "12399",
+          withdrawExplorerUrl: "https://example.test/withdraw",
+        }),
+      }),
+    );
+
+    expect(stderr).not.toContain("Optional public recovery");
+    expect(stderr).toContain("Withdrawal:");
+    expect(stderr).toContain("https://example.test/withdraw");
+  });
+
   test("JSON mode includes funding guidance for awaiting_funding workflows", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>

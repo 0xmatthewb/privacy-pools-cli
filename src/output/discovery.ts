@@ -11,12 +11,6 @@ import {
 
 export function renderHumanGuideText(text: string): void {
   process.stderr.write("\n");
-  process.stderr.write(
-    formatSectionHeading("Quick guide", {
-      divider: true,
-      padTop: false,
-    }),
-  );
   process.stderr.write(`${text}\n\n`);
 }
 

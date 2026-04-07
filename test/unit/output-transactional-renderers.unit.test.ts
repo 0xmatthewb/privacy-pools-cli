@@ -197,6 +197,8 @@ describe("renderDepositDryRun parity", () => {
     expect(stderr).toMatch(/Asset:\s+ETH/);
     expect(stderr).toMatch(/Pool Account:\s+PA-1/);
     expect(stderr).toMatch(/Balance sufficient:\s+yes/);
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).toContain("privacy-pools deposit 0.1 ETH --chain sepolia");
   });
 });
 
@@ -608,6 +610,10 @@ describe("renderWithdrawDryRun parity", () => {
     expect(stderr).toContain("Dry-run complete");
     expect(stderr).toMatch(/Mode:\s+direct/);
     expect(stderr).toMatch(/Pool Account:\s+PA-1/);
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).toContain(
+      "privacy-pools withdraw 0.5 ETH --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --from-pa PA-1 --direct",
+    );
   });
 });
 

@@ -1,8 +1,65 @@
 use serde_json::{json, Map, Value};
+use std::env;
+use std::io::{self, IsTerminal, Write};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::contract::manifest;
 use crate::error::CliError;
+
+const SECTION_DIVIDER_WIDTH: usize = 18;
+const SPINNER_INTERVAL_MS: u64 = 80;
+const ASCII_SPINNER_FRAMES: [&str; 4] = ["-", "\\", "|", "/"];
+const UNICODE_SPINNER_FRAMES: [&str; 10] =
+    ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SectionTone {
+    Accent,
+    Muted,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CalloutKind {
+    Warning,
+    ReadOnly,
+}
+
+pub struct Spinner {
+    running: Option<Arc<AtomicBool>>,
+    handle: Option<JoinHandle<()>>,
+    line_width: usize,
+}
+
+impl Spinner {
+    pub fn stop(&mut self) {
+        let Some(running) = self.running.take() else {
+            return;
+        };
+
+        running.store(false, Ordering::SeqCst);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+
+        if self.line_width > 0 {
+            let clear = format!("\r{}\r", " ".repeat(self.line_width + 2));
+            let mut stderr = io::stderr();
+            let _ = stderr.write_all(clear.as_bytes());
+            let _ = stderr.flush();
+        }
+    }
+}
+
+impl Drop for Spinner {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
 
 pub fn emit_help(text: &str, structured: bool) {
     if structured {
@@ -22,7 +79,7 @@ pub fn emit_version(version: &str, structured: bool) {
             "version": version
         }));
     } else {
-        std::io::Write::write_all(&mut std::io::stdout(), format!("{version}\n").as_bytes()).ok();
+        let _ = io::stdout().write_all(format!("{version}\n").as_bytes());
     }
 }
 
@@ -31,7 +88,7 @@ pub fn write_stdout_text(text: &str) {
     if !value.ends_with('\n') {
         value.push('\n');
     }
-    std::io::Write::write_all(&mut std::io::stdout(), value.as_bytes()).ok();
+    let _ = io::stdout().write_all(value.as_bytes());
 }
 
 pub fn write_stderr_text(text: &str) {
@@ -39,7 +96,7 @@ pub fn write_stderr_text(text: &str) {
     if !value.ends_with('\n') {
         value.push('\n');
     }
-    std::io::Write::write_all(&mut std::io::stderr(), value.as_bytes()).ok();
+    let _ = io::stderr().write_all(value.as_bytes());
 }
 
 pub fn write_stderr_block_text(text: &str) {
@@ -48,11 +105,78 @@ pub fn write_stderr_block_text(text: &str) {
         value.push('\n');
         value.push('\n');
     }
-    std::io::Write::write_all(&mut std::io::stderr(), value.as_bytes()).ok();
+    let _ = io::stderr().write_all(value.as_bytes());
+}
+
+pub fn start_spinner(message: &str) -> Spinner {
+    if !stderr_supports_animation() {
+        write_stderr_text(&format!("- {message}"));
+        return Spinner {
+            running: None,
+            handle: None,
+            line_width: 0,
+        };
+    }
+
+    let running = Arc::new(AtomicBool::new(true));
+    let worker_running = Arc::clone(&running);
+    let message = message.to_string();
+    let line_width = message.chars().count() + 2;
+    let frames = if stderr_supports_unicode_animation() {
+        UNICODE_SPINNER_FRAMES.as_slice()
+    } else {
+        ASCII_SPINNER_FRAMES.as_slice()
+    };
+    let handle = thread::spawn(move || {
+        let mut frame_index = 0usize;
+        while worker_running.load(Ordering::SeqCst) {
+            let frame = styled_accent(frames[frame_index % frames.len()]);
+            let line = format!("\r{frame} {message}");
+            let mut stderr = io::stderr();
+            let _ = stderr.write_all(line.as_bytes());
+            let _ = stderr.flush();
+            frame_index += 1;
+            thread::sleep(Duration::from_millis(SPINNER_INTERVAL_MS));
+        }
+    });
+
+    Spinner {
+        running: Some(running),
+        handle: Some(handle),
+        line_width,
+    }
 }
 
 pub fn format_section_heading(title: &str) -> String {
-    format!("\n{}\n{}:\n", "─".repeat(18), title)
+    format_section_heading_with_tone(title, SectionTone::Accent)
+}
+
+pub fn format_command_heading(title: &str) -> String {
+    format!("\n{}\n\n", styled_accent_bold(title))
+}
+
+pub fn format_muted_section_heading(title: &str) -> String {
+    format_section_heading_with_tone(title, SectionTone::Muted)
+}
+
+pub fn format_muted_block(text: &str) -> String {
+    styled_dim(text)
+}
+
+pub fn format_muted_text(text: &str) -> String {
+    styled_dim(text)
+}
+
+pub fn format_notice_text(text: &str) -> String {
+    styled_notice(text)
+}
+
+pub fn format_success_text(text: &str) -> String {
+    styled_success(text)
+}
+
+pub fn format_danger_text(text: &str) -> String {
+    styled_danger(text)
 }
 
 pub fn format_key_value_rows(rows: &[(&str, String)]) -> String {
@@ -68,14 +192,48 @@ pub fn format_key_value_rows(rows: &[(&str, String)]) -> String {
 
     let mut output = String::new();
     for (label, value) in rows {
-        output.push_str(&format!(
-            "  {:<width$} {}\n",
-            format!("{label}:"),
-            value,
+        let padded_label = format!("{label}:");
+        output.push_str("  ");
+        output.push_str(&styled_dim(&format!(
+            "{padded_label:<width$}",
             width = width
-        ));
+        )));
+        output.push(' ');
+        output.push_str(value);
+        output.push('\n');
     }
     output
+}
+
+pub fn format_callout(kind: CalloutKind, lines: &[String]) -> String {
+    if lines.is_empty() {
+        return String::new();
+    }
+
+    let heading = match kind {
+        CalloutKind::Warning => styled_bold(&format!("{}:", styled_notice("Warning"))),
+        CalloutKind::ReadOnly => styled_bold(&format!("{}:", styled_accent("Read-only"))),
+    };
+
+    let mut output = String::new();
+    output.push('\n');
+    output.push_str(&heading);
+    output.push('\n');
+    for line in lines {
+        output.push_str("  ");
+        output.push_str(line);
+        output.push('\n');
+    }
+    output
+}
+
+fn format_section_heading_with_tone(title: &str, tone: SectionTone) -> String {
+    let divider = styled_dim(&"─".repeat(SECTION_DIVIDER_WIDTH));
+    let heading = match tone {
+        SectionTone::Accent => styled_accent_bold(&format!("{title}:")),
+        SectionTone::Muted => styled_dim(&format!("{title}:")),
+    };
+    format!("\n{divider}\n{heading}\n")
 }
 
 fn json_schema_version() -> &'static str {
@@ -85,7 +243,6 @@ fn json_schema_version() -> &'static str {
 pub fn print_json_success(payload: Value) {
     let source = payload.as_object().cloned().unwrap_or_default();
     let mut object = Map::new();
-    // Envelope fields first, matching JS-side printJsonSuccess ordering.
     object.insert(
         "schemaVersion".to_string(),
         Value::String(json_schema_version().to_string()),
@@ -209,18 +366,18 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
         .collect::<Vec<_>>();
     let mut widths = headers
         .iter()
-        .map(|header| header.chars().count())
+        .map(|header| visible_width(header))
         .collect::<Vec<_>>();
     for row in &rows {
         for (index, cell) in row.iter().enumerate() {
-            widths[index] = widths[index].max(cell.chars().count());
+            widths[index] = widths[index].max(visible_width(cell));
         }
     }
 
-    let top = table_border('┌', '┬', '┐', &widths);
-    let middle = table_border('├', '┼', '┤', &widths);
-    let bottom = table_border('└', '┴', '┘', &widths);
-    let header_row = table_row(&headers, &widths);
+    let top = style_table_border(&table_border('┌', '┬', '┐', &widths));
+    let middle = style_table_border(&table_border('├', '┼', '┤', &widths));
+    let bottom = style_table_border(&table_border('└', '┴', '┘', &widths));
+    let header_row = table_row_with_style(&headers, &widths, Some(styled_bold));
 
     let mut output = String::new();
     output.push_str(&top);
@@ -251,11 +408,7 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
 }
 
 pub fn write_info(message: &str) {
-    write_stderr_text(&format!("ℹ {message}"));
-}
-
-pub fn write_warn(message: &str) {
-    write_stderr_text(&format!("⚠ {message}"));
+    write_stderr_text(&format!("{} {message}", styled_accent("ℹ")));
 }
 
 pub fn insert_optional_string(object: &mut Map<String, Value>, key: &str, value: Option<String>) {
@@ -284,7 +437,41 @@ pub fn insert_optional_f64(object: &mut Map<String, Value>, key: &str, value: Op
     );
 }
 
-// ── NextAction helpers ────────────────────────────────────────────────────────
+pub fn render_next_steps(actions: &[Value]) {
+    let runnable = actions
+        .iter()
+        .filter(|action| action.get("runnable").and_then(Value::as_bool) != Some(false))
+        .filter_map(|action| {
+            let reason = action.get("reason").and_then(Value::as_str)?;
+            let command = build_human_next_action_command(action)?;
+            Some((command, reason.to_string()))
+        })
+        .collect::<Vec<_>>();
+
+    if runnable.is_empty() {
+        return;
+    }
+
+    write_stderr_text(&format_muted_section_heading("Next steps"));
+    for (command, reason) in runnable {
+        write_stderr_text(&format!("  {}", styled_accent(&command)));
+        write_stderr_text(&format!("  {}", styled_dim(&reason)));
+    }
+}
+
+fn build_human_next_action_command(action: &Value) -> Option<String> {
+    let object = action.as_object()?;
+    let command = object.get("command")?.as_str()?;
+    let args = object
+        .get("args")
+        .and_then(Value::as_array)
+        .map(|values| values.iter().filter_map(Value::as_str).collect::<Vec<_>>());
+    let options = object.get("options").and_then(Value::as_object);
+    let args_ref = args.as_deref();
+    Some(build_cli_command(command, args_ref, options, false))
+}
+
+// ── NextAction helpers ─────────────────────────────────────────────────────
 
 fn camel_to_kebab(key: &str) -> String {
     let mut result = String::with_capacity(key.len() + 4);
@@ -305,6 +492,7 @@ fn build_cli_command(
     command: &str,
     args: Option<&[&str]>,
     options: Option<&Map<String, Value>>,
+    include_agent: bool,
 ) -> String {
     let mut parts = vec!["privacy-pools".to_string(), command.to_string()];
 
@@ -317,7 +505,7 @@ fn build_cli_command(
     if let Some(opts) = options {
         for (key, value) in opts {
             if key == "agent" {
-                if value.as_bool() == Some(true) {
+                if include_agent && value.as_bool() == Some(true) {
                     parts.push("--agent".to_string());
                 }
                 continue;
@@ -342,9 +530,6 @@ fn build_cli_command(
     parts.join(" ")
 }
 
-/// Build a NextAction JSON value matching the JS `createNextAction` shape.
-///
-/// Mirrors `src/output/common.ts:createNextAction` + `withCliCommand`.
 pub fn build_next_action(
     command: &str,
     reason: &str,
@@ -353,7 +538,7 @@ pub fn build_next_action(
     options: Option<&Map<String, Value>>,
     runnable: Option<bool>,
 ) -> Value {
-    let cli_command = build_cli_command(command, args, options);
+    let cli_command = build_cli_command(command, args, options, true);
     let mut action = Map::new();
     action.insert("command".to_string(), Value::String(command.to_string()));
     action.insert("reason".to_string(), Value::String(reason.to_string()));
@@ -372,8 +557,8 @@ pub fn build_next_action(
         if !opts.is_empty() {
             let filtered: Map<String, Value> = opts
                 .iter()
-                .filter(|(_, v)| !v.is_null())
-                .map(|(k, v)| (k.clone(), v.clone()))
+                .filter(|(_, value)| !value.is_null())
+                .map(|(key, value)| (key.clone(), value.clone()))
                 .collect();
             if !filtered.is_empty() {
                 action.insert("options".to_string(), Value::Object(filtered));
@@ -405,14 +590,128 @@ fn table_border(left: char, middle: char, right: char, widths: &[usize]) -> Stri
     format!("{left}{}{right}", segments.join(&middle.to_string()))
 }
 
+fn style_table_border(value: &str) -> String {
+    styled_dim(value)
+}
+
 fn table_row(row: &[String], widths: &[usize]) -> String {
+    table_row_with_style(row, widths, None)
+}
+
+fn table_row_with_style(
+    row: &[String],
+    widths: &[usize],
+    style: Option<fn(&str) -> String>,
+) -> String {
     let cells = row
         .iter()
         .enumerate()
         .map(|(index, cell)| {
-            let padding = widths[index].saturating_sub(cell.chars().count());
-            format!(" {}{} ", cell, " ".repeat(padding))
+            let padding = widths[index].saturating_sub(visible_width(cell));
+            let rendered = style
+                .map(|apply| apply(cell))
+                .unwrap_or_else(|| cell.clone());
+            format!(" {rendered}{} ", " ".repeat(padding))
         })
         .collect::<Vec<_>>();
     format!("│{}│", cells.join("│"))
+}
+
+fn visible_width(value: &str) -> usize {
+    strip_ansi_codes(value).chars().count()
+}
+
+fn strip_ansi_codes(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut chars = value.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\u{1b}' && chars.peek() == Some(&'[') {
+            let _ = chars.next();
+            for control in chars.by_ref() {
+                if ('@'..='~').contains(&control) {
+                    break;
+                }
+            }
+            continue;
+        }
+        output.push(ch);
+    }
+
+    output
+}
+
+fn stderr_supports_animation() -> bool {
+    io::stderr().is_terminal()
+}
+
+fn stderr_supports_unicode_animation() -> bool {
+    if !stderr_supports_animation() {
+        return false;
+    }
+
+    if matches!(env::var("TERM"), Ok(term) if term.eq_ignore_ascii_case("dumb")) {
+        return false;
+    }
+
+    let locale = env::var("LC_ALL")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| env::var("LC_CTYPE").ok().filter(|value| !value.trim().is_empty()))
+        .or_else(|| env::var("LANG").ok().filter(|value| !value.trim().is_empty()))
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    if !locale.is_empty() {
+        return locale.contains("utf-8") || locale.contains("utf8");
+    }
+
+    !cfg!(windows)
+}
+
+fn stderr_supports_style() -> bool {
+    if env::var_os("NO_COLOR").is_some() {
+        return false;
+    }
+
+    match env::var("FORCE_COLOR") {
+        Ok(value) => value != "0",
+        Err(_) => io::stderr().is_terminal(),
+    }
+}
+
+fn style_with_code(text: &str, code: &str) -> String {
+    if stderr_supports_style() {
+        format!("\x1b[{code}m{text}\x1b[0m")
+    } else {
+        text.to_string()
+    }
+}
+
+fn styled_bold(text: &str) -> String {
+    style_with_code(text, "1")
+}
+
+fn styled_dim(text: &str) -> String {
+    style_with_code(text, "2")
+}
+
+fn styled_accent(text: &str) -> String {
+    style_with_code(text, "38;2;80;172;255")
+}
+
+fn styled_accent_bold(text: &str) -> String {
+    style_with_code(text, "1;38;2;80;172;255")
+}
+
+fn styled_notice(text: &str) -> String {
+    style_with_code(text, "38;2;255;240;90")
+}
+
+fn styled_success(text: &str) -> String {
+    style_with_code(text, "38;2;124;242;154")
+}
+
+fn styled_danger(text: &str) -> String {
+    style_with_code(text, "38;2;255;138;128")
 }

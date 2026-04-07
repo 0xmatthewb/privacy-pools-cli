@@ -62,6 +62,8 @@ describe("renderGuide parity", () => {
 
     expect(stdout).toBe("");
     // Guide outputs structural sections to stderr
+    expect(stderr).toContain("Privacy Pools: Quick Guide");
+    expect(stderr).not.toContain("Quick guide:");
     expect(stderr).toContain("Quick Start");
     expect(stderr).toContain("Workflow");
   });

@@ -10,6 +10,7 @@ use crate::config::{get_rpc_urls, has_custom_rpc_override, load_config, resolve_
 use crate::contract::{ChainDefinition, Manifest};
 use crate::dispatch::{commander_too_many_arguments_error, commander_unknown_option_error};
 use crate::error::{CliError, ErrorCategory};
+use crate::output::start_spinner;
 use crate::parse_timeout_ms;
 use crate::root_argv::{
     is_command_global_boolean_option, is_command_global_inline_value_option,
@@ -44,14 +45,16 @@ pub(crate) fn handle_pools_native(
     } else {
         default_read_only_chains(manifest)
     };
-    if !mode.is_json() && !mode.is_quiet && !mode.is_csv() {
-        let message = if is_multi_chain {
-            "- Fetching pools across chains...".to_string()
+    let loading_message = if !mode.is_json() && !mode.is_quiet && !mode.is_csv() {
+        Some(if is_multi_chain {
+            "Fetching pools across chains...".to_string()
         } else {
-            format!("- Fetching pools for {}...", chains_to_query[0].name)
-        };
-        crate::output::write_stderr_text(&message);
-    }
+            format!("Fetching pools for {}...", chains_to_query[0].name)
+        })
+    } else {
+        None
+    };
+    let mut loading = loading_message.as_deref().map(start_spinner);
 
     let mut entries = Vec::<PoolListingEntry>::new();
     let mut warnings = Vec::<super::model::PoolWarning>::new();
@@ -109,6 +112,9 @@ pub(crate) fn handle_pools_native(
             return Err(error);
         }
 
+        if let Some(spinner) = loading.as_mut() {
+            spinner.stop();
+        }
         if is_multi_chain {
             render_pools_empty_output(
                 &mode,
@@ -142,6 +148,9 @@ pub(crate) fn handle_pools_native(
     let mut filtered = apply_pool_search(entries, opts.search.as_deref());
     sort_pools(&mut filtered, &opts.sort);
 
+    if let Some(spinner) = loading.as_mut() {
+        spinner.stop();
+    }
     render_pools_output(
         &mode,
         super::model::PoolsRenderData {

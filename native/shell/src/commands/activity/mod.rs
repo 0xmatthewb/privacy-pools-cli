@@ -9,6 +9,7 @@ use crate::config::{load_config, resolve_chain};
 use crate::contract::Manifest;
 use crate::error::CliError;
 use crate::json::parse_json_u64;
+use crate::output::start_spinner;
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_events, fetch_pool_events};
 use crate::root_argv::ParsedRootArgv;
@@ -26,9 +27,8 @@ pub fn handle_activity_native(
     let mode = resolve_mode(parsed);
     let opts = parse_activity_options(argv)?;
     let timeout_ms = parse_timeout_ms(argv);
-    if !mode.is_json() && !mode.is_quiet {
-        crate::output::write_stderr_text("- Fetching public activity...");
-    }
+    let mut loading =
+        (!mode.is_json() && !mode.is_quiet).then(|| start_spinner("Fetching public activity..."));
 
     if let Some(asset) = opts.asset.as_deref() {
         let config = load_config()?;
@@ -58,6 +58,9 @@ pub fn handle_activity_native(
         let per_page = parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page);
         let total = parse_json_u64(response.get("total"));
         let total_pages = parse_json_u64(response.get("totalPages"));
+        if let Some(spinner) = loading.as_mut() {
+            spinner.stop();
+        }
         render_activity_output(
             &mode,
             ActivityRenderData {
@@ -92,6 +95,9 @@ pub fn handle_activity_native(
         .into_iter()
         .filter(|event| event.chain_id.is_none() || event.chain_id == Some(chain.id))
         .collect::<Vec<_>>();
+        if let Some(spinner) = loading.as_mut() {
+            spinner.stop();
+        }
         render_activity_output(
             &mode,
             ActivityRenderData {
@@ -129,6 +135,9 @@ pub fn handle_activity_native(
         manifest,
     )?;
 
+    if let Some(spinner) = loading.as_mut() {
+        spinner.stop();
+    }
     render_activity_output(
         &mode,
         ActivityRenderData {

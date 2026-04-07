@@ -76,6 +76,17 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
       },
     ),
   ];
+  const humanNextActions = [
+    createNextAction(
+      "deposit",
+      "Submit the deposit for real when you are ready to broadcast it.",
+      "after_dry_run",
+      {
+        args: [formatUnits(data.amount, data.decimals), data.asset],
+        options: { chain: data.chain },
+      },
+    ),
+  ];
 
   if (ctx.mode.isJson) {
     printJsonSuccess(
@@ -133,6 +144,7 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
       ]),
     );
   }
+  renderNextSteps(ctx, humanNextActions);
 }
 
 /**

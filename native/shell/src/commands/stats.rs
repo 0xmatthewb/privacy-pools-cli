@@ -3,14 +3,15 @@ use crate::config::{load_config, resolve_chain};
 use crate::contract::Manifest;
 use crate::error::CliError;
 use crate::output::{
-    format_count_number, format_key_value_rows, format_section_heading, print_csv,
-    print_json_success, print_table, write_stderr_text,
+    build_next_action, format_command_heading, format_count_number, format_key_value_rows,
+    format_section_heading, print_csv, print_json_success, print_table, render_next_steps,
+    start_spinner, write_stderr_text,
 };
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_statistics, fetch_pool_statistics};
 use crate::root_argv::{has_short_flag, read_long_option_value, ParsedRootArgv};
 use crate::routing::{resolve_mode, NativeMode};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StatsSubcommand {
@@ -49,16 +50,15 @@ pub fn handle_stats_native(
     }
 
     let mode = resolve_mode(parsed);
-    if !mode.is_json() && !mode.is_quiet {
-        let message = if resolve_stats_subcommand(parsed) == StatsSubcommand::Pool {
-            "- Fetching pool statistics..."
-        } else {
-            "- Fetching global statistics..."
-        };
-        write_stderr_text(message);
-    }
-
     let stats_subcommand = resolve_stats_subcommand(parsed);
+    let mut loading = (!mode.is_json() && !mode.is_quiet).then(|| {
+        start_spinner(if stats_subcommand == StatsSubcommand::Pool {
+            "Fetching pool statistics..."
+        } else {
+            "Fetching global statistics..."
+        })
+    });
+
     if stats_subcommand == StatsSubcommand::Pool {
         let asset = read_long_option_value(argv, "--asset").ok_or_else(|| {
             CliError::input(
@@ -83,6 +83,9 @@ pub fn handle_stats_native(
         let response = fetch_pool_statistics(&chain, &pool.scope, timeout_ms)?;
         let pool_stats = response.get("pool").and_then(Value::as_object);
 
+        if let Some(spinner) = loading.as_mut() {
+            spinner.stop();
+        }
         render_pool_stats_output(
             &mode,
             PoolStatsRenderData {
@@ -127,6 +130,9 @@ pub fn handle_stats_native(
     })?;
     let response = fetch_global_statistics(representative_chain, parse_timeout_ms(argv))?;
 
+    if let Some(spinner) = loading.as_mut() {
+        spinner.stop();
+    }
     render_global_stats_output(
         &mode,
         GlobalStatsRenderData {
@@ -178,7 +184,10 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
         return;
     }
 
-    write_stderr_text(&format!("\nGlobal statistics ({}):\n\n", data.chain));
+    write_stderr_text(&format_command_heading(&format!(
+        "Global statistics ({}):",
+        data.chain
+    )));
     write_stderr_text(&format_section_heading("Summary"));
     let mut summary_rows = vec![("Scope", data.chain.clone())];
     let cache_timestamp = value_as_display_string(&data.cache_timestamp, "");
@@ -187,6 +196,15 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
     }
     write_stderr_text(&format_key_value_rows(&summary_rows));
     print_table(vec!["Metric", "All Time", "Last 24h"], rows);
+
+    render_next_steps(&[build_next_action(
+        "pools",
+        "Browse live pool balances and minimum deposits.",
+        "after_stats",
+        None,
+        None,
+        None,
+    )]);
 }
 
 fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
@@ -214,10 +232,10 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
         return;
     }
 
-    write_stderr_text(&format!(
-        "\nPool statistics for {} on {}:\n\n",
+    write_stderr_text(&format_command_heading(&format!(
+        "Pool statistics for {} on {}:",
         data.asset, data.chain
-    ));
+    )));
     write_stderr_text(&format_section_heading("Summary"));
     let mut summary_rows = vec![("Asset", data.asset.clone()), ("Chain", data.chain.clone())];
     let cache_timestamp = value_as_display_string(&data.cache_timestamp, "");
@@ -226,6 +244,18 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
     }
     write_stderr_text(&format_key_value_rows(&summary_rows));
     print_table(vec!["Metric", "All Time", "Last 24h"], rows);
+
+    let mut options = Map::new();
+    options.insert("chain".to_string(), Value::String(data.chain.clone()));
+    let args = [data.asset.as_str()];
+    render_next_steps(&[build_next_action(
+        "pools",
+        "Open the detailed view for this pool.",
+        "after_pool_stats",
+        Some(&args),
+        Some(&options),
+        None,
+    )]);
 }
 
 fn stats_rows(all_time: &Value, last_24h: &Value) -> Vec<Vec<String>> {

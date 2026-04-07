@@ -478,6 +478,7 @@ describe("native shell parity", () => {
 
   nativeTest("public read-only human and csv outputs stay stream-identical on fixture data", () => {
     const env = fixtureEnv(fixture!);
+    const multiChainEnv = multiChainFixtureEnv(fixture!);
 
     expectStreamParity(nativeBinary, ["stats"], {
       js: { env },
@@ -510,6 +511,14 @@ describe("native shell parity", () => {
     expectStreamParity(nativeBinary, ["--format", "csv", "activity"], {
       js: { env },
       native: { env },
+    });
+    expectStreamParity(nativeBinary, ["pools"], {
+      js: { env: multiChainEnv },
+      native: { env: multiChainEnv },
+    });
+    expectStreamParity(nativeBinary, ["--format", "csv", "pools"], {
+      js: { env: multiChainEnv },
+      native: { env: multiChainEnv },
     });
     expectStreamParity(nativeBinary, ["--chain", "sepolia", "pools"], {
       js: { env },

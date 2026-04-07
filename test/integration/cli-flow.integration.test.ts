@@ -780,6 +780,46 @@ describe("flow command", () => {
     expect(result.stderr).toContain("privacy-pools flow watch wf-human-status");
   });
 
+  test("flow status human output suppresses optional public recovery for completed workflows", () => {
+    const home = createTempHome();
+    writeWorkflow(home, {
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+      workflowId: "wf-human-complete",
+      createdAt: "2026-03-24T12:00:00.000Z",
+      updatedAt: "2026-03-24T12:00:00.000Z",
+      phase: "completed",
+      chain: "sepolia",
+      asset: "ETH",
+      assetDecimals: 18,
+      depositAmount: "10000000000000000",
+      recipient: "0x4444444444444444444444444444444444444444",
+      poolAccountId: "PA-1",
+      poolAccountNumber: 1,
+      depositTxHash:
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      depositBlockNumber: "12345",
+      depositExplorerUrl: "https://example.test/deposit",
+      committedValue: "9950000000000000",
+      aspStatus: "approved",
+      withdrawTxHash:
+        "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      withdrawBlockNumber: "12399",
+      withdrawExplorerUrl: "https://example.test/withdraw",
+    });
+
+    const result = runCli(["flow", "status", "wf-human-complete"], {
+      home,
+      timeoutMs: 10_000,
+      env: { NO_COLOR: "1" },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("");
+    expect(result.stderr).not.toContain("Optional public recovery");
+    expect(result.stderr).toContain("Withdrawal:");
+    expect(result.stderr).toContain("https://example.test/withdraw");
+  });
+
   test("flow watch latest returns the newest saved terminal workflow", () => {
     const home = createTempHome();
     writeWorkflow(home, {

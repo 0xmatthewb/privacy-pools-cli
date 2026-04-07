@@ -7,7 +7,7 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent, createNextAction, appendNextActions } from "./common.js";
+import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { POA_PORTAL_URL } from "../config/chains.js";
 import { accentBold } from "../utils/theme.js";
 import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
@@ -148,6 +148,21 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       runnable: false,
     }),
   ];
+  const humanNextActions = [
+    ...(filteredPools.length === 1
+      ? [
+          createNextAction("pools", "Open the detailed view for this pool.", "after_pools", {
+            args: [filteredPools[0]!.pool.symbol],
+            options: {
+              chain: allChains ? filteredPools[0]!.chain : chainName,
+            },
+          }),
+        ]
+      : []),
+    createNextAction("activity", "Review recent public activity before depositing.", "after_pools", {
+      options: allChains ? undefined : { chain: chainName },
+    }),
+  ];
 
   if (ctx.mode.isJson) {
     if (allChains) {
@@ -274,6 +289,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       "Pending: deposits still under ASP review.\n",
     ),
   );
+  renderNextSteps(ctx, humanNextActions);
 }
 
 // ── Detail View ─────────────────────────────────────────────────────────────

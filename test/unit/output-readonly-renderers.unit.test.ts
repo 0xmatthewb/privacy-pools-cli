@@ -161,11 +161,19 @@ describe("read-only output renderers", () => {
         accounts: [],
         balances: [],
         pendingCount: 0,
+        nextActions: [
+          expect.objectContaining({
+            command: "pools",
+            when: "accounts_empty",
+          }),
+        ],
       }),
     );
     expect(humanOutput.stderr).toContain("review data incomplete");
     expect(humanOutput.stderr).toContain("No pending Pool Accounts found");
     expect(humanOutput.stderr).toContain("without --pending-only to confirm approved, declined, or POA Needed results");
+    expect(humanOutput.stderr).toContain("Next steps:");
+    expect(humanOutput.stderr).toContain("privacy-pools accounts --chain mainnet");
   });
 
   test("renderHistory and renderHistoryNoPools preserve JSON and human contracts", () => {

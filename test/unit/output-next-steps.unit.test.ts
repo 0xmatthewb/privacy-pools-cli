@@ -18,6 +18,7 @@ import { renderWithdrawQuote, type WithdrawQuoteData } from "../../src/output/wi
 import { renderStatus, type StatusCheckResult } from "../../src/output/status.ts";
 import { renderAccounts, type AccountsRenderData } from "../../src/output/accounts.ts";
 import { renderPools, type PoolsRenderData, renderPoolDetail, type PoolDetailRenderData } from "../../src/output/pools.ts";
+import { renderGlobalStats, renderPoolStats, type GlobalStatsRenderData, type PoolStatsRenderData } from "../../src/output/stats.ts";
 import { renderSyncComplete, type SyncResult } from "../../src/output/sync.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
@@ -218,6 +219,36 @@ const STUB_POOL_DETAIL: PoolDetailRenderData = {
   tokenPrice: null,
   myPoolAccounts: null,
   recentActivity: null,
+};
+
+const STUB_GLOBAL_STATS: GlobalStatsRenderData = {
+  mode: "global-stats",
+  chain: "all-mainnets",
+  chains: ["mainnet", "arbitrum", "optimism"],
+  cacheTimestamp: "2025-01-01T00:00:00.000Z",
+  allTime: {
+    tvlUsd: "5000000",
+    avgDepositSizeUsd: "10000",
+    totalDepositsCount: 500,
+    totalWithdrawalsCount: 150,
+  },
+  last24h: {
+    tvlUsd: "5200000",
+    avgDepositSizeUsd: "12000",
+    totalDepositsCount: 12,
+    totalWithdrawalsCount: 4,
+  },
+};
+
+const STUB_POOL_STATS: PoolStatsRenderData = {
+  mode: "pool-stats",
+  chain: "sepolia",
+  asset: "ETH",
+  pool: "0x" + "11".repeat(20),
+  scope: "1",
+  cacheTimestamp: "2025-01-01T00:00:00.000Z",
+  allTime: STUB_GLOBAL_STATS.allTime,
+  last24h: STUB_GLOBAL_STATS.last24h,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -452,7 +483,7 @@ describe("surfaces without next steps stay quiet", () => {
   }
 });
 
-describe("agent-only next steps: JSON present, human quiet", () => {
+describe("browse surfaces can add human-only next steps", () => {
   const cases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
     {
       name: "renderPools",
@@ -461,16 +492,35 @@ describe("agent-only next steps: JSON present, human quiet", () => {
         return captureOutput(() => renderPools(ctx, STUB_POOLS));
       },
     },
+    {
+      name: "renderGlobalStats",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderGlobalStats(ctx, STUB_GLOBAL_STATS));
+      },
+    },
+    {
+      name: "renderPoolStats",
+      render: (json) => {
+        const ctx = createOutputContext(makeMode({ isJson: json }));
+        return captureOutput(() => renderPoolStats(ctx, STUB_POOL_STATS));
+      },
+    },
   ];
 
   for (const { name, render } of cases) {
-    test(`${name}: JSON nextActions present, human "Next steps:" absent (template-only)`, () => {
+    test(`${name}: human output can expose runnable next steps beyond the JSON contract`, () => {
       const jsonResult = render(true);
       const jsonCommands = getJsonNextActionCommands(jsonResult.stdout);
-      expect(jsonCommands.length).toBeGreaterThan(0);
 
       const humanResult = render(false);
-      expect(stderrContainsNextSteps(humanResult.stderr)).toBe(false);
+      expect(stderrContainsNextSteps(humanResult.stderr)).toBe(true);
+
+      if (name === "renderPools") {
+        expect(jsonCommands.length).toBeGreaterThan(0);
+      } else {
+        expect(jsonCommands).toHaveLength(0);
+      }
     });
   }
 });

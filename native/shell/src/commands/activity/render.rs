@@ -1,8 +1,9 @@
 use super::format::{format_asp_approval_status_label, format_tx_hash_short};
 use super::model::{ActivityRenderData, NormalizedActivityEvent};
 use crate::output::{
-    build_next_action, format_key_value_rows, format_section_heading, format_time_ago, print_csv,
-    print_json_success, print_table, write_stderr_text,
+    build_next_action, format_callout, format_command_heading, format_key_value_rows,
+    format_section_heading, format_time_ago, print_csv, print_json_success, print_table,
+    render_next_steps, write_stderr_text, CalloutKind,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -106,26 +107,22 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
         return;
     }
 
-    if data.mode == "pool-activity" {
-        write_stderr_text(&format!(
-            "\nActivity for {} on {}:\n\n",
-            data.asset.as_deref().unwrap_or("unknown"),
-            data.chain
-        ));
-    } else {
-        let chain_label = data
-            .chains
-            .as_ref()
-            .map(|chains| chains.join(", "))
-            .unwrap_or_else(|| data.chain.clone());
-        write_stderr_text(&format!("\nGlobal activity ({chain_label}):\n\n"));
-    }
-
     let chain_label = data
         .chains
         .as_ref()
         .map(|chains| chains.join(", "))
         .unwrap_or_else(|| data.chain.clone());
+    let header = if data.mode == "pool-activity" {
+        format!(
+            "Activity for {} on {}:",
+            data.asset.as_deref().unwrap_or("unknown"),
+            data.chain
+        )
+    } else {
+        format!("Global activity ({chain_label}):")
+    };
+    write_stderr_text(&format_command_heading(&header));
+
     write_stderr_text(&format_section_heading("Summary"));
     let mut summary_rows = vec![
         ("Mode", data.mode.to_string()),
@@ -159,6 +156,7 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
         .collect::<Vec<_>>();
     print_table(vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"], rows);
 
+    let mut next_actions = Vec::<Value>::new();
     if let Some(total_pages) = data.total_pages {
         if total_pages > 1 {
             let total_suffix = data
@@ -175,14 +173,40 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
                 data.page, total_pages, total_suffix, next_suffix
             ));
         }
+        if data.page < total_pages {
+            let mut opts = Map::new();
+            opts.insert("page".to_string(), Value::Number((data.page + 1).into()));
+            opts.insert("limit".to_string(), Value::Number(data.per_page.into()));
+            if data.mode == "pool-activity" {
+                if let Some(asset) = data.asset.as_ref() {
+                    opts.insert("asset".to_string(), Value::String(asset.clone()));
+                }
+            }
+            if data.chain != "all-mainnets" {
+                opts.insert("chain".to_string(), Value::String(data.chain.clone()));
+            }
+            next_actions.push(build_next_action(
+                "activity",
+                "View the next page.",
+                "after_activity",
+                None,
+                Some(&opts),
+                None,
+            ));
+        }
     }
 
     if data.chain_filtered {
-        write_stderr_text(&format!(
-            "\n  Note: Results filtered to {}. Some pages may be sparse.\n",
-            data.chain
+        write_stderr_text(&format_callout(
+            CalloutKind::ReadOnly,
+            &[format!(
+                "Results are filtered to {}. Some pages may be sparse.",
+                data.chain
+            )],
         ));
     }
+
+    render_next_steps(&next_actions);
 }
 
 fn activity_event_to_json(event: NormalizedActivityEvent) -> Value {

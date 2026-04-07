@@ -1,8 +1,9 @@
 use super::model::{ChainSummary, PoolListingEntry, PoolWarning, PoolsRenderData};
 use crate::output::{
-    build_next_action, format_count_number, format_key_value_rows, format_section_heading,
-    insert_optional_f64, insert_optional_string, insert_optional_u64, print_csv,
-    print_json_success, print_table, write_info, write_stderr_text, write_warn,
+    build_next_action, format_callout, format_command_heading, format_count_number,
+    format_key_value_rows, format_muted_block, format_section_heading, insert_optional_f64,
+    insert_optional_string, insert_optional_u64, print_csv, print_json_success, print_table,
+    render_next_steps, write_info, write_stderr_text, CalloutKind,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -171,20 +172,27 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         return;
     }
 
-    if data.all_chains {
-        write_stderr_text("\nPools across supported chains:\n\n");
+    let header = if data.all_chains {
+        "Pools across supported chains:".to_string()
     } else {
-        write_stderr_text(&format!("\nPools on {}:\n\n", data.chain_name));
-    }
+        format!("Pools on {}:", data.chain_name)
+    };
+    write_stderr_text(&format_command_heading(&header));
 
-    for warning in &data.warnings {
-        write_warn(&format!(
-            "{} ({}): {}",
-            warning.chain, warning.category, warning.message
-        ));
-    }
     if !data.warnings.is_empty() {
-        write_stderr_text("");
+        write_stderr_text(&format_callout(
+            CalloutKind::Warning,
+            &data
+                .warnings
+                .iter()
+                .map(|warning| {
+                    format!(
+                        "{} ({}): {}",
+                        warning.chain, warning.category, warning.message
+                    )
+                })
+                .collect::<Vec<_>>(),
+        ));
     }
 
     if data.filtered_pools.is_empty() {
@@ -246,9 +254,44 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         .map(|entry| pool_listing_row(entry, data.all_chains))
         .collect::<Vec<_>>();
     print_table(headers, rows);
-    write_stderr_text(
+    write_stderr_text(&format_muted_block(
         "\nVetting fees are deducted on deposit.\nPool Balance: current total value in the pool (accepted + pending deposits).\nPending: deposits still under ASP review.\n",
-    );
+    ));
+
+    let mut next_actions = Vec::<Value>::new();
+    if data.filtered_pools.len() == 1 {
+        let entry = &data.filtered_pools[0];
+        let mut detail_options = Map::new();
+        let detail_args = [entry.asset.as_str()];
+        if data.all_chains {
+            detail_options.insert("chain".to_string(), Value::String(entry.chain.clone()));
+        } else {
+            detail_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+        }
+        next_actions.push(build_next_action(
+            "pools",
+            "Open the detailed view for this pool.",
+            "after_pools",
+            Some(&detail_args),
+            Some(&detail_options),
+            None,
+        ));
+    }
+
+    let mut activity_options = Map::new();
+    if !data.all_chains {
+        activity_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+    }
+    next_actions.push(build_next_action(
+        "activity",
+        "Review recent public activity before depositing.",
+        "after_pools",
+        None,
+        (!activity_options.is_empty()).then_some(&activity_options),
+        None,
+    ));
+
+    render_next_steps(&next_actions);
 }
 
 fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {

@@ -100,7 +100,8 @@ fn explicit_chain_activity_keeps_filtered_json_and_human_notes_stable() {
     assert!(stdout_string(&human).is_empty());
     let stderr = stderr_string(&human);
     assert!(stderr.contains("Global activity (sepolia):"));
-    assert!(stderr.contains("Note: Results filtered to sepolia. Some pages may be sparse."));
+    assert!(stderr.contains("Read-only:"));
+    assert!(stderr.contains("Results are filtered to sepolia. Some pages may be sparse."));
 }
 
 #[test]

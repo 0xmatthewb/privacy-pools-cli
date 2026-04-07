@@ -1,4 +1,6 @@
-use crate::output::format_address;
+use crate::output::{
+    format_address, format_danger_text, format_muted_text, format_notice_text, format_success_text,
+};
 use num_bigint::BigUint;
 use serde_json::Value;
 use std::time::{Duration, UNIX_EPOCH};
@@ -38,11 +40,11 @@ pub(super) fn format_amount(
 
 pub(super) fn format_asp_approval_status_label(status: &str) -> String {
     match status.trim().to_lowercase().as_str() {
-        "approved" => "Approved".to_string(),
-        "pending" => "Pending".to_string(),
-        "poi_required" => "POA Needed".to_string(),
-        "declined" => "Declined".to_string(),
-        _ => "Unknown".to_string(),
+        "approved" => format_success_text("Approved"),
+        "pending" => format_notice_text("Pending"),
+        "poi_required" => format_danger_text("POA Needed"),
+        "declined" => format_danger_text("Declined"),
+        _ => format_muted_text("Unknown"),
     }
 }
 

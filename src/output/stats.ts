@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printCsv, printTable, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, renderNextSteps } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { parseUsd } from "../utils/format.js";
 import type { TimeBasedStatistics } from "../types.js";
@@ -147,6 +147,10 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
     );
     renderStatsTable(data.allTime, data.last24h);
   }
+
+  renderNextSteps(ctx, [
+    createNextAction("pools", "Browse live pool balances and minimum deposits.", "after_stats"),
+  ]);
 }
 
 export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): void {
@@ -186,5 +190,11 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
       ]),
     );
     renderStatsTable(data.allTime, data.last24h);
+    renderNextSteps(ctx, [
+      createNextAction("pools", "Open the detailed view for this pool.", "after_pool_stats", {
+        args: [data.asset],
+        options: { chain: data.chain },
+      }),
+    ]);
   }
 }

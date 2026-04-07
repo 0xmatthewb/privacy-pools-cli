@@ -238,6 +238,13 @@ describe("renderAccountsNoPools parity", () => {
     const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
     expect(json.accounts).toEqual([]);
+    expect(json.nextActions).toEqual([
+      expect.objectContaining({
+        command: "pools",
+        when: "accounts_empty",
+        options: { chain: "sepolia" },
+      }),
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -254,6 +261,13 @@ describe("renderAccountsNoPools parity", () => {
     expect(json.declinedCount).toBe(0);
     expect(json.balances).toEqual([]);
     expect(json.accounts).toBeUndefined();
+    expect(json.nextActions).toEqual([
+      expect.objectContaining({
+        command: "pools",
+        when: "accounts_summary_empty",
+        options: { chain: "sepolia" },
+      }),
+    ]);
   });
 
   test("human mode: emits no-pools message", () => {
@@ -262,6 +276,8 @@ describe("renderAccountsNoPools parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("No Pool Accounts found on sepolia");
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).toContain("privacy-pools pools --chain sepolia");
   });
 
   test("quiet mode: emits nothing", () => {
