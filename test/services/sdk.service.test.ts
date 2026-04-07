@@ -164,9 +164,8 @@ describe("sdk service", () => {
 
       const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
-      // The first URL fails eth_getLogs, so a fallback URL should win.
-      expect(url).not.toBe(urls[0]);
-      expect(urls).toContain(url);
+      // The first URL fails eth_getLogs, so the first healthy fallback should win.
+      expect(url).toBe(urls[1]);
     });
 
     test("treats non-array eth_getLogs responses as unhealthy", async () => {
@@ -194,8 +193,7 @@ describe("sdk service", () => {
 
       const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
-      expect(url).not.toBe(urls[0]);
-      expect(urls).toContain(url);
+      expect(url).toBe(urls[1]);
     });
 
     test("falls back to the first url when every probe fails", async () => {

@@ -75,6 +75,41 @@ interface PackedArtifact {
   filePaths: Set<string>;
 }
 
+function runPackCommand(packRoot: string) {
+  return spawnSync(
+    npmBin(),
+    ["pack", "--ignore-scripts", "--silent"],
+    {
+      cwd: packRoot,
+      encoding: "utf8",
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: buildChildProcessEnv(),
+    },
+  );
+}
+
+function assertSuccessfulPack(
+  packRoot: string,
+  pack: ReturnType<typeof spawnSync>,
+): string {
+  if (pack.status !== 0) {
+    throw new Error(
+      [
+        `npm pack failed in ${packRoot} (exit ${pack.status ?? "null"})`,
+        pack.signal ? `signal: ${pack.signal}` : null,
+        pack.error ? `error: ${pack.error.message}` : null,
+        pack.stderr?.trim() ? `stderr:\n${pack.stderr.trim()}` : null,
+        pack.stdout?.trim() ? `stdout:\n${pack.stdout.trim()}` : null,
+      ].filter(Boolean).join("\n\n"),
+    );
+  }
+
+  const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
+  expect(tarballName).toBeTruthy();
+  return tarballName!;
+}
+
 function sourcePackageJson(): {
   bin?: string | Record<string, string>;
   dependencies?: Record<string, string>;
@@ -133,21 +168,12 @@ function packAndExtractCli(
 
   if (!tarballPath) {
     localPackRoot = packRoot ?? createBuiltWorkspaceSnapshot();
-    const pack = spawnSync(
-      npmBin(),
-      ["pack", "--ignore-scripts", "--silent"],
-      {
-        cwd: localPackRoot,
-        encoding: "utf8",
-        timeout: 120_000,
-        maxBuffer: 10 * 1024 * 1024,
-        env: buildChildProcessEnv(),
-      },
-    );
-    expect(pack.status).toBe(0);
+    let pack = runPackCommand(localPackRoot);
+    if (pack.status !== 0) {
+      pack = runPackCommand(localPackRoot);
+    }
 
-    const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
-    expect(tarballName).toBeTruthy();
+    const tarballName = assertSuccessfulPack(localPackRoot, pack);
     tarballPath = join(localPackRoot, tarballName!);
   }
 

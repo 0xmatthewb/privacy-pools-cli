@@ -588,6 +588,75 @@ describe("pools service", () => {
     expect(readContractMock).toHaveBeenCalledTimes(4);
   });
 
+  test("listPools disables multicall for later entries after the first failure", async () => {
+    const chainId = 3133921;
+    const assetOne = "0x00000000000000000000000000000000000000b1" as Address;
+    const assetTwo = "0x00000000000000000000000000000000000000b2" as Address;
+    const poolOne = "0x00000000000000000000000000000000000000a1" as Address;
+    const poolTwo = "0x00000000000000000000000000000000000000a2" as Address;
+    const server = await startMockServer(chainId, {
+      pools: [{ tokenAddress: assetOne }, { tokenAddress: assetTwo }],
+    });
+    toClose.push(server);
+
+    const chainConfig = {
+      ...CHAINS.mainnet,
+      id: chainId,
+      entrypoint: "0x00000000000000000000000000000000000000e1" as Address,
+      multicall3Address: "0xca11bde05977b3631167028862be2a173976ca11" as Address,
+      aspHost: server.url,
+    };
+
+    const rpcSession = await getReadOnlyRpcSession(chainConfig, server.url);
+    const multicallMock = mock(async () => {
+      throw new Error("multicall unavailable");
+    });
+    const readContractMock = mock(async (
+      {
+        functionName,
+        address,
+        args,
+      }: {
+        functionName: string;
+        address: Address;
+        args?: readonly unknown[];
+      },
+    ) => {
+      switch (functionName) {
+        case "assetConfig":
+          if (args?.[0] === assetOne) return [poolOne, 1000000000000000n, 50n, 250n];
+          if (args?.[0] === assetTwo) return [poolTwo, 1000000000000000n, 50n, 250n];
+          break;
+        case "symbol":
+          if (address === assetOne) return "ETHX";
+          if (address === assetTwo) return "USDX";
+          break;
+        case "decimals":
+          if (address === assetOne) return 18;
+          if (address === assetTwo) return 6;
+          break;
+        case "SCOPE":
+          if (address === poolOne) return 123456789n;
+          if (address === poolTwo) return 223456789n;
+          break;
+        default:
+          break;
+      }
+
+      throw new Error(`unexpected direct read ${functionName} for ${address}`);
+    });
+    (rpcSession.publicClient as any).multicall = multicallMock;
+    (rpcSession.publicClient as any).readContract = readContractMock;
+
+    const pools = await listPools(chainConfig, server.url);
+
+    expect(pools).toHaveLength(2);
+    expect(pools[0]?.pool).toBe(poolOne);
+    expect(pools[1]?.pool).toBe(poolTwo);
+    expect(multicallMock).toHaveBeenCalledTimes(1);
+    expect(readContractMock).toHaveBeenCalledTimes(8);
+  });
+
   test("listPools fails closed when ERC-20 metadata cannot be resolved", async () => {
     const chainId = 313393;
     const asset = "0x00000000000000000000000000000000000000b1" as Address;

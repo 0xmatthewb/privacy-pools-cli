@@ -1,21 +1,25 @@
 /**
- * Integration test: verifies that concurrent CLI processes contending
+ * Integration test: verifies that concurrent processes contending
  * for the same process lock produce structured errors.
  */
 
 import { describe, test, afterEach, expect } from "bun:test";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
 const PROJECT_ROOT = join(import.meta.dir, "../..");
+const LOCK_MODULE_SPECIFIER = pathToFileURL(
+  join(PROJECT_ROOT, "src", "utils", "lock.ts"),
+).href;
 
 function spawnLockHolder(home: string): ReturnType<typeof spawn> {
   // Write a small script file that bun can run with proper module resolution.
   const scriptPath = join(home, "_lock-holder.ts");
   writeFileSync(scriptPath, `
-    import { acquireProcessLock } from "${PROJECT_ROOT}/src/utils/lock.ts";
+    import { acquireProcessLock } from ${JSON.stringify(LOCK_MODULE_SPECIFIER)};
     process.env.PRIVACY_POOLS_HOME = ${JSON.stringify(home)};
     acquireProcessLock();
     process.stdout.write("LOCKED\\n");
@@ -76,7 +80,7 @@ describe("lock contention across processes", () => {
     // Spawn a second process that tries to acquire the same lock.
     const contenderScript = join(home, "_lock-contender.ts");
     writeFileSync(contenderScript, `
-      import { acquireProcessLock } from "${PROJECT_ROOT}/src/utils/lock.ts";
+      import { acquireProcessLock } from ${JSON.stringify(LOCK_MODULE_SPECIFIER)};
       process.env.PRIVACY_POOLS_HOME = ${JSON.stringify(home)};
       try {
         acquireProcessLock();
