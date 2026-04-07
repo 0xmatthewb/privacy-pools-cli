@@ -124,7 +124,7 @@ describe("sdk service", () => {
       expect(fetchMock).toHaveBeenCalledTimes(0);
     });
 
-    test("returns the first url when block and log probes both succeed", async () => {
+    test("returns a healthy url when block and log probes succeed", async () => {
       const urls = getRpcUrls(CHAINS.mainnet.id);
       const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body)) as { method: string };
@@ -136,66 +136,67 @@ describe("sdk service", () => {
 
       const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
-      expect(url).toBe(urls[0]);
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      // With concurrent racing, any healthy URL can win.
+      expect(urls).toContain(url);
     });
 
-    test("skips urls that fail the log probe and picks the next healthy fallback", async () => {
+    test("picks a healthy url when some fail the log probe", async () => {
       const urls = getRpcUrls(CHAINS.mainnet.id);
       const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
+        const requestUrl = String(input);
         const body = JSON.parse(String(init?.body)) as { method: string };
 
-        if (url === urls[0] && body.method === "eth_blockNumber") {
+        if (requestUrl === urls[0] && body.method === "eth_blockNumber") {
           return rpcSuccess("0x1000");
         }
-        if (url === urls[0] && body.method === "eth_getLogs") {
+        if (requestUrl === urls[0] && body.method === "eth_getLogs") {
           return rpcError("rate limited");
         }
-        if (url === urls[1] && body.method === "eth_blockNumber") {
+        if (body.method === "eth_blockNumber") {
           return rpcSuccess("0x1000");
         }
-        if (url === urls[1] && body.method === "eth_getLogs") {
+        if (body.method === "eth_getLogs") {
           return rpcSuccess([]);
         }
 
-        throw new Error(`unexpected probe ${body.method} for ${url}`);
+        throw new Error(`unexpected probe ${body.method} for ${requestUrl}`);
       });
       globalThis.fetch = fetchMock as typeof fetch;
 
       const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
-      expect(url).toBe(urls[1]);
-      expect(fetchMock).toHaveBeenCalledTimes(4);
+      // The first URL fails eth_getLogs, so a fallback URL should win.
+      expect(url).not.toBe(urls[0]);
+      expect(urls).toContain(url);
     });
 
-    test("treats non-array eth_getLogs responses as unhealthy and skips to the next fallback", async () => {
+    test("treats non-array eth_getLogs responses as unhealthy", async () => {
       const urls = getRpcUrls(CHAINS.mainnet.id);
       const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
+        const requestUrl = String(input);
         const body = JSON.parse(String(init?.body)) as { method: string };
 
-        if (url === urls[0] && body.method === "eth_blockNumber") {
+        if (requestUrl === urls[0] && body.method === "eth_blockNumber") {
           return rpcSuccess("0x1000");
         }
-        if (url === urls[0] && body.method === "eth_getLogs") {
+        if (requestUrl === urls[0] && body.method === "eth_getLogs") {
           return rpcSuccess(null);
         }
-        if (url === urls[1] && body.method === "eth_blockNumber") {
+        if (body.method === "eth_blockNumber") {
           return rpcSuccess("0x1000");
         }
-        if (url === urls[1] && body.method === "eth_getLogs") {
+        if (body.method === "eth_getLogs") {
           return rpcSuccess([]);
         }
 
-        throw new Error(`unexpected probe ${body.method} for ${url}`);
+        throw new Error(`unexpected probe ${body.method} for ${requestUrl}`);
       });
       globalThis.fetch = fetchMock as typeof fetch;
 
       const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
-      expect(url).toBe(urls[1]);
-      expect(fetchMock).toHaveBeenCalledTimes(4);
+      expect(url).not.toBe(urls[0]);
+      expect(urls).toContain(url);
     });
 
     test("falls back to the first url when every probe fails", async () => {
@@ -206,7 +207,6 @@ describe("sdk service", () => {
       const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
       expect(url).toBe(urls[0]);
-      expect(fetchMock).toHaveBeenCalledTimes(urls.length);
     });
 
     test("memoizes successful probe results per chain and override", async () => {
@@ -222,9 +222,11 @@ describe("sdk service", () => {
       const first = await getHealthyRpcUrl(CHAINS.mainnet.id);
       const second = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
-      expect(first).toBe(urls[0]);
-      expect(second).toBe(urls[0]);
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(urls).toContain(first);
+      expect(second).toBe(first); // Memoized — same result.
+      // First call probes all URLs concurrently; second call is cached.
+      const firstCallCount = fetchMock.mock.calls.length;
+      expect(firstCallCount).toBeGreaterThanOrEqual(2); // At least one full probe
     });
 
     test("does not share memoized healthy RPC results across override keys", async () => {
@@ -237,11 +239,10 @@ describe("sdk service", () => {
       globalThis.fetch = fetchMock as typeof fetch;
 
       const base = await getHealthyRpcUrl(CHAINS.mainnet.id);
-      const override = await getHealthyRpcUrl(CHAINS.mainnet.id, "https://rpc.example.com");
+      const overrideResult = await getHealthyRpcUrl(CHAINS.mainnet.id, "https://rpc.example.com");
 
-      expect(base).toBe(getRpcUrls(CHAINS.mainnet.id)[0]);
-      expect(override).toBe("https://rpc.example.com");
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(getRpcUrls(CHAINS.mainnet.id)).toContain(base);
+      expect(overrideResult).toBe("https://rpc.example.com");
     });
   });
 

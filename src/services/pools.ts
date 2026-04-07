@@ -721,33 +721,40 @@ export async function listPools(
   if (statsEntries.length > 0) {
     let rpcReadFailures = 0;
 
-    const results = await Promise.all(
-      statsEntries.map(async (entry) => {
-        try {
-          const assetAddress = resolvePoolAssetAddress(
-            entry as Record<string, unknown>
-          );
-          if (!assetAddress) return null;
-          const pool = await resolveReadOnlyPoolDescriptor(
-            chainConfig,
-            rpcSession,
-            assetAddress,
-            rpcOverride,
-          );
-          const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
+    const resolveEntry = async (entry: unknown) => {
+      try {
+        const assetAddress = resolvePoolAssetAddress(
+          entry as Record<string, unknown>
+        );
+        if (!assetAddress) return null;
+        const pool = await resolveReadOnlyPoolDescriptor(
+          chainConfig,
+          rpcSession,
+          assetAddress,
+          rpcOverride,
+        );
+        const metrics = parsePoolStatsEntry(entry as Record<string, unknown>);
 
-          return {
-            ...pool,
-            ...metrics,
-          } satisfies PoolStats;
-        } catch (error) {
-          if (isRpcLikeError(error)) {
-            rpcReadFailures++;
-          }
-          return null;
+        return {
+          ...pool,
+          ...metrics,
+        } satisfies PoolStats;
+      } catch (error) {
+        if (isRpcLikeError(error)) {
+          rpcReadFailures++;
         }
-      })
-    );
+        return null;
+      }
+    };
+
+    // Resolve first pool sequentially to settle multicall viability
+    // before launching the rest in parallel.  This prevents redundant
+    // multicall attempts when the RPC does not support it.
+    const firstResult = await resolveEntry(statsEntries[0]);
+    const restResults = statsEntries.length > 1
+      ? await Promise.all(statsEntries.slice(1).map(resolveEntry))
+      : [];
+    const results = [firstResult, ...restResults];
 
     const seenPools = new Set<string>();
     for (const result of results) {

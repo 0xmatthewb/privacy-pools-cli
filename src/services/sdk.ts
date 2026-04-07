@@ -240,36 +240,53 @@ export async function getHealthyRpcUrl(
 
     const probeTimeoutMs = Math.min(getNetworkTimeoutMs(), 3_000);
 
-    for (const url of urls) {
-      try {
-        const latestBlock = await rpcProbe<string>(
-          url,
-          "eth_blockNumber",
-          [],
-          probeTimeoutMs
-        );
-        if (!latestBlock) continue;
+    // Race all URLs concurrently — return the first one that passes
+    // both eth_blockNumber and eth_getLogs probes.
+    const winner = await new Promise<string | null>((resolve) => {
+      let settled = false;
+      let pending = urls.length;
 
-        const toBlock = BigInt(latestBlock);
-        const fromBlock = toBlock > LOG_PROBE_RANGE ? toBlock - LOG_PROBE_RANGE : 0n;
-        const logProbe = await rpcProbe<unknown>(
-          url,
-          "eth_getLogs",
-          [{
-            address: LOG_PROBE_ADDRESS,
-            fromBlock: `0x${fromBlock.toString(16)}`,
-            toBlock: `0x${toBlock.toString(16)}`,
-          }],
-          probeTimeoutMs
-        );
-        if (Array.isArray(logProbe)) return url;
-      } catch {
-        // URL unhealthy – try next
+      for (const url of urls) {
+        (async () => {
+          try {
+            const latestBlock = await rpcProbe<string>(
+              url,
+              "eth_blockNumber",
+              [],
+              probeTimeoutMs,
+            );
+            if (!latestBlock || settled) return;
+
+            const toBlock = BigInt(latestBlock);
+            const fromBlock = toBlock > LOG_PROBE_RANGE ? toBlock - LOG_PROBE_RANGE : 0n;
+            const logProbe = await rpcProbe<unknown>(
+              url,
+              "eth_getLogs",
+              [{
+                address: LOG_PROBE_ADDRESS,
+                fromBlock: `0x${fromBlock.toString(16)}`,
+                toBlock: `0x${toBlock.toString(16)}`,
+              }],
+              probeTimeoutMs,
+            );
+            if (Array.isArray(logProbe) && !settled) {
+              settled = true;
+              resolve(url);
+            }
+          } catch {
+            // URL unhealthy
+          } finally {
+            pending--;
+            if (pending === 0 && !settled) {
+              resolve(null);
+            }
+          }
+        })();
       }
-    }
+    });
 
     // All probes failed; return first URL so downstream gets the natural error.
-    return urls[0];
+    return winner ?? urls[0];
   })();
 
   healthyRpcUrlCache.set(cacheKey, probePromise);
