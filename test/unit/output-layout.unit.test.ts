@@ -16,7 +16,7 @@ describe("formatSectionHeading", () => {
       formatSectionHeading("Next steps", { divider: true, tone: "muted" }),
     );
 
-    expect(heading).toContain("──────────────────");
+    expect(heading).toMatch(/[─-]{18}/);
     expect(heading).toContain("Next steps:");
     expect(heading.startsWith("\n")).toBe(true);
   });

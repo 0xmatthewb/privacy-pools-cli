@@ -42,6 +42,8 @@ import {
 } from "../utils/amount-privacy.js";
 import { createOutputContext } from "../output/common.js";
 import {
+  formatDepositReview,
+  formatUniqueAmountReview,
   renderDepositDryRun,
   renderDepositSuccess,
 } from "../output/deposit.js";
@@ -228,9 +230,10 @@ export async function handleDepositCommand(
       } else {
         // Interactive mode: warning + confirmation
         process.stderr.write("\n");
-        warn(
-          `${humanAmount} ${pool.symbol} is a non-round amount that may reduce your privacy in the anonymity set.${suggestionStr}`,
-          false,
+        process.stderr.write(
+          formatUniqueAmountReview(
+            `${humanAmount} ${pool.symbol} is a non-round amount that may reduce your privacy in the anonymity set.${suggestionStr}`,
+          ),
         );
         if (await maybeRenderPreviewScenario("deposit unique amount confirm")) {
           return;
@@ -259,27 +262,24 @@ export async function handleDepositCommand(
     );
     if (!skipPrompts) {
       const isErc20 = !isNativePoolAsset(chainConfig.id, pool.asset);
-      info(
-        `Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)}${feeUsd})`,
-        silent,
-      );
-      info(
-        `Net deposited: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd} (after vetting fee)`,
-        silent,
-      );
-      if (isErc20) {
-        info(
-          "This will require 2 transactions: token approval + deposit.",
-          silent,
-        );
-      }
       process.stderr.write("\n");
-      const txNote = isErc20 ? " (2 transactions: approve + deposit)" : "";
+      process.stderr.write(
+        formatDepositReview({
+          amount,
+          feeAmount,
+          estimatedCommitted,
+          asset: pool.symbol,
+          chain: chainConfig.name,
+          decimals: pool.decimals,
+          tokenPrice,
+          isErc20,
+        }),
+      );
       if (await maybeRenderPreviewScenario("deposit confirm")) {
         return;
       }
       const ok = await confirm({
-        message: `Deposit ${formatAmount(amount, pool.decimals, pool.symbol)}${amountUsd} into ${pool.symbol} pool on ${chainConfig.name}?${txNote}`,
+        message: "Confirm deposit?",
         default: true,
       });
       if (!ok) {

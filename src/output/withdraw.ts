@@ -27,6 +27,7 @@ import {
   formatSectionHeading,
   type KeyValueRow,
 } from "./layout.js";
+import { formatReviewSurface } from "./review.js";
 
 export interface RelayedWithdrawalReviewData {
   poolAccountId: string;
@@ -44,6 +45,16 @@ export interface RelayedWithdrawalReviewData {
   tokenPrice?: number | null;
   remainingBelowMinAdvisory?: string | null;
   nowMs?: number;
+}
+
+export interface DirectWithdrawalReviewData {
+  poolAccountId: string;
+  amount: bigint;
+  asset: string;
+  chain: string;
+  decimals: number;
+  recipient: string;
+  tokenPrice?: number | null;
 }
 
 export function formatRelayedWithdrawalReview(
@@ -149,6 +160,42 @@ export function formatRelayedWithdrawalReview(
       ? formatCallout("warning", data.remainingBelowMinAdvisory)
       : ""
   }`;
+}
+
+export function formatDirectWithdrawalReview(
+  data: DirectWithdrawalReviewData,
+): string {
+  const amountUsd = formatUsdValue(
+    data.amount,
+    data.decimals,
+    data.tokenPrice ?? null,
+  );
+  return formatReviewSurface({
+    title: "Direct withdrawal review",
+    summaryRows: [
+      { label: "Pool Account", value: data.poolAccountId },
+      {
+        label: "Amount",
+        value:
+          `${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          (amountUsd === "-" ? "" : ` (${amountUsd})`),
+      },
+      { label: "Recipient", value: formatAddress(data.recipient) },
+      { label: "Chain", value: data.chain },
+      {
+        label: "Mode",
+        value: "Direct (public onchain withdrawal)",
+        valueTone: "danger",
+      },
+    ],
+    primaryCallout: {
+      kind: "danger",
+      lines: [
+        "Direct withdrawals publicly link the withdrawal to your signer address.",
+        "Use relayed mode instead if you want the privacy-preserving path.",
+      ],
+    },
+  });
 }
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────

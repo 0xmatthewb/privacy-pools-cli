@@ -19,7 +19,10 @@ import { renderStatus } from "../output/status.js";
 import type { StatusCheckResult } from "../output/status.js";
 import { createCliPackageInfoResolver } from "../package-info.js";
 import { detectNativeRuntimeAdvisory } from "../native-runtime-advisory.js";
-import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  maybeRenderPreviewProgressStep,
+  maybeRenderPreviewScenario,
+} from "../preview/runtime.js";
 
 const resolveCliPackageInfo = createCliPackageInfoResolver(import.meta.url);
 
@@ -169,6 +172,14 @@ export async function handleStatusCommand(
           : "Checking ASP health";
       const [aspLive, rpcStatus] = shouldShowProgress
         ? await (async () => {
+            if (
+              await maybeRenderPreviewProgressStep("status.health-check", {
+                spinnerText: `${healthCheckLabel}...`,
+                doneText: `${healthCheckLabel} complete.`,
+              })
+            ) {
+              return [null, null];
+            }
             const [{ spinner }, { withSpinnerProgress }] = await Promise.all([
               import("../utils/format.js"),
               import("../utils/proof-progress.js"),

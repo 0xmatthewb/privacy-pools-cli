@@ -27,6 +27,83 @@ import {
   formatKeyValueRows,
   formatSectionHeading,
 } from "./layout.js";
+import { formatReviewSurface } from "./review.js";
+import { formatUsdValue } from "../utils/format.js";
+
+export interface DepositReviewData {
+  amount: bigint;
+  feeAmount: bigint;
+  estimatedCommitted: bigint;
+  asset: string;
+  chain: string;
+  decimals: number;
+  tokenPrice?: number | null;
+  isErc20?: boolean;
+}
+
+function depositUsdSuffix(
+  amount: bigint,
+  decimals: number,
+  tokenPrice?: number | null,
+): string {
+  const formatted = formatUsdValue(amount, decimals, tokenPrice ?? null);
+  return formatted === "-" ? "" : ` (${formatted})`;
+}
+
+export function formatDepositReview(data: DepositReviewData): string {
+  return formatReviewSurface({
+    title: "Deposit review",
+    summaryRows: [
+      {
+        label: "Amount",
+        value:
+          `${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          depositUsdSuffix(data.amount, data.decimals, data.tokenPrice),
+      },
+      { label: "Chain", value: data.chain },
+      {
+        label: "Vetting fee",
+        value:
+          `${formatAmount(data.feeAmount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          depositUsdSuffix(data.feeAmount, data.decimals, data.tokenPrice),
+        valueTone: "warning",
+      },
+      {
+        label: "Net deposited",
+        value:
+          `~${formatAmount(data.estimatedCommitted, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          depositUsdSuffix(data.estimatedCommitted, data.decimals, data.tokenPrice),
+        valueTone: "success",
+      },
+    ],
+    primaryCallout: {
+      kind: "privacy",
+      lines: [
+        "Deposits stay public until ASP review finishes.",
+        "Private withdrawal becomes available only after the deposit is approved.",
+      ],
+    },
+    secondaryCallout: data.isErc20
+      ? {
+          kind: "read-only",
+          lines: "This will require 2 transactions: token approval + deposit.",
+        }
+      : null,
+  });
+}
+
+export function formatUniqueAmountReview(message: string): string {
+  return formatReviewSurface({
+    title: "Privacy review",
+    primaryCallout: {
+      kind: "warning",
+      lines: [
+        message,
+        "Consider a round amount unless you intentionally accept that linkability tradeoff.",
+      ],
+    },
+  });
+}
 
 export interface DepositDryRunData {
   chain: string;

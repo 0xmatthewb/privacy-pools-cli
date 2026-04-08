@@ -43,7 +43,10 @@ import {
   SUPPORTED_SORT_MODES,
   type PoolsSortMode,
 } from "../utils/pools-sort.js";
-import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  maybeRenderPreviewProgressStep,
+  maybeRenderPreviewScenario,
+} from "../preview/runtime.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import {
   renderPoolsEmpty,
@@ -258,6 +261,14 @@ export async function handlePoolsCommand(
         `Fetching ${asset} pool details on ${chainConfig.name}...`,
         silent,
       );
+      if (
+        await maybeRenderPreviewProgressStep("pools.detail.fetch", {
+          spinnerText: `Fetching ${asset} pool details on ${chainConfig.name}...`,
+          doneText: `${asset} pool details loaded.`,
+        })
+      ) {
+        return;
+      }
       spin.start();
 
       const pool = await resolvePool(chainConfig, asset, globalOpts?.rpcUrl);
@@ -393,6 +404,16 @@ export async function handlePoolsCommand(
         : `Fetching pools for ${chainsToQuery[0].name}...`,
       silent,
     );
+    if (
+      await maybeRenderPreviewProgressStep("pools.list.fetch", {
+        spinnerText: isMultiChain
+          ? "Fetching pools across chains..."
+          : `Fetching pools for ${chainsToQuery[0].name}...`,
+        doneText: "Pool list loaded.",
+      })
+    ) {
+      return;
+    }
     spin.start();
 
     let chainsCompleted = 0;

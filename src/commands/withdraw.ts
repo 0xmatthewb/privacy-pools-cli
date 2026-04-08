@@ -85,6 +85,7 @@ import {
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import {
+  formatDirectWithdrawalReview,
   formatRelayedWithdrawalReview,
   renderWithdrawDryRun,
   renderWithdrawSuccess,
@@ -351,6 +352,18 @@ export async function handleWithdrawCommand(
       return;
     }
 
+    if (!skipPrompts) {
+      if (await maybeRenderPreviewScenario("withdraw pa select")) {
+        return;
+      }
+      if (await maybeRenderPreviewScenario("withdraw recipient input")) {
+        return;
+      }
+      if (await maybeRenderPreviewScenario("withdraw confirm")) {
+        return;
+      }
+    }
+
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
     verbose(
@@ -543,10 +556,39 @@ export async function handleWithdrawCommand(
     }
 
     if (
+      await maybeRenderPreviewProgressStep("withdraw.sync-account-state", {
+        stage: {
+          step: 1,
+          total: isDirect ? 4 : 5,
+          label: "Syncing account state",
+        },
+        spinnerText: "Syncing account state...",
+        doneText: "Account state synced.",
+      })
+    ) {
+      return;
+    }
+
+    if (
       isDirect &&
       !skipPrompts &&
       await maybeRenderPreviewScenario("withdraw direct confirm", {
         timing: "after-prompts",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      !isDirect &&
+      await maybeRenderPreviewProgressStep("withdraw.fetch-asp-data", {
+        stage: {
+          step: 2,
+          total: 5,
+          label: "Fetching ASP data",
+        },
+        spinnerText: "Fetching ASP data...",
+        doneText: "ASP data loaded.",
       })
     ) {
       return;
@@ -1117,11 +1159,18 @@ export async function handleWithdrawCommand(
 
         if (!skipPrompts) {
           spin.stop();
-          warn(
-            `Direct withdrawal sends funds to your signer address (${formatAddress(directAddress)}). This is NOT privacy-preserving. Your deposit address will be linked to your withdrawal onchain.`,
-            silent,
-          );
           process.stderr.write("\n");
+          process.stderr.write(
+            formatDirectWithdrawalReview({
+              poolAccountId: selectedPoolAccount.paId,
+              amount: withdrawalAmount,
+              asset: pool.symbol,
+              chain: chainConfig.name,
+              decimals: pool.decimals,
+              recipient: directAddress,
+              tokenPrice,
+            }),
+          );
           if (
             await maybeRenderPreviewScenario("withdraw direct confirm", {
               timing: "after-prompts",
@@ -1130,7 +1179,7 @@ export async function handleWithdrawCommand(
             return;
           }
           const ok = await confirm({
-            message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}${withdrawalUsd} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}? (no privacy)`,
+            message: "Confirm direct withdrawal?",
             default: false,
           });
           if (!ok) {
@@ -1423,11 +1472,6 @@ export async function handleWithdrawCommand(
         );
 
         // Keep human flow quote-aware before proving, matching frontend review semantics.
-        const dd = displayDecimals(pool.decimals);
-        const usd = (amount: bigint): string => {
-          const val = formatUsdValue(amount, pool.decimals, tokenPrice);
-          return val === "-" ? "" : ` (${val})`;
-        };
         const renderWithdrawalReview = (): void => {
           process.stderr.write("\n");
           process.stderr.write(
@@ -1466,6 +1510,7 @@ export async function handleWithdrawCommand(
             }
 
             spin.stop();
+            renderWithdrawalReview();
             if (
               await maybeRenderPreviewScenario("withdraw confirm", {
                 timing: "after-prompts",
@@ -1473,7 +1518,6 @@ export async function handleWithdrawCommand(
             ) {
               return;
             }
-            renderWithdrawalReview();
 
             const ok = await confirm({
               message: "Confirm withdrawal?",

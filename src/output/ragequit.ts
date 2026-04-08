@@ -23,6 +23,56 @@ import {
   formatKeyValueRows,
   formatSectionHeading,
 } from "./layout.js";
+import { formatReviewSurface } from "./review.js";
+
+export interface RagequitReviewData {
+  poolAccountId: string;
+  amount: bigint;
+  asset: string;
+  chain: string;
+  decimals: number;
+  destinationAddress: string | null;
+  advisory?: string | null;
+  advisoryKind?: "warning" | "read-only";
+}
+
+export function formatRagequitReview(data: RagequitReviewData): string {
+  return formatReviewSurface({
+    title: "Public recovery review",
+    summaryRows: [
+      { label: "Pool Account", value: data.poolAccountId },
+      {
+        label: "Amount",
+        value: formatAmount(
+          data.amount,
+          data.decimals,
+          data.asset,
+          displayDecimals(data.decimals),
+        ),
+      },
+      { label: "Chain", value: data.chain },
+      {
+        label: "Destination",
+        value: data.destinationAddress
+          ? formatAddress(data.destinationAddress)
+          : "original deposit address",
+      },
+    ],
+    primaryCallout: {
+      kind: "danger",
+      lines: [
+        "Ragequit sends funds publicly to the original deposit address.",
+        "Privacy is lost and this action cannot be undone.",
+      ],
+    },
+    secondaryCallout: data.advisory
+      ? {
+          kind: data.advisoryKind ?? "warning",
+          lines: data.advisory,
+        }
+      : null,
+  });
+}
 
 export interface RagequitDryRunData {
   chain: string;

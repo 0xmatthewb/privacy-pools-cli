@@ -49,6 +49,7 @@ import { printJsonSuccess } from "../utils/json.js";
 import { resolveOptionalAssetInput } from "../utils/positional.js";
 import { createOutputContext } from "../output/common.js";
 import {
+  formatRagequitReview,
   renderRagequitDryRun,
   renderRagequitSuccess,
 } from "../output/ragequit.js";
@@ -717,28 +718,31 @@ export async function handleRagequitCommand(
       // skips the confirmation prompt.
       if (!silent) {
         process.stderr.write("\n");
-
-        warn(
-          "Ragequit withdraws funds publicly to your deposit address and does not preserve privacy. If your deposit is approved, use 'withdraw' instead for a private withdrawal.",
-          silent,
-        );
         const advisory = getRagequitAdvisory(selectedPoolAccount);
-        if (advisory) {
-          if (advisory.level === "warn") {
-            warn(advisory.message, silent);
-          } else {
-            info(advisory.message, silent);
-          }
-        }
-        if (depositorAddress) {
-          info(`Funds will be sent to: ${depositorAddress}`, silent);
-        }
-        process.stderr.write("\n");
+        process.stderr.write(
+          formatRagequitReview({
+            poolAccountId: selectedPoolAccount.paId,
+            amount: commitment.value,
+            asset: pool.symbol,
+            chain: chainConfig.name,
+            decimals: pool.decimals,
+            destinationAddress: depositorAddress,
+            advisory: advisory?.message ?? null,
+            advisoryKind: advisory?.level === "info" ? "read-only" : "warning",
+          }),
+        );
       }
 
       if (!skipPrompts) {
+        if (
+          await maybeRenderPreviewScenario("ragequit confirm", {
+            timing: "after-prompts",
+          })
+        ) {
+          return;
+        }
         const ok = await confirm({
-          message: `Exit ${selectedPoolAccount.paId} and recover ${formatAmount(commitment.value, pool.decimals, pool.symbol)}${recoverUsd} publicly to your deposit address? Privacy is lost and this cannot be undone.`,
+          message: "Confirm public recovery?",
           default: false,
         });
         if (!ok) {

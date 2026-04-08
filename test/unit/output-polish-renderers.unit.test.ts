@@ -1,12 +1,27 @@
 import { describe, expect, test } from "bun:test";
 import { createOutputContext } from "../../src/output/common.ts";
-import { renderUpgradeResult, type UpgradeResult } from "../../src/output/upgrade.ts";
 import {
+  formatUpgradeInstallReview,
+  renderUpgradeResult,
+  type UpgradeResult,
+} from "../../src/output/upgrade.ts";
+import {
+  renderWorkflowWalletBackupChoiceReview,
   renderWorkflowWalletBackupConfirmation,
   renderWorkflowWalletBackupManual,
+  renderWorkflowWalletBackupPathReview,
   renderWorkflowWalletBackupSaved,
 } from "../../src/output/workflow-wallet.ts";
-import { formatRelayedWithdrawalReview } from "../../src/output/withdraw.ts";
+import {
+  formatDirectWithdrawalReview,
+  formatRelayedWithdrawalReview,
+} from "../../src/output/withdraw.ts";
+import {
+  formatDepositReview,
+  formatUniqueAmountReview,
+} from "../../src/output/deposit.ts";
+import { formatRagequitReview } from "../../src/output/ragequit.ts";
+import { formatFlowStartReview } from "../../src/output/flow.ts";
 import { captureOutput, makeMode } from "../helpers/output.ts";
 
 describe("formatRelayedWithdrawalReview", () => {
@@ -38,6 +53,83 @@ describe("formatRelayedWithdrawalReview", () => {
     expect(output).toContain("Net received");
     expect(output).toContain("Quote expiry");
     expect(output).toContain("The remaining balance would fall below the relayer minimum.");
+  });
+});
+
+describe("shared runtime review renderers", () => {
+  test("deposit review and privacy override warning share the composed layout", () => {
+    const deposit = formatDepositReview({
+      amount: 100_000_000_000_000_000n,
+      feeAmount: 5_000_000_000_000_000n,
+      estimatedCommitted: 95_000_000_000_000_000n,
+      asset: "ETH",
+      chain: "sepolia",
+      decimals: 18,
+      tokenPrice: 3200,
+      isErc20: false,
+    });
+    const privacy = formatUniqueAmountReview(
+      "0.123456789 ETH is a non-round amount that may reduce your privacy in the anonymity set.",
+    );
+
+    expect(deposit).toContain("Deposit review");
+    expect(deposit).toContain("Vetting fee");
+    expect(deposit).toContain("Net deposited");
+    expect(deposit).toContain("Deposits stay public until ASP review finishes.");
+    expect(privacy).toContain("Privacy review");
+    expect(privacy).toContain("non-round amount");
+  });
+
+  test("direct withdrawal, ragequit, flow start, and upgrade review surfaces are structured", () => {
+    const direct = formatDirectWithdrawalReview({
+      poolAccountId: "PA-1",
+      amount: 300_000_000_000_000_000n,
+      asset: "ETH",
+      chain: "sepolia",
+      decimals: 18,
+      recipient: "0x1111111111111111111111111111111111111111",
+      tokenPrice: 3200,
+    });
+    const ragequit = formatRagequitReview({
+      poolAccountId: "PA-3",
+      amount: 400_000_000_000_000_000n,
+      asset: "ETH",
+      chain: "sepolia",
+      decimals: 18,
+      destinationAddress: "0x2222222222222222222222222222222222222222",
+    });
+    const flow = formatFlowStartReview({
+      amount: 100_000_000_000_000_000n,
+      feeAmount: 5_000_000_000_000_000n,
+      estimatedCommitted: 95_000_000_000_000_000n,
+      asset: "ETH",
+      chain: "sepolia",
+      decimals: 18,
+      recipient: "0x3333333333333333333333333333333333333333",
+      privacyDelaySummary: "Balanced (15-90 minutes)",
+      newWallet: true,
+      isErc20: false,
+      tokenPrice: 3200,
+    });
+    const upgrade = formatUpgradeInstallReview({
+      currentVersion: "1.7.0",
+      latestVersion: "1.8.0",
+      installContext: {
+        kind: "npm_global",
+        supportedAutoRun: true,
+        reason: "Global npm installation detected.",
+      },
+      command: "npm install -g privacy-pools-cli@1.8.0",
+    });
+
+    expect(direct).toContain("Direct withdrawal review");
+    expect(direct).toContain("public onchain withdrawal");
+    expect(ragequit).toContain("Public recovery review");
+    expect(ragequit).toContain("Privacy is lost");
+    expect(flow).toContain("Flow start review");
+    expect(flow).toContain("Dedicated workflow wallet");
+    expect(upgrade).toContain("Upgrade review");
+    expect(upgrade).toContain("Auto-run");
   });
 });
 
@@ -74,6 +166,20 @@ describe("workflow wallet backup renderers", () => {
     expect(confirm).toContain("Confirm workflow wallet backup");
     expect(confirm).toContain("Confirmed backup");
     expect(confirm).toContain("Do not continue unless this recovery key is stored somewhere you trust.");
+  });
+
+  test("choice and path reviews keep the backup flow visually consistent", () => {
+    const choice = renderWorkflowWalletBackupChoiceReview({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+    });
+    const path = renderWorkflowWalletBackupPathReview({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+    });
+
+    expect(choice).toContain("Choose a backup method");
+    expect(choice).toContain("Back up this generated wallet before funding it.");
+    expect(path).toContain("Save workflow wallet backup");
+    expect(path).toContain("live workflow-wallet private key");
   });
 });
 

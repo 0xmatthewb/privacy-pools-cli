@@ -17,7 +17,6 @@ use crate::error::{CliError, ErrorCategory};
 use crate::output::start_spinner;
 use crate::parse_timeout_ms;
 use crate::root_argv::{
-    all_non_option_tokens,
     is_command_global_boolean_option, is_command_global_inline_value_option,
     is_command_global_value_option, ParsedRootArgv,
 };
@@ -31,7 +30,7 @@ pub(crate) fn handle_pools_native(
 ) -> Result<i32, CliError> {
     let mode = resolve_mode(parsed);
     if !mode.is_json() && !mode.is_csv() {
-        if let Some(asset) = detail_asset_from_tokens(&all_non_option_tokens(argv)) {
+        if let Some(asset) = detail_asset_from_argv(argv) {
             return handle_pools_detail_native(argv, &mode, &asset);
         }
     }
@@ -218,9 +217,41 @@ fn handle_pools_detail_native(
     Ok(0)
 }
 
-fn detail_asset_from_tokens(tokens: &[String]) -> Option<String> {
-    if tokens.len() == 2 && tokens.first().map(String::as_str) == Some("pools") {
-        return tokens.get(1).cloned();
+fn detail_asset_from_argv(argv: &[String]) -> Option<String> {
+    let mut positional = Vec::new();
+    let mut index = argv
+        .iter()
+        .position(|token| token == "pools")
+        .map(|value| value + 1)
+        .unwrap_or(argv.len());
+
+    while index < argv.len() {
+        let token = &argv[index];
+        if token == "--" {
+            positional.extend(argv.iter().skip(index + 1).cloned());
+            break;
+        }
+        if token == "--search" || token == "--sort" || is_command_global_value_option(token) {
+            index += 2;
+            continue;
+        }
+        if token.starts_with("--search=")
+            || token.starts_with("--sort=")
+            || is_command_global_inline_value_option(token)
+            || is_command_global_boolean_option(token)
+        {
+            index += 1;
+            continue;
+        }
+        if token.starts_with('-') {
+            return None;
+        }
+        positional.push(token.clone());
+        index += 1;
+    }
+
+    if positional.len() == 1 {
+        return positional.into_iter().next();
     }
     None
 }
@@ -587,7 +618,9 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_pools_native, parse_pools_options, resolve_pool_native};
+    use super::{
+        detail_asset_from_argv, handle_pools_native, parse_pools_options, resolve_pool_native,
+    };
     use crate::config::CliConfig;
     use crate::contract::{manifest, ChainDefinition, Manifest};
     use crate::error::ErrorCategory;
@@ -683,6 +716,38 @@ mod tests {
         .expect_err("extra args should fail");
         assert_eq!(extra.category, ErrorCategory::Input);
         assert!(extra.message.contains("too many arguments"));
+    }
+
+    #[test]
+    fn detail_asset_detection_ignores_search_and_sort_option_values() {
+        assert_eq!(
+            detail_asset_from_argv(&[
+                "privacy-pools".to_string(),
+                "pools".to_string(),
+                "ETH".to_string(),
+            ]),
+            Some("ETH".to_string())
+        );
+        assert_eq!(
+            detail_asset_from_argv(&[
+                "privacy-pools".to_string(),
+                "--chain".to_string(),
+                "sepolia".to_string(),
+                "pools".to_string(),
+                "--search".to_string(),
+                "ZZZ".to_string(),
+            ]),
+            None
+        );
+        assert_eq!(
+            detail_asset_from_argv(&[
+                "privacy-pools".to_string(),
+                "pools".to_string(),
+                "--sort=chain-asset".to_string(),
+                "--search=ETH".to_string(),
+            ]),
+            None
+        );
     }
 
     #[test]

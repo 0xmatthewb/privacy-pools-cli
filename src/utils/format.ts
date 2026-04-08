@@ -4,6 +4,22 @@ import Table from "cli-table3";
 import { formatUnits } from "viem";
 import { accent, notice, spinnerColor, successTone } from "./theme.js";
 
+function supportsUnicodeOutput(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const term = env.TERM?.trim().toLowerCase();
+  if (term === "dumb") {
+    return false;
+  }
+
+  const locale = (env.LC_ALL ?? env.LANG ?? "").toUpperCase();
+  if (locale.includes("UTF-8") || locale.includes("UTF8")) {
+    return true;
+  }
+
+  return process.platform !== "win32";
+}
+
 /**
  * Number of fractional digits to show when formatting token amounts.
  * Currently fixed at 2 for all tokens; accepts the token's native decimal
@@ -156,6 +172,27 @@ export function printTable(
   const table = new Table({
     head: headers.map((h) => chalk.bold(h)),
     style: { head: [], border: [] },
+    ...(supportsUnicodeOutput()
+      ? {}
+      : {
+          chars: {
+            top: "-",
+            "top-mid": "+",
+            "top-left": "+",
+            "top-right": "+",
+            bottom: "-",
+            "bottom-mid": "+",
+            "bottom-left": "+",
+            "bottom-right": "+",
+            left: "|",
+            "left-mid": "+",
+            mid: "-",
+            "mid-mid": "+",
+            right: "|",
+            "right-mid": "+",
+            middle: "|",
+          },
+        }),
   });
 
   for (const row of rows) {
@@ -171,17 +208,20 @@ export function spinner(text: string, quiet: boolean = false) {
 
 export function success(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${successTone(`✓ ${message}`)}\n`);
+  const prefix = supportsUnicodeOutput() ? "✓" : "ok";
+  process.stderr.write(`${successTone(`${prefix} ${message}`)}\n`);
 }
 
 export function warn(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${notice(`⚠ ${message}`)}\n`);
+  const prefix = supportsUnicodeOutput() ? "⚠" : "!";
+  process.stderr.write(`${notice(`${prefix} ${message}`)}\n`);
 }
 
 export function info(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${accent(`ℹ ${message}`)}\n`);
+  const prefix = supportsUnicodeOutput() ? "ℹ" : "i";
+  process.stderr.write(`${accent(`${prefix} ${message}`)}\n`);
 }
 
 export function verbose(

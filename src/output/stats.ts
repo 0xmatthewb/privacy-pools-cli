@@ -11,7 +11,12 @@ import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, ren
 import { accentBold } from "../utils/theme.js";
 import { parseUsd } from "../utils/format.js";
 import type { TimeBasedStatistics } from "../types.js";
-import { formatKeyValueRows, formatSectionHeading } from "./layout.js";
+import {
+  formatKeyValueRows,
+  formatSectionHeading,
+  formatStackedKeyValueRows,
+  getOutputWidthClass,
+} from "./layout.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,6 +88,30 @@ function renderStatsTable(
   printTable(["Metric", "All Time", "Last 24h"], statsRows(allTime, last24h));
 }
 
+function renderStatsBlocks(
+  allTime: TimeBasedStatistics | undefined | null,
+  last24h: TimeBasedStatistics | undefined | null,
+): void {
+  process.stderr.write(formatSectionHeading("All time", { divider: true }));
+  process.stderr.write(
+    formatStackedKeyValueRows(
+      statsRows(allTime, last24h).map(([metric, value]) => ({
+        label: metric,
+        value,
+      })),
+    ),
+  );
+  process.stderr.write(formatSectionHeading("Last 24h", { divider: true }));
+  process.stderr.write(
+    formatStackedKeyValueRows(
+      statsRows(allTime, last24h).map(([metric, , value]) => ({
+        label: metric,
+        value,
+      })),
+    ),
+  );
+}
+
 // ── Renderers ────────────────────────────────────────────────────────────────
 
 export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderData): void {
@@ -119,6 +148,7 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
 
   const silent = isSilent(ctx);
   if (silent) return;
+  const renderTable = getOutputWidthClass() === "wide";
 
   if (data.perChain && data.perChain.length > 0) {
     for (const entry of data.perChain) {
@@ -132,7 +162,11 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
             : []),
         ]),
       );
-      renderStatsTable(entry.allTime, entry.last24h);
+      if (renderTable) {
+        renderStatsTable(entry.allTime, entry.last24h);
+      } else {
+        renderStatsBlocks(entry.allTime, entry.last24h);
+      }
     }
   } else {
     process.stderr.write(`\n${accentBold(`Global statistics (${data.chain}):`)}\n\n`);
@@ -145,7 +179,11 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
           : []),
       ]),
     );
-    renderStatsTable(data.allTime, data.last24h);
+    if (renderTable) {
+      renderStatsTable(data.allTime, data.last24h);
+    } else {
+      renderStatsBlocks(data.allTime, data.last24h);
+    }
   }
 
   renderNextSteps(ctx, [
@@ -178,6 +216,7 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
 
   const silent = isSilent(ctx);
   if (!silent) {
+    const renderTable = getOutputWidthClass() === "wide";
     process.stderr.write(`\n${accentBold(`Pool statistics for ${data.asset} on ${data.chain}:`)}\n\n`);
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
@@ -189,7 +228,11 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
           : []),
       ]),
     );
-    renderStatsTable(data.allTime, data.last24h);
+    if (renderTable) {
+      renderStatsTable(data.allTime, data.last24h);
+    } else {
+      renderStatsBlocks(data.allTime, data.last24h);
+    }
     renderNextSteps(ctx, [
       createNextAction("pools", "Open the detailed view for this pool.", "after_pool_stats", {
         args: [data.asset],

@@ -43,7 +43,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
     expect(stdout).toBe("");
     expect(inputPromptMock).toHaveBeenCalledTimes(1);
     expect(confirmPromptMock).toHaveBeenCalledTimes(1);
-    expect(stderr).toContain("Withdrawal Review");
+    expect(stderr).toContain("Withdrawal review");
     expect(stderr).toContain("0x4444");
   });
 
@@ -213,7 +213,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
     );
 
     expect(requestQuoteMock).toHaveBeenCalledTimes(2);
-    expect(stderr).toContain("Withdrawal Review");
+    expect(stderr).toContain("Withdrawal review");
   });
 
   test("warns humans when --extra-gas is requested for native withdrawals", async () => {

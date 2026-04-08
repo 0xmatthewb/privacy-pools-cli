@@ -746,7 +746,7 @@ describe("renderHistory parity", () => {
     );
 
     expect(stderr).toContain("Time");
-    expect(stderr).toMatch(/│\s-\s+│/);
+    expect(stderr).toMatch(/[│|]\s-\s+[│|]/);
   });
 
   test("human mode: labels migration events distinctly", () => {

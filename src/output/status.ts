@@ -28,6 +28,8 @@ import {
   formatCallout,
   formatKeyValueRows,
   formatSectionHeading,
+  formatStackedKeyValueRows,
+  getOutputWidthClass,
   type KeyValueRow,
 } from "./layout.js";
 
@@ -457,6 +459,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   }
 
   const silent = isSilent(ctx);
+  const renderRows = getOutputWidthClass() === "narrow"
+    ? formatStackedKeyValueRows
+    : formatKeyValueRows;
 
   if (!silent) {
     process.stderr.write(`\n${accentBold("Privacy Pools CLI Status")}\n`);
@@ -500,7 +505,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         : []),
     ];
     process.stderr.write(formatSectionHeading("Wallet", { divider: true }));
-    process.stderr.write(formatKeyValueRows(walletRows));
+    process.stderr.write(renderRows(walletRows));
 
     const networkRows: KeyValueRow[] = [
       { label: "Default chain", value: result.defaultChain ?? "none" },
@@ -565,11 +570,11 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         : []),
     ];
     process.stderr.write(formatSectionHeading("Network", { divider: true }));
-    process.stderr.write(formatKeyValueRows(networkRows));
+    process.stderr.write(renderRows(networkRows));
 
     process.stderr.write(formatSectionHeading("Deposits", { divider: true }));
     process.stderr.write(
-      formatKeyValueRows([
+      renderRows([
         {
           label: "Detected deposits",
           value:
@@ -583,7 +588,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
     process.stderr.write(formatSectionHeading("Recommendation", { divider: true }));
     process.stderr.write(
-      formatKeyValueRows([
+      renderRows([
         {
           label: "Recommended mode",
           value: preflight.recommendedMode,
@@ -605,6 +610,22 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         },
       ]),
     );
+
+    if (preflight.recommendedMode === "ready") {
+      process.stderr.write(
+        formatCallout(
+          "success",
+          "Wallet setup and current health checks are ready for deposits and withdrawals.",
+        ),
+      );
+    } else if (preflight.recommendedMode === "read-only") {
+      process.stderr.write(
+        formatCallout(
+          "read-only",
+          "Stay on public discovery until RPC and ASP connectivity recover.",
+        ),
+      );
+    }
 
     if (preflight.blockingIssues && preflight.blockingIssues.length > 0) {
       process.stderr.write(

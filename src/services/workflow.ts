@@ -117,9 +117,14 @@ import {
 import { toRagequitSolidityProof } from "../utils/unsigned.js";
 import type { GlobalOptions } from "../types.js";
 import {
+  formatFlowStartReview,
+} from "../output/flow.js";
+import {
+  renderWorkflowWalletBackupChoiceReview,
   renderWorkflowWalletBackupChoicePreview,
   renderWorkflowWalletBackupConfirmation,
   renderWorkflowWalletBackupManual,
+  renderWorkflowWalletBackupPathReview,
   renderWorkflowWalletBackupSaved,
 } from "../output/workflow-wallet.js";
 import {
@@ -219,7 +224,7 @@ export interface FlowWarning {
   message: string;
 }
 
-const FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE =
+export const FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE =
   "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will move toward relayer quote and withdrawal immediately, which may create an off-chain timing signal.";
 
 export class FlowCancelledError extends Error {
@@ -1231,49 +1236,26 @@ async function confirmHumanFlowStartReview(params: {
   const committedUsd = usdSuffix(estimatedCommitted, pool.decimals, tokenPrice);
   const isErc20 = !isNativePoolAsset(resolveChain(chainName).id, pool.asset);
 
-  info(`Recipient: ${formatAddress(recipient)}`, silent);
-  info(
-    `Vetting fee: ${formatBPS(pool.vettingFeeBPS)} (${formatAmount(feeAmount, pool.decimals, pool.symbol)}${feeUsd})`,
-    silent,
-  );
-  info(
-    `Expected net deposited: ~${formatAmount(estimatedCommitted, pool.decimals, pool.symbol)}${committedUsd}`,
-    silent,
-  );
-  info(
-    `Auto-withdrawal: This saved flow will privately withdraw the full approved balance of that Pool Account to ${formatAddress(recipient)}. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.`,
-    silent,
-  );
-  info(
-    `Privacy delay: ${flowPrivacyDelayProfileSummary(privacyDelayProfile)}. After approval, flow watch will wait through that window before requesting the private withdrawal.`,
-    silent,
-  );
-  if (privacyDelayProfile === "off") {
-    warn(FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE, silent);
-  }
-  if (newWallet) {
-    info(
-      "Wallet setup: This flow will create a dedicated workflow wallet, and you must confirm a backup before funding it.",
-      silent,
-    );
-    if (isErc20) {
-      info(
-        "Once funded, the workflow wallet will automatically submit the token approval and deposit for you.",
-        silent,
-      );
-    }
-  } else if (isErc20) {
-    info("This will require 2 transactions: token approval + deposit.", silent);
-  }
-  if (estimatedAmountPatternWarning) {
-    warn(estimatedAmountPatternWarning.message, silent);
-    info(
-      "A round deposit input can still become a non-round committed balance after the vetting fee is deducted.",
-      silent,
+  if (!silent) {
+    process.stderr.write("\n");
+    process.stderr.write(
+      formatFlowStartReview({
+        amount,
+        feeAmount,
+        estimatedCommitted,
+        asset: pool.symbol,
+        chain: chainName,
+        decimals: pool.decimals,
+        recipient,
+        privacyDelaySummary: flowPrivacyDelayProfileSummary(privacyDelayProfile),
+        newWallet,
+        isErc20,
+        amountPatternWarning: estimatedAmountPatternWarning?.message ?? null,
+        privacyDelayOff: privacyDelayProfile === "off",
+        tokenPrice,
+      }),
     );
   }
-
-  process.stderr.write("\n");
   if (
     await maybeRenderPreviewScenario("flow start confirm", {
       timing: "after-prompts",
@@ -1283,9 +1265,7 @@ async function confirmHumanFlowStartReview(params: {
   }
   const { confirm } = await import("@inquirer/prompts");
   const ok = await confirm({
-    message:
-      `${newWallet ? "Create a dedicated workflow wallet, then " : ""}start flow by depositing ${formatAmount(amount, pool.decimals, pool.symbol)}${amountUsd} on ${chainName}, ` +
-      `then privately auto-withdraw the full approved balance to ${formatAddress(recipient)} after approval and the selected privacy delay? The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.`,
+    message: "Confirm flow start?",
     default: true,
   });
   if (!ok) {
@@ -3738,20 +3718,31 @@ export async function setupNewWalletWorkflow(params: {
     writePrivateTextFile(backupPath, buildWorkflowWalletBackup(secretRecord));
     backupConfirmedAt = workflowNow();
   } else {
-    process.stderr.write("\n");
+    if (!silent) {
+      process.stderr.write("\n");
+    }
     warn("A dedicated workflow wallet was created for this flow.", silent);
 
     if (validatedBackupPath) {
       backupPath = validatedBackupPath;
       writePrivateTextFile(backupPath, buildWorkflowWalletBackup(secretRecord));
-      process.stderr.write(
-        renderWorkflowWalletBackupSaved({
-          walletAddress: account.address,
-          backupPath,
-        }),
-      );
+      if (!silent) {
+        process.stderr.write(
+          renderWorkflowWalletBackupSaved({
+            walletAddress: account.address,
+            backupPath,
+          }),
+        );
+      }
     } else {
       const { input, select } = await import("@inquirer/prompts");
+      if (!silent) {
+        process.stderr.write(
+          renderWorkflowWalletBackupChoiceReview({
+            walletAddress: account.address,
+          }),
+        );
+      }
       if (
         await maybeRenderPreviewScenario("flow start new-wallet backup choice", {
           timing: "after-prompts",
@@ -3768,6 +3759,13 @@ export async function setupNewWalletWorkflow(params: {
       });
 
       if (saveAction === "file") {
+        if (!silent) {
+          process.stderr.write(
+            renderWorkflowWalletBackupPathReview({
+              walletAddress: account.address,
+            }),
+          );
+        }
         if (
           await maybeRenderPreviewScenario("flow start new-wallet backup path", {
             timing: "after-prompts",
@@ -3784,28 +3782,34 @@ export async function setupNewWalletWorkflow(params: {
           backupPath,
           buildWorkflowWalletBackup(secretRecord),
         );
-        process.stderr.write(
-          renderWorkflowWalletBackupSaved({
-            walletAddress: account.address,
-            backupPath,
-          }),
-        );
+        if (!silent) {
+          process.stderr.write(
+            renderWorkflowWalletBackupSaved({
+              walletAddress: account.address,
+              backupPath,
+            }),
+          );
+        }
       } else {
-        process.stderr.write(
-          renderWorkflowWalletBackupManual({
-            walletAddress: account.address,
-            privateKey,
-          }),
-        );
+        if (!silent) {
+          process.stderr.write(
+            renderWorkflowWalletBackupManual({
+              walletAddress: account.address,
+              privateKey,
+            }),
+          );
+        }
       }
     }
 
-    process.stderr.write(
-      renderWorkflowWalletBackupConfirmation({
-        walletAddress: account.address,
-        backupPath,
-      }),
-    );
+    if (!silent) {
+      process.stderr.write(
+        renderWorkflowWalletBackupConfirmation({
+          walletAddress: account.address,
+          backupPath,
+        }),
+      );
+    }
 
     if (
       await maybeRenderPreviewScenario("flow start new-wallet backup confirm", {

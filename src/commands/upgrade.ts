@@ -1,7 +1,10 @@
 import type { Command } from "commander";
 import { readCliPackageInfo } from "../package-info.js";
 import { createOutputContext } from "../output/common.js";
-import { renderUpgradeResult } from "../output/upgrade.js";
+import {
+  formatUpgradeInstallReview,
+  renderUpgradeResult,
+} from "../output/upgrade.js";
 import {
   inspectUpgrade,
   markUpgradeCancelled,
@@ -11,12 +14,39 @@ import type { GlobalOptions } from "../types.js";
 import { printError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
+  PREVIEW_SCENARIO_ENV,
   maybeRenderPreviewProgressStep,
   maybeRenderPreviewScenario,
 } from "../preview/runtime.js";
+import type { UpgradeResult } from "../services/upgrade.js";
 
 interface UpgradeCommandOptions {
   check?: boolean;
+}
+
+function previewUpgradeInspectResult(
+  currentVersion: string,
+): UpgradeResult | null {
+  if (process.env[PREVIEW_SCENARIO_ENV]?.trim() !== "upgrade-confirm-prompt") {
+    return null;
+  }
+
+  return {
+    mode: "upgrade",
+    status: "ready",
+    currentVersion,
+    latestVersion: "1.8.0",
+    updateAvailable: true,
+    performed: false,
+    command: "npm install -g privacy-pools-cli@1.8.0",
+    installContext: {
+      kind: "global_npm",
+      supportedAutoRun: true,
+      reason:
+        "Global npm installation detected. Run privacy-pools upgrade --yes to install automatically, or use the manual npm command instead.",
+    },
+    installedVersion: null,
+  };
 }
 
 export async function handleUpgradeCommand(
@@ -55,6 +85,9 @@ export async function handleUpgradeCommand(
     }
 
     const pkg = readCliPackageInfo(import.meta.url);
+    const previewResult = previewUpgradeInspectResult(pkg.version);
+    const inspectUpgradeWithPreview = async () =>
+      previewResult ?? inspectUpgrade(pkg);
     let result = shouldShowProgress
       ? await (async () => {
           const [{ spinner }, { withSpinnerProgress }] = await Promise.all([
@@ -65,13 +98,13 @@ export async function handleUpgradeCommand(
           spin.start();
           try {
             return await withSpinnerProgress(spin, "Checking for upgrades", () =>
-              inspectUpgrade(pkg)
+              inspectUpgradeWithPreview()
             );
           } finally {
             spin.stop();
           }
         })()
-      : await inspectUpgrade(pkg);
+      : await inspectUpgradeWithPreview();
 
     const performUpgradeWithProgress = async () => {
       if (!shouldShowProgress) {
@@ -127,6 +160,8 @@ export async function handleUpgradeCommand(
     }
 
     const { confirm } = await import("@inquirer/prompts");
+    process.stderr.write("\n");
+    process.stderr.write(formatUpgradeInstallReview(result));
     if (
       await maybeRenderPreviewScenario("upgrade confirm", {
         timing: "after-prompts",
@@ -135,8 +170,7 @@ export async function handleUpgradeCommand(
       return;
     }
     const confirmed = await confirm({
-      message:
-        `Install privacy-pools-cli ${result.latestVersion} now with npm?`,
+      message: "Install update now?",
       default: true,
     });
 

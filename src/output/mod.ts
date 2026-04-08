@@ -33,6 +33,13 @@ export {
   formatSectionHeading,
 } from "./layout.js";
 export {
+  formatPromptLine,
+  formatReviewSurface,
+  type ReviewCallout,
+  type ReviewSection,
+  type ReviewSurfaceData,
+} from "./review.js";
+export {
   renderHumanCapabilities,
   renderHumanCommandDescription,
   renderHumanGuideText,
@@ -104,32 +111,43 @@ export {
   type InitRenderResult,
 } from "./init.js";
 export {
+  formatDepositReview,
+  formatUniqueAmountReview,
   renderDepositDryRun,
   renderDepositSuccess,
   type DepositDryRunData,
+  type DepositReviewData,
   type DepositSuccessData,
 } from "./deposit.js";
 export {
+  formatFlowStartReview,
   renderFlowResult,
   type FlowRenderData,
+  type FlowStartReviewData,
 } from "./flow.js";
 export {
+  renderWorkflowWalletBackupChoiceReview,
+  renderWorkflowWalletBackupPathReview,
   renderWorkflowWalletBackupChoicePreview,
   renderWorkflowWalletBackupConfirmation,
   renderWorkflowWalletBackupManual,
   renderWorkflowWalletBackupSaved,
 } from "./workflow-wallet.js";
 export {
+  formatRagequitReview,
   renderRagequitDryRun,
   renderRagequitSuccess,
   type RagequitDryRunData,
+  type RagequitReviewData,
   type RagequitSuccessData,
 } from "./ragequit.js";
 export {
+  formatDirectWithdrawalReview,
   formatRelayedWithdrawalReview,
   renderWithdrawDryRun,
   renderWithdrawSuccess,
   renderWithdrawQuote,
+  type DirectWithdrawalReviewData,
   type RelayedWithdrawalReviewData,
   type WithdrawDryRunData,
   type WithdrawSuccessData,

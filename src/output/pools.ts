@@ -23,6 +23,8 @@ import {
   formatCallout,
   formatKeyValueRows,
   formatSectionHeading,
+  formatStackedKeyValueRows,
+  getOutputWidthClass,
 } from "./layout.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -252,36 +254,79 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const headers = allChains
     ? ["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
     : ["Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
-
-  printTable(
-    headers,
-    filteredPools.map(({ chain, pool }) => {
+  if (getOutputWidthClass() === "wide") {
+    printTable(
+      headers,
+      filteredPools.map(({ chain, pool }) => {
+        const dd = displayDecimals(pool.decimals);
+        const baseRow = [
+          pool.symbol,
+          formatDepositsCount(pool),
+          formatStatAmount(
+            pool.totalInPoolValue ?? pool.acceptedDepositsValue,
+            pool.decimals,
+            pool.symbol,
+          ),
+          parseUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
+          formatStatAmount(
+            pool.pendingDepositsValue,
+            pool.decimals,
+            pool.symbol,
+          ),
+          formatAmount(
+            pool.minimumDepositAmount,
+            pool.decimals,
+            pool.symbol,
+            dd,
+          ),
+          formatBPS(pool.vettingFeeBPS),
+        ];
+        return allChains ? [chain, ...baseRow] : baseRow;
+      }),
+    );
+  } else {
+    for (const { chain, pool } of filteredPools) {
       const dd = displayDecimals(pool.decimals);
-      const baseRow = [
-        pool.symbol,
-        formatDepositsCount(pool),
-        formatStatAmount(
-          pool.totalInPoolValue ?? pool.acceptedDepositsValue,
-          pool.decimals,
-          pool.symbol,
+      process.stderr.write(
+        formatSectionHeading(
+          allChains ? `${chain} · ${pool.symbol}` : pool.symbol,
+          { divider: true },
         ),
-        parseUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
-        formatStatAmount(
-          pool.pendingDepositsValue,
-          pool.decimals,
-          pool.symbol,
-        ),
-        formatAmount(
-          pool.minimumDepositAmount,
-          pool.decimals,
-          pool.symbol,
-          dd,
-        ),
-        formatBPS(pool.vettingFeeBPS),
-      ];
-      return allChains ? [chain, ...baseRow] : baseRow;
-    }),
-  );
+      );
+      process.stderr.write(
+        formatStackedKeyValueRows([
+          {
+            label: "Pool Balance",
+            value: formatStatAmount(
+              pool.totalInPoolValue ?? pool.acceptedDepositsValue,
+              pool.decimals,
+              pool.symbol,
+            ),
+          },
+          {
+            label: "USD Value",
+            value: parseUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
+          },
+          {
+            label: "Pending",
+            value: formatStatAmount(pool.pendingDepositsValue, pool.decimals, pool.symbol),
+          },
+          {
+            label: "Min Deposit",
+            value: formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol, dd),
+          },
+          {
+            label: "Vetting Fee",
+            value: formatBPS(pool.vettingFeeBPS),
+          },
+          {
+            label: "Total Deposits",
+            value: formatDepositsCount(pool),
+          },
+        ]),
+      );
+    }
+  }
   process.stderr.write(
     chalk.dim(
       "\nVetting fees are deducted on deposit.\n" +

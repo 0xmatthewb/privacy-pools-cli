@@ -13,6 +13,7 @@ import type {
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderGlobalStats, renderPoolStats } from "../output/stats.js";
+import { maybeRenderPreviewProgressStep } from "../preview/runtime.js";
 import {
   getDefaultReadOnlyChains,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
@@ -53,6 +54,14 @@ export async function handleGlobalStatsCommand(
     const chainsToQuery = getDefaultReadOnlyChains();
     const chainNames = chainsToQuery.map((c) => c.name);
     const representativeChain = chainsToQuery[0];
+    if (
+      await maybeRenderPreviewProgressStep("stats.global.fetch", {
+        spinnerText: "Fetching global statistics...",
+        doneText: "Global statistics loaded.",
+      })
+    ) {
+      return;
+    }
     const spin = spinner("Fetching global statistics...", silent);
     spin.start();
 
@@ -96,6 +105,14 @@ export async function handlePoolStatsCommand(
     const pool = await resolvePool(chainConfig, opts.asset, globalOpts?.rpcUrl);
     const silent = isJson || mode.isQuiet;
 
+    if (
+      await maybeRenderPreviewProgressStep("stats.pool.fetch", {
+        spinnerText: "Fetching pool statistics...",
+        doneText: "Pool statistics loaded.",
+      })
+    ) {
+      return;
+    }
     const spin = spinner("Fetching pool statistics...", silent);
     spin.start();
     const stats: PoolStatisticsResponse = await fetchPoolStatistics(

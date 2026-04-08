@@ -18,8 +18,50 @@ import {
   formatKeyValueRows,
   formatSectionHeading,
 } from "./layout.js";
+import { formatReviewSurface } from "./review.js";
 
 export type { UpgradeResult } from "../services/upgrade.js";
+
+export function formatUpgradeInstallReview(
+  result: Pick<
+    UpgradeResult,
+    "currentVersion" | "latestVersion" | "installContext" | "command"
+  >,
+): string {
+  return formatReviewSurface({
+    title: "Upgrade review",
+    summaryRows: [
+      { label: "Current version", value: result.currentVersion },
+      {
+        label: "Install version",
+        value: result.latestVersion,
+        valueTone: "success",
+      },
+      {
+        label: "Install context",
+        value: result.installContext.kind,
+      },
+      {
+        label: "Auto-run",
+        value: result.installContext.supportedAutoRun ? "supported" : "manual only",
+        valueTone: result.installContext.supportedAutoRun ? "success" : "warning",
+      },
+    ],
+    primaryCallout: {
+      kind: "read-only",
+      lines: [
+        result.installContext.reason,
+        "The current process will not hot-restart after install. Re-run privacy-pools once the upgrade finishes.",
+      ],
+    },
+    secondaryCallout: result.command
+      ? {
+          kind: "warning",
+          lines: `Manual fallback: ${accent(result.command)}`,
+        }
+      : null,
+  });
+}
 
 export function renderUpgradeResult(
   ctx: OutputContext,

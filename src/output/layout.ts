@@ -7,7 +7,7 @@ import {
   successTone,
 } from "../utils/theme.js";
 
-const SECTION_DIVIDER = chalk.dim("─".repeat(18));
+export type OutputWidthClass = "wide" | "compact" | "narrow";
 
 export type SectionTone = "accent" | "muted";
 export type CalloutKind =
@@ -37,6 +37,37 @@ export interface SectionListOptions {
 
 function sectionHeadingColor(tone: SectionTone): (value: string) => string {
   return tone === "muted" ? chalk.dim : accentBold;
+}
+
+export function supportsUnicodeOutput(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const term = env.TERM?.trim().toLowerCase();
+  if (term === "dumb") {
+    return false;
+  }
+
+  const locale = (env.LC_ALL ?? env.LANG ?? "").toUpperCase();
+  if (locale.includes("UTF-8") || locale.includes("UTF8")) {
+    return true;
+  }
+
+  return process.platform !== "win32";
+}
+
+function sectionDivider(): string {
+  const fill = supportsUnicodeOutput() ? "─" : "-";
+  return chalk.dim(fill.repeat(18));
+}
+
+export function getOutputWidthClass(columns = process.stderr.columns ?? process.stdout.columns ?? 120): OutputWidthClass {
+  if (columns <= 72) {
+    return "narrow";
+  }
+  if (columns <= 90) {
+    return "compact";
+  }
+  return "wide";
 }
 
 function applyValueTone(
@@ -71,7 +102,7 @@ export function formatSectionHeading(
     lines.push("");
   }
   if (options.divider) {
-    lines.push(SECTION_DIVIDER);
+    lines.push(sectionDivider());
   }
 
   lines.push(sectionHeadingColor(tone)(`${title}:`));
@@ -90,6 +121,17 @@ export function formatKeyValueRows(rows: KeyValueRow[]): string {
     .map((row) => {
       const valueTone = row.valueTone ?? "default";
       return `  ${chalk.dim(`${row.label}:`.padEnd(width))} ${applyValueTone(row.value, valueTone)}`;
+    })
+    .join("\n")}\n`;
+}
+
+export function formatStackedKeyValueRows(rows: KeyValueRow[]): string {
+  if (rows.length === 0) return "";
+
+  return `${rows
+    .map((row) => {
+      const valueTone = row.valueTone ?? "default";
+      return `  ${chalk.dim(row.label)}\n    ${applyValueTone(row.value, valueTone)}`;
     })
     .join("\n")}\n`;
 }

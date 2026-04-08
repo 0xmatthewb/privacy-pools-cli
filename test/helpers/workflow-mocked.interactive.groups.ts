@@ -228,15 +228,15 @@ export function registerWorkflowMockedInteractiveTests(): void {
         });
 
         expect(stderr).toContain("Expected net deposited:");
-        expect(stderr).toContain("Auto-withdrawal:");
         expect(stderr).toContain(
-          "The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
+          "The auto-withdrawal always spends the full approved Pool Account balance to the saved recipient.",
         );
-        expect(stderr).toContain("Privacy delay: Off (no added hold)");
+        expect(stderr).toContain("Privacy delay:");
+        expect(stderr).toContain("Off (no added hold)");
         expect(stderr).toContain(
           "Privacy delay is disabled for this saved flow.",
         );
-        expect(stderr).toContain("Wallet setup:");
+        expect(stderr).toContain("Workflow wallet backup");
         expect(stderr).toContain("\n");
         expect(readFileSync(promptedBackupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
       } finally {
@@ -288,7 +288,7 @@ export function registerWorkflowMockedInteractiveTests(): void {
               isAgent: false,
               isJson: false,
               isCsv: false,
-              isQuiet: true,
+              isQuiet: false,
               format: "table",
               skipPrompts: false,
             },

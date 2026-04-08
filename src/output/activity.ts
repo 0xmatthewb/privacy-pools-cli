@@ -15,7 +15,13 @@ import {
   normalizePublicEventReviewStatus,
   renderAspApprovalStatus,
 } from "../utils/statuses.js";
-import { formatCallout, formatKeyValueRows, formatSectionHeading } from "./layout.js";
+import {
+  formatCallout,
+  formatKeyValueRows,
+  formatSectionHeading,
+  formatStackedKeyValueRows,
+  getOutputWidthClass,
+} from "./layout.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +165,37 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
 
   if (data.events.length === 0) {
     process.stderr.write("No activity found.\n");
+    return;
+  }
+
+  if (getOutputWidthClass() !== "wide") {
+    for (const event of data.events) {
+      process.stderr.write(
+        formatSectionHeading(`${event.type} ${event.amountFormatted}`, {
+          divider: true,
+        }),
+      );
+      process.stderr.write(
+        formatStackedKeyValueRows([
+          { label: "Pool", value: eventPoolLabel(event) },
+          {
+            label: "Status",
+            value: normalizePublicEventReviewStatus(event.type, event.reviewStatus),
+          },
+          { label: "Time", value: event.timeLabel },
+          { label: "Tx", value: event.txHash ? formatAddress(event.txHash, 8) : "-" },
+        ]),
+      );
+    }
+    if (data.chainFiltered) {
+      process.stderr.write(
+        formatCallout(
+          "read-only",
+          `Results are filtered to ${data.chain}. Some pages may be sparse.`,
+        ),
+      );
+    }
+    renderNextSteps(ctx, humanNextActions);
     return;
   }
 

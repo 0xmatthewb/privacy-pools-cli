@@ -2,11 +2,12 @@ import { POA_PORTAL_URL } from "../config/chains.js";
 import {
   buildFlowWarnings,
   flowPrivacyDelayProfileSummary,
+  FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE,
   type FlowPhase,
   type FlowSnapshot,
 } from "../services/workflow.js";
 import { describeFlowPrivacyDelayDeadline } from "../utils/flow-privacy-delay.js";
-import { displayDecimals, formatAmount } from "../utils/format.js";
+import { displayDecimals, formatAmount, formatUsdValue } from "../utils/format.js";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -24,6 +25,100 @@ import {
   formatKeyValueRows,
   formatSectionHeading,
 } from "./layout.js";
+import { formatReviewSurface } from "./review.js";
+
+export interface FlowStartReviewData {
+  amount: bigint;
+  feeAmount: bigint;
+  estimatedCommitted: bigint;
+  asset: string;
+  chain: string;
+  decimals: number;
+  recipient: string;
+  privacyDelaySummary: string;
+  newWallet: boolean;
+  isErc20: boolean;
+  amountPatternWarning?: string | null;
+  privacyDelayOff?: boolean;
+  tokenPrice?: number | null;
+}
+
+function flowReviewUsdSuffix(
+  amount: bigint,
+  decimals: number,
+  tokenPrice?: number | null,
+): string {
+  const formatted = formatUsdValue(amount, decimals, tokenPrice ?? null);
+  return formatted === "-" ? "" : ` (${formatted})`;
+}
+
+export function formatFlowStartReview(data: FlowStartReviewData): string {
+  return formatReviewSurface({
+    title: "Flow start review",
+    summaryRows: [
+      {
+        label: "Amount",
+        value:
+          `${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          flowReviewUsdSuffix(data.amount, data.decimals, data.tokenPrice),
+      },
+      { label: "Chain", value: data.chain },
+      { label: "Recipient", value: data.recipient },
+      {
+        label: "Vetting fee",
+        value:
+          `${formatAmount(data.feeAmount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          flowReviewUsdSuffix(data.feeAmount, data.decimals, data.tokenPrice),
+        valueTone: "warning",
+      },
+      {
+        label: "Expected net deposited",
+        value:
+          `~${formatAmount(data.estimatedCommitted, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          flowReviewUsdSuffix(data.estimatedCommitted, data.decimals, data.tokenPrice),
+        valueTone: "success",
+      },
+      {
+        label: "Privacy delay",
+        value: data.privacyDelaySummary,
+      },
+      {
+        label: "Wallet mode",
+        value: data.newWallet ? "Dedicated workflow wallet" : "Configured wallet",
+      },
+    ],
+    primaryCallout: {
+      kind: "privacy",
+      lines: [
+        "This saved flow deposits publicly now, then waits for ASP approval before requesting the relayed private withdrawal.",
+        "The auto-withdrawal always spends the full approved Pool Account balance to the saved recipient.",
+      ],
+    },
+    secondaryCallout: data.amountPatternWarning || data.privacyDelayOff || data.isErc20 || data.newWallet
+      ? {
+          kind: data.amountPatternWarning || data.privacyDelayOff ? "warning" : "read-only",
+          lines: [
+            ...(data.newWallet
+              ? [
+                  "You must back up the dedicated workflow wallet before funding it.",
+                ]
+              : []),
+            ...(data.isErc20
+              ? [
+                  "This will require 2 transactions: token approval + deposit.",
+                ]
+              : []),
+            ...(data.privacyDelayOff
+              ? [
+                  FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE,
+                ]
+              : []),
+            ...(data.amountPatternWarning ? [data.amountPatternWarning] : []),
+          ],
+        }
+      : null,
+  });
+}
 
 export interface FlowRenderData {
   action: "start" | "watch" | "status" | "ragequit";
@@ -613,6 +708,9 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   }
 
   const phase = data.snapshot.phase;
+  const publicRecoveryRequired = requiresPublicRecoveryBecauseRelayerMinimum(
+    data.snapshot,
+  );
   const isTerminal = phase === "completed" || phase === "completed_public_recovery";
   const isFunding = phase === "awaiting_funding";
   const isPreDeposit = isFunding || phase === "depositing_publicly";
@@ -636,22 +734,31 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     data.snapshot.privacyDelayConfigured ?? false,
   );
   const showFullBalanceNote =
+    !publicRecoveryRequired &&
     (phase === "awaiting_asp" ||
-      phase === "approved_waiting_privacy_delay" ||
-      phase === "approved_ready_to_withdraw") &&
+      phase === "approved_waiting_privacy_delay") &&
     data.action !== "ragequit";
+  const inlinePrivacyWarnings =
+    phase === "awaiting_asp" ||
+    phase === "approved_waiting_privacy_delay" ||
+    phase === "approved_ready_to_withdraw";
   const showPrivacyWarnings =
     !isTerminal &&
+    !publicRecoveryRequired &&
     phase !== "withdrawing" &&
     phase !== "paused_declined" &&
     phase !== "paused_poi_required" &&
-    phase !== "stopped_external";
+    phase !== "stopped_external" &&
+    !inlinePrivacyWarnings;
 
   if (!silent) {
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     const summaryRows = [
       { label: "Workflow", value: data.snapshot.workflowId },
-      { label: "Phase", value: phaseLabel(phase) },
+      {
+        label: "Phase",
+        value: publicRecoveryRequired ? "Public recovery required" : phaseLabel(phase),
+      },
       { label: "Chain", value: data.snapshot.chain },
       { label: "Asset", value: data.snapshot.asset },
       {
@@ -743,6 +850,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         phaseCalloutKind = "read-only";
         phaseCalloutLines = [
           "The deposit is on-chain and waiting for ASP review before any private withdrawal can happen.",
+          ...warnings.map((flowWarning) => flowWarning.message),
         ];
         break;
       case "approved_waiting_privacy_delay":
@@ -769,26 +877,34 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "privacy";
         phaseCalloutLines = [
-          "Approval is complete. This saved flow is intentionally waiting before it requests the relayed private withdrawal.",
+          privacyDelayWaitingReason(data.snapshot),
+          ...warnings.map((flowWarning) => flowWarning.message),
         ];
         break;
       case "approved_ready_to_withdraw":
-        phaseSectionTitle = "Ready for private withdrawal";
+        phaseSectionTitle = publicRecoveryRequired
+          ? "Public recovery required"
+          : "Ready for private withdrawal";
         if (committedValue) {
           phaseRows.push({
-            label: "Approved balance",
+            label: publicRecoveryRequired ? "Blocked balance" : "Approved balance",
             value: committedValue,
-            valueTone: "success",
+            valueTone: publicRecoveryRequired ? "danger" : "success",
           });
         }
-        phaseRows.push({
-          label: "Privacy delay",
-          value: privacyDelaySummary,
-        });
-        phaseCalloutKind = "success";
-        phaseCalloutLines = [
-          "The saved workflow is clear to request the relayed private withdrawal on the next flow watch run.",
-        ];
+        if (!publicRecoveryRequired) {
+          phaseRows.push({
+            label: "Privacy delay",
+            value: privacyDelaySummary,
+          });
+        }
+        phaseCalloutKind = publicRecoveryRequired ? "recovery" : "success";
+        phaseCalloutLines = publicRecoveryRequired
+          ? [relayerMinimumRecoveryReason(data.snapshot)]
+          : [
+              "The saved workflow is clear to request the relayed private withdrawal on the next flow watch run.",
+              ...warnings.map((flowWarning) => flowWarning.message),
+            ];
         break;
       case "withdrawing":
         phaseSectionTitle = "Withdrawal in progress";
@@ -808,6 +924,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         phaseCalloutKind = "read-only";
         phaseCalloutLines = [
           "The relayed private withdrawal has been requested and is being reconciled.",
+          "Re-run flow watch to confirm the receipt if this workflow stays in-flight.",
         ];
         break;
       case "paused_declined":

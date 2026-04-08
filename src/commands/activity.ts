@@ -13,7 +13,10 @@ import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderActivity } from "../output/activity.js";
-import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  maybeRenderPreviewProgressStep,
+  maybeRenderPreviewScenario,
+} from "../preview/runtime.js";
 import {
   normalizeActivityEvent,
   parseNumberish as parseNumberishValue,
@@ -67,6 +70,14 @@ export async function handleActivityCommand(
 
     const config = loadConfig();
     const ctx = createOutputContext(mode);
+    if (
+      await maybeRenderPreviewProgressStep("activity.fetch", {
+        spinnerText: "Fetching public activity...",
+        doneText: "Activity loaded.",
+      })
+    ) {
+      return;
+    }
     const spin = spinner("Fetching public activity...", silent);
     spin.start();
 

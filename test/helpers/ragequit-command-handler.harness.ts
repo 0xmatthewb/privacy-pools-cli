@@ -836,7 +836,8 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(stdout).toBe("");
     expect(selectPromptMock).toHaveBeenCalledTimes(1);
     expect(confirmPromptMock).toHaveBeenCalledTimes(1);
-    expect(stderr).toContain("Ragequit withdraws funds publicly");
+    expect(stderr).toContain("Public recovery review");
+    expect(stderr).toContain("Ragequit sends funds publicly to the original deposit address.");
     expect(stderr).toContain("Ragequit cancelled.");
     expect(ragequitMock).not.toHaveBeenCalled();
   });

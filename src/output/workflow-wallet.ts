@@ -62,6 +62,30 @@ export function renderWorkflowWalletBackupChoicePreview(
   })}  Save to file (recommended)\n  I'll back it up manually\n`;
 }
 
+export function renderWorkflowWalletBackupChoiceReview(
+  data: WorkflowWalletBackupBaseData,
+): string {
+  return `${formatWorkflowWalletHeading("Workflow wallet backup")}${formatWorkflowWalletSummary(
+    data,
+    { backupMode: "Choose a backup method" },
+  )}${formatCallout("recovery", [
+    "Back up this generated wallet before funding it.",
+    "If the workflow stalls or needs public recovery later, this key is how you regain control of the funds.",
+  ])}`;
+}
+
+export function renderWorkflowWalletBackupPathReview(
+  data: WorkflowWalletBackupBaseData,
+): string {
+  return `${formatWorkflowWalletHeading("Save workflow wallet backup")}${formatWorkflowWalletSummary(
+    data,
+    { backupMode: "Save to file" },
+  )}${formatCallout("danger", [
+    "The file will contain the live workflow-wallet private key.",
+    "Store it securely before funding the workflow.",
+  ])}`;
+}
+
 export function renderWorkflowWalletBackupSaved(
   data: WorkflowWalletBackupBaseData & { backupPath: string },
 ): string {

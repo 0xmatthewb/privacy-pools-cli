@@ -229,6 +229,32 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("privacy-pools flow ragequit wf-123");
   });
 
+  test("human mode reframes relayer-minimum blocks as public recovery required", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "status",
+        snapshot: sampleSnapshot({
+          phase: "approved_ready_to_withdraw",
+          aspStatus: "approved",
+          lastError: {
+            step: "withdraw",
+            errorCode: "FLOW_RELAYER_MINIMUM_BLOCKED",
+            errorMessage:
+              "Workflow amount is below the relayer minimum of 0.01 ETH.",
+            retryable: false,
+            at: "2026-03-24T12:00:00.000Z",
+          },
+        }),
+      }),
+    );
+
+    expect(stderr).toContain("Public recovery required");
+    expect(stderr).not.toContain("Approved and ready to withdraw");
+    expect(stderr).toContain("Recover publicly");
+    expect(stderr).toContain("privacy-pools flow ragequit wf-123");
+  });
+
   test("JSON mode marks PoA watch follow-up as non-runnable and surfaces public recovery", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
