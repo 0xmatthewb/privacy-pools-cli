@@ -1,6 +1,9 @@
-use super::model::{ChainSummary, PoolListingEntry, PoolWarning, PoolsRenderData};
+use super::model::{
+    ChainSummary, PoolDetailActivityEvent, PoolDetailRenderData, PoolListingEntry, PoolWarning,
+    PoolsRenderData,
+};
 use crate::output::{
-    build_next_action, format_callout, format_command_heading, format_count_number,
+    build_next_action, format_address, format_callout, format_command_heading, format_count_number,
     format_key_value_rows, format_muted_block, format_section_heading, insert_optional_f64,
     insert_optional_string, insert_optional_u64, print_csv, print_json_success, print_table,
     render_next_steps, write_info, write_stderr_text, CalloutKind,
@@ -394,6 +397,212 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
     render_next_steps(&next_actions);
 }
 
+pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRenderData) {
+    if mode.is_quiet {
+        return;
+    }
+
+    write_stderr_text(&format_command_heading(&format!(
+        "{} pool on {}:",
+        data.asset, data.chain_name
+    )));
+
+    write_stderr_text(&format_section_heading("Summary"));
+    write_stderr_text(&format_key_value_rows(&[
+        (
+            "Pool balance",
+            format_pool_stat_amount(
+                data.total_in_pool_value.as_deref(),
+                data.decimals,
+                &data.asset,
+            ),
+        ),
+        (
+            "Pool balance USD",
+            parse_usd_string(data.total_in_pool_value_usd.as_deref()),
+        ),
+        (
+            "Pending funds",
+            format_pool_stat_amount(
+                data.pending_deposits_value.as_deref(),
+                data.decimals,
+                &data.asset,
+            ),
+        ),
+        (
+            "Pending funds USD",
+            parse_usd_string(data.pending_deposits_value_usd.as_deref()),
+        ),
+        (
+            "All-time deposits",
+            format_pool_stat_amount(
+                data.total_deposits_value.as_deref(),
+                data.decimals,
+                &data.asset,
+            ),
+        ),
+        (
+            "All-time USD",
+            parse_usd_string(data.total_deposits_value_usd.as_deref()),
+        ),
+        (
+            "Total deposits",
+            data.total_deposits_count
+                .map(format_count_number)
+                .unwrap_or_else(|| "-".to_string()),
+        ),
+        (
+            "Minimum deposit",
+            parse_biguint(&data.minimum_deposit)
+                .map(|value| format_amount(&value, data.decimals, Some(&data.asset), Some(2)))
+                .unwrap_or_else(|| data.minimum_deposit.clone()),
+        ),
+        ("Vetting fee", format_bps_value(&data.vetting_fee_bps)),
+        ("Max relay fee", format_bps_value(&data.max_relay_fee_bps)),
+        ("Pool address", format_address(&data.pool, 6)),
+        ("Token", format_address(&data.token_address, 6)),
+        ("Scope", data.scope.clone()),
+    ]));
+
+    write_stderr_text(&format_section_heading("My funds"));
+    if let Some(my_funds) = data.my_funds.clone() {
+        let mut summary = vec![
+            (
+                "Balance",
+                parse_biguint(&my_funds.balance)
+                    .map(|value| format_amount(&value, data.decimals, Some(&data.asset), Some(2)))
+                    .unwrap_or_else(|| my_funds.balance.clone()),
+            ),
+            (
+                "Pool Accounts",
+                format!(
+                    "{}{}",
+                    format_count_number(my_funds.pool_accounts),
+                    format_review_summary(
+                        my_funds.pending_count,
+                        my_funds.poi_required_count,
+                        my_funds.declined_count,
+                    )
+                ),
+            ),
+        ];
+        if let Some(usd_value) = my_funds.usd_value.clone() {
+            summary.push(("Balance USD", usd_value));
+        }
+        write_stderr_text(&format_key_value_rows(&summary));
+        write_stderr_text(&format_callout(
+            CalloutKind::Success,
+            &[if my_funds.pending_count == 0
+                && my_funds.poi_required_count == 0
+                && my_funds.declined_count == 0
+            {
+                "Wallet funds loaded successfully. Approved Pool Accounts in this pool are ready for withdraw.".to_string()
+            } else {
+                "Wallet funds loaded successfully. Review each Pool Account status below before choosing withdraw or ragequit.".to_string()
+            }],
+        ));
+
+        if !my_funds.accounts.is_empty() {
+            let rows = my_funds
+                .accounts
+                .iter()
+                .map(|account| {
+                    vec![
+                        account.id.clone(),
+                        parse_biguint(&account.value)
+                            .map(|value| {
+                                format_amount(&value, data.decimals, Some(&data.asset), Some(2))
+                            })
+                            .unwrap_or_else(|| account.value.clone()),
+                        format_pool_account_status(&account.status),
+                    ]
+                })
+                .collect::<Vec<_>>();
+            print_table(vec!["PA", "Amount", "Status"], rows);
+        }
+
+        if let Some(warning) = data.my_funds_warning.clone() {
+            write_stderr_text(&format_callout(CalloutKind::Warning, &[warning]));
+        }
+        if my_funds.declined_count > 0 {
+            write_stderr_text(&format_callout(
+                CalloutKind::Danger,
+                &[format!(
+                    "Declined Pool Accounts cannot use withdraw. Use ragequit for public recovery to the original deposit address."
+                )],
+            ));
+        }
+        if my_funds.poi_required_count > 0 {
+            write_stderr_text(&format_callout(
+                CalloutKind::Recovery,
+                &[format!(
+                    "PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association first, or recover publicly instead."
+                )],
+            ));
+        }
+    } else if let Some(warning) = data.my_funds_warning.clone() {
+        write_stderr_text(&format_callout(CalloutKind::Warning, &[warning]));
+    } else {
+        write_stderr_text(&format_callout(
+            CalloutKind::ReadOnly,
+            &[format!("Run privacy-pools init to load your wallet funds here.")],
+        ));
+    }
+
+    write_stderr_text(&format_section_heading("Recent activity"));
+    match data.recent_activity.clone() {
+        Some(events) if !events.is_empty() => {
+            let rows = events
+                .iter()
+                .map(activity_row)
+                .collect::<Vec<_>>();
+            print_table(vec!["Type", "Amount", "Time", "Status"], rows);
+        }
+        _ => {
+            write_stderr_text(&format_callout(
+                CalloutKind::ReadOnly,
+                &[format!(
+                    "No recent public activity is available for {} on {} right now.",
+                    data.asset, data.chain_name
+                )],
+            ));
+        }
+    }
+    write_stderr_text(&format_callout(
+        CalloutKind::Privacy,
+        &[format!(
+            "Public activity is visible onchain. Private withdrawals still require an ASP-approved Pool Account on {}.",
+            data.chain_name
+        )],
+    ));
+
+    let mut next_actions = Vec::<Value>::new();
+    let mut activity_options = Map::new();
+    activity_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+    activity_options.insert("asset".to_string(), Value::String(data.asset.clone()));
+    next_actions.push(build_next_action(
+        "activity",
+        "Review recent public activity for this pool.",
+        "after_pool_detail",
+        None,
+        Some(&activity_options),
+        None,
+    ));
+
+    let mut accounts_options = Map::new();
+    accounts_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+    next_actions.push(build_next_action(
+        "accounts",
+        "Inspect your Pool Accounts on this chain.",
+        "after_pool_detail",
+        None,
+        Some(&accounts_options),
+        None,
+    ));
+
+    render_next_steps(&next_actions);
+}
+
 fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {
     let mut object = Map::new();
     if include_chain {
@@ -531,6 +740,47 @@ fn format_pool_deposits_count(entry: &PoolListingEntry) -> String {
         .total_deposits_count
         .map(format_count_number)
         .unwrap_or_else(|| "-".to_string())
+}
+
+fn format_review_summary(pending_count: u64, poi_required_count: u64, declined_count: u64) -> String {
+    let mut parts = Vec::new();
+    if pending_count > 0 {
+        parts.push(format!("{} pending", format_count_number(pending_count)));
+    }
+    if poi_required_count > 0 {
+        parts.push(format!(
+            "{} PoA needed",
+            format_count_number(poi_required_count)
+        ));
+    }
+    if declined_count > 0 {
+        parts.push(format!("{} declined", format_count_number(declined_count)));
+    }
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!(" ({})", parts.join(", "))
+    }
+}
+
+fn format_pool_account_status(status: &str) -> String {
+    match status {
+        "approved" => crate::output::format_success_text("approved"),
+        "pending" => crate::output::format_notice_text("pending"),
+        "poi_required" => crate::output::format_notice_text("PoA needed"),
+        "declined" => crate::output::format_danger_text("declined"),
+        "unknown" => crate::output::format_muted_text("unknown"),
+        other => other.to_string(),
+    }
+}
+
+fn activity_row(event: &PoolDetailActivityEvent) -> Vec<String> {
+    vec![
+        event.event_type.clone(),
+        event.amount.clone(),
+        event.time_label.clone(),
+        format_pool_account_status(&event.status),
+    ]
 }
 
 fn format_pool_stat_amount(value: Option<&str>, decimals: u32, symbol: &str) -> String {

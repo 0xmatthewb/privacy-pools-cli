@@ -47,7 +47,7 @@ const EXPECTED_NON_JS_ROUTES = {
   },
   pools: {
     owner: "hybrid",
-    nativeModes: ["default-list", "csv-list", "structured-list", "help"],
+    nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
   },
   stats: {
     owner: "hybrid",
@@ -116,12 +116,12 @@ describe("native safety boundary conformance", () => {
   test("pools stays nativeized only for public list mode, not detail mode", () => {
     expect(GENERATED_COMMAND_ROUTES.pools).toEqual({
       owner: "hybrid",
-      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
+      nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
     });
 
     expect(nativeManifest.routes.commandRoutes.pools).toEqual({
       owner: "hybrid",
-      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
+      nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
     });
   });
 

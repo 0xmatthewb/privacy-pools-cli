@@ -120,6 +120,26 @@ pub fn encode_bridge_descriptor(value: Value) -> String {
     BASE64.encode(serde_json::to_vec(&value).expect("bridge descriptor should serialize"))
 }
 
+pub fn live_bridge_env() -> (String, String) {
+    let contract = runtime_contract_fixture();
+    let worker_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../dist/runtime/v1/worker-main.js");
+    assert!(
+        worker_path.exists(),
+        "worker-main.js should exist at {}",
+        worker_path.display()
+    );
+    let encoded = encode_bridge_descriptor(json!({
+        "runtimeVersion": contract.runtime_version,
+        "workerProtocolVersion": contract.worker_protocol_version,
+        "nativeBridgeVersion": contract.native_bridge_version,
+        "workerRequestEnv": contract.worker_request_env,
+        "workerCommand": std::env::var("NODE").unwrap_or_else(|_| "node".to_string()),
+        "workerArgs": [worker_path.to_string_lossy().to_string()],
+    }));
+    (contract.native_bridge_env, encoded)
+}
+
 pub struct FixtureServer {
     base_url: String,
     running: Arc<AtomicBool>,

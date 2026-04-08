@@ -7,6 +7,7 @@ import { EXIT_CODES } from "./utils/errors.js";
 import { printJsonError } from "./utils/json.js";
 import { parseRootArgv } from "./utils/root-argv.js";
 import { createCliPackageInfoResolver } from "./package-info.js";
+import { applyPreviewRuntimeOverrides } from "./preview/runtime.js";
 import { runLauncher } from "./launcher.js";
 
 function realPathOrResolved(targetPath: string): string {
@@ -77,6 +78,7 @@ export async function runCliEntrypoint(
     return;
   }
 
+  applyPreviewRuntimeOverrides();
   await runLauncher(
     createCliPackageInfoResolver(import.meta.url),
     entryArgv,

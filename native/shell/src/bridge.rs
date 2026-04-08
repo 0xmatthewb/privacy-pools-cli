@@ -26,6 +26,67 @@ struct JsBridgeDescriptor {
 }
 
 pub fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
+    let (worker_command, worker_args, worker_request_env, worker_protocol_version) =
+        resolve_js_worker_launch()?;
+    let encoded_request = encode_worker_request(argv, &worker_protocol_version)?;
+
+    let mut child = Command::new(worker_command);
+    child
+        .args(worker_args)
+        .env(worker_request_env, encoded_request)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
+
+    let status = child.status().map_err(|error| {
+        CliError::unknown(
+            format!("Failed to launch JS worker: {error}"),
+            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
+        )
+    })?;
+
+    Ok(exit_code_from_status(status))
+}
+
+pub fn capture_js_worker_stdout(argv: &[String]) -> Result<String, CliError> {
+    let (worker_command, worker_args, worker_request_env, worker_protocol_version) =
+        resolve_js_worker_launch()?;
+    let encoded_request = encode_worker_request(argv, &worker_protocol_version)?;
+
+    let output = Command::new(worker_command)
+        .args(worker_args)
+        .env(worker_request_env, encoded_request)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|error| {
+            CliError::unknown(
+                format!("Failed to launch JS worker: {error}"),
+                Some("Reinstall the CLI or disable native mode and retry.".to_string()),
+            )
+        })?;
+
+    let exit_code = exit_code_from_status(output.status);
+    if exit_code != 0 {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(CliError::unknown(
+            format!(
+                "JS worker request failed with exit code {exit_code}.{}",
+                if stderr.trim().is_empty() {
+                    String::new()
+                } else {
+                    format!(" {stderr}")
+                }
+            ),
+            Some("Disable native mode and retry if the problem persists.".to_string()),
+        ));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+fn resolve_js_worker_launch() -> Result<(String, Vec<String>, String, String), CliError> {
     let runtime_contract = runtime_contract();
     let bridge = env::var(&runtime_contract.native_bridge_env)
         .ok()
@@ -63,33 +124,25 @@ pub fn forward_to_js_worker(argv: &[String]) -> Result<i32, CliError> {
         }
     };
 
+    Ok((
+        worker_command,
+        worker_args,
+        worker_request_env,
+        worker_protocol_version,
+    ))
+}
+
+fn encode_worker_request(argv: &[String], worker_protocol_version: &str) -> Result<String, CliError> {
     let request = json!({
         "protocolVersion": worker_protocol_version,
         "argv": argv,
     });
-    let encoded_request = BASE64.encode(serde_json::to_vec(&request).map_err(|error| {
+    Ok(BASE64.encode(serde_json::to_vec(&request).map_err(|error| {
         CliError::unknown(
             format!("Failed to encode worker request: {error}"),
             Some("Please report this issue.".to_string()),
         )
-    })?);
-
-    let mut child = Command::new(worker_command);
-    child
-        .args(worker_args)
-        .env(worker_request_env, encoded_request)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit());
-
-    let status = child.status().map_err(|error| {
-        CliError::unknown(
-            format!("Failed to launch JS worker: {error}"),
-            Some("Reinstall the CLI or disable native mode and retry.".to_string()),
-        )
-    })?;
-
-    Ok(exit_code_from_status(status))
+    })?))
 }
 
 fn decode_js_bridge_descriptor(encoded: &str) -> Result<JsBridgeDescriptor, CliError> {

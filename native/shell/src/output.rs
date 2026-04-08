@@ -25,7 +25,11 @@ enum SectionTone {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CalloutKind {
+    Success,
     Warning,
+    Danger,
+    Recovery,
+    Privacy,
     ReadOnly,
 }
 
@@ -223,7 +227,11 @@ pub fn format_callout(kind: CalloutKind, lines: &[String]) -> String {
     }
 
     let heading = match kind {
+        CalloutKind::Success => styled_bold(&format!("{}:", styled_success("Success"))),
         CalloutKind::Warning => styled_bold(&format!("{}:", styled_notice("Warning"))),
+        CalloutKind::Danger => styled_bold(&format!("{}:", styled_danger("Attention"))),
+        CalloutKind::Recovery => styled_bold(&format!("{}:", styled_accent("Recovery"))),
+        CalloutKind::Privacy => styled_bold(&format!("{}:", styled_notice("Privacy"))),
         CalloutKind::ReadOnly => styled_bold(&format!("{}:", styled_accent("Read-only"))),
     };
 
@@ -240,7 +248,7 @@ pub fn format_callout(kind: CalloutKind, lines: &[String]) -> String {
 }
 
 fn format_section_heading_with_tone(title: &str, tone: SectionTone) -> String {
-    let divider = styled_dim(&"─".repeat(SECTION_DIVIDER_WIDTH));
+    let divider = styled_dim(&section_divider_line());
     let heading = match tone {
         SectionTone::Accent => styled_accent_bold(&format!("{title}:")),
         SectionTone::Muted => styled_dim(&format!("{title}:")),
@@ -386,9 +394,16 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
         }
     }
 
-    let top = style_table_border(&table_border('┌', '┬', '┐', &widths));
-    let middle = style_table_border(&table_border('├', '┼', '┤', &widths));
-    let bottom = style_table_border(&table_border('└', '┴', '┘', &widths));
+    let chars = table_chars();
+    let top = style_table_border(&table_border(chars.top_left, chars.top_mid, chars.top_right, &widths));
+    let middle =
+        style_table_border(&table_border(chars.mid_left, chars.mid_mid, chars.mid_right, &widths));
+    let bottom = style_table_border(&table_border(
+        chars.bottom_left,
+        chars.bottom_mid,
+        chars.bottom_right,
+        &widths,
+    ));
     let header_row = table_row_with_style(&headers, &widths, Some(styled_bold));
 
     let mut output = String::new();
@@ -420,7 +435,7 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
 }
 
 pub fn write_info(message: &str) {
-    write_stderr_text(&format!("{} {message}", styled_accent("ℹ")));
+    write_stderr_text(&format!("{} {message}", styled_accent(info_glyph())));
 }
 
 pub fn insert_optional_string(object: &mut Map<String, Value>, key: &str, value: Option<String>) {
@@ -465,9 +480,9 @@ pub fn render_next_steps(actions: &[Value]) {
     }
 
     write_stderr_text(&format_muted_section_heading("Next steps"));
-    for (command, reason) in runnable {
-        write_stderr_text(&format!("  {}", styled_accent(&command)));
-        write_stderr_text(&format!("  {}", styled_dim(&reason)));
+    for (index, (command, reason)) in runnable.into_iter().enumerate() {
+        write_stderr_text(&format!("  {}. {}", index + 1, styled_accent(&command)));
+        write_stderr_text(&format!("     {}", styled_dim(&reason)));
     }
 }
 
@@ -597,7 +612,7 @@ fn escape_csv_field(value: &str) -> String {
 fn table_border(left: char, middle: char, right: char, widths: &[usize]) -> String {
     let segments = widths
         .iter()
-        .map(|width| "─".repeat(width + 2))
+        .map(|width| table_horizontal_segment(*width + 2))
         .collect::<Vec<_>>();
     format!("{left}{}{right}", segments.join(&middle.to_string()))
 }
@@ -615,6 +630,7 @@ fn table_row_with_style(
     widths: &[usize],
     style: Option<fn(&str) -> String>,
 ) -> String {
+    let vertical = table_chars().vertical;
     let cells = row
         .iter()
         .enumerate()
@@ -626,7 +642,7 @@ fn table_row_with_style(
             format!(" {rendered}{} ", " ".repeat(padding))
         })
         .collect::<Vec<_>>();
-    format!("│{}│", cells.join("│"))
+    format!("{vertical}{}{vertical}", cells.join(&vertical.to_string()))
 }
 
 fn visible_width(value: &str) -> usize {
@@ -695,6 +711,84 @@ fn stderr_supports_unicode_animation() -> bool {
     !cfg!(windows)
 }
 
+fn supports_unicode_output() -> bool {
+    if matches!(env::var("TERM"), Ok(term) if term.eq_ignore_ascii_case("dumb")) {
+        return false;
+    }
+
+    let locale = env::var("LC_ALL")
+        .ok()
+        .or_else(|| env::var("LANG").ok())
+        .unwrap_or_default()
+        .to_ascii_uppercase();
+    if locale.contains("UTF-8") || locale.contains("UTF8") {
+        return true;
+    }
+
+    !cfg!(windows)
+}
+
+fn section_divider_line() -> String {
+    let divider_char = if supports_unicode_output() { '─' } else { '-' };
+    divider_char.to_string().repeat(SECTION_DIVIDER_WIDTH)
+}
+
+fn table_horizontal_segment(width: usize) -> String {
+    let fill = if supports_unicode_output() { '─' } else { '-' };
+    fill.to_string().repeat(width)
+}
+
+fn info_glyph() -> &'static str {
+    if supports_unicode_output() {
+        "ℹ"
+    } else {
+        "i"
+    }
+}
+
+struct TableChars {
+    top_left: char,
+    top_mid: char,
+    top_right: char,
+    mid_left: char,
+    mid_mid: char,
+    mid_right: char,
+    bottom_left: char,
+    bottom_mid: char,
+    bottom_right: char,
+    vertical: char,
+}
+
+fn table_chars() -> TableChars {
+    if supports_unicode_output() {
+        TableChars {
+            top_left: '┌',
+            top_mid: '┬',
+            top_right: '┐',
+            mid_left: '├',
+            mid_mid: '┼',
+            mid_right: '┤',
+            bottom_left: '└',
+            bottom_mid: '┴',
+            bottom_right: '┘',
+            vertical: '│',
+        }
+    } else {
+        TableChars {
+            top_left: '+',
+            top_mid: '+',
+            top_right: '+',
+            mid_left: '+',
+            mid_mid: '+',
+            mid_right: '+',
+            bottom_left: '+',
+            bottom_mid: '+',
+            bottom_right: '+',
+            vertical: '|',
+        }
+    }
+}
+
 fn style_with_code(text: &str, code: &str) -> String {
     if stderr_supports_style() {
         format!("\x1b[{code}m{text}\x1b[0m")
@@ -729,4 +823,23 @@ fn styled_success(text: &str) -> String {
 
 fn styled_danger(text: &str) -> String {
     style_with_code(text, "38;2;255;138;128")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{format_callout, CalloutKind};
+
+    #[test]
+    fn format_callout_supports_success_and_privacy_labels() {
+        let success = format_callout(CalloutKind::Success, &[String::from("Updated successfully.")]);
+        assert!(success.contains("Success:"));
+        assert!(success.contains("Updated successfully."));
+
+        let privacy = format_callout(
+            CalloutKind::Privacy,
+            &[String::from("Private withdrawals still require approved balances.")],
+        );
+        assert!(privacy.contains("Privacy:"));
+        assert!(privacy.contains("approved balances"));
+    }
 }

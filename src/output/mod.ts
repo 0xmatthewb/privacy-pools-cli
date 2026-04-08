@@ -114,15 +114,23 @@ export {
   type FlowRenderData,
 } from "./flow.js";
 export {
+  renderWorkflowWalletBackupChoicePreview,
+  renderWorkflowWalletBackupConfirmation,
+  renderWorkflowWalletBackupManual,
+  renderWorkflowWalletBackupSaved,
+} from "./workflow-wallet.js";
+export {
   renderRagequitDryRun,
   renderRagequitSuccess,
   type RagequitDryRunData,
   type RagequitSuccessData,
 } from "./ragequit.js";
 export {
+  formatRelayedWithdrawalReview,
   renderWithdrawDryRun,
   renderWithdrawSuccess,
   renderWithdrawQuote,
+  type RelayedWithdrawalReviewData,
   type WithdrawDryRunData,
   type WithdrawSuccessData,
   type WithdrawQuoteData,

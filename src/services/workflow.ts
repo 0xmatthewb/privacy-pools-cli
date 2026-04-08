@@ -116,6 +116,17 @@ import {
 } from "../commands/withdraw.js";
 import { toRagequitSolidityProof } from "../utils/unsigned.js";
 import type { GlobalOptions } from "../types.js";
+import {
+  renderWorkflowWalletBackupChoicePreview,
+  renderWorkflowWalletBackupConfirmation,
+  renderWorkflowWalletBackupManual,
+  renderWorkflowWalletBackupSaved,
+} from "../output/workflow-wallet.js";
+import {
+  maybeRenderPreviewProgressStep,
+  maybeRenderPreviewScenario,
+  PreviewScenarioRenderedError,
+} from "../preview/runtime.js";
 import { assertKnownPoolRoot } from "./pool-roots.js";
 import {
   LEGACY_WORKFLOW_SECRET_RECORD_VERSIONS,
@@ -1263,6 +1274,13 @@ async function confirmHumanFlowStartReview(params: {
   }
 
   process.stderr.write("\n");
+  if (
+    await maybeRenderPreviewScenario("flow start confirm", {
+      timing: "after-prompts",
+    })
+  ) {
+    throw new PreviewScenarioRenderedError();
+  }
   const { confirm } = await import("@inquirer/prompts");
   const ok = await confirm({
     message:
@@ -3722,18 +3740,25 @@ export async function setupNewWalletWorkflow(params: {
   } else {
     process.stderr.write("\n");
     warn("A dedicated workflow wallet was created for this flow.", silent);
-    info(`Workflow wallet: ${account.address}`, silent);
 
     if (validatedBackupPath) {
       backupPath = validatedBackupPath;
       writePrivateTextFile(backupPath, buildWorkflowWalletBackup(secretRecord));
-      info(`Workflow wallet backup saved to ${backupPath}`, silent);
-      warn(
-        "The recovery key was written to that backup file. Keep it secure; anyone with that key can move workflow funds.",
-        silent,
+      process.stderr.write(
+        renderWorkflowWalletBackupSaved({
+          walletAddress: account.address,
+          backupPath,
+        }),
       );
     } else {
       const { input, select } = await import("@inquirer/prompts");
+      if (
+        await maybeRenderPreviewScenario("flow start new-wallet backup choice", {
+          timing: "after-prompts",
+        })
+      ) {
+        throw new PreviewScenarioRenderedError();
+      }
       const saveAction = await select({
         message: "How would you like to back up this workflow wallet?",
         choices: [
@@ -3743,6 +3768,13 @@ export async function setupNewWalletWorkflow(params: {
       });
 
       if (saveAction === "file") {
+        if (
+          await maybeRenderPreviewScenario("flow start new-wallet backup path", {
+            timing: "after-prompts",
+          })
+        ) {
+          throw new PreviewScenarioRenderedError();
+        }
         backupPath = await input({
           message: "Save location:",
           default: defaultWorkflowWalletBackupPath(workflowId),
@@ -3752,22 +3784,36 @@ export async function setupNewWalletWorkflow(params: {
           backupPath,
           buildWorkflowWalletBackup(secretRecord),
         );
-        info(`Workflow wallet backup saved to ${backupPath}`, silent);
-        warn(
-          "The recovery key was written to that backup file. Keep it secure; anyone with that key can move workflow funds.",
-          silent,
+        process.stderr.write(
+          renderWorkflowWalletBackupSaved({
+            walletAddress: account.address,
+            backupPath,
+          }),
         );
       } else {
-        process.stderr.write(`Private key: ${privateKey}\n`);
-        warn(
-          "Save this private key now. You will need it to recover funds if the workflow cannot finish privately.",
-          silent,
+        process.stderr.write(
+          renderWorkflowWalletBackupManual({
+            walletAddress: account.address,
+            privateKey,
+          }),
         );
       }
     }
 
-    process.stderr.write("\n");
+    process.stderr.write(
+      renderWorkflowWalletBackupConfirmation({
+        walletAddress: account.address,
+        backupPath,
+      }),
+    );
 
+    if (
+      await maybeRenderPreviewScenario("flow start new-wallet backup confirm", {
+        timing: "after-prompts",
+      })
+    ) {
+      throw new PreviewScenarioRenderedError();
+    }
     const { confirm } = await import("@inquirer/prompts");
     const confirmed = await confirm({
       message: "I have securely backed up this workflow wallet.",
@@ -3933,6 +3979,31 @@ export async function startWorkflow(
     });
   }
 
+  if (
+    newWallet &&
+    await maybeRenderPreviewScenario("flow start new-wallet backup choice", {
+      timing: "after-prompts",
+    })
+  ) {
+    throw new PreviewScenarioRenderedError();
+  }
+  if (
+    newWallet &&
+    await maybeRenderPreviewScenario("flow start new-wallet backup path", {
+      timing: "after-prompts",
+    })
+  ) {
+    throw new PreviewScenarioRenderedError();
+  }
+  if (
+    newWallet &&
+    await maybeRenderPreviewScenario("flow start new-wallet backup confirm", {
+      timing: "after-prompts",
+    })
+  ) {
+    throw new PreviewScenarioRenderedError();
+  }
+
   let snapshot: FlowSnapshot;
   if (newWallet) {
     const workflowId = randomUUID();
@@ -3959,6 +4030,19 @@ export async function startWorkflow(
   } else {
     const configuredWalletAddress = privateKeyToAccount(loadPrivateKey()).address;
     let checkpointedSnapshot: FlowSnapshot | null = null;
+    if (
+      await maybeRenderPreviewProgressStep("flow.start.submit-deposit", {
+        stage: {
+          step: 1,
+          total: effectiveWatch ? 2 : 1,
+          label: "Submitting deposit",
+        },
+        spinnerText: "Submitting deposit transaction...",
+        doneText: "Deposit submitted.",
+      })
+    ) {
+      throw new PreviewScenarioRenderedError();
+    }
     stageHeader(1, effectiveWatch ? 2 : 1, "Submitting deposit", silent);
     try {
       const depositResult = await executeDepositForFlow({

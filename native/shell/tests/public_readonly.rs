@@ -2,8 +2,8 @@ mod support;
 
 use serde_json::Value;
 use support::{
-    launch_fixture_server, launch_fixture_server_with_behavior, parse_stdout_json,
-    run_native_with_env, stderr_string, stdout_string, FixtureBehavior,
+    launch_fixture_server, launch_fixture_server_with_behavior, live_bridge_env,
+    parse_stdout_json, run_native_with_env, stderr_string, stdout_string, FixtureBehavior,
 };
 
 #[test]
@@ -61,7 +61,7 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 
     let csv_activity = run_native_with_env(&["--format", "csv", "activity"], &env);
     assert!(csv_activity.status.success());
-    assert!(stderr_string(&csv_activity).contains("Fetching public activity"));
+    assert!(stderr_string(&csv_activity).trim().is_empty());
     assert!(stdout_string(&csv_activity).contains("Type,Pool,Amount,Status,Time,Tx"));
 
     let human_stats = run_native_with_env(&["stats"], &env);
@@ -71,7 +71,7 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 
     let csv_stats = run_native_with_env(&["--format", "csv", "stats"], &env);
     assert!(csv_stats.status.success());
-    assert!(stderr_string(&csv_stats).contains("Fetching global statistics"));
+    assert!(stderr_string(&csv_stats).trim().is_empty());
     assert!(stdout_string(&csv_stats).contains("Metric,All Time,Last 24h"));
 }
 
@@ -373,15 +373,31 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();
     let rpc_url = fixture.base_url().to_string();
+    let (bridge_key, bridge_value) = live_bridge_env();
     let env = [
         ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
         ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
+        (bridge_key.as_str(), bridge_value.as_str()),
     ];
 
     let human_pools = run_native_with_env(&["--chain", "sepolia", "pools"], &env);
     assert!(human_pools.status.success());
     assert!(stdout_string(&human_pools).is_empty());
     assert!(stderr_string(&human_pools).contains("Pools on sepolia:"));
+
+    let human_pool_detail =
+        run_native_with_env(&["--chain", "sepolia", "pools", "ETH"], &env);
+    assert!(human_pool_detail.status.success());
+    assert!(stdout_string(&human_pool_detail).is_empty());
+    let human_pool_detail_stderr = stderr_string(&human_pool_detail);
+    assert!(
+        human_pool_detail_stderr.contains("Pool address"),
+        "detail stderr was:\n{}",
+        human_pool_detail_stderr
+    );
+    assert!(human_pool_detail_stderr.contains("My funds"));
+    assert!(human_pool_detail_stderr.contains("Recent activity"));
+    assert!(human_pool_detail_stderr.contains("Privacy:"));
 
     let csv_pools = run_native_with_env(&["--format", "csv", "--chain", "sepolia", "pools"], &env);
     assert!(csv_pools.status.success());
@@ -403,7 +419,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
         &env,
     );
     assert!(csv_stats_pool.status.success());
-    assert!(stderr_string(&csv_stats_pool).contains("Fetching pool statistics"));
+    assert!(stderr_string(&csv_stats_pool).trim().is_empty());
     assert!(stdout_string(&csv_stats_pool).contains("Metric,All Time,Last 24h"));
 }
 

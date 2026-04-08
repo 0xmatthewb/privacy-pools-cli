@@ -10,7 +10,10 @@ import {
 import type { GlobalOptions } from "../types.js";
 import { printError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  maybeRenderPreviewProgressStep,
+  maybeRenderPreviewScenario,
+} from "../preview/runtime.js";
 
 interface UpgradeCommandOptions {
   check?: boolean;
@@ -30,6 +33,24 @@ export async function handleUpgradeCommand(
 
   try {
     if (await maybeRenderPreviewScenario("upgrade")) {
+      return;
+    }
+
+    if (
+      await maybeRenderPreviewProgressStep("upgrade.install", {
+        spinnerText: "Installing update...",
+        doneText: "Upgrade installed.",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      await maybeRenderPreviewProgressStep("upgrade.check", {
+        spinnerText: "Checking for upgrades...",
+        doneText: "Upgrade status loaded.",
+      })
+    ) {
       return;
     }
 
@@ -87,6 +108,14 @@ export async function handleUpgradeCommand(
     }
 
     if (shouldAutoRun) {
+      if (
+        await maybeRenderPreviewProgressStep("upgrade.install", {
+          spinnerText: "Installing update...",
+          doneText: "Upgrade installed.",
+        })
+      ) {
+        return;
+      }
       result = await performUpgradeWithProgress();
       renderUpgradeResult(ctx, result);
       return;
@@ -98,6 +127,13 @@ export async function handleUpgradeCommand(
     }
 
     const { confirm } = await import("@inquirer/prompts");
+    if (
+      await maybeRenderPreviewScenario("upgrade confirm", {
+        timing: "after-prompts",
+      })
+    ) {
+      return;
+    }
     const confirmed = await confirm({
       message:
         `Install privacy-pools-cli ${result.latestVersion} now with npm?`,
@@ -109,6 +145,14 @@ export async function handleUpgradeCommand(
       return;
     }
 
+    if (
+      await maybeRenderPreviewProgressStep("upgrade.install", {
+        spinnerText: "Installing update...",
+        doneText: "Upgrade installed.",
+      })
+    ) {
+      return;
+    }
     result = await performUpgradeWithProgress();
     renderUpgradeResult(ctx, result);
   } catch (error) {

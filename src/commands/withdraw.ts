@@ -78,10 +78,14 @@ import { explorerTxUrl, isNativePoolAsset, POA_PORTAL_URL } from "../config/chai
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions, PoolStats, RelayerQuoteResponse } from "../types.js";
-import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  maybeRenderPreviewProgressStep,
+  maybeRenderPreviewScenario,
+} from "../preview/runtime.js";
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import {
+  formatRelayedWithdrawalReview,
   renderWithdrawDryRun,
   renderWithdrawSuccess,
   renderWithdrawQuote,
@@ -538,6 +542,75 @@ export async function handleWithdrawCommand(
       withdrawalUsd = "";
     }
 
+    if (
+      isDirect &&
+      !skipPrompts &&
+      await maybeRenderPreviewScenario("withdraw direct confirm", {
+        timing: "after-prompts",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      !isDirect &&
+      await maybeRenderPreviewProgressStep("withdraw.request-quote", {
+        stage: {
+          step: 3,
+          total: 5,
+          label: "Requesting relayer quote",
+        },
+        spinnerText: "Requesting relayer quote...",
+        doneText: "Relayer quote ready.",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      await maybeRenderPreviewProgressStep("withdraw.generate-proof", {
+        stage: {
+          step: isDirect ? 3 : 4,
+          total: isDirect ? 4 : 5,
+          label: "Generating ZK proof",
+        },
+        spinnerText: "Generating ZK proof...",
+        doneText: "Proof ready.",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      isDirect &&
+      await maybeRenderPreviewProgressStep("withdraw.submit-direct", {
+        stage: {
+          step: 4,
+          total: 4,
+          label: "Submitting withdrawal",
+        },
+        spinnerText: "Submitting withdrawal...",
+        doneText: "Withdrawal submitted.",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      !isDirect &&
+      await maybeRenderPreviewProgressStep("withdraw.submit-relayed", {
+        stage: {
+          step: 5,
+          total: 5,
+          label: "Submitting to relayer",
+        },
+        spinnerText: "Submitting to relayer...",
+        doneText: "Relayer submission sent.",
+      })
+    ) {
+      return;
+    }
+
     // Acquire process lock to prevent concurrent account mutations.
     const releaseLock = acquireProcessLock();
     try {
@@ -841,6 +914,13 @@ export async function handleWithdrawCommand(
         selectedPoolAccount = requested;
       } else if (!skipPrompts && approvedEligiblePoolAccounts.length > 1) {
         spin.stop();
+        if (
+          await maybeRenderPreviewScenario("withdraw pa select", {
+            timing: "after-prompts",
+          })
+        ) {
+          return;
+        }
         const selectedPA = await select({
           message: "Select Pool Account to withdraw from:",
           choices: approvedEligiblePoolAccounts.map((pa) => ({
@@ -918,6 +998,13 @@ export async function handleWithdrawCommand(
 
       if (!isDirect && !recipientAddress) {
         spin.stop();
+        if (
+          await maybeRenderPreviewScenario("withdraw recipient input", {
+            timing: "after-prompts",
+          })
+        ) {
+          return;
+        }
         const prompted = await input({
           message: "Recipient address:",
           validate: (val) => {
@@ -1035,6 +1122,13 @@ export async function handleWithdrawCommand(
             silent,
           );
           process.stderr.write("\n");
+          if (
+            await maybeRenderPreviewScenario("withdraw direct confirm", {
+              timing: "after-prompts",
+            })
+          ) {
+            return;
+          }
           const ok = await confirm({
             message: `Withdraw ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}${withdrawalUsd} from ${selectedPoolAccount.paId} directly to ${formatAddress(directAddress)} on ${chainConfig.name}? (no privacy)`,
             default: false,
@@ -1335,62 +1429,27 @@ export async function handleWithdrawCommand(
           return val === "-" ? "" : ` (${val})`;
         };
         const renderWithdrawalReview = (): void => {
-          const secondsLeft = Math.max(
-            0,
-            Math.floor((expirationMs - Date.now()) / 1000),
-          );
-          const feeAmount = (withdrawalAmount * quoteFeeBPS) / 10000n;
-          const netAmount = withdrawalAmount - feeAmount;
-          const remainingBalance = selectedPoolAccount.value - withdrawalAmount;
-          const extraGasFunding = quote.detail.extraGasFundAmount
-            ? formatAmount(
-                BigInt(quote.detail.extraGasFundAmount.eth),
-                18,
-                "ETH",
-                displayDecimals(18),
-              )
-            : null;
-
           process.stderr.write("\n");
           process.stderr.write(
-            "  ── Withdrawal Review ──────────────────────────\n",
+            formatRelayedWithdrawalReview({
+              poolAccountId: selectedPoolAccount.paId,
+              poolAccountBalance: selectedPoolAccount.value,
+              amount: withdrawalAmount,
+              asset: pool.symbol,
+              chain: chainConfig.name,
+              decimals: pool.decimals,
+              recipient: resolvedRecipientAddress,
+              quoteFeeBPS,
+              expirationMs,
+              remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+              extraGasRequested: effectiveExtraGas,
+              extraGasFundAmount: quote.detail.extraGasFundAmount
+                ? BigInt(quote.detail.extraGasFundAmount.eth)
+                : null,
+              tokenPrice,
+              remainingBelowMinAdvisory,
+            }),
           );
-          process.stderr.write(
-            `  From:            ${selectedPoolAccount.paId} (balance: ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol, dd)})\n`,
-          );
-          process.stderr.write(
-            `  To:              ${formatAddress(resolvedRecipientAddress)}\n`,
-          );
-          process.stderr.write(`  Chain:           ${chainConfig.name}\n`);
-          process.stderr.write(
-            `  Amount:          ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol, dd)}${usd(withdrawalAmount)}\n`,
-          );
-          process.stderr.write(
-            `  Relayer fee:     ${formatAmount(feeAmount, pool.decimals, pool.symbol, dd)}${usd(feeAmount)} (${formatBPS(quoteFeeBPS)})\n`,
-          );
-          if (extraGasFunding) {
-            process.stderr.write(
-              `  Gas token received: ${extraGasFunding}\n`,
-            );
-          } else if (effectiveExtraGas) {
-            process.stderr.write(
-              "  Gas token received: requested (ETH for gas)\n",
-            );
-          }
-          process.stderr.write(
-            `  You receive:     ~${formatAmount(netAmount, pool.decimals, pool.symbol, dd)}${usd(netAmount)}\n`,
-          );
-          process.stderr.write(
-            `  Remaining:       ${remainingBalance === 0n ? `${selectedPoolAccount.paId} fully withdrawn` : `${formatAmount(remainingBalance, pool.decimals, pool.symbol, dd)}${usd(remainingBalance)}`}\n`,
-          );
-          process.stderr.write(`  Quote expires:   in ${secondsLeft}s\n`);
-          process.stderr.write(
-            "  ────────────────────────────────────────────────\n",
-          );
-          if (remainingBelowMinAdvisory) {
-            warn(remainingBelowMinAdvisory, silent);
-            process.stderr.write("\n");
-          }
         };
 
         if (!skipPrompts) {
@@ -1407,6 +1466,13 @@ export async function handleWithdrawCommand(
             }
 
             spin.stop();
+            if (
+              await maybeRenderPreviewScenario("withdraw confirm", {
+                timing: "after-prompts",
+              })
+            ) {
+              return;
+            }
             renderWithdrawalReview();
 
             const ok = await confirm({

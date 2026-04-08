@@ -77,6 +77,55 @@ pub(super) struct PoolsRenderData {
 }
 
 #[derive(Debug, Clone)]
+pub(super) struct PoolDetailAccount {
+    pub(super) id: String,
+    pub(super) status: String,
+    pub(super) value: String,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct PoolDetailMyFunds {
+    pub(super) balance: String,
+    pub(super) usd_value: Option<String>,
+    pub(super) pool_accounts: u64,
+    pub(super) pending_count: u64,
+    pub(super) poi_required_count: u64,
+    pub(super) declined_count: u64,
+    pub(super) accounts: Vec<PoolDetailAccount>,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct PoolDetailActivityEvent {
+    pub(super) event_type: String,
+    pub(super) amount: String,
+    pub(super) time_label: String,
+    pub(super) status: String,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct PoolDetailRenderData {
+    pub(super) chain_name: String,
+    pub(super) asset: String,
+    pub(super) token_address: String,
+    pub(super) pool: String,
+    pub(super) scope: String,
+    pub(super) decimals: u32,
+    pub(super) minimum_deposit: String,
+    pub(super) vetting_fee_bps: String,
+    pub(super) max_relay_fee_bps: String,
+    pub(super) total_in_pool_value: Option<String>,
+    pub(super) total_in_pool_value_usd: Option<String>,
+    pub(super) total_deposits_value: Option<String>,
+    pub(super) total_deposits_value_usd: Option<String>,
+    pub(super) pending_deposits_value: Option<String>,
+    pub(super) pending_deposits_value_usd: Option<String>,
+    pub(super) total_deposits_count: Option<u64>,
+    pub(super) my_funds: Option<PoolDetailMyFunds>,
+    pub(super) my_funds_warning: Option<String>,
+    pub(super) recent_activity: Option<Vec<PoolDetailActivityEvent>>,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct NativePoolResolution {
     pub(crate) symbol: String,
     pub(crate) pool_address: String,

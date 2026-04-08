@@ -851,14 +851,18 @@ describe("workflow internal helpers", () => {
 
     expect(result).not.toBeNull();
     expect(captured.stdout).toBe("");
-    expect(captured.stderr).toContain("Private key:");
-    expect(captured.stderr).toMatch(/Private key:\s*0x[a-f0-9]{64}/i);
+    expect(captured.stderr).toContain("Workflow wallet backup");
+    expect(captured.stderr).toContain("Recovery key:");
+    expect(captured.stderr).toMatch(/Recovery key:\s*0x[a-f0-9]{64}/i);
+    expect(captured.stderr).toContain("Confirm workflow wallet backup");
     expect(result!.snapshot.phase).toBe("awaiting_funding");
     expect(result!.snapshot.requiredTokenFunding).toBe("5000000");
     expect(BigInt(result!.snapshot.requiredNativeFunding ?? "0")).toBeGreaterThan(0n);
     expect(result!.secretRecord.exportedBackupPath).toBeNull();
     expect(typeof result!.secretRecord.backupConfirmedAt).toBe("string");
-    expect(state.warnings.join("\n")).toContain("Save this private key now.");
+    expect(state.warnings.join("\n")).toContain(
+      "A dedicated workflow wallet was created for this flow.",
+    );
   });
 
   test("loadWorkflowPoolAccountContext rejects workflows that do not have a saved Pool Account yet", async () => {

@@ -1069,6 +1069,7 @@
         "owner": "hybrid",
         "nativeModes": [
           "default-list",
+          "default-detail",
           "csv-list",
           "structured-list",
           "help"

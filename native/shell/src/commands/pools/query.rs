@@ -1,11 +1,15 @@
 use super::helpers::{apply_pool_search, pool_listing_entry_to_resolution, sort_pools};
-use super::model::{ChainSummary, NativePoolResolution, PoolListingEntry, PoolsCommandOptions};
+use super::model::{
+    ChainSummary, NativePoolResolution, PoolDetailAccount, PoolDetailActivityEvent,
+    PoolDetailMyFunds, PoolDetailRenderData, PoolListingEntry, PoolsCommandOptions,
+};
 use super::query_chain_selection::{all_chains_with_overrides, default_read_only_chains};
 use super::query_execution::{
     apply_pools_chain_query_result, pools_worker_join_failure, query_pools_for_chain,
 };
 use super::query_resolution::list_pools_native;
-use super::render::{render_pools_empty_output, render_pools_output};
+use super::render::{render_pool_detail_output, render_pools_empty_output, render_pools_output};
+use crate::bridge::capture_js_worker_stdout;
 use crate::config::{get_rpc_urls, has_custom_rpc_override, load_config, resolve_chain, CliConfig};
 use crate::contract::{ChainDefinition, Manifest};
 use crate::dispatch::{commander_too_many_arguments_error, commander_unknown_option_error};
@@ -13,10 +17,12 @@ use crate::error::{CliError, ErrorCategory};
 use crate::output::start_spinner;
 use crate::parse_timeout_ms;
 use crate::root_argv::{
+    all_non_option_tokens,
     is_command_global_boolean_option, is_command_global_inline_value_option,
     is_command_global_value_option, ParsedRootArgv,
 };
 use crate::routing::resolve_mode;
+use serde_json::Value;
 
 pub(crate) fn handle_pools_native(
     argv: &[String],
@@ -24,6 +30,11 @@ pub(crate) fn handle_pools_native(
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
     let mode = resolve_mode(parsed);
+    if !mode.is_json() && !mode.is_csv() {
+        if let Some(asset) = detail_asset_from_tokens(&all_non_option_tokens(argv)) {
+            return handle_pools_detail_native(argv, &mode, &asset);
+        }
+    }
     let opts = parse_pools_options(argv)?;
     let config = load_config()?;
     let timeout_ms = parse_timeout_ms(argv);
@@ -173,6 +184,184 @@ pub(crate) fn handle_pools_native(
     );
 
     Ok(0)
+}
+
+fn handle_pools_detail_native(
+    argv: &[String],
+    mode: &crate::routing::NativeMode,
+    _asset: &str,
+) -> Result<i32, CliError> {
+    let mut agent_argv = Vec::with_capacity(argv.len() + 1);
+    agent_argv.push("--agent".to_string());
+    agent_argv.extend(argv.iter().cloned());
+
+    let stdout = capture_js_worker_stdout(&agent_argv)?;
+    let payload: Value = serde_json::from_str(stdout.trim()).map_err(|error| {
+        CliError::unknown(
+            format!("Native pools detail bridge returned invalid JSON: {error}"),
+            Some("Disable native mode and retry if the problem persists.".to_string()),
+        )
+    })?;
+
+    if payload.get("success").and_then(Value::as_bool) != Some(true) {
+        let message = payload
+            .get("errorMessage")
+            .and_then(Value::as_str)
+            .unwrap_or("Unknown JS worker failure.");
+        return Err(CliError::unknown(
+            format!("Native pools detail bridge failed: {message}"),
+            Some("Disable native mode and retry if the problem persists.".to_string()),
+        ));
+    }
+
+    render_pool_detail_output(mode, parse_pool_detail_render_data(&payload)?);
+    Ok(0)
+}
+
+fn detail_asset_from_tokens(tokens: &[String]) -> Option<String> {
+    if tokens.len() == 2 && tokens.first().map(String::as_str) == Some("pools") {
+        return tokens.get(1).cloned();
+    }
+    None
+}
+
+fn parse_pool_detail_render_data(payload: &Value) -> Result<PoolDetailRenderData, CliError> {
+    let root = payload.as_object().ok_or_else(|| {
+        CliError::unknown(
+            "Native pools detail bridge returned a non-object payload.",
+            Some("Disable native mode and retry if the problem persists.".to_string()),
+        )
+    })?;
+
+    Ok(PoolDetailRenderData {
+        chain_name: required_string(root, "chain")?,
+        asset: required_string(root, "asset")?,
+        token_address: required_string(root, "tokenAddress")?,
+        pool: required_string(root, "pool")?,
+        scope: required_string(root, "scope")?,
+        decimals: root
+            .get("decimals")
+            .and_then(Value::as_u64)
+            .unwrap_or(18) as u32,
+        minimum_deposit: required_string(root, "minimumDeposit")?,
+        vetting_fee_bps: required_string(root, "vettingFeeBPS")?,
+        max_relay_fee_bps: required_string(root, "maxRelayFeeBPS")?,
+        total_in_pool_value: optional_string(root, "totalInPoolValue"),
+        total_in_pool_value_usd: optional_string(root, "totalInPoolValueUsd"),
+        total_deposits_value: optional_string(root, "totalDepositsValue"),
+        total_deposits_value_usd: optional_string(root, "totalDepositsValueUsd"),
+        pending_deposits_value: optional_string(root, "pendingDepositsValue"),
+        pending_deposits_value_usd: optional_string(root, "pendingDepositsValueUsd"),
+        total_deposits_count: root.get("totalDepositsCount").and_then(Value::as_u64),
+        my_funds: parse_pool_detail_my_funds(root.get("myFunds"))?,
+        my_funds_warning: optional_string(root, "myFundsWarning"),
+        recent_activity: parse_pool_detail_activity(root.get("recentActivity"))?,
+    })
+}
+
+fn parse_pool_detail_my_funds(value: Option<&Value>) -> Result<Option<PoolDetailMyFunds>, CliError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let object = value.as_object().ok_or_else(|| {
+        CliError::unknown(
+            "Native pools detail bridge returned malformed myFunds data.",
+            Some("Disable native mode and retry if the problem persists.".to_string()),
+        )
+    })?;
+    let accounts = object
+        .get("accounts")
+        .and_then(Value::as_array)
+        .map(|accounts| {
+            accounts
+                .iter()
+                .filter_map(|account| {
+                    let item = account.as_object()?;
+                    Some(PoolDetailAccount {
+                        id: required_string(item, "id").ok()?,
+                        status: required_string(item, "status").ok()?,
+                        value: required_string(item, "value").ok()?,
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    Ok(Some(PoolDetailMyFunds {
+        balance: required_string(object, "balance")?,
+        usd_value: optional_string(object, "usdValue"),
+        pool_accounts: object.get("poolAccounts").and_then(Value::as_u64).unwrap_or(0),
+        pending_count: object.get("pendingCount").and_then(Value::as_u64).unwrap_or(0),
+        poi_required_count: object
+            .get("poiRequiredCount")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        declined_count: object.get("declinedCount").and_then(Value::as_u64).unwrap_or(0),
+        accounts,
+    }))
+}
+
+fn parse_pool_detail_activity(
+    value: Option<&Value>,
+) -> Result<Option<Vec<PoolDetailActivityEvent>>, CliError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let Some(items) = value.as_array() else {
+        return Ok(None);
+    };
+    Ok(Some(
+        items
+            .iter()
+            .filter_map(|item| {
+                let object = item.as_object()?;
+                Some(PoolDetailActivityEvent {
+                    event_type: required_string(object, "type").ok()?,
+                    amount: object
+                        .get("amount")
+                        .and_then(Value::as_str)
+                        .unwrap_or("-")
+                        .to_string(),
+                    time_label: object
+                        .get("timeLabel")
+                        .and_then(Value::as_str)
+                        .unwrap_or("-")
+                        .to_string(),
+                    status: object
+                        .get("status")
+                        .and_then(Value::as_str)
+                        .unwrap_or("unknown")
+                        .to_string(),
+                })
+            })
+            .collect::<Vec<_>>(),
+    ))
+}
+
+fn required_string(
+    object: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<String, CliError> {
+    object
+        .get(key)
+        .and_then(Value::as_str)
+        .map(ToString::to_string)
+        .ok_or_else(|| {
+            CliError::unknown(
+                format!("Native pools detail bridge omitted required field '{key}'."),
+                Some("Disable native mode and retry if the problem persists.".to_string()),
+            )
+        })
+}
+
+fn optional_string(object: &serde_json::Map<String, Value>, key: &str) -> Option<String> {
+    object
+        .get(key)
+        .and_then(Value::as_str)
+        .map(ToString::to_string)
 }
 pub(crate) fn resolve_pool_native(
     chain: &ChainDefinition,

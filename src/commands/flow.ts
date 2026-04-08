@@ -13,7 +13,10 @@ import { CLIError, printError } from "../utils/errors.js";
 import { info } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { validateAddress } from "../utils/validation.js";
-import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  maybeRenderPreviewScenario,
+  PreviewScenarioRenderedError,
+} from "../preview/runtime.js";
 
 interface FlowStartCommandOptions {
   to?: string;
@@ -52,6 +55,10 @@ function handleFlowCommandError(
   error: unknown,
   options: { json: boolean; silent: boolean },
 ): void {
+  if (error instanceof PreviewScenarioRenderedError) {
+    return;
+  }
+
   if (error instanceof FlowCancelledError) {
     if (options.json) {
       printError(flowCancelledCliError(), true);
@@ -76,6 +83,10 @@ export async function handleFlowStartCommand(
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
+    if (await maybeRenderPreviewScenario("flow start")) {
+      return;
+    }
+
     let recipient = opts.to?.trim();
     if (!recipient && !mode.skipPrompts) {
       const { input } = await import("@inquirer/prompts");
@@ -93,16 +104,20 @@ export async function handleFlowStartCommand(
       recipient = validateAddress(prompted, "Recipient");
     }
 
+    if (
+      await maybeRenderPreviewScenario("flow start", {
+        timing: "after-prompts",
+      })
+    ) {
+      return;
+    }
+
     if (!recipient) {
       throw new CLIError(
         "Missing required --to <address>.",
         "INPUT",
         "Use 'privacy-pools flow start <amount> <asset> --to 0xRecipient...'.",
       );
-    }
-
-    if (await maybeRenderPreviewScenario("flow start")) {
-      return;
     }
 
     if (!opts.newWallet && opts.exportNewWallet?.trim()) {

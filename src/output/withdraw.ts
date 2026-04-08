@@ -25,7 +25,131 @@ import {
   formatCallout,
   formatKeyValueRows,
   formatSectionHeading,
+  type KeyValueRow,
 } from "./layout.js";
+
+export interface RelayedWithdrawalReviewData {
+  poolAccountId: string;
+  poolAccountBalance: bigint;
+  amount: bigint;
+  asset: string;
+  chain: string;
+  decimals: number;
+  recipient: string;
+  quoteFeeBPS: bigint;
+  expirationMs: number;
+  remainingBalance: bigint;
+  extraGasRequested: boolean;
+  extraGasFundAmount?: bigint | null;
+  tokenPrice?: number | null;
+  remainingBelowMinAdvisory?: string | null;
+  nowMs?: number;
+}
+
+export function formatRelayedWithdrawalReview(
+  data: RelayedWithdrawalReviewData,
+): string {
+  const dd = displayDecimals(data.decimals);
+  const usd = (amount: bigint): string => {
+    const val = formatUsdValue(amount, data.decimals, data.tokenPrice ?? null);
+    return val === "-" ? "" : ` (${val})`;
+  };
+  const secondsLeft = Math.max(
+    0,
+    Math.floor((data.expirationMs - (data.nowMs ?? Date.now())) / 1000),
+  );
+  const feeAmount = (data.amount * data.quoteFeeBPS) / 10000n;
+  const netAmount = data.amount - feeAmount;
+  const quoteExpiry = `${new Date(data.expirationMs).toISOString()} (in ${secondsLeft}s)`;
+  const financialRows: KeyValueRow[] = [
+    {
+      label: "Amount",
+      value: `${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`,
+    },
+    {
+      label: "Relayer fee",
+      value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`,
+      valueTone: "warning" as const,
+    },
+    ...(data.extraGasFundAmount
+      ? [
+          {
+            label: "Gas token received",
+            value: formatAmount(
+              data.extraGasFundAmount,
+              18,
+              "ETH",
+              displayDecimals(18),
+            ),
+            valueTone: "accent" as const,
+          },
+        ]
+      : data.extraGasRequested
+        ? [
+            {
+              label: "Gas token received",
+              value: "Requested with the withdrawal",
+              valueTone: "accent" as const,
+            },
+          ]
+        : []),
+    {
+      label: "Net received",
+      value: `${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`,
+      valueTone: "success" as const,
+    },
+    {
+      label: "Remainder",
+      value:
+        data.remainingBalance === 0n
+          ? `${data.poolAccountId} fully withdrawn`
+          : `${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`,
+      valueTone:
+        data.remainingBalance > 0n && data.remainingBelowMinAdvisory
+          ? ("danger" as const)
+          : ("default" as const),
+    },
+    {
+      label: "Quote expiry",
+      value: quoteExpiry,
+      valueTone: secondsLeft <= 20 ? "warning" : "muted",
+    },
+  ];
+
+  return `${formatSectionHeading("Withdrawal review", {
+    divider: true,
+    padTop: false,
+  })}${formatKeyValueRows([
+    {
+      label: "Source PA",
+      value: data.poolAccountId,
+    },
+    {
+      label: "PA balance",
+      value: formatAmount(
+        data.poolAccountBalance,
+        data.decimals,
+        data.asset,
+        dd,
+      ),
+    },
+    {
+      label: "Recipient",
+      value: formatAddress(data.recipient),
+    },
+    {
+      label: "Chain",
+      value: data.chain,
+    },
+  ])}${formatSectionHeading("Quote", {
+    divider: true,
+    padTop: false,
+  })}${formatKeyValueRows(financialRows)}${
+    data.remainingBelowMinAdvisory
+      ? formatCallout("warning", data.remainingBelowMinAdvisory)
+      : ""
+  }`;
+}
 
 // ── Dry-run ──────────────────────────────────────────────────────────────────
 

@@ -298,7 +298,7 @@ export function registerWorkflowMockedInteractiveTests(): void {
         ).rejects.toThrow("You must confirm that the workflow wallet is backed up.");
       });
       expect(stdout).toBe("");
-      expect(stderr).toContain("Private key:");
+      expect(stderr).toContain("Recovery key:");
       expect(stderr).toContain(NEW_WALLET_PRIVATE_KEY);
     });
 }

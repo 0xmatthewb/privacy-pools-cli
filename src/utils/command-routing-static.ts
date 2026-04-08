@@ -101,6 +101,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     "owner": "hybrid",
     "nativeModes": [
       "default-list",
+      "default-detail",
       "csv-list",
       "structured-list",
       "help"

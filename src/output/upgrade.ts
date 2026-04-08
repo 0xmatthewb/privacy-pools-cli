@@ -74,6 +74,39 @@ export function renderUpgradeResult(
     return;
   }
 
+  if (result.status === "upgraded") {
+    success(
+      `Upgraded privacy-pools-cli to ${result.installedVersion ?? result.latestVersion}.`,
+      ctx.mode.isQuiet,
+    );
+    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+    process.stderr.write(
+      formatKeyValueRows([
+        {
+          label: "Previous version",
+          value: result.currentVersion,
+        },
+        {
+          label: "Installed version",
+          value: result.installedVersion ?? result.latestVersion,
+          valueTone: "success",
+        },
+        {
+          label: "Install context",
+          value: result.installContext.kind,
+        },
+      ]),
+    );
+    process.stderr.write(
+      formatCallout("success", [
+        "The update finished successfully.",
+        "Re-run privacy-pools to use the updated version.",
+      ]),
+    );
+    process.stderr.write("\n");
+    return;
+  }
+
   info(
     `Update available: ${result.currentVersion} -> ${result.latestVersion}`,
     ctx.mode.isQuiet,
@@ -140,21 +173,4 @@ export function renderUpgradeResult(
     process.stderr.write("\n");
     return;
   }
-
-  success(
-    `Upgraded privacy-pools-cli to ${result.installedVersion ?? result.latestVersion}.`,
-    ctx.mode.isQuiet,
-  );
-  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
-  process.stderr.write(
-    formatKeyValueRows([
-      { label: "Installed version", value: result.installedVersion ?? result.latestVersion },
-      { label: "Previous version", value: result.currentVersion },
-      { label: "Status", value: "updated", valueTone: "success" },
-    ]),
-  );
-  process.stderr.write(
-    formatCallout("success", "Re-run privacy-pools to use the updated version."),
-  );
-  process.stderr.write("\n");
 }

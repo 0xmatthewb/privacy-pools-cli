@@ -46,11 +46,7 @@ pub(crate) fn is_static_quiet_mode(parsed: &ParsedRootArgv) -> bool {
 
 fn should_handle_native_pools(argv: &[String]) -> bool {
     let non_option_tokens = all_non_option_tokens(argv);
-    non_option_tokens.len() == 1
-        && non_option_tokens
-            .first()
-            .map(|value| value == "pools")
-            .unwrap_or(false)
+    matches!(non_option_tokens.first().map(String::as_str), Some("pools"))
 }
 
 pub(crate) fn activity_native_mode(
@@ -78,10 +74,14 @@ pub(crate) fn pools_native_mode(
         return None;
     }
 
-    let native_mode = match resolve_mode(parsed).format {
-        OutputFormat::Json => "structured-list",
-        OutputFormat::Csv => "csv-list",
-        OutputFormat::Table => "default-list",
+    let non_option_tokens = all_non_option_tokens(argv);
+    let mode = resolve_mode(parsed);
+    let native_mode = match (mode.format, non_option_tokens.len()) {
+        (OutputFormat::Table, 2) => "default-detail",
+        (OutputFormat::Json, 1) => "structured-list",
+        (OutputFormat::Csv, 1) => "csv-list",
+        (OutputFormat::Table, 1) => "default-list",
+        _ => return None,
     };
     manifest_allows_native_mode("pools", native_mode, manifest).then_some(native_mode)
 }
@@ -306,7 +306,7 @@ mod tests {
                 "commandRoutes": {
                     "activity": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
                     "flow": { "owner": "js-runtime", "nativeModes": ["help"] },
-                    "pools": { "owner": "hybrid", "nativeModes": ["default-list", "csv-list", "structured-list", "help"] },
+                    "pools": { "owner": "hybrid", "nativeModes": ["default-list", "default-detail", "csv-list", "structured-list", "help"] },
                     "ragequit": { "owner": "js-runtime", "nativeModes": ["help"] },
                     "stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured-default", "structured-global", "help"] },
                     "stats global": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
@@ -353,11 +353,18 @@ mod tests {
     }
 
     #[test]
-    fn pools_native_mode_skips_detail_view() {
+    fn pools_native_mode_handles_detail_view_in_human_mode_only() {
         let manifest = test_manifest();
         let args = argv(&["pools", "ETH"]);
         let parsed = parse_root_argv(&args);
-        assert_eq!(pools_native_mode(&args, &parsed, &manifest), None);
+        assert_eq!(
+            pools_native_mode(&args, &parsed, &manifest),
+            Some("default-detail")
+        );
+
+        let json_args = argv(&["--json", "pools", "ETH"]);
+        let json_parsed = parse_root_argv(&json_args);
+        assert_eq!(pools_native_mode(&json_args, &json_parsed, &manifest), None);
     }
 
     #[test]

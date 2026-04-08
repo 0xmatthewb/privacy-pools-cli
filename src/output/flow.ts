@@ -616,7 +616,36 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   const isTerminal = phase === "completed" || phase === "completed_public_recovery";
   const isFunding = phase === "awaiting_funding";
   const isPreDeposit = isFunding || phase === "depositing_publicly";
-  const isWaitingDelay = phase === "approved_waiting_privacy_delay";
+  const committedValue = formatFlowAssetAmount(
+    data.snapshot.committedValue,
+    data.snapshot,
+  );
+  const depositAmount = formatFlowAssetAmount(
+    data.snapshot.depositAmount,
+    data.snapshot,
+  );
+  const requiredTokenFunding = formatFlowAssetAmount(
+    data.snapshot.requiredTokenFunding,
+    data.snapshot,
+  );
+  const requiredNativeFunding = formatFlowNativeFunding(
+    data.snapshot.requiredNativeFunding,
+  );
+  const privacyDelaySummary = flowPrivacyDelayProfileSummary(
+    data.snapshot.privacyDelayProfile ?? "off",
+    data.snapshot.privacyDelayConfigured ?? false,
+  );
+  const showFullBalanceNote =
+    (phase === "awaiting_asp" ||
+      phase === "approved_waiting_privacy_delay" ||
+      phase === "approved_ready_to_withdraw") &&
+    data.action !== "ragequit";
+  const showPrivacyWarnings =
+    !isTerminal &&
+    phase !== "withdrawing" &&
+    phase !== "paused_declined" &&
+    phase !== "paused_poi_required" &&
+    phase !== "stopped_external";
 
   if (!silent) {
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
@@ -644,125 +673,254 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     process.stderr.write(formatKeyValueRows(summaryRows));
   }
 
-  // ── Funding phase: show what's needed to proceed ──
-  if (isFunding) {
-    const fundingRows = [];
-    const requiredTokenFunding = formatFlowAssetAmount(
-      data.snapshot.requiredTokenFunding,
-      data.snapshot,
-    );
-    if (requiredTokenFunding) {
-      fundingRows.push({
-        label: "Required token amount",
-        value: requiredTokenFunding,
-      });
-    }
-    const requiredNativeFunding = formatFlowNativeFunding(
-      data.snapshot.requiredNativeFunding,
-    );
-    if (requiredNativeFunding) {
-      fundingRows.push({
-        label: "Required native gas",
-        value: requiredNativeFunding,
-      });
-    }
+  if (!silent) {
+    const phaseRows: Array<{
+      label: string;
+      value: string;
+      valueTone?: "default" | "accent" | "success" | "warning" | "danger" | "muted";
+    }> = [];
+    let phaseSectionTitle = "Progress";
+    let phaseCalloutKind:
+      | "success"
+      | "warning"
+      | "danger"
+      | "privacy"
+      | "recovery"
+      | "read-only"
+      | null = null;
+    let phaseCalloutLines: string[] = [];
 
-    if (!silent && fundingRows.length > 0) {
-      process.stderr.write(formatSectionHeading("Funding", { divider: true }));
-      process.stderr.write(formatKeyValueRows(fundingRows));
-    }
-  }
-
-  // ── Pre-deposit: show deposit amount ──
-  if (isPreDeposit) {
-    const depositAmount = formatFlowAssetAmount(
-      data.snapshot.depositAmount,
-      data.snapshot,
-    );
-    if (!silent && depositAmount) {
-      process.stderr.write(formatSectionHeading("Deposit", { divider: true }));
-      process.stderr.write(
-        formatKeyValueRows([{ label: "Deposit amount", value: depositAmount }]),
-      );
-    }
-  }
-
-  // ── Post-deposit: show deposited amount (net after vetting fee) ──
-  if (!isPreDeposit) {
-    const committedValue = formatFlowAssetAmount(
-      data.snapshot.committedValue,
-      data.snapshot,
-    );
-    if (!silent && committedValue) {
-      process.stderr.write(formatSectionHeading("Deposit", { divider: true }));
-      process.stderr.write(
-        formatKeyValueRows([
-          {
-            label: "Deposited",
+    switch (phase) {
+      case "awaiting_funding":
+        phaseSectionTitle = "Funding required";
+        if (depositAmount) {
+          phaseRows.push({ label: "Deposit target", value: depositAmount });
+        }
+        if (requiredTokenFunding) {
+          phaseRows.push({
+            label: "Token funding",
+            value: requiredTokenFunding,
+            valueTone: "accent",
+          });
+        }
+        if (requiredNativeFunding) {
+          phaseRows.push({
+            label: "Native gas",
+            value: requiredNativeFunding,
+            valueTone: "accent",
+          });
+        }
+        phaseCalloutKind = "recovery";
+        phaseCalloutLines = [
+          data.snapshot.walletMode === "new_wallet"
+            ? "Fund the dedicated workflow wallet first. The flow cannot deposit until the required balances arrive at that same address."
+            : "Re-run flow watch after funding is ready to continue toward the private withdrawal.",
+        ];
+        break;
+      case "depositing_publicly":
+        phaseSectionTitle = "Public deposit";
+        if (depositAmount) {
+          phaseRows.push({ label: "Deposit target", value: depositAmount });
+        }
+        phaseCalloutKind = "read-only";
+        phaseCalloutLines = [
+          "The public deposit is being submitted or reconciled into the saved workflow.",
+          "Re-run flow watch to keep this workflow moving once the deposit is visible.",
+        ];
+        break;
+      case "awaiting_asp":
+        phaseSectionTitle = "ASP review";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Net deposited",
             value: `${committedValue} (net after vetting fee)`,
-          },
-        ]),
+          });
+        }
+        phaseRows.push({
+          label: "Privacy delay",
+          value: privacyDelaySummary,
+        });
+        phaseCalloutKind = "read-only";
+        phaseCalloutLines = [
+          "The deposit is on-chain and waiting for ASP review before any private withdrawal can happen.",
+        ];
+        break;
+      case "approved_waiting_privacy_delay":
+        phaseSectionTitle = "Privacy delay";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Approved balance",
+            value: committedValue,
+            valueTone: "success",
+          });
+        }
+        phaseRows.push({
+          label: "Privacy delay",
+          value: privacyDelaySummary,
+        });
+        if (data.snapshot.privacyDelayUntil) {
+          phaseRows.push({
+            label: "Delay ends",
+            value:
+              describeFlowPrivacyDelayDeadline(data.snapshot.privacyDelayUntil) ??
+              data.snapshot.privacyDelayUntil,
+            valueTone: "accent",
+          });
+        }
+        phaseCalloutKind = "privacy";
+        phaseCalloutLines = [
+          "Approval is complete. This saved flow is intentionally waiting before it requests the relayed private withdrawal.",
+        ];
+        break;
+      case "approved_ready_to_withdraw":
+        phaseSectionTitle = "Ready for private withdrawal";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Approved balance",
+            value: committedValue,
+            valueTone: "success",
+          });
+        }
+        phaseRows.push({
+          label: "Privacy delay",
+          value: privacyDelaySummary,
+        });
+        phaseCalloutKind = "success";
+        phaseCalloutLines = [
+          "The saved workflow is clear to request the relayed private withdrawal on the next flow watch run.",
+        ];
+        break;
+      case "withdrawing":
+        phaseSectionTitle = "Withdrawal in progress";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Approved balance",
+            value: committedValue,
+          });
+        }
+        if (data.snapshot.withdrawTxHash) {
+          phaseRows.push({
+            label: "Relay tx",
+            value: data.snapshot.withdrawTxHash,
+            valueTone: "accent",
+          });
+        }
+        phaseCalloutKind = "read-only";
+        phaseCalloutLines = [
+          "The relayed private withdrawal has been requested and is being reconciled.",
+        ];
+        break;
+      case "paused_declined":
+        phaseSectionTitle = "Recovery decision";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Blocked balance",
+            value: committedValue,
+            valueTone: "danger",
+          });
+        }
+        phaseCalloutKind = "recovery";
+        phaseCalloutLines = [
+          `This workflow was declined by the ASP. Use privacy-pools flow ragequit ${data.snapshot.workflowId} to recover publicly to the original deposit address.${configuredSignerRecoverySuffix(data.snapshot)}`,
+        ];
+        break;
+      case "paused_poi_required":
+        phaseSectionTitle = "Recovery decision";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Blocked balance",
+            value: committedValue,
+            valueTone: "warning",
+          });
+        }
+        phaseCalloutKind = "recovery";
+        phaseCalloutLines = [
+          `Complete Proof of Association at ${POA_PORTAL_URL} to continue privately, or use flow ragequit if you prefer public recovery.${configuredSignerRecoverySuffix(data.snapshot)}`,
+        ];
+        break;
+      case "stopped_external":
+        phaseSectionTitle = "Manual follow-up";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Last known balance",
+            value: committedValue,
+            valueTone: "warning",
+          });
+        }
+        phaseCalloutKind = "recovery";
+        phaseCalloutLines = [
+          `Inspect accounts on ${data.snapshot.chain}, then choose the manual follow-up from the current Pool Account state.`,
+        ];
+        break;
+      case "completed":
+        phaseSectionTitle = "Completed";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Withdrawn privately",
+            value: committedValue,
+            valueTone: "success",
+          });
+        }
+        phaseCalloutKind = "success";
+        phaseCalloutLines = [
+          "The saved flow finished its private withdrawal path.",
+        ];
+        break;
+      case "completed_public_recovery":
+        phaseSectionTitle = "Completed via public recovery";
+        if (committedValue) {
+          phaseRows.push({
+            label: "Recovered publicly",
+            value: committedValue,
+            valueTone: "warning",
+          });
+        }
+        phaseCalloutKind = "warning";
+        phaseCalloutLines = [
+          "The saved workflow finished on the public recovery path, so privacy was not preserved.",
+        ];
+        break;
+    }
+
+    if (phaseRows.length > 0) {
+      process.stderr.write(
+        formatSectionHeading(phaseSectionTitle, { divider: true }),
+      );
+      process.stderr.write(formatKeyValueRows(phaseRows));
+    }
+    if (phaseCalloutKind && phaseCalloutLines.length > 0) {
+      process.stderr.write(formatCallout(phaseCalloutKind, phaseCalloutLines));
+    }
+    if (showFullBalanceNote) {
+      process.stderr.write(
+        formatCallout(
+          "privacy",
+          "This saved flow withdraws the full remaining Pool Account balance. The recipient receives the net amount after relayer fees.",
+        ),
       );
     }
   }
 
-  // ── Privacy delay: show profile when relevant, deadline when actively waiting ──
-  if (isWaitingDelay || phase === "awaiting_asp" || phase === "approved_ready_to_withdraw") {
-    const privacyDelayRows = [
-      {
-        label: "Privacy delay",
-        value: flowPrivacyDelayProfileSummary(
-        data.snapshot.privacyDelayProfile ?? "off",
-        data.snapshot.privacyDelayConfigured ?? false,
-        ),
-      },
-      ...(isWaitingDelay && data.snapshot.privacyDelayUntil
-        ? [
-            {
-              label: "Privacy delay until",
-              value:
-                describeFlowPrivacyDelayDeadline(data.snapshot.privacyDelayUntil) ??
-                data.snapshot.privacyDelayUntil,
-            },
-          ]
-        : []),
-    ];
-    if (!silent) {
-      process.stderr.write(formatSectionHeading("Privacy delay", { divider: true }));
-      process.stderr.write(formatKeyValueRows(privacyDelayRows));
-    }
-  }
-
-  // ── Full-balance note: important context for active flows ──
-  if (
-    !isTerminal &&
-    !isPreDeposit &&
-    data.action !== "ragequit"
-  ) {
-    info(
-      "This flow withdraws the full Pool Account balance. You receive the net amount after fees.",
-      silent,
-    );
-  }
-
-  // ── Warnings ──
-  const warningLines = warnings.map((flowWarning) => flowWarning.message);
-  if (
+  const privacyWarningLines = showPrivacyWarnings
+    ? warnings.map((flowWarning) => flowWarning.message)
+    : [];
+  const operationalWarningLines =
     data.snapshot.walletMode === "new_wallet" &&
     (isTerminal ||
       phase === "paused_declined" ||
       phase === "paused_poi_required" ||
       phase === "stopped_external")
-  ) {
-    warningLines.push(
-      "Any leftover funds or gas reserve remain in the dedicated workflow wallet until you move them manually.",
-    );
+      ? [
+          "Any leftover funds or gas reserve remain in the dedicated workflow wallet until you move them manually.",
+        ]
+      : [];
+  if (privacyWarningLines.length > 0 && !silent) {
+    process.stderr.write(formatCallout("privacy", privacyWarningLines));
   }
-  if (warningLines.length > 0 && !silent) {
-    process.stderr.write(formatCallout("warning", warningLines));
+  if (operationalWarningLines.length > 0 && !silent) {
+    process.stderr.write(formatCallout("warning", operationalWarningLines));
   }
 
-  // ── Transaction links: only show the relevant one ──
   const showOptionalPublicRecovery =
     data.action === "status" &&
     !usesPublicRecoveryPath &&
@@ -773,64 +931,67 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     phase !== "paused_poi_required" &&
     phase !== "stopped_external" &&
     !requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot);
-  const hasRecoverySection =
-    isTerminal ||
-    data.action === "ragequit" ||
-    (data.snapshot.depositExplorerUrl && !isPreDeposit) ||
-    showOptionalPublicRecovery ||
-    phase === "paused_poi_required" ||
-    phase === "stopped_external";
-  const recoveryRows = [];
-  if (isTerminal || data.action === "ragequit") {
-    if (data.snapshot.withdrawExplorerUrl) {
-      recoveryRows.push({
-        label: "Withdrawal",
-        value: data.snapshot.withdrawExplorerUrl,
-      });
-    } else if (data.snapshot.ragequitExplorerUrl) {
-      recoveryRows.push({
-        label: "Public recovery",
-        value: data.snapshot.ragequitExplorerUrl,
-      });
-    }
-    if (data.snapshot.depositExplorerUrl) {
-      recoveryRows.push({
-        label: "Deposit",
-        value: data.snapshot.depositExplorerUrl,
-      });
-    }
-  } else if (data.snapshot.depositExplorerUrl && !isPreDeposit) {
-    recoveryRows.push({
+  const transactionRows = [];
+  if (data.snapshot.depositExplorerUrl && !isPreDeposit) {
+    transactionRows.push({
       label: "Deposit",
       value: data.snapshot.depositExplorerUrl,
     });
   }
+  if (isTerminal || data.action === "ragequit") {
+    if (data.snapshot.withdrawExplorerUrl) {
+      transactionRows.push({
+        label: "Withdrawal",
+        value: data.snapshot.withdrawExplorerUrl,
+      });
+    }
+    if (data.snapshot.ragequitExplorerUrl) {
+      transactionRows.push({
+        label: "Public recovery",
+        value: data.snapshot.ragequitExplorerUrl,
+      });
+    }
+  }
+  if (transactionRows.length > 0 && !silent) {
+    process.stderr.write(formatSectionHeading("Transactions", { divider: true }));
+    process.stderr.write(formatKeyValueRows(transactionRows));
+  }
 
-  if (showOptionalPublicRecovery) {
+  const recoveryRows = [];
+  if (phase === "paused_poi_required") {
+    recoveryRows.push({
+      label: "Continue privately",
+      value: POA_PORTAL_URL,
+    });
+    recoveryRows.push({
+      label: "Recover publicly",
+      value: `privacy-pools flow ragequit ${data.snapshot.workflowId}`,
+    });
+  } else if (
+    phase === "paused_declined" ||
+    requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot)
+  ) {
+    recoveryRows.push({
+      label: "Recover publicly",
+      value: `privacy-pools flow ragequit ${data.snapshot.workflowId}`,
+    });
+  } else if (phase === "stopped_external") {
+    recoveryRows.push({
+      label: "Inspect accounts",
+      value: `privacy-pools accounts --chain ${data.snapshot.chain}`,
+    });
+  } else if (showOptionalPublicRecovery) {
     recoveryRows.push({
       label: "Optional public recovery",
-      value: `privacy-pools flow ragequit ${data.snapshot.workflowId}.${configuredSignerRecoverySuffix(data.snapshot)}`,
+      value: `privacy-pools flow ragequit ${data.snapshot.workflowId}`,
     });
   }
 
-  if (hasRecoverySection && !silent) {
+  if (recoveryRows.length > 0 && !silent) {
     process.stderr.write(formatSectionHeading("Recovery", { divider: true }));
     process.stderr.write(formatKeyValueRows(recoveryRows));
   }
 
-  // ── Phase-specific guidance ──
-  if (phase === "paused_poi_required") {
-    info(
-      `Complete Proof of Association at ${POA_PORTAL_URL}, then re-run this workflow watcher.`,
-      silent,
-    );
-  }
-  if (phase === "stopped_external") {
-    info(
-      `Inspect accounts on ${data.snapshot.chain}, then choose the manual follow-up from the current account state.`,
-      silent,
-    );
-  }
   if (data.snapshot.lastError) {
     if (!silent) {
       process.stderr.write(formatSectionHeading("Last error", { divider: true }));

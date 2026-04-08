@@ -342,9 +342,9 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toMatch(/Deposit amount:\s+100 USDC/);
-    expect(stderr).toMatch(/Required token amount:\s+100 USDC/);
-    expect(stderr).toMatch(/Required native gas:\s+0\.1 ETH/);
+    expect(stderr).toMatch(/Deposit target:\s+100 USDC/);
+    expect(stderr).toMatch(/Token funding:\s+100 USDC/);
+    expect(stderr).toMatch(/Native gas:\s+0\.1 ETH/);
     // Committed value is phase-gated: not shown during awaiting_funding
     expect(stderr).not.toContain("Committed value:");
     // Wallet mode removed from human output (shown in JSON only)
@@ -376,9 +376,9 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toMatch(/Deposit amount:\s+not-a-bigint/);
-    expect(stderr).toMatch(/Required token amount:\s+still-not-a-bigint/);
-    expect(stderr).toMatch(/Required native gas:\s+bad-native-value/);
+    expect(stderr).toMatch(/Deposit target:\s+not-a-bigint/);
+    expect(stderr).toMatch(/Token funding:\s+still-not-a-bigint/);
+    expect(stderr).toMatch(/Native gas:\s+bad-native-value/);
     // Committed value is phase-gated: not shown during awaiting_funding
     expect(stderr).not.toContain("Committed value:");
   });
@@ -508,7 +508,7 @@ describe("renderFlowResult", () => {
     expect(stderr).toMatch(
       /Privacy delay:\s+Balanced \(randomized 15 to 90 minutes\)/,
     );
-    expect(stderr).toContain("Privacy delay until:");
+    expect(stderr).toContain("Delay ends:");
     expect(stderr).toContain("local time");
     expect(stderr).toContain("manual round partial withdrawals");
   });

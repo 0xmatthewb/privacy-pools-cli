@@ -51,7 +51,7 @@ pub fn handle_stats_native(
 
     let mode = resolve_mode(parsed);
     let stats_subcommand = resolve_stats_subcommand(parsed);
-    let mut loading = (!mode.is_json() && !mode.is_quiet).then(|| {
+    let mut loading = (!mode.is_json() && !mode.is_quiet && !mode.is_csv()).then(|| {
         start_spinner(if stats_subcommand == StatsSubcommand::Pool {
             "Fetching pool statistics..."
         } else {

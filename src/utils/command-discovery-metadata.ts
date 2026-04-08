@@ -61,7 +61,7 @@ function defaultExecutionMetadata(path: CommandPath): CommandExecutionDescriptor
   if (path === "pools") {
     return {
       owner: "hybrid",
-      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
+      nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
     };
   }
 
