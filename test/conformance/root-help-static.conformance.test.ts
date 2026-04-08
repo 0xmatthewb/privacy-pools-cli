@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import chalk from "chalk";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRootProgram } from "../../src/program.ts";
@@ -32,15 +33,21 @@ describe("root help static conformance", () => {
   });
 
   test("native manifest root help stays aligned with the current static help source", () => {
+    const originalLevel = chalk.level;
+    chalk.level = 3;
     const manifest = JSON.parse(readFileSync(NATIVE_MANIFEST_PATH, "utf8")) as {
       rootHelp: string;
       structuredRootHelp: string;
     };
 
-    expect(manifest.rootHelp).toBe(
-      `${styleCommanderHelp(rootHelpBaseText())}\n${rootHelpFooter()}`,
-    );
-    expect(manifest.structuredRootHelp).toBe(rootHelpText());
+    try {
+      expect(manifest.rootHelp).toBe(
+        `${styleCommanderHelp(rootHelpBaseText())}\n${rootHelpFooter()}`,
+      );
+      expect(manifest.structuredRootHelp).toBe(rootHelpText());
+    } finally {
+      chalk.level = originalLevel;
+    }
   });
 
   test("runtime-facing docs and help stay free of Bun install or execution examples", () => {

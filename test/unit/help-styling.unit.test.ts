@@ -121,6 +121,31 @@ describe("styleCommanderHelp", () => {
     expect(plain).toContain("--help");
   });
 
+  test("styles custom command-help section headers", () => {
+    const raw = [
+      "Usage: privacy-pools deposit [options] <amount>",
+      "",
+      "Examples:",
+      "  privacy-pools deposit 0.1 ETH",
+      "",
+      "Safety notes:",
+      "  Deposits are reviewed by the ASP before approval.",
+      "",
+      "JSON output (--json):",
+      "  { operation, txHash }",
+    ].join("\n");
+
+    const result = styleCommanderHelp(raw);
+    const plain = stripAnsi(result);
+    expect(plain).toContain("Examples:");
+    expect(plain).toContain("Safety notes:");
+    expect(plain).toContain("JSON output (--json):");
+
+    const examplesLine = result.split("\n").find((line) => stripAnsi(line).includes("privacy-pools deposit 0.1 ETH"));
+    expect(examplesLine).toBeDefined();
+    expect(examplesLine).toMatch(/\x1b\[/);
+  });
+
   test("preserves empty lines", () => {
     const raw = [
       "Usage: privacy-pools [options]",

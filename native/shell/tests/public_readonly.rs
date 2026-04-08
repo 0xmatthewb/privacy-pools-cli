@@ -76,6 +76,36 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 }
 
 #[test]
+fn empty_public_read_only_states_offer_next_steps() {
+    let fixture = launch_fixture_server_with_behavior(
+        FixtureBehavior::default()
+            .with_activity_events_override("global", serde_json::json!([]))
+            .with_activity_events_override("11155111", serde_json::json!([])),
+    );
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
+    ];
+
+    let activity = run_native_with_env(&["--chain", "sepolia", "activity"], &env);
+    assert!(
+        activity.status.success(),
+        "activity stderr: {}\nactivity stdout: {}",
+        stderr_string(&activity),
+        stdout_string(&activity),
+    );
+    let activity_stderr = stderr_string(&activity);
+    assert!(stdout_string(&activity).is_empty());
+    assert!(activity_stderr.contains("No activity found."));
+    assert!(activity_stderr.contains("Read-only:"));
+    assert!(activity_stderr.contains("Next steps:"));
+    assert!(activity_stderr.contains("privacy-pools status --chain sepolia"));
+    assert!(activity_stderr.contains("privacy-pools pools --chain sepolia"));
+}
+
+#[test]
 fn explicit_chain_activity_keeps_filtered_json_and_human_notes_stable() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();

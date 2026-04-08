@@ -8,6 +8,7 @@ import {
 type Section = "options" | "commands" | "arguments" | null;
 
 const SECTION_HEADERS = new Set(["Options:", "Commands:", "Arguments:"]);
+const GENERIC_SECTION_HEADER_RE = /^[A-Z][A-Za-z0-9 ()/\-]+:$/;
 
 /* ── Root-level command groups (order determines display order) ── */
 
@@ -75,6 +76,12 @@ function styleCmdLine(line: string): string {
     ? highlight(cmdText)
     : highlight(cmdText.slice(0, pipeIdx)) + chalk.dim(cmdText.slice(pipeIdx));
   return `${m[1]}${s}${m[3]}${m[4]}`;
+}
+
+function styleExampleCommandLine(line: string): string {
+  const commandLineMatch = line.match(/^(\s+)(privacy-pools(?:\s+.+)?)$/);
+  if (!commandLineMatch) return line;
+  return `${commandLineMatch[1]}${accent(commandLineMatch[2])}`;
 }
 
 export function styleCommanderHelp(raw: string): string {
@@ -174,6 +181,14 @@ export function styleCommanderHelp(raw: string): string {
       continue;
     }
 
+    if (GENERIC_SECTION_HEADER_RE.test(trimmed)) {
+      flushCommands();
+      flushDeferredOptions();
+      section = null;
+      result.push(accentBold(trimmed));
+      continue;
+    }
+
     if (section === "commands") {
       cmdBuffer.push(line);
       continue;
@@ -196,6 +211,12 @@ export function styleCommanderHelp(raw: string): string {
         continue;
       }
       result.push(line);
+      continue;
+    }
+
+    const styledExampleLine = styleExampleCommandLine(line);
+    if (styledExampleLine !== line) {
+      result.push(styledExampleLine);
       continue;
     }
 

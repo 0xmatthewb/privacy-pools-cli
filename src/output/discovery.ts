@@ -9,9 +9,50 @@ import {
   formatSectionList,
 } from "./layout.js";
 
+function stripAnsi(text: string): string {
+  return text.replace(/\x1b\[[0-9;]*m/g, "");
+}
+
+function isGuideSectionHeading(line: string): boolean {
+  const plain = stripAnsi(line);
+  return plain.trim().length > 0 && !/^\s/.test(plain);
+}
+
 export function renderHumanGuideText(text: string): void {
+  const lines = text.split("\n");
+  const [rawTitle = "", ...body] = lines;
+  const title = stripAnsi(rawTitle).trim();
+
   process.stderr.write("\n");
-  process.stderr.write(`${text}\n\n`);
+  if (title.length > 0) {
+    process.stderr.write(`${accentBold(title)}\n`);
+  }
+
+  let sectionCount = 0;
+  let lastLineWasBlank = title.length === 0;
+  for (const line of body) {
+    const plain = stripAnsi(line).trim();
+    if (plain.length === 0) {
+      process.stderr.write("\n");
+      lastLineWasBlank = true;
+      continue;
+    }
+
+    if (isGuideSectionHeading(line)) {
+      process.stderr.write(formatSectionHeading(plain, {
+        divider: sectionCount > 0,
+        padTop: !lastLineWasBlank,
+      }));
+      sectionCount += 1;
+      lastLineWasBlank = false;
+      continue;
+    }
+
+    process.stderr.write(`${line}\n`);
+    lastLineWasBlank = false;
+  }
+
+  process.stderr.write("\n");
 }
 
 export function renderHumanCapabilities(

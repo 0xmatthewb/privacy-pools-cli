@@ -130,11 +130,21 @@ pub struct FixtureServer {
 #[derive(Debug, Clone, Default)]
 pub struct FixtureBehavior {
     pools_stats_overrides: std::collections::HashMap<u64, Value>,
+    activity_events_overrides: std::collections::HashMap<String, Value>,
 }
 
 impl FixtureBehavior {
     pub fn with_pools_stats_override(mut self, chain_id: u64, payload: Value) -> Self {
         self.pools_stats_overrides.insert(chain_id, payload);
+        self
+    }
+
+    pub fn with_activity_events_override(
+        mut self,
+        path: impl Into<String>,
+        payload: Value,
+    ) -> Self {
+        self.activity_events_overrides.insert(path.into(), payload);
         self
     }
 }
@@ -291,10 +301,19 @@ fn route_request(request: &str, behavior: &FixtureBehavior) -> (&'static str, St
 
     let json_body = match (method, path) {
         ("GET", "/global/public/events") => json!({
-            "events": [activity_event("deposit")],
+            "events": behavior
+                .activity_events_overrides
+                .get("global")
+                .cloned()
+                .unwrap_or_else(|| json!([activity_event("deposit")])),
             "page": 1,
             "perPage": 12,
-            "total": 1,
+            "total": behavior
+                .activity_events_overrides
+                .get("global")
+                .and_then(Value::as_array)
+                .map(|events| events.len() as u64)
+                .unwrap_or(1),
             "totalPages": 1,
         }),
         ("GET", "/global/public/statistics") => json!({
@@ -314,10 +333,19 @@ fn route_request(request: &str, behavior: &FixtureBehavior) -> (&'static str, St
             "cacheTimestamp": "2025-01-01T00:00:00.000Z"
         }),
         ("GET", "/11155111/public/events") => json!({
-            "events": [activity_event("deposit")],
+            "events": behavior
+                .activity_events_overrides
+                .get("11155111")
+                .cloned()
+                .unwrap_or_else(|| json!([activity_event("deposit")])),
             "page": 1,
             "perPage": 12,
-            "total": 1,
+            "total": behavior
+                .activity_events_overrides
+                .get("11155111")
+                .and_then(Value::as_array)
+                .map(|events| events.len() as u64)
+                .unwrap_or(1),
             "totalPages": 1,
         }),
         ("GET", "/1/public/pools-stats") => {

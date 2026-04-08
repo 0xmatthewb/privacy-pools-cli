@@ -68,7 +68,7 @@ pub fn emit_help(text: &str, structured: bool) {
             "help": text.trim_end()
         }));
     } else {
-        write_stdout_text(text);
+        write_stdout_human_text(text);
     }
 }
 
@@ -91,6 +91,10 @@ pub fn write_stdout_text(text: &str) {
     let _ = io::stdout().write_all(value.as_bytes());
 }
 
+pub fn write_stdout_human_text(text: &str) {
+    write_stdout_text(&maybe_strip_ansi(text, stdout_supports_style()));
+}
+
 pub fn write_stderr_text(text: &str) {
     let mut value = text.to_string();
     if !value.ends_with('\n') {
@@ -106,6 +110,14 @@ pub fn write_stderr_block_text(text: &str) {
         value.push('\n');
     }
     let _ = io::stderr().write_all(value.as_bytes());
+}
+
+pub fn write_stderr_human_text(text: &str) {
+    write_stderr_text(&maybe_strip_ansi(text, stderr_supports_style()));
+}
+
+pub fn write_stderr_human_block_text(text: &str) {
+    write_stderr_block_text(&maybe_strip_ansi(text, stderr_supports_style()));
 }
 
 pub fn start_spinner(message: &str) -> Spinner {
@@ -641,6 +653,33 @@ fn strip_ansi_codes(value: &str) -> String {
     output
 }
 
+fn maybe_strip_ansi(value: &str, should_preserve: bool) -> String {
+    if should_preserve {
+        value.to_string()
+    } else {
+        strip_ansi_codes(value)
+    }
+}
+
+fn stdout_supports_style() -> bool {
+    stream_supports_style(io::stdout().is_terminal())
+}
+
+fn stderr_supports_style() -> bool {
+    stream_supports_style(io::stderr().is_terminal())
+}
+
+fn stream_supports_style(is_terminal: bool) -> bool {
+    if env::var_os("NO_COLOR").is_some() {
+        return false;
+    }
+
+    match env::var("FORCE_COLOR") {
+        Ok(value) => value != "0",
+        Err(_) => is_terminal,
+    }
+}
+
 fn stderr_supports_animation() -> bool {
     io::stderr().is_terminal()
 }
@@ -653,31 +692,7 @@ fn stderr_supports_unicode_animation() -> bool {
     if matches!(env::var("TERM"), Ok(term) if term.eq_ignore_ascii_case("dumb")) {
         return false;
     }
-
-    let locale = env::var("LC_ALL")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| env::var("LC_CTYPE").ok().filter(|value| !value.trim().is_empty()))
-        .or_else(|| env::var("LANG").ok().filter(|value| !value.trim().is_empty()))
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-
-    if !locale.is_empty() {
-        return locale.contains("utf-8") || locale.contains("utf8");
-    }
-
     !cfg!(windows)
-}
-
-fn stderr_supports_style() -> bool {
-    if env::var_os("NO_COLOR").is_some() {
-        return false;
-    }
-
-    match env::var("FORCE_COLOR") {
-        Ok(value) => value != "0",
-        Err(_) => io::stderr().is_terminal(),
-    }
 }
 
 fn style_with_code(text: &str, code: &str) -> String {

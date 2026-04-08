@@ -54,6 +54,52 @@ pub(super) fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData
     } else {
         write_info(&format!("No pools found on {}.", data.chain_name));
     }
+
+    write_stderr_text(&format_callout(
+        CalloutKind::ReadOnly,
+        &[if data.all_chains {
+            "Try checking status or browsing public activity to confirm the current network state."
+                .to_string()
+        } else {
+            format!(
+                "Try checking status on {} or browsing public activity on the same chain.",
+                data.chain_name
+            )
+        }],
+    ));
+
+    let mut next_actions = Vec::<Value>::new();
+    let mut status_options = Map::new();
+    if !data.all_chains {
+        status_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+    }
+    next_actions.push(build_next_action(
+        "status",
+        "Check wallet and connection readiness.",
+        "no_pools",
+        None,
+        (!status_options.is_empty()).then_some(&status_options),
+        None,
+    ));
+
+    let mut activity_options = Map::new();
+    if !data.all_chains {
+        activity_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+    }
+    next_actions.push(build_next_action(
+        "activity",
+        if data.all_chains {
+            "Review public activity before depositing."
+        } else {
+            "Review public activity on this chain before depositing."
+        },
+        "no_pools",
+        None,
+        (!activity_options.is_empty()).then_some(&activity_options),
+        None,
+    ));
+
+    render_next_steps(&next_actions);
 }
 
 pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
@@ -199,10 +245,64 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         if let Some(search) = data.search {
             if !search.is_empty() {
                 write_info(&format!("No pools matched search query \"{search}\"."));
+                let mut status_options = Map::new();
+                if !data.all_chains {
+                    status_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+                }
+                render_next_steps(&[build_next_action(
+                    "status",
+                    "Check wallet and connection readiness.",
+                    "no_pools",
+                    None,
+                    (!status_options.is_empty()).then_some(&status_options),
+                    None,
+                )]);
                 return;
             }
         }
         write_info("No pools found.");
+        write_stderr_text(&format_callout(
+            CalloutKind::ReadOnly,
+            &[if data.all_chains {
+                "Try checking status or browsing public activity to confirm the current network state."
+                    .to_string()
+            } else {
+                format!(
+                    "Try checking status on {} or browsing public activity on the same chain.",
+                    data.chain_name
+                )
+            }],
+        ));
+        let mut next_actions = Vec::<Value>::new();
+        let mut status_options = Map::new();
+        if !data.all_chains {
+            status_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+        }
+        next_actions.push(build_next_action(
+            "status",
+            "Check wallet and connection readiness.",
+            "no_pools",
+            None,
+            (!status_options.is_empty()).then_some(&status_options),
+            None,
+        ));
+        let mut activity_options = Map::new();
+        if !data.all_chains {
+            activity_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+        }
+        next_actions.push(build_next_action(
+            "activity",
+            if data.all_chains {
+                "Review public activity before depositing."
+            } else {
+                "Review public activity on this chain before depositing."
+            },
+            "no_pools",
+            None,
+            (!activity_options.is_empty()).then_some(&activity_options),
+            None,
+        ));
+        render_next_steps(&next_actions);
         return;
     }
 

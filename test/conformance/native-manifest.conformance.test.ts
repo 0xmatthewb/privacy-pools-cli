@@ -13,7 +13,6 @@ import {
   GENERATED_COMMAND_PATHS,
   GENERATED_COMMAND_ROUTES,
 } from "../../src/utils/command-manifest.ts";
-import { guideText } from "../../src/utils/help.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 
 const nativeManifestPath = join(
@@ -70,8 +69,14 @@ describe("native manifest conformance", () => {
       [...GENERATED_COMMAND_PATHS].sort(),
     );
     expect(nativeManifest.structuredRootHelp).toContain("Usage: privacy-pools");
-    expect(nativeManifest.guideHumanText.trim()).toBe(
-      stripAnsi(guideText()).trim(),
+    const liveGuide = runCli(["guide"], {
+      home: createTempHome(),
+      timeoutMs: 20_000,
+    });
+    expect(liveGuide.status).toBe(0);
+    expect(liveGuide.stdout).toBe("");
+    expect(stripAnsi(nativeManifest.guideHumanText).trim()).toBe(
+      stripAnsi(liveGuide.stderr).trim(),
     );
     expect(nativeManifest.runtimeConfig.chainNames).toEqual(CHAIN_NAMES);
     expect(nativeManifest.runtimeConfig.mainnetChainNames).toEqual(
@@ -127,7 +132,9 @@ describe("native manifest conformance", () => {
       });
       expect(result.status).toBe(0);
       expect(result.stderr).toBe("");
-      expect(nativeManifest.helpTextByPath[path]).toBe(result.stdout.trim());
+      expect(stripAnsi(nativeManifest.helpTextByPath[path]).trim()).toBe(
+        result.stdout.trim(),
+      );
     }
   },
     { timeout: 20_000 },

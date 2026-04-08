@@ -170,7 +170,8 @@ function sanitizeEnv(baseEnv = process.env) {
       delete env[key];
     }
   }
-  env.NO_COLOR = "1";
+  delete env.NO_COLOR;
+  env.FORCE_COLOR = "1";
   env.PP_NO_UPDATE_CHECK = "1";
   env.PRIVACY_POOLS_CLI_DISABLE_NATIVE = "1";
   return env;
@@ -216,6 +217,10 @@ function captureBuiltCli(args) {
   }
 }
 
+function stripAnsi(text) {
+  return text.replace(/\x1B\[[0-9;]*m/g, "");
+}
+
 async function buildNativeShellManifest() {
   if (!existsSync(distModulePath) || !existsSync(distProgramModulePath)) {
     return null;
@@ -249,9 +254,10 @@ async function buildNativeShellManifest() {
   const structuredRootHelp = JSON.parse(
     captureBuiltCli(["--json", "--help"]).stdout,
   ).help;
-  const guideStructuredText = JSON.parse(
-    captureBuiltCli(["--agent", "guide"]).stdout,
-  ).help;
+  const guideStructuredText = stripAnsi(
+    JSON.parse(captureBuiltCli(["--json", "guide"]).stdout).help,
+  );
+  const guideHumanText = captureBuiltCli(["guide"]).stderr;
   const capabilitiesHumanText = captureBuiltCli(["capabilities"]).stderr;
 
   const helpTextByPath = Object.fromEntries(
@@ -286,7 +292,7 @@ async function buildNativeShellManifest() {
     structuredRootHelp,
     helpTextByPath,
     guideStructuredText,
-    guideHumanText: guideStructuredText,
+    guideHumanText,
     capabilitiesHumanText,
     describeHumanTextByPath,
     completionSpec: STATIC_COMPLETION_SPEC,

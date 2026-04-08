@@ -126,7 +126,7 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
     write_stderr_text(&format_section_heading("Summary"));
     let mut summary_rows = vec![
         ("Mode", data.mode.to_string()),
-        ("Scope", chain_label),
+        ("Scope", chain_label.clone()),
         ("Page", data.page.to_string()),
         ("Results", data.events.len().to_string()),
     ];
@@ -137,6 +137,62 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
 
     if data.events.is_empty() {
         write_stderr_text("No activity found.");
+        write_stderr_text(&format_callout(
+            CalloutKind::ReadOnly,
+            &[if data.mode == "pool-activity" {
+                format!(
+                    "No public activity matched {} on {}. Browse the pool list or check status.",
+                    data.asset.as_deref().unwrap_or("this asset"),
+                    data.chain
+                )
+            } else {
+                format!(
+                    "No public activity matched {}. Browse pools or check status to confirm your setup.",
+                    chain_label
+                )
+            }],
+        ));
+
+        let mut next_actions = Vec::<Value>::new();
+        let mut status_options = Map::new();
+        if data.chain != "all-mainnets" {
+            status_options.insert("chain".to_string(), Value::String(data.chain.clone()));
+        }
+        next_actions.push(build_next_action(
+            "status",
+            "Check wallet and connection readiness.",
+            "no_activity",
+            None,
+            (!status_options.is_empty()).then_some(&status_options),
+            None,
+        ));
+
+        let mut pools_options = Map::new();
+        if data.chain != "all-mainnets" {
+            pools_options.insert("chain".to_string(), Value::String(data.chain.clone()));
+        }
+        let pools_args = if data.mode == "pool-activity" {
+            data.asset
+                .as_deref()
+                .map(|asset| vec![asset])
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        next_actions.push(build_next_action(
+            "pools",
+            if data.mode == "pool-activity" {
+                "Open the pool detail view for this asset."
+            } else {
+                "Browse available pools before depositing."
+            },
+            "no_activity",
+            (!pools_args.is_empty()).then_some(pools_args.as_slice()),
+            (!pools_options.is_empty()).then_some(&pools_options),
+            None,
+        ));
+
+        render_next_steps(&next_actions);
         return;
     }
 
