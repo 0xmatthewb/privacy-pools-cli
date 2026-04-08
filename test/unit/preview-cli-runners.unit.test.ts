@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+  createPreviewCoverageReport,
   formatPreviewCaseList,
   parsePreviewArgs,
+  planPreviewMatrix,
   planPreviewSuite,
   resolvePreviewExecution,
   runCapturedPreviewSuite,
@@ -17,10 +19,24 @@ describe("preview cli runners", () => {
         "accounts-empty",
         "--case",
         "welcome-banner",
+        "--journey",
+        "flow",
+        "--command",
+        "withdraw",
+        "--surface",
+        "pools",
+        "--variant",
+        "ascii",
         "--list",
       ]),
     ).toEqual({
       caseIds: ["accounts-empty", "welcome-banner"],
+      journeys: ["flow"],
+      commands: ["withdraw"],
+      surfaces: ["pools"],
+      variants: ["ascii"],
+      reportJson: false,
+      smoke: false,
       listOnly: true,
     });
   });
@@ -53,9 +69,11 @@ describe("preview cli runners", () => {
     expect(accountsEmpty.execution.needsFixtureServer).toBe(false);
     expect(typeof accountsEmpty.execution.buildInvocation).toBe("function");
     expect(accountsEmpty.execution.ttyScript).toBeUndefined();
+    expect(accountsEmpty.execution.requiresTtyScript).toBe(false);
 
     const initOverwritePrompt = resolvePreviewExecution("init-overwrite-prompt");
     expect(initOverwritePrompt.modes).toEqual(["tty"]);
+    expect(initOverwritePrompt.execution.requiresTtyScript).toBe(true);
     expect(initOverwritePrompt.execution.ttyScript).toMatchObject({
       steps: [{ waitFor: "Continue?", send: "n\r" }],
     });
@@ -66,9 +84,23 @@ describe("preview cli runners", () => {
     ]);
   });
 
+  test("preview planning expands cases across variants", () => {
+    const plans = planPreviewMatrix({
+      caseIds: ["welcome-banner"],
+      variants: ["rich", "ascii"],
+    });
+
+    expect(plans.map((plan) => plan.id)).toEqual([
+      "welcome-banner::rich",
+      "welcome-banner::ascii",
+    ]);
+    expect(plans.map((plan) => plan.variantId)).toEqual(["rich", "ascii"]);
+  });
+
   test("captured preview supports dry-run planning without executing commands", async () => {
     const result = await runCapturedPreviewSuite({
       caseIds: ["js-activity-global", "accounts-empty"],
+      variants: ["rich"],
       dryRun: true,
     });
 
@@ -77,14 +109,15 @@ describe("preview cli runners", () => {
       requiresFixtureServer: true,
     });
     expect(result.plans.map((plan) => plan.id)).toEqual([
-      "js-activity-global",
-      "accounts-empty",
+      "js-activity-global::rich",
+      "accounts-empty::rich",
     ]);
   });
 
   test("captured preview skips tty-only cases in dry-run planning", async () => {
     const result = await runCapturedPreviewSuite({
       caseIds: ["init-overwrite-prompt", "flow-start-interactive-prompt"],
+      variants: ["rich"],
       dryRun: true,
     });
 
@@ -124,6 +157,7 @@ describe("preview cli runners", () => {
     const result = await runTtyPreviewSuite({
       dryRun: true,
       caseIds: ["native-activity-global", "flow-status-completed"],
+      variants: ["rich"],
       io: {
         stdin: { isTTY: true },
         stdout: { isTTY: true },
@@ -134,8 +168,8 @@ describe("preview cli runners", () => {
       dryRun: true,
     });
     expect(result.plans.map((plan) => plan.id)).toEqual([
-      "native-activity-global",
-      "flow-status-completed",
+      "native-activity-global::rich",
+      "flow-status-completed::rich",
     ]);
   });
 
@@ -143,6 +177,7 @@ describe("preview cli runners", () => {
     const result = await runTtyPreviewSuite({
       dryRun: true,
       caseIds: ["init-overwrite-prompt", "flow-start-interactive-prompt"],
+      variants: ["rich"],
       io: {
         stdin: { isTTY: true },
         stdout: { isTTY: true },
@@ -150,23 +185,43 @@ describe("preview cli runners", () => {
     });
 
     expect(result.plans.map((plan) => plan.id)).toEqual([
-      "init-overwrite-prompt",
-      "flow-start-interactive-prompt",
+      "init-overwrite-prompt::rich",
+      "flow-start-interactive-prompt::rich",
     ]);
   });
 
   test("formatPreviewCaseList surfaces the richer contract columns", () => {
-    const output = formatPreviewCaseList([
-      "forwarded-pool-detail",
-      "accounts-empty",
-    ]);
+    const output = formatPreviewCaseList({
+      caseIds: ["forwarded-pool-detail", "accounts-empty"],
+    });
 
-    expect(output).toContain("id | journey | surface | owner | runtime | execution");
+    expect(output).toContain("id | command | stateId | stateClass | journey | surface");
     expect(output).toContain("forwarded-pool-detail");
     expect(output).toContain("forwarded");
     expect(output).toContain("live-command");
     expect(output).toContain("preview-scenario");
     expect(output).toContain("captured, tty");
     expect(output).toContain("synthetic");
+  });
+
+  test("coverage report summarizes rendered and missing states", () => {
+    const report = createPreviewCoverageReport({
+      capturedResult: {
+        plans: planPreviewMatrix({
+          caseIds: ["welcome-banner", "accounts-empty"],
+          variants: ["rich"],
+        }),
+        executions: [
+          {
+            planId: "welcome-banner::rich",
+            status: "rendered",
+          },
+        ],
+      },
+    });
+
+    expect(report.summary.expectedPlans).toBe(2);
+    expect(report.summary.renderedPlans).toBe(1);
+    expect(report.summary.missingStates).toBe(1);
   });
 });

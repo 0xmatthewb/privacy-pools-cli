@@ -391,6 +391,9 @@ export async function handleInitCommand(
     } else if (skipPrompts) {
       mnemonic = generateMnemonic();
     } else {
+      if (await maybeRenderPreviewScenario("init setup mode")) {
+        return;
+      }
       const action = await select({
         message: "How would you like to set up your wallet?",
         choices: [
@@ -400,6 +403,9 @@ export async function handleInitCommand(
       });
 
       if (action === "import") {
+        if (await maybeRenderPreviewScenario("init import recovery prompt")) {
+          return;
+        }
         const phrase = await password({
           message: "Enter your recovery phrase (12 or 24 words):",
           mask: "*",
@@ -435,6 +441,9 @@ export async function handleInitCommand(
 
       // Offer to save recovery phrase to a file, then confirm backup
       if (!skipPrompts) {
+        if (await maybeRenderPreviewScenario("init backup method")) {
+          return;
+        }
         const saveAction = await select({
           message: "How would you like to back up your recovery phrase?",
           choices: [
@@ -445,6 +454,9 @@ export async function handleInitCommand(
 
         if (saveAction === "file") {
           const defaultPath = join(homedir(), "privacy-pools-recovery.txt");
+          if (await maybeRenderPreviewScenario("init backup path")) {
+            return;
+          }
           const filePathInput = await input({
             message: "Save location:",
             default: defaultPath,
@@ -470,6 +482,9 @@ export async function handleInitCommand(
         }
 
         process.stderr.write("\n");
+        if (await maybeRenderPreviewScenario("init backup confirm")) {
+          return;
+        }
         const confirmed = await confirm({
           message: "I have securely backed up my recovery phrase.",
           default: false,
@@ -530,6 +545,9 @@ export async function handleInitCommand(
         ) + "\n",
       );
       process.stderr.write("\n");
+      if (await maybeRenderPreviewScenario("init signer key")) {
+        return;
+      }
       const keyInput = await password({
         message: "Signer key (private key, 0x..., or Enter to skip):",
         mask: "*",
@@ -558,6 +576,9 @@ export async function handleInitCommand(
     let defaultChain = opts.defaultChain;
 
     if (!defaultChain && !skipPrompts) {
+      if (await maybeRenderPreviewScenario("init default chain")) {
+        return;
+      }
       defaultChain = await select({
         message: "Which network would you like to use?",
         choices: [

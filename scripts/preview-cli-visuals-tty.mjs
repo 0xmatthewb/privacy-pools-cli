@@ -1,20 +1,33 @@
 #!/usr/bin/env node
 
 import {
+  createPreviewCoverageReport,
   formatPreviewCaseList,
+  formatPreviewCoverageReportMarkdown,
   parsePreviewArgs,
   runTtyPreviewSuite,
 } from "./lib/preview-cli.mjs";
 
 export async function main(argv = process.argv.slice(2)) {
-  const { caseIds, listOnly } = parsePreviewArgs(argv);
+  const options = parsePreviewArgs(argv);
 
-  if (listOnly) {
-    process.stdout.write(`${formatPreviewCaseList(caseIds)}\n`);
+  if (options.listOnly) {
+    process.stdout.write(`${formatPreviewCaseList(options)}\n`);
     return;
   }
 
-  const result = await runTtyPreviewSuite({ caseIds });
+  const result = await runTtyPreviewSuite(options);
+  if (options.reportJson) {
+    const report = createPreviewCoverageReport({
+      ttyResult: result,
+    });
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  } else if (!result.dryRun && !result.skipped) {
+    const report = createPreviewCoverageReport({
+      ttyResult: result,
+    });
+    process.stdout.write(`\n${formatPreviewCoverageReportMarkdown(report)}`);
+  }
   if (result.failures?.length > 0) {
     process.exitCode = 1;
   }

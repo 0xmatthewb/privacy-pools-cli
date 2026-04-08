@@ -68,7 +68,10 @@ import {
   getNextPoolAccountNumber,
   poolAccountId,
 } from "../utils/pool-accounts.js";
-import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  maybeRenderPreviewProgressStep,
+  maybeRenderPreviewScenario,
+} from "../preview/runtime.js";
 
 const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -149,6 +152,9 @@ export async function handleDepositCommand(
         globalOpts?.rpcUrl,
       );
     } else if (!skipPrompts) {
+      if (await maybeRenderPreviewScenario("deposit asset select")) {
+        return;
+      }
       const pools = await listPools(chainConfig, globalOpts?.rpcUrl);
       if (pools.length === 0) {
         throw new CLIError(
@@ -226,6 +232,9 @@ export async function handleDepositCommand(
           `${humanAmount} ${pool.symbol} is a non-round amount that may reduce your privacy in the anonymity set.${suggestionStr}`,
           false,
         );
+        if (await maybeRenderPreviewScenario("deposit unique amount confirm")) {
+          return;
+        }
         const proceed = await confirm({
           message: "Proceed with this amount anyway?",
           default: false,
@@ -266,6 +275,9 @@ export async function handleDepositCommand(
       }
       process.stderr.write("\n");
       const txNote = isErc20 ? " (2 transactions: approve + deposit)" : "";
+      if (await maybeRenderPreviewScenario("deposit confirm")) {
+        return;
+      }
       const ok = await confirm({
         message: `Deposit ${formatAmount(amount, pool.decimals, pool.symbol)}${amountUsd} into ${pool.symbol} pool on ${chainConfig.name}?${txNote}`,
         default: true,
@@ -274,6 +286,36 @@ export async function handleDepositCommand(
         info("Deposit cancelled.", silent);
         return;
       }
+    }
+
+    if (!isNativePoolAsset(chainConfig.id, pool.asset)) {
+      if (
+        await maybeRenderPreviewProgressStep("deposit.approve-token", {
+          stage: {
+            step: 1,
+            total: 2,
+            label: "Approving token spend",
+          },
+          spinnerText: "Approving token spend...",
+          doneText: "Token approval ready.",
+        })
+      ) {
+        return;
+      }
+    }
+
+    if (
+      await maybeRenderPreviewProgressStep("deposit.submit", {
+        stage: {
+          step: isNativePoolAsset(chainConfig.id, pool.asset) ? 1 : 2,
+          total: isNativePoolAsset(chainConfig.id, pool.asset) ? 1 : 2,
+          label: "Submitting deposit",
+        },
+        spinnerText: "Submitting deposit transaction...",
+        doneText: "Deposit submitted.",
+      })
+    ) {
+      return;
     }
 
     // Acquire process lock to prevent concurrent account mutations.

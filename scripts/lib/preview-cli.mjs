@@ -3,7 +3,10 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PREVIEW_CASES, findPreviewCase } from "./preview-cli-catalog.mjs";
+import {
+  PREVIEW_CASES,
+  findPreviewCase,
+} from "./preview-cli-catalog.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const NODE_BIN = process.execPath;
@@ -22,6 +25,67 @@ const DEFAULT_NATIVE_BINARY = join(
     ? "privacy-pools-cli-native-shell.exe"
     : "privacy-pools-cli-native-shell",
 );
+
+export const PREVIEW_VARIANTS = {
+  rich: {
+    id: "rich",
+    label: "rich",
+    env: {
+      FORCE_COLOR: "1",
+      NO_COLOR: undefined,
+      TERM: "xterm-256color",
+      LANG: "en_US.UTF-8",
+      LC_ALL: "en_US.UTF-8",
+      PRIVACY_POOLS_CLI_PREVIEW_COLUMNS: "120",
+      COLUMNS: "120",
+    },
+    columns: 120,
+  },
+  "no-color": {
+    id: "no-color",
+    label: "no-color",
+    env: {
+      FORCE_COLOR: "0",
+      NO_COLOR: "1",
+      TERM: "xterm-256color",
+      LANG: "en_US.UTF-8",
+      LC_ALL: "en_US.UTF-8",
+      PRIVACY_POOLS_CLI_PREVIEW_COLUMNS: "120",
+      COLUMNS: "120",
+    },
+    columns: 120,
+  },
+  ascii: {
+    id: "ascii",
+    label: "ascii",
+    env: {
+      FORCE_COLOR: "0",
+      NO_COLOR: "1",
+      TERM: "dumb",
+      LANG: "C",
+      LC_ALL: "C",
+      PRIVACY_POOLS_CLI_PREVIEW_COLUMNS: "120",
+      COLUMNS: "120",
+    },
+    columns: 120,
+  },
+  narrow: {
+    id: "narrow",
+    label: "narrow",
+    env: {
+      FORCE_COLOR: "1",
+      NO_COLOR: undefined,
+      TERM: "xterm-256color",
+      LANG: "en_US.UTF-8",
+      LC_ALL: "en_US.UTF-8",
+      PRIVACY_POOLS_CLI_PREVIEW_COLUMNS: "72",
+      COLUMNS: "72",
+    },
+    columns: 72,
+  },
+};
+
+const DEFAULT_PREVIEW_VARIANT_IDS = Object.keys(PREVIEW_VARIANTS);
 
 function wait(ms) {
   return new Promise((resolveWait) => {
@@ -69,7 +133,7 @@ function buildChildEnv(overrides = {}) {
     }
   }
 
-  env.FORCE_COLOR = "1";
+  env.FORCE_COLOR = env.FORCE_COLOR ?? "1";
   env.NODE_NO_WARNINGS = "1";
   env.PP_NO_UPDATE_CHECK = "1";
   env.TERM = env.TERM ?? "xterm-256color";
@@ -438,14 +502,24 @@ function createFlowSnapshotForPhase(phase) {
 }
 
 function formatPreviewSectionTitle(plan) {
-  return `${plan.journey} | ${plan.label} [${plan.owner} / ${plan.source}]`;
+  const variantLabel = plan.variant ? ` | ${plan.variant.label}` : "";
+  return `${plan.journey} | ${plan.label}${variantLabel} [${plan.owner} / ${plan.source}]`;
 }
 
 function printCaseHeader(writer, plan) {
   writeLine(writer, "");
   writeLine(writer, `=== ${formatPreviewSectionTitle(plan)} ===`);
-  writeLine(writer, `Case ID: ${plan.id}`);
+  writeLine(writer, `Case ID: ${plan.caseId ?? plan.id}`);
+  if (plan.variantId) {
+    writeLine(writer, `Variant: ${plan.variantId}`);
+  }
   writeLine(writer, `Surface: ${plan.surface}`);
+  if (plan.commandPath) {
+    writeLine(writer, `Command: ${plan.commandPath}`);
+  }
+  if (plan.stateId) {
+    writeLine(writer, `State: ${plan.stateId} (${plan.stateClass})`);
+  }
   writeLine(writer, `Runtime: ${plan.runtime}`);
   writeLine(writer, `Execution: ${plan.executionKind}`);
   writeLine(writer, `Expected exit: ${plan.expectedExitCodes.join(", ")}`);
@@ -490,7 +564,21 @@ function launcherEnvForRuntime(runtime, nativeBinary, nativeBinaryAvailable) {
 function createPlanEntry(previewCase, execution) {
   return {
     ...previewCase,
+    caseId: previewCase.id,
     execution,
+  };
+}
+
+function createVariantPlanEntry(plan, variantId) {
+  const variant = PREVIEW_VARIANTS[variantId];
+  if (!variant) {
+    throw new Error(`Unknown preview variant: ${variantId}`);
+  }
+  return {
+    ...plan,
+    id: `${plan.caseId}::${variantId}`,
+    variantId,
+    variant,
   };
 }
 
@@ -508,6 +596,7 @@ export function resolvePreviewExecution(caseId) {
     buildInvocation: previewCase.preview.buildInvocation,
     fixtureCaseId: previewCase.preview.fixtureCaseId,
     ttyScript: previewCase.preview.ttyScript,
+    requiresTtyScript: previewCase.preview.requiresTtyScript === true,
   };
 
   if (execution.kind !== "live-command" && execution.kind !== "renderer-fixture") {
@@ -517,25 +606,140 @@ export function resolvePreviewExecution(caseId) {
   return createPlanEntry(previewCase, execution);
 }
 
-export function planPreviewSuite(caseIds = null) {
-  const ids = caseIds && caseIds.length > 0
-    ? caseIds
-    : PREVIEW_CASES.map((previewCase) => previewCase.id);
+function normalizePlanOptions(options = {}) {
+  if (Array.isArray(options) || options === null) {
+    return {
+      caseIds: options,
+      journeys: null,
+      commands: null,
+      surfaces: null,
+      variants: null,
+      smoke: false,
+    };
+  }
+
+  return {
+    caseIds: options.caseIds ?? null,
+    journeys: options.journeys ?? null,
+    commands: options.commands ?? null,
+    surfaces: options.surfaces ?? null,
+    variants: options.variants ?? null,
+    smoke: options.smoke ?? false,
+  };
+}
+
+function normalizeFilterValues(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return null;
+  }
+  return values.map((value) => value.trim().toLowerCase()).filter(Boolean);
+}
+
+function previewCaseMatchesFilters(previewCase, filters) {
+  const journeyFilters = normalizeFilterValues(filters.journeys);
+  const commandFilters = normalizeFilterValues(filters.commands);
+  const surfaceFilters = normalizeFilterValues(filters.surfaces);
+
+  if (
+    journeyFilters &&
+    !journeyFilters.includes(previewCase.journey.trim().toLowerCase())
+  ) {
+    return false;
+  }
+  if (
+    commandFilters &&
+    !commandFilters.includes((previewCase.commandPath ?? "").trim().toLowerCase())
+  ) {
+    return false;
+  }
+  if (
+    surfaceFilters &&
+    !surfaceFilters.includes(previewCase.surface.trim().toLowerCase())
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function resolvePreviewVariantIds(variantIds = null, smoke = false) {
+  if (smoke) {
+    return ["rich"];
+  }
+  const resolved = Array.isArray(variantIds) && variantIds.length > 0
+    ? variantIds
+    : DEFAULT_PREVIEW_VARIANT_IDS;
+  for (const variantId of resolved) {
+    if (!PREVIEW_VARIANTS[variantId]) {
+      throw new Error(`Unknown preview variant: ${variantId}`);
+    }
+  }
+  return [...resolved];
+}
+
+function expandPlansForVariants(plans, variantIds) {
+  return plans.flatMap((plan) => {
+    const requestedVariants = Array.isArray(plan.variantPolicy)
+      ? variantIds.filter((variantId) => plan.variantPolicy.includes(variantId))
+      : variantIds;
+    return requestedVariants.map((variantId) =>
+      createVariantPlanEntry(plan, variantId)
+    );
+  });
+}
+
+export function planPreviewSuite(options = {}) {
+  const normalized = normalizePlanOptions(options);
+  const ids = normalized.caseIds && normalized.caseIds.length > 0
+    ? normalized.caseIds
+    : PREVIEW_CASES
+      .filter((previewCase) => previewCaseMatchesFilters(previewCase, normalized))
+      .map((previewCase) => previewCase.id);
   return ids.map((caseId) => resolvePreviewExecution(caseId));
+}
+
+export function planPreviewMatrix(options = {}) {
+  const normalized = normalizePlanOptions(options);
+  const basePlans = planPreviewSuite(normalized);
+  return expandPlansForVariants(
+    basePlans,
+    resolvePreviewVariantIds(normalized.variants, normalized.smoke),
+  );
 }
 
 export function parsePreviewArgs(argv = process.argv.slice(2)) {
   const caseIds = [];
+  const journeys = [];
+  const commands = [];
+  const surfaces = [];
+  const variants = [];
   let listOnly = false;
+  let reportJson = false;
+  let smoke = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === "--case") {
+    if (
+      arg === "--case" ||
+      arg === "--journey" ||
+      arg === "--command" ||
+      arg === "--surface" ||
+      arg === "--variant"
+    ) {
       const value = argv[index + 1];
       if (!value) {
-        throw new Error("Missing value for --case");
+        throw new Error(`Missing value for ${arg}`);
       }
-      caseIds.push(value);
+      if (arg === "--case") {
+        caseIds.push(value);
+      } else if (arg === "--journey") {
+        journeys.push(value);
+      } else if (arg === "--command") {
+        commands.push(value);
+      } else if (arg === "--surface") {
+        surfaces.push(value);
+      } else {
+        variants.push(value);
+      }
       index += 1;
       continue;
     }
@@ -543,29 +747,49 @@ export function parsePreviewArgs(argv = process.argv.slice(2)) {
       listOnly = true;
       continue;
     }
+    if (arg === "--report-json") {
+      reportJson = true;
+      continue;
+    }
+    if (arg === "--smoke") {
+      smoke = true;
+      continue;
+    }
     throw new Error(`Unknown preview argument: ${arg}`);
   }
 
   return {
     caseIds: caseIds.length > 0 ? caseIds : null,
+    journeys: journeys.length > 0 ? journeys : null,
+    commands: commands.length > 0 ? commands : null,
+    surfaces: surfaces.length > 0 ? surfaces : null,
+    variants: variants.length > 0 ? variants : null,
     listOnly,
+    reportJson,
+    smoke,
   };
 }
 
-export function formatPreviewCaseList(caseIds = null) {
-  const plans = planPreviewSuite(caseIds);
+export function formatPreviewCaseList(options = {}) {
+  const plans = planPreviewSuite(options);
   const lines = [
-    "id | journey | surface | owner | runtime | execution | modes | source | covers | setup | synthetic",
+    "id | command | stateId | stateClass | journey | surface | owner | runtime | execution | fidelity | interactive | variants | modes | source | covers | setup | synthetic",
   ];
   for (const plan of plans) {
     lines.push(
       [
         plan.id,
+        plan.commandPath ?? "-",
+        plan.stateId ?? "-",
+        plan.stateClass ?? "-",
         plan.journey,
         plan.surface,
         plan.owner,
         plan.runtime,
         plan.executionKind,
+        plan.fidelity ?? "-",
+        plan.interactive ? "yes" : "no",
+        Array.isArray(plan.variantPolicy) ? plan.variantPolicy.join(", ") : "-",
         formatModeList(plan.modes),
         plan.source,
         formatCoverList(plan.covers),
@@ -611,6 +835,7 @@ function createRunContext(options = {}) {
     nativeBinary,
     nativeBinaryAvailable,
     failures: [],
+    executions: [],
     fixture: null,
     fixtureEnv: {},
   };
@@ -632,10 +857,27 @@ function buildPreviewInvocation(plan, context) {
 
   const invocation = plan.execution.buildInvocation?.(context);
   if (invocation) {
-    return {
+    const resolvedInvocation = {
       ...invocation,
       ttyScript: invocation.ttyScript ?? plan.execution.ttyScript,
+      variant: plan.variant,
+      env: buildChildEnv({
+        ...(invocation.env ?? {}),
+        ...(plan.variant?.env ?? {}),
+      }),
     };
+    if (plan.execution.requiresTtyScript && !resolvedInvocation.ttyScript) {
+      throw new Error(
+        `TTY preview case ${plan.id} is missing a ttyScript but is marked as requiring one.`,
+      );
+    }
+    return resolvedInvocation;
+  }
+
+  if (plan.execution.requiresTtyScript && !plan.execution.ttyScript) {
+    throw new Error(
+      `TTY preview case ${plan.id} is missing a ttyScript but is marked as requiring one.`,
+    );
   }
 
   return {
@@ -653,8 +895,9 @@ function createPreviewInvocationFromCase(plan) {
       plan.execution.fixtureCaseId,
     ],
     displayCommand: plan.execution.commandLabel,
-    env: buildChildEnv(),
+    env: buildChildEnv(plan.variant?.env ?? {}),
     ttyScript: plan.execution.ttyScript,
+    variant: plan.variant,
   };
 }
 
@@ -690,6 +933,14 @@ async function executeCapturedCase(plan, context) {
   const invocation = buildPreviewInvocation(plan, context);
   if (invocation.skipReason) {
     writeLine(context.writeOut, `Skipped: ${invocation.skipReason}`);
+    context.executions.push({
+      planId: plan.id,
+      caseId: plan.caseId,
+      variantId: plan.variantId ?? null,
+      mode: "captured",
+      status: "skipped",
+      skipReason: invocation.skipReason,
+    });
     return;
   }
   if (invocation.prepare) {
@@ -710,7 +961,25 @@ async function executeCapturedCase(plan, context) {
     context.failures.push(
       `${plan.id} exited with ${result.status ?? "null"} (expected ${plan.expectedExitCodes.join(", ")})${result.errorMessage ? ` (${result.errorMessage})` : ""}`,
     );
+    context.executions.push({
+      planId: plan.id,
+      caseId: plan.caseId,
+      variantId: plan.variantId ?? null,
+      mode: "captured",
+      status: "failed",
+      exitCode: result.status ?? null,
+    });
+    return;
   }
+
+  context.executions.push({
+    planId: plan.id,
+    caseId: plan.caseId,
+    variantId: plan.variantId ?? null,
+    mode: "captured",
+    status: "rendered",
+    exitCode: result.status ?? null,
+  });
 }
 
 export function shouldSkipTtyPreview(io = process) {
@@ -835,7 +1104,7 @@ async function runCommandInNodePty(ptySpawn, invocation, writeOut) {
     try {
       proc = ptySpawn(shellInvocation.command, shellInvocation.args, {
         name: "xterm-256color",
-        cols: process.stdout.columns ?? 120,
+        cols: invocation.variant?.columns ?? process.stdout.columns ?? 120,
         rows: process.stdout.rows ?? 40,
         cwd: ROOT_DIR,
         env: invocation.env,
@@ -1011,6 +1280,14 @@ async function executeTtyCase(plan, context, ptySpawn) {
   const invocation = buildPreviewInvocation(plan, context);
   if (invocation.skipReason) {
     writeLine(context.writeOut, `Skipped: ${invocation.skipReason}`);
+    context.executions.push({
+      planId: plan.id,
+      caseId: plan.caseId,
+      variantId: plan.variantId ?? null,
+      mode: "tty",
+      status: "skipped",
+      skipReason: invocation.skipReason,
+    });
     return;
   }
   if (invocation.prepare) {
@@ -1028,7 +1305,25 @@ async function executeTtyCase(plan, context, ptySpawn) {
     context.failures.push(
       `${plan.id} exited with ${result.exitCode ?? "null"} (expected ${plan.expectedExitCodes.join(", ")})`,
     );
+    context.executions.push({
+      planId: plan.id,
+      caseId: plan.caseId,
+      variantId: plan.variantId ?? null,
+      mode: "tty",
+      status: "failed",
+      exitCode: result.exitCode ?? null,
+    });
+    return;
   }
+
+  context.executions.push({
+    planId: plan.id,
+    caseId: plan.caseId,
+    variantId: plan.variantId ?? null,
+    mode: "tty",
+    status: "rendered",
+    exitCode: result.exitCode ?? null,
+  });
 }
 
 async function printSuiteIntro(context, plans, mode) {
@@ -1038,6 +1333,12 @@ async function printSuiteIntro(context, plans, mode) {
     `=== Privacy Pools CLI visual preview (${mode}) ===`,
   );
   writeLine(context.writeOut, `Cases: ${plans.length}`);
+  writeLine(
+    context.writeOut,
+    `Variants: ${
+      [...new Set(plans.map((plan) => plan.variantId).filter(Boolean))].join(", ") || "-"
+    }`,
+  );
   writeLine(
     context.writeOut,
     `Native shell: ${context.nativeBinaryAvailable ? context.nativeBinary : "not built"}`,
@@ -1053,7 +1354,7 @@ async function printSuiteIntro(context, plans, mode) {
 export async function runCapturedPreviewSuite(options = {}) {
   const context = createRunContext(options);
   const plans = filterPlansForMode(
-    planPreviewSuite(options.caseIds ?? null),
+    planPreviewMatrix(options),
     "captured",
   );
 
@@ -1092,11 +1393,12 @@ export async function runCapturedPreviewSuite(options = {}) {
   }
 
   return {
-    dryRun: false,
-    plans,
-    failures: [...context.failures],
-  };
-}
+      dryRun: false,
+      plans,
+      failures: [...context.failures],
+      executions: [...context.executions],
+    };
+  }
 
 export async function runTtyPreviewSuite(options = {}) {
   const context = createRunContext(options);
@@ -1115,7 +1417,7 @@ export async function runTtyPreviewSuite(options = {}) {
   }
 
   const plans = filterPlansForMode(
-    planPreviewSuite(options.caseIds ?? null),
+    planPreviewMatrix(options),
     "tty",
   );
   if (options.dryRun) {
@@ -1161,5 +1463,129 @@ export async function runTtyPreviewSuite(options = {}) {
     skipped: false,
     plans,
     failures: [...context.failures],
+    executions: [...context.executions],
   };
+}
+
+function stateKeyForPlan(plan) {
+  return [
+    plan.commandPath ?? "-",
+    plan.stateId ?? plan.caseId ?? plan.id,
+    plan.runtimeTarget ?? plan.runtime,
+  ].join("::");
+}
+
+export function createPreviewCoverageReport({
+  capturedResult = null,
+  ttyResult = null,
+  artifactPaths = {},
+} = {}) {
+  const results = [capturedResult, ttyResult].filter(Boolean);
+  const plans = results.flatMap((result) => result.plans ?? []);
+  const executions = results.flatMap((result) => result.executions ?? []);
+  const expectedPlanIds = new Set(plans.map((plan) => plan.id));
+  const renderedPlanIds = new Set(
+    executions
+      .filter((execution) => execution.status === "rendered")
+      .map((execution) => execution.planId),
+  );
+  const skippedExecutions = executions.filter(
+    (execution) => execution.status === "skipped",
+  );
+  const failedExecutions = executions.filter(
+    (execution) => execution.status === "failed",
+  );
+  const stateMap = new Map(plans.map((plan) => [plan.id, stateKeyForPlan(plan)]));
+  const expectedStates = new Set(plans.map((plan) => stateKeyForPlan(plan)));
+  const renderedStates = new Set(
+    [...renderedPlanIds]
+      .map((planId) => stateMap.get(planId))
+      .filter(Boolean),
+  );
+  const missingStates = [...expectedStates].filter(
+    (stateKey) => !renderedStates.has(stateKey),
+  );
+
+  const fidelityCounts = {};
+  for (const plan of plans) {
+    const key = plan.fidelity ?? "unknown";
+    fidelityCounts[key] = (fidelityCounts[key] ?? 0) + 1;
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    summary: {
+      expectedPlans: expectedPlanIds.size,
+      renderedPlans: renderedPlanIds.size,
+      skippedPlans: skippedExecutions.length,
+      failedPlans: failedExecutions.length,
+      expectedStates: expectedStates.size,
+      renderedStates: renderedStates.size,
+      missingStates: missingStates.length,
+    },
+    expectedStates: [...expectedStates].sort(),
+    renderedStates: [...renderedStates].sort(),
+    missingStates: missingStates.sort(),
+    liveVsFixtureRatio: fidelityCounts,
+    failures: failedExecutions,
+    skips: skippedExecutions,
+    artifactPaths,
+  };
+}
+
+export function formatPreviewCoverageReportMarkdown(report) {
+  const lines = [
+    "# Preview Coverage Report",
+    "",
+    `Generated: ${report.generatedAt}`,
+    "",
+    "## Summary",
+    `- Expected plans: ${report.summary.expectedPlans}`,
+    `- Rendered plans: ${report.summary.renderedPlans}`,
+    `- Skipped plans: ${report.summary.skippedPlans}`,
+    `- Failed plans: ${report.summary.failedPlans}`,
+    `- Expected states: ${report.summary.expectedStates}`,
+    `- Rendered states: ${report.summary.renderedStates}`,
+    `- Missing states: ${report.summary.missingStates}`,
+    "",
+    "## Fidelity",
+  ];
+
+  for (const [fidelity, count] of Object.entries(report.liveVsFixtureRatio)) {
+    lines.push(`- ${fidelity}: ${count}`);
+  }
+
+  if (report.missingStates.length > 0) {
+    lines.push("", "## Missing States");
+    for (const state of report.missingStates) {
+      lines.push(`- ${state}`);
+    }
+  }
+
+  if (report.failures.length > 0) {
+    lines.push("", "## Failures");
+    for (const failure of report.failures) {
+      lines.push(
+        `- ${failure.planId} (${failure.mode}${failure.variantId ? ` / ${failure.variantId}` : ""})`,
+      );
+    }
+  }
+
+  if (report.skips.length > 0) {
+    lines.push("", "## Skips");
+    for (const skip of report.skips) {
+      lines.push(
+        `- ${skip.planId} (${skip.mode}${skip.variantId ? ` / ${skip.variantId}` : ""}): ${skip.skipReason}`,
+      );
+    }
+  }
+
+  if (Object.keys(report.artifactPaths).length > 0) {
+    lines.push("", "## Artifacts");
+    for (const [label, value] of Object.entries(report.artifactPaths)) {
+      lines.push(`- ${label}: ${value}`);
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
 }

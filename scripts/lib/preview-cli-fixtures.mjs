@@ -1,5 +1,9 @@
 import {
   createOutputContext,
+  formatCallout,
+  formatKeyValueRows,
+  formatRelayedWithdrawalReview,
+  formatSectionHeading,
   printJsonSuccess,
   renderActivity,
   renderAccounts,
@@ -21,6 +25,8 @@ import {
   renderSyncComplete,
   renderSyncEmpty,
   renderUpgradeResult,
+  renderWorkflowWalletBackupChoicePreview,
+  renderWorkflowWalletBackupConfirmation,
   renderWithdrawDryRun,
   renderWithdrawQuote,
   renderWithdrawSuccess,
@@ -432,6 +438,34 @@ const PREVIEW_SCENARIO_COMMANDS = {
   init: new Set([
     "init-generated",
     "init-imported",
+    "init-setup-mode-prompt",
+    "init-import-recovery-prompt",
+    "init-backup-method-prompt",
+    "init-backup-path-prompt",
+    "init-backup-confirm-prompt",
+    "init-signer-key-prompt",
+    "init-default-chain-prompt",
+  ]),
+  "init setup mode": new Set([
+    "init-setup-mode-prompt",
+  ]),
+  "init import recovery prompt": new Set([
+    "init-import-recovery-prompt",
+  ]),
+  "init backup method": new Set([
+    "init-backup-method-prompt",
+  ]),
+  "init backup path": new Set([
+    "init-backup-path-prompt",
+  ]),
+  "init backup confirm": new Set([
+    "init-backup-confirm-prompt",
+  ]),
+  "init signer key": new Set([
+    "init-signer-key-prompt",
+  ]),
+  "init default chain": new Set([
+    "init-default-chain-prompt",
   ]),
   deposit: new Set([
     "deposit-dry-run",
@@ -439,6 +473,18 @@ const PREVIEW_SCENARIO_COMMANDS = {
     "deposit-unsigned-envelope",
     "deposit-unsigned-tx",
     "deposit-validation",
+    "deposit-asset-select-prompt",
+    "deposit-unique-amount-prompt",
+    "deposit-confirm-prompt",
+  ]),
+  "deposit asset select": new Set([
+    "deposit-asset-select-prompt",
+  ]),
+  "deposit unique amount confirm": new Set([
+    "deposit-unique-amount-prompt",
+  ]),
+  "deposit confirm": new Set([
+    "deposit-confirm-prompt",
   ]),
   withdraw: new Set([
     "withdraw-dry-run-relayed",
@@ -448,6 +494,18 @@ const PREVIEW_SCENARIO_COMMANDS = {
     "withdraw-unsigned-envelope",
     "withdraw-unsigned-tx",
     "withdraw-validation",
+  ]),
+  "withdraw confirm": new Set([
+    "withdraw-confirm",
+  ]),
+  "withdraw pa select": new Set([
+    "withdraw-pa-select-prompt",
+  ]),
+  "withdraw recipient input": new Set([
+    "withdraw-recipient-prompt",
+  ]),
+  "withdraw direct confirm": new Set([
+    "withdraw-direct-confirm-prompt",
   ]),
   "withdraw quote": new Set([
     "withdraw-quote",
@@ -460,6 +518,12 @@ const PREVIEW_SCENARIO_COMMANDS = {
     "ragequit-unsigned-tx",
     "ragequit-validation",
   ]),
+  "ragequit select": new Set([
+    "ragequit-select",
+  ]),
+  "ragequit confirm": new Set([
+    "ragequit-confirm",
+  ]),
   upgrade: new Set([
     "upgrade-check",
     "upgrade-manual-only",
@@ -468,11 +532,26 @@ const PREVIEW_SCENARIO_COMMANDS = {
     "upgrade-ready",
     "upgrade-performed",
   ]),
+  "upgrade confirm": new Set([
+    "upgrade-confirm-prompt",
+  ]),
   "flow start": new Set([
     "flow-start-validation",
     "flow-start-configured",
     "flow-start-new-wallet",
     "flow-start-watch",
+  ]),
+  "flow start confirm": new Set([
+    "flow-start-confirm-prompt",
+  ]),
+  "flow start new-wallet backup choice": new Set([
+    "flow-start-new-wallet-backup-choice",
+  ]),
+  "flow start new-wallet backup path": new Set([
+    "flow-start-new-wallet-backup-path-prompt",
+  ]),
+  "flow start new-wallet backup confirm": new Set([
+    "flow-start-new-wallet-backup-confirm",
   ]),
   "flow watch": new Set([
     "flow-watch-awaiting-funding",
@@ -829,6 +908,82 @@ function renderInitPreview(caseId) {
         showMnemonic: false,
       });
       return;
+    case "init-setup-mode-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Wallet setup", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("read-only", [
+          "Choose whether to create a fresh Privacy Pools wallet or import an existing recovery phrase.",
+          "The rest of init adapts to this choice.",
+        ])}  Generate new recovery phrase\n  Import existing recovery phrase\n`,
+      );
+      return;
+    case "init-import-recovery-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Import recovery phrase", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("recovery", [
+          "Paste the existing 12-word or 24-word recovery phrase you want this CLI to manage.",
+          "Imported phrases skip the one-time generated backup screen.",
+        ])}  Enter your recovery phrase (12 or 24 words):\n`,
+      );
+      return;
+    case "init-backup-method-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Back up recovery phrase", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("danger", [
+          "This is the only time the generated recovery phrase is shown.",
+          "Choose how you want to secure it before init continues.",
+        ])}  Save to file (recommended)\n  I'll back it up manually\n`,
+      );
+      return;
+    case "init-backup-path-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Save recovery phrase", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("danger", [
+          "The backup file will contain the live recovery phrase.",
+          "Move it somewhere secure after saving it.",
+        ])}  Save location: /Users/example/privacy-pools-recovery.txt\n`,
+      );
+      return;
+    case "init-backup-confirm-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Confirm recovery backup", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("danger", [
+          "Do not continue unless the recovery phrase is stored somewhere you trust.",
+          "Losing it can permanently strand deposited funds.",
+        ])}  I have securely backed up my recovery phrase. [y/N]\n`,
+      );
+      return;
+    case "init-signer-key-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Add signer key", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("read-only", [
+          "The signer key pays gas and sends transactions.",
+          "You can skip it now and set PRIVACY_POOLS_PRIVATE_KEY later.",
+        ])}  Signer key (private key, 0x..., or Enter to skip):\n`,
+      );
+      return;
+    case "init-default-chain-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Choose default network", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("read-only", [
+          "Init stores a default chain so follow-up commands know which network to target first.",
+        ])}  mainnet\n  arbitrum\n  optimism\n  sepolia (testnet)\n  optimism-sepolia (testnet)\n`,
+      );
+      return;
     default:
       return false;
   }
@@ -879,6 +1034,39 @@ function renderDepositPreview(caseId) {
         "INPUT",
         "Unique amounts can be linked between deposits and withdrawals. Pass --ignore-unique-amount to proceed anyway.",
       );
+    case "deposit-asset-select-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Select asset to deposit", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("read-only", [
+          "Choose which pool asset you want to fund.",
+        ])}  ETH (0xEeee...EEeE)\n  USDC (0xaf88...5831)\n`,
+      );
+      return;
+    case "deposit-unique-amount-prompt":
+      process.stderr.write(
+        `${formatCallout("warning", [
+          "0.123456789 ETH is a non-round amount that may reduce your privacy in the anonymity set.",
+          "Consider a round amount unless you intentionally accept that linkability tradeoff.",
+        ])}\n  Proceed with this amount anyway? [y/N]\n`,
+      );
+      return;
+    case "deposit-confirm-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Deposit review", {
+          divider: true,
+          padTop: false,
+        })}${formatKeyValueRows([
+          { label: "Amount", value: "0.1 ETH" },
+          { label: "Chain", value: "sepolia" },
+          { label: "Vetting fee", value: "0.005 ETH" },
+          { label: "Net deposited", value: "~0.095 ETH" },
+        ])}${formatCallout("privacy", [
+          "The ASP reviews deposits before private withdrawal is available.",
+        ])}\n  Deposit 0.1 ETH into ETH pool on sepolia? [Y/n]\n`,
+      );
+      return;
     default:
       return false;
   }
@@ -1021,6 +1209,67 @@ function renderWithdrawPreview(caseId) {
         tokenPrice: 3200,
       });
       return;
+    case "withdraw-confirm":
+      process.stderr.write(
+        `\n${formatRelayedWithdrawalReview({
+          poolAccountId: "PA-4",
+          poolAccountBalance: 125000000n,
+          amount: 50000000n,
+          asset: "USDC",
+          chain: "sepolia",
+          decimals: 6,
+          recipient: TEST_RECIPIENT,
+          quoteFeeBPS: 35n,
+          expirationMs: Date.parse("2026-04-07T18:42:45.000Z"),
+          remainingBalance: 75000000n,
+          extraGasRequested: true,
+          extraGasFundAmount: 1500000000000000n,
+          tokenPrice: 1,
+          remainingBelowMinAdvisory:
+            "PA-4 would keep 75 USDC, which is below the relayer minimum (100 USDC). Withdraw less to keep a privately withdrawable remainder, use --all/100% to fully withdraw it, or ragequit the remainder publicly later.",
+          nowMs: Date.parse("2026-04-07T18:42:00.000Z"),
+        })}\n  Confirm withdrawal? [y/N]\n`,
+      );
+      return;
+    case "withdraw-pa-select-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Select Pool Account", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("privacy", [
+          "Choose which approved Pool Account should fund this withdrawal.",
+          "The CLI will use the selected account's remaining balance and approval state.",
+        ])}  PA-4  125 USDC\n  PA-6  80 USDC\n`,
+      );
+      return;
+    case "withdraw-recipient-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Recipient", {
+          divider: true,
+          padTop: false,
+        })}${formatKeyValueRows([
+          { label: "Pool Account", value: "PA-4" },
+          { label: "Amount", value: "50 USDC" },
+          { label: "Chain", value: "sepolia" },
+        ])}  Recipient address:\n`,
+      );
+      return;
+    case "withdraw-direct-confirm-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Direct withdrawal review", {
+          divider: true,
+          padTop: false,
+        })}${formatKeyValueRows([
+          { label: "Pool Account", value: "PA-1" },
+          { label: "Recipient", value: "0x0000...0abc" },
+          { label: "Amount", value: "0.3 ETH" },
+          { label: "Mode", value: "Direct (no privacy)" },
+        ])}${formatCallout("danger", [
+          "Direct withdrawals publicly link the withdrawal to your signer address.",
+          "Use relayed mode if you want the privacy-preserving path instead.",
+        ])}\n  Withdraw 0.3 ETH from PA-1 directly to 0x0000...0abc on sepolia? (no privacy) [y/N]\n`,
+      );
+      return;
     case "withdraw-unsigned-envelope":
       printJsonEnvelope(createUnsignedEnvelope("withdraw"));
       return;
@@ -1070,6 +1319,33 @@ function renderRagequitPreview(caseId) {
         explorerUrl: "https://sepolia.etherscan.io/tx/0x6666",
         destinationAddress: TEST_DEPOSIT_ADDRESS,
       });
+      return;
+    case "ragequit-select":
+      process.stderr.write(
+        `${formatSectionHeading("Recovery candidates", {
+          divider: true,
+          padTop: false,
+        })}${formatCallout("recovery", [
+          "Choose the Pool Account you want to recover publicly to its original deposit address.",
+          "Approved accounts can still use withdraw if you want to preserve privacy instead.",
+        ])}  PA-3  0.4 ETH  declined\n  PA-4  0.2 ETH  pending\n`,
+      );
+      return;
+    case "ragequit-confirm":
+      process.stderr.write(
+        `${formatSectionHeading("Public recovery review", {
+          divider: true,
+          padTop: false,
+        })}${formatKeyValueRows([
+          { label: "Pool Account", value: "PA-3" },
+          { label: "Amount", value: "0.4 ETH" },
+          { label: "Chain", value: "sepolia" },
+          { label: "Destination", value: TEST_DEPOSIT_ADDRESS },
+        ])}${formatCallout("danger", [
+          "Ragequit sends funds publicly to the original deposit address.",
+          "Privacy is lost and this action cannot be undone.",
+        ])}\n  Confirm public recovery? [y/N]\n`,
+      );
       return;
     case "ragequit-unsigned-envelope":
       printJsonEnvelope(createUnsignedEnvelope("ragequit"));
@@ -1161,6 +1437,24 @@ function renderUpgradePreview(caseId) {
         installedVersion: "1.8.0",
       });
       return;
+    case "upgrade-confirm-prompt":
+      renderUpgradeResult(CONTEXT, {
+        mode: "upgrade",
+        status: "ready",
+        currentVersion: "1.7.0",
+        latestVersion: "1.8.0",
+        updateAvailable: true,
+        performed: false,
+        command: "npm install -g privacy-pools-cli@1.8.0",
+        installContext: {
+          kind: "npm_global",
+          supportedAutoRun: true,
+          reason: "Global npm installation detected.",
+        },
+        installedVersion: null,
+      });
+      process.stderr.write("\n  Install privacy-pools-cli 1.8.0 now with npm? [Y/n]\n");
+      return;
     default:
       return false;
   }
@@ -1210,6 +1504,50 @@ function renderFlowPreview(caseId) {
           aspStatus: "pending",
         }),
       });
+      return;
+    case "flow-start-confirm-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Flow start review", {
+          divider: true,
+          padTop: false,
+        })}${formatKeyValueRows([
+          { label: "Amount", value: "0.1 ETH" },
+          { label: "Recipient", value: TEST_RECIPIENT },
+          { label: "Privacy delay", value: "Balanced (15-90 minutes)" },
+          { label: "Wallet mode", value: "Configured wallet" },
+        ])}${formatCallout("privacy", [
+          "This saved flow will deposit publicly now, then wait for ASP approval and a privacy delay before the private withdrawal.",
+        ])}\n  start flow by depositing 0.1 ETH on sepolia, then privately auto-withdraw the full approved balance to 0x000000000000000000000000000000000000dEaD after approval and the selected privacy delay? [Y/n]\n`,
+      );
+      return;
+    case "flow-start-new-wallet-backup-choice":
+      process.stderr.write(
+        `${renderWorkflowWalletBackupChoicePreview({
+          walletAddress: "0x000000000000000000000000000000000000f10f",
+        })}\n  How would you like to back up this workflow wallet?\n`,
+      );
+      return;
+    case "flow-start-new-wallet-backup-path-prompt":
+      process.stderr.write(
+        `${formatSectionHeading("Save workflow wallet backup", {
+          divider: true,
+          padTop: false,
+        })}${formatKeyValueRows([
+          { label: "Wallet", value: "0x0000...f10f" },
+          { label: "Backup mode", value: "Save to file" },
+        ])}${formatCallout("danger", [
+          "The file will contain the live workflow-wallet private key.",
+          "Store it securely before funding the workflow.",
+        ])}  Save location: /tmp/preview-flow-wallet.txt\n`,
+      );
+      return;
+    case "flow-start-new-wallet-backup-confirm":
+      process.stderr.write(
+        `${renderWorkflowWalletBackupConfirmation({
+          walletAddress: "0x000000000000000000000000000000000000f10f",
+          backupPath: "/tmp/preview-flow-wallet.txt",
+        })}\n  I have securely backed up this workflow wallet. [y/N]\n`,
+      );
       return;
     case "flow-watch-awaiting-funding":
       renderFlowResult(CONTEXT, {
@@ -1394,6 +1732,7 @@ function renderFlowPreview(caseId) {
 
 export async function renderPreviewFixture(caseId) {
   process.env.FORCE_COLOR = process.env.FORCE_COLOR ?? "1";
+  const isPromptCase = caseId.includes("-prompt");
 
   if (caseId.startsWith("activity-")) {
     await showPreviewSpinner("Fetching public activity...", "Activity loaded.");
@@ -1442,13 +1781,17 @@ export async function renderPreviewFixture(caseId) {
   }
 
   if (caseId.startsWith("deposit-")) {
-    await showPreviewSpinner("Preparing deposit preview...", "Deposit preview ready.");
+    if (!isPromptCase) {
+      await showPreviewSpinner("Preparing deposit preview...", "Deposit preview ready.");
+    }
     renderDepositPreview(caseId);
     return;
   }
 
   if (caseId.startsWith("withdraw-")) {
-    await showPreviewSpinner("Preparing withdrawal preview...", "Withdrawal preview ready.");
+    if (!isPromptCase) {
+      await showPreviewSpinner("Preparing withdrawal preview...", "Withdrawal preview ready.");
+    }
     renderWithdrawPreview(caseId);
     return;
   }
@@ -1460,13 +1803,17 @@ export async function renderPreviewFixture(caseId) {
   }
 
   if (caseId.startsWith("upgrade-")) {
-    await showPreviewSpinner("Checking for upgrades...", caseId === "upgrade-performed" ? "Upgrade installed." : null);
+    if (!isPromptCase) {
+      await showPreviewSpinner("Checking for upgrades...", caseId === "upgrade-performed" ? "Upgrade installed." : null);
+    }
     renderUpgradePreview(caseId);
     return;
   }
 
   if (caseId.startsWith("flow-")) {
-    await showPreviewSpinner("Reviewing saved workflow...", "Workflow state loaded.");
+    if (!isPromptCase) {
+      await showPreviewSpinner("Reviewing saved workflow...", "Workflow state loaded.");
+    }
     renderFlowPreview(caseId);
     return;
   }

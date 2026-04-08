@@ -3,6 +3,10 @@ import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  GENERATED_COMMAND_PATHS,
+  GENERATED_COMMAND_ROUTES,
+} from "../../src/utils/command-routing-static.ts";
 
 const TEST_MNEMONIC = "test test test test test test test test test test test junk";
 const TEST_PRIVATE_KEY =
@@ -14,6 +18,25 @@ export const PREVIEW_RUNTIMES = ["js", "native", "forwarded"];
 export const PREVIEW_SOURCES = ["live-command", "renderer-fixture"];
 export const PREVIEW_EXECUTION_KINDS = ["live-command", "renderer-fixture"];
 export const PREVIEW_MODES = ["captured", "tty"];
+export const PREVIEW_VARIANT_IDS = ["rich", "no-color", "ascii", "narrow"];
+export const PREVIEW_STATE_CLASSES = [
+  "help",
+  "ready",
+  "empty",
+  "degraded",
+  "validation-error",
+  "operational-error",
+  "prompt",
+  "progress-step",
+  "blocked",
+  "terminal",
+];
+export const PREVIEW_FIDELITIES = [
+  "live-command",
+  "preview-scenario",
+  "renderer-fixture",
+  "progress-snapshot",
+];
 
 export const FLOW_STATUS_PREVIEW_PHASES = [
   "awaiting_funding",
@@ -29,44 +52,177 @@ export const FLOW_STATUS_PREVIEW_PHASES = [
   "stopped_external",
 ];
 
-const HELP_COMMAND_PATHS = [
-  "init",
-  "upgrade",
-  "flow",
-  "flow start",
-  "flow watch",
-  "flow status",
-  "flow ragequit",
-  "pools",
-  "activity",
-  "stats",
-  "stats global",
-  "stats pool",
-  "status",
-  "capabilities",
-  "describe",
-  "guide",
-  "deposit",
-  "withdraw",
-  "withdraw quote",
-  "ragequit",
-  "accounts",
-  "migrate",
-  "migrate status",
-  "history",
-  "sync",
-  "completion",
+export const PREVIEW_COMMAND_INVENTORY = ["root", ...GENERATED_COMMAND_PATHS];
+const HELP_COMMAND_PATHS = [...GENERATED_COMMAND_PATHS];
+
+export const PREVIEW_PROMPT_INVENTORY = [
+  { caseId: "init-overwrite-prompt", commandPath: "init", stateId: "overwrite-confirm" },
+  { caseId: "init-setup-mode-prompt", commandPath: "init", stateId: "setup-mode" },
+  { caseId: "init-import-recovery-prompt", commandPath: "init", stateId: "import-recovery" },
+  { caseId: "init-backup-method-prompt", commandPath: "init", stateId: "backup-method" },
+  { caseId: "init-backup-path-prompt", commandPath: "init", stateId: "backup-path" },
+  { caseId: "init-backup-confirm-prompt", commandPath: "init", stateId: "backup-confirm" },
+  { caseId: "init-signer-key-prompt", commandPath: "init", stateId: "signer-key" },
+  { caseId: "init-default-chain-prompt", commandPath: "init", stateId: "default-chain" },
+  { caseId: "deposit-asset-select-prompt", commandPath: "deposit", stateId: "asset-select" },
+  { caseId: "deposit-unique-amount-prompt", commandPath: "deposit", stateId: "unique-amount-confirm" },
+  { caseId: "deposit-confirm-prompt", commandPath: "deposit", stateId: "confirm" },
+  { caseId: "withdraw-pa-select-prompt", commandPath: "withdraw", stateId: "pool-account-select" },
+  { caseId: "withdraw-recipient-prompt", commandPath: "withdraw", stateId: "recipient-input" },
+  { caseId: "withdraw-direct-confirm-prompt", commandPath: "withdraw", stateId: "direct-confirm" },
+  { caseId: "withdraw-confirm", commandPath: "withdraw", stateId: "relayed-confirm" },
+  { caseId: "ragequit-select", commandPath: "ragequit", stateId: "pool-account-select" },
+  { caseId: "ragequit-confirm", commandPath: "ragequit", stateId: "confirm" },
+  { caseId: "upgrade-confirm-prompt", commandPath: "upgrade", stateId: "install-confirm" },
+  { caseId: "flow-start-interactive-prompt", commandPath: "flow start", stateId: "recipient-input" },
+  { caseId: "flow-start-confirm-prompt", commandPath: "flow start", stateId: "confirm" },
+  {
+    caseId: "flow-start-new-wallet-backup-choice",
+    commandPath: "flow start",
+    stateId: "workflow-wallet-backup-choice",
+  },
+  {
+    caseId: "flow-start-new-wallet-backup-path-prompt",
+    commandPath: "flow start",
+    stateId: "workflow-wallet-backup-path",
+  },
+  {
+    caseId: "flow-start-new-wallet-backup-confirm",
+    commandPath: "flow start",
+    stateId: "workflow-wallet-backup-confirm",
+  },
 ];
+
+export const PREVIEW_PROGRESS_INVENTORY = [
+  { caseId: "deposit-progress-approve-token", commandPath: "deposit", progressStep: "deposit.approve-token" },
+  { caseId: "deposit-progress-submit", commandPath: "deposit", progressStep: "deposit.submit" },
+  { caseId: "withdraw-progress-request-quote", commandPath: "withdraw", progressStep: "withdraw.request-quote" },
+  { caseId: "withdraw-progress-generate-proof", commandPath: "withdraw", progressStep: "withdraw.generate-proof" },
+  { caseId: "withdraw-progress-submit-direct", commandPath: "withdraw", progressStep: "withdraw.submit-direct" },
+  { caseId: "withdraw-progress-submit-relayed", commandPath: "withdraw", progressStep: "withdraw.submit-relayed" },
+  { caseId: "ragequit-progress-load-account", commandPath: "ragequit", progressStep: "ragequit.load-account" },
+  { caseId: "ragequit-progress-generate-proof", commandPath: "ragequit", progressStep: "ragequit.generate-proof" },
+  { caseId: "ragequit-progress-submit", commandPath: "ragequit", progressStep: "ragequit.submit" },
+  { caseId: "upgrade-progress-check", commandPath: "upgrade", progressStep: "upgrade.check" },
+  { caseId: "upgrade-progress-install", commandPath: "upgrade", progressStep: "upgrade.install" },
+  {
+    caseId: "flow-start-progress-submit-deposit",
+    commandPath: "flow start",
+    progressStep: "flow.start.submit-deposit",
+  },
+];
+
+export const PREVIEW_NATIVE_ROUTE_INVENTORY = Object.entries(
+  GENERATED_COMMAND_ROUTES,
+)
+  .filter(([, route]) => route.nativeModes.some((mode) => mode !== "help"))
+  .map(([commandPath, route]) => ({
+    commandPath,
+    nativeModes: route.nativeModes.filter((mode) => mode !== "help"),
+  }));
+
+export const PREVIEW_COVERAGE_SPEC = {
+  commandInventory: PREVIEW_COMMAND_INVENTORY,
+  promptInventory: PREVIEW_PROMPT_INVENTORY,
+  progressInventory: PREVIEW_PROGRESS_INVENTORY,
+  nativeRouteInventory: PREVIEW_NATIVE_ROUTE_INVENTORY,
+};
 
 function clonePreviewModes() {
   return [...PREVIEW_MODES];
 }
 
+function inferCommandPath(config) {
+  if (config.commandPath) return config.commandPath;
+  if (config.surface === "welcome") return "root";
+  if (config.surface === "help") {
+    return config.id === "root-help"
+      ? "root"
+      : config.id.replace(/^help-/, "").replace(/-/g, " ");
+  }
+  if (config.surface === "guide") return "guide";
+  if (config.surface === "capabilities") return "capabilities";
+  if (config.surface === "describe") return "describe";
+  if (config.surface === "completion-script") return "completion";
+  if (config.surface === "status") return "status";
+  if (config.surface === "accounts") return "accounts";
+  if (config.surface === "history") return "history";
+  if (config.surface === "sync") return "sync";
+  if (config.surface === "migrate") return "migrate status";
+  if (config.surface === "deposit") return "deposit";
+  if (config.surface === "withdraw") {
+    return config.id.includes("quote") ? "withdraw quote" : "withdraw";
+  }
+  if (config.surface === "ragequit") return "ragequit";
+  if (config.surface === "upgrade") return "upgrade";
+  if (config.surface === "flow-start") return "flow start";
+  if (config.surface === "flow-watch") return "flow watch";
+  if (config.surface === "flow-status") return "flow status";
+  if (config.surface === "flow-ragequit") return "flow ragequit";
+  if (config.surface === "pools") return "pools";
+  if (config.surface === "activity") return "activity";
+  if (config.surface === "stats") {
+    return config.id.includes("stats-pool") ? "stats pool" : "stats";
+  }
+  if (config.surface === "init" || config.surface === "init-prompt") return "init";
+  return config.surface;
+}
+
+function inferStateClass(config) {
+  if (config.stateClass) return config.stateClass;
+  if (config.surface === "help") return "help";
+  if (config.executionKind === "renderer-fixture" && config.id.includes("progress")) {
+    return "progress-step";
+  }
+  if (Array.isArray(config.covers) && config.covers.includes("interactive")) {
+    return "prompt";
+  }
+  if (config.id.includes("validation")) return "validation-error";
+  if (config.id.includes("error")) return "operational-error";
+  if (config.id.includes("empty") || config.id.includes("no-match")) return "empty";
+  if (config.id.includes("degraded")) return "degraded";
+  if (
+    config.id.includes("paused") ||
+    config.id.includes("declined") ||
+    config.id.includes("poi-required") ||
+    config.id.includes("relayer-minimum") ||
+    config.id.includes("stopped-external")
+  ) {
+    return "blocked";
+  }
+  if (
+    config.id.includes("success") ||
+    config.id.includes("completed") ||
+    config.id.includes("performed") ||
+    config.id.includes("no-update")
+  ) {
+    return "terminal";
+  }
+  return "ready";
+}
+
+function inferInteractive(config) {
+  return Array.isArray(config.covers) && config.covers.includes("interactive");
+}
+
 function createPreviewCase(config) {
-  return {
+  const normalized = {
     expectedExitCodes: [0],
     modes: clonePreviewModes(),
+    variantPolicy: [...PREVIEW_VARIANT_IDS],
+    interactive: false,
     ...config,
+  };
+  return {
+    ...normalized,
+    commandPath: inferCommandPath(normalized),
+    stateId: normalized.stateId ?? normalized.id,
+    stateClass: inferStateClass(normalized),
+    interactive:
+      typeof normalized.interactive === "boolean"
+        ? normalized.interactive
+        : inferInteractive(normalized),
+    runtimeTarget: normalized.runtimeTarget ?? normalized.runtime,
   };
 }
 
@@ -86,16 +242,31 @@ function createLivePreviewCase({
   needsFixtureServer = false,
   buildInvocation,
   ttyScript,
+  requiresTtyScript = false,
+  commandPath,
+  stateId,
+  stateClass,
+  variantPolicy,
+  fidelity = "live-command",
+  interactive = false,
+  runtimeTarget = runtime,
 }) {
   return createPreviewCase({
     ...(modes ? { modes } : {}),
     ...(expectedExitCodes ? { expectedExitCodes } : {}),
+    ...(variantPolicy ? { variantPolicy } : {}),
     id,
     label,
     journey,
     surface,
     owner,
     runtime,
+    commandPath,
+    stateId,
+    stateClass,
+    fidelity,
+    interactive,
+    runtimeTarget,
     executionKind: "live-command",
     source: "live-command",
     requiredSetup,
@@ -106,6 +277,7 @@ function createLivePreviewCase({
       needsFixtureServer,
       buildInvocation,
       ttyScript,
+      requiresTtyScript,
     },
   });
 }
@@ -122,16 +294,30 @@ function createRendererFixtureCase({
   syntheticReason,
   modes,
   expectedExitCodes,
+  commandPath,
+  stateId,
+  stateClass,
+  variantPolicy,
+  fidelity = "renderer-fixture",
+  interactive = false,
+  runtimeTarget = runtime,
 }) {
   return createPreviewCase({
     ...(modes ? { modes } : {}),
     ...(expectedExitCodes ? { expectedExitCodes } : {}),
+    ...(variantPolicy ? { variantPolicy } : {}),
     id,
     label,
     journey,
     surface,
     owner,
     runtime,
+    commandPath,
+    stateId,
+    stateClass,
+    fidelity,
+    interactive,
+    runtimeTarget,
     executionKind: "renderer-fixture",
     source: "renderer-fixture",
     requiredSetup,
@@ -253,7 +439,15 @@ function createScenarioPreviewCase({
   expectedExitCodes,
   envOverrides,
   prepare,
+  buildInvocation,
   ttyScript,
+  requiresTtyScript,
+  commandPath,
+  stateId,
+  stateClass,
+  variantPolicy,
+  interactive = false,
+  runtimeTarget = runtime,
 }) {
   return createLivePreviewCase({
     id,
@@ -264,31 +458,111 @@ function createScenarioPreviewCase({
     runtime,
     ...(modes ? { modes } : {}),
     ...(expectedExitCodes ? { expectedExitCodes } : {}),
+    ...(variantPolicy ? { variantPolicy } : {}),
     requiredSetup: [...requiredSetup, "preview-scenario"],
     covers,
+    commandPath,
+    stateId,
+    stateClass,
+    fidelity: "preview-scenario",
+    interactive,
+    runtimeTarget,
     syntheticReason:
       syntheticReason ??
       "preview-only scenario fixture keeps this command deterministic without moving funds or mutating local installs",
     commandLabel,
-    buildInvocation: (context) =>
-      buildPreviewScenarioInvocation(
-        context,
-        runtime,
-        id,
-        args,
-        commandLabel,
-        {
-          envOverrides:
-            typeof envOverrides === "function"
-              ? envOverrides(context)
-              : envOverrides,
-          prepare:
-            typeof prepare === "function"
-              ? () => prepare(context)
-              : prepare,
-        },
-      ),
+    buildInvocation: buildInvocation
+      ? (context) => buildInvocation(context)
+      : (context) =>
+        buildPreviewScenarioInvocation(
+          context,
+          runtime,
+          id,
+          args,
+          commandLabel,
+          {
+            envOverrides:
+              typeof envOverrides === "function"
+                ? envOverrides(context)
+                : envOverrides,
+            prepare:
+              typeof prepare === "function"
+                ? () => prepare(context)
+                : prepare,
+          },
+        ),
     ttyScript,
+    requiresTtyScript,
+  });
+}
+
+function createProgressPreviewCase({
+  id,
+  label,
+  journey,
+  surface,
+  owner = "forwarded",
+  runtime = "forwarded",
+  requiredSetup = [],
+  covers,
+  args,
+  commandLabel,
+  progressStep,
+  modes,
+  envOverrides,
+  prepare,
+  commandPath,
+  stateId,
+  buildInvocation,
+  runtimeTarget = runtime,
+}) {
+  return createLivePreviewCase({
+    id,
+    label,
+    journey,
+    surface,
+    owner,
+    runtime,
+    ...(modes ? { modes } : {}),
+    requiredSetup,
+    covers,
+    commandPath,
+    stateId,
+    stateClass: "progress-step",
+    fidelity: "progress-snapshot",
+    runtimeTarget,
+    syntheticReason:
+      "preview progress snapshot exits at a named in-flight step without mutating funds or local state",
+    commandLabel,
+    buildInvocation: buildInvocation
+      ? (context) => buildInvocation(context)
+      : (context) =>
+        buildLiveCommandInvocation(context, runtime, {
+          args,
+          displayCommand: commandLabel,
+          envOverrides: {
+            PRIVACY_POOLS_CLI_PREVIEW_PROGRESS_STEP: progressStep,
+            ...(typeof envOverrides === "function"
+              ? envOverrides(context)
+              : envOverrides ?? {}),
+          },
+          prepare: typeof prepare === "function" ? () => prepare(context) : prepare,
+        }),
+  });
+}
+
+function createPromptScenarioCase(config) {
+  return createScenarioPreviewCase({
+    modes: ["tty"],
+    stateClass: "prompt",
+    interactive: true,
+    ttyScript: {
+      steps: [],
+      finalPauseMs: 250,
+      ...(config.ttyScript ?? {}),
+    },
+    requiresTtyScript: true,
+    ...config,
   });
 }
 
@@ -617,6 +891,245 @@ export const PREVIEW_CASES = [
       ],
       finalPauseMs: 250,
     },
+    requiresTtyScript: true,
+  }),
+  createPromptScenarioCase({
+    id: "init-setup-mode-prompt",
+    label: "init | setup mode prompt",
+    journey: "onboarding",
+    surface: "init-prompt",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "setup-mode", "wallet"],
+    args: ["--no-banner", "init"],
+    commandLabel: "privacy-pools --no-banner init",
+    stateId: "setup-mode",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-setup-mode-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-setup-mode-prompt",
+        ["--no-banner", "init"],
+        "privacy-pools --no-banner init",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
+    },
+  }),
+  createPromptScenarioCase({
+    id: "init-import-recovery-prompt",
+    label: "init | import recovery prompt",
+    journey: "onboarding",
+    surface: "init-prompt",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "import", "recovery-phrase"],
+    args: ["--no-banner", "init"],
+    commandLabel: "privacy-pools --no-banner init",
+    stateId: "import-recovery",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-import-prompt-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-import-recovery-prompt",
+        ["--no-banner", "init"],
+        "privacy-pools --no-banner init",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "How would you like to set up your wallet?", send: "\u001b[B\r" },
+      ],
+    },
+  }),
+  createPromptScenarioCase({
+    id: "init-backup-method-prompt",
+    label: "init | backup method prompt",
+    journey: "onboarding",
+    surface: "init-prompt",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "backup-method", "generated-wallet"],
+    args: ["--no-banner", "init"],
+    commandLabel: "privacy-pools --no-banner init",
+    stateId: "backup-method",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-backup-method-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-backup-method-prompt",
+        ["--no-banner", "init"],
+        "privacy-pools --no-banner init",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "How would you like to set up your wallet?", send: "\r" },
+      ],
+    },
+  }),
+  createPromptScenarioCase({
+    id: "init-backup-path-prompt",
+    label: "init | backup path prompt",
+    journey: "onboarding",
+    surface: "init-prompt",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "backup-path", "generated-wallet"],
+    args: ["--no-banner", "init"],
+    commandLabel: "privacy-pools --no-banner init",
+    stateId: "backup-path",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-backup-path-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-backup-path-prompt",
+        ["--no-banner", "init"],
+        "privacy-pools --no-banner init",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "How would you like to set up your wallet?", send: "\r" },
+        { waitFor: "How would you like to back up your recovery phrase?", send: "\r" },
+      ],
+    },
+  }),
+  createPromptScenarioCase({
+    id: "init-backup-confirm-prompt",
+    label: "init | backup confirm prompt",
+    journey: "onboarding",
+    surface: "init-prompt",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "backup-confirm", "generated-wallet"],
+    args: ["--no-banner", "init"],
+    commandLabel: "privacy-pools --no-banner init",
+    stateId: "backup-confirm",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-backup-confirm-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-backup-confirm-prompt",
+        ["--no-banner", "init"],
+        "privacy-pools --no-banner init",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "How would you like to set up your wallet?", send: "\r" },
+        { waitFor: "How would you like to back up your recovery phrase?", send: "\r" },
+        { waitFor: "Save location:", send: "/tmp/preview-recovery.txt\r" },
+      ],
+    },
+  }),
+  createPromptScenarioCase({
+    id: "init-signer-key-prompt",
+    label: "init | signer key prompt",
+    journey: "onboarding",
+    surface: "init-prompt",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "configured-wallet-inputs", "preview-scenario"],
+    covers: ["interactive", "signer-key", "wallet"],
+    commandLabel:
+      "privacy-pools --no-banner init --recovery-phrase-file <mnemonic> --default-chain sepolia",
+    stateId: "signer-key",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-signer-key-");
+      const { mnemonicPath } = writeSecretFiles(home);
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-signer-key-prompt",
+        [
+          "--no-banner",
+          "init",
+          "--recovery-phrase-file",
+          mnemonicPath,
+          "--default-chain",
+          "sepolia",
+        ],
+        "privacy-pools --no-banner init --recovery-phrase-file <mnemonic> --default-chain sepolia",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
+    },
+  }),
+  createPromptScenarioCase({
+    id: "init-default-chain-prompt",
+    label: "init | default chain prompt",
+    journey: "onboarding",
+    surface: "init-prompt",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "configured-wallet-inputs", "preview-scenario"],
+    covers: ["interactive", "default-chain", "wallet"],
+    commandLabel:
+      "privacy-pools --no-banner init --recovery-phrase-file <mnemonic>",
+    stateId: "default-chain",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-default-chain-");
+      const { mnemonicPath } = writeSecretFiles(home);
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-default-chain-prompt",
+        [
+          "--no-banner",
+          "init",
+          "--recovery-phrase-file",
+          mnemonicPath,
+        ],
+        "privacy-pools --no-banner init --recovery-phrase-file <mnemonic>",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "Signer key (private key, 0x..., or Enter to skip):", send: "\r" },
+      ],
+    },
   }),
   createLivePreviewCase({
     id: "js-activity-global",
@@ -843,6 +1356,45 @@ export const PREVIEW_CASES = [
         "privacy-pools --no-banner pools",
         ["--no-banner", "pools"],
       ),
+  }),
+  createLivePreviewCase({
+    id: "native-pools-no-match",
+    label: "pools | no match | native",
+    journey: "discovery",
+    surface: "pools",
+    owner: "native",
+    runtime: "native",
+    requiredSetup: ["fixture-server", "native-binary"],
+    covers: ["search", "no-match", "empty-state"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia pools --search ZZZ",
+    needsFixtureServer: true,
+    buildInvocation: (context) =>
+      buildPoolsInvocation(
+        context,
+        "native",
+        "privacy-pools --no-banner --chain sepolia pools --search ZZZ",
+        ["--chain", "sepolia", "pools", "--search", "ZZZ"],
+      ),
+  }),
+  createLivePreviewCase({
+    id: "native-pool-detail",
+    label: "pool detail | native",
+    journey: "discovery",
+    surface: "pools",
+    owner: "native",
+    runtime: "native",
+    requiredSetup: ["fixture-server", "native-binary"],
+    covers: ["detail", "wallet-warning", "activity"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia pools ETH",
+    needsFixtureServer: true,
+    buildInvocation: (context) =>
+      buildLiveCommandInvocation(context, "native", {
+        args: ["--no-banner", "--chain", "sepolia", "pools", "ETH"],
+        displayCommand: "privacy-pools --no-banner --chain sepolia pools ETH",
+        envOverrides: {
+          ...context.fixtureEnv,
+        },
+      }),
   }),
   createLivePreviewCase({
     id: "forwarded-pool-detail",
@@ -1101,6 +1653,73 @@ export const PREVIEW_CASES = [
     args: ["--no-banner", "--chain", "sepolia", "deposit", "0.123456789", "ETH"],
     commandLabel: "privacy-pools --no-banner --chain sepolia deposit 0.123456789 ETH",
   }),
+  createPromptScenarioCase({
+    id: "deposit-asset-select-prompt",
+    label: "deposit | asset select prompt",
+    journey: "deposit",
+    surface: "deposit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "asset-select", "pool-choice"],
+    args: ["--no-banner", "--chain", "sepolia", "deposit", "0.1"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia deposit 0.1",
+    stateId: "asset-select",
+  }),
+  createPromptScenarioCase({
+    id: "deposit-unique-amount-prompt",
+    label: "deposit | unique amount prompt",
+    journey: "deposit",
+    surface: "deposit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "unique-amount", "confirm"],
+    args: ["--no-banner", "--chain", "sepolia", "deposit", "0.123456789", "ETH"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia deposit 0.123456789 ETH",
+    stateId: "unique-amount-confirm",
+  }),
+  createPromptScenarioCase({
+    id: "deposit-confirm-prompt",
+    label: "deposit | confirm prompt",
+    journey: "deposit",
+    surface: "deposit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "confirm", "fee-review"],
+    args: ["--no-banner", "--chain", "sepolia", "deposit", "0.1", "ETH"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia deposit 0.1 ETH",
+    stateId: "confirm",
+  }),
+  createProgressPreviewCase({
+    id: "deposit-progress-approve-token",
+    label: "deposit | progress | approve token",
+    journey: "deposit",
+    surface: "deposit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "approve-token", "erc20"],
+    args: ["--yes", "--no-banner", "--chain", "arbitrum", "deposit", "50", "USDC"],
+    commandLabel: "privacy-pools --yes --no-banner --chain arbitrum deposit 50 USDC",
+    progressStep: "deposit.approve-token",
+    stateId: "approve-token",
+  }),
+  createProgressPreviewCase({
+    id: "deposit-progress-submit",
+    label: "deposit | progress | submit",
+    journey: "deposit",
+    surface: "deposit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "submit", "transaction"],
+    args: ["--yes", "--no-banner", "--chain", "sepolia", "deposit", "0.1", "ETH"],
+    commandLabel: "privacy-pools --yes --no-banner --chain sepolia deposit 0.1 ETH",
+    progressStep: "deposit.submit",
+    stateId: "submit",
+  }),
   createScenarioPreviewCase({
     id: "withdraw-quote",
     label: "withdraw | quote",
@@ -1192,6 +1811,243 @@ export const PREVIEW_CASES = [
     args: ["--no-banner", "--chain", "sepolia", "withdraw", "0.3", "ETH", "--direct", "--unsigned"],
     commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 0.3 ETH --direct --unsigned",
   }),
+  createLivePreviewCase({
+    id: "withdraw-confirm",
+    label: "withdraw | confirm prompt",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    modes: ["tty"],
+    requiredSetup: ["native-binary", "configured-wallet", "fixture-server", "preview-scenario"],
+    covers: ["interactive", "review", "confirm"],
+    syntheticReason:
+      "preview-only scenario fixture keeps the withdrawal confirmation screen deterministic without generating a proof or contacting a relayer",
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-withdraw-confirm-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "withdraw-confirm",
+        [
+          "--no-banner",
+          "--chain",
+          "sepolia",
+          "withdraw",
+          "50",
+          "USDC",
+          "--to",
+          TEST_RECIPIENT,
+        ],
+        "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [],
+      finalPauseMs: 250,
+    },
+    requiresTtyScript: true,
+  }),
+  createPromptScenarioCase({
+    id: "withdraw-pa-select-prompt",
+    label: "withdraw | pool account select prompt",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "configured-wallet", "fixture-server", "preview-scenario"],
+    covers: ["interactive", "pool-account-select", "review"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+    stateId: "pool-account-select",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-withdraw-pa-select-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "withdraw-pa-select-prompt",
+        [
+          "--no-banner",
+          "--chain",
+          "sepolia",
+          "withdraw",
+          "50",
+          "USDC",
+          "--to",
+          TEST_RECIPIENT,
+        ],
+        "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+  }),
+  createPromptScenarioCase({
+    id: "withdraw-recipient-prompt",
+    label: "withdraw | recipient prompt",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "configured-wallet", "fixture-server", "preview-scenario"],
+    covers: ["interactive", "recipient", "review"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --from-pa PA-4",
+    stateId: "recipient-input",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-withdraw-recipient-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "withdraw-recipient-prompt",
+        [
+          "--no-banner",
+          "--chain",
+          "sepolia",
+          "withdraw",
+          "50",
+          "USDC",
+          "--from-pa",
+          "PA-4",
+        ],
+        "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --from-pa PA-4",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+  }),
+  createPromptScenarioCase({
+    id: "withdraw-direct-confirm-prompt",
+    label: "withdraw | direct confirm prompt",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "configured-wallet", "fixture-server", "preview-scenario"],
+    covers: ["interactive", "direct", "confirm"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 0.3 ETH --direct",
+    stateId: "direct-confirm",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-withdraw-direct-confirm-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "withdraw-direct-confirm-prompt",
+        [
+          "--no-banner",
+          "--chain",
+          "sepolia",
+          "withdraw",
+          "0.3",
+          "ETH",
+          "--direct",
+        ],
+        "privacy-pools --no-banner --chain sepolia withdraw 0.3 ETH --direct",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+  }),
+  createProgressPreviewCase({
+    id: "withdraw-progress-request-quote",
+    label: "withdraw | progress | request quote",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "request-quote", "relayed"],
+    args: ["--no-banner", "--chain", "sepolia", "withdraw", "50", "USDC", "--to", TEST_RECIPIENT],
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+    progressStep: "withdraw.request-quote",
+    stateId: "request-quote",
+  }),
+  createProgressPreviewCase({
+    id: "withdraw-progress-generate-proof",
+    label: "withdraw | progress | generate proof",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "generate-proof", "withdraw"],
+    args: ["--no-banner", "--chain", "sepolia", "withdraw", "50", "USDC", "--to", TEST_RECIPIENT],
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+    progressStep: "withdraw.generate-proof",
+    stateId: "generate-proof",
+  }),
+  createProgressPreviewCase({
+    id: "withdraw-progress-submit-direct",
+    label: "withdraw | progress | submit direct",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "submit", "direct"],
+    args: [
+      "--no-banner",
+      "--chain",
+      "sepolia",
+      "withdraw",
+      "0.3",
+      "ETH",
+      "--direct",
+      "--to",
+      "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
+    ],
+    commandLabel:
+      "privacy-pools --no-banner --chain sepolia withdraw 0.3 ETH --direct --to 0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
+    progressStep: "withdraw.submit-direct",
+    stateId: "submit-direct",
+  }),
+  createProgressPreviewCase({
+    id: "withdraw-progress-submit-relayed",
+    label: "withdraw | progress | submit relayed",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "submit", "relayed"],
+    args: ["--no-banner", "--chain", "sepolia", "withdraw", "50", "USDC", "--to", TEST_RECIPIENT],
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+    progressStep: "withdraw.submit-relayed",
+    stateId: "submit-relayed",
+  }),
   createScenarioPreviewCase({
     id: "ragequit-dry-run",
     label: "ragequit | dry run",
@@ -1242,6 +2098,144 @@ export const PREVIEW_CASES = [
     expectedExitCodes: [2],
     args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3", "--commitment", "123"],
     commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3 --commitment 123",
+  }),
+  createLivePreviewCase({
+    id: "ragequit-select",
+    label: "ragequit | select prompt",
+    journey: "recovery",
+    surface: "ragequit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    modes: ["tty"],
+    requiredSetup: [
+      "native-binary",
+      "configured-wallet",
+      "fixture-server",
+      "preview-scenario",
+    ],
+    covers: ["interactive", "selection", "recovery"],
+    syntheticReason:
+      "preview-only scenario fixture keeps the Pool Account recovery picker deterministic without loading live wallet state",
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-ragequit-select-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "ragequit-select",
+        ["--no-banner", "--chain", "sepolia", "ragequit", "ETH"],
+        "privacy-pools --no-banner --chain sepolia ragequit ETH",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [],
+      finalPauseMs: 250,
+    },
+    requiresTtyScript: true,
+  }),
+  createLivePreviewCase({
+    id: "ragequit-confirm",
+    label: "ragequit | confirm prompt",
+    journey: "recovery",
+    surface: "ragequit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    modes: ["tty"],
+    requiredSetup: [
+      "native-binary",
+      "configured-wallet",
+      "fixture-server",
+      "preview-scenario",
+    ],
+    covers: ["interactive", "review", "confirm"],
+    syntheticReason:
+      "preview-only scenario fixture keeps the public recovery confirmation screen deterministic without generating a proof",
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-ragequit-confirm-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "ragequit-confirm",
+        [
+          "--no-banner",
+          "--chain",
+          "sepolia",
+          "ragequit",
+          "ETH",
+          "--from-pa",
+          "PA-3",
+        ],
+        "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [],
+      finalPauseMs: 250,
+    },
+    requiresTtyScript: true,
+  }),
+  createProgressPreviewCase({
+    id: "ragequit-progress-load-account",
+    label: "ragequit | progress | load account",
+    journey: "recovery",
+    surface: "ragequit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "load-account", "recovery"],
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    progressStep: "ragequit.load-account",
+    stateId: "load-account",
+  }),
+  createProgressPreviewCase({
+    id: "ragequit-progress-generate-proof",
+    label: "ragequit | progress | generate proof",
+    journey: "recovery",
+    surface: "ragequit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "generate-proof", "recovery"],
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    progressStep: "ragequit.generate-proof",
+    stateId: "generate-proof",
+  }),
+  createProgressPreviewCase({
+    id: "ragequit-progress-submit",
+    label: "ragequit | progress | submit",
+    journey: "recovery",
+    surface: "ragequit",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "submit", "recovery"],
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    progressStep: "ragequit.submit",
+    stateId: "submit",
   }),
   createScenarioPreviewCase({
     id: "upgrade-check",
@@ -1303,6 +2297,50 @@ export const PREVIEW_CASES = [
     args: ["--no-banner", "upgrade", "--yes"],
     commandLabel: "privacy-pools --no-banner upgrade --yes",
   }),
+  createPromptScenarioCase({
+    id: "upgrade-confirm-prompt",
+    label: "upgrade | confirm prompt",
+    journey: "maintenance",
+    surface: "upgrade",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "install-confirm", "upgrade"],
+    args: ["--no-banner", "upgrade"],
+    commandLabel: "privacy-pools --no-banner upgrade",
+    stateId: "install-confirm",
+    envOverrides: {
+      PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+    },
+  }),
+  createProgressPreviewCase({
+    id: "upgrade-progress-check",
+    label: "upgrade | progress | check",
+    journey: "maintenance",
+    surface: "upgrade",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "check", "upgrade"],
+    args: ["--no-banner", "upgrade", "--check"],
+    commandLabel: "privacy-pools --no-banner upgrade --check",
+    progressStep: "upgrade.check",
+    stateId: "check",
+  }),
+  createProgressPreviewCase({
+    id: "upgrade-progress-install",
+    label: "upgrade | progress | install",
+    journey: "maintenance",
+    surface: "upgrade",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "install", "upgrade"],
+    args: ["--no-banner", "upgrade", "--yes"],
+    commandLabel: "privacy-pools --no-banner upgrade --yes",
+    progressStep: "upgrade.install",
+    stateId: "install",
+  }),
   createScenarioPreviewCase({
     id: "flow-start-validation",
     label: "flow start | validation",
@@ -1310,7 +2348,7 @@ export const PREVIEW_CASES = [
     surface: "flow-start",
     requiredSetup: ["native-binary"],
     covers: ["validation-error", "recipient"],
-    expectedExitCodes: [1],
+    expectedExitCodes: [2],
     args: ["--no-banner", "flow", "start", "0.1", "ETH"],
     commandLabel: "privacy-pools --no-banner flow start 0.1 ETH",
   }),
@@ -1338,6 +2376,7 @@ export const PREVIEW_CASES = [
         {
           envOverrides: {
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
           },
           prepare: async () => {
             await runInitForConfiguredWallet(home, {});
@@ -1350,6 +2389,38 @@ export const PREVIEW_CASES = [
         { waitFor: "Recipient address:", send: `${TEST_RECIPIENT}\r` },
       ],
       finalPauseMs: 250,
+    },
+    requiresTtyScript: true,
+  }),
+  createPromptScenarioCase({
+    id: "flow-start-confirm-prompt",
+    label: "flow start | confirm prompt",
+    journey: "flow",
+    surface: "flow-start",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "configured-wallet", "preview-scenario"],
+    covers: ["interactive", "confirm", "configured-wallet"],
+    commandLabel: "privacy-pools --no-banner flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD",
+    stateId: "confirm",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-flow-start-confirm-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "flow-start-confirm-prompt",
+        ["--no-banner", "flow", "start", "0.1", "ETH", "--to", TEST_RECIPIENT],
+        "privacy-pools --no-banner flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, {});
+          },
+        },
+      );
     },
   }),
   createScenarioPreviewCase({
@@ -1372,6 +2443,183 @@ export const PREVIEW_CASES = [
     args: ["--no-banner", "flow", "start", "0.1", "ETH", "--to", TEST_RECIPIENT, "--new-wallet", "--export-new-wallet", "/tmp/preview-flow-wallet.txt"],
     commandLabel: "privacy-pools --no-banner flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD --new-wallet --export-new-wallet /tmp/preview-flow-wallet.txt",
   }),
+  createLivePreviewCase({
+    id: "flow-start-new-wallet-backup-choice",
+    label: "flow start | new wallet | backup choice",
+    journey: "flow",
+    surface: "flow-start",
+    owner: "forwarded",
+    runtime: "forwarded",
+    modes: ["tty"],
+    requiredSetup: [
+      "native-binary",
+      "configured-wallet",
+      "fixture-server",
+      "preview-scenario",
+    ],
+    covers: ["interactive", "new-wallet", "backup-choice"],
+    syntheticReason:
+      "preview-only scenario fixture keeps the workflow-wallet backup choice screen deterministic without creating or funding a live wallet",
+    commandLabel: "privacy-pools --no-banner --chain sepolia flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD --new-wallet",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-flow-start-backup-choice-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "flow-start-new-wallet-backup-choice",
+        [
+          "--no-banner",
+          "--chain",
+          "sepolia",
+          "flow",
+          "start",
+          "0.1",
+          "ETH",
+          "--to",
+          TEST_RECIPIENT,
+          "--new-wallet",
+        ],
+        "privacy-pools --no-banner --chain sepolia flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD --new-wallet",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "start flow by depositing", send: "y\r" },
+        {
+          waitFor: "How would you like to back up this workflow wallet?",
+          send: "\r",
+        },
+        { waitFor: "Save location:", send: "/tmp/preview-flow-wallet.txt\r" },
+      ],
+      finalPauseMs: 250,
+    },
+    requiresTtyScript: true,
+  }),
+  createPromptScenarioCase({
+    id: "flow-start-new-wallet-backup-path-prompt",
+    label: "flow start | new wallet | backup path prompt",
+    journey: "flow",
+    surface: "flow-start",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: [
+      "native-binary",
+      "configured-wallet",
+      "fixture-server",
+      "preview-scenario",
+    ],
+    covers: ["interactive", "new-wallet", "backup-path"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD --new-wallet",
+    stateId: "workflow-wallet-backup-path",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-flow-start-backup-path-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "flow-start-new-wallet-backup-path-prompt",
+        [
+          "--no-banner",
+          "--chain",
+          "sepolia",
+          "flow",
+          "start",
+          "0.1",
+          "ETH",
+          "--to",
+          TEST_RECIPIENT,
+          "--new-wallet",
+        ],
+        "privacy-pools --no-banner --chain sepolia flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD --new-wallet",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "start flow by depositing", send: "y\r" },
+        {
+          waitFor: "How would you like to back up this workflow wallet?",
+          send: "\r",
+        },
+      ],
+      finalPauseMs: 250,
+    },
+  }),
+  createLivePreviewCase({
+    id: "flow-start-new-wallet-backup-confirm",
+    label: "flow start | new wallet | backup confirm",
+    journey: "flow",
+    surface: "flow-start",
+    owner: "forwarded",
+    runtime: "forwarded",
+    modes: ["tty"],
+    requiredSetup: [
+      "native-binary",
+      "configured-wallet",
+      "fixture-server",
+      "preview-scenario",
+    ],
+    covers: ["interactive", "new-wallet", "backup-confirm"],
+    syntheticReason:
+      "preview-only scenario fixture keeps the workflow-wallet backup confirmation screen deterministic without creating or funding a live wallet",
+    commandLabel: "privacy-pools --no-banner --chain sepolia flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD --new-wallet",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-flow-start-backup-confirm-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "flow-start-new-wallet-backup-confirm",
+        [
+          "--no-banner",
+          "--chain",
+          "sepolia",
+          "flow",
+          "start",
+          "0.1",
+          "ETH",
+          "--to",
+          TEST_RECIPIENT,
+          "--new-wallet",
+        ],
+        "privacy-pools --no-banner --chain sepolia flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD --new-wallet",
+        {
+          envOverrides: {
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
+            ...context.fixtureEnv,
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, context.fixtureEnv);
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "start flow by depositing", send: "y\r" },
+      ],
+      finalPauseMs: 250,
+    },
+    requiresTtyScript: true,
+  }),
   createScenarioPreviewCase({
     id: "flow-start-watch",
     label: "flow start | watch enabled",
@@ -1381,6 +2629,34 @@ export const PREVIEW_CASES = [
     covers: ["start", "watch", "next-actions"],
     args: ["--no-banner", "flow", "start", "0.1", "ETH", "--to", TEST_RECIPIENT, "--watch"],
     commandLabel: "privacy-pools --no-banner flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD --watch",
+  }),
+  createProgressPreviewCase({
+    id: "flow-start-progress-submit-deposit",
+    label: "flow start | progress | submit deposit",
+    journey: "flow",
+    surface: "flow-start",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "configured-wallet"],
+    covers: ["progress", "submit-deposit", "configured-wallet"],
+    commandLabel: "privacy-pools --yes --no-banner flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD",
+    progressStep: "flow.start.submit-deposit",
+    stateId: "submit-deposit",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-flow-start-progress-submit-");
+      return buildLiveCommandInvocation(context, "forwarded", {
+        args: ["--yes", "--no-banner", "flow", "start", "0.1", "ETH", "--to", TEST_RECIPIENT],
+        displayCommand:
+          "privacy-pools --yes --no-banner flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD",
+        envOverrides: {
+          PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          PRIVACY_POOLS_CLI_PREVIEW_PROGRESS_STEP: "flow.start.submit-deposit",
+        },
+        prepare: async () => {
+          await runInitForConfiguredWallet(home, {});
+        },
+      });
+    },
   }),
   createScenarioPreviewCase({
     id: "flow-watch-awaiting-funding",

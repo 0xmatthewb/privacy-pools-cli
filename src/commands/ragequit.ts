@@ -78,7 +78,10 @@ import {
   formatPoolAccountStatus,
   type AspApprovalStatus,
 } from "../utils/statuses.js";
-import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  maybeRenderPreviewProgressStep,
+  maybeRenderPreviewScenario,
+} from "../preview/runtime.js";
 
 const poolDepositorAbi = [
   {
@@ -359,6 +362,66 @@ export async function handleRagequitCommand(
       isVerbose,
       silent,
     );
+
+    if (
+      await maybeRenderPreviewProgressStep("ragequit.load-account", {
+        stage: {
+          step: 1,
+          total: 3,
+          label: "Loading account state",
+        },
+        spinnerText: "Loading account...",
+        doneText: "Account state loaded.",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      !opts.fromPa &&
+      !skipPrompts &&
+      await maybeRenderPreviewScenario("ragequit select", {
+        timing: "after-prompts",
+      })
+    ) {
+      return;
+    }
+    if (
+      opts.fromPa &&
+      await maybeRenderPreviewScenario("ragequit confirm", {
+        timing: "after-prompts",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      await maybeRenderPreviewProgressStep("ragequit.generate-proof", {
+        stage: {
+          step: 2,
+          total: 3,
+          label: "Generating commitment proof",
+        },
+        spinnerText: "Generating commitment proof...",
+        doneText: "Commitment proof ready.",
+      })
+    ) {
+      return;
+    }
+
+    if (
+      await maybeRenderPreviewProgressStep("ragequit.submit", {
+        stage: {
+          step: 3,
+          total: 3,
+          label: "Submitting ragequit",
+        },
+        spinnerText: "Submitting ragequit...",
+        doneText: "Ragequit submitted.",
+      })
+    ) {
+      return;
+    }
 
     // Acquire process lock to prevent concurrent account mutations.
     const releaseLock = acquireProcessLock();
