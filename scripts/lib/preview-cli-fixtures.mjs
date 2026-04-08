@@ -1,10 +1,8 @@
 import {
   createOutputContext,
   formatCallout,
-  formatDirectWithdrawalReview,
   formatKeyValueRows,
   formatPromptLine,
-  formatRelayedWithdrawalReview,
   formatSectionHeading,
   printJsonSuccess,
   renderActivity,
@@ -27,8 +25,6 @@ import {
   renderSyncComplete,
   renderSyncEmpty,
   renderUpgradeResult,
-  renderWorkflowWalletBackupChoicePreview,
-  renderWorkflowWalletBackupConfirmation,
   renderWithdrawDryRun,
   renderWithdrawQuote,
   renderWithdrawSuccess,
@@ -934,36 +930,14 @@ function renderInitPreview(caseId) {
       return;
     case "init-backup-method-prompt":
       process.stderr.write(
-        `${formatSectionHeading("Back up recovery phrase", {
-          divider: true,
-          padTop: false,
-        })}${formatCallout("danger", [
-          "This is the only time the generated recovery phrase is shown.",
-          "Choose how you want to secure it before init continues.",
-        ])}  Save to file (recommended)\n  I'll back it up manually\n`,
+        "  Save to file (recommended)\n  I'll back it up manually\n",
       );
       return;
     case "init-backup-path-prompt":
-      process.stderr.write(
-        `${formatSectionHeading("Save recovery phrase", {
-          divider: true,
-          padTop: false,
-        })}${formatCallout("danger", [
-          "The backup file will contain the live recovery phrase.",
-          "Move it somewhere secure after saving it.",
-        ])}  Save location: /Users/example/privacy-pools-recovery.txt\n`,
-      );
+      process.stderr.write("  Save location: /Users/example/privacy-pools-recovery.txt\n");
       return;
     case "init-backup-confirm-prompt":
-      process.stderr.write(
-        `${formatSectionHeading("Confirm recovery backup", {
-          divider: true,
-          padTop: false,
-        })}${formatCallout("danger", [
-          "Do not continue unless the recovery phrase is stored somewhere you trust.",
-          "Losing it can permanently strand deposited funds.",
-        ])}  I have securely backed up my recovery phrase. [y/N]\n`,
-      );
+      process.stderr.write("  I have securely backed up my recovery phrase. [y/N]\n");
       return;
     case "init-signer-key-prompt":
       process.stderr.write(
@@ -1195,26 +1169,6 @@ function renderWithdrawPreview(caseId) {
       });
       return;
     case "withdraw-confirm":
-      process.stderr.write("\n");
-      process.stderr.write(
-        formatRelayedWithdrawalReview({
-          poolAccountId: "PA-4",
-          poolAccountBalance: 125000000n,
-          amount: 50000000n,
-          asset: "USDC",
-          chain: "sepolia",
-          decimals: 6,
-          recipient: TEST_RECIPIENT,
-          quoteFeeBPS: 35n,
-          expirationMs: Date.now() + 60_000,
-          remainingBalance: 75000000n,
-          extraGasRequested: true,
-          extraGasFundAmount: 1000000000000000n,
-          tokenPrice: 1,
-          remainingBelowMinAdvisory: null,
-          nowMs: Date.now(),
-        }),
-      );
       process.stderr.write(formatPromptLine("Confirm withdrawal? [y/N]"));
       return;
     case "withdraw-pa-select-prompt":
@@ -1241,18 +1195,6 @@ function renderWithdrawPreview(caseId) {
       );
       return;
     case "withdraw-direct-confirm-prompt":
-      process.stderr.write("\n");
-      process.stderr.write(
-        formatDirectWithdrawalReview({
-          poolAccountId: "PA-1",
-          amount: 300000000000000000n,
-          asset: "ETH",
-          chain: "sepolia",
-          decimals: 18,
-          recipient: TEST_RECIPIENT,
-          tokenPrice: 3200,
-        }),
-      );
       process.stderr.write(formatPromptLine("Confirm direct withdrawal? [y/N]"));
       return;
     case "withdraw-unsigned-envelope":
@@ -1467,10 +1409,7 @@ function renderFlowPreview(caseId) {
       return;
     case "flow-start-new-wallet-backup-choice":
       process.stderr.write(
-        `${formatSectionHeading("Choose backup", {
-          divider: true,
-          padTop: false,
-        })}  Save to file (recommended)\n  I'll back it up manually\n${formatPromptLine("How would you like to back up this workflow wallet?")}`,
+        `  Save to file (recommended)\n  I'll back it up manually\n${formatPromptLine("How would you like to back up this workflow wallet?")}`,
       );
       return;
     case "flow-start-new-wallet-backup-path-prompt":

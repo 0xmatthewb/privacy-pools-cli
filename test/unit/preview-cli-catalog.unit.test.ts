@@ -12,6 +12,7 @@ import {
   PREVIEW_RUNTIMES,
   PREVIEW_SOURCES,
   PREVIEW_STATE_CLASSES,
+  PREVIEW_TRUTH_REQUIREMENTS,
   PREVIEW_VARIANT_IDS,
   findPreviewCase,
 } from "../../scripts/lib/preview-cli-catalog.mjs";
@@ -47,6 +48,7 @@ describe("preview cli catalog", () => {
       expect(typeof previewCase.stateId).toBe("string");
       expect(previewCase.stateId.length).toBeGreaterThan(0);
       expect(PREVIEW_STATE_CLASSES).toContain(previewCase.stateClass);
+      expect(PREVIEW_TRUTH_REQUIREMENTS).toContain(previewCase.truthRequirement);
       expect(PREVIEW_FIDELITIES).toContain(previewCase.fidelity);
       expect(typeof previewCase.interactive).toBe("boolean");
       expect(typeof previewCase.runtimeTarget).toBe("string");

@@ -37,6 +37,11 @@ export const PREVIEW_FIDELITIES = [
   "renderer-fixture",
   "progress-snapshot",
 ];
+export const PREVIEW_TRUTH_REQUIREMENTS = [
+  "live-required",
+  "live-preferred",
+  "synthetic-allowed",
+];
 
 export const FLOW_STATUS_PREVIEW_PHASES = [
   "awaiting_funding",
@@ -434,6 +439,20 @@ function inferInteractive(config) {
   return Array.isArray(config.covers) && config.covers.includes("interactive");
 }
 
+function inferTruthRequirement(config) {
+  if (config.truthRequirement) return config.truthRequirement;
+  if (config.executionKind === "renderer-fixture") {
+    return "synthetic-allowed";
+  }
+  if (config.fidelity === "progress-snapshot") {
+    return "synthetic-allowed";
+  }
+  if (config.fidelity === "preview-scenario") {
+    return "live-preferred";
+  }
+  return "live-required";
+}
+
 function createPreviewCase(config) {
   const normalized = {
     expectedExitCodes: [0],
@@ -447,6 +466,7 @@ function createPreviewCase(config) {
     commandPath: inferCommandPath(normalized),
     stateId: normalized.stateId ?? normalized.id,
     stateClass: inferStateClass(normalized),
+    truthRequirement: inferTruthRequirement(normalized),
     interactive:
       typeof normalized.interactive === "boolean"
         ? normalized.interactive
@@ -479,6 +499,7 @@ function createLivePreviewCase({
   fidelity = "live-command",
   interactive = false,
   runtimeTarget = runtime,
+  truthRequirement,
 }) {
   return createPreviewCase({
     ...(modes ? { modes } : {}),
@@ -496,6 +517,7 @@ function createLivePreviewCase({
     fidelity,
     interactive,
     runtimeTarget,
+    ...(truthRequirement ? { truthRequirement } : {}),
     executionKind: "live-command",
     source: "live-command",
     requiredSetup,
@@ -530,6 +552,7 @@ function createRendererFixtureCase({
   fidelity = "renderer-fixture",
   interactive = false,
   runtimeTarget = runtime,
+  truthRequirement,
 }) {
   return createPreviewCase({
     ...(modes ? { modes } : {}),
@@ -547,6 +570,7 @@ function createRendererFixtureCase({
     fidelity,
     interactive,
     runtimeTarget,
+    ...(truthRequirement ? { truthRequirement } : {}),
     executionKind: "renderer-fixture",
     source: "renderer-fixture",
     requiredSetup,
@@ -677,6 +701,7 @@ function createScenarioPreviewCase({
   variantPolicy,
   interactive = false,
   runtimeTarget = runtime,
+  truthRequirement,
 }) {
   return createLivePreviewCase({
     id,
@@ -696,6 +721,7 @@ function createScenarioPreviewCase({
     fidelity: "preview-scenario",
     interactive,
     runtimeTarget,
+    ...(truthRequirement ? { truthRequirement } : {}),
     syntheticReason:
       syntheticReason ??
       "preview-only scenario fixture keeps this command deterministic without moving funds or mutating local installs",
@@ -785,9 +811,10 @@ function createProgressPreviewCase({
 function createPromptScenarioCase(config) {
   return createScenarioPreviewCase({
     modes: ["tty"],
-    stateClass: "prompt",
-    interactive: true,
-    ttyScript: {
+  stateClass: "prompt",
+  interactive: true,
+  truthRequirement: "live-required",
+  ttyScript: {
       steps: [],
       finalPauseMs: 250,
       ...(config.ttyScript ?? {}),
@@ -1763,6 +1790,7 @@ export const PREVIEW_CASES = [
     runtime: "js",
     requiredSetup: ["none"],
     covers: ["ready", "health", "next-actions"],
+    truthRequirement: "live-required",
     args: ["--no-banner", "--chain", "sepolia", "status"],
     commandLabel: "privacy-pools --no-banner --chain sepolia status",
     runtimeTarget: "js",
@@ -1776,6 +1804,7 @@ export const PREVIEW_CASES = [
     runtime: "js",
     requiredSetup: ["none"],
     covers: ["read-only", "degraded", "warnings"],
+    truthRequirement: "live-required",
     args: ["--no-banner", "--chain", "sepolia", "status"],
     commandLabel: "privacy-pools --no-banner --chain sepolia status",
     runtimeTarget: "js",
@@ -2919,10 +2948,6 @@ export const PREVIEW_CASES = [
     ttyScript: {
       steps: [
         { waitFor: "Confirm flow start?", send: "y\r" },
-        {
-          waitFor: "How would you like to back up this workflow wallet?",
-          send: "\r",
-        },
       ],
       finalPauseMs: 250,
     },
@@ -2979,11 +3004,6 @@ export const PREVIEW_CASES = [
     ttyScript: {
       steps: [
         { waitFor: "Confirm flow start?", send: "y\r" },
-        {
-          waitFor: "How would you like to back up this workflow wallet?",
-          send: "\r",
-        },
-        { waitFor: "Save location:", send: "/tmp/preview-flow-wallet.txt\r" },
       ],
       finalPauseMs: 250,
     },

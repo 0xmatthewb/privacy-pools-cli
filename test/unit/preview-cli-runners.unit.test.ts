@@ -58,6 +58,7 @@ describe("preview cli runners", () => {
     expect(accountsEmpty.id).toBe("accounts-empty");
     expect(accountsEmpty.surface).toBe("accounts");
     expect(accountsEmpty.executionKind).toBe("live-command");
+    expect(accountsEmpty.truthRequirement).toBe("live-preferred");
     expect(accountsEmpty.runtime).toBe("forwarded");
     expect(String(accountsEmpty.syntheticReason).length).toBeGreaterThan(0);
     expect(accountsEmpty.requiredSetup).toContain("preview-scenario");
@@ -195,7 +196,7 @@ describe("preview cli runners", () => {
       caseIds: ["forwarded-pool-detail", "accounts-empty"],
     });
 
-    expect(output).toContain("id | command | stateId | stateClass | journey | surface");
+    expect(output).toContain("id | command | stateId | stateClass | truth | journey | surface");
     expect(output).toContain("forwarded-pool-detail");
     expect(output).toContain("forwarded");
     expect(output).toContain("live-command");

@@ -269,6 +269,8 @@ export async function main(argv = process.argv.slice(2)) {
     report.summary.failedPlans > 0 ||
     report.summary.missingStates > 0 ||
     report.summary.unexpectedObservedRoutes > 0 ||
+    (report.summary.truthRequirementViolations ?? 0) > 0 ||
+    (report.summary.ptyBackendFailures ?? 0) > 0 ||
     ttyResults.some((result) => result?.skipped)
   ) {
     process.exitCode = 1;

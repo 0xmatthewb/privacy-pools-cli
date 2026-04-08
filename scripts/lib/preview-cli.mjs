@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -88,6 +88,7 @@ export const PREVIEW_VARIANTS = {
 
 const DEFAULT_PREVIEW_VARIANT_IDS = Object.keys(PREVIEW_VARIANTS);
 const RUNTIME_DIAGNOSTIC_PREFIX = "[privacy-pools runtime] ";
+const EXPECT_PTY_TIMEOUT_EXIT_CODE = 124;
 
 function wait(ms) {
   return new Promise((resolveWait) => {
@@ -111,6 +112,17 @@ function writeBlock(writer, label, value) {
   }
 
   writer(value.endsWith("\n") ? value : `${value}\n`);
+}
+
+function escapeTclDoubleQuoted(value) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\r/g, "\\r")
+    .replace(/\n/g, "\\n")
+    .replace(/\$/g, "\\$")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]")
+    .replace(/"/g, '\\"');
 }
 
 function buildChildEnv(overrides = {}) {
@@ -880,7 +892,7 @@ export function parsePreviewArgs(argv = process.argv.slice(2)) {
 export function formatPreviewCaseList(options = {}) {
   const plans = planPreviewSuite(options);
   const lines = [
-    "id | command | stateId | stateClass | journey | surface | owner | runtime | execution | fidelity | interactive | variants | modes | source | covers | setup | synthetic",
+    "id | command | stateId | stateClass | truth | journey | surface | owner | runtime | execution | fidelity | interactive | variants | modes | source | covers | setup | synthetic",
   ];
   for (const plan of plans) {
     lines.push(
@@ -889,6 +901,7 @@ export function formatPreviewCaseList(options = {}) {
         plan.commandPath ?? "-",
         plan.stateId ?? "-",
         plan.stateClass ?? "-",
+        plan.truthRequirement ?? "-",
         plan.journey,
         plan.surface,
         plan.owner,
@@ -1147,12 +1160,25 @@ async function runCommandInPty(ptySpawn, invocation, writeOut) {
     return { ...result, ptyBackend: "python" };
   }
 
-  try {
-    const result = await runCommandInNodePty(ptySpawn, invocation, writeOut);
-    return { ...result, ptyBackend: "node-pty" };
-  } catch (error) {
-    if (!shouldUseScriptPtyFallback(error)) {
-      throw error;
+  if (process.platform !== "win32") {
+    try {
+      const result = await runCommandInExpectPty(invocation, writeOut);
+      return { ...result, ptyBackend: "expect" };
+    } catch (error) {
+      if (!shouldUseExpectPtyFallback(error)) {
+        throw error;
+      }
+    }
+  }
+
+  if (typeof ptySpawn === "function") {
+    try {
+      const result = await runCommandInNodePty(ptySpawn, invocation, writeOut);
+      return { ...result, ptyBackend: "node-pty" };
+    } catch (error) {
+      if (!shouldUseScriptPtyFallback(error)) {
+        throw error;
+      }
     }
   }
 
@@ -1175,6 +1201,13 @@ async function runCommandInPty(ptySpawn, invocation, writeOut) {
     const result = await runCommandInPythonPty(invocation, writeOut);
     return { ...result, ptyBackend: "python" };
   }
+}
+
+function shouldUseExpectPtyFallback(error) {
+  return error instanceof Error && (
+    error.message.includes("spawn expect ENOENT")
+    || error.message.includes("spawn expect EACCES")
+  );
 }
 
 function normalizeTtyScript(script) {
@@ -1283,6 +1316,104 @@ async function runCommandInNodePty(ptySpawn, invocation, writeOut) {
       resolvePromise({ exitCode, signal, output });
     });
     proc.on("error", rejectPromise);
+  });
+}
+
+async function runCommandInExpectPty(invocation, writeOut) {
+  const shellInvocation = buildPtyShellInvocation(
+    invocation.command,
+    invocation.args,
+  );
+  const tempDir = mkdtempSync(join(tmpdir(), "pp-preview-expect-"));
+  const runnerPath = join(tempDir, "run.sh");
+  const expectPath = join(tempDir, "run.expect");
+  const runnerCommand = [shellInvocation.command, ...shellInvocation.args]
+    .map(quotePosixShellArg)
+    .join(" ");
+  const ttyScript = normalizeTtyScript(invocation.ttyScript);
+  const expectLines = [
+    "#!/usr/bin/expect -f",
+    "set timeout -1",
+    "log_user 1",
+    "match_max 100000",
+    `spawn -noecho /bin/sh "${escapeTclDoubleQuoted(runnerPath)}"`,
+  ];
+
+  for (const step of ttyScript?.steps ?? []) {
+    if (step.waitFor) {
+      const pattern = escapeTclDoubleQuoted(step.waitFor);
+      const timeoutMs = ttyScript?.timeoutMs ?? 15_000;
+      expectLines.push(`set timeout ${Math.max(1, Math.ceil(timeoutMs / 1000))}`);
+      expectLines.push("expect {");
+      expectLines.push(`  -exact "${pattern}" {}`);
+      expectLines.push(
+        `  eof { puts stderr "TTY preview command exited before the expected prompt appeared: ${pattern}"; exit ${EXPECT_PTY_TIMEOUT_EXIT_CODE} }`,
+      );
+      expectLines.push(
+        `  timeout { puts stderr "TTY preview script timed out waiting for: ${pattern}"; exit ${EXPECT_PTY_TIMEOUT_EXIT_CODE} }`,
+      );
+      expectLines.push("}");
+      expectLines.push("set timeout -1");
+    }
+    if (step.pauseMs) {
+      expectLines.push(`after ${Math.max(0, step.pauseMs)}`);
+    }
+    if (step.send) {
+      expectLines.push(`send -- "${escapeTclDoubleQuoted(step.send)}"`);
+    }
+  }
+
+  if ((ttyScript?.finalPauseMs ?? 0) > 0) {
+    expectLines.push(`after ${ttyScript.finalPauseMs}`);
+  }
+
+  expectLines.push("expect eof");
+  expectLines.push("catch wait result");
+  expectLines.push("set exit_status 0");
+  expectLines.push("if {[llength $result] >= 4} {");
+  expectLines.push("  set exit_status [lindex $result 3]");
+  expectLines.push("}");
+  expectLines.push("exit $exit_status");
+
+  writeFileSync(
+    runnerPath,
+    `#!/bin/sh\ncd ${quotePosixShellArg(ROOT_DIR)}\nexec ${runnerCommand}\n`,
+    "utf8",
+  );
+  writeFileSync(expectPath, `${expectLines.join("\n")}\n`, "utf8");
+
+  return await new Promise((resolvePromise, rejectPromise) => {
+    let output = "";
+    const proc = spawn("expect", ["-f", expectPath], {
+      cwd: ROOT_DIR,
+      env: invocation.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    const cleanup = () => {
+      try {
+        rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        // Best effort.
+      }
+    };
+
+    const onChunk = (chunk) => {
+      const value = chunk.toString();
+      output += value;
+      writeOut(value);
+    };
+
+    proc.stdout?.on("data", onChunk);
+    proc.stderr?.on("data", onChunk);
+    proc.on("error", (error) => {
+      cleanup();
+      rejectPromise(error);
+    });
+    proc.on("exit", (exitCode, signal) => {
+      cleanup();
+      resolvePromise({ exitCode, signal, output });
+    });
   });
 }
 
@@ -1439,9 +1570,28 @@ async function executeTtyCase(plan, context, ptySpawn) {
 
   writeLine(context.writeOut, `$ ${invocation.displayCommand}`);
   let rawOutput = "";
-  const result = await runCommandInPty(ptySpawn, invocation, (chunk) => {
-    rawOutput += chunk;
-  });
+  let result;
+  try {
+    result = await runCommandInPty(ptySpawn, invocation, (chunk) => {
+      rawOutput += chunk;
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    writeLine(context.writeOut, `TTY execution failed: ${message}`);
+    context.failures.push(`${plan.id} failed before rendering (${message})`);
+    context.executions.push({
+      planId: plan.id,
+      caseId: plan.caseId,
+      variantId: plan.variantId ?? null,
+      mode: "tty",
+      status: "failed",
+      exitCode: null,
+      observedRoute: null,
+      ptyBackend: null,
+      errorMessage: message,
+    });
+    return;
+  }
   const diagnostics = extractRuntimeDiagnostics(rawOutput);
   if (diagnostics.text.length > 0) {
     context.writeOut(diagnostics.text);
@@ -1471,6 +1621,10 @@ async function executeTtyCase(plan, context, ptySpawn) {
       exitCode: result.exitCode ?? null,
       observedRoute: diagnostics.observedRoute,
       ptyBackend: result.ptyBackend,
+      errorMessage:
+        result.exitCode === EXPECT_PTY_TIMEOUT_EXIT_CODE
+          ? "tty-script-timeout"
+          : undefined,
     });
     return;
   }
@@ -1590,10 +1744,14 @@ export async function runTtyPreviewSuite(options = {}) {
     };
   }
 
-  const ptyModule = options.ptyModule ?? await import("node-pty");
-  const ptySpawn = ptyModule.spawn ?? ptyModule.default?.spawn;
+  let ptySpawn = options.ptyModule?.spawn ?? options.ptyModule?.default?.spawn;
   if (typeof ptySpawn !== "function") {
-    throw new Error("node-pty does not expose a spawn function.");
+    try {
+      const ptyModule = await import("node-pty");
+      ptySpawn = ptyModule.spawn ?? ptyModule.default?.spawn;
+    } catch {
+      ptySpawn = null;
+    }
   }
 
   await ensureFixtureIfNeeded(context, plans);
@@ -1658,6 +1816,12 @@ export function createPreviewCoverageReport({
   const failedExecutions = executions.filter(
     (execution) => execution.status === "failed",
   );
+  const truthRequirementViolations = plans.filter((plan) => {
+    if (plan.truthRequirement !== "live-required") {
+      return false;
+    }
+    return plan.executionKind !== "live-command";
+  });
   const unexpectedObservedRoutes = executions.filter((execution) => {
     if (execution.status !== "rendered") return false;
     const plan = plans.find((candidate) => candidate.id === execution.planId);
@@ -1684,6 +1848,10 @@ export function createPreviewCoverageReport({
 
   const observedRouteCounts = {};
   const ptyBackendCounts = {};
+  const ptyBackendFailures = failedExecutions.filter((execution) =>
+    typeof execution.errorMessage === "string"
+      && execution.errorMessage.toLowerCase().includes("pty"),
+  );
   for (const execution of executions) {
     if (execution.observedRoute) {
       observedRouteCounts[execution.observedRoute] =
@@ -1708,6 +1876,8 @@ export function createPreviewCoverageReport({
       renderedStates: renderedStates.size,
       missingStates: missingStates.length,
       unexpectedObservedRoutes: unexpectedObservedRoutes.length,
+      truthRequirementViolations: truthRequirementViolations.length,
+      ptyBackendFailures: ptyBackendFailures.length,
     },
     expectedStates: [...expectedStates].sort(),
     renderedStates: [...renderedStates].sort(),
@@ -1715,7 +1885,9 @@ export function createPreviewCoverageReport({
     liveVsFixtureRatio: fidelityCounts,
     observedRoutes: observedRouteCounts,
     ptyBackends: ptyBackendCounts,
+    truthRequirementViolations,
     unexpectedObservedRoutes,
+    ptyBackendFailures,
     failures: failedExecutions,
     skips: skippedExecutions,
     artifactPaths,
@@ -1737,6 +1909,8 @@ export function formatPreviewCoverageReportMarkdown(report) {
     `- Rendered states: ${report.summary.renderedStates}`,
     `- Missing states: ${report.summary.missingStates}`,
     `- Unexpected observed routes: ${report.summary.unexpectedObservedRoutes}`,
+    `- Truth requirement violations: ${report.summary.truthRequirementViolations ?? 0}`,
+    `- PTY backend failures: ${report.summary.ptyBackendFailures ?? 0}`,
     "",
     "## Fidelity",
   ];
@@ -1747,6 +1921,15 @@ export function formatPreviewCoverageReportMarkdown(report) {
 
   for (const [fidelity, count] of Object.entries(report.liveVsFixtureRatio)) {
     lines.push(`- ${fidelity}: ${count}`);
+  }
+
+  if (report.truthRequirementViolations?.length > 0) {
+    lines.push("", "## Truth Requirement Violations");
+    for (const violation of report.truthRequirementViolations) {
+      lines.push(
+        `- ${violation.id}: expected ${violation.truthRequirement}, got ${violation.executionKind}`,
+      );
+    }
   }
 
   if (Object.keys(report.observedRoutes ?? {}).length > 0) {
@@ -1784,6 +1967,15 @@ export function formatPreviewCoverageReportMarkdown(report) {
     for (const mismatch of report.unexpectedObservedRoutes) {
       lines.push(
         `- ${mismatch.planId} (${mismatch.mode}${mismatch.variantId ? ` / ${mismatch.variantId}` : ""}): observed ${mismatch.observedRoute ?? "unknown"}`,
+      );
+    }
+  }
+
+  if (report.ptyBackendFailures?.length > 0) {
+    lines.push("", "## PTY Backend Failures");
+    for (const failure of report.ptyBackendFailures) {
+      lines.push(
+        `- ${failure.planId} (${failure.mode}${failure.variantId ? ` / ${failure.variantId}` : ""}): ${failure.errorMessage ?? "pty failure"}`,
       );
     }
   }
