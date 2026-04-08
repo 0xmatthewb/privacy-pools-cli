@@ -531,6 +531,7 @@ describe("renderFlowResult", () => {
       "Inspect the latest account state, then choose the right manual next step from there.",
     );
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
+    expect(stderr).not.toContain("Optional public recovery");
   });
 
   test("JSON mode gives delay-specific resume guidance while the privacy hold is active", () => {

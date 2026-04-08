@@ -820,6 +820,49 @@ describe("flow command", () => {
     expect(result.stderr).toContain("https://example.test/withdraw");
   });
 
+  test("flow status human output suppresses optional public recovery for externally stopped workflows", () => {
+    const home = createTempHome();
+    writeWorkflow(home, {
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+      workflowId: "wf-human-stopped-external",
+      createdAt: "2026-03-24T12:00:00.000Z",
+      updatedAt: "2026-03-24T12:00:00.000Z",
+      phase: "stopped_external",
+      chain: "sepolia",
+      asset: "ETH",
+      assetDecimals: 18,
+      depositAmount: "10000000000000000",
+      recipient: "0x4444444444444444444444444444444444444444",
+      poolAccountId: "PA-1",
+      poolAccountNumber: 1,
+      depositTxHash:
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      depositBlockNumber: "12345",
+      depositExplorerUrl: "https://example.test/deposit",
+      committedValue: "9950000000000000",
+      aspStatus: "approved",
+      lastError: {
+        step: "reconcile",
+        errorCode: "FLOW_STOPPED_EXTERNAL",
+        errorMessage: "The saved Pool Account changed outside this workflow.",
+        retryable: false,
+        at: "2026-03-24T12:05:00.000Z",
+      },
+    });
+
+    const result = runCli(["flow", "status", "wf-human-stopped-external"], {
+      home,
+      timeoutMs: 10_000,
+      env: { NO_COLOR: "1" },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("");
+    expect(result.stderr).not.toContain("Optional public recovery");
+    expect(result.stderr).toContain("Inspect accounts on sepolia");
+    expect(result.stderr).toContain("privacy-pools accounts --chain sepolia");
+  });
+
   test("flow watch latest returns the newest saved terminal workflow", () => {
     const home = createTempHome();
     writeWorkflow(home, {

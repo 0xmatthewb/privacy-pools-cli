@@ -771,6 +771,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     phase !== "withdrawing" &&
     phase !== "paused_declined" &&
     phase !== "paused_poi_required" &&
+    phase !== "stopped_external" &&
     !requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot);
   const hasRecoverySection =
     isTerminal ||
