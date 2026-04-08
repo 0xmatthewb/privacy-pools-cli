@@ -94,8 +94,16 @@ export const PREVIEW_PROMPT_INVENTORY = [
 ];
 
 export const PREVIEW_PROGRESS_INVENTORY = [
+  { caseId: "status-progress-health-check", commandPath: "status", progressStep: "status.health-check" },
+  { caseId: "activity-progress-fetch", commandPath: "activity", progressStep: "activity.fetch" },
+  { caseId: "stats-progress-global-fetch", commandPath: "stats", progressStep: "stats.global.fetch" },
+  { caseId: "stats-progress-pool-fetch", commandPath: "stats pool", progressStep: "stats.pool.fetch" },
+  { caseId: "pools-progress-list-fetch", commandPath: "pools", progressStep: "pools.list.fetch" },
+  { caseId: "pools-progress-detail-fetch", commandPath: "pools", progressStep: "pools.detail.fetch" },
   { caseId: "deposit-progress-approve-token", commandPath: "deposit", progressStep: "deposit.approve-token" },
   { caseId: "deposit-progress-submit", commandPath: "deposit", progressStep: "deposit.submit" },
+  { caseId: "withdraw-progress-sync-account-state", commandPath: "withdraw", progressStep: "withdraw.sync-account-state" },
+  { caseId: "withdraw-progress-fetch-asp-data", commandPath: "withdraw", progressStep: "withdraw.fetch-asp-data" },
   { caseId: "withdraw-progress-request-quote", commandPath: "withdraw", progressStep: "withdraw.request-quote" },
   { caseId: "withdraw-progress-generate-proof", commandPath: "withdraw", progressStep: "withdraw.generate-proof" },
   { caseId: "withdraw-progress-submit-direct", commandPath: "withdraw", progressStep: "withdraw.submit-direct" },
@@ -127,6 +135,227 @@ export const PREVIEW_COVERAGE_SPEC = {
   progressInventory: PREVIEW_PROGRESS_INVENTORY,
   nativeRouteInventory: PREVIEW_NATIVE_ROUTE_INVENTORY,
 };
+
+export const PREVIEW_PROGRESS_ALLOWLIST = [
+  {
+    file: "src/commands/accounts.ts",
+    pattern: "spinner(",
+    reason:
+      "Accounts loading is covered by the audited steady-state account dashboards; the transient loader is intentionally not snapshot-tested yet.",
+  },
+  {
+    file: "src/commands/history.ts",
+    pattern: 'spinner("Loading history..."',
+    reason:
+      "History loading remains a brief local/bootstrap wait and is covered by the richer rendered history states instead of a dedicated spinner snapshot.",
+  },
+  {
+    file: "src/commands/migrate.ts",
+    pattern: "formatMigrationLoadingText(",
+    reason:
+      "Migration readiness loading is short-lived and shares the same read-only fetch pattern as the audited rendered migration states.",
+  },
+  {
+    file: "src/commands/sync.ts",
+    pattern: 'spinner("Resolving pools for sync..."',
+    reason:
+      "Sync is primarily audited through its empty and completion states; the short resolver spinner is allowlisted to avoid redundant transcript noise.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: 'stageHeader(1, depositSteps, "Approving token spend"',
+    reason:
+      "Configured-wallet flow deposits reuse the audited deposit progress surfaces, so the internal workflow wrapper stays allowlisted instead of duplicated.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: 'spinner("Approving token spend..."',
+    reason:
+      "Configured-wallet flow deposits reuse the audited deposit progress surfaces, so the internal workflow wrapper stays allowlisted instead of duplicated.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: 'stageHeader(2, depositSteps, "Submitting deposit"',
+    reason:
+      "Flow deposit submission is already covered by the dedicated flow-start deposit progress snapshot.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: 'spinner("Submitting deposit transaction..."',
+    reason:
+      "Flow deposit submission is already covered by the dedicated flow-start deposit progress snapshot.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: 'spinner("Requesting relayer quote..."',
+    reason:
+      "Flow watch reuses the audited withdraw quote/proof progress stages, so its internal relayer-quote spinner is explicitly allowlisted for now.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: '"Generating proof and submitting withdrawal"',
+    reason:
+      "Flow watch reuses the audited withdraw proof/submission journey, so the combined internal stage remains allowlisted instead of duplicated.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: 'stageHeader(1, 2, "Generating commitment proof"',
+    reason:
+      "Workflow ragequit shares the same proof-generation UX as the command-level ragequit flow, which already has dedicated progress coverage.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: 'spinner("Generating commitment proof..."',
+    reason:
+      "Workflow ragequit shares the same proof-generation UX as the command-level ragequit flow, which already has dedicated progress coverage.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: 'stageHeader(2, 2, "Submitting ragequit"',
+    reason:
+      "Workflow ragequit submission reuses the audited ragequit submission pattern and stays allowlisted to avoid duplicate snapshots.",
+  },
+  {
+    file: "native/shell/src/commands/activity/mod.rs",
+    pattern: 'start_spinner("Fetching public activity..."',
+    reason:
+      "Native activity loading mirrors the JS activity fetch snapshot; the human-facing value is covered once to avoid duplicating equivalent spinners.",
+  },
+  {
+    file: "native/shell/src/commands/stats.rs",
+    pattern: "start_spinner(",
+    reason:
+      "Native stats loading mirrors the JS stats fetch snapshots and remains allowlisted until we add a dedicated native loading matrix.",
+  },
+];
+
+export const PREVIEW_PROGRESS_CALLSITE_PATTERNS = [
+  {
+    file: "src/commands/status.ts",
+    pattern: "healthCheckLabel",
+    progressStep: "status.health-check",
+  },
+  {
+    file: "src/commands/activity.ts",
+    pattern: 'spinner("Fetching public activity..."',
+    progressStep: "activity.fetch",
+  },
+  {
+    file: "src/commands/stats.ts",
+    pattern: 'spinner("Fetching global statistics..."',
+    progressStep: "stats.global.fetch",
+  },
+  {
+    file: "src/commands/stats.ts",
+    pattern: 'spinner("Fetching pool statistics..."',
+    progressStep: "stats.pool.fetch",
+  },
+  {
+    file: "src/commands/pools.ts",
+    pattern: "pool details on",
+    progressStep: "pools.detail.fetch",
+  },
+  {
+    file: "src/commands/pools.ts",
+    pattern: "Fetching pools across chains...",
+    progressStep: "pools.list.fetch",
+  },
+  {
+    file: "src/commands/deposit.ts",
+    pattern: 'stageHeader(1, depositSteps, "Approving token spend"',
+    progressStep: "deposit.approve-token",
+  },
+  {
+    file: "src/commands/deposit.ts",
+    pattern: 'spinner("Approving token spend..."',
+    progressStep: "deposit.approve-token",
+  },
+  {
+    file: "src/commands/deposit.ts",
+    pattern: 'stageHeader(2, depositSteps, "Submitting deposit"',
+    progressStep: "deposit.submit",
+  },
+  {
+    file: "src/commands/deposit.ts",
+    pattern: 'spinner("Submitting deposit transaction..."',
+    progressStep: "deposit.submit",
+  },
+  {
+    file: "src/commands/withdraw.ts",
+    pattern: 'stageHeader(1, withdrawSteps, "Syncing account state"',
+    progressStep: "withdraw.sync-account-state",
+  },
+  {
+    file: "src/commands/withdraw.ts",
+    pattern: 'spinner("Syncing account state..."',
+    progressStep: "withdraw.sync-account-state",
+  },
+  {
+    file: "src/commands/withdraw.ts",
+    pattern: '"Fetching ASP data"',
+    progressStep: "withdraw.fetch-asp-data",
+  },
+  {
+    file: "src/commands/withdraw.ts",
+    pattern: '"Requesting relayer quote"',
+    progressStep: "withdraw.request-quote",
+  },
+  {
+    file: "src/commands/withdraw.ts",
+    pattern: 'spinner("Requesting relayer quote..."',
+    progressStep: "withdraw.request-quote",
+  },
+  {
+    file: "src/commands/withdraw.ts",
+    pattern: '"Generating ZK proof"',
+    progressStep: "withdraw.generate-proof",
+  },
+  {
+    file: "src/commands/withdraw.ts",
+    pattern: '"Submitting withdrawal"',
+    progressStep: "withdraw.submit-direct",
+  },
+  {
+    file: "src/commands/withdraw.ts",
+    pattern: '"Submitting to relayer"',
+    progressStep: "withdraw.submit-relayed",
+  },
+  {
+    file: "src/commands/ragequit.ts",
+    pattern: '"Loading account state"',
+    progressStep: "ragequit.load-account",
+  },
+  {
+    file: "src/commands/ragequit.ts",
+    pattern: 'spinner("Loading account..."',
+    progressStep: "ragequit.load-account",
+  },
+  {
+    file: "src/commands/ragequit.ts",
+    pattern: '"Generating commitment proof"',
+    progressStep: "ragequit.generate-proof",
+  },
+  {
+    file: "src/commands/ragequit.ts",
+    pattern: '"Submitting ragequit"',
+    progressStep: "ragequit.submit",
+  },
+  {
+    file: "src/commands/upgrade.ts",
+    pattern: 'spinner("Checking for upgrades..."',
+    progressStep: "upgrade.check",
+  },
+  {
+    file: "src/commands/upgrade.ts",
+    pattern: 'spinner("Installing update..."',
+    progressStep: "upgrade.install",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern: '"Submitting deposit"',
+    progressStep: "flow.start.submit-deposit",
+  },
+];
 
 function clonePreviewModes() {
   return [...PREVIEW_MODES];
@@ -514,6 +743,7 @@ function createProgressPreviewCase({
   commandPath,
   stateId,
   buildInvocation,
+  needsFixtureServer = false,
   runtimeTarget = runtime,
 }) {
   return createLivePreviewCase({
@@ -534,6 +764,7 @@ function createProgressPreviewCase({
     syntheticReason:
       "preview progress snapshot exits at a named in-flight step without mutating funds or local state",
     commandLabel,
+    needsFixtureServer,
     buildInvocation: buildInvocation
       ? (context) => buildInvocation(context)
       : (context) =>
@@ -648,7 +879,7 @@ function buildReadOnlyFixtureInvocation(context, runtime, commandArgs, displayCo
 
 function buildConfiguredStatusInvocation(context) {
   const home = createHome("pp-preview-status-");
-  return buildLiveCommandInvocation(context, "forwarded", {
+  return buildLiveCommandInvocation(context, "js", {
     args: ["--no-banner", "--chain", "sepolia", "status", "--no-check"],
     displayCommand: "privacy-pools --no-banner --chain sepolia status --no-check",
     envOverrides: {
@@ -689,7 +920,7 @@ function buildPoolsInvocation(context, runtime, commandLabel, args) {
 }
 
 function buildForwardedPoolDetailInvocation(context) {
-  return buildLiveCommandInvocation(context, "forwarded", {
+  return buildLiveCommandInvocation(context, "js", {
     args: ["--no-banner", "--chain", "sepolia", "pools", "ETH"],
     displayCommand: "privacy-pools --no-banner --chain sepolia pools ETH",
     envOverrides: {
@@ -856,6 +1087,7 @@ export const PREVIEW_CASES = [
         {
           envOverrides: {
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            HOME: home,
           },
         },
       );
@@ -916,6 +1148,7 @@ export const PREVIEW_CASES = [
         {
           envOverrides: {
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+            HOME: home,
           },
         },
       );
@@ -1043,6 +1276,7 @@ export const PREVIEW_CASES = [
         "privacy-pools --no-banner init",
         {
           envOverrides: {
+            HOME: home,
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
           },
         },
@@ -1052,7 +1286,7 @@ export const PREVIEW_CASES = [
       steps: [
         { waitFor: "How would you like to set up your wallet?", send: "\r" },
         { waitFor: "How would you like to back up your recovery phrase?", send: "\r" },
-        { waitFor: "Save location:", send: "/tmp/preview-recovery.txt\r" },
+        { waitFor: "Save location:", send: "\r" },
       ],
     },
   }),
@@ -1214,10 +1448,26 @@ export const PREVIEW_CASES = [
     surface: "activity",
     owner: "js",
     runtime: "js",
-    requiredSetup: [],
+    requiredSetup: ["none"],
     covers: ["empty-state", "global-feed"],
     args: ["--no-banner", "--chain", "sepolia", "activity"],
     commandLabel: "privacy-pools --no-banner --chain sepolia activity",
+  }),
+  createProgressPreviewCase({
+    id: "activity-progress-fetch",
+    label: "activity | loading",
+    journey: "discovery",
+    surface: "activity",
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
+    covers: ["loading", "spinner", "read-only"],
+    args: ["--no-banner", "activity"],
+    commandLabel: "privacy-pools --no-banner activity",
+    progressStep: "activity.fetch",
+    commandPath: "activity",
+    stateId: "fetch-progress",
+    runtimeTarget: "js",
   }),
   createLivePreviewCase({
     id: "js-stats-global",
@@ -1295,6 +1545,42 @@ export const PREVIEW_CASES = [
         ["stats", "pool", "--asset", "ETH", "--chain", "sepolia"],
       ),
   }),
+  createProgressPreviewCase({
+    id: "stats-progress-global-fetch",
+    label: "stats | global loading",
+    journey: "discovery",
+    surface: "stats",
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
+    covers: ["loading", "spinner", "global-summary"],
+    args: ["--no-banner", "stats"],
+    commandLabel: "privacy-pools --no-banner stats",
+    progressStep: "stats.global.fetch",
+    commandPath: "stats",
+    stateId: "global-fetch-progress",
+    runtimeTarget: "js",
+  }),
+  createProgressPreviewCase({
+    id: "stats-progress-pool-fetch",
+    label: "stats pool | loading",
+    journey: "discovery",
+    surface: "stats",
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
+    covers: ["loading", "spinner", "pool-summary"],
+    needsFixtureServer: true,
+    args: ["stats", "pool", "--asset", "ETH", "--chain", "sepolia"],
+    commandLabel: "privacy-pools --no-banner stats pool --asset ETH --chain sepolia",
+    progressStep: "stats.pool.fetch",
+    commandPath: "stats pool",
+    stateId: "pool-fetch-progress",
+    runtimeTarget: "js",
+    envOverrides: (context) => ({
+      ...context.fixtureEnv,
+    }),
+  }),
   createLivePreviewCase({
     id: "js-pools-list",
     label: "pools list | js",
@@ -1321,7 +1607,7 @@ export const PREVIEW_CASES = [
     surface: "pools",
     owner: "js",
     runtime: "js",
-    requiredSetup: [],
+    requiredSetup: ["none"],
     covers: ["empty-state", "next-actions"],
     args: ["--no-banner", "--chain", "sepolia", "pools"],
     commandLabel: "privacy-pools --no-banner --chain sepolia pools",
@@ -1333,7 +1619,7 @@ export const PREVIEW_CASES = [
     surface: "pools",
     owner: "js",
     runtime: "js",
-    requiredSetup: [],
+    requiredSetup: ["none"],
     covers: ["search", "no-match", "empty-state"],
     args: ["--no-banner", "--chain", "sepolia", "pools", "--search", "ZZZ"],
     commandLabel: "privacy-pools --no-banner --chain sepolia pools --search ZZZ",
@@ -1356,6 +1642,22 @@ export const PREVIEW_CASES = [
         "privacy-pools --no-banner pools",
         ["--no-banner", "pools"],
       ),
+  }),
+  createProgressPreviewCase({
+    id: "pools-progress-list-fetch",
+    label: "pools | list loading",
+    journey: "discovery",
+    surface: "pools",
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
+    covers: ["loading", "spinner", "list"],
+    args: ["--no-banner", "pools"],
+    commandLabel: "privacy-pools --no-banner pools",
+    progressStep: "pools.list.fetch",
+    commandPath: "pools",
+    stateId: "list-fetch-progress",
+    runtimeTarget: "js",
   }),
   createLivePreviewCase({
     id: "native-pools-no-match",
@@ -1396,6 +1698,22 @@ export const PREVIEW_CASES = [
         },
       }),
   }),
+  createProgressPreviewCase({
+    id: "pools-progress-detail-fetch",
+    label: "pools | detail loading",
+    journey: "discovery",
+    surface: "pools",
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
+    covers: ["loading", "spinner", "detail"],
+    args: ["--no-banner", "--chain", "sepolia", "pools", "ETH"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia pools ETH",
+    progressStep: "pools.detail.fetch",
+    commandPath: "pools",
+    stateId: "detail-fetch-progress",
+    runtimeTarget: "js",
+  }),
   createLivePreviewCase({
     id: "forwarded-pool-detail",
     label: "pool detail",
@@ -1411,15 +1729,16 @@ export const PREVIEW_CASES = [
   }),
   createLivePreviewCase({
     id: "forwarded-status-configured",
-    label: "status | configured wallet",
+    label: "status | configured wallet | js",
     journey: "accounts",
     surface: "status",
-    owner: "forwarded",
-    runtime: "forwarded",
-    requiredSetup: ["fixture-server", "native-binary", "configured-wallet"],
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["fixture-server", "configured-wallet"],
     covers: ["configured", "next-actions", "readiness"],
     commandLabel: "privacy-pools --no-banner --chain sepolia status --no-check",
     needsFixtureServer: true,
+    runtimeTarget: "js",
     buildInvocation: (context) => buildConfiguredStatusInvocation(context),
   }),
   createScenarioPreviewCase({
@@ -1427,30 +1746,55 @@ export const PREVIEW_CASES = [
     label: "status | setup required",
     journey: "accounts",
     surface: "status",
-    requiredSetup: ["native-binary"],
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
     covers: ["setup-required", "blocking-issues", "next-actions"],
     args: ["--no-banner", "--chain", "sepolia", "status"],
     commandLabel: "privacy-pools --no-banner --chain sepolia status",
+    runtimeTarget: "js",
   }),
   createScenarioPreviewCase({
     id: "status-ready",
     label: "status | ready",
     journey: "accounts",
     surface: "status",
-    requiredSetup: ["native-binary"],
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
     covers: ["ready", "health", "next-actions"],
     args: ["--no-banner", "--chain", "sepolia", "status"],
     commandLabel: "privacy-pools --no-banner --chain sepolia status",
+    runtimeTarget: "js",
   }),
   createScenarioPreviewCase({
     id: "status-degraded",
     label: "status | degraded",
     journey: "accounts",
     surface: "status",
-    requiredSetup: ["native-binary"],
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
     covers: ["read-only", "degraded", "warnings"],
     args: ["--no-banner", "--chain", "sepolia", "status"],
     commandLabel: "privacy-pools --no-banner --chain sepolia status",
+    runtimeTarget: "js",
+  }),
+  createProgressPreviewCase({
+    id: "status-progress-health-check",
+    label: "status | health check progress",
+    journey: "accounts",
+    surface: "status",
+    owner: "js",
+    runtime: "js",
+    requiredSetup: ["none"],
+    covers: ["health", "loading", "spinner"],
+    args: ["--no-banner", "--chain", "sepolia", "status", "--check"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia status --check",
+    progressStep: "status.health-check",
+    commandPath: "status",
+    stateId: "health-check-progress",
+    runtimeTarget: "js",
   }),
   createScenarioPreviewCase({
     id: "accounts-empty",
@@ -1844,7 +2188,6 @@ export const PREVIEW_CASES = [
         {
           envOverrides: {
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
             ...context.fixtureEnv,
           },
           prepare: async () => {
@@ -1890,7 +2233,6 @@ export const PREVIEW_CASES = [
         {
           envOverrides: {
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
             ...context.fixtureEnv,
           },
           prepare: async () => {
@@ -1931,7 +2273,6 @@ export const PREVIEW_CASES = [
         {
           envOverrides: {
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-            PRIVACY_POOLS_CLI_PREVIEW_TIMING: "after-prompts",
             ...context.fixtureEnv,
           },
           prepare: async () => {
@@ -1980,6 +2321,34 @@ export const PREVIEW_CASES = [
         },
       );
     },
+  }),
+  createProgressPreviewCase({
+    id: "withdraw-progress-sync-account-state",
+    label: "withdraw | progress | sync account state",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "sync-account-state", "withdraw"],
+    args: ["--no-banner", "--chain", "sepolia", "withdraw", "50", "USDC", "--to", TEST_RECIPIENT],
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+    progressStep: "withdraw.sync-account-state",
+    stateId: "sync-account-state",
+  }),
+  createProgressPreviewCase({
+    id: "withdraw-progress-fetch-asp-data",
+    label: "withdraw | progress | asp data",
+    journey: "withdraw",
+    surface: "withdraw",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary"],
+    covers: ["progress", "fetch-asp-data", "withdraw"],
+    args: ["--no-banner", "--chain", "sepolia", "withdraw", "50", "USDC", "--to", TEST_RECIPIENT],
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --to 0x000000000000000000000000000000000000dEaD",
+    progressStep: "withdraw.fetch-asp-data",
+    stateId: "fetch-asp-data",
   }),
   createProgressPreviewCase({
     id: "withdraw-progress-request-quote",
@@ -2494,12 +2863,7 @@ export const PREVIEW_CASES = [
     },
     ttyScript: {
       steps: [
-        { waitFor: "start flow by depositing", send: "y\r" },
-        {
-          waitFor: "How would you like to back up this workflow wallet?",
-          send: "\r",
-        },
-        { waitFor: "Save location:", send: "/tmp/preview-flow-wallet.txt\r" },
+        { waitFor: "Confirm flow start?", send: "y\r" },
       ],
       finalPauseMs: 250,
     },
@@ -2554,7 +2918,7 @@ export const PREVIEW_CASES = [
     },
     ttyScript: {
       steps: [
-        { waitFor: "start flow by depositing", send: "y\r" },
+        { waitFor: "Confirm flow start?", send: "y\r" },
         {
           waitFor: "How would you like to back up this workflow wallet?",
           send: "\r",
@@ -2614,7 +2978,12 @@ export const PREVIEW_CASES = [
     },
     ttyScript: {
       steps: [
-        { waitFor: "start flow by depositing", send: "y\r" },
+        { waitFor: "Confirm flow start?", send: "y\r" },
+        {
+          waitFor: "How would you like to back up this workflow wallet?",
+          send: "\r",
+        },
+        { waitFor: "Save location:", send: "/tmp/preview-flow-wallet.txt\r" },
       ],
       finalPauseMs: 250,
     },
@@ -2638,6 +3007,7 @@ export const PREVIEW_CASES = [
     owner: "forwarded",
     runtime: "forwarded",
     requiredSetup: ["native-binary", "configured-wallet"],
+    needsFixtureServer: true,
     covers: ["progress", "submit-deposit", "configured-wallet"],
     commandLabel: "privacy-pools --yes --no-banner flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD",
     progressStep: "flow.start.submit-deposit",
@@ -2649,11 +3019,12 @@ export const PREVIEW_CASES = [
         displayCommand:
           "privacy-pools --yes --no-banner flow start 0.1 ETH --to 0x000000000000000000000000000000000000dEaD",
         envOverrides: {
+          ...context.fixtureEnv,
           PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
           PRIVACY_POOLS_CLI_PREVIEW_PROGRESS_STEP: "flow.start.submit-deposit",
         },
         prepare: async () => {
-          await runInitForConfiguredWallet(home, {});
+          await runInitForConfiguredWallet(home, context.fixtureEnv);
         },
       });
     },

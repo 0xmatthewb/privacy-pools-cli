@@ -23,6 +23,13 @@ const ORIGINAL_BINARY_OVERRIDE = process.env.PRIVACY_POOLS_CLI_BINARY;
 const ORIGINAL_WORKER_OVERRIDE = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
 const ORIGINAL_EXIT_CODE = process.exitCode ?? 0;
 
+function expectDefaultWorkerPath(workerPath: string | undefined): void {
+  const compiledWorker = launcherTestInternals.defaultJsWorkerPath();
+  const sourceWorker = compiledWorker.replace(/\.js$/, ".ts");
+
+  expect([compiledWorker, sourceWorker]).toContain(workerPath);
+}
+
 type SpawnMockChild = EventEmitter & {
   exitCode: number | null;
   signalCode: NodeJS.Signals | null;
@@ -224,7 +231,7 @@ describe("launcher runtime coverage", () => {
     expect(target.command).toBe("/tmp/privacy-pools-native");
     expect(target.env.PRIVACY_POOLS_PRIVATE_KEY).toBeUndefined();
     expect(typeof target.env.PRIVACY_POOLS_CLI_JS_WORKER).toBe("string");
-    expect(target.env.PRIVACY_POOLS_CLI_JS_WORKER?.endsWith(".js")).toBe(true);
+    expectDefaultWorkerPath(target.env.PRIVACY_POOLS_CLI_JS_WORKER);
     expect(typeof target.env[CURRENT_NATIVE_JS_BRIDGE_ENV]).toBe("string");
   });
 

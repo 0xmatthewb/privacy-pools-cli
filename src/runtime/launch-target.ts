@@ -23,6 +23,11 @@ export interface LaunchTarget {
   env: NodeJS.ProcessEnv;
 }
 
+interface JsWorkerLaunchConfig {
+  path: string;
+  args: string[];
+}
+
 export function defaultJsWorkerPath(): string {
   return resolveCurrentWorkerPath();
 }
@@ -62,6 +67,42 @@ export function resolveConfiguredJsWorkerPath(
   return env[ENV_CLI_JS_WORKER]?.trim() || defaultJsWorkerPath();
 }
 
+function resolveSourceWorkerFallback(workerPath: string): string | null {
+  if (!workerPath.endsWith(".js")) {
+    return null;
+  }
+
+  const tsWorkerPath = `${workerPath.slice(0, -3)}.ts`;
+  return existsSync(tsWorkerPath) ? tsWorkerPath : null;
+}
+
+function resolveJsWorkerLaunchConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): JsWorkerLaunchConfig {
+  const workerPath = resolveConfiguredJsWorkerPath(env);
+  if (existsSync(workerPath)) {
+    return {
+      path: workerPath,
+      args: defaultJsWorkerArgs(workerPath),
+    };
+  }
+
+  if (!env[ENV_CLI_JS_WORKER]?.trim()) {
+    const sourceWorkerPath = resolveSourceWorkerFallback(workerPath);
+    if (sourceWorkerPath) {
+      return {
+        path: sourceWorkerPath,
+        args: ["--import", "tsx", sourceWorkerPath],
+      };
+    }
+  }
+
+  return {
+    path: workerPath,
+    args: defaultJsWorkerArgs(workerPath),
+  };
+}
+
 export function invocationContainsInlineSecrets(argv: readonly string[]): boolean {
   return argv.some((token) => {
     if (SECRET_BEARING_FLAGS.has(token)) return true;
@@ -77,11 +118,11 @@ export function createJsWorkerTarget(
   argv: string[],
   env: NodeJS.ProcessEnv = process.env,
 ): LaunchTarget {
-  const workerPath = resolveConfiguredJsWorkerPath(env);
+  const workerLaunch = resolveJsWorkerLaunchConfig(env);
   return {
     kind: "js-worker",
     command: resolveJsRuntimeCommand(env),
-    args: defaultJsWorkerArgs(workerPath),
+    args: workerLaunch.args,
     env: {
       ...env,
       [CURRENT_RUNTIME_REQUEST_ENV]: encodeCurrentWorkerRequest(argv),
@@ -92,18 +133,18 @@ export function createJsWorkerTarget(
 export function createNativeForwardingEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
-  const workerPath = resolveConfiguredJsWorkerPath(env);
+  const workerLaunch = resolveJsWorkerLaunchConfig(env);
   const nextEnv = {
     ...env,
   };
   delete nextEnv[ENV_PRIVATE_KEY];
   return {
     ...nextEnv,
-    [ENV_CLI_JS_WORKER]: workerPath,
+    [ENV_CLI_JS_WORKER]: workerLaunch.path,
     [NATIVE_JS_BRIDGE_ENV]: encodeNativeJsBridgeDescriptor(
       createNativeJsBridgeDescriptor(
         resolveJsRuntimeCommand(env),
-        defaultJsWorkerArgs(workerPath),
+        workerLaunch.args,
       ),
     ),
   };
@@ -112,8 +153,8 @@ export function createNativeForwardingEnv(
 export function validateJsWorkerPath(
   env: NodeJS.ProcessEnv = process.env,
 ): void {
-  const workerPath = resolveConfiguredJsWorkerPath(env);
-  if (existsSync(workerPath)) {
+  const workerLaunch = resolveJsWorkerLaunchConfig(env);
+  if (existsSync(workerLaunch.path)) {
     return;
   }
 

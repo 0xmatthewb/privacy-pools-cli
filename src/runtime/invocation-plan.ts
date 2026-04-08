@@ -98,7 +98,9 @@ function isHybridInvocationNative(
 
   if (route === "pools") {
     const isDetailView = parsed.nonOptionTokens.length > 1;
-    if (isDetailView) return false;
+    if (isDetailView) {
+      return nativeModes.includes("default-detail");
+    }
     if (parsed.isStructuredOutputMode) {
       return nativeModes.includes("structured-list");
     }

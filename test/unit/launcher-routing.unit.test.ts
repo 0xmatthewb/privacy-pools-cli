@@ -40,6 +40,18 @@ const ORIGINAL_BINARY_OVERRIDE = process.env.PRIVACY_POOLS_CLI_BINARY;
 const ORIGINAL_WORKER_OVERRIDE = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
 const ORIGINAL_EXIT_CODE = process.exitCode;
 
+function expectDefaultWorkerLaunchArgs(args: string[]): void {
+  const compiledWorker = launcherTestInternals.defaultJsWorkerPath();
+  const sourceWorker = compiledWorker.replace(/\.js$/, ".ts");
+
+  if (args.length === 1) {
+    expect(args).toEqual([compiledWorker]);
+    return;
+  }
+
+  expect(args).toEqual(["--import", "tsx", sourceWorker]);
+}
+
 function writeNativePackageJson(
   packageJsonPath: string,
   sha256: string,
@@ -100,7 +112,7 @@ describe("launcher routing", () => {
     expect(target.kind).toBe("js-worker");
     expect(target.command).toBe(launcherTestInternals.resolveJsRuntimeCommand({}));
     expect(target.args.at(-1)).toContain("worker-main");
-    expect(target.args).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
+    expectDefaultWorkerLaunchArgs(target.args);
     expect(
       decodeCurrentWorkerRequest(
         String(target.env[CURRENT_RUNTIME_REQUEST_ENV]),
@@ -154,7 +166,7 @@ describe("launcher routing", () => {
     );
     expect(bridge.workerRequestEnv).toBe(CURRENT_RUNTIME_REQUEST_ENV);
     expect(basename(bridge.workerCommand)).toMatch(/^node(?:\.exe)?$/i);
-    expect(bridge.workerArgs).toEqual([launcherTestInternals.defaultJsWorkerPath()]);
+    expectDefaultWorkerLaunchArgs(bridge.workerArgs);
   });
 
   test("explicit native overrides do not resolve package metadata before routing", () => {
@@ -691,7 +703,7 @@ describe("launcher routing", () => {
       launcherTestInternals.invocationRequiresJsWorker(
         parseRootArgv(["pools", "ETH"]),
       ),
-    ).toBe(true);
+    ).toBe(false);
 
     expect(
       launcherTestInternals.invocationRequiresJsWorker(parseRootArgv([])),

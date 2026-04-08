@@ -1,7 +1,9 @@
 import {
   createOutputContext,
   formatCallout,
+  formatDirectWithdrawalReview,
   formatKeyValueRows,
+  formatPromptLine,
   formatRelayedWithdrawalReview,
   formatSectionHeading,
   printJsonSuccess,
@@ -1045,27 +1047,10 @@ function renderDepositPreview(caseId) {
       );
       return;
     case "deposit-unique-amount-prompt":
-      process.stderr.write(
-        `${formatCallout("warning", [
-          "0.123456789 ETH is a non-round amount that may reduce your privacy in the anonymity set.",
-          "Consider a round amount unless you intentionally accept that linkability tradeoff.",
-        ])}\n  Proceed with this amount anyway? [y/N]\n`,
-      );
+      process.stderr.write(formatPromptLine("Proceed with this amount anyway? [y/N]"));
       return;
     case "deposit-confirm-prompt":
-      process.stderr.write(
-        `${formatSectionHeading("Deposit review", {
-          divider: true,
-          padTop: false,
-        })}${formatKeyValueRows([
-          { label: "Amount", value: "0.1 ETH" },
-          { label: "Chain", value: "sepolia" },
-          { label: "Vetting fee", value: "0.005 ETH" },
-          { label: "Net deposited", value: "~0.095 ETH" },
-        ])}${formatCallout("privacy", [
-          "The ASP reviews deposits before private withdrawal is available.",
-        ])}\n  Deposit 0.1 ETH into ETH pool on sepolia? [Y/n]\n`,
-      );
+      process.stderr.write(formatPromptLine("Confirm deposit? [Y/n]"));
       return;
     default:
       return false;
@@ -1210,8 +1195,9 @@ function renderWithdrawPreview(caseId) {
       });
       return;
     case "withdraw-confirm":
+      process.stderr.write("\n");
       process.stderr.write(
-        `\n${formatRelayedWithdrawalReview({
+        formatRelayedWithdrawalReview({
           poolAccountId: "PA-4",
           poolAccountBalance: 125000000n,
           amount: 50000000n,
@@ -1220,16 +1206,16 @@ function renderWithdrawPreview(caseId) {
           decimals: 6,
           recipient: TEST_RECIPIENT,
           quoteFeeBPS: 35n,
-          expirationMs: Date.parse("2026-04-07T18:42:45.000Z"),
+          expirationMs: Date.now() + 60_000,
           remainingBalance: 75000000n,
           extraGasRequested: true,
-          extraGasFundAmount: 1500000000000000n,
+          extraGasFundAmount: 1000000000000000n,
           tokenPrice: 1,
-          remainingBelowMinAdvisory:
-            "PA-4 would keep 75 USDC, which is below the relayer minimum (100 USDC). Withdraw less to keep a privately withdrawable remainder, use --all/100% to fully withdraw it, or ragequit the remainder publicly later.",
-          nowMs: Date.parse("2026-04-07T18:42:00.000Z"),
-        })}\n  Confirm withdrawal? [y/N]\n`,
+          remainingBelowMinAdvisory: null,
+          nowMs: Date.now(),
+        }),
       );
+      process.stderr.write(formatPromptLine("Confirm withdrawal? [y/N]"));
       return;
     case "withdraw-pa-select-prompt":
       process.stderr.write(
@@ -1255,20 +1241,19 @@ function renderWithdrawPreview(caseId) {
       );
       return;
     case "withdraw-direct-confirm-prompt":
+      process.stderr.write("\n");
       process.stderr.write(
-        `${formatSectionHeading("Direct withdrawal review", {
-          divider: true,
-          padTop: false,
-        })}${formatKeyValueRows([
-          { label: "Pool Account", value: "PA-1" },
-          { label: "Recipient", value: "0x0000...0abc" },
-          { label: "Amount", value: "0.3 ETH" },
-          { label: "Mode", value: "Direct (no privacy)" },
-        ])}${formatCallout("danger", [
-          "Direct withdrawals publicly link the withdrawal to your signer address.",
-          "Use relayed mode if you want the privacy-preserving path instead.",
-        ])}\n  Withdraw 0.3 ETH from PA-1 directly to 0x0000...0abc on sepolia? (no privacy) [y/N]\n`,
+        formatDirectWithdrawalReview({
+          poolAccountId: "PA-1",
+          amount: 300000000000000000n,
+          asset: "ETH",
+          chain: "sepolia",
+          decimals: 18,
+          recipient: TEST_RECIPIENT,
+          tokenPrice: 3200,
+        }),
       );
+      process.stderr.write(formatPromptLine("Confirm direct withdrawal? [y/N]"));
       return;
     case "withdraw-unsigned-envelope":
       printJsonEnvelope(createUnsignedEnvelope("withdraw"));
@@ -1332,20 +1317,7 @@ function renderRagequitPreview(caseId) {
       );
       return;
     case "ragequit-confirm":
-      process.stderr.write(
-        `${formatSectionHeading("Public recovery review", {
-          divider: true,
-          padTop: false,
-        })}${formatKeyValueRows([
-          { label: "Pool Account", value: "PA-3" },
-          { label: "Amount", value: "0.4 ETH" },
-          { label: "Chain", value: "sepolia" },
-          { label: "Destination", value: TEST_DEPOSIT_ADDRESS },
-        ])}${formatCallout("danger", [
-          "Ragequit sends funds publicly to the original deposit address.",
-          "Privacy is lost and this action cannot be undone.",
-        ])}\n  Confirm public recovery? [y/N]\n`,
-      );
+      process.stderr.write(formatPromptLine("Confirm public recovery? [y/N]"));
       return;
     case "ragequit-unsigned-envelope":
       printJsonEnvelope(createUnsignedEnvelope("ragequit"));
@@ -1438,22 +1410,7 @@ function renderUpgradePreview(caseId) {
       });
       return;
     case "upgrade-confirm-prompt":
-      renderUpgradeResult(CONTEXT, {
-        mode: "upgrade",
-        status: "ready",
-        currentVersion: "1.7.0",
-        latestVersion: "1.8.0",
-        updateAvailable: true,
-        performed: false,
-        command: "npm install -g privacy-pools-cli@1.8.0",
-        installContext: {
-          kind: "npm_global",
-          supportedAutoRun: true,
-          reason: "Global npm installation detected.",
-        },
-        installedVersion: null,
-      });
-      process.stderr.write("\n  Install privacy-pools-cli 1.8.0 now with npm? [Y/n]\n");
+      process.stderr.write(formatPromptLine("Install update now? [Y/n]"));
       return;
     default:
       return false;
@@ -1506,47 +1463,22 @@ function renderFlowPreview(caseId) {
       });
       return;
     case "flow-start-confirm-prompt":
-      process.stderr.write(
-        `${formatSectionHeading("Flow start review", {
-          divider: true,
-          padTop: false,
-        })}${formatKeyValueRows([
-          { label: "Amount", value: "0.1 ETH" },
-          { label: "Recipient", value: TEST_RECIPIENT },
-          { label: "Privacy delay", value: "Balanced (15-90 minutes)" },
-          { label: "Wallet mode", value: "Configured wallet" },
-        ])}${formatCallout("privacy", [
-          "This saved flow will deposit publicly now, then wait for ASP approval and a privacy delay before the private withdrawal.",
-        ])}\n  start flow by depositing 0.1 ETH on sepolia, then privately auto-withdraw the full approved balance to 0x000000000000000000000000000000000000dEaD after approval and the selected privacy delay? [Y/n]\n`,
-      );
+      process.stderr.write(formatPromptLine("Confirm flow start? [Y/n]"));
       return;
     case "flow-start-new-wallet-backup-choice":
       process.stderr.write(
-        `${renderWorkflowWalletBackupChoicePreview({
-          walletAddress: "0x000000000000000000000000000000000000f10f",
-        })}\n  How would you like to back up this workflow wallet?\n`,
+        `${formatSectionHeading("Choose backup", {
+          divider: true,
+          padTop: false,
+        })}  Save to file (recommended)\n  I'll back it up manually\n${formatPromptLine("How would you like to back up this workflow wallet?")}`,
       );
       return;
     case "flow-start-new-wallet-backup-path-prompt":
-      process.stderr.write(
-        `${formatSectionHeading("Save workflow wallet backup", {
-          divider: true,
-          padTop: false,
-        })}${formatKeyValueRows([
-          { label: "Wallet", value: "0x0000...f10f" },
-          { label: "Backup mode", value: "Save to file" },
-        ])}${formatCallout("danger", [
-          "The file will contain the live workflow-wallet private key.",
-          "Store it securely before funding the workflow.",
-        ])}  Save location: /tmp/preview-flow-wallet.txt\n`,
-      );
+      process.stderr.write(formatPromptLine("Save location: /tmp/preview-flow-wallet.txt"));
       return;
     case "flow-start-new-wallet-backup-confirm":
       process.stderr.write(
-        `${renderWorkflowWalletBackupConfirmation({
-          walletAddress: "0x000000000000000000000000000000000000f10f",
-          backupPath: "/tmp/preview-flow-wallet.txt",
-        })}\n  I have securely backed up this workflow wallet. [y/N]\n`,
+        formatPromptLine("I have securely backed up this workflow wallet. [y/N]"),
       );
       return;
     case "flow-watch-awaiting-funding":

@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { GENERATED_COMMAND_ROUTES } from "../../src/utils/command-routing-static.ts";
 import {
   PREVIEW_CASES,
   findPreviewCase,
@@ -86,6 +87,7 @@ export const PREVIEW_VARIANTS = {
 };
 
 const DEFAULT_PREVIEW_VARIANT_IDS = Object.keys(PREVIEW_VARIANTS);
+const RUNTIME_DIAGNOSTIC_PREFIX = "[privacy-pools runtime] ";
 
 function wait(ms) {
   return new Promise((resolveWait) => {
@@ -140,6 +142,111 @@ function buildChildEnv(overrides = {}) {
   env.LANG = env.LANG ?? "en_US.UTF-8";
   env.LC_ALL = env.LC_ALL ?? env.LANG;
   return env;
+}
+
+function expectedObservedRouteForPlan(plan) {
+  const runtimeTarget = plan.runtimeTarget ?? plan.runtime;
+  const runtimeRoute = (() => {
+    switch (runtimeTarget) {
+      case "native":
+        return "native";
+      case "forwarded":
+        return "forwarded";
+      case "js":
+      default:
+        return "js-runtime";
+    }
+  })();
+
+  if (plan.surface === "help") {
+    return runtimeRoute;
+  }
+
+  const route = GENERATED_COMMAND_ROUTES[plan.commandPath];
+  if (route?.owner === "native-shell") {
+    return "native";
+  }
+  if (route?.owner === "js-runtime") {
+    return "js-runtime";
+  }
+  if (route?.owner === "hybrid") {
+    return runtimeTarget === "native" ? "native" : "forwarded";
+  }
+
+  return runtimeRoute;
+}
+
+function parseRuntimeDiagnosticLine(line) {
+  if (!line.startsWith(RUNTIME_DIAGNOSTIC_PREFIX)) {
+    return null;
+  }
+
+  const remainder = line.slice(RUNTIME_DIAGNOSTIC_PREFIX.length).trim();
+  if (!remainder) {
+    return null;
+  }
+
+  const [event, ...parts] = remainder.split(/\s+/);
+  const payload = {};
+  for (const part of parts) {
+    const separator = part.indexOf("=");
+    if (separator <= 0) continue;
+    const key = part.slice(0, separator);
+    const value = part.slice(separator + 1);
+    payload[key] = value;
+  }
+
+  return {
+    event,
+    payload,
+  };
+}
+
+function resolveObservedRoute(route, kind) {
+  if (kind === "spawn-native") {
+    return "native";
+  }
+  if (kind !== "inline-js" && kind !== "spawn-js-worker") {
+    return null;
+  }
+
+  if (!route || route === "<none>") {
+    return "js-runtime";
+  }
+
+  const owner = GENERATED_COMMAND_ROUTES[route]?.owner;
+  if (owner === "hybrid") {
+    return "forwarded";
+  }
+  return "js-runtime";
+}
+
+function extractRuntimeDiagnostics(text) {
+  const lines = text.split(/\r?\n/);
+  const diagnostics = [];
+  const filteredLines = [];
+
+  for (const line of lines) {
+    const diagnostic = parseRuntimeDiagnosticLine(line);
+    if (diagnostic) {
+      diagnostics.push(diagnostic);
+    } else {
+      filteredLines.push(line);
+    }
+  }
+
+  const lastWithKind = [...diagnostics]
+    .reverse()
+    .find((diagnostic) => typeof diagnostic.payload.kind === "string");
+  const observedRoute = lastWithKind
+    ? resolveObservedRoute(lastWithKind.payload.route, lastWithKind.payload.kind)
+    : null;
+
+  return {
+    observedRoute,
+    diagnostics,
+    text: filteredLines.join("\n"),
+  };
 }
 
 function createHome(prefix) {
@@ -862,6 +969,8 @@ function buildPreviewInvocation(plan, context) {
       ttyScript: invocation.ttyScript ?? plan.execution.ttyScript,
       variant: plan.variant,
       env: buildChildEnv({
+        PRIVACY_POOLS_DEBUG_RUNTIME: "1",
+        PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH: "1",
         ...(invocation.env ?? {}),
         ...(plan.variant?.env ?? {}),
       }),
@@ -895,7 +1004,11 @@ function createPreviewInvocationFromCase(plan) {
       plan.execution.fixtureCaseId,
     ],
     displayCommand: plan.execution.commandLabel,
-    env: buildChildEnv(plan.variant?.env ?? {}),
+    env: buildChildEnv({
+      PRIVACY_POOLS_DEBUG_RUNTIME: "1",
+      PRIVACY_POOLS_CLI_DISABLE_LOCAL_FAST_PATH: "1",
+      ...(plan.variant?.env ?? {}),
+    }),
     ttyScript: plan.execution.ttyScript,
     variant: plan.variant,
   };
@@ -952,10 +1065,20 @@ async function executeCapturedCase(plan, context) {
     invocation.args,
     invocation.env,
   );
+  const stdoutDiagnostics = extractRuntimeDiagnostics(result.stdout);
+  const stderrDiagnostics = extractRuntimeDiagnostics(result.stderr);
+  const observedRoute =
+    stderrDiagnostics.observedRoute ?? stdoutDiagnostics.observedRoute ?? null;
   writeLine(context.writeOut, `$ ${invocation.displayCommand}`);
   writeLine(context.writeOut, `exit ${result.status ?? "null"}`);
-  writeBlock(context.writeOut, "--- stderr ---", result.stderr);
-  writeBlock(context.writeOut, "--- stdout ---", result.stdout);
+  if (observedRoute) {
+    writeLine(
+      context.writeOut,
+      `Observed route: ${observedRoute} (expected ${expectedObservedRouteForPlan(plan)})`,
+    );
+  }
+  writeBlock(context.writeOut, "--- stderr ---", stderrDiagnostics.text);
+  writeBlock(context.writeOut, "--- stdout ---", stdoutDiagnostics.text);
 
   if (!exitCodeMatchesExpectation(result.status, plan.expectedExitCodes)) {
     context.failures.push(
@@ -968,6 +1091,7 @@ async function executeCapturedCase(plan, context) {
       mode: "captured",
       status: "failed",
       exitCode: result.status ?? null,
+      observedRoute,
     });
     return;
   }
@@ -979,6 +1103,7 @@ async function executeCapturedCase(plan, context) {
     mode: "captured",
     status: "rendered",
     exitCode: result.status ?? null,
+    observedRoute,
   });
 }
 
@@ -1017,20 +1142,38 @@ function buildPtyShellInvocation(command, args) {
 }
 
 async function runCommandInPty(ptySpawn, invocation, writeOut) {
+  if (process.env.PRIVACY_POOLS_CLI_PREVIEW_FORCE_PYTHON_PTY === "1") {
+    const result = await runCommandInPythonPty(invocation, writeOut);
+    return { ...result, ptyBackend: "python" };
+  }
+
   try {
-    return await runCommandInNodePty(ptySpawn, invocation, writeOut);
+    const result = await runCommandInNodePty(ptySpawn, invocation, writeOut);
+    return { ...result, ptyBackend: "node-pty" };
   } catch (error) {
     if (!shouldUseScriptPtyFallback(error)) {
       throw error;
     }
-    try {
-      return await runCommandInPythonPty(invocation, writeOut);
-    } catch (pythonError) {
-      if (invocation.ttyScript) {
-        throw pythonError;
-      }
-      return await runCommandInScriptPty(invocation, writeOut);
+  }
+
+  try {
+    const result = await runCommandInScriptPty(invocation, writeOut);
+    if (
+      result.exitCode === 1
+      && result.output.includes(
+        "script: tcgetattr/ioctl: Operation not supported on socket",
+      )
+    ) {
+      const pythonResult = await runCommandInPythonPty(invocation, writeOut);
+      return { ...pythonResult, ptyBackend: "python" };
     }
+    return { ...result, ptyBackend: "script" };
+  } catch (scriptError) {
+    if (process.env.PRIVACY_POOLS_CLI_PREVIEW_ALLOW_PYTHON_PTY !== "1") {
+      throw scriptError;
+    }
+    const result = await runCommandInPythonPty(invocation, writeOut);
+    return { ...result, ptyBackend: "python" };
   }
 }
 
@@ -1295,8 +1438,22 @@ async function executeTtyCase(plan, context, ptySpawn) {
   }
 
   writeLine(context.writeOut, `$ ${invocation.displayCommand}`);
-  const result = await runCommandInPty(ptySpawn, invocation, context.writeOut);
-  if (!result.output.endsWith("\n")) {
+  let rawOutput = "";
+  const result = await runCommandInPty(ptySpawn, invocation, (chunk) => {
+    rawOutput += chunk;
+  });
+  const diagnostics = extractRuntimeDiagnostics(rawOutput);
+  if (diagnostics.text.length > 0) {
+    context.writeOut(diagnostics.text);
+  }
+  if (diagnostics.observedRoute) {
+    writeLine(
+      context.writeOut,
+      `Observed route: ${diagnostics.observedRoute} (expected ${expectedObservedRouteForPlan(plan)})`,
+    );
+  }
+  writeLine(context.writeOut, `PTY backend: ${result.ptyBackend}`);
+  if (diagnostics.text.length > 0 && !diagnostics.text.endsWith("\n")) {
     writeLine(context.writeOut);
   }
   writeLine(context.writeOut, `exit ${result.exitCode ?? "null"}`);
@@ -1312,6 +1469,8 @@ async function executeTtyCase(plan, context, ptySpawn) {
       mode: "tty",
       status: "failed",
       exitCode: result.exitCode ?? null,
+      observedRoute: diagnostics.observedRoute,
+      ptyBackend: result.ptyBackend,
     });
     return;
   }
@@ -1323,6 +1482,8 @@ async function executeTtyCase(plan, context, ptySpawn) {
     mode: "tty",
     status: "rendered",
     exitCode: result.exitCode ?? null,
+    observedRoute: diagnostics.observedRoute,
+    ptyBackend: result.ptyBackend,
   });
 }
 
@@ -1479,6 +1640,8 @@ export function createPreviewCoverageReport({
   capturedResult = null,
   ttyResult = null,
   artifactPaths = {},
+  batchId = null,
+  batches = [],
 } = {}) {
   const results = [capturedResult, ttyResult].filter(Boolean);
   const plans = results.flatMap((result) => result.plans ?? []);
@@ -1495,6 +1658,13 @@ export function createPreviewCoverageReport({
   const failedExecutions = executions.filter(
     (execution) => execution.status === "failed",
   );
+  const unexpectedObservedRoutes = executions.filter((execution) => {
+    if (execution.status !== "rendered") return false;
+    const plan = plans.find((candidate) => candidate.id === execution.planId);
+    if (!plan) return false;
+    if (plan.executionKind !== "live-command") return false;
+    return execution.observedRoute !== expectedObservedRouteForPlan(plan);
+  });
   const stateMap = new Map(plans.map((plan) => [plan.id, stateKeyForPlan(plan)]));
   const expectedStates = new Set(plans.map((plan) => stateKeyForPlan(plan)));
   const renderedStates = new Set(
@@ -1512,8 +1682,23 @@ export function createPreviewCoverageReport({
     fidelityCounts[key] = (fidelityCounts[key] ?? 0) + 1;
   }
 
+  const observedRouteCounts = {};
+  const ptyBackendCounts = {};
+  for (const execution of executions) {
+    if (execution.observedRoute) {
+      observedRouteCounts[execution.observedRoute] =
+        (observedRouteCounts[execution.observedRoute] ?? 0) + 1;
+    }
+    if (execution.ptyBackend) {
+      ptyBackendCounts[execution.ptyBackend] =
+        (ptyBackendCounts[execution.ptyBackend] ?? 0) + 1;
+    }
+  }
+
   return {
     generatedAt: new Date().toISOString(),
+    batchId,
+    batches,
     summary: {
       expectedPlans: expectedPlanIds.size,
       renderedPlans: renderedPlanIds.size,
@@ -1522,11 +1707,15 @@ export function createPreviewCoverageReport({
       expectedStates: expectedStates.size,
       renderedStates: renderedStates.size,
       missingStates: missingStates.length,
+      unexpectedObservedRoutes: unexpectedObservedRoutes.length,
     },
     expectedStates: [...expectedStates].sort(),
     renderedStates: [...renderedStates].sort(),
     missingStates: missingStates.sort(),
     liveVsFixtureRatio: fidelityCounts,
+    observedRoutes: observedRouteCounts,
+    ptyBackends: ptyBackendCounts,
+    unexpectedObservedRoutes,
     failures: failedExecutions,
     skips: skippedExecutions,
     artifactPaths,
@@ -1547,12 +1736,31 @@ export function formatPreviewCoverageReportMarkdown(report) {
     `- Expected states: ${report.summary.expectedStates}`,
     `- Rendered states: ${report.summary.renderedStates}`,
     `- Missing states: ${report.summary.missingStates}`,
+    `- Unexpected observed routes: ${report.summary.unexpectedObservedRoutes}`,
     "",
     "## Fidelity",
   ];
 
+  if (report.batchId) {
+    lines.splice(4, 0, `Batch: ${report.batchId}`, "");
+  }
+
   for (const [fidelity, count] of Object.entries(report.liveVsFixtureRatio)) {
     lines.push(`- ${fidelity}: ${count}`);
+  }
+
+  if (Object.keys(report.observedRoutes ?? {}).length > 0) {
+    lines.push("", "## Observed Routes");
+    for (const [route, count] of Object.entries(report.observedRoutes)) {
+      lines.push(`- ${route}: ${count}`);
+    }
+  }
+
+  if (Object.keys(report.ptyBackends ?? {}).length > 0) {
+    lines.push("", "## PTY Backends");
+    for (const [backend, count] of Object.entries(report.ptyBackends)) {
+      lines.push(`- ${backend}: ${count}`);
+    }
   }
 
   if (report.missingStates.length > 0) {
@@ -1567,6 +1775,15 @@ export function formatPreviewCoverageReportMarkdown(report) {
     for (const failure of report.failures) {
       lines.push(
         `- ${failure.planId} (${failure.mode}${failure.variantId ? ` / ${failure.variantId}` : ""})`,
+      );
+    }
+  }
+
+  if (report.unexpectedObservedRoutes?.length > 0) {
+    lines.push("", "## Route Mismatches");
+    for (const mismatch of report.unexpectedObservedRoutes) {
+      lines.push(
+        `- ${mismatch.planId} (${mismatch.mode}${mismatch.variantId ? ` / ${mismatch.variantId}` : ""}): observed ${mismatch.observedRoute ?? "unknown"}`,
       );
     }
   }
