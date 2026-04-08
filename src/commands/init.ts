@@ -44,8 +44,15 @@ import { resolveGlobalMode } from "../utils/mode.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { notice } from "../utils/theme.js";
 import { createOutputContext } from "../output/common.js";
-import { formatCallout } from "../output/layout.js";
-import { renderInitResult } from "../output/init.js";
+import {
+  renderGeneratedRecoveryPhraseReview,
+  renderInitBackupConfirmationReview,
+  renderInitBackupMethodReview,
+  renderInitBackupPathReview,
+  renderInitBackupSaved,
+  renderInitOverwriteReview,
+  renderInitResult,
+} from "../output/init.js";
 
 interface InitCommandOptions {
   recoveryPhrase?: string;
@@ -362,6 +369,8 @@ export async function handleInitCommand(
     }
 
     if (hasExisting && !forceOverwrite && !skipPrompts) {
+      process.stderr.write("\n");
+      process.stderr.write(renderInitOverwriteReview(Boolean(mnemonicSource)));
       const overwrite = await confirm({
         message:
           `Existing configuration found. Reinitializing will ${mnemonicSource ? "replace your current recovery phrase with the one you provided" : "replace your current recovery phrase"} and overwrite settings. Continue?`,
@@ -430,17 +439,14 @@ export async function handleInitCommand(
     // interactive import path.
     if (!importedMnemonic && !isJson) {
       process.stderr.write("\n");
-      process.stderr.write(
-        formatCallout("danger", [
-          "Save your recovery phrase securely.",
-          "This is the only time it will be displayed.",
-          `Recovery phrase: ${chalk.bold(mnemonic)}`,
-        ]),
-      );
+      process.stderr.write(renderGeneratedRecoveryPhraseReview(mnemonic));
       process.stderr.write("\n");
 
       // Offer to save recovery phrase to a file, then confirm backup
       if (!skipPrompts) {
+        let backupMode: "file" | "manual" = "manual";
+        let savedBackupPath: string | null = null;
+        process.stderr.write(renderInitBackupMethodReview());
         if (await maybeRenderPreviewScenario("init backup method")) {
           return;
         }
@@ -451,9 +457,13 @@ export async function handleInitCommand(
             { name: "I'll back it up manually", value: "copied" },
           ],
         });
+        backupMode = saveAction === "file" ? "file" : "manual";
 
         if (saveAction === "file") {
           const defaultPath = join(homedir(), "privacy-pools-recovery.txt");
+          process.stderr.write(
+            renderInitBackupPathReview(defaultPath),
+          );
           if (await maybeRenderPreviewScenario("init backup path")) {
             return;
           }
@@ -473,15 +483,20 @@ export async function handleInitCommand(
               "Anyone with this phrase can access your Privacy Pools deposits.",
             ].join("\n"),
           );
-          success(`Recovery phrase saved to ${filePath}`, silent);
+          savedBackupPath = filePath;
+          process.stderr.write(renderInitBackupSaved(filePath));
+        } else {
           process.stderr.write(
-            notice(
-              "  Remember to move this file to a secure location and delete the original.\n",
-            ),
+            renderInitBackupConfirmationReview("manual"),
           );
         }
 
         process.stderr.write("\n");
+        if (backupMode === "file") {
+          process.stderr.write(
+            renderInitBackupConfirmationReview("file", savedBackupPath),
+          );
+        }
         if (await maybeRenderPreviewScenario("init backup confirm")) {
           return;
         }

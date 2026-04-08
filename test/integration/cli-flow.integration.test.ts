@@ -162,7 +162,7 @@ describe("flow command", () => {
       expectedNextActions: [
         {
           command: "flow watch",
-          reasonContains: "intentionally waiting until",
+          reasonContains: "holding until",
           when: "flow_resume",
         },
       ],

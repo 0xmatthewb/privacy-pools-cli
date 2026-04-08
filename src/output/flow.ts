@@ -100,12 +100,12 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
           lines: [
             ...(data.newWallet
               ? [
-                  "You must back up the dedicated workflow wallet before funding it.",
+                  "Back up the dedicated workflow wallet before funding it.",
                 ]
               : []),
             ...(data.isErc20
               ? [
-                  "This will require 2 transactions: token approval + deposit.",
+                  "This uses 2 transactions: token approval + deposit.",
                 ]
               : []),
             ...(data.privacyDelayOff
@@ -225,9 +225,9 @@ function privacyDelayWaitingReason(snapshot: FlowSnapshot): string {
     snapshot.privacyDelayUntil,
   );
   if (delaySummary) {
-    return `This workflow is intentionally waiting until ${delaySummary} before requesting the private withdrawal. Re-run flow watch to keep watching or after that time to continue.`;
+    return `This workflow is holding until ${delaySummary} before requesting the relayed private withdrawal. Re-run flow watch after that time or keep it attached to continue automatically.`;
   }
-  return "This workflow is intentionally waiting for the saved privacy-delay window to expire before requesting the private withdrawal. Re-run flow watch to continue.";
+  return "This workflow is still inside its saved privacy-delay window. Re-run flow watch when that hold expires to continue.";
 }
 
 function requiresPublicRecoveryBecauseRelayerMinimum(
@@ -735,13 +735,10 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   );
   const showFullBalanceNote =
     !publicRecoveryRequired &&
-    (phase === "awaiting_asp" ||
-      phase === "approved_waiting_privacy_delay") &&
+    phase === "awaiting_asp" &&
     data.action !== "ragequit";
   const inlinePrivacyWarnings =
-    phase === "awaiting_asp" ||
-    phase === "approved_waiting_privacy_delay" ||
-    phase === "approved_ready_to_withdraw";
+    phase === "awaiting_asp";
   const showPrivacyWarnings =
     !isTerminal &&
     !publicRecoveryRequired &&
@@ -849,8 +846,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         });
         phaseCalloutKind = "read-only";
         phaseCalloutLines = [
-          "The deposit is on-chain and waiting for ASP review before any private withdrawal can happen.",
-          ...warnings.map((flowWarning) => flowWarning.message),
+          "The public deposit is confirmed and waiting for ASP review before any private withdrawal can begin.",
         ];
         break;
       case "approved_waiting_privacy_delay":
@@ -878,7 +874,6 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         phaseCalloutKind = "privacy";
         phaseCalloutLines = [
           privacyDelayWaitingReason(data.snapshot),
-          ...warnings.map((flowWarning) => flowWarning.message),
         ];
         break;
       case "approved_ready_to_withdraw":
@@ -902,8 +897,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         phaseCalloutLines = publicRecoveryRequired
           ? [relayerMinimumRecoveryReason(data.snapshot)]
           : [
-              "The saved workflow is clear to request the relayed private withdrawal on the next flow watch run.",
-              ...warnings.map((flowWarning) => flowWarning.message),
+              "The saved workflow is clear to request its relayed private withdrawal on the next flow watch run.",
             ];
         break;
       case "withdrawing":
@@ -923,8 +917,8 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "read-only";
         phaseCalloutLines = [
-          "The relayed private withdrawal has been requested and is being reconciled.",
-          "Re-run flow watch to confirm the receipt if this workflow stays in-flight.",
+          "The relayed private withdrawal has been requested and is being reconciled on-chain.",
+          "Re-run flow watch to confirm the receipt if this workflow remains in-flight.",
         ];
         break;
       case "paused_declined":

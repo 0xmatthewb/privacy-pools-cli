@@ -169,6 +169,22 @@ export function printTable(
   headers: string[],
   rows: string[][]
 ): void {
+  const columns = process.stderr.columns ?? process.stdout.columns ?? 120;
+  const widthClass = columns <= 72 ? "narrow" : columns <= 90 ? "compact" : "wide";
+  const widths = headers.map((header, index) =>
+    rows.reduce(
+      (max, row) => Math.max(max, visibleWidth(row[index] ?? "")),
+      visibleWidth(header),
+    ),
+  );
+  const estimatedWidth =
+    widths.reduce((total, width) => total + width, 0) + (headers.length * 3) + 1;
+
+  if (rows.length > 0 && (widthClass === "narrow" || estimatedWidth > columns)) {
+    process.stderr.write(formatStackedTable(headers, rows));
+    return;
+  }
+
   const table = new Table({
     head: headers.map((h) => chalk.bold(h)),
     style: { head: [], border: [] },
@@ -200,6 +216,26 @@ export function printTable(
   }
 
   process.stderr.write(table.toString() + "\n");
+}
+
+function formatStackedTable(headers: string[], rows: string[][]): string {
+  return `${rows
+    .map((row) =>
+      headers
+        .map((header, index) =>
+          `  ${chalk.dim(header)}\n    ${row[index] && row[index].length > 0 ? row[index] : "-"}`
+        )
+        .join("\n"),
+    )
+    .join("\n\n")}\n`;
+}
+
+function visibleWidth(value: string): number {
+  return stripAnsiCodes(value).length;
+}
+
+function stripAnsiCodes(value: string): string {
+  return value.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
 }
 
 export function spinner(text: string, quiet: boolean = false) {

@@ -147,9 +147,10 @@ export function registerInitGenerateBackupTests(): void {
     const generatedMnemonic = readFileSync(join(home, ".mnemonic"), "utf8").trim();
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Save your recovery phrase securely.");
-    expect(stderr).toContain("This is the only time it will be displayed.");
-    expect(stderr).toContain(`Recovery phrase saved to ${backupPath}`);
+    expect(stderr).toContain("Save this recovery phrase now.");
+    expect(stderr).toContain("This is the only time the CLI will display it.");
+    expect(stderr).toContain("Recovery phrase saved");
+    expect(stderr).toContain(backupPath);
     expect(stderr).toContain("No signer key set");
     expect(readFileSync(join(home, "config.json"), "utf8")).toContain(
       '"defaultChain": "optimism"',
@@ -230,7 +231,7 @@ export function registerInitImportVisibleSecretTests(): void {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Signer key saved.");
-    expect(stderr).not.toContain("IMPORTANT: Save your recovery phrase securely");
+    expect(stderr).not.toContain("Save this recovery phrase now.");
     expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
       VALID_MNEMONIC,
     );

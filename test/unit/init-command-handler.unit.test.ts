@@ -497,8 +497,9 @@ describe("init command handler", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Save your recovery phrase securely.");
-    expect(stderr).toContain("This is the only time it will be displayed.");
+    expect(stderr).toContain("Save this recovery phrase now.");
+    expect(stderr).toContain("This is the only time the CLI will display it.");
+    expect(stderr).toContain("You skipped the backup confirmation step.");
     expect(stderr).toContain("No signer key set");
   });
 

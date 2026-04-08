@@ -24,6 +24,13 @@ enum SectionTone {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OutputWidthClass {
+    Wide,
+    Compact,
+    Narrow,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CalloutKind {
     Success,
     Warning,
@@ -394,6 +401,16 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
         }
     }
 
+    let terminal_columns = current_terminal_columns();
+    let width_class = output_width_class(terminal_columns);
+    if !rows.is_empty()
+        && (matches!(width_class, OutputWidthClass::Narrow)
+            || estimated_table_width(&widths) > terminal_columns)
+    {
+        print_stacked_table(&headers, &rows);
+        return;
+    }
+
     let chars = table_chars();
     let top = style_table_border(&table_border(chars.top_left, chars.top_mid, chars.top_right, &widths));
     let middle =
@@ -432,6 +449,31 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
     }
     output.push_str(&bottom);
     write_stderr_text(&output);
+}
+
+fn print_stacked_table(headers: &[String], rows: &[Vec<String>]) {
+    let mut output = String::new();
+    let label_width = headers.iter().map(|header| header.len() + 1).max().unwrap_or(0);
+
+    for (row_index, row) in rows.iter().enumerate() {
+        if row_index > 0 {
+            output.push('\n');
+        }
+        for (index, header) in headers.iter().enumerate() {
+            let value = row.get(index).cloned().unwrap_or_else(|| "-".to_string());
+            let label = format!("{header}:");
+            output.push_str("  ");
+            output.push_str(&styled_dim(&format!(
+                "{label:<label_width$}",
+                label_width = label_width
+            )));
+            output.push(' ');
+            output.push_str(&value);
+            output.push('\n');
+        }
+    }
+
+    write_stderr_text(output.trim_end());
 }
 
 pub fn write_info(message: &str) {
@@ -649,6 +691,10 @@ fn visible_width(value: &str) -> usize {
     strip_ansi_codes(value).chars().count()
 }
 
+fn estimated_table_width(widths: &[usize]) -> usize {
+    widths.iter().sum::<usize>() + widths.len() * 3 + 1
+}
+
 fn strip_ansi_codes(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     let mut chars = value.chars().peekable();
@@ -698,6 +744,25 @@ fn stream_supports_style(is_terminal: bool) -> bool {
 
 fn stderr_supports_animation() -> bool {
     io::stderr().is_terminal()
+}
+
+fn current_terminal_columns() -> usize {
+    env::var("PRIVACY_POOLS_CLI_PREVIEW_COLUMNS")
+        .ok()
+        .or_else(|| env::var("COLUMNS").ok())
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(120)
+}
+
+fn output_width_class(columns: usize) -> OutputWidthClass {
+    if columns <= 72 {
+        OutputWidthClass::Narrow
+    } else if columns <= 90 {
+        OutputWidthClass::Compact
+    } else {
+        OutputWidthClass::Wide
+    }
 }
 
 fn stderr_supports_unicode_animation() -> bool {

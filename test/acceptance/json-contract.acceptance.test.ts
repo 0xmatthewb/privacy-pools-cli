@@ -366,10 +366,10 @@ defineScenarioSuite("json-contract acceptance", [
         options: { agent: true },
       });
       expect(json.nextActions?.[0]?.reason).toContain(
-        "This workflow is intentionally waiting until",
+        "This workflow is holding until",
       );
       expect(json.nextActions?.[0]?.reason).toContain(
-        "before requesting the private withdrawal.",
+        "before requesting the relayed private withdrawal.",
       );
     }),
   ]),

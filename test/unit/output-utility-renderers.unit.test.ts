@@ -279,7 +279,7 @@ describe("renderSyncEmpty parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No pools found on sepolia");
+    expect(stderr).toContain("No synced Pool Accounts are available on sepolia yet.");
   });
 });
 
@@ -319,6 +319,20 @@ describe("renderSyncComplete parity", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Synced 2 pool(s) on mainnet");
     expect(stderr).toContain("Available Pool Accounts: 5");
+  });
+
+  test("human mode: falls back to zero instead of rendering undefined account counts", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderSyncComplete(ctx, {
+        chain: "mainnet",
+        syncedPools: 1,
+        availablePoolAccounts: undefined as unknown as number,
+      }),
+    );
+
+    expect(stderr).toContain("Available Pool Accounts: 0");
+    expect(stderr).not.toContain("undefined");
   });
 
   test("quiet mode: emits nothing", () => {

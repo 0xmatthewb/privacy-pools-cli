@@ -43,7 +43,7 @@ export function renderSyncEmpty(ctx: OutputContext, chain: string): void {
     return;
   }
 
-  info(`No pools found on ${chain}.`, isSilent(ctx));
+  info(`No synced Pool Accounts are available on ${chain} yet.`, isSilent(ctx));
 }
 
 /**
@@ -54,6 +54,14 @@ export function renderSyncComplete(
   result: SyncResult,
 ): void {
   guardCsvUnsupported(ctx, "sync");
+  const availablePoolAccounts = Number.isFinite(result.availablePoolAccounts)
+    ? result.availablePoolAccounts
+    : 0;
+  const previousAvailablePoolAccounts =
+    typeof result.previousAvailablePoolAccounts === "number" &&
+      Number.isFinite(result.previousAvailablePoolAccounts)
+      ? result.previousAvailablePoolAccounts
+      : undefined;
 
   const agentNextActions = [
     createNextAction("accounts", "Review synced Pool Accounts.", "after_sync", {
@@ -73,8 +81,8 @@ export function renderSyncComplete(
           chain: result.chain,
           syncedPools: result.syncedPools,
           syncedSymbols: result.syncedSymbols,
-          availablePoolAccounts: result.availablePoolAccounts,
-          previousAvailablePoolAccounts: result.previousAvailablePoolAccounts,
+          availablePoolAccounts,
+          previousAvailablePoolAccounts,
         },
         agentNextActions,
       ),
@@ -88,7 +96,7 @@ export function renderSyncComplete(
     silent,
   );
 
-  const delta = result.availablePoolAccounts - (result.previousAvailablePoolAccounts ?? result.availablePoolAccounts);
+  const delta = availablePoolAccounts - (previousAvailablePoolAccounts ?? availablePoolAccounts);
   if (delta > 0) {
     success(`Found ${delta} new Pool Account(s).`, silent);
   }
@@ -98,9 +106,9 @@ export function renderSyncComplete(
       formatKeyValueRows([
         { label: "Chain", value: result.chain },
         { label: "Synced pools", value: String(result.syncedPools) },
-        { label: "Available Pool Accounts", value: String(result.availablePoolAccounts) },
-        ...(result.previousAvailablePoolAccounts !== undefined
-          ? [{ label: "Previous available", value: String(result.previousAvailablePoolAccounts) }]
+        { label: "Available Pool Accounts", value: String(availablePoolAccounts) },
+        ...(previousAvailablePoolAccounts !== undefined
+          ? [{ label: "Previous available", value: String(previousAvailablePoolAccounts) }]
           : []),
         ...(delta > 0
           ? [{ label: "New Pool Accounts", value: String(delta), valueTone: "success" as const }]

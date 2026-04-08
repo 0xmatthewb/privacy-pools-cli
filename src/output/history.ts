@@ -46,7 +46,7 @@ export function renderHistoryNoPools(ctx: OutputContext, chain: string): void {
     printCsv(["Type", "PA", "Amount", "Tx", "Block"], []);
     return;
   }
-  info(`No pools found on ${chain}.`, isSilent(ctx));
+  info(`No history events are available on ${chain} yet.`, isSilent(ctx));
 }
 
 /**

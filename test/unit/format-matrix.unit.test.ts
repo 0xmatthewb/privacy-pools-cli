@@ -111,6 +111,39 @@ describe("format utils matrix", () => {
     expect(output).toContain("USDC");
   });
 
+  test("printTable falls back to stacked rows on narrow terminals", () => {
+    const logs: string[] = [];
+    const originalColumns = process.stderr.columns;
+    Object.defineProperty(process.stderr, "columns", {
+      configurable: true,
+      get: () => 72,
+    });
+    process.stderr.write = ((chunk: unknown) => {
+      logs.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    printTable(
+      ["Asset", "Balance"],
+      [
+        ["ETH", "1"],
+        ["USDC", "10"],
+      ],
+    );
+
+    if (originalColumns !== undefined) {
+      Object.defineProperty(process.stderr, "columns", {
+        configurable: true,
+        get: () => originalColumns,
+      });
+    }
+
+    const output = logs.join("");
+    expect(output).toContain("Asset");
+    expect(output).toContain("Balance");
+    expect(output).not.toContain("┌");
+  });
+
   test("success/warn/info/verbose formatting emits expected markers", () => {
     const logs: string[] = [];
     process.stderr.write = ((chunk: unknown) => {

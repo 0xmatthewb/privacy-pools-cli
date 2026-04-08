@@ -270,7 +270,7 @@ describe("renderAccountsNoPools parity", () => {
     ]);
   });
 
-  test("human mode: emits no-pools message", () => {
+  test("human mode: emits history-specific empty message", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, { chain: "sepolia" }));
 
@@ -644,7 +644,7 @@ describe("renderHistoryNoPools parity", () => {
     const { stdout, stderr } = captureOutput(() => renderHistoryNoPools(ctx, "sepolia"));
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No pools found on sepolia");
+    expect(stderr).toContain("No history events are available on sepolia yet.");
   });
 
   test("quiet mode: emits nothing", () => {
@@ -969,7 +969,7 @@ describe("renderPoolDetail parity", () => {
     expect(stderr).toContain("All-Time Deposits:");
     expect(stderr).toContain("Vetting Fee:");
     expect(stderr).toContain("Min Deposit:");
-    expect(stderr).toContain("My Funds:");
+    expect(stderr).toContain("Your funds:");
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Approved");
   });
@@ -1003,7 +1003,7 @@ describe("renderPoolDetail parity", () => {
     };
     const { stderr } = captureOutput(() => renderPoolDetail(ctx, data));
 
-    expect(stderr).toContain("My Funds:");
+    expect(stderr).toContain("Your funds:");
     expect(stderr).toContain("Some ASP review data was unavailable or incomplete.");
     expect(stderr).not.toContain("privacy-pools init");
   });
@@ -1012,7 +1012,7 @@ describe("renderPoolDetail parity", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderPoolDetail(ctx, STUB_POOL_DETAIL_DATA));
 
-    expect(stderr).toContain("Recent Activity:");
+    expect(stderr).toContain("Recent activity:");
     expect(stderr).toContain("Deposit");
     expect(stderr).toContain("1.0 ETH");
     expect(stderr).toContain("2h ago");

@@ -578,8 +578,8 @@ describe("renderFlowResult", () => {
     const json = parseCapturedJson(stdout);
     expect(json.nextActions).toHaveLength(1);
     expect(json.nextActions[0].command).toBe("flow watch");
-    expect(json.nextActions[0].reason).toContain("intentionally waiting until");
-    expect(json.nextActions[0].reason).toContain("before requesting the private withdrawal");
+    expect(json.nextActions[0].reason).toContain("holding until");
+    expect(json.nextActions[0].reason).toContain("before requesting the relayed private withdrawal");
   });
 
   test("human mode labels legacy off-delay snapshots and hides backup state for configured wallets", () => {

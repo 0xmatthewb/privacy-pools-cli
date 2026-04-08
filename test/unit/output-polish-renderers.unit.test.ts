@@ -22,6 +22,14 @@ import {
 } from "../../src/output/deposit.ts";
 import { formatRagequitReview } from "../../src/output/ragequit.ts";
 import { formatFlowStartReview } from "../../src/output/flow.ts";
+import {
+  renderGeneratedRecoveryPhraseReview,
+  renderInitBackupConfirmationReview,
+  renderInitBackupMethodReview,
+  renderInitBackupPathReview,
+  renderInitBackupSaved,
+  renderInitOverwriteReview,
+} from "../../src/output/init.ts";
 import { captureOutput, makeMode } from "../helpers/output.ts";
 
 describe("formatRelayedWithdrawalReview", () => {
@@ -180,6 +188,30 @@ describe("workflow wallet backup renderers", () => {
     expect(choice).toContain("Back up this generated wallet before funding it.");
     expect(path).toContain("Save workflow wallet backup");
     expect(path).toContain("live workflow-wallet private key");
+  });
+});
+
+describe("init recovery backup renderers", () => {
+  test("generated recovery phrase and backup confirmations use structured surfaces", () => {
+    const phrase = renderGeneratedRecoveryPhraseReview(
+      "test test test test test test test test test test test junk",
+    );
+    const method = renderInitBackupMethodReview();
+    const path = renderInitBackupPathReview("/tmp/privacy-pools-recovery.txt");
+    const saved = renderInitBackupSaved("/tmp/privacy-pools-recovery.txt");
+    const confirm = renderInitBackupConfirmationReview(
+      "file",
+      "/tmp/privacy-pools-recovery.txt",
+    );
+    const overwrite = renderInitOverwriteReview(true);
+
+    expect(phrase).toContain("Recovery phrase");
+    expect(phrase).toContain("only time the CLI will display it");
+    expect(method).toContain("Back up recovery phrase");
+    expect(path).toContain("Save recovery phrase backup");
+    expect(saved).toContain("Recovery phrase saved");
+    expect(confirm).toContain("Confirm recovery phrase backup");
+    expect(overwrite).toContain("Replace existing wallet setup");
   });
 });
 

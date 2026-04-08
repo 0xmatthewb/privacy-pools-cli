@@ -216,7 +216,7 @@ describe("read-only output renderers", () => {
         explorerUrl: "https://etherscan.io/tx/demo",
       }),
     ]);
-    expect(historyHuman.stderr).toContain("No pools found on mainnet.");
+    expect(historyHuman.stderr).toContain("No history events are available on mainnet yet.");
   });
 
   test("renderSyncComplete and renderSyncEmpty cover JSON and human branches", () => {
@@ -244,7 +244,7 @@ describe("read-only output renderers", () => {
         availablePoolAccounts: 4,
       }),
     );
-    expect(humanOutput.stderr).toContain("No pools found on mainnet.");
+    expect(humanOutput.stderr).toContain("No synced Pool Accounts are available on mainnet yet.");
   });
 
   test("renderMigrationStatus emits JSON flags and human website guidance", () => {

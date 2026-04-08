@@ -25,6 +25,7 @@ import {
   formatKeyValueRows,
   formatSectionHeading,
 } from "./layout.js";
+import { formatReviewSurface } from "./review.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -37,6 +38,117 @@ export interface InitRenderResult {
   mnemonic?: string;
   /** Warning message to include in JSON output (e.g. for agent recovery phrase capture). */
   warning?: string;
+}
+
+export function renderInitOverwriteReview(importingRecoveryPhrase: boolean): string {
+  return formatReviewSurface({
+    title: "Replace existing wallet setup",
+    summaryRows: [
+      {
+        label: "Current setup",
+        value: "will be replaced",
+        valueTone: "danger",
+      },
+      {
+        label: "Recovery phrase source",
+        value: importingRecoveryPhrase ? "Imported phrase" : "New generated phrase",
+      },
+    ],
+    primaryCallout: {
+      kind: "danger",
+      lines: importingRecoveryPhrase
+        ? [
+            "Reinitializing will replace your current recovery phrase with the one you provided and overwrite saved settings.",
+          ]
+        : [
+            "Reinitializing will replace your current recovery phrase and overwrite saved settings.",
+          ],
+    },
+  });
+}
+
+export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
+  return `${formatSectionHeading("Recovery phrase", {
+    divider: true,
+    padTop: false,
+  })}  ${mnemonic}\n${formatCallout("danger", [
+    "Save this recovery phrase now.",
+    "This is the only time the CLI will display it.",
+    "Anyone with this phrase can recover your deposited funds.",
+  ])}`;
+}
+
+export function renderInitBackupMethodReview(): string {
+  return formatReviewSurface({
+    title: "Back up recovery phrase",
+    summaryRows: [
+      { label: "What you are backing up", value: "Recovery phrase" },
+      { label: "Risk if lost", value: "Deposited funds cannot be recovered", valueTone: "danger" },
+    ],
+    primaryCallout: {
+      kind: "recovery",
+      lines: [
+        "Choose how you want to secure this phrase before continuing.",
+      ],
+    },
+  });
+}
+
+export function renderInitBackupPathReview(defaultPath: string): string {
+  return formatReviewSurface({
+    title: "Save recovery phrase backup",
+    summaryRows: [
+      { label: "Default path", value: defaultPath },
+      { label: "File contents", value: "Live recovery phrase", valueTone: "warning" },
+    ],
+    primaryCallout: {
+      kind: "danger",
+      lines: [
+        "Anyone who can read this file can recover your deposited funds.",
+        "Move it to a secure location and delete the original after transfer.",
+      ],
+    },
+  });
+}
+
+export function renderInitBackupSaved(backupPath: string): string {
+  return formatReviewSurface({
+    title: "Recovery phrase saved",
+    summaryRows: [
+      { label: "Saved to", value: backupPath },
+      { label: "Contains", value: "Live recovery phrase", valueTone: "warning" },
+    ],
+    primaryCallout: {
+      kind: "danger",
+      lines: [
+        "Move this file to a secure location now, then delete the original copy.",
+      ],
+    },
+  });
+}
+
+export function renderInitBackupConfirmationReview(
+  backupMode: "file" | "manual",
+  backupPath?: string | null,
+): string {
+  return formatReviewSurface({
+    title: "Confirm recovery phrase backup",
+    summaryRows: [
+      {
+        label: "Backup mode",
+        value: backupMode === "file" ? "Saved to file" : "Manual copy",
+      },
+      ...(backupMode === "file" && backupPath
+        ? [{ label: "Saved to", value: backupPath }]
+        : []),
+    ],
+    primaryCallout: {
+      kind: "danger",
+      lines: [
+        "Do not continue unless this recovery phrase is stored somewhere you trust.",
+      ],
+    },
+  });
 }
 
 /**
