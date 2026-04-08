@@ -23,6 +23,7 @@ import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderHistoryNoPools, renderHistory } from "../output/history.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 export interface HistoryEvent {
   type: "deposit" | "migration" | "withdrawal" | "ragequit";
@@ -346,6 +347,10 @@ export async function handleHistoryCommand(
   const limit = parsedLimit;
 
   try {
+    if (await maybeRenderPreviewScenario("history")) {
+      return;
+    }
+
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
     verbose(

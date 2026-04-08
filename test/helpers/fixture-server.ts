@@ -202,16 +202,23 @@ function poolStatsForChain(chainId: number): object[] {
     return [];
   }
 
+  const sampleWholeUnits = fixture.decimals === 6 ? 5_000_000n : 5n;
+  const sampleDepositsWholeUnits = fixture.decimals === 6 ? 10_000_000n : 10n;
+  const sampleAcceptedWholeUnits = fixture.decimals === 6 ? 8_000_000n : 8n;
+  const samplePendingWholeUnits = fixture.decimals === 6 ? 2_000_000n : 2n;
+  const scaleAmount = (wholeUnits: bigint) =>
+    (wholeUnits * 10n ** BigInt(fixture.decimals)).toString();
+
   return [{
     scope: fixture.scope.toString(),
     chainId: fixture.chainId,
     poolAddress: fixture.pool,
     tokenAddress: fixture.asset,
     tokenSymbol: fixture.symbol,
-    totalInPoolValue: "5000000000000000000",
-    totalDepositsValue: "10000000000000000000",
-    acceptedDepositsValue: "8000000000000000000",
-    pendingDepositsValue: "2000000000000000000",
+    totalInPoolValue: scaleAmount(sampleWholeUnits),
+    totalDepositsValue: scaleAmount(sampleDepositsWholeUnits),
+    acceptedDepositsValue: scaleAmount(sampleAcceptedWholeUnits),
+    pendingDepositsValue: scaleAmount(samplePendingWholeUnits),
     totalDepositsCount: 42,
     acceptedDepositsCount: 35,
     pendingDepositsCount: 7,

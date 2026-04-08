@@ -40,6 +40,7 @@ import {
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -356,6 +357,10 @@ export async function handleAccountsCommand(
   const silent = isSilent(outCtx);
 
   try {
+    if (await maybeRenderPreviewScenario("accounts")) {
+      return;
+    }
+
     if (opts.summary && opts.pendingOnly) {
       throw new CLIError(
         "Cannot specify both --summary and --pending-only.",

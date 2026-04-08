@@ -17,6 +17,7 @@ import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 export { createSyncCommand } from "../command-shells/sync.js";
 
@@ -31,6 +32,10 @@ export async function handleSyncCommand(
   const silent = isSilent(ctx);
 
   try {
+    if (await maybeRenderPreviewScenario("sync")) {
+      return;
+    }
+
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
 

@@ -41,6 +41,7 @@ import { success, warn, info } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { notice } from "../utils/theme.js";
 import { createOutputContext } from "../output/common.js";
 import { formatCallout } from "../output/layout.js";
@@ -568,6 +569,10 @@ export async function handleInitCommand(
           })),
         ],
       });
+    }
+
+    if (await maybeRenderPreviewScenario("init")) {
+      return;
     }
 
     // ── Phase 3: Atomic persistence (all writes together) ───────────

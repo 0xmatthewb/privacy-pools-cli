@@ -3,14 +3,11 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  FLOW_STATUS_PREVIEW_PHASES,
-  PREVIEW_CASES,
-  findPreviewCase,
-} from "./preview-cli-catalog.mjs";
+import { PREVIEW_CASES, findPreviewCase } from "./preview-cli-catalog.mjs";
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const NODE_BIN = process.execPath;
+const PYTHON_PTY_PROXY = join(ROOT_DIR, "scripts", "lib", "pty-proxy.py");
 const TEST_MNEMONIC = "test test test test test test test test test test test junk";
 const TEST_PRIVATE_KEY =
   "0x1111111111111111111111111111111111111111111111111111111111111111";
@@ -48,10 +45,6 @@ function writeBlock(writer, label, value) {
   }
 
   writer(value.endsWith("\n") ? value : `${value}\n`);
-}
-
-function formatCommand(args) {
-  return ["privacy-pools", ...args].join(" ");
 }
 
 function buildChildEnv(overrides = {}) {
@@ -444,10 +437,6 @@ function createFlowSnapshotForPhase(phase) {
   }
 }
 
-function formatSetupList(requiredSetup) {
-  return requiredSetup.join(", ");
-}
-
 function formatPreviewSectionTitle(plan) {
   return `${plan.journey} | ${plan.label} [${plan.owner} / ${plan.source}]`;
 }
@@ -456,7 +445,14 @@ function printCaseHeader(writer, plan) {
   writeLine(writer, "");
   writeLine(writer, `=== ${formatPreviewSectionTitle(plan)} ===`);
   writeLine(writer, `Case ID: ${plan.id}`);
+  writeLine(writer, `Surface: ${plan.surface}`);
+  writeLine(writer, `Runtime: ${plan.runtime}`);
+  writeLine(writer, `Execution: ${plan.executionKind}`);
+  writeLine(writer, `Expected exit: ${plan.expectedExitCodes.join(", ")}`);
+  writeLine(writer, `Modes: ${formatModeList(plan.modes)}`);
+  writeLine(writer, `Covers: ${formatCoverList(plan.covers)}`);
   writeLine(writer, `Setup: ${formatSetupList(plan.requiredSetup)}`);
+  writeLine(writer, `Synthetic: ${formatSyntheticReason(plan.syntheticReason)}`);
 }
 
 function buildFixtureEnv(fixture) {
@@ -504,139 +500,21 @@ export function resolvePreviewExecution(caseId) {
     throw new Error(`Unknown preview case: ${caseId}`);
   }
 
-  switch (caseId) {
-    case "welcome-banner":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "js",
-        commandLabel: "privacy-pools",
-        needsFixtureServer: false,
-      });
-    case "root-help":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "native",
-        commandLabel: "privacy-pools --help",
-        needsFixtureServer: false,
-      });
-    case "guide":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "native",
-        commandLabel: "privacy-pools guide",
-        needsFixtureServer: false,
-      });
-    case "capabilities":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "native",
-        commandLabel: "privacy-pools capabilities",
-        needsFixtureServer: false,
-      });
-    case "describe-withdraw-quote":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "native",
-        commandLabel: "privacy-pools describe withdraw quote",
-        needsFixtureServer: false,
-      });
-    case "init-configured-wallet":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "forwarded",
-        commandLabel:
-          "privacy-pools --no-banner init --recovery-phrase-file <mnemonic> --private-key-file <key> --default-chain sepolia --yes",
-        needsFixtureServer: false,
-      });
-    case "js-activity-global":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "js",
-        commandLabel: "privacy-pools --no-banner activity",
-        needsFixtureServer: true,
-      });
-    case "native-activity-global":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "native",
-        commandLabel: "privacy-pools --no-banner activity",
-        needsFixtureServer: true,
-      });
-    case "js-stats-global":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "js",
-        commandLabel: "privacy-pools --no-banner stats",
-        needsFixtureServer: true,
-      });
-    case "native-stats-global":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "native",
-        commandLabel: "privacy-pools --no-banner stats",
-        needsFixtureServer: true,
-      });
-    case "js-pools-list":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "js",
-        commandLabel: "privacy-pools --no-banner pools",
-        needsFixtureServer: true,
-      });
-    case "native-pools-list":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "native",
-        commandLabel: "privacy-pools --no-banner pools",
-        needsFixtureServer: true,
-      });
-    case "forwarded-pool-detail":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "forwarded",
-        commandLabel: "privacy-pools --no-banner --chain sepolia pools ETH",
-        needsFixtureServer: true,
-      });
-    case "forwarded-status-configured":
-      return createPlanEntry(previewCase, {
-        kind: "live-command",
-        runtime: "forwarded",
-        commandLabel: "privacy-pools --no-banner --chain sepolia status --no-check",
-        needsFixtureServer: true,
-      });
-    case "accounts-empty":
-    case "accounts-pending-empty":
-    case "accounts-populated":
-    case "deposit-dry-run":
-    case "deposit-success":
-    case "withdraw-quote":
-    case "withdraw-dry-run-relayed":
-    case "withdraw-success-relayed":
-    case "withdraw-dry-run-direct":
-    case "withdraw-success-direct":
-    case "ragequit-dry-run":
-    case "ragequit-success":
-    case "upgrade-check":
-      return createPlanEntry(previewCase, {
-        kind: "renderer-fixture",
-        fixtureCaseId: caseId,
-        commandLabel: `preview fixture: ${caseId}`,
-        needsFixtureServer: false,
-      });
-    default: {
-      if (caseId.startsWith("flow-status-")) {
-        return createPlanEntry(previewCase, {
-          kind: "live-command",
-          runtime: "forwarded",
-          commandLabel: "privacy-pools --no-banner flow status latest",
-          needsFixtureServer: false,
-          flowPhase: caseId.slice("flow-status-".length),
-        });
-      }
+  const execution = {
+    kind: previewCase.executionKind,
+    runtime: previewCase.runtime,
+    commandLabel: previewCase.preview.commandLabel,
+    needsFixtureServer: previewCase.preview.needsFixtureServer,
+    buildInvocation: previewCase.preview.buildInvocation,
+    fixtureCaseId: previewCase.preview.fixtureCaseId,
+    ttyScript: previewCase.preview.ttyScript,
+  };
 
-      throw new Error(`Preview case is missing an execution plan: ${caseId}`);
-    }
+  if (execution.kind !== "live-command" && execution.kind !== "renderer-fixture") {
+    throw new Error(`Preview case has an unsupported execution kind: ${caseId}`);
   }
+
+  return createPlanEntry(previewCase, execution);
 }
 
 export function planPreviewSuite(caseIds = null) {
@@ -676,12 +554,49 @@ export function parsePreviewArgs(argv = process.argv.slice(2)) {
 
 export function formatPreviewCaseList(caseIds = null) {
   const plans = planPreviewSuite(caseIds);
-  return plans
-    .map(
-      (plan) =>
-        `${plan.id} | ${plan.journey} | ${plan.owner} | ${plan.source} | ${formatSetupList(plan.requiredSetup)}`,
-    )
-    .join("\n");
+  const lines = [
+    "id | journey | surface | owner | runtime | execution | modes | source | covers | setup | synthetic",
+  ];
+  for (const plan of plans) {
+    lines.push(
+      [
+        plan.id,
+        plan.journey,
+        plan.surface,
+        plan.owner,
+        plan.runtime,
+        plan.executionKind,
+        formatModeList(plan.modes),
+        plan.source,
+        formatCoverList(plan.covers),
+        formatSetupList(plan.requiredSetup),
+        formatSyntheticReason(plan.syntheticReason),
+      ].join(" | "),
+    );
+  }
+  return lines.join("\n");
+}
+
+function formatModeList(modes) {
+  return Array.isArray(modes) && modes.length > 0 ? modes.join(", ") : "-";
+}
+
+function formatCoverList(covers) {
+  return Array.isArray(covers) && covers.length > 0 ? covers.join(", ") : "-";
+}
+
+function formatSetupList(requiredSetup) {
+  return Array.isArray(requiredSetup) && requiredSetup.length > 0
+    ? requiredSetup.join(", ")
+    : "-";
+}
+
+function formatSyntheticReason(syntheticReason) {
+  return syntheticReason ?? "-";
+}
+
+function exitCodeMatchesExpectation(exitCode, expectedExitCodes = [0]) {
+  return expectedExitCodes.includes(exitCode ?? -1);
 }
 
 function createRunContext(options = {}) {
@@ -710,190 +625,37 @@ async function ensureFixtureIfNeeded(context, plans) {
   context.fixtureEnv = buildFixtureEnv(context.fixture);
 }
 
-function buildLiveInvocation(plan, context) {
-  const { env: launcherEnv, skipReason } = launcherEnvForRuntime(
-    plan.execution.runtime,
-    context.nativeBinary,
-    context.nativeBinaryAvailable,
-  );
-
-  if (skipReason) {
-    return { skipReason };
+function buildPreviewInvocation(plan, context) {
+  if (plan.execution.kind === "renderer-fixture") {
+    return createPreviewInvocationFromCase(plan, context);
   }
 
-  switch (plan.id) {
-    case "welcome-banner":
-      return {
-        command: NODE_BIN,
-        args: ["--import", "tsx", "src/index.ts"],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv({
-          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
-        }),
-      };
-    case "root-help":
-      return {
-        command: NODE_BIN,
-        args: ["--import", "tsx", "src/index.ts", "--help"],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv(launcherEnv),
-      };
-    case "guide":
-      return {
-        command: NODE_BIN,
-        args: ["--import", "tsx", "src/index.ts", "guide"],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv(launcherEnv),
-      };
-    case "capabilities":
-      return {
-        command: NODE_BIN,
-        args: ["--import", "tsx", "src/index.ts", "--no-banner", "capabilities"],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv(launcherEnv),
-      };
-    case "describe-withdraw-quote":
-      return {
-        command: NODE_BIN,
-        args: ["--import", "tsx", "src/index.ts", "--no-banner", "describe", "withdraw", "quote"],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv(launcherEnv),
-      };
-    case "init-configured-wallet": {
-      const home = createHome("pp-preview-init-");
-      const { mnemonicPath, privateKeyPath } = writeSecretFiles(home);
-      return {
-        command: NODE_BIN,
-        args: [
-          "--import",
-          "tsx",
-          "src/index.ts",
-          "--no-banner",
-          "init",
-          "--recovery-phrase-file",
-          mnemonicPath,
-          "--private-key-file",
-          privateKeyPath,
-          "--default-chain",
-          "sepolia",
-          "--yes",
-        ],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv({
-          PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-          ...launcherEnv,
-        }),
-      };
-    }
-    case "js-activity-global":
-    case "native-activity-global":
-      return {
-        command: NODE_BIN,
-        args: ["--import", "tsx", "src/index.ts", "--no-banner", "activity"],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv({
-          ...context.fixtureEnv,
-          ...launcherEnv,
-        }),
-      };
-    case "js-stats-global":
-    case "native-stats-global":
-      return {
-        command: NODE_BIN,
-        args: ["--import", "tsx", "src/index.ts", "--no-banner", "stats"],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv({
-          ...context.fixtureEnv,
-          ...launcherEnv,
-        }),
-      };
-    case "js-pools-list":
-    case "native-pools-list":
-      return {
-        command: NODE_BIN,
-        args: ["--import", "tsx", "src/index.ts", "--no-banner", "pools"],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv({
-          ...context.fixtureEnv,
-          ...launcherEnv,
-        }),
-      };
-    case "forwarded-pool-detail":
-      return {
-        command: NODE_BIN,
-        args: [
-          "--import",
-          "tsx",
-          "src/index.ts",
-          "--no-banner",
-          "--chain",
-          "sepolia",
-          "pools",
-          "ETH",
-        ],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv({
-          ...context.fixtureEnv,
-          ...launcherEnv,
-        }),
-      };
-    case "forwarded-status-configured": {
-      const home = createHome("pp-preview-status-");
-      return {
-        command: NODE_BIN,
-        args: [
-          "--import",
-          "tsx",
-          "src/index.ts",
-          "--no-banner",
-          "--chain",
-          "sepolia",
-          "status",
-          "--no-check",
-        ],
-        displayCommand: plan.execution.commandLabel,
-        env: buildChildEnv({
-          PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-          ...context.fixtureEnv,
-          ...launcherEnv,
-        }),
-        prepare: async () => {
-          await runInitForConfiguredWallet(home, context.fixtureEnv);
-        },
-      };
-    }
-    default: {
-      if (plan.id.startsWith("flow-status-")) {
-        const phase = plan.execution.flowPhase;
-        if (!FLOW_STATUS_PREVIEW_PHASES.includes(phase)) {
-          throw new Error(`Unknown flow preview phase: ${phase}`);
-        }
-        const home = createHome(`pp-preview-${phase}-`);
-        return {
-          command: NODE_BIN,
-          args: [
-            "--import",
-            "tsx",
-            "src/index.ts",
-            "--no-banner",
-            "flow",
-            "status",
-            "latest",
-          ],
-          displayCommand: plan.execution.commandLabel,
-          env: buildChildEnv({
-            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-            ...launcherEnv,
-          }),
-          prepare: async () => {
-            writeFlowSnapshot(home, createFlowSnapshotForPhase(phase));
-          },
-        };
-      }
-
-      throw new Error(`Unhandled live preview case: ${plan.id}`);
-    }
+  const invocation = plan.execution.buildInvocation?.(context);
+  if (invocation) {
+    return {
+      ...invocation,
+      ttyScript: invocation.ttyScript ?? plan.execution.ttyScript,
+    };
   }
+
+  return {
+    skipReason: `Preview case is missing an invocation builder: ${plan.id}`,
+  };
+}
+
+function createPreviewInvocationFromCase(plan) {
+  return {
+    command: NODE_BIN,
+    args: [
+      "--import",
+      "tsx",
+      "scripts/preview-cli-render-fixture.mjs",
+      plan.execution.fixtureCaseId,
+    ],
+    displayCommand: plan.execution.commandLabel,
+    env: buildChildEnv(),
+    ttyScript: plan.execution.ttyScript,
+  };
 }
 
 function runChildCapture(command, args, env) {
@@ -914,29 +676,18 @@ function runChildCapture(command, args, env) {
   };
 }
 
+function includesPreviewMode(plan, mode) {
+  return Array.isArray(plan.modes) && plan.modes.includes(mode);
+}
+
+function filterPlansForMode(plans, mode) {
+  return plans.filter((plan) => includesPreviewMode(plan, mode));
+}
+
 async function executeCapturedCase(plan, context) {
   printCaseHeader(context.writeOut, plan);
 
-  if (plan.execution.kind === "renderer-fixture") {
-    const result = runNodeScriptSync(
-      "scripts/preview-cli-render-fixture.mjs",
-      [plan.execution.fixtureCaseId],
-      {},
-    );
-    writeLine(context.writeOut, `$ ${plan.execution.commandLabel}`);
-    writeLine(context.writeOut, `exit ${result.status ?? "null"}`);
-    writeBlock(context.writeOut, "--- stderr ---", result.stderr);
-    writeBlock(context.writeOut, "--- stdout ---", result.stdout);
-
-    if (result.status !== 0) {
-      context.failures.push(
-        `${plan.id} exited with ${result.status ?? "null"}${result.errorMessage ? ` (${result.errorMessage})` : ""}`,
-      );
-    }
-    return;
-  }
-
-  const invocation = buildLiveInvocation(plan, context);
+  const invocation = buildPreviewInvocation(plan, context);
   if (invocation.skipReason) {
     writeLine(context.writeOut, `Skipped: ${invocation.skipReason}`);
     return;
@@ -955,9 +706,9 @@ async function executeCapturedCase(plan, context) {
   writeBlock(context.writeOut, "--- stderr ---", result.stderr);
   writeBlock(context.writeOut, "--- stdout ---", result.stdout);
 
-  if (result.status !== 0) {
+  if (!exitCodeMatchesExpectation(result.status, plan.expectedExitCodes)) {
     context.failures.push(
-      `${plan.id} exited with ${result.status ?? "null"}${result.errorMessage ? ` (${result.errorMessage})` : ""}`,
+      `${plan.id} exited with ${result.status ?? "null"} (expected ${plan.expectedExitCodes.join(", ")})${result.errorMessage ? ` (${result.errorMessage})` : ""}`,
     );
   }
 }
@@ -1003,13 +754,79 @@ async function runCommandInPty(ptySpawn, invocation, writeOut) {
     if (!shouldUseScriptPtyFallback(error)) {
       throw error;
     }
-    return await runCommandInScriptPty(invocation, writeOut);
+    try {
+      return await runCommandInPythonPty(invocation, writeOut);
+    } catch (pythonError) {
+      if (invocation.ttyScript) {
+        throw pythonError;
+      }
+      return await runCommandInScriptPty(invocation, writeOut);
+    }
+  }
+}
+
+function normalizeTtyScript(script) {
+  if (!script) {
+    return null;
+  }
+
+  return {
+    timeoutMs: script.timeoutMs ?? 15_000,
+    finalPauseMs: script.finalPauseMs ?? 0,
+    steps: Array.isArray(script.steps) ? script.steps : [],
+  };
+}
+
+async function waitForTtyOutput(readOutput, pattern, timeoutMs, isDone) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (readOutput().includes(pattern)) {
+      return;
+    }
+    if (typeof isDone === "function" && isDone()) {
+      throw new Error(
+        `TTY preview command exited before the expected prompt appeared: ${pattern}`,
+      );
+    }
+    await wait(50);
+  }
+
+  throw new Error(`TTY preview script timed out waiting for: ${pattern}`);
+}
+
+async function driveTtyScript(io, ttyScript, readOutput, isDone) {
+  const script = normalizeTtyScript(ttyScript);
+  if (!script || script.steps.length === 0) {
+    return;
+  }
+
+  for (const step of script.steps) {
+    if (step.waitFor) {
+      await waitForTtyOutput(
+        readOutput,
+        step.waitFor,
+        script.timeoutMs,
+        isDone,
+      );
+    }
+    if (step.pauseMs) {
+      await wait(step.pauseMs);
+    }
+    if (step.send) {
+      io.write(step.send);
+    }
+  }
+
+  if (script.finalPauseMs > 0) {
+    await wait(script.finalPauseMs);
   }
 }
 
 async function runCommandInNodePty(ptySpawn, invocation, writeOut) {
   return await new Promise((resolvePromise, rejectPromise) => {
     let output = "";
+    let failed = false;
+    let exited = false;
     const shellInvocation = buildPtyShellInvocation(
       invocation.command,
       invocation.args,
@@ -1032,7 +849,25 @@ async function runCommandInNodePty(ptySpawn, invocation, writeOut) {
       output += chunk;
       writeOut(chunk);
     });
+    void driveTtyScript(
+      { write: (value) => proc.write(value) },
+      invocation.ttyScript,
+      () => output,
+      () => exited,
+    ).catch((error) => {
+      failed = true;
+      rejectPromise(error);
+      try {
+        proc.kill();
+      } catch {
+        // Best effort.
+      }
+    });
     proc.onExit(({ exitCode, signal }) => {
+      exited = true;
+      if (failed) {
+        return;
+      }
       resolvePromise({ exitCode, signal, output });
     });
     proc.on("error", rejectPromise);
@@ -1053,6 +888,65 @@ function sanitizeScriptPtyChunk(value) {
     .replace(/\^D/g, "");
 }
 
+async function runCommandInPythonPty(invocation, writeOut) {
+  const shellInvocation = buildPtyShellInvocation(
+    invocation.command,
+    invocation.args,
+  );
+  const payload = JSON.stringify({
+    command: shellInvocation.command,
+    args: shellInvocation.args,
+    cwd: ROOT_DIR,
+  });
+
+  return await new Promise((resolvePromise, rejectPromise) => {
+    let output = "";
+    let failed = false;
+    let exited = false;
+    const proc = spawn("python3", ["-u", PYTHON_PTY_PROXY, payload], {
+      cwd: ROOT_DIR,
+      env: invocation.env,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    void driveTtyScript(
+      {
+        write: (value) => {
+          proc.stdin?.write(value);
+        },
+      },
+      invocation.ttyScript,
+      () => output,
+      () => exited,
+    ).catch((error) => {
+      failed = true;
+      rejectPromise(error);
+      try {
+        proc.kill("SIGTERM");
+      } catch {
+        // Best effort.
+      }
+    });
+
+    const onChunk = (chunk) => {
+      const value = chunk.toString();
+      output += value;
+      writeOut(value);
+    };
+
+    proc.stdout?.on("data", onChunk);
+    proc.stderr?.on("data", onChunk);
+    proc.on("error", rejectPromise);
+    proc.on("exit", (exitCode, signal) => {
+      exited = true;
+      if (failed) {
+        return;
+      }
+      resolvePromise({ exitCode, signal, output });
+    });
+  });
+}
+
 async function runCommandInScriptPty(invocation, writeOut) {
   const shellInvocation = buildPtyShellInvocation(
     invocation.command,
@@ -1066,9 +960,29 @@ async function runCommandInScriptPty(invocation, writeOut) {
       {
         cwd: ROOT_DIR,
         env: invocation.env,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
       },
     );
+    let failed = false;
+    let exited = false;
+    void driveTtyScript(
+      {
+        write: (value) => {
+          proc.stdin?.write(value);
+        },
+      },
+      invocation.ttyScript,
+      () => output,
+      () => exited,
+    ).catch((error) => {
+      failed = true;
+      rejectPromise(error);
+      try {
+        proc.kill("SIGTERM");
+      } catch {
+        // Best effort.
+      }
+    });
 
     proc.stdout?.on("data", (chunk) => {
       const value = sanitizeScriptPtyChunk(chunk.toString());
@@ -1082,6 +996,10 @@ async function runCommandInScriptPty(invocation, writeOut) {
     });
     proc.on("error", rejectPromise);
     proc.on("exit", (exitCode, signal) => {
+      exited = true;
+      if (failed) {
+        return;
+      }
       resolvePromise({ exitCode, signal, output });
     });
   });
@@ -1090,28 +1008,13 @@ async function runCommandInScriptPty(invocation, writeOut) {
 async function executeTtyCase(plan, context, ptySpawn) {
   printCaseHeader(context.writeOut, plan);
 
-  let invocation;
-  if (plan.execution.kind === "renderer-fixture") {
-    invocation = {
-      command: NODE_BIN,
-      args: [
-        "--import",
-        "tsx",
-        "scripts/preview-cli-render-fixture.mjs",
-        plan.execution.fixtureCaseId,
-      ],
-      displayCommand: plan.execution.commandLabel,
-      env: buildChildEnv(),
-    };
-  } else {
-    invocation = buildLiveInvocation(plan, context);
-    if (invocation.skipReason) {
-      writeLine(context.writeOut, `Skipped: ${invocation.skipReason}`);
-      return;
-    }
-    if (invocation.prepare) {
-      await invocation.prepare();
-    }
+  const invocation = buildPreviewInvocation(plan, context);
+  if (invocation.skipReason) {
+    writeLine(context.writeOut, `Skipped: ${invocation.skipReason}`);
+    return;
+  }
+  if (invocation.prepare) {
+    await invocation.prepare();
   }
 
   writeLine(context.writeOut, `$ ${invocation.displayCommand}`);
@@ -1121,8 +1024,10 @@ async function executeTtyCase(plan, context, ptySpawn) {
   }
   writeLine(context.writeOut, `exit ${result.exitCode ?? "null"}`);
 
-  if (result.exitCode !== 0) {
-    context.failures.push(`${plan.id} exited with ${result.exitCode ?? "null"}`);
+  if (!exitCodeMatchesExpectation(result.exitCode, plan.expectedExitCodes)) {
+    context.failures.push(
+      `${plan.id} exited with ${result.exitCode ?? "null"} (expected ${plan.expectedExitCodes.join(", ")})`,
+    );
   }
 }
 
@@ -1147,7 +1052,10 @@ async function printSuiteIntro(context, plans, mode) {
 
 export async function runCapturedPreviewSuite(options = {}) {
   const context = createRunContext(options);
-  const plans = planPreviewSuite(options.caseIds ?? null);
+  const plans = filterPlansForMode(
+    planPreviewSuite(options.caseIds ?? null),
+    "captured",
+  );
 
   if (options.dryRun) {
     return {
@@ -1206,7 +1114,10 @@ export async function runTtyPreviewSuite(options = {}) {
     };
   }
 
-  const plans = planPreviewSuite(options.caseIds ?? null);
+  const plans = filterPlansForMode(
+    planPreviewSuite(options.caseIds ?? null),
+    "tty",
+  );
   if (options.dryRun) {
     return {
       dryRun: true,

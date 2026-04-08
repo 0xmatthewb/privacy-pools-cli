@@ -13,6 +13,7 @@ import { CLIError, printError } from "../utils/errors.js";
 import { info } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { validateAddress } from "../utils/validation.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 interface FlowStartCommandOptions {
   to?: string;
@@ -100,6 +101,10 @@ export async function handleFlowStartCommand(
       );
     }
 
+    if (await maybeRenderPreviewScenario("flow start")) {
+      return;
+    }
+
     if (!opts.newWallet && opts.exportNewWallet?.trim()) {
       throw new CLIError(
         "--export-new-wallet requires --new-wallet.",
@@ -144,6 +149,10 @@ export async function handleFlowRagequitCommand(
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
+    if (await maybeRenderPreviewScenario("flow ragequit")) {
+      return;
+    }
+
     const snapshot = await ragequitWorkflow({
       workflowId,
       globalOpts,
@@ -174,6 +183,10 @@ export async function handleFlowWatchCommand(
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
+    if (await maybeRenderPreviewScenario("flow watch")) {
+      return;
+    }
+
     const snapshot = await watchWorkflow({
       workflowId,
       privacyDelayProfile: opts.privacyDelay,
@@ -221,6 +234,10 @@ export async function handleFlowStatusCommand(
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
+    if (await maybeRenderPreviewScenario("flow status")) {
+      return;
+    }
+
     const snapshot = getWorkflowStatus({ workflowId });
     renderFlowResult(ctx, {
       action: "status",

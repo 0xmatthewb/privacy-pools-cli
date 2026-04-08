@@ -13,6 +13,7 @@ import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import { renderActivity } from "../output/activity.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import {
   normalizeActivityEvent,
   parseNumberish as parseNumberishValue,
@@ -56,6 +57,10 @@ export async function handleActivityCommand(
   const silent = isQuiet || isJson;
 
   try {
+    if (await maybeRenderPreviewScenario("activity")) {
+      return;
+    }
+
     const page = parsePositiveInt(opts.page, "page");
     const perPage = parsePositiveInt(opts.limit, "limit");
     const explicitChain = globalOpts?.chain;

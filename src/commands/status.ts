@@ -19,6 +19,7 @@ import { renderStatus } from "../output/status.js";
 import type { StatusCheckResult } from "../output/status.js";
 import { createCliPackageInfoResolver } from "../package-info.js";
 import { detectNativeRuntimeAdvisory } from "../native-runtime-advisory.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 const resolveCliPackageInfo = createCliPackageInfoResolver(import.meta.url);
 
@@ -40,6 +41,10 @@ export async function handleStatusCommand(
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
+    if (await maybeRenderPreviewScenario("status")) {
+      return;
+    }
+
     const configReady = configExists();
     const config = configReady ? loadConfig() : null;
     const hasMnemonic = mnemonicExists();

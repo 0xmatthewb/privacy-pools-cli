@@ -43,6 +43,7 @@ import {
   SUPPORTED_SORT_MODES,
   type PoolsSortMode,
 } from "../utils/pools-sort.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import {
   renderPoolsEmpty,
@@ -242,6 +243,10 @@ export async function handlePoolsCommand(
   const ctx = createOutputContext(mode);
   const silent = isSilent(ctx);
   const isVerbose = globalOpts?.verbose ?? false;
+
+  if (await maybeRenderPreviewScenario("pools")) {
+    return;
+  }
 
   // ── Detail view: `pools <asset>` ──────────────────────────────────
   if (asset) {

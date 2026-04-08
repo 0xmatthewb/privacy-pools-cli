@@ -68,6 +68,7 @@ import {
   getNextPoolAccountNumber,
   poolAccountId,
 } from "../utils/pool-accounts.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -122,6 +123,10 @@ export async function handleDepositCommand(
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
       );
+    }
+
+    if (await maybeRenderPreviewScenario("deposit")) {
+      return;
     }
 
     const config = loadConfig();

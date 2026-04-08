@@ -78,6 +78,7 @@ import { explorerTxUrl, isNativePoolAsset, POA_PORTAL_URL } from "../config/chai
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions, PoolStats, RelayerQuoteResponse } from "../types.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import {
@@ -340,6 +341,10 @@ export async function handleWithdrawCommand(
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
       );
+    }
+
+    if (await maybeRenderPreviewScenario("withdraw")) {
+      return;
     }
 
     const config = loadConfig();
@@ -1707,6 +1712,10 @@ export async function handleWithdrawQuoteCommand(
   const effectiveTo = (opts.to ?? withdrawOpts?.to) as string | undefined;
 
   try {
+    if (await maybeRenderPreviewScenario("withdraw quote")) {
+      return;
+    }
+
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
     verbose(

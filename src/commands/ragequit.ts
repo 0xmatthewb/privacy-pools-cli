@@ -78,6 +78,7 @@ import {
   formatPoolAccountStatus,
   type AspApprovalStatus,
 } from "../utils/statuses.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 const poolDepositorAbi = [
   {
@@ -297,6 +298,10 @@ export async function handleRagequitCommand(
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
       );
+    }
+
+    if (await maybeRenderPreviewScenario("ragequit")) {
+      return;
     }
 
     const config = loadConfig();

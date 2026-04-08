@@ -10,7 +10,7 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
 
-  renderPreviewFixture(caseId);
+  await renderPreviewFixture(caseId);
 }
 
 if (import.meta.main) {

@@ -38,6 +38,7 @@ import {
   toPoolInfo,
   withSuppressedSdkStdout,
 } from "../services/account.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 interface MigrateStatusCommandOptions {
   allChains?: boolean;
@@ -281,6 +282,10 @@ export async function handleMigrateStatusCommand(
   let spin: ReturnType<typeof spinner> | undefined;
 
   try {
+    if (await maybeRenderPreviewScenario("migrate status")) {
+      return;
+    }
+
     const config = loadConfig();
     const explicitChain = globalOpts?.chain;
     const useMultiChain = opts.allChains || !explicitChain;

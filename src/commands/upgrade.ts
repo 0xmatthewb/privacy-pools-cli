@@ -10,6 +10,7 @@ import {
 import type { GlobalOptions } from "../types.js";
 import { printError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 
 interface UpgradeCommandOptions {
   check?: boolean;
@@ -28,6 +29,10 @@ export async function handleUpgradeCommand(
     !mode.isCsv;
 
   try {
+    if (await maybeRenderPreviewScenario("upgrade")) {
+      return;
+    }
+
     const pkg = readCliPackageInfo(import.meta.url);
     let result = shouldShowProgress
       ? await (async () => {
