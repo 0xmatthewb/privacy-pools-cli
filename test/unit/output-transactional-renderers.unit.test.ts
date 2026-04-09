@@ -305,6 +305,15 @@ describe("renderDepositSuccess parity", () => {
       "When it disappears, re-run privacy-pools accounts --chain sepolia",
     );
     expect(stderr).toContain("privacy-pools ragequit ETH --chain sepolia --from-pa PA-1");
+    expect(stderr).toContain("Welcome to the pool.");
+  });
+
+  test("human mode: omits first-deposit celebration when poolAccountNumber > 1", () => {
+    const ctx = createOutputContext(makeMode());
+    const data = { ...STUB_DEPOSIT_SUCCESS, poolAccountNumber: 3, poolAccountId: "PA-3" };
+    const { stderr } = captureOutput(() => renderDepositSuccess(ctx, data));
+
+    expect(stderr).not.toContain("Welcome to the pool");
   });
 
   test("human mode: omits Net deposited when committedValue is undefined", () => {

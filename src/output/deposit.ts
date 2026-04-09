@@ -6,6 +6,7 @@
  * command handler.
  */
 
+import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -316,6 +317,9 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         url: data.explorerUrl,
       }),
     );
+    if (data.poolAccountNumber === 1) {
+      process.stderr.write(`  ${chalk.dim("Welcome to the pool.")}\n`);
+    }
     const summaryRows = [
       { label: "Chain", value: data.chain },
       { label: "Pool Account", value: data.poolAccountId },
