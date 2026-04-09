@@ -36,7 +36,7 @@ printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-ph
 | `--force` | Overwrite existing configuration without prompting |
 
 **Safety:** The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
-**Safety:** Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
+**Safety:** Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.
 **Safety:** Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
 
 **JSON output:** `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
@@ -104,7 +104,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
 | `--watch` | Keep watching this workflow until it finishes or pauses |
 
-**Safety:** The deposit is still public and reviewed by the ASP before private withdrawal is possible.
+**Safety:** Deposits are always public on-chain. The ASP reviews the deposit before private withdrawal is possible.
 **Safety:** If --to is omitted in interactive mode, the CLI prompts for the recipient. In machine modes, --to remains required.
 **Safety:** In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.
 **Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
@@ -375,7 +375,7 @@ privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `-a, --asset <symbol\|address>` | Asset to quote |
-| `-t, --to <address>` | Recipient address (recommended for signed fee commitment) |
+| `-t, --to <address>` | Recipient address (recommended for an accurate fee quote) |
 
 **JSON output:** `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 

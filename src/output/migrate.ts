@@ -67,15 +67,15 @@ export interface MigrationRenderData {
 function statusSummaryLine(status: MigrationStatusSummary): string {
   switch (status) {
     case "migration_required":
-      return "Legacy website migration is still required on at least one chain.";
+      return "Some deposits need to be migrated on at least one chain. Visit privacypools.com to migrate.";
     case "website_recovery_required":
       return "Legacy declined deposits were found. Review the Privacy Pools website for website-based public recovery.";
     case "fully_migrated":
-      return "Legacy pre-upgrade commitments were found, but all migratable commitments already appear migrated.";
+      return "All older deposits have already been migrated. No action needed.";
     case "review_incomplete":
       return "Migration readiness is incomplete because some legacy ASP review data could not be confirmed.";
     case "no_legacy":
-      return "No legacy pre-upgrade commitments were detected.";
+      return "No deposits requiring migration were found.";
   }
 }
 
@@ -191,7 +191,7 @@ export function renderMigrationStatus(
   for (const entry of result.chainReadiness) {
     if (entry.scopes.length === 0) continue;
     info(
-      `${entry.chain} scopes: ${entry.scopes.join(", ")}`,
+      `${entry.chain} pools: ${entry.scopes.join(", ")}`,
       silent,
     );
   }

@@ -94,7 +94,7 @@ describe("renderActivity pool-activity parity", () => {
     expect(stderr).toContain("Approved");
   });
 
-  test("missing withdrawal review status is normalized to approved", () => {
+  test("missing withdrawal review status is normalized to Completed", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: ActivityRenderData = {
       ...STUB_POOL_ACTIVITY,
@@ -107,7 +107,7 @@ describe("renderActivity pool-activity parity", () => {
 
     const { stdout } = captureOutput(() => renderActivity(ctx, data));
     const json = JSON.parse(stdout.trim());
-    expect(json.events[0].reviewStatus).toBe("approved");
+    expect(json.events[0].reviewStatus).toBe("Completed");
   });
 
   test("human mode: shows 'No activity found' for empty events", () => {

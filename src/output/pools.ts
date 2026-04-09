@@ -244,7 +244,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   process.stderr.write(formatSectionHeading("Summary", { divider: true }));
   process.stderr.write(
     formatKeyValueRows([
-      { label: "Scope", value: allChains ? "all supported chains" : chainName },
+      { label: "Chain", value: allChains ? "all supported chains" : chainName },
       { label: "Matched pools", value: String(filteredPools.length) },
       { label: "Sort", value: sort },
       ...(search ? [{ label: "Search", value: search }] : []),

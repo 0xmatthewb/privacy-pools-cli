@@ -15,6 +15,7 @@ import {
   directionDeposit,
   directionRecovery,
   directionWithdraw,
+  successTone,
 } from "../utils/theme.js";
 import { explorerTxUrl } from "../config/chains.js";
 import {
@@ -79,6 +80,28 @@ function toIsoTimestamp(timestampMs: number | null): string | null {
   return timestampMs === null ? null : new Date(timestampMs).toISOString();
 }
 
+/** Completed withdrawals, ragequits, and migrations show "Completed" instead of "Approved". */
+function isCompletedEventType(type: string): boolean {
+  const t = type.trim().toLowerCase();
+  return t.includes("withdraw") || t.includes("ragequit") || t.includes("recovery") || t === "migration" || t === "exit";
+}
+
+function renderActivityStatus(type: string, reviewStatus: string | null): string {
+  const normalized = normalizePublicEventReviewStatus(type, reviewStatus);
+  if (isCompletedEventType(type) && normalized === "approved") {
+    return successTone("Completed");
+  }
+  return renderAspApprovalStatus(normalized, { preserveInput: true });
+}
+
+function formatActivityStatusPlain(type: string, reviewStatus: string | null): string {
+  const normalized = normalizePublicEventReviewStatus(type, reviewStatus);
+  if (isCompletedEventType(type) && normalized === "approved") {
+    return "Completed";
+  }
+  return normalized;
+}
+
 function renderActivityType(type: string): string {
   const normalized = type.trim().toLowerCase();
   if (normalized.includes("deposit")) {
@@ -127,7 +150,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
         type: e.type,
         txHash: e.txHash,
         explorerUrl: e.txHash && e.chainId !== null ? explorerTxUrl(e.chainId, e.txHash) : null,
-        reviewStatus: normalizePublicEventReviewStatus(e.type, e.reviewStatus),
+        reviewStatus: formatActivityStatusPlain(e.type, e.reviewStatus),
         amountRaw: e.amountRaw,
         amountFormatted: e.amountFormatted,
         poolSymbol: e.poolSymbol,
@@ -156,7 +179,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
         e.type,
         eventPoolLabel(e),
         e.amountFormatted,
-        normalizePublicEventReviewStatus(e.type, e.reviewStatus),
+        formatActivityStatusPlain(e.type, e.reviewStatus),
         e.timeLabel,
         e.txHash ? formatAddress(e.txHash, 8) : "-",
       ]),
@@ -178,7 +201,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   process.stderr.write(
     formatKeyValueRows([
       { label: "Mode", value: data.mode },
-      { label: "Scope", value: chainLabel },
+      { label: "Chain", value: chainLabel },
       { label: "Page", value: String(data.page) },
       { label: "Results", value: String(data.events.length) },
       ...(data.total !== null ? [{ label: "Total events", value: String(data.total) }] : []),
@@ -202,7 +225,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
           { label: "Pool", value: eventPoolLabel(event) },
           {
             label: "Status",
-            value: normalizePublicEventReviewStatus(event.type, event.reviewStatus),
+            value: formatActivityStatusPlain(event.type, event.reviewStatus),
           },
           { label: "Time", value: event.timeLabel },
           { label: "Tx", value: event.txHash ? formatAddress(event.txHash, 8) : "-" },
@@ -224,16 +247,12 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   printTable(
     ["Type", "Pool", "Amount", "Status", "Time", "Tx"],
       data.events.map((e) => [
-        // Mirror the website: withdrawals and ragequits are treated as approved,
-        // and missing deposit review status defaults to pending.
-        // This avoids blank status cells when the ASP omits reviewStatus.
+        // Completed withdrawals, ragequits, and migrations show "Completed".
+        // Missing deposit review status defaults to pending.
         renderActivityType(e.type),
         eventPoolLabel(e),
         e.amountFormatted,
-        renderAspApprovalStatus(
-        normalizePublicEventReviewStatus(e.type, e.reviewStatus),
-        { preserveInput: true },
-      ),
+        renderActivityStatus(e.type, e.reviewStatus),
       e.timeLabel,
       e.txHash ? formatAddress(e.txHash, 8) : "-",
     ]),

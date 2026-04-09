@@ -405,7 +405,7 @@ function buildFlowRail(snapshot: FlowSnapshot, action: FlowRenderData["action"])
             : snapshot.phase === "approved_ready_to_withdraw"
               ? "Ready for the relayed private withdrawal."
               : snapshot.phase === "withdrawing"
-                ? "Withdrawal is being submitted or reconciled."
+                ? "Withdrawal is being submitted or confirmed."
                 : undefined,
   );
 
@@ -1011,7 +1011,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "read-only";
         phaseCalloutLines = [
-          "The public deposit is being submitted or reconciled into the saved workflow.",
+          "The public deposit is being submitted or confirmed in the saved workflow.",
           "Re-run flow watch to keep this workflow moving once the deposit is visible.",
         ];
         break;
@@ -1100,7 +1100,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "read-only";
         phaseCalloutLines = [
-          "The relayed private withdrawal has been requested and is being reconciled on-chain.",
+          "The relayed private withdrawal has been requested and is being confirmed on-chain.",
           "Re-run flow watch to confirm the receipt if this workflow remains in-flight.",
         ];
         break;

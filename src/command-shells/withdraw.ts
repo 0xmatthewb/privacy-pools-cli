@@ -63,7 +63,7 @@ export function createWithdrawCommand(): Command {
     .option("-a, --asset <symbol|address>", "Asset to quote")
     .option(
       "-t, --to <address>",
-      "Recipient address (recommended for signed fee commitment)",
+      "Recipient address (recommended for an accurate fee quote)",
     )
     .addHelpText("after", commandHelpText(quoteMetadata.help ?? {}))
     .action(

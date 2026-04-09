@@ -173,7 +173,7 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
       formatKeyValueRows([
-        { label: "Scope", value: data.chain },
+        { label: "Chain", value: data.chain },
         ...(data.cacheTimestamp
           ? [{ label: "Cache timestamp", value: data.cacheTimestamp }]
           : []),

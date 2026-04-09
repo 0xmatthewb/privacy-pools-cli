@@ -77,7 +77,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       safetyNotes: [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
-        "Newly generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.",
+        "Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.",
         "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.",
       ],
       agentWorkflowNotes: [
