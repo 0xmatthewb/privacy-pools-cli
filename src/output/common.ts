@@ -20,6 +20,7 @@ import {
 import { CLIError } from "../utils/errors.js";
 import { accent } from "../utils/theme.js";
 import { formatSectionHeading } from "./layout.js";
+import { glyph } from "../utils/symbols.js";
 
 // ── Re-exports so renderers only need one import ─────────────────────────────
 
@@ -216,7 +217,7 @@ export function renderNextSteps(
   );
   for (const action of runnable) {
     const cmd = formatNextActionCommand(action);
-    process.stderr.write(`  ${accent(cmd)}\n`);
-    process.stderr.write(`  ${chalk.dim(action.reason)}\n`);
+    process.stderr.write(`  ${chalk.dim(glyph("next"))} ${accent(cmd)}\n`);
+    process.stderr.write(`    ${chalk.dim(action.reason)}\n`);
   }
 }

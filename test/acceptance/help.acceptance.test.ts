@@ -13,6 +13,7 @@ import {
 
 const BANNER_SENTINEL =
   ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
+const COMPACT_BANNER_SENTINEL = "PRIVACY POOLS";
 
 defineScenarioSuite("help acceptance", [
   defineScenario("root help stays on stdout and exposes the core surface", [
@@ -78,7 +79,9 @@ defineScenarioSuite("help acceptance", [
       expect(stdout).toContain("For large transactions, use privacypools.com.");
     }),
     assertStderr((stderr) => {
-      expect(stderr).toContain(BANNER_SENTINEL);
+      expect(
+        stderr.includes(BANNER_SENTINEL) || stderr.includes(COMPACT_BANNER_SENTINEL),
+      ).toBe(true);
       expect(stderr).toContain("A compliant way to transact privately on Ethereum.");
     }),
     runCliStep([]),
@@ -88,6 +91,7 @@ defineScenarioSuite("help acceptance", [
     }),
     assertStderr((stderr) => {
       expect(stderr).not.toContain(BANNER_SENTINEL);
+      expect(stderr).not.toContain(COMPACT_BANNER_SENTINEL);
     }),
   ]),
   defineScenario("unknown commands fail on stderr with the documented input exit code", [

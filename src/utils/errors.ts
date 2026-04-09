@@ -4,6 +4,14 @@ import { wordlist as bip39EnglishWordlist } from "@scure/bip39/wordlists/english
 import { dangerTone, notice } from "./theme.js";
 import { printJsonError } from "./json.js";
 import { isTransientNetworkError } from "./network.js";
+import {
+  getTerminalColumns,
+  padDisplay,
+  supportsUnicodeOutput,
+  visibleWidth,
+  wrapDisplayText,
+} from "./terminal.js";
+import { glyph } from "./symbols.js";
 
 export type ErrorCategory =
   | "INPUT"
@@ -13,6 +21,8 @@ export type ErrorCategory =
   | "PROOF"
   | "CONTRACT"
   | "UNKNOWN";
+
+export type ErrorPresentation = "inline" | "boxed";
 
 export const EXIT_CODES: Record<ErrorCategory, number> = {
   UNKNOWN: 1,
@@ -192,11 +202,49 @@ export class CLIError extends Error {
     public readonly category: ErrorCategory,
     public readonly hint?: string,
     public readonly code: string = defaultErrorCode(category),
-    public readonly retryable: boolean = false
+    public readonly retryable: boolean = false,
+    public readonly presentation: ErrorPresentation = defaultErrorPresentation(category),
   ) {
     super(message);
     this.name = "CLIError";
   }
+}
+
+function defaultErrorPresentation(category: ErrorCategory): ErrorPresentation {
+  switch (category) {
+    case "INPUT":
+    case "RPC":
+    case "ASP":
+      return "inline";
+    default:
+      return "boxed";
+  }
+}
+
+function renderBoxedError(error: CLIError): string {
+  const width = Math.max(30, getTerminalColumns() - 4);
+  const vertical = supportsUnicodeOutput() ? "│" : "|";
+  const horizontal = supportsUnicodeOutput() ? "─" : "-";
+  const topLeft = supportsUnicodeOutput() ? "╭" : "+";
+  const topRight = supportsUnicodeOutput() ? "╮" : "+";
+  const bottomLeft = supportsUnicodeOutput() ? "╰" : "+";
+  const bottomRight = supportsUnicodeOutput() ? "╯" : "+";
+  const heading = chalk.bold(
+    `${dangerTone(`${glyph("failure")} Error [${error.category}]`)}: ${error.message}`,
+  );
+  const body = [
+    ...wrapDisplayText(heading, width),
+    ...(error.hint
+      ? wrapDisplayText(notice(`Hint: ${error.hint}`), width)
+      : []),
+  ];
+  const contentWidth = Math.max(...body.map((line) => visibleWidth(line)), 24);
+  const top = `${topLeft}${horizontal.repeat(contentWidth + 2)}${topRight}`;
+  const bottom = `${bottomLeft}${horizontal.repeat(contentWidth + 2)}${bottomRight}`;
+  const middle = body
+    .map((line) => `${vertical} ${padDisplay(line, contentWidth)} ${vertical}`)
+    .join("\n");
+  return `\n${top}\n${middle}\n${bottom}\n`;
 }
 
 export function accountMigrationRequiredError(
@@ -493,9 +541,13 @@ export function printError(error: unknown, json: boolean = false): void {
       false
     );
   } else if (!argvRequestsQuiet()) {
-    process.stderr.write(dangerTone(`Error [${classified.category}]: ${classified.message}`) + "\n");
-    if (classified.hint) {
-      process.stderr.write(notice(`Hint: ${classified.hint}`) + "\n");
+    if (classified.presentation === "boxed") {
+      process.stderr.write(renderBoxedError(classified));
+    } else {
+      process.stderr.write(dangerTone(`Error [${classified.category}]: ${classified.message}`) + "\n");
+      if (classified.hint) {
+        process.stderr.write(notice(`Hint: ${classified.hint}`) + "\n");
+      }
     }
   }
 

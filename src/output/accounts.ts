@@ -30,6 +30,7 @@ import { accentBold } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import { explorerTxUrl, isMultiChainScope, POA_PORTAL_URL } from "../config/chains.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
+import { formatCallout } from "./layout.js";
 import {
   isActivePoolAccountStatus,
   renderAspApprovalStatus,
@@ -74,6 +75,12 @@ export interface AccountsEmptyRenderData {
   warnings?: AccountWarning[];
   summary?: boolean;
   pendingOnly?: boolean;
+  emptyReason:
+    | "first_deposit"
+    | "other_chain_activity"
+    | "no_pending_left"
+    | "restore_check_recommended";
+  otherChains?: string[];
 }
 
 interface JsonAccountRow {
@@ -280,6 +287,105 @@ function buildEmptyAccountsNextActions(
       { options: scopeOptions },
     ),
   ];
+}
+
+function buildEmptyAccountsHumanNextActions(
+  meta: AccountsRootMeta,
+  data: AccountsEmptyRenderData,
+) {
+  if (data.pendingOnly) {
+    return buildEmptyAccountsNextActions(meta, {
+      summary: data.summary,
+      pendingOnly: data.pendingOnly,
+    });
+  }
+
+  if (data.emptyReason === "other_chain_activity") {
+    const singleOtherChain = data.otherChains?.length === 1
+      ? data.otherChains[0]
+      : undefined;
+    return [
+      createNextAction(
+        "accounts",
+        singleOtherChain
+          ? `Open the saved deposit state detected on ${singleOtherChain}.`
+          : "Open the multi-chain dashboard to inspect the saved deposit state found on other chains.",
+        "accounts_other_chain_activity",
+        singleOtherChain
+          ? { options: { chain: singleOtherChain } }
+          : { options: { allChains: true } },
+      ),
+    ];
+  }
+
+  if (data.emptyReason === "restore_check_recommended") {
+    return [
+      createNextAction(
+        "migrate status",
+        "Check whether this recovery phrase has legacy migration or website-recovery history before assuming the wallet is empty.",
+        "accounts_restore_check",
+        { options: { allChains: true } },
+      ),
+      ...buildEmptyAccountsNextActions(meta, {
+        summary: data.summary,
+        pendingOnly: data.pendingOnly,
+      }),
+    ];
+  }
+
+  return buildEmptyAccountsNextActions(meta, {
+    summary: data.summary,
+    pendingOnly: data.pendingOnly,
+  });
+}
+
+function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
+  const scopeLabel = isMultiChain(data)
+    ? data.allChains
+      ? "all chains"
+      : "mainnet chains"
+    : data.chain;
+
+  switch (data.emptyReason) {
+    case "no_pending_left":
+      return formatCallout(
+        "success",
+        [
+          `No pending Pool Accounts are left on ${scopeLabel}.`,
+          isMultiChain(data)
+            ? `Re-run ${data.allChains ? "privacy-pools accounts --all-chains" : "privacy-pools accounts"} without --pending-only to confirm approved, declined, or Proof of Association results.`
+            : `Re-run privacy-pools accounts --chain ${data.chain} without --pending-only to review the final outcome.`,
+        ],
+      );
+    case "other_chain_activity":
+      return formatCallout(
+        "read-only",
+        [
+          data.otherChains && data.otherChains.length === 1
+            ? `No Pool Accounts are visible on ${data.chain}, but saved deposit state exists on ${data.otherChains[0]}.`
+            : `No Pool Accounts are visible on ${data.chain}, but saved deposit state exists on other chains: ${(data.otherChains ?? []).join(", ")}.`,
+          data.otherChains && data.otherChains.length === 1
+            ? `Try privacy-pools accounts --chain ${data.otherChains[0]} to open that chain directly.`
+            : "Try privacy-pools accounts --all-chains to open the full dashboard.",
+        ],
+      );
+    case "restore_check_recommended":
+      return formatCallout(
+        "recovery",
+        [
+          "No active Pool Accounts are visible yet, but this wallet has local account-state traces.",
+          "If this recovery phrase was imported, run privacy-pools migrate status --all-chains before assuming there is nothing left to restore or recover.",
+        ],
+      );
+    default:
+      return formatCallout(
+        "read-only",
+        [
+          `No Pool Accounts are visible on ${scopeLabel} yet.`,
+          "For most wallets this simply means your first deposit has not happened yet. privacy-pools flow start is the easiest path once you have chosen an amount and recipient.",
+        ],
+      );
+  }
 }
 
 function renderWarnings(warnings: AccountWarning[] | undefined, silent: boolean): void {
@@ -508,10 +614,11 @@ export function renderAccountsNoPools(
     warnings: data.warnings,
   };
   const includeChainFields = isMultiChain(data);
-  const nextActions = buildEmptyAccountsNextActions(meta, {
+  const agentNextActions = buildEmptyAccountsNextActions(meta, {
     summary: data.summary,
     pendingOnly: data.pendingOnly,
   });
+  const humanNextActions = buildEmptyAccountsHumanNextActions(meta, data);
 
   if (ctx.mode.isJson) {
     if (data.summary) {
@@ -530,21 +637,21 @@ export function renderAccountsNoPools(
             },
             meta,
           ),
-          nextActions,
+          agentNextActions,
         ),
       );
       return;
     }
     if (data.pendingOnly) {
       printJsonSuccess(
-        appendNextActions(withRootMeta({ accounts: [], pendingCount: 0 }, meta), nextActions),
+        appendNextActions(withRootMeta({ accounts: [], pendingCount: 0 }, meta), agentNextActions),
       );
       return;
     }
     printJsonSuccess(
       appendNextActions(
         withRootMeta({ accounts: [], balances: [], pendingCount: 0 }, meta),
-        nextActions,
+        agentNextActions,
       ),
     );
     return;
@@ -578,33 +685,18 @@ export function renderAccountsNoPools(
 
   const silent = isSilent(ctx);
   renderWarnings(data.warnings, silent);
-
-  if (data.pendingOnly) {
-    info(
-      includeChainFields
-        ? `No pending Pool Accounts found across ${data.allChains ? "all chains" : "mainnet chains"}.`
-        : `No pending Pool Accounts found on ${data.chain}.`,
-      silent,
-    );
-    if (!silent) {
-      info(
-        includeChainFields
-          ? `Re-run ${data.allChains ? "accounts --all-chains" : "accounts"} without --pending-only to confirm approved, declined, or POA Needed results.`
-          : `Re-run accounts --chain ${data.chain} without --pending-only to confirm approved, declined, or POA Needed results.`,
-        silent,
-      );
-      renderNextSteps(ctx, nextActions);
-    }
-    return;
+  if (!silent) {
+    const title = data.pendingOnly
+      ? includeChainFields
+        ? `Pending Pool Accounts across ${data.allChains ? "all chains" : "mainnet chains"}:`
+        : `Pending Pool Accounts on ${data.chain}:`
+      : includeChainFields
+        ? `Pool Accounts across ${data.allChains ? "all chains" : "mainnet chains"}:`
+        : `Pool Accounts on ${data.chain}:`;
+    process.stderr.write(`\n${accentBold(title)}\n`);
+    process.stderr.write(renderEmptyAccountsGuidance(data));
   }
-
-  info(
-    includeChainFields
-      ? `No Pool Accounts found across ${data.allChains ? "all chains" : "mainnet chains"}.`
-      : `No Pool Accounts found on ${data.chain}.`,
-    silent,
-  );
-  renderNextSteps(ctx, nextActions);
+  renderNextSteps(ctx, humanNextActions);
 }
 
 /**

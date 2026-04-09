@@ -12,6 +12,12 @@ pub enum ErrorCategory {
     Unknown,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ErrorPresentation {
+    Inline,
+    Boxed,
+}
+
 impl ErrorCategory {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -57,6 +63,7 @@ pub struct CliError {
     pub message: String,
     pub hint: Option<String>,
     pub retryable: bool,
+    pub presentation: ErrorPresentation,
 }
 
 impl CliError {
@@ -74,6 +81,7 @@ impl CliError {
             message: message.into(),
             hint,
             retryable,
+            presentation: default_error_presentation(category),
         }
     }
 
@@ -108,5 +116,15 @@ impl CliError {
 
     pub fn unknown(message: impl Into<String>, hint: impl Into<Option<String>>) -> Self {
         Self::new(ErrorCategory::Unknown, message, hint.into(), None, false)
+    }
+}
+
+fn default_error_presentation(category: ErrorCategory) -> ErrorPresentation {
+    match category {
+        ErrorCategory::Input | ErrorCategory::Rpc | ErrorCategory::Asp => ErrorPresentation::Inline,
+        ErrorCategory::Relayer
+        | ErrorCategory::Proof
+        | ErrorCategory::Contract
+        | ErrorCategory::Unknown => ErrorPresentation::Boxed,
     }
 }

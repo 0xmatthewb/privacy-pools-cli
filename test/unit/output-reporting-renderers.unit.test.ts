@@ -272,10 +272,15 @@ describe("renderAccountsNoPools parity", () => {
 
   test("human mode: emits history-specific empty message", () => {
     const ctx = createOutputContext(makeMode());
-    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, { chain: "sepolia" }));
+    const { stdout, stderr } = captureOutput(() =>
+      renderAccountsNoPools(ctx, {
+        chain: "sepolia",
+        emptyReason: "first_deposit",
+      }),
+    );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No Pool Accounts found on sepolia");
+    expect(stderr).toContain("No Pool Accounts are visible on sepolia yet.");
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools pools --chain sepolia");
   });
@@ -746,7 +751,7 @@ describe("renderHistory parity", () => {
     );
 
     expect(stderr).toContain("Time");
-    expect(stderr).toMatch(/[│|]\s-\s+[│|]/);
+    expect(stderr).toMatch(/0xaabbccdd\.\.\.7890aabb\s+-\s/);
   });
 
   test("human mode: labels migration events distinctly", () => {

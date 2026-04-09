@@ -577,7 +577,8 @@ describe("renderStatus parity", () => {
     expect(stderr).toMatch(/Recovery phrase:\s+set/);
     expect(stderr).toContain("Signer key:");
     expect(stderr).toMatch(/Default chain:\s+sepolia/);
-    expect(stderr).toContain("Detected deposits:");
+    expect(stderr).toContain("Ready -");
+    expect(stderr).toContain("Saved deposit state:");
   });
 
   test("human mode: shows signer balance when available", () => {
@@ -606,7 +607,7 @@ describe("renderStatus parity", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
 
-    expect(stderr).toContain("Setup complete.");
+    expect(stderr).toContain("Wallet setup and current health checks are ready");
   });
 
   test("human mode: shows unsigned-only readiness when no signer key", () => {
@@ -619,8 +620,8 @@ describe("renderStatus parity", () => {
     };
     const { stderr } = captureOutput(() => renderStatus(ctx, result));
 
-    expect(stderr).toContain("unsigned mode only");
-    expect(stderr).toContain("no signer key");
+    expect(stderr).toContain("No signer key is configured");
+    expect(stderr).toContain("Read-only commands remain safe");
   });
 
   test("human mode: shows not-ready when no config", () => {
@@ -636,7 +637,7 @@ describe("renderStatus parity", () => {
     };
     const { stderr } = captureOutput(() => renderStatus(ctx, result));
 
-    expect(stderr).toContain("Not ready");
+    expect(stderr).toContain("Setup required");
     expect(stderr).toContain("privacy-pools init");
   });
 });

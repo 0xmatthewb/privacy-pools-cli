@@ -67,6 +67,7 @@ const LOGO_LINES = [
 ];
 
 const TAGLINE = "A compliant way to transact privately on Ethereum.";
+const WORDMARK = "Privacy Pools";
 
 const DEFAULT_WEBSITE = "privacypools.com";
 
@@ -87,15 +88,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function buildPanelLines(meta: BannerMeta): BannerLine[] {
+function buildMetaLines(meta: BannerMeta): BannerLine[] {
   const contentWidth = Math.max(40, (process.stderr.columns ?? 80) - 2);
   const version = meta.version?.trim();
   const website = meta.website?.trim() || DEFAULT_WEBSITE;
   const repository = meta.repository?.trim();
-  const compactHeader = {
-    plain: TAGLINE,
-    styled: chalk.dim(TAGLINE),
-  };
   const compactMeta = {
     plain: version
       ? repository
@@ -113,15 +110,11 @@ function buildPanelLines(meta: BannerMeta): BannerLine[] {
         : accent(website),
   };
 
-  if (compactHeader.plain.length <= contentWidth && compactMeta.plain.length <= contentWidth) {
-    return [compactHeader, compactMeta];
+  if (compactMeta.plain.length <= contentWidth) {
+    return [compactMeta];
   }
 
   const lines: BannerLine[] = [
-    {
-      plain: TAGLINE,
-      styled: chalk.dim(TAGLINE),
-    },
     {
       plain: version ? `v${version} | ${website}` : website,
       styled: version
@@ -141,11 +134,30 @@ function buildPanelLines(meta: BannerMeta): BannerLine[] {
 }
 
 function composeBannerLines(meta: BannerMeta): string[] {
-  const panelLines = buildPanelLines(meta);
+  const metaLines = buildMetaLines(meta);
+  const columns = process.stderr.columns ?? 80;
+
+  if (columns < 72) {
+    return [
+      accentBold(WORDMARK),
+      `  ${chalk.dim(TAGLINE)}`,
+      ...metaLines.map((line) => `  ${line.styled}`),
+    ];
+  }
+
+  if (columns < 96) {
+    return [
+      accentBold("PRIVACY POOLS"),
+      `  ${chalk.dim(TAGLINE)}`,
+      ...metaLines.map((line) => `  ${line.styled}`),
+    ];
+  }
+
   return [
     ...LOGO_LINES.map((line) => accentBold(line)),
-   "",
-    ...panelLines.map((line) => `  ${line.styled}`),
+    "",
+    `  ${chalk.dim(TAGLINE)}`,
+    ...metaLines.map((line) => `  ${line.styled}`),
   ];
 }
 

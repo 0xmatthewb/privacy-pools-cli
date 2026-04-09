@@ -16,7 +16,7 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { displayDecimals, formatAmount } from "../utils/format.js";
-import { accentBold } from "../utils/theme.js";
+import { accentBold, statusFailed, statusHealthy, statusPending } from "../utils/theme.js";
 import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import type {
   NextActionOptionValue,
@@ -32,6 +32,7 @@ import {
   getOutputWidthClass,
   type KeyValueRow,
 } from "./layout.js";
+import { glyph } from "../utils/symbols.js";
 
 export interface StatusCheckResult {
   configExists: boolean;
@@ -466,6 +467,30 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   if (!silent) {
     process.stderr.write(`\n${accentBold("Privacy Pools CLI Status")}\n`);
 
+    const badgeParts = [
+      result.selectedChain ?? result.defaultChain ?? "no chain",
+      result.rpcLive === undefined
+        ? "checks skipped"
+        : result.rpcLive
+        ? "RPC healthy"
+        : "RPC unreachable",
+      result.aspLive === undefined
+        ? "ASP not checked"
+        : result.aspLive
+        ? "ASP healthy"
+        : "ASP unreachable",
+      result.accountFiles.length > 0
+        ? `saved deposit state on ${result.accountFiles.length} chain${result.accountFiles.length === 1 ? "" : "s"}`
+        : "no saved deposits",
+    ];
+    const badgeLabel =
+      preflight.recommendedMode === "ready"
+        ? statusHealthy(`${glyph("active")} Ready`)
+        : preflight.recommendedMode === "read-only"
+        ? statusPending(`${glyph("warning")} Read-only`)
+        : statusFailed(`${glyph("warning")} Setup required`);
+    process.stderr.write(`  ${badgeLabel}${chalk.dim(" - ")}${badgeParts.join(chalk.dim(" · "))}\n\n`);
+
     const walletRows: KeyValueRow[] = [
       {
         label: "Config",
@@ -576,37 +601,12 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     process.stderr.write(
       renderRows([
         {
-          label: "Detected deposits",
+          label: "Saved deposit state",
           value:
             result.accountFiles.length > 0
               ? result.accountFiles.map(([name]) => name).join(", ")
               : "No deposits yet",
           valueTone: result.accountFiles.length > 0 ? "accent" as const : "muted" as const,
-        },
-      ]),
-    );
-
-    process.stderr.write(formatSectionHeading("Recommendation", { divider: true }));
-    process.stderr.write(
-      renderRows([
-        {
-          label: "Recommended mode",
-          value: preflight.recommendedMode,
-          valueTone:
-            preflight.recommendedMode === "ready"
-              ? "success" as const
-              : preflight.recommendedMode === "read-only"
-              ? "warning" as const
-              : "accent" as const,
-        },
-        {
-          label: "Readiness",
-          value: readyForDeposit
-            ? "Setup complete."
-            : readyForUnsigned
-            ? "Setup complete (unsigned mode only, no signer key)."
-            : "Not ready: run 'privacy-pools init' to get started.",
-          valueTone: readyForDeposit ? "success" as const : "warning" as const,
         },
       ]),
     );

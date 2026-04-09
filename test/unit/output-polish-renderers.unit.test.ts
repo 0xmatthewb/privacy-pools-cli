@@ -133,7 +133,7 @@ describe("shared runtime review renderers", () => {
     expect(direct).toContain("Direct withdrawal review");
     expect(direct).toContain("public onchain withdrawal");
     expect(ragequit).toContain("Public recovery review");
-    expect(ragequit).toContain("Privacy is lost");
+    expect(ragequit).toContain("privacy is lost");
     expect(flow).toContain("Flow start review");
     expect(flow).toContain("Dedicated workflow wallet");
     expect(upgrade).toContain("Upgrade review");

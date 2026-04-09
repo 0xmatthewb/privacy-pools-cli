@@ -6,8 +6,14 @@ import {
   notice,
   successTone,
 } from "../utils/theme.js";
-
-export type OutputWidthClass = "wide" | "compact" | "narrow";
+import {
+  getOutputWidthClass,
+  getTerminalColumns,
+  padDisplay,
+  supportsUnicodeOutput,
+  visibleWidth,
+  wrapDisplayText,
+} from "../utils/terminal.js";
 
 export type SectionTone = "accent" | "muted";
 export type CalloutKind =
@@ -35,39 +41,19 @@ export interface SectionListOptions {
   padTop?: boolean;
 }
 
+export interface BoxOptions {
+  title?: string;
+  tone?: SectionTone;
+  padTop?: boolean;
+}
+
 function sectionHeadingColor(tone: SectionTone): (value: string) => string {
   return tone === "muted" ? chalk.dim : accentBold;
 }
 
-export function supportsUnicodeOutput(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
-  const term = env.TERM?.trim().toLowerCase();
-  if (term === "dumb") {
-    return false;
-  }
-
-  const locale = (env.LC_ALL ?? env.LANG ?? "").toUpperCase();
-  if (locale.includes("UTF-8") || locale.includes("UTF8")) {
-    return true;
-  }
-
-  return process.platform !== "win32";
-}
-
 function sectionDivider(): string {
   const fill = supportsUnicodeOutput() ? "─" : "-";
-  return chalk.dim(fill.repeat(18));
-}
-
-export function getOutputWidthClass(columns = process.stderr.columns ?? process.stdout.columns ?? 120): OutputWidthClass {
-  if (columns <= 72) {
-    return "narrow";
-  }
-  if (columns <= 90) {
-    return "compact";
-  }
-  return "wide";
+  return chalk.dim(fill.repeat(getTerminalColumns()));
 }
 
 function applyValueTone(
@@ -143,13 +129,13 @@ function resolveCalloutHeading(kind: CalloutKind): string {
     case "warning":
       return notice("Warning");
     case "danger":
-      return dangerTone("Attention");
+      return dangerTone("Danger");
     case "privacy":
-      return notice("Privacy");
+      return notice("Privacy note");
     case "recovery":
       return accent("Recovery");
     case "read-only":
-      return accent("Read-only");
+      return accent("Read-only note");
   }
 }
 
@@ -159,10 +145,67 @@ export function formatCallout(
 ): string {
   const content = Array.isArray(lines) ? lines : [lines];
   if (content.length === 0) return "";
+  const gutter = supportsUnicodeOutput() ? "│" : "|";
+  const wrapWidth = Math.max(24, getTerminalColumns() - 6);
+  const label = chalk.bold(`${resolveCalloutHeading(kind)}:`);
+  const rendered = [
+    `${gutter} ${label}`,
+    ...content.flatMap((line) =>
+      wrapDisplayText(line, wrapWidth).map((wrapped) => `${gutter} ${wrapped}`),
+    ),
+  ];
 
-  return `\n${chalk.bold(`${resolveCalloutHeading(kind)}:`)}\n${content
-    .map((line) => `  ${line}`)
-    .join("\n")}\n`;
+  return `\n  ${rendered.join("\n  ")}\n`;
+}
+
+export function formatBox(
+  content: string | string[],
+  options: BoxOptions = {},
+): string {
+  const rawLines = (Array.isArray(content) ? content : content.split("\n"))
+    .flatMap((line) => line.split("\n"))
+    .map((line) => line.replace(/\s+$/g, ""));
+  const lines = rawLines.length > 0 ? rawLines : [""];
+  const maxWidth = Math.max(30, getTerminalColumns() - 4);
+  const title = options.title?.trim();
+  const wrappedLines = lines.flatMap((line) =>
+    line.length === 0 ? [""] : wrapDisplayText(line, maxWidth),
+  );
+  const contentWidth = Math.min(
+    maxWidth,
+    Math.max(
+      title ? visibleWidth(title) + 4 : 0,
+      ...wrappedLines.map((line) => visibleWidth(line)),
+      24,
+    ),
+  );
+  const useUnicode = supportsUnicodeOutput();
+  const topLeft = useUnicode ? "╭" : "+";
+  const topRight = useUnicode ? "╮" : "+";
+  const bottomLeft = useUnicode ? "╰" : "+";
+  const bottomRight = useUnicode ? "╯" : "+";
+  const horizontal = useUnicode ? "─" : "-";
+  const vertical = useUnicode ? "│" : "|";
+  const titleText = title
+    ? sectionHeadingColor(options.tone ?? "accent")(title)
+    : null;
+
+  let topBorder = `${topLeft}${horizontal.repeat(contentWidth + 2)}${topRight}`;
+  if (titleText) {
+    const plainTitle = visibleWidth(title ?? "");
+    const remaining = Math.max(0, contentWidth - plainTitle - 2);
+    topBorder =
+      `${topLeft}${horizontal.repeat(2)} ${titleText} ` +
+      `${horizontal.repeat(Math.max(0, remaining))}${topRight}`;
+  }
+
+  const body = wrappedLines.map(
+    (line) => `${vertical} ${padDisplay(line, contentWidth)} ${vertical}`,
+  );
+  const bottomBorder = `${bottomLeft}${horizontal.repeat(contentWidth + 2)}${bottomRight}`;
+  const linesOut = [topBorder, ...body, bottomBorder];
+
+  return `${options.padTop === false ? "" : "\n"}${linesOut.join("\n")}\n`;
 }
 
 export function formatSectionList(
@@ -177,3 +220,5 @@ export function formatSectionList(
     padTop: options.padTop,
   })}${items.map((item) => `  ${item}\n`).join("")}`;
 }
+
+export { getOutputWidthClass };

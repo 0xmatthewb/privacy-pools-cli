@@ -44,6 +44,7 @@ const nativePackageSmokeTest =
   CARGO_AVAILABLE && currentTriplet && currentPackageName ? test : test.skip;
 const BANNER_SENTINEL =
   ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
+const COMPACT_BANNER_SENTINEL = "PRIVACY POOLS";
 const PREPARED_CLI_TARBALL =
   process.env.PP_INSTALL_CLI_TARBALL?.trim() || null;
 const PREPARED_NATIVE_TARBALL =
@@ -255,7 +256,10 @@ describe("native package smoke", () => {
     expect(firstResult.status).toBe(0);
     expect(firstResult.stdout).toContain("Explore (no wallet needed)");
     expect(firstResult.stdout).toContain("For large transactions, use privacypools.com.");
-    expect(firstResult.stderr).toContain(BANNER_SENTINEL);
+    expect(
+      firstResult.stderr.includes(BANNER_SENTINEL) ||
+        firstResult.stderr.includes(COMPACT_BANNER_SENTINEL),
+    ).toBe(true);
     expect(firstResult.stderr).toContain(
       "A compliant way to transact privately on Ethereum.",
     );
@@ -268,6 +272,7 @@ describe("native package smoke", () => {
     expect(secondResult.status).toBe(0);
     expect(secondResult.stdout).toContain("Explore (no wallet needed)");
     expect(secondResult.stderr).not.toContain(BANNER_SENTINEL);
+    expect(secondResult.stderr).not.toContain(COMPACT_BANNER_SENTINEL);
   });
 
   nativePackageSmokeTest("packaged native honors quiet mode for human capabilities output", () => {
@@ -511,7 +516,7 @@ describe("native package smoke", () => {
       env,
     });
     expect(csvStatsResult.status).toBe(0);
-    expect(csvStatsResult.stderr).toContain("Fetching global statistics");
+    expect(csvStatsResult.stderr.trim()).toBe("");
     expect(csvStatsResult.stdout).toContain("Metric,All Time,Last 24h");
 
     const humanActivityResult = runBuiltCli(["activity"], {

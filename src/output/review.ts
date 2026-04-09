@@ -1,7 +1,7 @@
 import {
   formatCallout,
+  formatBox,
   formatKeyValueRows,
-  formatSectionHeading,
   type CalloutKind,
   type KeyValueRow,
 } from "./layout.js";
@@ -26,33 +26,39 @@ export interface ReviewSurfaceData {
 }
 
 export function formatReviewSurface(data: ReviewSurfaceData): string {
-  let output = formatSectionHeading(data.title, {
-    divider: true,
-    padTop: false,
-  });
+  let output = "";
 
   if (data.summaryRows && data.summaryRows.length > 0) {
     output += formatKeyValueRows(data.summaryRows);
   }
 
   for (const section of data.sections ?? []) {
+    if (output.length > 0) {
+      output += "\n";
+    }
     if (section.title) {
-      output += formatSectionHeading(section.title, {
-        divider: section.divider ?? true,
-        padTop: false,
-      });
+      output += `${section.title}:\n`;
     }
     output += formatKeyValueRows(section.rows);
   }
 
   if (data.primaryCallout) {
+    if (output.length > 0) {
+      output += "\n";
+    }
     output += formatCallout(data.primaryCallout.kind, data.primaryCallout.lines);
   }
   if (data.secondaryCallout) {
+    if (output.length > 0) {
+      output += "\n";
+    }
     output += formatCallout(data.secondaryCallout.kind, data.secondaryCallout.lines);
   }
 
-  return output;
+  return formatBox(output.trimEnd(), {
+    title: data.title,
+    padTop: false,
+  });
 }
 
 export function formatPromptLine(message: string): string {

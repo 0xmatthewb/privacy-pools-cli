@@ -1,24 +1,23 @@
 import chalk from "chalk";
 import ora from "ora";
-import Table from "cli-table3";
 import { formatUnits } from "viem";
-import { accent, notice, spinnerColor, successTone } from "./theme.js";
-
-function supportsUnicodeOutput(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
-  const term = env.TERM?.trim().toLowerCase();
-  if (term === "dumb") {
-    return false;
-  }
-
-  const locale = (env.LC_ALL ?? env.LANG ?? "").toUpperCase();
-  if (locale.includes("UTF-8") || locale.includes("UTF8")) {
-    return true;
-  }
-
-  return process.platform !== "win32";
-}
+import {
+  accent,
+  directionDeposit,
+  explorerUrl,
+  notice,
+  spinnerColor,
+  successTone,
+  txHash,
+} from "./theme.js";
+import {
+  getOutputWidthClass,
+  getTerminalColumns,
+  padDisplay,
+  supportsUnicodeOutput,
+  visibleWidth,
+} from "./terminal.js";
+import { glyph } from "./symbols.js";
 
 /**
  * Number of fractional digits to show when formatting token amounts.
@@ -169,53 +168,40 @@ export function printTable(
   headers: string[],
   rows: string[][]
 ): void {
-  const columns = process.stderr.columns ?? process.stdout.columns ?? 120;
-  const widthClass = columns <= 72 ? "narrow" : columns <= 90 ? "compact" : "wide";
+  const columns = getTerminalColumns();
+  const widthClass = getOutputWidthClass(columns);
   const widths = headers.map((header, index) =>
     rows.reduce(
       (max, row) => Math.max(max, visibleWidth(row[index] ?? "")),
       visibleWidth(header),
     ),
   );
+  const gap = "   ";
   const estimatedWidth =
-    widths.reduce((total, width) => total + width, 0) + (headers.length * 3) + 1;
+    widths.reduce((total, width) => total + width, 0) +
+    gap.length * Math.max(0, headers.length - 1) +
+    2;
 
   if (rows.length > 0 && (widthClass === "narrow" || estimatedWidth > columns)) {
     process.stderr.write(formatStackedTable(headers, rows));
     return;
   }
 
-  const table = new Table({
-    head: headers.map((h) => chalk.bold(h)),
-    style: { head: [], border: [] },
-    ...(supportsUnicodeOutput()
-      ? {}
-      : {
-          chars: {
-            top: "-",
-            "top-mid": "+",
-            "top-left": "+",
-            "top-right": "+",
-            bottom: "-",
-            "bottom-mid": "+",
-            "bottom-left": "+",
-            "bottom-right": "+",
-            left: "|",
-            "left-mid": "+",
-            mid: "-",
-            "mid-mid": "+",
-            right: "|",
-            "right-mid": "+",
-            middle: "|",
-          },
-        }),
-  });
+  const fill = supportsUnicodeOutput() ? "─" : "-";
+  const headerRow = `  ${headers
+    .map((header, index) => chalk.bold(padDisplay(header, widths[index])))
+    .join(gap)}`;
+  const underlineRow = `  ${widths
+    .map((width) => chalk.dim(fill.repeat(width)))
+    .join(gap)}`;
+  const bodyRows = rows.map(
+    (row) =>
+      `  ${row
+        .map((cell, index) => padDisplay(cell ?? "-", widths[index]))
+        .join(gap)}`,
+  );
 
-  for (const row of rows) {
-    table.push(row);
-  }
-
-  process.stderr.write(table.toString() + "\n");
+  process.stderr.write(`${headerRow}\n${underlineRow}\n${bodyRows.join("\n")}\n`);
 }
 
 function formatStackedTable(headers: string[], rows: string[][]): string {
@@ -230,34 +216,23 @@ function formatStackedTable(headers: string[], rows: string[][]): string {
     .join("\n\n")}\n`;
 }
 
-function visibleWidth(value: string): number {
-  return stripAnsiCodes(value).length;
-}
-
-function stripAnsiCodes(value: string): string {
-  return value.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
-}
-
 export function spinner(text: string, quiet: boolean = false) {
   return ora({ text, color: spinnerColor, stream: process.stderr, isSilent: quiet });
 }
 
 export function success(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  const prefix = supportsUnicodeOutput() ? "✓" : "ok";
-  process.stderr.write(`${successTone(`${prefix} ${message}`)}\n`);
+  process.stderr.write(`${successTone(`${glyph("success")} ${message}`)}\n`);
 }
 
 export function warn(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  const prefix = supportsUnicodeOutput() ? "⚠" : "!";
-  process.stderr.write(`${notice(`${prefix} ${message}`)}\n`);
+  process.stderr.write(`${notice(`${glyph("warning")} ${message}`)}\n`);
 }
 
 export function info(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  const prefix = supportsUnicodeOutput() ? "ℹ" : "i";
-  process.stderr.write(`${accent(`${prefix} ${message}`)}\n`);
+  process.stderr.write(`${accent(`${glyph("info")} ${message}`)}\n`);
 }
 
 export function verbose(
@@ -277,7 +252,38 @@ export function stageHeader(
   quiet: boolean = false,
 ): void {
   if (quiet) return;
-  process.stderr.write(`\n${chalk.bold(`[Step ${step}/${total}]`)} ${label}\n`);
+  process.stderr.write(
+    `\n${accent(`${glyph("current")} ${label}`)} ${chalk.dim(`(${step}/${total})`)}\n`,
+  );
+}
+
+export function formatDenseOutcomeLine(params: {
+  outcome: "deposit" | "withdraw" | "recovery" | "success";
+  message: string;
+  url?: string | null;
+}): string {
+  const symbol = (() => {
+    switch (params.outcome) {
+      case "deposit":
+        return directionDeposit(glyph("deposit"));
+      case "withdraw":
+        return accent(glyph("withdraw"));
+      case "recovery":
+        return notice(glyph("recovery"));
+      default:
+        return successTone(glyph("success"));
+    }
+  })();
+
+  const lines = [`  ${symbol} ${params.message}`];
+  if (params.url) {
+    lines.push(`    ${explorerUrl(params.url)}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+export function formatExplorerHash(value: string): string {
+  return txHash(formatAddress(value, 8));
 }
 
 /** Format a millisecond timestamp as a relative "Xh ago" label. */

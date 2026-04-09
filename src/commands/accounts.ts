@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import type { Address } from "viem";
 import {
+  CHAINS,
   getAllChainsWithOverrides,
   getDefaultReadOnlyChains,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
@@ -17,6 +18,10 @@ import {
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
+import {
+  accountExists,
+  accountHasDeposits,
+} from "../services/account-storage.js";
 import {
   listKnownPoolsFromRegistry,
   listPools,
@@ -62,7 +67,49 @@ interface LoadedChainAccounts {
   warnings: AccountWarning[];
 }
 
+type AccountsEmptyReason =
+  | "first_deposit"
+  | "other_chain_activity"
+  | "no_pending_left"
+  | "restore_check_recommended";
+
 export { createAccountsCommand } from "../command-shells/accounts.js";
+
+function resolveAccountsEmptyState(params: {
+  pendingOnly: boolean;
+  rootChain: string;
+  queriedChains: string[] | undefined;
+}): {
+  emptyReason: AccountsEmptyReason;
+  otherChains?: string[];
+} {
+  if (params.pendingOnly) {
+    return { emptyReason: "no_pending_left" };
+  }
+
+  const queried = new Set<string>(params.queriedChains ?? [params.rootChain]);
+  const otherChains = Object.entries(CHAINS)
+    .filter(([name, chain]) => !queried.has(name) && accountHasDeposits(chain.id))
+    .map(([name]) => name)
+    .sort();
+
+  if (otherChains.length > 0) {
+    return {
+      emptyReason: "other_chain_activity",
+      otherChains,
+    };
+  }
+
+  const hasStoredAccountState = Object.values(CHAINS).some((chain) =>
+    accountExists(chain.id)
+  );
+
+  return {
+    emptyReason: hasStoredAccountState
+      ? "restore_check_recommended"
+      : "first_deposit",
+  };
+}
 
 export function describeAccountsChainScope(
   allChains: boolean | undefined,
@@ -512,6 +559,11 @@ export async function handleAccountsCommand(
 
     const groups = loadedResults.flatMap((result) => result.groups);
     if (groups.length === 0) {
+      const emptyState = resolveAccountsEmptyState({
+        pendingOnly: !!opts.pendingOnly,
+        rootChain,
+        queriedChains,
+      });
       renderAccountsNoPools(outCtx, {
         chain: rootChain,
         allChains: opts.allChains || undefined,
@@ -519,6 +571,7 @@ export async function handleAccountsCommand(
         warnings,
         summary: !!opts.summary,
         pendingOnly: !!opts.pendingOnly,
+        ...emptyState,
       });
       return;
     }

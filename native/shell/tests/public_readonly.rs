@@ -99,7 +99,7 @@ fn empty_public_read_only_states_offer_next_steps() {
     let activity_stderr = stderr_string(&activity);
     assert!(stdout_string(&activity).is_empty());
     assert!(activity_stderr.contains("No activity found."));
-    assert!(activity_stderr.contains("Read-only:"));
+    assert!(activity_stderr.contains("Read-only note:"));
     assert!(activity_stderr.contains("Next steps:"));
     assert!(activity_stderr.contains("privacy-pools status --chain sepolia"));
     assert!(activity_stderr.contains("privacy-pools pools --chain sepolia"));
@@ -130,7 +130,7 @@ fn explicit_chain_activity_keeps_filtered_json_and_human_notes_stable() {
     assert!(stdout_string(&human).is_empty());
     let stderr = stderr_string(&human);
     assert!(stderr.contains("Global activity (sepolia):"));
-    assert!(stderr.contains("Read-only:"));
+    assert!(stderr.contains("Read-only note:"));
     assert!(stderr.contains("Results are filtered to sepolia. Some pages may be sparse."));
 }
 
@@ -397,7 +397,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     );
     assert!(human_pool_detail_stderr.contains("My funds"));
     assert!(human_pool_detail_stderr.contains("Recent activity"));
-    assert!(human_pool_detail_stderr.contains("Privacy:"));
+    assert!(human_pool_detail_stderr.contains("Privacy note:"));
 
     let csv_pools = run_native_with_env(&["--format", "csv", "--chain", "sepolia", "pools"], &env);
     assert!(csv_pools.status.success());

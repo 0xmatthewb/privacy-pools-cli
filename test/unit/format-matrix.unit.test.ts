@@ -174,7 +174,7 @@ describe("format utils matrix", () => {
     stageHeader(2, 5, "Building proofs");
 
     const output = logs.join("");
-    expect(output).toContain("[Step 2/5]");
+    expect(output).toContain("(2/5)");
     expect(output).toContain("Building proofs");
   });
 

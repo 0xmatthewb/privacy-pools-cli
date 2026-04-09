@@ -32,3 +32,16 @@ export const subtle = chalk.hex("#E56B8E");
 
 /** Ora spinner colour name closest to the accent (used by ora's `color` opt). */
 export const spinnerColor = "blue" as const;
+
+/** Semantic wrappers so renderers style by meaning instead of raw color names. */
+export const amount = chalk.bold;
+export const txHash = chalk.dim;
+export const chainName = accent;
+export const poolAsset = highlight;
+export const explorerUrl = chalk.underline;
+export const statusHealthy = successTone;
+export const statusPending = notice;
+export const statusFailed = dangerTone;
+export const directionDeposit = successTone;
+export const directionWithdraw = accent;
+export const directionRecovery = notice;

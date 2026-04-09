@@ -24,16 +24,18 @@ export function welcomeScreen(
   options: { packageRoot?: string } = {},
 ): string {
   const lines = [
+    chalk.bold("  Recommended path"),
+    `    ${accent("privacy-pools init")}  ${chalk.dim("->")}  ${accent("privacy-pools flow start 0.1 ETH --to 0xRecipient")}`,
+    chalk.dim("    Set up once, then use the guided flow for your first private transaction."),
+    "",
     chalk.bold("  Explore (no wallet needed)"),
     `    ${highlight("pools")}  ${highlight("activity")}  ${highlight("stats")}  ${highlight("status")}  ${highlight("guide")}  ${highlight("describe")}`,
     "",
-    chalk.bold("  Transact (run init first)"),
-    `    ${highlight("init")}  ${highlight("flow")}  ${highlight("deposit")}  ${highlight("accounts")}  ${highlight("migrate")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("history")}  ${highlight("sync")}`,
-    "",
-    chalk.bold("  Tooling"),
-    `    ${highlight("upgrade")}  ${highlight("completion")}  ${highlight("--help")}`,
+    chalk.bold("  Manual path and tooling"),
+    `    ${highlight("deposit")}  ${highlight("accounts")}  ${highlight("withdraw")}  ${highlight("ragequit")}  ${highlight("history")}  ${highlight("sync")}  ${highlight("upgrade")}  ${highlight("--help")}`,
     "",
     `  Get started:      ${accent("privacy-pools init")}`,
+    `  Guided workflow:  ${accent("privacy-pools flow start 0.1 ETH --to 0xRecipient")}`,
     `  Full guide:       ${accent("privacy-pools guide")}`,
     `  All commands:     ${accent("privacy-pools --help")}`,
   ];

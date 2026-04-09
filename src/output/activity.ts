@@ -6,10 +6,16 @@
  * the command handler.
  */
 
+import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { formatAddress } from "../utils/format.js";
-import { accentBold } from "../utils/theme.js";
+import {
+  accentBold,
+  directionDeposit,
+  directionRecovery,
+  directionWithdraw,
+} from "../utils/theme.js";
 import { explorerTxUrl } from "../config/chains.js";
 import {
   normalizePublicEventReviewStatus,
@@ -22,6 +28,8 @@ import {
   formatStackedKeyValueRows,
   getOutputWidthClass,
 } from "./layout.js";
+import { glyph } from "../utils/symbols.js";
+import { inlineSeparator } from "../utils/terminal.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +77,20 @@ function eventPoolLabel(event: NormalizedActivityEvent): string {
 
 function toIsoTimestamp(timestampMs: number | null): string | null {
   return timestampMs === null ? null : new Date(timestampMs).toISOString();
+}
+
+function renderActivityType(type: string): string {
+  const normalized = type.trim().toLowerCase();
+  if (normalized.includes("deposit")) {
+    return `${directionDeposit(glyph("deposit"))} Deposit`;
+  }
+  if (normalized.includes("withdraw")) {
+    return `${directionWithdraw(glyph("withdraw"))} Withdraw`;
+  }
+  if (normalized.includes("ragequit") || normalized.includes("recovery")) {
+    return `${directionRecovery(glyph("recovery"))} Recovery`;
+  }
+  return `${chalk.dim(glyph("info"))} ${type}`;
 }
 
 // ── Renderers ────────────────────────────────────────────────────────────────
@@ -201,14 +223,14 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
 
   printTable(
     ["Type", "Pool", "Amount", "Status", "Time", "Tx"],
-    data.events.map((e) => [
-      // Mirror the website: withdrawals and ragequits are treated as approved,
-      // and missing deposit review status defaults to pending.
-      // This avoids blank status cells when the ASP omits reviewStatus.
-      e.type,
-      eventPoolLabel(e),
-      e.amountFormatted,
-      renderAspApprovalStatus(
+      data.events.map((e) => [
+        // Mirror the website: withdrawals and ragequits are treated as approved,
+        // and missing deposit review status defaults to pending.
+        // This avoids blank status cells when the ASP omits reviewStatus.
+        renderActivityType(e.type),
+        eventPoolLabel(e),
+        e.amountFormatted,
+        renderAspApprovalStatus(
         normalizePublicEventReviewStatus(e.type, e.reviewStatus),
         { preserveInput: true },
       ),
@@ -220,9 +242,11 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   // Pagination footer
   if (data.totalPages !== null && data.totalPages > 1) {
     process.stderr.write(
-      `\n  Page ${data.page} of ${data.totalPages}` +
-        (data.total !== null ? ` (${data.total} events)` : "") +
-        (data.page < data.totalPages ? `. Next: --page ${data.page + 1}` : "") +
+      `\n  ${chalk.dim(`Page ${data.page} of ${data.totalPages}`)}` +
+        (data.total !== null ? chalk.dim(`${inlineSeparator()}${data.total} events`) : "") +
+        (data.page < data.totalPages
+          ? `\n  ${chalk.dim(glyph("next"))} ${chalk.dim(`privacy-pools activity --page ${data.page + 1}`)}`
+          : "") +
         "\n",
     );
   }

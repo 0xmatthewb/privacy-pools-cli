@@ -31,6 +31,16 @@ const ORIGINAL_SIGNER = process.env.PRIVACY_POOLS_PRIVATE_KEY;
 const VALID_MNEMONIC =
   "test test test test test test test test test test test junk";
 
+function stripAnsi(text: string): string {
+  return text.replace(/\u001B\[[0-9;]*m/g, "");
+}
+
+function compactRenderedOutput(text: string): string {
+  return stripAnsi(text)
+    .replace(/[│╭╮╰╯─+|]/g, " ")
+    .replace(/\s+/g, "");
+}
+
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
     parent: {
@@ -150,7 +160,9 @@ export function registerInitGenerateBackupTests(): void {
     expect(stderr).toContain("Save this recovery phrase now.");
     expect(stderr).toContain("This is the only time the CLI will display it.");
     expect(stderr).toContain("Recovery phrase saved");
-    expect(stderr).toContain(backupPath);
+    expect(compactRenderedOutput(stderr)).toContain(
+      backupPath.replace(/\s+/g, ""),
+    );
     expect(stderr).toContain("No signer key set");
     expect(readFileSync(join(home, "config.json"), "utf8")).toContain(
       '"defaultChain": "optimism"',

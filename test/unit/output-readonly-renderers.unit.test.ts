@@ -144,6 +144,7 @@ describe("read-only output renderers", () => {
       renderAccountsNoPools(humanCtx, {
         chain: "mainnet",
         pendingOnly: true,
+        emptyReason: "no_pending_left",
         warnings: [
           {
             chain: "mainnet",
@@ -170,8 +171,10 @@ describe("read-only output renderers", () => {
       }),
     );
     expect(humanOutput.stderr).toContain("review data incomplete");
-    expect(humanOutput.stderr).toContain("No pending Pool Accounts found");
-    expect(humanOutput.stderr).toContain("without --pending-only to confirm approved, declined, or POA Needed results");
+    expect(humanOutput.stderr).toContain("No pending Pool Accounts are left on mainnet.");
+    expect(humanOutput.stderr).toContain(
+      "without --pending-only to review the final outcome",
+    );
     expect(humanOutput.stderr).toContain("Next steps:");
     expect(humanOutput.stderr).toContain("privacy-pools accounts --chain mainnet");
   });
@@ -480,7 +483,8 @@ describe("read-only output renderers", () => {
     expect(stderr).toMatch(/Signer key:\s+not set/);
     expect(stderr).toMatch(/ASP \(https:\/\/asp\.example\):\s+healthy/);
     expect(stderr).toMatch(/RPC:\s+connected/);
-    expect(stderr).toContain("unsigned mode only");
+    expect(stderr).toContain("No signer key is configured");
+    expect(stderr).toContain("Read-only commands remain safe");
     expect(stderr).toContain("accounts --chain sepolia");
   });
 

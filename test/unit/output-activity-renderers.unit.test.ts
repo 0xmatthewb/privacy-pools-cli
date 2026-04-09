@@ -89,7 +89,7 @@ describe("renderActivity pool-activity parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Activity for ETH on sepolia");
-    expect(stderr).toContain("deposit");
+    expect(stderr).toContain("Deposit");
     expect(stderr).toContain("1.0 ETH");
     expect(stderr).toContain("Approved");
   });
@@ -124,7 +124,7 @@ describe("renderActivity pool-activity parity", () => {
     const { stderr } = captureOutput(() => renderActivity(ctx, data));
 
     expect(stderr).toContain("Page 1 of 3");
-    expect(stderr).toContain("Next: --page 2");
+    expect(stderr).toContain("-> privacy-pools activity --page 2");
   });
 
   test("human mode: omits 'next' hint on last page", () => {

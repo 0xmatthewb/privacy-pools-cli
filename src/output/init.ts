@@ -193,8 +193,20 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
       ]
     : [
         createNextAction(
+          "flow start",
+          "Start with the guided workflow for your first deposit and later private withdrawal.",
+          "after_init",
+          {
+            args: ["0.1", "ETH"],
+            options: {
+              to: "0xRecipient",
+              ...(isTestnet ? { chain: result.defaultChain } : {}),
+            },
+          },
+        ),
+        createNextAction(
           "pools",
-          "Browse available pools before depositing.",
+          "Browse available pools if you prefer the manual path before depositing.",
           "after_init",
           isTestnet ? { options: { chain: result.defaultChain } } : undefined,
         ),

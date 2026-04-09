@@ -338,6 +338,6 @@ describe("activity command handler", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Global activity");
     expect(stderr).toContain("optimism");
-    expect(stderr).toContain("withdrawal");
+    expect(stderr).toContain("Withdraw");
   });
 });

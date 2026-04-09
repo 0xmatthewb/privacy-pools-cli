@@ -9,9 +9,15 @@
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, info, isSilent } from "./common.js";
 import { formatAmount, formatTxHash, displayDecimals, formatApproxBlockTimeAgo } from "../utils/format.js";
-import { accentBold } from "../utils/theme.js";
+import {
+  accentBold,
+  directionDeposit,
+  directionRecovery,
+  directionWithdraw,
+} from "../utils/theme.js";
 import type { HistoryEvent } from "../commands/history.js";
 import { formatKeyValueRows, formatSectionHeading } from "./layout.js";
+import { glyph } from "../utils/symbols.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +36,19 @@ export interface HistoryRenderData {
   currentBlock: bigint | null;
   /** Average seconds per block for the target chain (default 12 for Ethereum L1). */
   avgBlockTimeSec?: number;
+}
+
+function renderHistoryType(type: HistoryEvent["type"]): string {
+  switch (type) {
+    case "deposit":
+      return `${directionDeposit(glyph("deposit"))} Deposit`;
+    case "migration":
+      return `${directionDeposit(glyph("deposit"))} Migration`;
+    case "withdrawal":
+      return `${directionWithdraw(glyph("withdraw"))} Withdraw`;
+    default:
+      return `${directionRecovery(glyph("recovery"))} Recovery`;
+  }
 }
 
 // ── Renderers ────────────────────────────────────────────────────────────────
@@ -78,13 +97,8 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
       ["Type", "PA", "Amount", "Tx", "Block"],
       events.map((e) => {
         const pool = poolByAddress.get(e.poolAddress);
-        const typeLabel =
-          e.type === "deposit" ? "Deposit" :
-          e.type === "migration" ? "Migration" :
-          e.type === "withdrawal" ? "Withdraw" :
-          "Ragequit";
         return [
-          typeLabel,
+          e.type === "ragequit" ? "Recovery" : e.type === "withdrawal" ? "Withdraw" : e.type === "migration" ? "Migration" : "Deposit",
           e.paId,
           formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
           e.txHash,
@@ -121,13 +135,8 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
     ["Type", "PA", "Amount", "Tx", "Time"],
     events.map((e) => {
       const pool = poolByAddress.get(e.poolAddress);
-      const typeLabel =
-        e.type === "deposit" ? "Deposit" :
-        e.type === "migration" ? "Migration" :
-        e.type === "withdrawal" ? "Withdraw" :
-        "Ragequit";
       return [
-        typeLabel,
+        renderHistoryType(e.type),
         e.paId,
         formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
         formatTxHash(e.txHash),
