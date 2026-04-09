@@ -16,6 +16,7 @@ import {
   guardCsvUnsupported,
 } from "./common.js";
 import { displayDecimals, formatAmount } from "../utils/format.js";
+import { inlineSeparator } from "../utils/terminal.js";
 import { accentBold, statusFailed, statusHealthy, statusPending } from "../utils/theme.js";
 import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import type {
@@ -489,7 +490,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         : preflight.recommendedMode === "read-only"
         ? statusPending(`${glyph("warning")} Read-only`)
         : statusFailed(`${glyph("warning")} Setup required`);
-    process.stderr.write(`  ${badgeLabel}${chalk.dim(" - ")}${badgeParts.join(chalk.dim(" · "))}\n\n`);
+    process.stderr.write(`  ${badgeLabel}${chalk.dim(inlineSeparator())}${badgeParts.join(chalk.dim(inlineSeparator()))}\n\n`);
 
     const walletRows: KeyValueRow[] = [
       {

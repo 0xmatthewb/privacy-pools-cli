@@ -577,7 +577,7 @@ describe("renderStatus parity", () => {
     expect(stderr).toMatch(/Recovery phrase:\s+set/);
     expect(stderr).toContain("Signer key:");
     expect(stderr).toMatch(/Default chain:\s+sepolia/);
-    expect(stderr).toContain("Ready -");
+    expect(stderr).toMatch(/Ready\s+[·\-]/); // inline separator is · (unicode) or - (ascii)
     expect(stderr).toContain("Saved deposit state:");
   });
 
