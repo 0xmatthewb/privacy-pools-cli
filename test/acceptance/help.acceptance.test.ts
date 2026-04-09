@@ -11,8 +11,8 @@ import {
   runCliStep,
 } from "./framework.ts";
 
-const BANNER_SENTINEL =
-  ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
+// The ripple pool banner contains "PRIVACY POOLS" as the brand mark
+const BANNER_SENTINEL = "PRIVACY POOLS";
 const COMPACT_BANNER_SENTINEL = "PRIVACY POOLS";
 
 defineScenarioSuite("help acceptance", [
@@ -74,10 +74,6 @@ defineScenarioSuite("help acceptance", [
     },
     runCliStep([]),
     assertExit(0),
-    assertStdout((stdout) => {
-      expect(stdout).toContain("Explore (no wallet needed)");
-      expect(stdout).toContain("For large transactions, use privacypools.com.");
-    }),
     assertStderr((stderr) => {
       expect(
         stderr.includes(BANNER_SENTINEL) || stderr.includes(COMPACT_BANNER_SENTINEL),
@@ -87,7 +83,8 @@ defineScenarioSuite("help acceptance", [
     runCliStep([]),
     assertExit(0),
     assertStdout((stdout) => {
-      expect(stdout).toContain("Explore (no wallet needed)");
+      // Second run: banner already shown, standalone welcome screen prints to stdout
+      expect(stdout).toContain("privacy-pools init");
     }),
     assertStderr((stderr) => {
       expect(stderr).not.toContain(BANNER_SENTINEL);

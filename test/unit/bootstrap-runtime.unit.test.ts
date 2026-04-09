@@ -224,7 +224,7 @@ describe("bootstrap runtime coverage", () => {
     const program = makeProgram(() => async () => {
       throw makeCommanderExit("commander.helpDisplayed");
     });
-    const printBannerMock = mock(async () => undefined);
+    const printBannerMock = mock(async () => ({ includedWelcomeText: false }));
     mock.module("../../src/program.ts", () => ({
       createRootProgram: async () => program,
     }));
@@ -238,7 +238,7 @@ describe("bootstrap runtime coverage", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("Explore (no wallet needed)");
+    expect(stdout).toContain("privacy-pools init");
     expect(stderr).toBe("");
     expect(printBannerMock).toHaveBeenCalledWith({
       version: "1.2.3",
@@ -316,7 +316,7 @@ describe("bootstrap runtime coverage", () => {
       const welcomeProgram = makeProgram(() => async () => {
         throw makeCommanderExit("commander.helpDisplayed");
       });
-      const printBannerMock = mock(async () => undefined);
+      const printBannerMock = mock(async () => ({ includedWelcomeText: false }));
       mock.module("../../src/program.ts", () => ({
         createRootProgram: async () => welcomeProgram,
       }));
@@ -339,7 +339,7 @@ describe("bootstrap runtime coverage", () => {
         welcomeExitCode = process.exitCode;
       });
       expect(welcomeExitCode).toBe(0);
-      expect(welcomeResult.stdout).toContain("Explore (no wallet needed)");
+      expect(welcomeResult.stdout).toContain("privacy-pools init");
       expect(welcomeResult.stderr).toBe("");
 
       const versionProgram = makeProgram((configuredProgram) => async () => {
@@ -467,7 +467,7 @@ describe("bootstrap runtime coverage", () => {
     const program = makeProgram(() => async () => {
       throw makeCommanderExit("commander.helpDisplayed");
     });
-    const printBannerMock = mock(async () => undefined);
+    const printBannerMock = mock(async () => ({ includedWelcomeText: false }));
     mock.module("../../src/program.ts", () => ({
       createRootProgram: async () => program,
     }));
@@ -709,7 +709,7 @@ describe("bootstrap runtime coverage", () => {
     const program = makeProgram(() => async () => {
       throw makeCommanderExit("commander.helpDisplayed");
     });
-    const printBannerMock = mock(async () => undefined);
+    const printBannerMock = mock(async () => ({ includedWelcomeText: false }));
     const checkForUpdateInBackgroundMock = mock(() => undefined);
     delete process.env.CI;
     delete process.env.CODESPACES;

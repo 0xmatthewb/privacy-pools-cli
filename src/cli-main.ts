@@ -131,15 +131,19 @@ export async function runCli(
           process.exitCode = 0;
           return;
         }
+        let bannerIncludedWelcome = false;
         if (!suppressBanner) {
           const { printBanner } = await import("./utils/banner.js");
-          await printBanner({
+          const bannerResult = await printBanner({
             version: pkg.version,
             repository: normalizeRepositoryUrl(pkg.repository),
           });
+          bannerIncludedWelcome = bannerResult.includedWelcomeText;
         }
-        const { welcomeScreen } = await import("./utils/help.js");
-        process.stdout.write(welcomeScreen() + "\n");
+        if (!bannerIncludedWelcome) {
+          const { welcomeScreen } = await import("./utils/help.js");
+          process.stdout.write(welcomeScreen({ version: pkg.version }) + "\n");
+        }
         const notice = getUpdateNotice(pkg.version);
         if (notice) process.stderr.write(chalk!.dim(notice) + "\n");
         if (shouldCheckUpdates) {

@@ -3,7 +3,8 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
-import { accent, accentBold, dangerTone, notice, successTone } from "./theme.js";
+import { accent, accentBold, brand, dangerTone, notice, successTone } from "./theme.js";
+import { inlineSeparator } from "./terminal.js";
 export { styleCommanderHelp } from "./root-help.js";
 
 function defaultPackageRoot(): string {
@@ -21,23 +22,22 @@ function shouldShowPathRegistrationHint(
  * Orients the user quickly without the full Commander listing.
  */
 export function welcomeScreen(
-  options: { packageRoot?: string } = {},
+  options: { packageRoot?: string; version?: string } = {},
 ): string {
+  const version = options.version?.trim();
+  const sep = inlineSeparator();
+  const versionLine = version
+    ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent("privacypools.com")}`
+    : accent("privacypools.com");
+
   const lines = [
-    chalk.bold("  Recommended path"),
-    `    ${accent("privacy-pools init")}  ${chalk.dim("->")}  ${accent("privacy-pools flow start 0.1 ETH --to 0xRecipient")}`,
-    chalk.dim("    Set up once, then use the guided flow for your first private transaction."),
+    brand("PRIVACY POOLS"),
+    chalk.dim("A compliant way to transact privately on Ethereum."),
+    versionLine,
     "",
-    chalk.bold("  Explore (no wallet needed)"),
-    `    ${accent("pools")}  ${accent("activity")}  ${accent("stats")}  ${accent("status")}  ${accent("guide")}  ${accent("describe")}`,
-    "",
-    chalk.bold("  Manual path and tooling"),
-    `    ${accent("deposit")}  ${accent("accounts")}  ${accent("withdraw")}  ${accent("ragequit")}  ${accent("history")}  ${accent("sync")}  ${accent("upgrade")}  ${accent("--help")}`,
-    "",
-    `  Get started:      ${accent("privacy-pools init")}`,
-    `  Guided workflow:  ${accent("privacy-pools flow start 0.1 ETH --to 0xRecipient")}`,
-    `  Full guide:       ${accent("privacy-pools guide")}`,
-    `  All commands:     ${accent("privacy-pools --help")}`,
+    `${accent("privacy-pools init")}    ${chalk.dim("get started")}`,
+    `${accent("privacy-pools guide")}   ${chalk.dim("full guide")}`,
+    `${accent("privacy-pools --help")}  ${chalk.dim("all commands")}`,
   ];
 
   // Nudge from-source users to register the CLI commands on their PATH.
@@ -51,8 +51,8 @@ export function welcomeScreen(
 
   lines.push(
     "",
-    notice("  This CLI is experimental. Use at your own risk."),
-    notice("  For large transactions, use privacypools.com."),
+    notice("This CLI is experimental. Use at your own risk."),
+    notice("For large transactions, use privacypools.com."),
   );
 
   return lines.join("\n");
