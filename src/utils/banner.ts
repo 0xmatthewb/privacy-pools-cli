@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { accent, accentBold, highlight } from "./theme.js";
+import { accent, brand } from "./theme.js";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -104,8 +104,8 @@ function buildMetaLines(meta: BannerMeta): BannerLine[] {
         : website,
     styled: version
       ? repository
-        ? `${highlight(`v${version}`)}${chalk.dim(" | ")}${accent(website)}${chalk.dim(" | ")}${accent(repository)}`
-        : `${highlight(`v${version}`)}${chalk.dim(" | ")}${accent(website)}`
+        ? `${accent(`v${version}`)}${chalk.dim(" | ")}${accent(website)}${chalk.dim(" | ")}${accent(repository)}`
+        : `${accent(`v${version}`)}${chalk.dim(" | ")}${accent(website)}`
       : repository
         ? `${accent(website)}${chalk.dim(" | ")}${accent(repository)}`
         : accent(website),
@@ -119,7 +119,7 @@ function buildMetaLines(meta: BannerMeta): BannerLine[] {
     {
       plain: version ? `v${version} | ${website}` : website,
       styled: version
-        ? `${highlight(`v${version}`)}${chalk.dim(" | ")}${accent(website)}`
+        ? `${accent(`v${version}`)}${chalk.dim(" | ")}${accent(website)}`
         : accent(website),
     },
   ];
@@ -140,7 +140,7 @@ function composeBannerLines(meta: BannerMeta): string[] {
 
   if (columns < 72) {
     return [
-      accentBold(WORDMARK),
+      brand(WORDMARK),
       `  ${chalk.dim(TAGLINE)}`,
       ...metaLines.map((line) => `  ${line.styled}`),
     ];
@@ -148,14 +148,14 @@ function composeBannerLines(meta: BannerMeta): string[] {
 
   if (columns < 96) {
     return [
-      accentBold("PRIVACY POOLS"),
+      brand("PRIVACY POOLS"),
       `  ${chalk.dim(TAGLINE)}`,
       ...metaLines.map((line) => `  ${line.styled}`),
     ];
   }
 
   return [
-    ...LOGO_LINES.map((line) => accentBold(line)),
+    ...LOGO_LINES.map((line) => brand(line)),
     "",
     `  ${chalk.dim(TAGLINE)}`,
     ...metaLines.map((line) => `  ${line.styled}`),

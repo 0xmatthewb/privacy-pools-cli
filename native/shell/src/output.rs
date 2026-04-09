@@ -982,23 +982,23 @@ fn styled_dim(text: &str) -> String {
 }
 
 fn styled_accent(text: &str) -> String {
-    styled_palette_color(text, "38;2;80;172;255", "38;5;111")
+    styled_palette_color(text, "38;2;90;173;214", "38;5;74")
 }
 
 fn styled_accent_bold(text: &str) -> String {
-    styled_palette_color(text, "1;38;2;80;172;255", "1;38;5;111")
+    styled_palette_color(text, "1;38;2;90;173;214", "1;38;5;74")
 }
 
 fn styled_notice(text: &str) -> String {
-    styled_palette_color(text, "38;2;255;240;90", "38;5;227")
+    styled_palette_color(text, "38;2;202;138;46", "38;5;172")
 }
 
 fn styled_success(text: &str) -> String {
-    styled_palette_color(text, "38;2;124;242;154", "38;5;120")
+    styled_palette_color(text, "38;2;34;197;94", "38;5;35")
 }
 
 fn styled_danger(text: &str) -> String {
-    styled_palette_color(text, "38;2;255;138;128", "38;5;210")
+    styled_palette_color(text, "38;2;232;93;93", "38;5;167")
 }
 
 fn styled_palette_color(text: &str, truecolor: &str, ansi256: &str) -> String {

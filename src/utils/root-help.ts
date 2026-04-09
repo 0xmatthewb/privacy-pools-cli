@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { accent, accentBold, highlight, notice, subtle } from "./theme.js";
+import { accent, accentBold, notice } from "./theme.js";
 import {
   ROOT_HELP_FOOTER_ENTRIES,
   rootHelpFooterPlain as rootHelpFooterPlainValue,
@@ -73,8 +73,8 @@ function styleCmdLine(line: string): string {
   const cmdText = m[2];
   const pipeIdx = cmdText.indexOf("|");
   const s = pipeIdx === -1
-    ? highlight(cmdText)
-    : highlight(cmdText.slice(0, pipeIdx)) + chalk.dim(cmdText.slice(pipeIdx));
+    ? accent(cmdText)
+    : accent(cmdText.slice(0, pipeIdx)) + chalk.dim(cmdText.slice(pipeIdx));
   return `${m[1]}${s}${m[3]}${m[4]}`;
 }
 
@@ -207,7 +207,7 @@ export function styleCommanderHelp(raw: string): string {
     if (section === "arguments") {
       const m = line.match(/^(\s{2,})([a-zA-Z][\w-]*)(\s{2,})(.+)$/);
       if (m) {
-        result.push(`${m[1]}${subtle(m[2])}${m[3]}${m[4]}`);
+        result.push(`${m[1]}${chalk.dim(m[2])}${m[3]}${m[4]}`);
         continue;
       }
       result.push(line);

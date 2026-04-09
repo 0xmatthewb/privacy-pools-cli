@@ -9,35 +9,32 @@ import chalk from "chalk";
 
 // ── Accent colours ────────────────────────────────────────────────────────────
 
-/** Vivid cornflower blue — banner art, command examples, section headers. */
-export const accent = chalk.hex("#50ACFF");
+/** Steel blue — banner art, command examples, section headers. */
+export const accent = chalk.hex("#5AADD6");
 
 /** Bold variant for section headings (e.g. "Usage:", "Quick Guide"). */
-export const accentBold = chalk.bold.hex("#50ACFF");
+export const accentBold = chalk.bold.hex("#5AADD6");
 
-/** Honey gold — command names and key metadata. */
-export const highlight = chalk.hex("#FFBF33");
+/** Warm gold bold — logo and wordmark branding. */
+export const brand = chalk.bold.hex("#D4A030");
 
-/** Soft lemon — warnings, hints, and cautionary help text. */
-export const notice = chalk.hex("#FFF05A");
+/** Muted amber — warnings, hints, and cautionary help text. */
+export const notice = chalk.hex("#CA8A2E");
 
-/** Fresh mint — success messages and approved/spendable states. */
-export const successTone = chalk.hex("#7CF29A");
+/** Vivid green — success messages and approved/spendable states. */
+export const successTone = chalk.hex("#22C55E");
 
-/** Warm coral-red — errors and declined states. */
-export const dangerTone = chalk.hex("#FF8A80");
-
-/** Soft coral — arguments and parameter names in help text. */
-export const subtle = chalk.hex("#E56B8E");
+/** Muted red — errors and declined states. */
+export const dangerTone = chalk.hex("#E85D5D");
 
 /** Ora spinner colour name closest to the accent (used by ora's `color` opt). */
-export const spinnerColor = "blue" as const;
+export const spinnerColor = "cyan" as const;
 
 /** Semantic wrappers so renderers style by meaning instead of raw color names. */
 export const amount = chalk.bold;
 export const txHash = chalk.dim;
 export const chainName = accent;
-export const poolAsset = highlight;
+export const poolAsset = accent;
 export const explorerUrl = chalk.underline;
 export const statusHealthy = successTone;
 export const statusPending = notice;
