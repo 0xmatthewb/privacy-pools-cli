@@ -1,44 +1,23 @@
 import { supportsUnicodeOutput } from "./terminal.js";
 
 type SymbolName =
-  | "success"
-  | "failure"
-  | "warning"
-  | "info"
   | "active"
   | "pending"
   | "current"
-  | "deposit"
-  | "withdraw"
-  | "recovery"
-  | "next";
+  | "warning";
 
 const UNICODE_SYMBOLS: Record<SymbolName, string> = {
-  success: "✓",
-  failure: "✗",
-  warning: "⚠",
-  info: "ℹ",
   active: "●",
   pending: "○",
   current: "◉",
-  deposit: "↓",
-  withdraw: "↑",
-  recovery: "⟲",
-  next: "→",
+  warning: "⚠",
 };
 
 const ASCII_SYMBOLS: Record<SymbolName, string> = {
-  success: "ok",
-  failure: "x",
-  warning: "!",
-  info: "i",
   active: "*",
   pending: "o",
   current: ">",
-  deposit: "v",
-  withdraw: "^",
-  recovery: "~",
-  next: "->",
+  warning: "!",
 };
 
 export function glyph(name: SymbolName): string {

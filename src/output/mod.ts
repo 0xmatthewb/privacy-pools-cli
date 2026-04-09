@@ -29,8 +29,12 @@ export {
   type SectionTone,
   formatCallout,
   formatKeyValueRows,
+  formatStackedKeyValueRows,
+  formatBox,
+  type BoxOptions,
   formatSectionList,
   formatSectionHeading,
+  getOutputWidthClass,
 } from "./layout.js";
 export {
   formatPromptLine,
@@ -40,6 +44,16 @@ export {
   type ReviewSurfaceData,
 } from "./review.js";
 export {
+  createNarrativeSteps,
+  renderNarrativeSteps,
+  renderFlowRail,
+  renderOutcomeDirection,
+  type NarrativeStepState,
+  type FlowRailStepState,
+  type NarrativeStep,
+  type FlowRailStep,
+} from "./progress.js";
+export {
   renderHumanCapabilities,
   renderHumanCommandDescription,
   renderHumanGuideText,
@@ -48,6 +62,7 @@ export {
 // Command renderers
 export { renderGuide } from "./guide.js";
 export {
+  formatUpgradeInstallReview,
   renderUpgradeResult,
   type UpgradeResult,
 } from "./upgrade.js";
@@ -107,6 +122,12 @@ export {
   type HistoryRenderData,
 } from "./history.js";
 export {
+  renderInitOverwriteReview,
+  renderGeneratedRecoveryPhraseReview,
+  renderInitBackupMethodReview,
+  renderInitBackupPathReview,
+  renderInitBackupSaved,
+  renderInitBackupConfirmationReview,
   renderInitResult,
   type InitRenderResult,
 } from "./init.js";
@@ -121,6 +142,7 @@ export {
 } from "./deposit.js";
 export {
   formatFlowStartReview,
+  formatFlowRagequitReview,
   renderFlowResult,
   type FlowRenderData,
   type FlowStartReviewData,
