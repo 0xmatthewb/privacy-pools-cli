@@ -16,10 +16,33 @@ export function supportsUnicodeOutput(
   return process.platform !== "win32";
 }
 
-export function getTerminalColumns(
-  columns = process.stderr.columns ?? process.stdout.columns ?? 120,
-): number {
-  return Math.max(40, Math.min(columns, 120));
+function parseTerminalColumns(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+export function getTerminalColumns(columns?: number | null): number {
+  const resolved =
+    parseTerminalColumns(columns) ??
+    parseTerminalColumns(process.env.PRIVACY_POOLS_CLI_PREVIEW_COLUMNS) ??
+    parseTerminalColumns(process.env.COLUMNS) ??
+    parseTerminalColumns(process.stderr.columns) ??
+    parseTerminalColumns(process.stdout.columns) ??
+    120;
+
+  return Math.max(40, Math.min(resolved, 120));
 }
 
 export function getOutputWidthClass(

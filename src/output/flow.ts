@@ -777,22 +777,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     data.snapshot.phase === "completed_public_recovery" ||
     Boolean(data.snapshot.ragequitTxHash);
 
-  if (data.action === "ragequit") {
-    success(
-      `Workflow ${data.snapshot.workflowId} recovered funds publicly from ${data.snapshot.poolAccountId} to the original deposit address. Privacy was not preserved.`,
-      silent,
-    );
-  } else if (data.snapshot.phase === "completed") {
-    success(
-      `Flow completed for ${data.snapshot.poolAccountId}. The approved deposit was withdrawn privately to ${data.snapshot.recipient}.`,
-      silent,
-    );
-  } else if (data.snapshot.phase === "completed_public_recovery") {
-    success(
-      `Workflow ${data.snapshot.workflowId} recovered funds publicly to the original deposit address. Privacy was not preserved.`,
-      silent,
-    );
-  } else if (data.snapshot.ragequitTxHash && !data.snapshot.ragequitBlockNumber) {
+  if (data.snapshot.ragequitTxHash && !data.snapshot.ragequitBlockNumber) {
     info(
       `Workflow ${data.snapshot.workflowId} already submitted the public recovery transaction and is waiting for confirmation.`,
       silent,
@@ -837,6 +822,13 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         silent,
       );
     }
+  } else if (
+    data.action === "ragequit" ||
+    data.snapshot.phase === "completed" ||
+    data.snapshot.phase === "completed_public_recovery"
+  ) {
+    // Terminal flow outcomes use the dense receipt line below as the primary
+    // success surface instead of duplicating it with a status sentence here.
   } else {
     info(
       `Workflow ${data.snapshot.workflowId} is ${phaseLabel(data.snapshot.phase).toLowerCase()}.`,
@@ -911,7 +903,10 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
                 ? `${inlineSeparator()}${flowOutcomeAmount(data.snapshot)}`
                 : ""
             } ` +
-            `-> ${formatAddress(data.snapshot.recipient)}${inlineSeparator()}${data.snapshot.poolAccountId ?? data.snapshot.workflowId}`,
+            `-> ${formatAddress(data.snapshot.recipient)}${inlineSeparator()}${data.snapshot.poolAccountId ?? data.snapshot.workflowId}` +
+            (data.snapshot.withdrawBlockNumber
+              ? `${inlineSeparator()}Block ${data.snapshot.withdrawBlockNumber}`
+              : ""),
           url: data.snapshot.withdrawExplorerUrl,
         }),
       );
@@ -928,7 +923,10 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
                 ? `${inlineSeparator()}${flowOutcomeAmount(data.snapshot)}`
                 : ""
             } ` +
-            `-> original deposit address${inlineSeparator()}${data.snapshot.poolAccountId ?? data.snapshot.workflowId}`,
+            `-> original deposit address${inlineSeparator()}${data.snapshot.poolAccountId ?? data.snapshot.workflowId}` +
+            (data.snapshot.ragequitBlockNumber
+              ? `${inlineSeparator()}Block ${data.snapshot.ragequitBlockNumber}`
+              : ""),
           url: data.snapshot.ragequitExplorerUrl,
         }),
       );

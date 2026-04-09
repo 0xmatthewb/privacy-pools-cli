@@ -306,7 +306,6 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   const dd = displayDecimals(data.decimals);
-  success(`Deposited ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
   if (!silent) {
     process.stderr.write(
       formatDenseOutcomeLine({

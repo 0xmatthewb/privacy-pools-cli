@@ -7,6 +7,7 @@ use std::sync::{
 };
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use terminal_size::{terminal_size_of, Width};
 
 use crate::contract::manifest;
 use crate::error::{CliError, ErrorPresentation};
@@ -769,11 +770,9 @@ fn stderr_supports_animation() -> bool {
 }
 
 fn current_terminal_columns() -> usize {
-    env::var("PRIVACY_POOLS_CLI_PREVIEW_COLUMNS")
-        .ok()
-        .or_else(|| env::var("COLUMNS").ok())
-        .and_then(|value| value.parse::<usize>().ok())
-        .filter(|value| *value > 0)
+    parse_terminal_columns_override("PRIVACY_POOLS_CLI_PREVIEW_COLUMNS")
+        .or_else(|| parse_terminal_columns_override("COLUMNS"))
+        .or_else(live_terminal_columns)
         .unwrap_or(120)
 }
 
@@ -842,6 +841,44 @@ fn next_glyph() -> &'static str {
     }
 }
 
+fn deposit_glyph() -> &'static str {
+    if supports_unicode_output() {
+        "↓"
+    } else {
+        "v"
+    }
+}
+
+fn withdraw_glyph() -> &'static str {
+    if supports_unicode_output() {
+        "↑"
+    } else {
+        "^"
+    }
+}
+
+fn recovery_glyph() -> &'static str {
+    if supports_unicode_output() {
+        "⟲"
+    } else {
+        "~"
+    }
+}
+
+pub fn format_activity_direction_label(event_type: &str) -> String {
+    let normalized = event_type.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "deposit" => format!("{} Deposit", styled_success(deposit_glyph())),
+        "withdraw" | "withdrawal" => {
+            format!("{} Withdraw", styled_accent(withdraw_glyph()))
+        }
+        "ragequit" | "exit" | "recovery" => {
+            format!("{} Recovery", styled_notice(recovery_glyph()))
+        }
+        _ => title_case_words(event_type),
+    }
+}
+
 fn table_horizontal_segment(width: usize) -> String {
     let fill = if supports_unicode_output() { '─' } else { '-' };
     fill.to_string().repeat(width)
@@ -896,6 +933,44 @@ fn style_with_code(text: &str, code: &str) -> String {
     } else {
         text.to_string()
     }
+}
+
+fn parse_terminal_columns_override(key: &str) -> Option<usize> {
+    env::var(key)
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+}
+
+fn live_terminal_columns() -> Option<usize> {
+    terminal_size_of(io::stderr())
+        .or_else(|| terminal_size_of(io::stdout()))
+        .map(|(Width(width), _)| usize::from(width))
+        .filter(|value| *value > 0)
+}
+
+fn title_case_words(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    trimmed
+        .split_whitespace()
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => {
+                    let mut rendered = String::new();
+                    rendered.extend(first.to_uppercase());
+                    rendered.push_str(&chars.as_str().to_ascii_lowercase());
+                    rendered
+                }
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn styled_bold(text: &str) -> String {
@@ -1034,7 +1109,10 @@ fn format_boxed_error(error: &CliError) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_callout, format_section_heading, print_table, CalloutKind};
+    use super::{
+        format_activity_direction_label, format_callout, format_section_heading, print_table,
+        CalloutKind,
+    };
 
     #[test]
     fn format_callout_supports_success_and_privacy_labels() {
@@ -1065,5 +1143,20 @@ mod tests {
             vec!["Asset", "Balance"],
             vec![vec!["ETH".to_string(), "1.00".to_string()]],
         );
+    }
+
+    #[test]
+    fn format_activity_direction_label_uses_semantic_glyphs() {
+        let deposit = format_activity_direction_label("deposit");
+        assert!(deposit.contains("Deposit"));
+        assert!(deposit.contains("↓") || deposit.contains("v"));
+
+        let withdraw = format_activity_direction_label("withdrawal");
+        assert!(withdraw.contains("Withdraw"));
+        assert!(withdraw.contains("↑") || withdraw.contains("^"));
+
+        let recovery = format_activity_direction_label("ragequit");
+        assert!(recovery.contains("Recovery"));
+        assert!(recovery.contains("⟲") || recovery.contains("~"));
     }
 }

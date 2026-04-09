@@ -2,7 +2,8 @@ use super::format::{format_asp_approval_status_label, format_tx_hash_short};
 use super::model::{ActivityRenderData, NormalizedActivityEvent};
 use crate::output::{
     build_next_action, format_callout, format_command_heading, format_key_value_rows,
-    format_section_heading, format_time_ago, print_csv, print_json_success, print_table,
+    format_section_heading, format_time_ago, format_activity_direction_label, print_csv,
+    print_json_success, print_table,
     render_next_steps, write_stderr_text, CalloutKind,
 };
 use crate::routing::NativeMode;
@@ -201,7 +202,7 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
         .iter()
         .map(|event| {
             vec![
-                event.event_type.clone(),
+                format_activity_direction_label(&event.event_type),
                 activity_pool_label(event),
                 event.amount_formatted.clone(),
                 format_asp_approval_status_label(&event.review_status),

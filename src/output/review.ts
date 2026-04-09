@@ -26,36 +26,33 @@ export interface ReviewSurfaceData {
 }
 
 export function formatReviewSurface(data: ReviewSurfaceData): string {
-  let output = "";
+  const blocks: string[] = [];
 
   if (data.summaryRows && data.summaryRows.length > 0) {
-    output += formatKeyValueRows(data.summaryRows);
+    blocks.push(formatKeyValueRows(data.summaryRows).trimEnd());
   }
 
   for (const section of data.sections ?? []) {
-    if (output.length > 0) {
-      output += "\n";
-    }
+    const lines: string[] = [];
     if (section.title) {
-      output += `${section.title}:\n`;
+      lines.push(`${section.title}:`);
     }
-    output += formatKeyValueRows(section.rows);
+    lines.push(formatKeyValueRows(section.rows).trimEnd());
+    blocks.push(lines.join("\n"));
   }
 
   if (data.primaryCallout) {
-    if (output.length > 0) {
-      output += "\n";
-    }
-    output += formatCallout(data.primaryCallout.kind, data.primaryCallout.lines);
+    blocks.push(
+      formatCallout(data.primaryCallout.kind, data.primaryCallout.lines).trim(),
+    );
   }
   if (data.secondaryCallout) {
-    if (output.length > 0) {
-      output += "\n";
-    }
-    output += formatCallout(data.secondaryCallout.kind, data.secondaryCallout.lines);
+    blocks.push(
+      formatCallout(data.secondaryCallout.kind, data.secondaryCallout.lines).trim(),
+    );
   }
 
-  return formatBox(output.trimEnd(), {
+  return formatBox(blocks.join("\n\n"), {
     title: data.title,
     padTop: false,
   });

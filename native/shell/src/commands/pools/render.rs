@@ -4,9 +4,10 @@ use super::model::{
 };
 use crate::output::{
     build_next_action, format_address, format_callout, format_command_heading, format_count_number,
-    format_key_value_rows, format_muted_block, format_section_heading, insert_optional_f64,
-    insert_optional_string, insert_optional_u64, print_csv, print_json_success, print_table,
-    render_next_steps, write_info, write_stderr_text, CalloutKind,
+    format_key_value_rows, format_muted_block, format_section_heading,
+    format_activity_direction_label, insert_optional_f64, insert_optional_string,
+    insert_optional_u64, print_csv, print_json_success, print_table, render_next_steps,
+    write_info, write_stderr_text, CalloutKind,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -776,7 +777,7 @@ fn format_pool_account_status(status: &str) -> String {
 
 fn activity_row(event: &PoolDetailActivityEvent) -> Vec<String> {
     vec![
-        event.event_type.clone(),
+        format_activity_direction_label(&event.event_type),
         event.amount.clone(),
         event.time_label.clone(),
         format_pool_account_status(&event.status),

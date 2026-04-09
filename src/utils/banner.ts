@@ -3,6 +3,7 @@ import { accent, accentBold, highlight } from "./theme.js";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { getTerminalColumns } from "./terminal.js";
 
 function sanitizeForFilename(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
@@ -89,7 +90,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 function buildMetaLines(meta: BannerMeta): BannerLine[] {
-  const contentWidth = Math.max(40, (process.stderr.columns ?? 80) - 2);
+  const contentWidth = Math.max(40, getTerminalColumns() - 2);
   const version = meta.version?.trim();
   const website = meta.website?.trim() || DEFAULT_WEBSITE;
   const repository = meta.repository?.trim();
@@ -135,7 +136,7 @@ function buildMetaLines(meta: BannerMeta): BannerLine[] {
 
 function composeBannerLines(meta: BannerMeta): string[] {
   const metaLines = buildMetaLines(meta);
-  const columns = process.stderr.columns ?? 80;
+  const columns = getTerminalColumns();
 
   if (columns < 72) {
     return [

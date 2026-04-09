@@ -444,10 +444,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     const val = formatUsdValue(amount, data.decimals, data.tokenPrice ?? null);
     return val === "-" ? "" : ` (${val})`;
   };
-  success(
-    `Withdrew ${formatAmount(data.amount, data.decimals, data.asset, dd)} from ${data.poolAccountId} to ${formatAddress(data.recipient)}.`,
-    silent,
-  );
   if (!silent) {
     const feeBpsNum = data.feeBPS ? Number(data.feeBPS) : null;
     const netAmount = feeBpsNum !== null

@@ -312,7 +312,8 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toContain("Flow completed");
+    expect(stderr).toContain("Completed saved flow");
+    expect(stderr).toContain("Block 12399");
     expect(stderr).not.toContain("Next steps:");
   });
 
@@ -331,10 +332,8 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toContain(
-      "Workflow wf-123 recovered funds publicly from PA-1 to the original deposit address.",
-    );
-    expect(stderr).toContain("Privacy was not preserved.");
+    expect(stderr).toContain("Recovered saved flow");
+    expect(stderr).toContain("Block 12400");
     expect(stderr).toContain(
       "Public recovery destination: original deposit address",
     );
@@ -471,7 +470,8 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toContain("recovered funds publicly to the original deposit address");
+    expect(stderr).toContain("Recovered saved flow");
+    expect(stderr).toContain("Block 12401");
     expect(stderr).toContain(
       "Any leftover funds or gas reserve remain in the dedicated workflow wallet until you move them manually.",
     );

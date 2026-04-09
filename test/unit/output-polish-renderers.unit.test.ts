@@ -32,6 +32,10 @@ import {
 } from "../../src/output/init.ts";
 import { captureOutput, makeMode } from "../helpers/output.ts";
 
+function stripAnsi(value: string): string {
+  return value.replace(/\x1B\[[0-9;]*m/g, "");
+}
+
 describe("formatRelayedWithdrawalReview", () => {
   test("renders the shared review surface for relayed withdrawals", () => {
     const output = formatRelayedWithdrawalReview({
@@ -61,6 +65,41 @@ describe("formatRelayedWithdrawalReview", () => {
     expect(output).toContain("Net received");
     expect(output).toContain("Quote expiry");
     expect(output).toContain("The remaining balance would fall below the relayer minimum.");
+  });
+
+  test("keeps boxed review spacing to a single blank line between sections", () => {
+    const lines = stripAnsi(formatRelayedWithdrawalReview({
+      poolAccountId: "PA-7",
+      poolAccountBalance: 100_000_000n,
+      amount: 90_000_000n,
+      asset: "USDC",
+      chain: "sepolia",
+      decimals: 6,
+      recipient: "0x1111111111111111111111111111111111111111",
+      quoteFeeBPS: 100n,
+      expirationMs: Date.parse("2026-03-24T13:00:00.000Z"),
+      remainingBalance: 10_000_000n,
+      extraGasRequested: true,
+      extraGasFundAmount: 1_500_000_000_000_000n,
+      remainingBelowMinAdvisory:
+        "The remaining balance would fall below the relayer minimum.",
+      tokenPrice: 1,
+      nowMs: Date.parse("2026-03-24T12:59:30.000Z"),
+    })).split("\n");
+
+    let consecutiveBlankBoxLines = 0;
+    let maxBlankRun = 0;
+
+    for (const line of lines) {
+      if (/^[│|]\s*[│|]$/.test(line)) {
+        consecutiveBlankBoxLines += 1;
+        maxBlankRun = Math.max(maxBlankRun, consecutiveBlankBoxLines);
+      } else {
+        consecutiveBlankBoxLines = 0;
+      }
+    }
+
+    expect(maxBlankRun).toBe(1);
   });
 });
 

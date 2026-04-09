@@ -252,10 +252,6 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   const destinationLabel = data.destinationAddress
     ? formatAddress(data.destinationAddress)
     : "deposit address";
-  success(
-    `Ragequit ${data.poolAccountId}: withdrew ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} back to ${destinationLabel}.`,
-    silent,
-  );
   if (!silent) {
     process.stderr.write(
       formatDenseOutcomeLine({

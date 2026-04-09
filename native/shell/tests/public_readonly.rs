@@ -52,7 +52,10 @@ fn global_public_commands_succeed_against_the_rust_fixture() {
 fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();
-    let env = [("PRIVACY_POOLS_ASP_HOST", asp_host.as_str())];
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("LANG", "en_US.UTF-8"),
+    ];
 
     let human_activity = run_native_with_env(&["activity"], &env);
     assert!(human_activity.status.success());
@@ -73,6 +76,22 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
     assert!(csv_stats.status.success());
     assert!(stderr_string(&csv_stats).trim().is_empty());
     assert!(stdout_string(&csv_stats).contains("Metric,All Time,Last 24h"));
+}
+
+#[test]
+fn native_activity_human_output_uses_direction_glyphs() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("LANG", "en_US.UTF-8"),
+    ];
+
+    let human_activity = run_native_with_env(&["activity"], &env);
+    assert!(human_activity.status.success());
+    assert!(stdout_string(&human_activity).is_empty());
+    let stderr = stderr_string(&human_activity);
+    assert!(stderr.contains("↓ Deposit") || stderr.contains("v Deposit"));
 }
 
 #[test]
@@ -142,6 +161,7 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     let env = [
         ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
         ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
+        ("LANG", "en_US.UTF-8"),
     ];
 
     let pools = run_native_with_env(&["--chain", "sepolia", "pools", "--agent"], &env);
@@ -197,6 +217,27 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
         activity_payload["scope"],
         Value::String("12345".to_string())
     );
+}
+
+#[test]
+fn native_pool_detail_recent_activity_uses_direction_glyphs() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let (bridge_key, bridge_value) = live_bridge_env();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
+        (bridge_key.as_str(), bridge_value.as_str()),
+        ("LANG", "en_US.UTF-8"),
+    ];
+
+    let pool_detail = run_native_with_env(&["--chain", "sepolia", "pools", "ETH"], &env);
+    assert!(pool_detail.status.success());
+    assert!(stdout_string(&pool_detail).is_empty());
+    let stderr = stderr_string(&pool_detail);
+    assert!(stderr.contains("Recent activity"));
+    assert!(stderr.contains("↓ Deposit") || stderr.contains("v Deposit"));
 }
 
 #[test]
