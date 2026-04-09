@@ -171,6 +171,26 @@ function applyMachineMode(
   }
 }
 
+function applyHelpStyling(
+  cmd: Command,
+  styleHelp: (value: string) => string,
+): void {
+  const prev = cmd.configureOutput();
+  const prevWriteErr = prev?.writeErr;
+  const prevOutputError = prev?.outputError;
+  cmd.configureOutput({
+    writeOut: (str: string) => {
+      process.stdout.write(styleHelp(str));
+    },
+    writeErr: prevWriteErr ?? ((str: string) => process.stderr.write(str)),
+    outputError: prevOutputError ?? ((str: string, write: (s: string) => void) => write(str)),
+  });
+
+  for (const sub of cmd.commands) {
+    applyHelpStyling(sub as Command, styleHelp);
+  }
+}
+
 function emitStructuredRootHelpIfNeeded(
   program: Pick<Command, "helpInformation">,
   options: {
@@ -252,6 +272,7 @@ export const cliMainHelperInternals = {
   shouldStartUpdateCheck,
   configureCommanderOutput,
   applyMachineMode,
+  applyHelpStyling,
   emitStructuredRootHelpIfNeeded,
   emitCommanderSignalPayload,
   resolveConfigHome,

@@ -207,7 +207,7 @@ export function styleCommanderHelp(raw: string): string {
     if (section === "arguments") {
       const m = line.match(/^(\s{2,})([a-zA-Z][\w-]*)(\s{2,})(.+)$/);
       if (m) {
-        result.push(`${m[1]}${chalk.dim(m[2])}${m[3]}${m[4]}`);
+        result.push(`${m[1]}${notice(m[2])}${m[3]}${m[4]}`);
         continue;
       }
       result.push(line);

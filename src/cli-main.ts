@@ -24,6 +24,7 @@ const {
   shouldStartUpdateCheck,
   configureCommanderOutput,
   applyMachineMode,
+  applyHelpStyling,
   emitStructuredRootHelpIfNeeded,
   emitCommanderSignalPayload,
   resolveConfigHome: configHome,
@@ -95,6 +96,8 @@ export async function runCli(
       styleCommanderHelp,
       machineOutput,
     });
+  } else if (styleCommanderHelp) {
+    applyHelpStyling(program, styleCommanderHelp);
   }
 
   const shouldCheckUpdates = shouldStartUpdateCheck(
@@ -202,6 +205,7 @@ export const cliMainTestInternals = {
   shouldStartUpdateCheck,
   configureCommanderOutput,
   applyMachineMode,
+  applyHelpStyling,
   emitStructuredRootHelpIfNeeded,
   emitCommanderSignalPayload,
 };

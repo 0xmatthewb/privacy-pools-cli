@@ -152,7 +152,7 @@ function makeProgram(
     commands: [],
     showSuggestionAfterError() {},
     showHelpAfterError() {},
-    configureOutput(output: {
+    configureOutput(output?: {
       writeOut?: (value: string) => void;
       writeErr?: (value: string) => void;
       outputError?: (
@@ -160,7 +160,9 @@ function makeProgram(
         write: (value: string) => void,
       ) => void;
     }) {
-      this.configuredOutput = output;
+      if (!output) return this.configuredOutput;
+      this.configuredOutput = { ...this.configuredOutput, ...output };
+      return this;
     },
     exitOverride() {},
     helpInformation() {

@@ -4,8 +4,9 @@
  * `src/commands/completion.ts` delegates output rendering here.
  */
 
+import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, guardCsvUnsupported } from "./common.js";
+import { printJsonSuccess, isSilent, guardCsvUnsupported } from "./common.js";
 
 /**
  * Render completion script output.
@@ -30,6 +31,11 @@ export function renderCompletionScript(
 
   guardCsvUnsupported(ctx, "completion");
   process.stdout.write(script.endsWith("\n") ? script : `${script}\n`);
+  if (process.stderr.isTTY && !isSilent(ctx)) {
+    process.stderr.write(
+      chalk.dim("# Pipe to your shell config or eval to enable completions.\n"),
+    );
+  }
 }
 
 /**
