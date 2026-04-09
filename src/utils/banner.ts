@@ -1,9 +1,12 @@
 import chalk from "chalk";
 import { accent, brand } from "./theme.js";
+import { renderRippleFrame, RIPPLE_FRAME_COUNT, RIPPLE_FRAME_DELAY_MS } from "./ripple.js";
+import { getTerminalColumns, supportsUnicodeOutput, visibleWidth, padDisplay, inlineSeparator } from "./terminal.js";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import { getTerminalColumns } from "./terminal.js";
+
+// ── Session marker (unchanged) ─────────────────────────────────────────────
 
 function sanitizeForFilename(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
@@ -57,22 +60,7 @@ function markBannerShown(): void {
   }
 }
 
-const LOGO_LINES = [
-  ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.",
-  "| .-.\\| .-.\\|(|\\ \\ / / /\\ \\.' .')\\ \\_/ )/   | .-.\\/ .-. )/ .-. )| |    ( .-._)",
-  "| |-' | `-'/(_) \\ V / /__\\ |  |(_)\\   (_)   | |-' | | |(_| | |(_| |   (_) \\",
-  "| |--'|   ( | |  ) /|  __  \\  \\    ) (      | |--'| | | || | | || |   _  \\ \\",
-  "| |   | |\\ \\| | (_) | |  |)|\\  `-. | |      | |   \\ `-' /\\ `-' /| `--( `-'  )",
-  "/(    |_| \\)`-'     |_|  (_) \\____/(_|      /(     )---'  )---' |( __.`----'",
-  "(__)       (__)                   (__)      (__)   (_)    (_)    (_)",
-];
-
-const TAGLINE = "A compliant way to transact privately on Ethereum.";
-const WORDMARK = "Privacy Pools";
-
-const DEFAULT_WEBSITE = "privacypools.com";
-
-const FRAME_DELAY = 65;
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 interface BannerMeta {
   version?: string;
@@ -80,112 +68,167 @@ interface BannerMeta {
   website?: string;
 }
 
-interface BannerLine {
-  plain: string;
-  styled: string;
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function buildMetaLines(meta: BannerMeta): BannerLine[] {
-  const contentWidth = Math.max(40, getTerminalColumns() - 2);
+function composeWelcomeText(meta: BannerMeta): string[] {
   const version = meta.version?.trim();
-  const website = meta.website?.trim() || DEFAULT_WEBSITE;
-  const repository = meta.repository?.trim();
-  const compactMeta = {
-    plain: version
-      ? repository
-        ? `v${version} | ${website} | ${repository}`
-        : `v${version} | ${website}`
-      : repository
-        ? `${website} | ${repository}`
-        : website,
-    styled: version
-      ? repository
-        ? `${accent(`v${version}`)}${chalk.dim(" | ")}${accent(website)}${chalk.dim(" | ")}${accent(repository)}`
-        : `${accent(`v${version}`)}${chalk.dim(" | ")}${accent(website)}`
-      : repository
-        ? `${accent(website)}${chalk.dim(" | ")}${accent(repository)}`
-        : accent(website),
-  };
+  const website = meta.website?.trim() || "privacypools.com";
+  const sep = inlineSeparator();
 
-  if (compactMeta.plain.length <= contentWidth) {
-    return [compactMeta];
-  }
-
-  const lines: BannerLine[] = [
-    {
-      plain: version ? `v${version} | ${website}` : website,
-      styled: version
-        ? `${accent(`v${version}`)}${chalk.dim(" | ")}${accent(website)}`
-        : accent(website),
-    },
-  ];
-
-  if (repository) {
-    lines.push({
-      plain: repository,
-      styled: accent(repository),
-    });
-  }
-
-  return lines;
-}
-
-function composeBannerLines(meta: BannerMeta): string[] {
-  const metaLines = buildMetaLines(meta);
-  const columns = getTerminalColumns();
-
-  if (columns < 72) {
-    return [
-      brand(WORDMARK),
-      `  ${chalk.dim(TAGLINE)}`,
-      ...metaLines.map((line) => `  ${line.styled}`),
-    ];
-  }
-
-  if (columns < 96) {
-    return [
-      brand("PRIVACY POOLS"),
-      `  ${chalk.dim(TAGLINE)}`,
-      ...metaLines.map((line) => `  ${line.styled}`),
-    ];
-  }
+  const versionLine = version
+    ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent(website)}`
+    : accent(website);
 
   return [
-    ...LOGO_LINES.map((line) => brand(line)),
+    brand("PRIVACY POOLS"),
+    chalk.dim("A compliant way to transact privately on Ethereum."),
+    versionLine,
     "",
-    `  ${chalk.dim(TAGLINE)}`,
-    ...metaLines.map((line) => `  ${line.styled}`),
+    `${accent("privacy-pools init")}    ${chalk.dim("get started")}`,
+    `${accent("privacy-pools guide")}   ${chalk.dim("full guide")}`,
+    `${accent("privacy-pools --help")}  ${chalk.dim("all commands")}`,
   ];
 }
 
-export async function printBanner(meta: BannerMeta = {}): Promise<void> {
+function composeSideBySide(
+  poolLines: string[],
+  textLines: string[],
+  gap: number,
+): string[] {
+  const poolHeight = poolLines.length;
+  const textHeight = textLines.length;
+  const totalHeight = Math.max(poolHeight, textHeight);
+  const textOffset = Math.floor((poolHeight - textHeight) / 2);
+
+  // Determine the maximum visible width across all pool lines for consistent padding
+  let maxPoolWidth = 0;
+  for (const line of poolLines) {
+    const w = visibleWidth(line);
+    if (w > maxPoolWidth) maxPoolWidth = w;
+  }
+
+  const result: string[] = [];
+  for (let i = 0; i < totalHeight; i++) {
+    const poolPart = i < poolHeight ? padDisplay(poolLines[i], maxPoolWidth) : " ".repeat(maxPoolWidth);
+    const textIdx = i - textOffset;
+    const textPart = textIdx >= 0 && textIdx < textHeight ? textLines[textIdx] : "";
+    result.push(poolPart + " ".repeat(gap) + textPart);
+  }
+
+  return result;
+}
+
+// ── Main banner ─────────────────────────────────────────────────────────────
+
+export async function printBanner(
+  meta: BannerMeta = {},
+): Promise<{ includedWelcomeText: boolean }> {
   // Only show once per terminal session.
-  if (hasBannerBeenShown()) return;
+  if (hasBannerBeenShown()) return { includedWelcomeText: false };
 
-  const lines = composeBannerLines(meta);
+  const columns = getTerminalColumns();
+  const useColor = chalk.level > 0;
+  const useUnicode = supportsUnicodeOutput();
 
-  // Skip animation if output is not a TTY (piped, CI, etc.)
+  // ── Narrow (< 72 columns) ──────────────────────────────────────────────
+  if (columns < 72) {
+    process.stderr.write(brand("PRIVACY POOLS") + "\n");
+    process.stderr.write(chalk.dim("A compliant way to transact privately on Ethereum.") + "\n");
+    process.stderr.write("\n");
+    markBannerShown();
+    return { includedWelcomeText: false };
+  }
+
+  const welcomeText = composeWelcomeText(meta);
+
+  // ── Non-TTY (piped, CI, etc.) ─────────────────────────────────────────
   if (!process.stderr.isTTY) {
-    for (const line of lines) {
+    const poolWidth = columns >= 96 ? 62 : 40;
+    const poolHeight = columns >= 96 ? 22 : 14;
+    const frame = renderRippleFrame(poolWidth, poolHeight, 10, { useColor, useUnicode });
+
+    let output: string[];
+    if (columns >= 96) {
+      output = composeSideBySide(frame, welcomeText, 3);
+    } else {
+      output = [...frame, "", ...welcomeText];
+    }
+
+    for (const line of output) {
       process.stderr.write(line + "\n");
     }
     process.stderr.write("\n");
     markBannerShown();
-    return;
+    return { includedWelcomeText: true };
   }
 
-  // Animate line-by-line
-  for (const line of lines) {
+  // ── Wide TTY (>= 96 columns): side-by-side animation ─────────────────
+  if (columns >= 96) {
+    const poolWidth = 62;
+    const poolHeight = 22;
+
+    // First frame
+    const firstFrame = renderRippleFrame(poolWidth, poolHeight, 0, { useColor, useUnicode });
+    const firstComposed = composeSideBySide(firstFrame, welcomeText, 3);
+    const lineCount = firstComposed.length;
+
+    for (const line of firstComposed) {
+      process.stderr.write(line + "\n");
+    }
+
+    // Animate frames 1..18
+    for (let t = 1; t < RIPPLE_FRAME_COUNT; t++) {
+      await sleep(RIPPLE_FRAME_DELAY_MS);
+      process.stderr.write(`\x1b[${lineCount}A`);
+      const frame = renderRippleFrame(poolWidth, poolHeight, t, { useColor, useUnicode });
+      const composed = composeSideBySide(frame, welcomeText, 3);
+      for (const line of composed) {
+        process.stderr.write(line + "\n");
+      }
+    }
+
+    // Breathing pause
+    await sleep(180);
+    markBannerShown();
+    return { includedWelcomeText: true };
+  }
+
+  // ── Compact TTY (72 <= columns < 96): pool above text ─────────────────
+  const poolWidth = 40;
+  const poolHeight = 14;
+
+  // First frame (pool only, text is static below)
+  const firstFrame = renderRippleFrame(poolWidth, poolHeight, 0, { useColor, useUnicode });
+  for (const line of firstFrame) {
     process.stderr.write(line + "\n");
-    await sleep(FRAME_DELAY);
+  }
+  // Static text below pool
+  process.stderr.write("\n");
+  for (const line of welcomeText) {
+    process.stderr.write(line + "\n");
   }
 
-  // Pause to let the banner breathe before the rest of the output
+  // Animate frames 1..18 (cursor-up only covers pool lines)
+  const poolLineCount = poolHeight;
+  const textBlockHeight = 1 + welcomeText.length; // blank line + text lines
+  const totalUp = poolLineCount + textBlockHeight;
+
+  for (let t = 1; t < RIPPLE_FRAME_COUNT; t++) {
+    await sleep(RIPPLE_FRAME_DELAY_MS);
+    // Move cursor up past text and pool
+    process.stderr.write(`\x1b[${totalUp}A`);
+    const frame = renderRippleFrame(poolWidth, poolHeight, t, { useColor, useUnicode });
+    for (const line of frame) {
+      process.stderr.write(line + "\n");
+    }
+    // Move cursor down past static text
+    process.stderr.write(`\x1b[${textBlockHeight}B`);
+  }
+
+  // Breathing pause
   await sleep(180);
-  process.stderr.write("\n");
   markBannerShown();
+  return { includedWelcomeText: true };
 }

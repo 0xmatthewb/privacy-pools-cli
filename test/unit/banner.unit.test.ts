@@ -27,27 +27,69 @@ describe("banner runtime", () => {
     process.env.TERM_SESSION_ID = sessionId;
     rmSync(markerPath, { force: true });
 
-    const first = await captureAsyncOutput(() =>
-      printBanner({
+    const first = await captureAsyncOutput(async () => {
+      await printBanner({
         version: "1.2.3",
         repository: "github.com/example/repo",
-      }),
-    );
+      });
+    });
 
     expect(first.stdout).toBe("");
     expect(first.stderr).toContain("A compliant way to transact privately on Ethereum.");
-    expect(first.stderr).toContain("github.com/example/repo");
+    expect(first.stderr).toContain("v1.2.3");
     expect(existsSync(markerPath)).toBe(true);
 
-    const second = await captureAsyncOutput(() =>
-      printBanner({
+    const second = await captureAsyncOutput(async () => {
+      await printBanner({
         version: "1.2.3",
         repository: "github.com/example/repo",
-      }),
-    );
+      });
+    });
 
     expect(second.stdout).toBe("");
     expect(second.stderr).toBe("");
+
+    rmSync(markerPath, { force: true });
+  });
+
+  test("returns includedWelcomeText: true for non-TTY output", async () => {
+    const sessionId = `banner:test/welcome:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+    const markerPath = markerPathFor(sessionId);
+    process.env.TERM_SESSION_ID = sessionId;
+    rmSync(markerPath, { force: true });
+
+    let result: { includedWelcomeText: boolean } | undefined;
+    await captureAsyncOutput(async () => {
+      result = await printBanner({
+        version: "1.2.3",
+      });
+    });
+
+    expect(result).toBeDefined();
+    expect(result!.includedWelcomeText).toBe(true);
+
+    rmSync(markerPath, { force: true });
+  });
+
+  test("returns includedWelcomeText: false when already shown", async () => {
+    const sessionId = `banner:test/repeat:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+    const markerPath = markerPathFor(sessionId);
+    process.env.TERM_SESSION_ID = sessionId;
+    rmSync(markerPath, { force: true });
+
+    // Show once
+    await captureAsyncOutput(async () => {
+      await printBanner({ version: "1.0.0" });
+    });
+
+    // Second call
+    let result: { includedWelcomeText: boolean } | undefined;
+    await captureAsyncOutput(async () => {
+      result = await printBanner({ version: "1.0.0" });
+    });
+
+    expect(result).toBeDefined();
+    expect(result!.includedWelcomeText).toBe(false);
 
     rmSync(markerPath, { force: true });
   });
