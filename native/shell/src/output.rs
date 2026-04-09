@@ -841,40 +841,12 @@ fn next_glyph() -> &'static str {
     }
 }
 
-fn deposit_glyph() -> &'static str {
-    if supports_unicode_output() {
-        "↓"
-    } else {
-        "v"
-    }
-}
-
-fn withdraw_glyph() -> &'static str {
-    if supports_unicode_output() {
-        "↑"
-    } else {
-        "^"
-    }
-}
-
-fn recovery_glyph() -> &'static str {
-    if supports_unicode_output() {
-        "⟲"
-    } else {
-        "~"
-    }
-}
-
 pub fn format_activity_direction_label(event_type: &str) -> String {
     let normalized = event_type.trim().to_ascii_lowercase();
     match normalized.as_str() {
-        "deposit" => format!("{} Deposit", styled_success(deposit_glyph())),
-        "withdraw" | "withdrawal" => {
-            format!("{} Withdraw", styled_accent(withdraw_glyph()))
-        }
-        "ragequit" | "exit" | "recovery" => {
-            format!("{} Ragequit", styled_notice(recovery_glyph()))
-        }
+        "deposit" => "Deposit".to_string(),
+        "withdraw" | "withdrawal" => "Withdraw".to_string(),
+        "ragequit" | "exit" | "recovery" => "Ragequit".to_string(),
         _ => title_case_words(event_type),
     }
 }
@@ -1146,17 +1118,14 @@ mod tests {
     }
 
     #[test]
-    fn format_activity_direction_label_uses_semantic_glyphs() {
+    fn format_activity_direction_label_uses_text_labels() {
         let deposit = format_activity_direction_label("deposit");
-        assert!(deposit.contains("Deposit"));
-        assert!(deposit.contains("↓") || deposit.contains("v"));
+        assert_eq!(deposit, "Deposit");
 
         let withdraw = format_activity_direction_label("withdrawal");
-        assert!(withdraw.contains("Withdraw"));
-        assert!(withdraw.contains("↑") || withdraw.contains("^"));
+        assert_eq!(withdraw, "Withdraw");
 
         let recovery = format_activity_direction_label("ragequit");
-        assert!(recovery.contains("Ragequit"));
-        assert!(recovery.contains("⟲") || recovery.contains("~"));
+        assert_eq!(recovery, "Ragequit");
     }
 }

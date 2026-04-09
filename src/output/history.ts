@@ -11,13 +11,9 @@ import { printJsonSuccess, printCsv, printTable, info, isSilent } from "./common
 import { formatAmount, formatTxHash, displayDecimals, formatApproxBlockTimeAgo } from "../utils/format.js";
 import {
   accentBold,
-  directionDeposit,
-  directionRecovery,
-  directionWithdraw,
 } from "../utils/theme.js";
 import type { HistoryEvent } from "../commands/history.js";
 import { formatKeyValueRows, formatSectionHeading } from "./layout.js";
-import { glyph } from "../utils/symbols.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,13 +37,13 @@ export interface HistoryRenderData {
 function renderHistoryType(type: HistoryEvent["type"]): string {
   switch (type) {
     case "deposit":
-      return `${directionDeposit(glyph("deposit"))} Deposit`;
+      return "Deposit";
     case "migration":
-      return `${directionDeposit(glyph("deposit"))} Migration`;
+      return "Migration";
     case "withdrawal":
-      return `${directionWithdraw(glyph("withdraw"))} Withdraw`;
+      return "Withdraw";
     default:
-      return `${directionRecovery(glyph("recovery"))} Ragequit`;
+      return "Ragequit";
   }
 }
 

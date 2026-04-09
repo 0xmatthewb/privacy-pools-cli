@@ -290,17 +290,17 @@ export function spinner(text: string, quiet: boolean = false) {
 
 export function success(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${successTone(`${glyph("success")} ${message}`)}\n`);
+  process.stderr.write(`${successTone(`${glyph("active")} ${message}`)}\n`);
 }
 
 export function warn(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${notice(`${glyph("warning")} ${message}`)}\n`);
+  process.stderr.write(`${notice(`${glyph("active")} ${message}`)}\n`);
 }
 
 export function info(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${accent(`${glyph("info")} ${message}`)}\n`);
+  process.stderr.write(`${accent(`${glyph("active")} ${message}`)}\n`);
 }
 
 export function verbose(
@@ -330,20 +330,20 @@ export function formatDenseOutcomeLine(params: {
   message: string;
   url?: string | null;
 }): string {
-  const symbol = (() => {
+  const colorFn = (() => {
     switch (params.outcome) {
       case "deposit":
-        return directionDeposit(glyph("deposit"));
+        return directionDeposit;
       case "withdraw":
-        return accent(glyph("withdraw"));
+        return accent;
       case "recovery":
-        return notice(glyph("recovery"));
+        return notice;
       default:
-        return successTone(glyph("success"));
+        return successTone;
     }
   })();
 
-  const lines = [`  ${symbol} ${params.message}`];
+  const lines = [`  ${chalk.bold(colorFn(params.message))}`];
   if (params.url) {
     lines.push(`    ${explorerUrl(params.url)}`);
   }

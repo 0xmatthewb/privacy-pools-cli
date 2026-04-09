@@ -12,9 +12,6 @@ import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, app
 import { formatAddress } from "../utils/format.js";
 import {
   accentBold,
-  directionDeposit,
-  directionRecovery,
-  directionWithdraw,
   successTone,
 } from "../utils/theme.js";
 import { explorerTxUrl } from "../config/chains.js";
@@ -29,7 +26,6 @@ import {
   formatStackedKeyValueRows,
   getOutputWidthClass,
 } from "./layout.js";
-import { glyph } from "../utils/symbols.js";
 import { inlineSeparator } from "../utils/terminal.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -105,15 +101,15 @@ function formatActivityStatusPlain(type: string, reviewStatus: string | null): s
 function renderActivityType(type: string): string {
   const normalized = type.trim().toLowerCase();
   if (normalized.includes("deposit")) {
-    return `${directionDeposit(glyph("deposit"))} Deposit`;
+    return "Deposit";
   }
   if (normalized.includes("withdraw")) {
-    return `${directionWithdraw(glyph("withdraw"))} Withdraw`;
+    return "Withdraw";
   }
   if (normalized.includes("ragequit") || normalized.includes("recovery")) {
-    return `${directionRecovery(glyph("recovery"))} Ragequit`;
+    return "Ragequit";
   }
-  return `${chalk.dim(glyph("info"))} ${type}`;
+  return type;
 }
 
 // ── Renderers ────────────────────────────────────────────────────────────────
@@ -264,7 +260,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       `\n  ${chalk.dim(`Page ${data.page} of ${data.totalPages}`)}` +
         (data.total !== null ? chalk.dim(`${inlineSeparator()}${data.total} events`) : "") +
         (data.page < data.totalPages
-          ? `\n  ${chalk.dim(glyph("next"))} ${chalk.dim(`privacy-pools activity --page ${data.page + 1}`)}`
+          ? `\n  ${chalk.dim(`privacy-pools activity --page ${data.page + 1}`)}`
           : "") +
         "\n",
     );

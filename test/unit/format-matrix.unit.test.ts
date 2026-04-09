@@ -157,9 +157,9 @@ describe("format utils matrix", () => {
     verbose("quiet", false);
     verbose("noisy", true);
 
-    expect(logs.some((l) => /(?:✓|ok) ok/.test(l))).toBe(true);
-    expect(logs.some((l) => /(?:⚠|!) careful/.test(l))).toBe(true);
-    expect(logs.some((l) => /(?:ℹ|i) heads-up/.test(l))).toBe(true);
+    expect(logs.some((l) => /(?:●|\*) ok/.test(l))).toBe(true);
+    expect(logs.some((l) => /(?:●|\*) careful/.test(l))).toBe(true);
+    expect(logs.some((l) => /(?:●|\*) heads-up/.test(l))).toBe(true);
     expect(logs.some((l) => l.includes("quiet"))).toBe(false);
     expect(logs.some((l) => l.includes("noisy"))).toBe(true);
   });

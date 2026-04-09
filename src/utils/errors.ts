@@ -11,7 +11,6 @@ import {
   visibleWidth,
   wrapDisplayText,
 } from "./terminal.js";
-import { glyph } from "./symbols.js";
 
 export type ErrorCategory =
   | "INPUT"
@@ -230,7 +229,7 @@ function renderBoxedError(error: CLIError): string {
   const bottomLeft = supportsUnicodeOutput() ? "╰" : "+";
   const bottomRight = supportsUnicodeOutput() ? "╯" : "+";
   const heading = chalk.bold(
-    `${dangerTone(`${glyph("failure")} Error [${error.category}]`)}: ${error.message}`,
+    `${chalk.bold(dangerTone(`Error [${error.category}]`))}: ${error.message}`,
   );
   const body = [
     ...wrapDisplayText(heading, width),

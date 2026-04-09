@@ -49,9 +49,9 @@ export function createNarrativeSteps(
 function renderStepMarker(state: NarrativeStepState | FlowRailStepState): string {
   switch (state) {
     case "done":
-      return statusHealthy(glyph("success"));
+      return statusHealthy(glyph("active"));
     case "active":
-      return accent(glyph("current"));
+      return accent(glyph("active"));
     case "blocked":
       return directionRecovery(glyph("warning"));
     case "skipped":

@@ -79,7 +79,7 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 }
 
 #[test]
-fn native_activity_human_output_uses_direction_glyphs() {
+fn native_activity_human_output_uses_text_labels() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();
     let env = [
@@ -91,7 +91,9 @@ fn native_activity_human_output_uses_direction_glyphs() {
     assert!(human_activity.status.success());
     assert!(stdout_string(&human_activity).is_empty());
     let stderr = stderr_string(&human_activity);
-    assert!(stderr.contains("↓ Deposit") || stderr.contains("v Deposit"));
+    assert!(stderr.contains("Deposit"));
+    // Text labels only — no direction glyph prefix
+    assert!(!stderr.contains("↓ Deposit"));
 }
 
 #[test]
@@ -220,7 +222,7 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
 }
 
 #[test]
-fn native_pool_detail_recent_activity_uses_direction_glyphs() {
+fn native_pool_detail_recent_activity_uses_text_labels() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();
     let rpc_url = fixture.base_url().to_string();
@@ -237,7 +239,7 @@ fn native_pool_detail_recent_activity_uses_direction_glyphs() {
     assert!(stdout_string(&pool_detail).is_empty());
     let stderr = stderr_string(&pool_detail);
     assert!(stderr.contains("Recent activity"));
-    assert!(stderr.contains("↓ Deposit") || stderr.contains("v Deposit"));
+    assert!(stderr.contains("Deposit"));
 }
 
 #[test]
