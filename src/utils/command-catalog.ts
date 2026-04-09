@@ -82,7 +82,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       agentWorkflowNotes: [
         "When generating a new recovery phrase in machine mode, pass --show-recovery-phrase and capture it immediately.",
-        "When importing an existing recovery phrase, nextActions points to migrate status --agent --all-chains first so the CLI can check legacy migration or website-recovery readiness before restoring account state.",
+        "When importing an existing recovery phrase, nextActions points to migrate status --agent --all-chains first to check for existing deposits across all chains before transacting.",
       ],
     },
     capabilities: {

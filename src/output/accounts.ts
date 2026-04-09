@@ -322,7 +322,7 @@ function buildEmptyAccountsHumanNextActions(
     return [
       createNextAction(
         "migrate status",
-        "Check whether this recovery phrase has legacy migration or website-recovery history before assuming the wallet is empty.",
+        "If you imported this recovery phrase from the website, you may have existing deposits on other chains.",
         "accounts_restore_check",
         { options: { allChains: true } },
       ),
@@ -373,8 +373,8 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
       return formatCallout(
         "recovery",
         [
-          "No active Pool Accounts are visible yet, but this wallet has local account-state traces.",
-          "If this recovery phrase was imported, run privacy-pools migrate status --all-chains before assuming there is nothing left to restore or recover.",
+          "No active Pool Accounts found, but this wallet has local deposit history.",
+          "If you imported this recovery phrase, run privacy-pools migrate status --all-chains to check for existing deposits on other chains.",
         ],
       );
     default:

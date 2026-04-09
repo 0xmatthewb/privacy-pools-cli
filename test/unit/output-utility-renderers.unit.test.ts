@@ -495,7 +495,7 @@ describe("renderStatus parity", () => {
       {
         code: "restore_discovery_recommended",
         message:
-          "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
+          "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
         affects: ["discovery"],
       },
     ]);
@@ -505,7 +505,7 @@ describe("renderStatus parity", () => {
       {
         command: "migrate status",
         reason:
-          "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
+          "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
         when: "status_restore_discovery",
         options: { agent: true, allChains: true },
       },

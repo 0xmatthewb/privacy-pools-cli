@@ -158,7 +158,7 @@ export function deriveStatusPreflightGuidance(
     warnings.push(
       makeStatusIssue(
         "restore_discovery_recommended",
-        "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
+        "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
         ["discovery"],
       ),
     );
@@ -297,13 +297,13 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   let humanNextActions: ReturnType<typeof createNextAction>[];
   const restoreDiscoveryAgentAction = createNextAction(
     "migrate status",
-    "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
+    "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
     "status_restore_discovery",
     { options: { agent: true, allChains: true } },
   );
   const restoreDiscoveryHumanAction = createNextAction(
     "migrate status",
-    "If this recovery phrase was imported, check migration or website-recovery readiness across all chains before assuming the wallet is empty or fully restorable in the CLI.",
+    "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
     "status_restore_discovery",
     { options: { allChains: true } },
   );

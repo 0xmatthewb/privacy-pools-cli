@@ -165,7 +165,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     ? [
         createNextAction(
           "migrate status",
-          "Check migration or website-recovery readiness across all chains before restoring imported account state in the CLI.",
+          "You imported a recovery phrase. Check for existing deposits across all chains before transacting.",
           "after_restore",
           { options: { agent: true, allChains: true } },
         ),
@@ -186,7 +186,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     ? [
         createNextAction(
           "migrate status",
-          "Check migration or website-recovery readiness across all chains before restoring imported account state in the CLI.",
+          "You imported a recovery phrase. Check for existing deposits across all chains before transacting.",
           "after_restore",
           { options: { allChains: true } },
         ),
